@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
-import { apiKeyAuth } from "../../middlewares/apiKeyAuth";
+import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -41,14 +41,16 @@ const router: Router = Router({ mergeParams: true });
  * @apiError (Forbidden 403) AuthenticationRequired Authentication is required when partnerId is specified
  * @apiError (Forbidden 403) PartnerMismatch The authenticated partner does not match the partnerId
  */
-router.route("/").post(
-  validateCreateQuoteInput,
-  optionalAuth, // Extract userId from Bearer token if provided (optional)
-  validatePublicKey(), // Validate public key if provided (optional)
-  apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
-  // enforcePartnerAuth(), // Enforce secret key auth if partnerId present // We don't enforce this for now and allow passing a partnerId without secret key
-  createQuote
-);
+router
+  .route("/")
+  .post(
+    validateCreateQuoteInput,
+    optionalAuth,
+    validatePublicKey(),
+    apiKeyAuth({ required: false }),
+    enforcePartnerAuth(),
+    createQuote
+  );
 
 /**
  * @api {post} v1/quotes/best Create best quote across all networks
@@ -100,13 +102,16 @@ router.route("/").post(
  * @apiError (Forbidden 403) AuthenticationRequired Authentication is required when partnerId is specified
  * @apiError (Forbidden 403) PartnerMismatch The authenticated partner does not match the partnerId
  */
-router.route("/best").post(
-  validateCreateBestQuoteInput,
-  optionalAuth, // Extract userId from Bearer token if provided (optional)
-  validatePublicKey(), // Validate public key if provided (optional)
-  apiKeyAuth({ required: false }), // Validate secret key if provided (optional)
-  createBestQuote
-);
+router
+  .route("/best")
+  .post(
+    validateCreateBestQuoteInput,
+    optionalAuth,
+    validatePublicKey(),
+    apiKeyAuth({ required: false }),
+    enforcePartnerAuth(),
+    createBestQuote
+  );
 
 /**
  * @api {get} v1/quotes/:id Get quote

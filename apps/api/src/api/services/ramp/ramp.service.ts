@@ -41,7 +41,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { Op, Transaction } from "sequelize";
+import { Op, Transaction, WhereOptions } from "sequelize";
 import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
 import { config } from "../../../config";
@@ -49,7 +49,7 @@ import logger from "../../../config/logger";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
-import RampState from "../../../models/rampState.model";
+import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
@@ -630,17 +630,39 @@ export class RampService extends BaseRampService {
   /**
    * Get ramp history for a wallet address
    */
-  public async getRampHistory(walletAddress: string, limit?: number, offset?: number): Promise<GetRampHistoryResponse> {
+  public async getRampHistory(
+    walletAddress: string,
+    owner: { partnerId: string } | { userId: string },
+    limit?: number,
+    offset?: number
+  ): Promise<GetRampHistoryResponse> {
+    const baseWhere = {
+      [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
+      currentPhase: {
+        [Op.ne]: "initial"
+      }
+    };
+
+    let where: WhereOptions<RampStateAttributes>;
+    if ("userId" in owner) {
+      where = { ...baseWhere, userId: owner.userId };
+    } else {
+      const partnerQuotes = await QuoteTicket.findAll({
+        attributes: ["id"],
+        where: { partnerId: owner.partnerId }
+      });
+      const ownedQuoteIds = partnerQuotes.map(q => q.id);
+      if (ownedQuoteIds.length === 0) {
+        return { totalCount: 0, transactions: [] };
+      }
+      where = { ...baseWhere, quoteId: { [Op.in]: ownedQuoteIds } };
+    }
+
     const { rows: rampStates, count: totalCount } = await RampState.findAndCountAll({
       limit,
       offset,
       order: [["createdAt", "DESC"]],
-      where: {
-        [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
-        currentPhase: {
-          [Op.ne]: "initial"
-        }
-      }
+      where
     });
 
     // Fetch quotes for the ramp states
