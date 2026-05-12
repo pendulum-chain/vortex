@@ -19,12 +19,17 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 **EUR On-ramp (Monerium SEPA):** SEPA payment → Monerium mints EURe on Polygon → SquidRouter to Moonbeam → XCM to Pendulum → Nabla swap → destination chain
 - Phases: `initial` → `moneriumOnrampMint` (poll) → `moneriumOnrampSelfTransfer` → `squidRouterApprove` → `squidRouterSwap` → `moonbeamToPendulumXcm` → `nablaApprove` → `nablaSwap` → ... → `complete`
 
-**BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
-- Phases: `initial` → (`squidRouterPermitExecute` | `squidRouterApprove`+`squidRouterSwap` | no-permit fallback `squidRouterNoPermit*` | `isDirectTransfer`) → `squidRouterPay` → `distributeFeesEvm` (on Base, USDC) → `subsidizePreSwapEvm` → `nablaApproveEvm` → `nablaSwapEvm` → `brlaPayoutOnBase` → `complete`
-- Note: `distributeFeesEvm` runs **before** `nablaSwapEvm` on offramp because fees are denominated in USDC and must be deducted before swapping to BRLA.
+**BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC (user-signed, client-side) → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
+- Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwapEvm` → `nablaApprove` → `nablaSwap` → `subsidizePostSwapEvm` → `brlaPayoutOnBase` → `complete`
+- The Squid bridge from the source EVM chain to Base is executed by the user's wallet (presigned `squidRouterApprove` + `squidRouterSwap` are submitted client-side); there is no runtime `squidRouterPay` phase in the BRL off-ramp.
+- Note: `distributeFees` runs **before** `nablaSwap` on offramp because fees are denominated in USDC and must be deducted before swapping to BRLA.
+- Naming: `nablaApprove`/`nablaSwap`/`distributeFees` are polymorphic runtime phases that dispatch to the EVM (Base) branch when BRL is the input or output currency. The `*Evm` strings (e.g. `nablaApproveEvm`, `nablaSwapEvm`, `distributeFeesEvm`) are presigned-tx phase keys, not runtime phase names. `subsidizePreSwapEvm` and `subsidizePostSwapEvm` are distinct runtime phases.
 
 **BRL On-ramp (Avenia/BRLA on Base):** PIX payment → Avenia mints BRLA on Base ephemeral → Nabla-on-Base swap (BRLA→USDC) → optional Squid → user destination
-- Phases: `initial` → `brlaOnrampMint` (poll Base RPC, 30min outer / 5min inner) → `subsidizePreSwapEvm` → `nablaApproveEvm` → `nablaSwapEvm` → `subsidizePostSwapEvm` → `distributeFeesEvm` → (skip-Squid if dest=Base+USDC | else `squidRouterApprove` + `squidRouterSwap` + `squidRouterPay` + optional `backupSquidRouter*` on dest chain) → `destinationTransfer` → `complete`
+- Runtime backend phases: `initial` → `brlaOnrampMint` (poll Base RPC, 30min outer / 5min inner) → `fundEphemeral` → `subsidizePreSwapEvm` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwapEvm` → `squidRouterSwap` → `destinationTransfer` → `complete`
+- Skip-Squid case (destination = Base USDC): the `squidRouterSwap` handler short-circuits directly to `destinationTransfer`.
+- Cross-chain case (destination ≠ Base USDC): `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer`. For AssetHub destinations the chain instead goes `squidRouterPay` → `moonbeamToPendulum` → ... → `complete`. Optional `backupSquidRouter*` transactions on the destination chain are triggered by `finalSettlementSubsidy` when the primary bridged token underdelivers.
+- Base ephemeral cleanup (`baseCleanupUsdc`, `baseCleanupBrla`) is performed out-of-flow by a separate sweeper after `complete`; cleanup approvals are presigned but not part of the runtime nextPhase chain.
 
 **Alfredpay corridors:** Similar structure with `alfredpayOfframpTransfer` / `alfredpayOnrampMint` replacing the fiat provider phases.
 
@@ -60,17 +65,21 @@ graph TD
 
     %% --- BRL via Avenia/BRLA on Base ---
     Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC]
-    BrlaMint --> BrlaSubPreEvm[subsidizePreSwapEvm]
-    BrlaSubPreEvm --> BrlaApproveEvm[nablaApproveEvm]
-    BrlaApproveEvm --> BrlaSwapEvm[nablaSwapEvm]
-    BrlaSwapEvm --> BrlaSubPostEvm[subsidizePostSwapEvm]
-    BrlaSubPostEvm --> BrlaDistEvm[distributeFeesEvm]
-    BrlaDistEvm --> BrlaDest{Destination = Base USDC?}
-    BrlaDest -->|Yes - skip Squid| DestTransfer[destinationTransfer]
-    BrlaDest -->|No| BrlaSquidApprove[squidRouterApprove]
-    BrlaSquidApprove --> BrlaSquidSwap[squidRouterSwap]
-    BrlaSquidSwap --> BrlaSquidPay[squidRouterPay]
-    BrlaSquidPay --> BrlaBackup{Backup tx needed?}
+    BrlaMint --> BrlaFund[fundEphemeral]
+    BrlaFund --> BrlaSubPreEvm[subsidizePreSwapEvm]
+    BrlaSubPreEvm --> BrlaApproveEvm["nablaApprove (EVM branch, presigned: nablaApproveEvm)"]
+    BrlaApproveEvm --> BrlaSwapEvm["nablaSwap (EVM branch, presigned: nablaSwapEvm)"]
+    BrlaSwapEvm --> BrlaDistEvm["distributeFees (EVM branch, presigned: distributeFeesEvm)"]
+    BrlaDistEvm --> BrlaSubPostEvm[subsidizePostSwapEvm]
+    BrlaSubPostEvm --> BrlaSquidSwap[squidRouterSwap]
+    BrlaSquidSwap --> BrlaDest{Destination = Base USDC?}
+    BrlaDest -->|Yes - short-circuit| DestTransfer[destinationTransfer]
+    BrlaDest -->|No - cross-chain| BrlaSquidPay[squidRouterPay]
+    BrlaSquidPay --> BrlaPayDest{Destination = AssetHub?}
+    BrlaPayDest -->|Yes| BrlaToPendulum[moonbeamToPendulum]
+    BrlaPayDest -->|No - EVM| BrlaFinalSubsidy[finalSettlementSubsidy]
+    BrlaToPendulum --> SubPre
+    BrlaFinalSubsidy --> BrlaBackup{Backup bridge needed?}
     BrlaBackup -->|Yes| BrlaBackupSquid[backupSquidRouter*]
     BrlaBackup -->|No| DestTransfer
     BrlaBackupSquid --> DestTransfer
@@ -110,21 +119,15 @@ graph TD
     Init --> Corridor{Output fiat?}
 
     %% --- BRL via Avenia/BRLA on Base ---
-    Corridor -->|BRL on Base| BrlSquidEntry{Entry mode?}
-    BrlSquidEntry -->|Permit| BrlPermit[squidRouterPermitExecute]
-    BrlSquidEntry -->|Approve+Swap| BrlApproveUser[squidRouterApprove]
-    BrlApproveUser --> BrlSwapUser[squidRouterSwap]
-    BrlSquidEntry -->|No-permit fallback| BrlNoPermit[squidRouterNoPermit*]
-    BrlSquidEntry -->|Direct transfer| BrlDirect[isDirectTransfer]
-    BrlPermit --> BrlSquidPay[squidRouterPay]
-    BrlSwapUser --> BrlSquidPay
-    BrlNoPermit --> BrlSquidPay
-    BrlDirect --> BrlSquidPay
-    BrlSquidPay --> BrlDistEvm[distributeFeesEvm]
+    %% The user-signed Squid bridge (source EVM -> Base USDC) is submitted client-side
+    %% before the backend runtime starts; squidRouterPay is a no-op for SELL.
+    Corridor -->|BRL on Base| BrlFund[fundEphemeral]
+    BrlFund --> BrlDistEvm["distributeFees (EVM branch, presigned: distributeFeesEvm)"]
     BrlDistEvm --> BrlSubPreEvm[subsidizePreSwapEvm]
-    BrlSubPreEvm --> BrlApproveEvm[nablaApproveEvm]
-    BrlApproveEvm --> BrlSwapEvm[nablaSwapEvm - USDC to BRLA]
-    BrlSwapEvm --> BrlPayout[brlaPayoutOnBase]
+    BrlSubPreEvm --> BrlApproveEvm["nablaApprove (EVM branch, presigned: nablaApproveEvm)"]
+    BrlApproveEvm --> BrlSwapEvm["nablaSwap (EVM branch, USDC to BRLA, presigned: nablaSwapEvm)"]
+    BrlSwapEvm --> BrlSubPostEvm[subsidizePostSwapEvm]
+    BrlSubPostEvm --> BrlPayout[brlaPayoutOnBase]
     BrlPayout --> Complete([complete])
     Complete -.post-process.-> BaseCleanup[BaseChainPostProcessHandler<br/>sweeps BRLA + USDC]
 

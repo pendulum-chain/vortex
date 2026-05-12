@@ -218,7 +218,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
     // brla onramp case
     if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
-      return "nablaApprove";
+      return "subsidizePreSwapEvm";
     }
     // alfredpay onramp case
     if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {

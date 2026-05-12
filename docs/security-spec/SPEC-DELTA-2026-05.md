@@ -166,6 +166,18 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ---
 
+### F-NEW-12 — BRL on-ramp skipped `subsidizePreSwapEvm` (RESOLVED)
+
+**Location:** `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts:220-222`.
+
+**Issue:** The BRL on-ramp runtime phase chain transitioned `fundEphemeral → nablaApprove` directly, skipping `subsidizePreSwapEvm`. The handler was registered and wired downstream (`subsidizePreSwapEvm → nablaApprove`), but no upstream handler returned `"subsidizePreSwapEvm"` as its next phase for BRL onramps. The symmetric `subsidizePostSwapEvm` phase was reached normally via `nablaSwap`'s nextPhase logic, producing an asymmetric flow where pre-swap subsidization was unreachable.
+
+**Risk:** If the Avenia BRLA mint underdelivers (e.g. anchor fee not pre-deducted, transient rounding, or mint amount slightly below `inputAmountForSwapRaw`), the on-ramp would fail at `nablaSwap` with insufficient input balance instead of being topped up by the funding key (capped at 5% of `outputAmount` via `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`). User funds remained on the Base ephemeral until manual recovery.
+
+**Resolution:** Changed the BRL onramp branch of `FundEphemeralHandler.nextPhaseSelector` to return `"subsidizePreSwapEvm"`. The phase chain is now `fundEphemeral → subsidizePreSwapEvm → nablaApprove → nablaSwap → ...`, symmetric with the BRL off-ramp pre-swap subsidization path.
+
+---
+
 ### F-NEW-06a — `Partner.payout_address_evm` NULL on vortex row throws (LOW, operational)
 
 **Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:232-241`.
