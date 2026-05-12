@@ -1,8 +1,8 @@
-import { AveniaAccountType } from "../../../src/services/brla";
 import {
   AccountLimitsResponse,
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
+  AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaPayinTicket,
   AveniaPayoutTicket,
