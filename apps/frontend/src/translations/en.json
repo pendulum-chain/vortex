@@ -516,10 +516,12 @@
     },
     "kybBusinessDocs": {
       "articlesIncorporation": "Articles of Incorporation",
+      "docBack": "ID Document – Back",
+      "docFront": "ID Document – Front",
       "proofAddress": "Proof of Address",
-      "shareholderRegistry": "Shareholder Registry",
       "submit": "Submit Documents",
       "subtitle": "Please upload the required business documents. Max 5 MB per file (JPG, PNG, PDF).",
+      "taxIdDocument": "Tax ID Document",
       "title": "Business Documents"
     },
     "kybForm": {

@@ -253,35 +253,27 @@ graph TD
             M_Start[moneriumOnrampMint] --> M_Fund[fundEphemeral] --> M_Transfer[moneriumOnrampSelfTransfer] --> M_Dest{Destination?};
         end
 
-        subgraph BRLA_Flow [BRLA BRL]
+        subgraph BRLA_Flow [BRLA BRL on Base]
             direction LR
-            B_Start[brlaOnrampMint] --> B_FUND[fundEphemeral] --> B_to_P[moonbeamToPendulumXcm];
+            B_Mint[brlaOnrampMint] --> B_Fund[fundEphemeral] --> B_Nabla[nablaSwap] --> B_Dist[distributeFees] --> B_PostSub[subsidizePostSwapEvm];
         end
 
         %% --- All non-AssetHub paths enter the shared EVM settlement subgraph ---
         AF_Fund --> SES_Swap;
         M_Dest -->|EVM| SES_Swap;
-        B_to_M[pendulumToMoonbeamXcm] --> SES_Swap;
+        B_PostSub --> SES_Swap;
 
         %% --- Monerium AssetHub path (dedicated squid nodes, different destination) ---
         M_Dest -->|AssetHub| M_AH_Swap[squidRouterSwap - Moonbeam] --> M_AH_Pay[squidRouterPay] --> M_to_P[moonbeamToPendulum];
 
         %% --- Connections to/from Common Pendulum Swap Flow ---
         M_to_P --> PS_Start;
-        B_to_P --> PS_Start;
-        PS_post --> Post_Swap_Router{Source Flow?};
-
-        %% --- Diverging paths after Pendulum Swap ---
-        Post_Swap_Router -->|From Monerium| AHF_Start;
-        Post_Swap_Router -->|From BRLA| BRLA_Post_Swap_Dest{Destination?};
-
-        BRLA_Post_Swap_Dest -->|AssetHub| AHF_Start;
-        BRLA_Post_Swap_Dest -->|EVM| B_to_M;
+        PS_post --> AHF_Start;
     end
 
     subgraph "Off-Ramp"
         direction LR
-        M_off[Start Off-Ramp] --> N_off{Input Source?};
+        M_off[Start Off-Ramp] --> N_off{Flow?};
         
         %% --- Alfredpay Off-Ramp Flow ---
         N_off -->|Alfredpay| AF_Off_Permit[squidRouterPermitExecute];
@@ -290,7 +282,17 @@ graph TD
         AF_Off_Subsidy --> AF_Off_Transfer[alfredpayOfframpTransfer];
         AF_Off_Transfer --> Y_off[Complete];
         
-        %% --- Standard Off-Ramp Flows ---
+        %% --- BRLA Off-Ramp Flow on Base ---
+        N_off -->|BRL| B_Off_Squid[squidRouterSwap_user];
+        B_Off_Squid --> B_Off_Fund[fundEphemeral];
+        B_Off_Fund --> B_Off_Dist[distributeFees];
+        B_Off_Dist --> B_Off_Pre[subsidizePreSwapEvm];
+        B_Off_Pre --> B_Off_Nabla[nablaSwap];
+        B_Off_Nabla --> B_Off_Post[subsidizePostSwapEvm];
+        B_Off_Post --> B_Off_Payout[brlaPayoutOnBase];
+        B_Off_Payout --> Y_off;
+
+        %% --- Standard Off-Ramp Flows (EUR/ARS) ---
         N_off -->|EVM| O_off[moonbeamToPendulum];
         N_off -->|AssetHub| P_off[distributeFees_assethub];
         O_off --> Q_off[distributeFees_evm];
@@ -299,11 +301,7 @@ graph TD
         R_off --> S_off[nablaApprove];
         S_off --> T_off[nablaSwap];
         T_off --> U_off[subsidizePostSwap];
-        U_off --> V_off{Output Fiat?};
-        V_off -->|BRL| W_off[pendulumToMoonbeam];
-        W_off --> X_off[brlaPayoutOnMoonbeam];
-        X_off --> Y_off;
-        V_off -->|EUR/ARS| Z_off[spacewalkRedeem];
+        U_off --> Z_off[spacewalkRedeem];
         Z_off --> AA_off[stellarPayment];
         AA_off --> Y_off;
     end

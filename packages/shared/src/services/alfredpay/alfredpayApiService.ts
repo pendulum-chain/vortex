@@ -7,6 +7,7 @@ import {
   AlfredpayFiatAccountFields,
   AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
+  AlfredpayKybCustomerAndBusiness,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
@@ -268,7 +269,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("fileBody", file);
+    formData.append("rawBody", file);
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
@@ -300,6 +301,15 @@ export class AlfredpayApiService {
     return (await this.executeRequest(path, "POST", { kybSubmission: data })) as SubmitKybInformationResponse;
   }
 
+  /**
+   * Alfredpay: GET …/customers/{customerId}/kyb/details — returns the relate-person ids needed for KYB file uploads.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_findcustomerandbusiness-1
+   */
+  public async getKybBusinessDetails(customerId: string): Promise<AlfredpayKybCustomerAndBusiness[]> {
+    const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb/details`;
+    return (await this.executeRequest<AlfredpayKybCustomerAndBusiness[]>(path, "GET")) ?? [];
+  }
+
   public async submitKybFiles(
     customerId: string,
     submissionId: string,
@@ -326,6 +336,11 @@ export class AlfredpayApiService {
     }
   }
 
+  /**
+   * Penny: POST …/customers/{customerId}/kyb/{idRelatedPerson}/files/relate-person
+   * Path segment = Penny “Related Person ID” (from KYB submit response `relatedPersons[].id`, not the customerId).
+   * Docs (typo in path name): https://alfredpay.readme.io/v2.0/reference/kybcontroller_submitkybfilerelateperson-3
+   */
   public async submitKybRelatedPersonFiles(
     customerId: string,
     relatedPersonId: string,

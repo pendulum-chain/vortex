@@ -5,7 +5,9 @@ import {
   AlfredpayKybRelatedPersonFileType,
   AlfredpayKycFileType,
   type SubmitKybInformationRequest,
-  type SubmitKycInformationRequest
+  type SubmitKybInformationResponse,
+  type SubmitKycInformationRequest,
+  type SubmitKycInformationResponse
 } from "@vortexfi/shared";
 import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
@@ -21,9 +23,11 @@ export interface MxnKycFiles {
 }
 
 export interface KybBusinessFiles {
+  taxIdDocument: File;
   articlesIncorporation: File;
   proofAddress: File;
-  shareholderRegistry: File;
+  docFront: File;
+  docBack: File;
 }
 
 export interface KybPersonFiles {
@@ -32,6 +36,30 @@ export interface KybPersonFiles {
 }
 
 const POLLING_TIMEOUT_MS = 20 * 60 * 1000; // 20 minutes
+
+function extractSubmissionId(payload: SubmitKybInformationResponse | SubmitKycInformationResponse): string | undefined {
+  return payload.submissionId && payload.submissionId.length > 0 ? payload.submissionId : undefined;
+}
+
+/**
+ * Extracts relate-person ids from Alfredpay GET …/customers/{customerId}/kyb/details.
+ * Response shape: `[{ relatedPersons: [{ idRelatedPerson: "..." }] }]`.
+ */
+function extractKybRelatedPersonIds(payload: unknown): string[] {
+  if (!Array.isArray(payload)) return [];
+  const ids: string[] = [];
+  for (const business of payload) {
+    if (business === null || typeof business !== "object") continue;
+    const relatedPersons = (business as Record<string, unknown>).relatedPersons;
+    if (!Array.isArray(relatedPersons)) continue;
+    for (const person of relatedPersons) {
+      if (person === null || typeof person !== "object") continue;
+      const id = (person as Record<string, unknown>).idRelatedPerson;
+      if (typeof id === "string" && id.length > 0) ids.push(id);
+    }
+  }
+  return ids;
+}
 
 export enum AlfredpayKycMachineErrorType {
   UserRejected = "USER_REJECTED",
@@ -65,6 +93,11 @@ export const alfredpayKycMachine = setup({
         return AlfredpayService.createBusinessCustomer(country);
       }
       return AlfredpayService.createIndividualCustomer(country);
+    }),
+
+    findKybCustomerAndBusiness: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
+      const country = input.country || "MX";
+      return AlfredpayService.findKybCustomerAndBusiness(country);
     }),
 
     getKycLink: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -162,26 +195,19 @@ export const alfredpayKycMachine = setup({
     submitKybBusinessFiles: fromPromise(
       async ({ input }: { input: AlfredpayKycContext & { kybBusinessFiles?: KybBusinessFiles } }) => {
         const country = input.country || "MX";
-        if (!input.submissionId) throw new Error("Submission ID missing");
+        if (!input.submissionId) {
+          throw new Error("Submission ID missing after KYB form submit");
+        }
         if (!input.kybBusinessFiles) throw new Error("KYB business files missing");
+        const { submissionId, kybBusinessFiles: files } = input;
+        await AlfredpayService.submitKybFile(country, submissionId, AlfredpayKybFileType.TAX_ID_DOCUMENT, files.taxIdDocument);
         await AlfredpayService.submitKybFile(
           country,
-          input.submissionId,
+          submissionId,
           AlfredpayKybFileType.ARTICLES_INCORPORATION,
-          input.kybBusinessFiles.articlesIncorporation
+          files.articlesIncorporation
         );
-        await AlfredpayService.submitKybFile(
-          country,
-          input.submissionId,
-          AlfredpayKybFileType.PROOF_ADDRESS,
-          input.kybBusinessFiles.proofAddress
-        );
-        await AlfredpayService.submitKybFile(
-          country,
-          input.submissionId,
-          AlfredpayKybFileType.SHAREHOLDER_REGISTRY,
-          input.kybBusinessFiles.shareholderRegistry
-        );
+        await AlfredpayService.submitKybFile(country, submissionId, AlfredpayKybFileType.PROOF_ADDRESS, files.proofAddress);
       }
     ),
 
@@ -205,7 +231,7 @@ export const alfredpayKycMachine = setup({
         const index = input.kybRelatedPersonIndex ?? 0;
         const files = input.kybRelatedPersonFiles?.[index];
         const relatedPersonId = input.kybRelatedPersonIds?.[index];
-        if (!files || !relatedPersonId) throw new Error("Missing person files or ID");
+        if (!files || !relatedPersonId) throw new Error("Missing person files or related person ID");
         await AlfredpayService.submitKybRelatedPersonFile(
           country,
           relatedPersonId,
@@ -217,6 +243,30 @@ export const alfredpayKycMachine = setup({
           relatedPersonId,
           AlfredpayKybRelatedPersonFileType.DOC_BACK,
           files.back
+        );
+      }
+    ),
+
+    submitKybRelatedPersonBundleFiles: fromPromise(
+      async ({ input }: { input: AlfredpayKycContext & { kybBusinessFiles?: KybBusinessFiles } }) => {
+        const country = input.country || "MX";
+        const files = input.kybBusinessFiles;
+        if (!files) throw new Error("KYB business files bundle missing representative ID files");
+        const relatedPersonId = input.kybRelatedPersonIds?.[0];
+        if (!relatedPersonId) {
+          throw new Error("Related person ID missing — FindingKybCustomerAndBusiness must run before this step");
+        }
+        await AlfredpayService.submitKybRelatedPersonFile(
+          country,
+          relatedPersonId,
+          AlfredpayKybRelatedPersonFileType.DOC_FRONT,
+          files.docFront
+        );
+        await AlfredpayService.submitKybRelatedPersonFile(
+          country,
+          relatedPersonId,
+          AlfredpayKybRelatedPersonFileType.DOC_BACK,
+          files.docBack
         );
       }
     ),
@@ -478,6 +528,43 @@ export const alfredpayKycMachine = setup({
         ]
       }
     },
+
+    FindingKybCustomerAndBusiness: {
+      invoke: {
+        id: "findKybCustomerAndBusiness",
+        input: ({ context }) => context,
+        onDone: [
+          {
+            actions: assign({
+              error: () =>
+                new AlfredpayKycMachineError(
+                  "Alfredpay GET …/customers/{customerId}/kyb/details did not return relatedPersons[].idRelatedPerson.",
+                  AlfredpayKycMachineErrorType.UnknownError
+                )
+            }),
+            guard: ({ event }) => extractKybRelatedPersonIds(event.output).length === 0,
+            target: "Failure"
+          },
+          {
+            actions: assign({
+              kybRelatedPersonIds: ({ event }) => extractKybRelatedPersonIds(event.output)
+            }),
+            target: "SubmittingKybRelatedPersonBundle"
+          }
+        ],
+        onError: {
+          actions: assign({
+            error: () =>
+              new AlfredpayKycMachineError(
+                "Failed to fetch related person ids from Alfredpay",
+                AlfredpayKycMachineErrorType.UnknownError
+              )
+          }),
+          target: "Failure"
+        },
+        src: "findKybCustomerAndBusiness"
+      }
+    },
     FinishingFilling: {
       invoke: {
         id: "notifyFinished",
@@ -655,18 +742,21 @@ export const alfredpayKycMachine = setup({
       invoke: {
         id: "submitKybBusinessFiles",
         input: ({ context }) => context,
-        onDone: [
-          {
-            actions: assign({ kybRelatedPersonIndex: 0 }),
-            guard: ({ context }) => !!context.kybRelatedPersonIds?.length,
-            target: "UploadingKybPersonDocs"
-          },
-          { target: "SendingKybSubmission" }
-        ],
+        onDone: {
+          target: "FindingKybCustomerAndBusiness"
+        },
         onError: {
           actions: assign({
-            error: () =>
-              new AlfredpayKycMachineError("Failed to upload business documents", AlfredpayKycMachineErrorType.UnknownError)
+            error: ({ event }) => {
+              const err = event.error;
+              const msg = err instanceof Error ? err.message : "";
+              return msg
+                ? new AlfredpayKycMachineError(msg, AlfredpayKycMachineErrorType.UnknownError)
+                : new AlfredpayKycMachineError(
+                    "Failed to upload KYB business documents",
+                    AlfredpayKycMachineErrorType.UnknownError
+                  );
+            }
           }),
           target: "Failure"
         },
@@ -678,14 +768,25 @@ export const alfredpayKycMachine = setup({
       invoke: {
         id: "submitKybInfo",
         input: ({ context }) => context,
-        onDone: {
-          actions: assign({
-            kybRelatedPersonIds: ({ event }) =>
-              (event.output as { submissionId: string; relatedPersons?: Array<{ id: string }> }).relatedPersons?.map(p => p.id),
-            submissionId: ({ event }) => (event.output as { submissionId: string }).submissionId
-          }),
-          target: "UploadingKybBusinessDocs"
-        },
+        onDone: [
+          {
+            actions: assign({
+              error: () =>
+                new AlfredpayKycMachineError(
+                  "KYB information was submitted but Alfredpay did not return a submission ID",
+                  AlfredpayKycMachineErrorType.UnknownError
+                )
+            }),
+            guard: ({ event }) => !extractSubmissionId(event.output),
+            target: "Failure"
+          },
+          {
+            actions: assign({
+              submissionId: ({ event }) => extractSubmissionId(event.output)
+            }),
+            target: "UploadingKybBusinessDocs"
+          }
+        ],
         onError: {
           actions: assign({
             error: () =>
@@ -726,12 +827,40 @@ export const alfredpayKycMachine = setup({
       }
     },
 
+    SubmittingKybRelatedPersonBundle: {
+      invoke: {
+        id: "submitKybRelatedPersonBundleFiles",
+        input: ({ context }) => context,
+        onDone: {
+          target: "SendingKybSubmission"
+        },
+        onError: {
+          actions: assign({
+            error: ({ event }) => {
+              const err = event.error;
+              const msg = err instanceof Error ? err.message : "";
+              return msg
+                ? new AlfredpayKycMachineError(msg, AlfredpayKycMachineErrorType.UnknownError)
+                : new AlfredpayKycMachineError(
+                    "Failed to submit KYB relate-person documents (POST submitKybRelatedPersonFile)",
+                    AlfredpayKycMachineErrorType.UnknownError
+                  );
+            }
+          }),
+          target: "Failure"
+        },
+        src: "submitKybRelatedPersonBundleFiles"
+      }
+    },
+
     SubmittingKycInfo: {
       invoke: {
         id: "submitKycInfo",
         input: ({ context }) => context,
         onDone: {
-          actions: assign({ submissionId: ({ event }) => (event.output as { submissionId: string }).submissionId }),
+          actions: assign({
+            submissionId: ({ event }) => extractSubmissionId(event.output)
+          }),
           target: "UploadingDocuments"
         },
         onError: {

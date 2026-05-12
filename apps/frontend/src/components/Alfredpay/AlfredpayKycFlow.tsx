@@ -72,6 +72,8 @@ export const AlfredpayKycFlow = () => {
     stateValue === "SendingSubmission" ||
     stateValue === "SubmittingKybInfo" ||
     stateValue === "SubmittingKybBusinessFiles" ||
+    stateValue === "FindingKybCustomerAndBusiness" ||
+    stateValue === "SubmittingKybRelatedPersonBundle" ||
     stateValue === "SubmittingKybPersonFiles" ||
     stateValue === "SendingKybSubmission"
   ) {
@@ -96,7 +98,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKybForm") {
-    return <KybFormScreen onSubmit={submitKybForm} />;
+    return <KybFormScreen country={context.country} onSubmit={submitKybForm} />;
   }
 
   if (stateValue === "UploadingKybBusinessDocs") {

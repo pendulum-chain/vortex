@@ -4,7 +4,10 @@ import {
   ApiManager,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
+  EvmClientManager,
+  FiatToken,
   NABLA_ROUTER,
+  Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
@@ -22,15 +25,27 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const apiManager = ApiManager.getInstance();
-    const networkName = "pendulum";
-    const pendulumNode = await apiManager.getApi(networkName);
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
 
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
+
+    const { substrateEphemeralAddress } = state.state as StateMetadata;
+
+    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+      return this.executeEvmSwap(state, quote);
+    } else if (substrateEphemeralAddress) {
+      return this.executeSubstrateSwap(state, quote);
+    } else {
+      throw new Error("NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
+    }
+  }
+
+  private async executeSubstrateSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
+    const apiManager = ApiManager.getInstance();
+    const networkName = "pendulum";
+    const pendulumNode = await apiManager.getApi(networkName);
 
     const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
 
@@ -116,6 +131,46 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     }
 
     const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+    return this.transitionToNextPhase(state, nextPhase);
+  }
+
+  private async executeEvmSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+
+    try {
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
+
+      if (typeof nablaSwapTransaction !== "string") {
+        throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
+      }
+
+      const txHash = await baseClient.sendRawTransaction({
+        serializedTransaction: nablaSwapTransaction as `0x${string}`
+      });
+
+      const receipt = await baseClient.waitForTransactionReceipt({
+        hash: txHash
+      });
+
+      if (!receipt || receipt.status !== "success") {
+        throw new Error(`NablaSwapPhaseHandler: EVM swap transaction ${txHash} failed`);
+      }
+
+      logger.info(`NablaSwapPhaseHandler: EVM swap transaction successful: ${txHash}`);
+    } catch (e) {
+      logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
+      // unrecoverable by default.
+      // TODO do we want to add automatic recovery? Issue is, invalid swaps now revert.
+      // We can add a retry with up to 1 or 2 backups. Or try to differentiate based on the revert message.
+      // Although, this operation should never fail with the right amount of tokens, assuming the minium can be met.
+      // we could call the quoter to be sure right before, a sort of dry-run.
+      throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
+    }
+
+    const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
+    const nextPhase =
+      state.type === RampDirection.BUY ? "distributeFees" : isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

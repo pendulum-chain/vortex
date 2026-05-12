@@ -6,8 +6,11 @@ import {
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
-  FiatToken,
-  getAnyFiatTokenDetailsMoonbeam,
+  EvmAddress,
+  EvmToken,
+  evmTokenConfig,
+  getEvmTokenBalance,
+  multiplyByPowerOfTen,
   Networks,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -28,7 +31,12 @@ import { StateMetadata } from "../meta-state-types";
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-// Phase description: wait for the tokens to arrive at the Moonbeam ephemeral address.
+// The pre-computed expected amount stored at quote-creation time can be slightly higher than the
+// amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
+// in the recovery shortcut so that an already-funded ephemeral is not missed.
+const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
+
+// Phase description: wait for the tokens to arrive at the Base ephemeral address.
 // If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
 export class BrlaOnrampMintHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -61,6 +69,29 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
+    if (!tokenDetails) {
+      throw new Error("BRLA token details not found for Base network");
+    }
+
+    // Used only for the recovery shortcut below: the pre-computed metadata value is a
+    // reasonable upper-bound estimate of what should arrive at the ephemeral. The actual
+    // amount is determined by the live Avenia quote created later in this phase.
+    const preComputedExpectedAmountRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
+
+    // Recovery shortcut: a previous run may have already minted on Avenia and
+    // transferred to the ephemeral. We accept a balance of at least 95% of the
+    // pre-computed expected amount to account for fee differences between quote
+    // creation time and execution time.
+    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
+
+    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
+      logger.info(
+        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
+      );
+      return this.transitionToNextPhase(state, "fundEphemeral");
     }
 
     const brlaApiService = BrlaApiService.getInstance();
@@ -106,41 +137,47 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.MOONBEAM,
+      outputPaymentMethod: AveniaPaymentMethod.BASE,
       outputThirdParty: false,
       subAccountId: taxIdRecord.subAccountId
     });
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
 
+    // Derive the expected on-chain amount from the live quote's outputAmount rather than
+    // the stale pre-computed metadata value. The live quote accounts for the actual fees
+    // applied at execution time, so this is the amount that will truly arrive on Base.
+    const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDetails.decimals).toFixed(0, 0);
+
+    logger.info(
+      `BrlaOnrampMintHandler: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`
+    );
+
     const aveniaTicket = await brlaApiService.createPixOutputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
           walletAddress: state.state.evmEphemeralAddress,
-          walletChain: AveniaPaymentMethod.MOONBEAM
+          walletChain: AveniaPaymentMethod.BASE
         }
       },
       taxIdRecord.subAccountId
     );
 
-    const expectedAmountReceived = quote.metadata.aveniaTransfer?.outputAmountRaw;
-
     logger.info(
-      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Moonbeam address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${aveniaQuote.outputAmount} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
       const pollingTimeMs = 1000;
-      const tokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
 
       await checkEvmBalancePeriodically(
-        tokenDetails.moonbeamErc20Address,
+        tokenDetails.erc20AddressSourceChain,
         evmEphemeralAddress,
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Moonbeam
+        Networks.Base
       );
     } catch (error) {
       if (!(error instanceof BalanceCheckError)) throw error;
@@ -153,16 +190,38 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
       throw isCheckTimeout
         ? this.createRecoverableError(`BrlaOnrampMintHandler: phase timeout reached with error: ${error}`)
-        : new Error(`Error checking Moonbeam balance: ${error}`);
+        : new Error(`Error checking Base balance: ${error}`);
     }
 
     return this.transitionToNextPhase(state, "fundEphemeral");
   }
 
+  private async ephemeralAlreadyFunded(
+    tokenAddress: string,
+    ownerAddress: string,
+    expectedAmountRaw: string
+  ): Promise<boolean> {
+    try {
+      const balance = await getEvmTokenBalance({
+        chain: Networks.Base,
+        ownerAddress: ownerAddress as EvmAddress,
+        tokenAddress: tokenAddress as EvmAddress
+      });
+      return balance.gte(new Big(expectedAmountRaw));
+    } catch (error) {
+      // Treat read failures as "not funded" so we fall through to the regular
+      // flow rather than aborting the phase on a transient RPC error.
+      logger.warn(
+        `BrlaOnrampMintHandler: ephemeral balance pre-check failed for ${ownerAddress}, falling back to Avenia flow: ${error}`
+      );
+      return false;
+    }
+  }
+
   protected isPaymentTimeoutReached(state: RampState): boolean {
     const thisPhaseEntry = state.phaseHistory.find(phaseHistoryEntry => phaseHistoryEntry.phase === this.getPhaseName());
     if (!thisPhaseEntry) {
-      throw new Error("BrlaOnrampMintHandler: Phase not found in history. State corrupted.");
+      throw new Error("BrlaOnrampMintHandler: Phase not found in history. This is a bug.");
     }
 
     const initialTimestamp = new Date(thisPhaseEntry.timestamp);

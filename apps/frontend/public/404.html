@@ -1,0 +1,146 @@
+<!--
+  Static 404 page — intentionally not a React route.
+  Netlify's _redirects serves this file with a real HTTP 404 status code so
+  crawlers don't index unknown URLs as soft 200s. The SPA catch-all can't
+  return a 404 status from a static host, and a React 404 wouldn't render
+  until the JS bundle boots — bots and JS-disabled users would see an empty
+  shell. Plain HTML/CSS gives correct status, instant render, and zero bundle cost.
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Page not found — Vortex</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --color-primary: oklch(0.45 0.2 260);
+        --color-primary-hover: oklch(0.37 0.2 260);
+        --color-primary-content: oklch(1 0 0);
+        --color-blue-100: #dbeafe;
+        --radius-field: 9px;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #fff;
+        font-family: "Red Hat Display", system-ui, -apple-system, sans-serif;
+        color: #0f172a;
+      }
+      body {
+        position: relative;
+        overflow: hidden;
+      }
+      .bg {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+      }
+      .bg::before,
+      .bg::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 50%;
+        background: linear-gradient(to bottom, #fff, var(--color-blue-100), #fff);
+      }
+      .bg::before {
+        left: 0;
+        animation: float 5s ease-in-out infinite;
+      }
+      .bg::after {
+        right: 0;
+        transform: rotate(180deg);
+        animation: float-delayed 6s ease-in-out infinite;
+      }
+      @keyframes float {
+        from { transform: translateY(0) scale(1); }
+        50% { transform: translateY(-25px) scale(1.02); }
+        to { transform: translateY(0) scale(1); }
+      }
+      @keyframes float-delayed {
+        from { transform: translateY(0) scale(1) rotate(180deg); }
+        50% { transform: translateY(35px) scale(1.02) rotate(180deg); }
+        to { transform: translateY(0) scale(1) rotate(180deg); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bg::before,
+        .bg::after {
+          animation: none;
+        }
+      }
+      main {
+        position: relative;
+        z-index: 1;
+        min-height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .wrap {
+        max-width: 480px;
+      }
+      h1 {
+        font-size: clamp(48px, 10vw, 96px);
+        font-weight: 700;
+        margin: 0 0 8px;
+        line-height: 1;
+        color: var(--color-primary);
+      }
+      h2 {
+        font-size: clamp(20px, 4vw, 28px);
+        font-weight: 700;
+        margin: 0 0 16px;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.5;
+        margin: 0 0 24px;
+        color: #475569;
+      }
+      .btn-vortex-primary {
+        display: inline-block;
+        background-color: var(--color-primary);
+        color: var(--color-primary-content);
+        text-decoration: none;
+        padding: 12px 24px;
+        border-radius: var(--radius-field);
+        border: 1px solid var(--color-primary);
+        font-weight: 600;
+        cursor: pointer;
+        transition: scale 0.1s ease-in-out, background-color 0.15s ease, border-color 0.15s ease;
+      }
+      .btn-vortex-primary:hover {
+        background-color: var(--color-primary-hover);
+        border-color: var(--color-primary-hover);
+      }
+      .btn-vortex-primary:active {
+        scale: 0.98;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+    <main>
+      <div class="wrap">
+        <h1>404</h1>
+        <h2>Page not found</h2>
+        <p>The page you're looking for doesn't exist or has moved.</p>
+        <a class="btn-vortex-primary" href="/">Back to Vortex</a>
+      </div>
+    </main>
+  </body>
+</html>

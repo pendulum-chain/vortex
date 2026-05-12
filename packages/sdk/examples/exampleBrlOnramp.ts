@@ -9,10 +9,12 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
       apiBaseUrl: "http://localhost:3000",
-      autoReconnect: true, // 'wss://custom-moonbeam-rpc.com',
+      autoReconnect: true,
       // Optional: provide custom WebSocket URLs
-      moonbeamWsUrl: undefined, // 'wss://custom-pendulum-rpc.com',
-      pendulumWsUrl: undefined, // default is `true`
+      moonbeamWsUrl: undefined,
+      pendulumWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
+      publicKey: "pk_live_REPLACEME", // 'wss://custom-pendulum-rpc.com',
+      secretKey: "sk_live_REPLACEME", // default is `true`
       // Optional: store ephemeral keys for later use
       storeEphemeralKeys: true // default is `true`
     };

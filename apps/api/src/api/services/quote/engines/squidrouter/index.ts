@@ -44,6 +44,17 @@ export abstract class BaseSquidRouterEngine implements Stage {
     const computation = this.compute(ctx);
 
     if (computation.data.skipRouteCalculation) {
+      // Same-chain same-token passthrough: no Squid route is fetched, but downstream stages
+      // (finalize, discount) require the corresponding bridge meta to be set. Mirror the
+      // input as the output so the meta represents a 1:1 passthrough bridge.
+      const passthroughResult: EvmBridgeResult = {
+        finalEffectiveExchangeRate: "1",
+        finalGrossOutputAmountDecimal: computation.data.inputAmountDecimal,
+        networkFeeUSD: "0",
+        outputTokenDecimals: computation.data.outputDecimals
+      };
+      this.assignContext(computation.type, ctx, passthroughResult, computation.data);
+      this.addNote(computation.type, ctx, passthroughResult, computation.data);
       return;
     }
 
@@ -59,6 +70,16 @@ export abstract class BaseSquidRouterEngine implements Stage {
   protected abstract validate(ctx: QuoteContext): void;
 
   protected abstract compute(ctx: QuoteContext): SquidRouterComputation;
+
+  protected mergeSubsidy(ctx: QuoteContext, outputAmountDecimal: Big): Big {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    return outputAmountDecimal.plus(ctx.subsidy!.subsidyAmountInOutputTokenDecimal);
+  }
+
+  protected mergeSubsidyRaw(ctx: QuoteContext, outputAmountRaw: Big): Big {
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    return outputAmountRaw.plus(ctx.subsidy!.subsidyAmountInOutputTokenRaw);
+  }
 
   private buildBridgeRequest(data: SquidRouterData, req: CreateQuoteRequest): EvmBridgeRequest {
     return {

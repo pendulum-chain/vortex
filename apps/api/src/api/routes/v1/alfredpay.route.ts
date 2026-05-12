@@ -32,6 +32,7 @@ router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayC
 // Business API-based KYB
 router.post("/submitKybInformation", requireAuth, validateResultCountry, AlfredpayController.submitKybInformation);
 router.post("/submitKybFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKybFile);
+router.get("/findKybCustomerAndBusiness", requireAuth, validateResultCountry, AlfredpayController.findKybCustomerAndBusiness);
 router.post(
   "/submitKybRelatedPersonFile",
   requireAuth,

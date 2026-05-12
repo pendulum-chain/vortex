@@ -71,15 +71,18 @@ interface KybBusinessDocsScreenProps {
 
 export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScreenProps) {
   const { t } = useTranslation();
+  const [taxIdDocument, setTaxIdDocument] = useState<File | null>(null);
   const [articlesIncorporation, setArticlesIncorporation] = useState<File | null>(null);
   const [proofAddress, setProofAddress] = useState<File | null>(null);
-  const [shareholderRegistry, setShareholderRegistry] = useState<File | null>(null);
+  const [docFront, setDocFront] = useState<File | null>(null);
+  const [docBack, setDocBack] = useState<File | null>(null);
 
-  const isValid = articlesIncorporation !== null && proofAddress !== null && shareholderRegistry !== null;
+  const isValid =
+    taxIdDocument !== null && articlesIncorporation !== null && proofAddress !== null && docFront !== null && docBack !== null;
 
   const handleSubmit = () => {
-    if (!articlesIncorporation || !proofAddress || !shareholderRegistry) return;
-    onSubmit({ articlesIncorporation, proofAddress, shareholderRegistry });
+    if (!taxIdDocument || !articlesIncorporation || !proofAddress || !docFront || !docBack) return;
+    onSubmit({ articlesIncorporation, docBack, docFront, proofAddress, taxIdDocument });
   };
 
   return (
@@ -89,6 +92,12 @@ export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScree
       <p className="mb-6 text-center text-gray-500 text-sm">{t("components.kybBusinessDocs.subtitle")}</p>
 
       <div className="flex grow-1 flex-col space-y-4 px-1 pb-4">
+        <FileDropZone
+          fieldKey="taxIdDocument"
+          file={taxIdDocument}
+          label={t("components.kybBusinessDocs.taxIdDocument")}
+          onChange={setTaxIdDocument}
+        />
         <FileDropZone
           fieldKey="articlesIncorporation"
           file={articlesIncorporation}
@@ -102,12 +111,17 @@ export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScree
           onChange={setProofAddress}
         />
         <FileDropZone
-          fieldKey="shareholderRegistry"
-          file={shareholderRegistry}
-          label={t("components.kybBusinessDocs.shareholderRegistry")}
-          onChange={setShareholderRegistry}
+          fieldKey="relatedPersons.docFront"
+          file={docFront}
+          label={t("components.kybBusinessDocs.docFront")}
+          onChange={setDocFront}
         />
-
+        <FileDropZone
+          fieldKey="relatedPersons.docBack"
+          file={docBack}
+          label={t("components.kybBusinessDocs.docBack")}
+          onChange={setDocBack}
+        />
         <p className="text-center text-gray-400 text-xs">{t("components.mxnDocumentUpload.fileHint")}</p>
 
         <button className="btn btn-vortex-primary w-full" disabled={!isValid} onClick={handleSubmit} type="button">

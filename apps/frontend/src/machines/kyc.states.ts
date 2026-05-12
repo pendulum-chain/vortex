@@ -19,7 +19,7 @@ import { RampContext, SelectedAveniaData } from "./types";
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
   submissionId?: string;
-  country?: string;
+  country: string;
   error?: AlfredpayKycMachineError;
   business?: boolean;
   mxnFormData?: MxnKycFormData;
@@ -160,15 +160,15 @@ export const kycStateNode = {
         onDone: [
           {
             actions: assign({
-              kycFormData: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => event.output.context.kycFormData
+              kycFormData: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => event.output.kycFormData
             }),
-            guard: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) => !event.output.context.error,
+            guard: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => !event.output.error,
             target: "VerificationComplete"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: DoneActorEvent<SelectedAveniaData> }) =>
-                (event.output.context.error as AveniaKycMachineError).message
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) =>
+                (event.output.error as AveniaKycMachineError).message
             }),
             target: "#ramp.KycFailure"
           }
