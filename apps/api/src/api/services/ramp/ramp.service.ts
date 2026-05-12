@@ -64,6 +64,7 @@ import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validat
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
+import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
 
@@ -938,8 +939,7 @@ export class RampService extends BaseRampService {
   public async validateBrlaOnrampRequest(
     taxId: string,
     quote: QuoteTicket,
-    amount: string,
-    moonbeamEphemeralAddress: string
+    amount: string
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
@@ -1050,20 +1050,15 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-    if (!evmEphemeralEntry) {
+    const hasEvmEphemeral = signingAccounts.some(ephemeral => ephemeral.type === EphemeralAccountType.EVM);
+    if (!hasEvmEphemeral) {
       throw new APIError({
         message: "Base ephemeral not found",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(
-      additionalData.taxId,
-      quote,
-      quote.inputAmount,
-      evmEphemeralEntry.address
-    );
+    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
 
     const params: AveniaOnrampTransactionParams = {
       destinationAddress: additionalData.destinationAddress,
@@ -1097,7 +1092,7 @@ export class RampService extends BaseRampService {
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      userId: userId!
+      userId: userId as string
     });
 
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
@@ -1207,24 +1202,24 @@ export class RampService extends BaseRampService {
     aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (quote.rampType === RampDirection.SELL) {
-      if (quote.outputCurrency === FiatToken.BRL) {
+    switch (selectRampTransactionPreparationKind(quote, additionalData)) {
+      case RampTransactionPreparationKind.OfframpBrl:
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
-        // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
-        // otherwise, it is automatically assumed to be a Monerium offramp.
-        // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
-      } else if (!additionalData?.moneriumAuthToken) {
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-      } else {
+
+      case RampTransactionPreparationKind.OfframpMonerium:
         return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
-      }
-    } else {
-      if (quote.inputCurrency === FiatToken.EURC) {
+
+      case RampTransactionPreparationKind.OfframpNonBrl:
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+
+      case RampTransactionPreparationKind.OnrampMonerium:
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
-      } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
+
+      case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-      }
-      return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+
+      case RampTransactionPreparationKind.OnrampAvenia:
+        return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
     }
   }
 
