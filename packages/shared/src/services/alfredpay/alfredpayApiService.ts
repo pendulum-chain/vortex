@@ -253,7 +253,7 @@ export class AlfredpayApiService {
     const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
     if (!data.typeDocument) delete kycSubmission.typeDocument;
     if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
-    if (!data.typeDocumentAr) delete kycSubmission.typeDocumentAr;
+    delete kycSubmission.typeDocumentAr; // Currently not required, (typeDocument throws an error on Alfredpay side)
     if (!data.phoneNumber) delete kycSubmission.phoneNumber;
     if (!data.cuit) delete kycSubmission.cuit;
     if (data.pep !== false && !data.pep) delete kycSubmission.pep;
@@ -269,7 +269,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("fileBody", file);
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;

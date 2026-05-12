@@ -130,8 +130,20 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(userEmail, AlfredpayCustomerType.INDIVIDUAL, country);
-      const customerId = newCustomer.customerId;
+      let customerId: string;
+      try {
+        const newCustomer = await alfredpayService.createCustomer(userEmail, AlfredpayCustomerType.INDIVIDUAL, country);
+        customerId = newCustomer.customerId;
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
+          logger.info("Customer already exists in Alfredpay, fetching existing customer");
+          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
+          customerId = existingCustomer.customerId;
+        } else {
+          throw error;
+        }
+      }
 
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
@@ -379,8 +391,20 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(userEmail, type, country);
-      const customerId = newCustomer.customerId;
+      let customerId: string;
+      try {
+        const newCustomer = await alfredpayService.createCustomer(userEmail, type, country);
+        customerId = newCustomer.customerId;
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
+          logger.info("Business customer already exists in Alfredpay, fetching existing customer");
+          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
+          customerId = existingCustomer.customerId;
+        } else {
+          throw error;
+        }
+      }
 
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
@@ -455,7 +479,21 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      const result = await alfredpayService.submitKycInformation(alfredPayCustomer.alfredPayId, { ...kycData, country });
+      let result: Awaited<ReturnType<typeof alfredpayService.submitKycInformation>>;
+      try {
+        result = await alfredpayService.submitKycInformation(alfredPayCustomer.alfredPayId, { ...kycData, country });
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried")) {
+          logger.info("KYC record cannot be retried, fetching existing submission");
+          const existingSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+          result = { submissionId: existingSubmission.submissionId } as Awaited<
+            ReturnType<typeof alfredpayService.submitKycInformation>
+          >;
+        } else {
+          throw error;
+        }
+      }
 
       res.json(result);
     } catch (error) {
@@ -481,7 +519,12 @@ export class AlfredpayController {
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
-
+      console.log("Received request to submit KYC file with data:", {
+        country,
+        fileName: req.file.originalname,
+        fileType,
+        submissionId
+      });
       const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKycFile(
@@ -537,7 +580,21 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      const result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+      let result: Awaited<ReturnType<typeof alfredpayService.submitKybInformation>>;
+      try {
+        result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried")) {
+          logger.info("KYB record cannot be retried, fetching existing submission");
+          const existingSubmission = await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId);
+          result = { submissionId: existingSubmission.submissionId } as Awaited<
+            ReturnType<typeof alfredpayService.submitKybInformation>
+          >;
+        } else {
+          throw error;
+        }
+      }
 
       res.json(result);
     } catch (error) {

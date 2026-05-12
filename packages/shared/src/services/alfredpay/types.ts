@@ -356,7 +356,7 @@ export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
 
 export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 
-const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
+const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP, FiatToken.ARS]);
 
 export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
