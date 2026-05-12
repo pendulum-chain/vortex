@@ -10,6 +10,7 @@ import {
   EvmToken,
   evmTokenConfig,
   getEvmTokenBalance,
+  multiplyByPowerOfTen,
   Networks,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -70,15 +71,18 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("BRLA token details not found for Base network");
     }
 
-    const expectedAmountReceived = quote.metadata.aveniaTransfer.outputAmountRaw;
+    // Used only for the recovery shortcut below: the pre-computed metadata value is a
+    // reasonable upper-bound estimate of what should arrive at the ephemeral. The actual
+    // amount is determined by the live Avenia quote created later in this phase.
+    const preComputedExpectedAmountRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
 
     // Recovery shortcut: a previous run may have already minted on Avenia and
     // transferred to the ephemeral. If the ephemeral already holds the expected
     // amount, skip the Avenia balance wait and the (idempotent-but-wasteful)
     // pay-out ticket creation.
-    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, expectedAmountReceived)) {
+    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, preComputedExpectedAmountRaw)) {
       logger.info(
-        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds the expected ${expectedAmountReceived} BRLA. Skipping mint flow.`
+        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds the expected ${preComputedExpectedAmountRaw} BRLA. Skipping mint flow.`
       );
       return this.transitionToNextPhase(state, "fundEphemeral");
     }
@@ -133,6 +137,18 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
 
+    // Derive the expected on-chain amount from the live quote's outputAmount rather than
+    // the stale pre-computed metadata value. The live quote accounts for the actual fees
+    // applied at execution time, so this is the amount that will truly arrive on Base.
+    const expectedAmountReceived = multiplyByPowerOfTen(
+      new Big(aveniaQuote.outputAmount),
+      tokenDetails.decimals
+    ).toFixed(0, 0);
+
+    logger.info(
+      `BrlaOnrampMintHandler: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`
+    );
+
     const aveniaTicket = await brlaApiService.createPixOutputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
@@ -145,7 +161,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     );
 
     logger.info(
-      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaMint.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${aveniaQuote.outputAmount} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
@@ -201,7 +217,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
   protected isPaymentTimeoutReached(state: RampState): boolean {
     const thisPhaseEntry = state.phaseHistory.find(phaseHistoryEntry => phaseHistoryEntry.phase === this.getPhaseName());
     if (!thisPhaseEntry) {
-      throw new Error("BrlaOnrampMintHandler: Phase not found in history. State corrupted.");
+      throw new Error("BrlaOnrampMintHandler: Phase not found in history. This is a bug.");
     }
 
     const initialTimestamp = new Date(thisPhaseEntry.timestamp);
