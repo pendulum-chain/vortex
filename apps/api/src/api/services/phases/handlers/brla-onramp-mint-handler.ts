@@ -31,6 +31,11 @@ import { StateMetadata } from "../meta-state-types";
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
+// The pre-computed expected amount stored at quote-creation time can be slightly higher than the
+// amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
+// in the recovery shortcut so that an already-funded ephemeral is not missed.
+const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
+
 // Phase description: wait for the tokens to arrive at the Base ephemeral address.
 // If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
 export class BrlaOnrampMintHandler extends BasePhaseHandler {
@@ -77,12 +82,16 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     const preComputedExpectedAmountRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
 
     // Recovery shortcut: a previous run may have already minted on Avenia and
-    // transferred to the ephemeral. If the ephemeral already holds the expected
-    // amount, skip the Avenia balance wait and the (idempotent-but-wasteful)
-    // pay-out ticket creation.
-    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, preComputedExpectedAmountRaw)) {
+    // transferred to the ephemeral. We accept a balance of at least 95% of the
+    // pre-computed expected amount to account for fee differences between quote
+    // creation time and execution time.
+    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw)
+      .times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR)
+      .toFixed(0, 0);
+
+    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
       logger.info(
-        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds the expected ${preComputedExpectedAmountRaw} BRLA. Skipping mint flow.`
+        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
       return this.transitionToNextPhase(state, "fundEphemeral");
     }
