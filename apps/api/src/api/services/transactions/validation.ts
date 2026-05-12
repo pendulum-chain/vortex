@@ -81,6 +81,8 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "backupSquidRouterSwap":
     case "backupApprove":
     case "polygonCleanup":
+    case "baseCleanupBrla":
+    case "baseCleanupUsdc":
     case "nablaApproveEvm":
     case "nablaSwapEvm":
     case "distributeFeesEvm":

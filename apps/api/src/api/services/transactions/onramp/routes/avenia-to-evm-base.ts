@@ -18,6 +18,7 @@ import { isAddress } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import {
@@ -109,10 +110,37 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     unsignedTxs.push({
       meta: {},
       network: Networks.Base,
-      nonce: baseNonce,
+      nonce: baseNonce++,
       phase: "destinationTransfer",
       signer: evmEphemeralEntry.address,
       txData: finalDestinationTransfer
+    });
+
+    const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
+    const brlaTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain as `0x${string}`;
+
+    const brlaCleanupApproval = await prepareBaseCleanupApproval(brlaTokenAddress, baseFundingAccountAddress, Networks.Base);
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupBrla",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+    });
+
+    const usdcCleanupApproval = await prepareBaseCleanupApproval(
+      nablaSwapOutputTokenAddress as `0x${string}`,
+      baseFundingAccountAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupUsdc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
     });
 
     return { stateMeta, unsignedTxs };
@@ -144,6 +172,33 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
+  const brlaTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain as `0x${string}`;
+
+  const brlaCleanupApproval = await prepareBaseCleanupApproval(brlaTokenAddress, baseFundingAccountAddress, Networks.Base);
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupBrla",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+  });
+
+  const usdcCleanupApproval = await prepareBaseCleanupApproval(
+    nablaSwapOutputTokenAddress as `0x${string}`,
+    baseFundingAccountAddress,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
   let destinationNonce = 0;

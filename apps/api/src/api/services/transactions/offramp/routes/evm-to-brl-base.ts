@@ -9,8 +9,10 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
+import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
@@ -155,9 +157,40 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   });
   baseNonce++;
 
+  const baseFundingAccount = getEvmFundingAccount(Networks.Base);
+
+  const usdcCleanupApproval = await prepareBaseCleanupApproval(
+    baseUSDCTokenAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
+  });
+
+  const brlaCleanupApproval = await prepareBaseCleanupApproval(
+    baseBRLATokenAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupBrla",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+  });
+
   stateMeta = {
     ...stateMeta,
     brlaEvmAddress: validatedBrlaEvmAddress,
+    evmEphemeralAddress: evmEphemeralEntry.address,
     pixDestination: validatedPixDestination,
     receiverTaxId: validatedReceiverTaxId,
     taxId: validatedTaxId

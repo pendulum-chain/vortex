@@ -67,7 +67,9 @@ export type CleanupPhase =
   | "stellarCleanup"
   | "polygonCleanup"
   | "hydrationCleanup"
-  | "assetHubCleanup";
+  | "assetHubCleanup"
+  | "baseCleanupUsdc"
+  | "baseCleanupBrla";
 
 export enum EphemeralAccountType {
   Stellar = "Stellar",
