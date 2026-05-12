@@ -568,6 +568,7 @@
       "fileTooLarge": "File exceeds the 5 MB limit.",
       "frontLabel": "Front of Document",
       "invalidType": "Only JPG, PNG, or PDF files are accepted.",
+      "selfieLabel": "Selfie",
       "submit": "Submit Documents",
       "subtitle": "Please upload a photo or scan of your ID document. Max 5 MB per file (JPG, PNG, PDF).",
       "tapToSelect": "Tap to select file",

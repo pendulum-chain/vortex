@@ -571,6 +571,7 @@
       "fileTooLarge": "O arquivo excede o limite de 5 MB.",
       "frontLabel": "Frente do Documento",
       "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
       "submit": "Enviar Documentos",
       "subtitle": "Por favor, envie uma foto ou digitalização do seu documento. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
       "tapToSelect": "Toque para selecionar o arquivo",
