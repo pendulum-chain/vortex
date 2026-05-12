@@ -2,9 +2,8 @@ import { AssetHubToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
-import { resolveAlfredpayQuoteLimits } from "../../../alfredpay/alfredpay.helpers";
 import { QuoteContext } from "../../core/types";
-import { validateAlfredpayLimits, validateAmountLimits } from "../../core/validation-helpers";
+import { applyAlfredpayLimits, validateAmountLimits } from "../../core/validation-helpers";
 import { BaseFinalizeEngine, FinalizeComputation } from ".";
 
 export class OnRampFinalizeEngine extends BaseFinalizeEngine {
@@ -88,18 +87,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
   }
 
   protected async validate(ctx: QuoteContext): Promise<void> {
-    const alfredpayLimits = await resolveAlfredpayQuoteLimits({
-      inputCurrency: ctx.request.inputCurrency,
-      outputCurrency: ctx.request.outputCurrency,
-      rampType: ctx.request.rampType,
-      userId: ctx.request.userId
-    });
-
-    if (alfredpayLimits) {
-      ctx.alfredpayInputLimits = alfredpayLimits.inputLimits;
-      validateAlfredpayLimits(ctx.request.inputAmount, alfredpayLimits);
-      return;
-    }
+    if (await applyAlfredpayLimits(ctx, ctx.request.inputAmount)) return;
     validateAmountLimits(ctx.request.inputAmount, ctx.request.inputCurrency as FiatToken, "min", ctx.request.rampType);
   }
 }

@@ -2,7 +2,7 @@
  * Free token configuration (not bound to any network)
  */
 
-import { AlfredpayCurrencyLimits, FiatCurrencyDetails, FiatToken, TokenType } from "../types/base";
+import { AlfredpayLimitsTable, FiatCurrencyDetails, FiatToken, TokenType } from "../types/base";
 
 /**
  * Hardcoded fallback AlfredPay limits derived from limits.md (May 11 2026 snapshot).
@@ -12,7 +12,7 @@ import { AlfredpayCurrencyLimits, FiatCurrencyDetails, FiatToken, TokenType } fr
  * - offramp raw values are scaled by stablecoin decimals (USDC/USDT = 6).
  */
 
-const USD_LIMITS: AlfredpayCurrencyLimits = {
+const USD_LIMITS: AlfredpayLimitsTable = {
   offramp: {
     USDC: {
       BUSINESS: { maxRaw: "300000000000", minRaw: "1000000" },
@@ -35,7 +35,7 @@ const USD_LIMITS: AlfredpayCurrencyLimits = {
   }
 };
 
-const MXN_LIMITS: AlfredpayCurrencyLimits = {
+const MXN_LIMITS: AlfredpayLimitsTable = {
   offramp: {
     USDC: {
       BUSINESS: { maxRaw: "5000000000000", minRaw: "1000000" },
@@ -58,7 +58,7 @@ const MXN_LIMITS: AlfredpayCurrencyLimits = {
   }
 };
 
-const COP_LIMITS: AlfredpayCurrencyLimits = {
+const COP_LIMITS: AlfredpayLimitsTable = {
   offramp: {
     USDC: {
       BUSINESS: { maxRaw: "300000000000", minRaw: "1000000" },
@@ -91,8 +91,10 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
       name: "US Dollar",
       symbol: "USD"
     },
-    maxBuyAmountRaw: "30000000",
-    maxSellAmountRaw: "300000000000",
+    // Legacy fields = floor across customer types & stablecoins (Individual caps), used as fallback when
+    // the dynamic AlfredPay limit hasn't been resolved yet. Never above the strictest real limit.
+    maxBuyAmountRaw: "10000000",
+    maxSellAmountRaw: "100000000000",
     minBuyAmountRaw: "100",
     minSellAmountRaw: "1000000",
     type: TokenType.Fiat
@@ -106,7 +108,7 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
       name: "Mexican Peso",
       symbol: "MXN"
     },
-    maxBuyAmountRaw: "8699689121",
+    maxBuyAmountRaw: "8695217304",
     maxSellAmountRaw: "5000000000000",
     minBuyAmountRaw: "20000",
     minSellAmountRaw: "1000000",
@@ -121,8 +123,8 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
       name: "Colombian Peso",
       symbol: "COP"
     },
-    maxBuyAmountRaw: "110596799945",
-    maxSellAmountRaw: "300000000000",
+    maxBuyAmountRaw: "36865599982",
+    maxSellAmountRaw: "100000000000",
     minBuyAmountRaw: "3500000",
     minSellAmountRaw: "1000000",
     type: TokenType.Fiat

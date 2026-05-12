@@ -40,6 +40,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
   const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
   return {
+    alfredpayInputLimits: quoteTicket.metadata.alfredpayInputLimits,
     anchorFeeFiat: fiatFees.anchor,
     anchorFeeUsd: usdFees.anchor,
     createdAt: quoteTicket.createdAt,
@@ -48,7 +49,6 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
     from: quoteTicket.from,
     id: quoteTicket.id,
     inputAmount: trimTrailingZeros(quoteTicket.inputAmount),
-    inputAmountLimits: quoteTicket.metadata.alfredpayInputLimits,
     inputCurrency: quoteTicket.inputCurrency,
     network: quoteTicket.network,
     networkFeeFiat: fiatFees.network,
@@ -110,15 +110,15 @@ export abstract class BaseFinalizeEngine implements Stage {
       const expiresAt = getExpirationDate(ctx);
 
       ctx.builtResponse = {
+        alfredpayInputLimits: ctx.alfredpayInputLimits,
         anchorFeeFiat: fiatFees.anchor,
         anchorFeeUsd: usdFees.anchor,
         createdAt: new Date(),
         expiresAt,
         feeCurrency: fiatFees.currency,
-        from: request.from,
-        id: "temp-" + Date.now(), // Temporary ID for comparison
+        from: request.from, // Temporary ID for comparison
+        id: "temp-" + Date.now(),
         inputAmount: trimTrailingZeros(request.inputAmount),
-        inputAmountLimits: ctx.alfredpayInputLimits,
         inputCurrency: request.inputCurrency,
         network: request.network,
         networkFeeFiat: fiatFees.network,

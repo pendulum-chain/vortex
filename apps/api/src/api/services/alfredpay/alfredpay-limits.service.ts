@@ -1,23 +1,20 @@
 import {
   AlfredpayApiService,
   AlfredpayConfigPair,
-  AlfredpayCustomerKey,
   AlfredpayCustomerType,
-  AlfredpayLimitsBucket,
   AlfredpayStablecoinKey,
   FiatToken,
   getAnyFiatTokenDetails,
-  isAlfredpayToken
+  RampDirection,
+  RawAmountLimits
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../config/logger";
 
-export type AlfredpayLimitsDirection = "onramp" | "offramp";
-
 /** Refreshed once on startup, then daily. Limits don't change often, so this avoids beating the API. */
 const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-const CUSTOMER_TYPES: AlfredpayCustomerKey[] = ["INDIVIDUAL", "BUSINESS"];
+const CUSTOMER_TYPES: AlfredpayCustomerType[] = [AlfredpayCustomerType.INDIVIDUAL, AlfredpayCustomerType.BUSINESS];
 
 const ALFREDPAY_FIATS: Record<string, FiatToken> = {
   COP: FiatToken.COP,
@@ -30,10 +27,10 @@ function isStablecoinSymbol(symbol: string): symbol is AlfredpayStablecoinKey {
 }
 
 function cacheKey(
-  direction: AlfredpayLimitsDirection,
+  direction: RampDirection,
   fiat: FiatToken,
   stablecoin: AlfredpayStablecoinKey,
-  customer: AlfredpayCustomerKey
+  customer: AlfredpayCustomerType
 ): string {
   return `${direction}:${fiat}:${stablecoin}:${customer}`;
 }
@@ -42,10 +39,16 @@ function toRaw(quantityDecimal: string, decimals: number): string {
   return new Big(quantityDecimal).mul(new Big(10).pow(decimals)).round(0, Big.roundDown).toFixed(0);
 }
 
+interface DerivedAxes {
+  direction: RampDirection;
+  fiat: FiatToken;
+  stablecoin: AlfredpayStablecoinKey;
+}
+
 export class AlfredpayLimitsService {
   private static instance: AlfredpayLimitsService;
 
-  private cache = new Map<string, AlfredpayLimitsBucket>();
+  private cache = new Map<string, RawAmountLimits>();
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
 
   public static getInstance(): AlfredpayLimitsService {
@@ -59,6 +62,7 @@ export class AlfredpayLimitsService {
     if (this.intervalHandle) return;
     void this.refresh();
     this.intervalHandle = setInterval(() => void this.refresh(), REFRESH_INTERVAL_MS);
+    this.intervalHandle.unref();
   }
 
   public stop(): void {
@@ -69,7 +73,7 @@ export class AlfredpayLimitsService {
   }
 
   /**
-   * Returns the limits bucket for the given key. Falls back to hardcoded values when the cache is empty
+   * Returns raw limits for the given key. Falls back to hardcoded values when the cache is empty
    * (first fetch hasn't succeeded yet) or doesn't contain a matching entry.
    *
    * Onramp raw values are scaled by the fiat's decimals; offramp raw values by the stablecoin's decimals (6).
@@ -77,9 +81,9 @@ export class AlfredpayLimitsService {
   public getLimits(
     fiat: FiatToken,
     stablecoin: AlfredpayStablecoinKey,
-    customerType: AlfredpayCustomerKey,
-    direction: AlfredpayLimitsDirection
-  ): AlfredpayLimitsBucket {
+    customerType: AlfredpayCustomerType,
+    direction: RampDirection
+  ): RawAmountLimits {
     const cached = this.cache.get(cacheKey(direction, fiat, stablecoin, customerType));
     if (cached) return cached;
     return this.fallback(fiat, stablecoin, customerType, direction);
@@ -88,21 +92,21 @@ export class AlfredpayLimitsService {
   private fallback(
     fiat: FiatToken,
     stablecoin: AlfredpayStablecoinKey,
-    customerType: AlfredpayCustomerKey,
-    direction: AlfredpayLimitsDirection
-  ): AlfredpayLimitsBucket {
+    customerType: AlfredpayCustomerType,
+    direction: RampDirection
+  ): RawAmountLimits {
     const hardcoded = getAnyFiatTokenDetails(fiat).alfredpayLimits;
     if (!hardcoded) {
-      // Should never happen for AlfredPay tokens. Return permissive sentinel so we don't reject quotes outright.
-      return { maxRaw: "0", minRaw: "0" };
+      throw new Error(`AlfredPay limits missing for ${fiat} — token config is out of sync`);
     }
-    return hardcoded[direction][stablecoin][customerType];
+    const table = direction === RampDirection.BUY ? hardcoded.onramp : hardcoded.offramp;
+    return table[stablecoin][customerType];
   }
 
   private async refresh(): Promise<void> {
     try {
       const { supportedPairs } = await AlfredpayApiService.getInstance().getAllConfigs();
-      const nextCache = new Map<string, AlfredpayLimitsBucket>();
+      const nextCache = new Map<string, RawAmountLimits>();
       for (const pair of supportedPairs) {
         this.indexPair(nextCache, pair);
       }
@@ -113,62 +117,40 @@ export class AlfredpayLimitsService {
     }
   }
 
-  private indexPair(target: Map<string, AlfredpayLimitsBucket>, pair: AlfredpayConfigPair): void {
+  private indexPair(target: Map<string, RawAmountLimits>, pair: AlfredpayConfigPair): void {
     const decimals = Number(pair.decimals);
     if (!Number.isFinite(decimals)) return;
 
-    const direction = this.deriveDirection(pair);
-    if (!direction) return;
+    const axes = this.deriveAxes(pair);
+    if (!axes) return;
 
-    const { fiat, stablecoin } = direction;
-    const bucket: AlfredpayLimitsBucket = {
+    const { direction, fiat, stablecoin } = axes;
+    const limits: RawAmountLimits = {
       maxRaw: toRaw(pair.maxQuantity, decimals),
       minRaw: toRaw(pair.minQuantity, decimals)
     };
 
-    const customers: AlfredpayCustomerKey[] = pair.typeCustomer ? [pair.typeCustomer as AlfredpayCustomerKey] : CUSTOMER_TYPES;
+    const customers: AlfredpayCustomerType[] = pair.typeCustomer ? [pair.typeCustomer] : CUSTOMER_TYPES;
+    const isWildcard = !pair.typeCustomer;
     for (const customer of customers) {
-      const key = cacheKey(direction.direction, fiat, stablecoin, customer);
-      // The API can return overlapping rows (typeCustomer=null + a specific BUSINESS row). Specific wins by sorting last.
-      target.set(key, bucket);
+      const key = cacheKey(direction, fiat, stablecoin, customer);
+      // Specific customer rows take precedence over the wildcard (null) row, regardless of response order.
+      if (!isWildcard || !target.has(key)) {
+        target.set(key, limits);
+      }
     }
   }
 
-  private deriveDirection(
-    pair: AlfredpayConfigPair
-  ): { direction: AlfredpayLimitsDirection; fiat: FiatToken; stablecoin: AlfredpayStablecoinKey } | null {
+  private deriveAxes(pair: AlfredpayConfigPair): DerivedAxes | null {
     const fromFiat = ALFREDPAY_FIATS[pair.fromCurrency];
     const toFiat = ALFREDPAY_FIATS[pair.toCurrency];
 
     if (fromFiat && isStablecoinSymbol(pair.toCurrency)) {
-      return { direction: "onramp", fiat: fromFiat, stablecoin: pair.toCurrency };
+      return { direction: RampDirection.BUY, fiat: fromFiat, stablecoin: pair.toCurrency };
     }
     if (toFiat && isStablecoinSymbol(pair.fromCurrency)) {
-      return { direction: "offramp", fiat: toFiat, stablecoin: pair.fromCurrency };
+      return { direction: RampDirection.SELL, fiat: toFiat, stablecoin: pair.fromCurrency };
     }
     return null;
   }
-
-  /**
-   * Test helper: pre-seed the cache without going through the API.
-   */
-  public _setForTesting(entries: Iterable<[string, AlfredpayLimitsBucket]>): void {
-    this.cache = new Map(entries);
-  }
-}
-
-export function resolveAlfredpayLimits(
-  fiat: FiatToken,
-  stablecoin: AlfredpayStablecoinKey,
-  customerType: AlfredpayCustomerKey,
-  direction: AlfredpayLimitsDirection
-): AlfredpayLimitsBucket {
-  if (!isAlfredpayToken(fiat)) {
-    throw new Error(`resolveAlfredpayLimits called with non-AlfredPay fiat: ${fiat}`);
-  }
-  return AlfredpayLimitsService.getInstance().getLimits(fiat, stablecoin, customerType, direction);
-}
-
-export function normalizeCustomerType(type: AlfredpayCustomerType | null | undefined): AlfredpayCustomerKey {
-  return type === AlfredpayCustomerType.BUSINESS ? "BUSINESS" : "INDIVIDUAL";
 }

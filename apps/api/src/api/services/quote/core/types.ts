@@ -2,6 +2,7 @@
 // Shared types and contracts used by the quote pipeline.
 
 import {
+  AmountLimits,
   CreateQuoteRequest,
   DestinationType,
   EvmToken,
@@ -267,10 +268,10 @@ export interface QuoteContext {
   builtResponse?: QuoteResponse;
 
   /**
-   * Resolved AlfredPay input-side limits in human units of `inputCurrency`.
+   * Resolved AlfredPay input-side amount limits in human units of `inputCurrency`.
    * Set by the finalize engine during validation for AlfredPay quotes; surfaced on the QuoteResponse.
    */
-  alfredpayInputLimits?: { min: string; max: string };
+  alfredpayInputLimits?: AmountLimits;
 
   // Flag to skip database persistence (for best quote comparison)
   skipPersistence?: boolean;

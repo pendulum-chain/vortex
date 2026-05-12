@@ -2,8 +2,9 @@ import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@vortexfi/shar
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
-import { AlfredpayQuoteLimitsContext } from "../../alfredpay/alfredpay.helpers";
+import { ResolvedAlfredpayLimits, resolveAlfredpayQuoteLimits } from "../../alfredpay/alfredpay.helpers";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
+import { QuoteContext } from "./types";
 
 /**
  * Get token limit units for a given fiat token, limit type, and operation type
@@ -53,22 +54,41 @@ export function validateAmountLimits(
  * Validate an amount against precomputed AlfredPay limits. The amount is in the same units as the limits:
  * onramp → fiat units; offramp → stablecoin units.
  */
-export function validateAlfredpayLimits(amount: Big.BigSource, limits: AlfredpayQuoteLimitsContext): void {
+export function validateAlfredpayLimits(amount: Big.BigSource, limits: ResolvedAlfredpayLimits): void {
   const amountBig = new Big(amount);
-  const min = new Big(limits.inputLimits.min);
-  const max = new Big(limits.inputLimits.max);
-  const unitSymbol = limits.direction === "onramp" ? getAnyFiatTokenDetails(limits.fiat).fiat.symbol : limits.stablecoin;
+  const min = new Big(limits.min);
+  const max = new Big(limits.max);
+  const isOnramp = limits.direction === RampDirection.BUY;
+  const verb = isOnramp ? "onramp" : "offramp";
+  const unitSymbol = isOnramp ? getAnyFiatTokenDetails(limits.fiat).fiat.symbol : limits.stablecoin;
 
   if (amountBig.lt(min)) {
     throw new APIError({
-      message: `Input amount below minimum ${limits.direction} limit of ${min.toFixed(2)} ${unitSymbol}`,
+      message: `Input amount below minimum ${verb} limit of ${min.toFixed(2)} ${unitSymbol}`,
       status: httpStatus.BAD_REQUEST
     });
   }
   if (amountBig.gt(max)) {
     throw new APIError({
-      message: `Input amount exceeds maximum ${limits.direction} limit of ${max.toFixed(2)} ${unitSymbol}`,
+      message: `Input amount exceeds maximum ${verb} limit of ${max.toFixed(2)} ${unitSymbol}`,
       status: httpStatus.BAD_REQUEST
     });
   }
+}
+
+/**
+ * Resolves AlfredPay limits for the quote, records them on the context, and validates the given amount.
+ * Returns true when the quote routes through AlfredPay (caller should skip generic validation).
+ */
+export async function applyAlfredpayLimits(ctx: QuoteContext, amount: Big.BigSource): Promise<boolean> {
+  const alfredpayLimits = await resolveAlfredpayQuoteLimits({
+    inputCurrency: ctx.request.inputCurrency,
+    outputCurrency: ctx.request.outputCurrency,
+    rampType: ctx.request.rampType,
+    userId: ctx.request.userId
+  });
+  if (!alfredpayLimits) return false;
+  ctx.alfredpayInputLimits = { max: alfredpayLimits.max, min: alfredpayLimits.min };
+  validateAlfredpayLimits(amount, alfredpayLimits);
+  return true;
 }
