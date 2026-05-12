@@ -14,6 +14,7 @@ import routes from "../api/routes/v1";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
+const REQUEST_BODY_LIMIT = "20mb";
 
 /**
  * Express instance
@@ -58,8 +59,8 @@ app.use(cookieParser());
 app.use(morgan(logs));
 
 // parse body params and attach them to req.body
-app.use(bodyParser.json({ limit: "1mb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
+app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(bodyParser.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // gzip compression
 app.use(compress());
