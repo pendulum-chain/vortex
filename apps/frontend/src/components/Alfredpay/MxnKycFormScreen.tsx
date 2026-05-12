@@ -14,7 +14,6 @@ const schema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   state: z.string().min(1),
-  typeDocument: z.enum(["INE", "Resident card", "passport"]),
   zipCode: z.string().min(1)
 });
 
@@ -98,23 +97,6 @@ export function MxnKycFormScreen({ onSubmit }: MxnKycFormScreenProps) {
             {...register("email")}
           />
           {errors.email && <span className="mt-1 block text-error text-xs">{errors.email.message}</span>}
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm" htmlFor="typeDocument">
-            {t("components.mxnKycForm.documentType")}
-          </label>
-          <select
-            className={`select w-full rounded-lg border bg-base-200 p-2 text-base ${errors.typeDocument ? "border-error" : "border-neutral-300"}`}
-            id="typeDocument"
-            {...register("typeDocument")}
-          >
-            <option value="">{t("components.mxnKycForm.selectDocumentType")}</option>
-            <option value="INE">{t("components.mxnKycForm.options.ine")}</option>
-            <option value="Resident card">{t("components.mxnKycForm.options.residentCard")}</option>
-            <option value="passport">{t("components.mxnKycForm.options.passport")}</option>
-          </select>
-          {errors.typeDocument && <span className="mt-1 block text-error text-xs">{errors.typeDocument.message}</span>}
         </div>
 
         <div>

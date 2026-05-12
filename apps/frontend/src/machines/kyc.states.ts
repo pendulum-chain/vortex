@@ -19,7 +19,7 @@ import { RampContext, SelectedAveniaData } from "./types";
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
   submissionId?: string;
-  country?: string;
+  country: string;
   error?: AlfredpayKycMachineError;
   business?: boolean;
   mxnFormData?: MxnKycFormData;

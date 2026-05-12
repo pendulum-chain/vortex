@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /widget
+Disallow: /es/widget
+Disallow: /pt/widget
+Disallow: /fr/widget
+
+Sitemap: https://www.vortexfinance.co/sitemap.xml

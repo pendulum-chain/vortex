@@ -10,6 +10,7 @@ import {
   EvmToken,
   evmTokenConfig,
   getEvmTokenBalance,
+  multiplyByPowerOfTen,
   Networks,
   RampPhase,
   waitUntilTrueWithTimeout
@@ -29,6 +30,11 @@ import { StateMetadata } from "../meta-state-types";
 // process loop and check for the operation timestamp.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+// The pre-computed expected amount stored at quote-creation time can be slightly higher than the
+// amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
+// in the recovery shortcut so that an already-funded ephemeral is not missed.
+const EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95;
 
 // Phase description: wait for the tokens to arrive at the Base ephemeral address.
 // If the timeout is reached, we assume the user has NOT made the payment and we cancel the ramp.
@@ -70,15 +76,22 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("BRLA token details not found for Base network");
     }
 
-    const expectedAmountReceived = quote.metadata.aveniaTransfer.outputAmountRaw;
+    // Used only for the recovery shortcut below: the pre-computed metadata value is a
+    // reasonable upper-bound estimate of what should arrive at the ephemeral. The actual
+    // amount is determined by the live Avenia quote created later in this phase.
+    const preComputedExpectedAmountRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
 
     // Recovery shortcut: a previous run may have already minted on Avenia and
-    // transferred to the ephemeral. If the ephemeral already holds the expected
-    // amount, skip the Avenia balance wait and the (idempotent-but-wasteful)
-    // pay-out ticket creation.
-    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, expectedAmountReceived)) {
+    // transferred to the ephemeral. We accept a balance of at least 95% of the
+    // pre-computed expected amount to account for fee differences between quote
+    // creation time and execution time.
+    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw)
+      .times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR)
+      .toFixed(0, 0);
+
+    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
       logger.info(
-        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds the expected ${expectedAmountReceived} BRLA. Skipping mint flow.`
+        `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
       return this.transitionToNextPhase(state, "fundEphemeral");
     }
@@ -133,6 +146,18 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
 
+    // Derive the expected on-chain amount from the live quote's outputAmount rather than
+    // the stale pre-computed metadata value. The live quote accounts for the actual fees
+    // applied at execution time, so this is the amount that will truly arrive on Base.
+    const expectedAmountReceived = multiplyByPowerOfTen(
+      new Big(aveniaQuote.outputAmount),
+      tokenDetails.decimals
+    ).toFixed(0, 0);
+
+    logger.info(
+      `BrlaOnrampMintHandler: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`
+    );
+
     const aveniaTicket = await brlaApiService.createPixOutputTicket(
       {
         quoteToken: aveniaQuote.quoteToken,
@@ -145,7 +170,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     );
 
     logger.info(
-      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${quote.metadata.aveniaTransfer.outputAmountDecimal} BRLA to Base address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintHandler: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${aveniaQuote.outputAmount} BRLA to Base address ${state.state.evmEphemeralAddress}`
     );
 
     try {
@@ -201,7 +226,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
   protected isPaymentTimeoutReached(state: RampState): boolean {
     const thisPhaseEntry = state.phaseHistory.find(phaseHistoryEntry => phaseHistoryEntry.phase === this.getPhaseName());
     if (!thisPhaseEntry) {
-      throw new Error("BrlaOnrampMintHandler: Phase not found in history. State corrupted.");
+      throw new Error("BrlaOnrampMintHandler: Phase not found in history. This is a bug.");
     }
 
     const initialTimestamp = new Date(thisPhaseEntry.timestamp);

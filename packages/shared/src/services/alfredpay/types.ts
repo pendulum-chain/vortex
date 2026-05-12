@@ -395,7 +395,7 @@ export interface SubmitKycInformationRequest {
   zipCode: string;
   address: string;
   dni: string;
-  typeDocument?: string; // MXN
+  typeDocument?: string;
   typeDocumentCol?: AlfredpayColombiaDocumentType;
   phoneNumber?: string; // Colombia
 }
@@ -411,11 +411,12 @@ export enum AlfredpayKycFileType {
 
 // KYB form submission types
 export enum AlfredpayKybFileType {
+  TAX_ID_DOCUMENT = "taxIdDocument",
   ARTICLES_INCORPORATION = "articlesIncorporation",
-  PROOF_ADDRESS = "proofAddress",
-  SHAREHOLDER_REGISTRY = "shareholderRegistry"
+  PROOF_ADDRESS = "proofAddress"
 }
 
+/** Penny relate-person upload: only docFront + docBack (URI fields are derived server-side). */
 export enum AlfredpayKybRelatedPersonFileType {
   DOC_FRONT = "docFront",
   DOC_BACK = "docBack"
@@ -440,17 +441,46 @@ export interface SubmitKybInformationRequest {
   state: string;
   city: string;
   zipCode: string;
-  website?: string;
+  website: string;
   relatedPersons: AlfredpayKybRelatedPerson[];
-}
-
-export interface AlfredpayKybRelatedPersonResponse {
-  id: string;
-  firstName: string;
-  lastName: string;
 }
 
 export interface SubmitKybInformationResponse {
   submissionId: string;
-  relatedPersons?: AlfredpayKybRelatedPersonResponse[];
+}
+
+/** Single related-person row from `GET …/customers/{customerId}/kyb/details`. */
+export interface AlfredpayKybRelatedPersonDetails {
+  idRelatedPerson: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  dateOfBirth?: string;
+  nationalities?: string[];
+  docFront?: string | null;
+  docBack?: string | null;
+  docFrontUri?: string | null;
+  docBackUri?: string | null;
+}
+
+/** Response item from `GET …/customers/{customerId}/kyb/details`; the endpoint returns an array. */
+export interface AlfredpayKybCustomerAndBusiness {
+  customerId: string;
+  country: string;
+  businessName: string;
+  taxId: string;
+  website?: string;
+  state: string;
+  city: string;
+  address: string;
+  zipCode: string;
+  submissionId: string;
+  relatedPersons: AlfredpayKybRelatedPersonDetails[];
+  verificationSessionId?: string | null;
+  articlesIncorporation?: string;
+  articlesIncorporationUri?: string;
+  proofAddress?: string;
+  proofAddressUri?: string;
+  taxIdDocument?: string;
+  taxIdDocumentUri?: string;
 }
