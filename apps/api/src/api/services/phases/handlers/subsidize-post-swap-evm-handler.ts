@@ -18,6 +18,7 @@ import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../constants/const
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
+import { PhaseError } from "../../../errors/phase-error";
 import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
@@ -163,6 +164,9 @@ export class SubsidizePostSwapEvmPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwapEvm:", e);
+      if (e instanceof PhaseError) {
+        throw e;
+      }
       throw this.createRecoverableError("SubsidizePostSwapEvmPhaseHandler: Failed to subsidize post swap on EVM.");
     }
   }
