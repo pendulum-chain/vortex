@@ -90,7 +90,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 - [x] `squidRouterPermitExecutionValue` validated before `msg.value`. **PASS (FIXED F-027)**.
 - [PARTIAL] `sendTransactionWithBlindRetry` nonce safety. **PARTIAL** — by design.
 - [x] **FINDING F-063 (MEDIUM)**: SquidRouter slippage rejection (>2.5%) enforced. **PASS (FIXED)**.
-- [OPEN] **No-permit fallback receipt validation**: `waitForUserHash` confirms `receipt.status === "success"` only. Does NOT validate that `receipt.to`, `receipt.from`, decoded calldata, or transferred value match expected Squid call parameters. Should be hardened to decode and assert against expected per-phase parameters.
+- [x] **No-permit fallback receipt validation**: `waitForUserHash` verifies receipt `from`, receipt `to`, and transaction `input` against the expected user address and presigned EVM transaction payload before advancing.
 - [x] **Skip-Squid trivial path**: emits passthrough bridge meta in `BaseSquidRouterEngine` and short-circuits discount/fee engines. Destination address validated by quote engine `validate()`. **PASS** — no security checks bypassed.
 - [x] **Squid 429 rate-limit retry**: exponential backoff. **PASS — verify backoff cap.**
 - [x] **Arrival timeout**: `waitUntilTrue` accepts a timeout argument. **PASS** — verify all callers pass a finite value.

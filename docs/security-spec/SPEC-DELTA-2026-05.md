@@ -265,7 +265,7 @@ These pre-existing findings remain open and are unchanged by the BRL migration:
 
 ## 6. Suggested Next Audit Pass
 
-Priority order for the next audit/dev cycle, based on severity × likelihood. Resolution status reflects fixes landed during the 2026-05 remediation pass.
+Priority order for the next audit/dev cycle, based on severity × likelihood. Resolution status reflects fixes landed during the 2026-05 remediation pass. Post-review fixes on 2026-05-12 also closed the Supabase quote-ownership bypass in `assertQuoteOwnership`, restored signed-payload-aware presigned transaction matching, removed duplicate Squid permit relayer execution, restored direct-transfer permit execution, and preserved unrecoverable EVM subsidy cap errors.
 
 | # | Finding | Status |
 |---|---|---|

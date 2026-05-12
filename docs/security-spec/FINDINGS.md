@@ -1,6 +1,6 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-04-10 | **Status:** 49 fixed, 9 accepted risk, 9 deferred, 0 open
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-05-12 | **Status:** F-001 through F-067: 49 fixed, 9 accepted risk, 9 deferred, 0 open. Additional discount-mechanism findings F-DISC-01 through F-DISC-05 remain open in `03-ramp-engine/discount-mechanism.md` and are not included in the counts below.
 
 This file consolidates all security findings from the Vortex platform audit. Findings were discovered across four phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), and fresh security audit pass (F-059 through F-067).
 
