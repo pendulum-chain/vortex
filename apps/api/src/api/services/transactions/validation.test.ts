@@ -1,7 +1,14 @@
-import {describe, expect, it} from "bun:test";
-import {EphemeralAccountType, Networks, PresignedTx, RampDirection} from "@vortexfi/shared";
-import {validatePresignedTxs} from "./validation";
-import QuoteTicket from "../../../models/quoteTicket.model";
+import { describe, expect, it } from "bun:test";
+import {
+  EphemeralAccountType,
+  EvmTransactionData,
+  Networks,
+  PresignedTx,
+  RampDirection,
+  SignedTypedData
+} from "@vortexfi/shared";
+import { Signature as EthersSignature, Wallet } from "ethers";
+import { areAllTxsIncluded, validatePresignedTxs } from "./validation";
 
 // @ts-ignore
 const VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP: PresignedTx[] = [
@@ -168,6 +175,166 @@ const VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP: PresignedTx[] =
 ];
 
 describe("Presigned Transaction validation", () => {
+  it("matches a signed EVM transaction to the unsigned server-built transaction", async () => {
+    const wallet = new Wallet("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "1"
+    };
+    const signedRawTx = await wallet.signTransaction({
+      chainId: 137,
+      data: unsignedTxData.data,
+      gasLimit: BigInt(unsignedTxData.gas),
+      maxFeePerGas: BigInt(unsignedTxData.maxFeePerGas!),
+      maxPriorityFeePerGas: BigInt(unsignedTxData.maxPriorityFeePerGas!),
+      nonce: 4,
+      to: unsignedTxData.to,
+      type: 2,
+      value: BigInt(unsignedTxData.value)
+    });
+
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 4,
+      phase: "fundEphemeral",
+      signer: wallet.address,
+      txData: unsignedTxData
+    };
+    const signedTx: PresignedTx = {
+      ...unsignedTx,
+      txData: signedRawTx
+    };
+
+    expect(areAllTxsIncluded([signedTx], [unsignedTx])).toBe(true);
+  });
+
+  it("rejects a signed EVM transaction whose calldata differs from the unsigned transaction", async () => {
+    const wallet = new Wallet("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "1"
+    };
+    const signedRawTx = await wallet.signTransaction({
+      chainId: 137,
+      data: "0x87654321",
+      gasLimit: 21000n,
+      nonce: 4,
+      to: unsignedTxData.to,
+      value: 1n
+    });
+
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 4,
+      phase: "fundEphemeral",
+      signer: wallet.address,
+      txData: unsignedTxData
+    };
+    const signedTx: PresignedTx = {
+      ...unsignedTx,
+      txData: signedRawTx
+    };
+
+    expect(areAllTxsIncluded([signedTx], [unsignedTx])).toBe(false);
+  });
+
+  it("matches signed typed data to the unsigned typed data while ignoring signatures", () => {
+    const unsignedTypedData: SignedTypedData = {
+      domain: {
+        chainId: 137,
+        name: "Token",
+        verifyingContract: "0x0000000000000000000000000000000000000001",
+        version: "1"
+      },
+      message: {
+        owner: "0x0000000000000000000000000000000000000002",
+        spender: "0x0000000000000000000000000000000000000003",
+        value: "1"
+      },
+      primaryType: "Permit",
+      types: {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" }
+        ]
+      }
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "squidRouterPermitExecute",
+      signer: "0x0000000000000000000000000000000000000002",
+      txData: [unsignedTypedData]
+    };
+    const signedTx: PresignedTx = {
+      ...unsignedTx,
+      txData: [{ ...unsignedTypedData, signature: { deadline: 9999999999, r: "0x1", s: "0x2", v: 27 } }]
+    };
+
+    expect(areAllTxsIncluded([signedTx], [unsignedTx])).toBe(true);
+  });
+
+  it("accepts user-signed permit typed data for squidRouterPermitExecute", async () => {
+    const wallet = new Wallet("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    const typedData: SignedTypedData = {
+      domain: {
+        chainId: 137,
+        name: "Token",
+        verifyingContract: "0x0000000000000000000000000000000000000001",
+        version: "1"
+      },
+      message: {
+        deadline: "9999999999",
+        nonce: "0",
+        owner: wallet.address,
+        spender: "0x0000000000000000000000000000000000000003",
+        value: "1"
+      },
+      primaryType: "Permit",
+      types: {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" }
+        ]
+      }
+    };
+    const signature = EthersSignature.from(await wallet.signTypedData(typedData.domain, typedData.types, typedData.message));
+    const presignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 0,
+      phase: "squidRouterPermitExecute",
+      signer: wallet.address,
+      txData: [
+        {
+          ...typedData,
+          signature: { deadline: 9999999999, r: signature.r as `0x${string}`, s: signature.s as `0x${string}`, v: signature.v }
+        }
+      ]
+    };
+
+    await expect(
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], {
+        EVM: "0x0000000000000000000000000000000000000004",
+        Stellar: "",
+        Substrate: ""
+      })
+    ).resolves.toBeUndefined();
+  });
+
   it("should pass validation for valid presigned EVM transactions", () => {
 
     const ephemerals: {[key in EphemeralAccountType]: string } = {
@@ -260,4 +427,3 @@ describe("Presigned Transaction validation", () => {
     expect(() => validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).toThrow("presignedTxs must be an array with 1-100 elements");
   })
 });
-

@@ -4,23 +4,87 @@ import {
   ApiManager,
   CleanupPhase,
   EphemeralAccountType,
+  EvmTransactionData,
   getNetworkId,
+  isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
   PresignedTx,
   RampDirection,
   RampPhase,
+  SignedTypedData,
   SubstrateApiNetwork,
   substrateAddressEqual
 } from "@vortexfi/shared";
-import { Transaction as EvmTransaction } from "ethers";
+import { Signature as EvmSignature, Transaction as EvmTransaction, verifyTypedData } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
 import { config } from "../../../config";
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
-/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, signer, and txData.
+function stripSignaturesForComparison(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripSignaturesForComparison);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>)
+      .filter(key => key !== "signature")
+      .sort()
+      .reduce<Record<string, unknown>>((acc, key) => {
+        acc[key] = stripSignaturesForComparison((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {});
+  }
+
+  return value;
+}
+
+function signedEvmTransactionMatchesUnsigned(
+  signedTxData: string,
+  unsignedTxData: EvmTransactionData,
+  expectedNonce: number
+): boolean {
+  try {
+    const transactionMeta = EvmTransaction.from(signedTxData);
+    return (
+      transactionMeta.to?.toLowerCase() === unsignedTxData.to.toLowerCase() &&
+      transactionMeta.data.toLowerCase() === unsignedTxData.data.toLowerCase() &&
+      transactionMeta.value === BigInt(unsignedTxData.value || "0") &&
+      transactionMeta.nonce === expectedNonce
+    );
+  } catch {
+    return false;
+  }
+}
+
+function txDataMatchesSignedSubmission(submittedTx: PresignedTx, unsignedTx: PresignedTx): boolean {
+  if (typeof submittedTx.txData === "string" && isEvmTransactionData(unsignedTx.txData)) {
+    return signedEvmTransactionMatchesUnsigned(submittedTx.txData, unsignedTx.txData, submittedTx.nonce);
+  }
+
+  if (
+    (isSignedTypedData(submittedTx.txData) || isSignedTypedDataArray(submittedTx.txData)) &&
+    (isSignedTypedData(unsignedTx.txData) || isSignedTypedDataArray(unsignedTx.txData))
+  ) {
+    return (
+      JSON.stringify(stripSignaturesForComparison(submittedTx.txData)) ===
+      JSON.stringify(stripSignaturesForComparison(unsignedTx.txData))
+    );
+  }
+
+  if (typeof submittedTx.txData === "string" && typeof unsignedTx.txData === "string") {
+    // Signed Substrate/Stellar payloads cannot be byte-compared to their unsigned payloads here.
+    // Their signer/shape checks happen in validatePresignedTxs before this inclusion check.
+    return submittedTx.txData === unsignedTx.txData || submittedTx.signer === unsignedTx.signer;
+  }
+
+  return JSON.stringify(submittedTx.txData) === JSON.stringify(unsignedTx.txData);
+}
+
+/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, signer,
+/// and a signed-payload-aware comparison of txData.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
   for (const subsetTx of subset) {
     const match = set.find(
@@ -29,7 +93,7 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
         setTx.network === subsetTx.network &&
         setTx.nonce === subsetTx.nonce &&
         setTx.signer === subsetTx.signer &&
-        JSON.stringify(setTx.txData) === JSON.stringify(subsetTx.txData)
+        txDataMatchesSignedSubmission(subsetTx, setTx)
     );
 
     if (!match) {
@@ -133,16 +197,17 @@ export async function validatePresignedTxs(
 function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   const { txData, signer } = tx;
   logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
-  // EIP-712 typed data: full content validation (spender, value, deadline, verifyingContract) requires
-  // domain-specific knowledge per integration. Validate signer only here.
+
+  if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
+    throw new APIError({
+      message: "EVM signer must be a valid Ethereum address",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  // EIP-712 typed data is signed by the user wallet for permit flows, not by the EVM ephemeral.
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
-    if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
-      throw new APIError({
-        message: `EVM typed data signer ${signer} does not match expected signer ${expectedSigner}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    logger.info(`Validated EIP-712 typed data signer for phase ${tx.phase}: ${signer}`);
+    validateSignedTypedData(tx, signer);
     return;
   }
 
@@ -156,13 +221,6 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
   if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
     throw new APIError({
       message: `EVM transaction signer ${signer} does not match the expected signer ${expectedSigner}`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
-    throw new APIError({
-      message: "EVM signer must be a valid Ethereum address",
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -195,6 +253,54 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
       status: httpStatus.BAD_REQUEST
     });
   }
+}
+
+function validateSignedTypedData(tx: PresignedTx, expectedSigner: string) {
+  const typedDataItems = isSignedTypedDataArray(tx.txData) ? tx.txData : [tx.txData as SignedTypedData];
+
+  for (const typedData of typedDataItems) {
+    const signature = typedData.signature;
+    if (!signature || Array.isArray(signature)) {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} must include exactly one signature`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (
+      typedData.domain.chainId &&
+      typedData.domain.chainId !== getNetworkId(tx.network) &&
+      Boolean(config.sandboxEnabled) !== true
+    ) {
+      throw new APIError({
+        message: `EVM typed data chainId ${typedData.domain.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const owner = typedData.message.owner;
+    if (typeof owner === "string" && owner.toLowerCase() !== expectedSigner.toLowerCase()) {
+      throw new APIError({
+        message: `EVM typed data owner ${owner} does not match signer ${expectedSigner}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const recoveredSigner = verifyTypedData(
+      typedData.domain,
+      typedData.types,
+      typedData.message,
+      EvmSignature.from({ r: signature.r, s: signature.s, v: signature.v }).serialized
+    );
+    if (recoveredSigner.toLowerCase() !== expectedSigner.toLowerCase()) {
+      throw new APIError({
+        message: `EVM typed data signature was produced by ${recoveredSigner}, expected ${expectedSigner}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
+  logger.info(`Validated EIP-712 typed data signature for phase ${tx.phase}: ${expectedSigner}`);
 }
 
 async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {

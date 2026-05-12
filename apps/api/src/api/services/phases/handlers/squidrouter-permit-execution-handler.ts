@@ -246,6 +246,10 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     const payloadData = payloadMessage.data as `0x${string}`;
     const payloadNonce = BigInt(payloadMessage.nonce as string);
     const payloadDeadline = BigInt(payloadMessage.deadline as string);
+    const executionValue = state.state.squidRouterPermitExecutionValue;
+    if (executionValue === undefined || executionValue === null) {
+      throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
+    }
 
     const { walletClient } = this.getExecutorClients(fromNetwork);
 
@@ -262,7 +266,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
           payloadR: payloadSig.r,
           payloadS: payloadSig.s,
           payloadV: payloadSig.v,
-          payloadValue: state.state.squidRouterPermitExecutionValue,
+          payloadValue: executionValue,
           permitR: permitSig.r,
           permitS: permitSig.s,
           permitV: permitSig.v,
@@ -271,7 +275,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         }
       ],
       functionName: "execute",
-      value: BigInt(state.state.squidRouterPermitExecutionValue!)
+      value: BigInt(executionValue)
     });
 
     return this.saveHashAndAwaitReceipt(state, hash, fromNetwork, "Relayer execute");
@@ -291,19 +295,6 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       // wallet during the signing step. We just verify their on-chain success and proceed.
       if (state.state.isNoPermitFallback) {
         return await this.executeNoPermitFallback(state, fromNetwork);
-      }
-
-      const executionValue = state.state.squidRouterPermitExecutionValue;
-      if (executionValue === undefined || executionValue === null) {
-        throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
-      }
-
-      const executionValueBigInt = BigInt(executionValue);
-      const maxAllowedValue = BigInt("1000000000000000000"); // 1 ETH in wei
-      if (executionValueBigInt > maxAllowedValue) {
-        throw this.createUnrecoverableError(
-          `squidRouterPermitExecutionValue ${executionValueBigInt} exceeds maximum allowed ${maxAllowedValue}`
-        );
       }
 
       const existingHash = state.state.squidRouterPermitExecutionHash || null;
@@ -336,81 +327,21 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       }
 
       const signedTypedDataArray = permitExecuteTransaction.txData as SignedTypedData[];
-      if (!isSignedTypedDataArray(signedTypedDataArray) || signedTypedDataArray.length !== 2) {
-        throw this.createUnrecoverableError("Invalid txData format: expected array of 2 SignedTypedData objects");
-      }
-
-      const [permitTypedData, payloadTypedData] = signedTypedDataArray;
-
-      const permitSignature = permitTypedData.signature;
-      if (!permitSignature) {
-        throw this.createUnrecoverableError("Permit signature not found or invalid format");
-      }
-      const permitSig = permitSignature as { v: number; r: `0x${string}`; s: `0x${string}` };
-      const { v: permitV, r: permitR, s: permitS } = permitSig;
-
-      const payloadSignature = payloadTypedData.signature;
-      if (!payloadSignature) {
-        throw this.createUnrecoverableError("Payload signature not found or invalid format");
-      }
-      const payloadSig = payloadSignature as { v: number; r: `0x${string}`; s: `0x${string}` };
-      const { v: payloadV, r: payloadR, s: payloadS } = payloadSig;
-
-      const permitMessage = permitTypedData.message;
-      const token = permitTypedData.domain.verifyingContract as `0x${string}`;
-      const owner = permitMessage.owner as `0x${string}`;
-      const value = BigInt(permitMessage.value as string);
-      const deadline = BigInt(permitMessage.deadline as string);
-
-      const payloadMessage = payloadTypedData.message;
-      const payloadData = payloadMessage.data as `0x${string}`;
-      const payloadNonce = BigInt(payloadMessage.nonce as string);
-      const payloadDeadline = BigInt(payloadMessage.deadline as string);
-
-      const relayerAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
-      const walletClient = this.evmClientManager.getWalletClient(fromNetwork, relayerAccount);
-
-      const hash = await walletClient.writeContract({
-        abi: tokenRelayerAbi,
-        address: RELAYER_ADDRESS as `0x${string}`,
-        args: [
-          {
-            deadline: deadline,
-            owner: owner,
-            payloadData: payloadData,
-            payloadDeadline: payloadDeadline,
-            payloadNonce: payloadNonce,
-            payloadR: payloadR,
-            payloadS: payloadS,
-            payloadV: payloadV,
-            payloadValue: state.state.squidRouterPermitExecutionValue,
-            permitR: permitR,
-            permitS: permitS,
-            permitV: permitV,
-            token: token,
-            value: value
-          }
-        ],
-        functionName: "execute",
-        value: executionValueBigInt
-      });
-
-      logger.info(`Relayer execute transaction sent with hash: ${hash}`);
-
-      const updatedState = await state.update({
-        state: {
-          ...state.state,
-          squidRouterPermitExecutionHash: hash
-        }
-      });
-
-      const publicClient = this.evmClientManager.getClient(fromNetwork);
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: hash as `0x${string}`
-      });
-
       if (state.state.isDirectTransfer) {
         return await this.executeDirectTransfer(state, signedTypedDataArray, fromNetwork);
+      }
+
+      const executionValue = state.state.squidRouterPermitExecutionValue;
+      if (executionValue === undefined || executionValue === null) {
+        throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
+      }
+
+      const executionValueBigInt = BigInt(executionValue);
+      const maxAllowedValue = BigInt("1000000000000000000"); // 1 ETH in wei
+      if (executionValueBigInt > maxAllowedValue) {
+        throw this.createUnrecoverableError(
+          `squidRouterPermitExecutionValue ${executionValueBigInt} exceeds maximum allowed ${maxAllowedValue}`
+        );
       }
 
       return await this.executeRelayerTransfer(state, signedTypedDataArray, fromNetwork);
