@@ -36,6 +36,122 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - From Base to any EVM (BRL onramp): `squidRouterApprove` → `squidRouterSwap` → `squidRouterPay` → optional `backupSquidRouter*` on destination → `destinationTransfer`
 - Trivial case (Base→Base USDC): direct `destinationTransfer` only (Squid skipped)
 
+### Phase Transition Diagrams
+
+The following diagrams show the phase transitions for all on-ramp and off-ramp corridors as registered in `register-handlers.ts` and assembled by the route builders in `apps/api/src/api/services/transactions/{on,off}ramp/routes/`. Diamond nodes denote conditional branches resolved at route-build time (not runtime phase transitions).
+
+#### On-Ramp Phase Flow
+
+```mermaid
+graph TD
+    Start([Start On-Ramp]) --> Init[initial]
+    Init --> Provider{Fiat provider?}
+
+    %% --- Monerium EUR on Polygon ---
+    Provider -->|Monerium EUR| MonMint[moneriumOnrampMint]
+    MonMint --> MonFund[fundEphemeral]
+    MonFund --> MonSelf[moneriumOnrampSelfTransfer]
+    MonSelf --> MonSquidApprove[squidRouterApprove]
+    MonSquidApprove --> MonSquidSwap[squidRouterSwap]
+    MonSquidSwap --> MonDest{Destination?}
+    MonDest -->|EVM| FinalSubsidy[finalSettlementSubsidy]
+    MonDest -->|AssetHub / Hydration| MonToPendulum[moonbeamToPendulumXcm]
+    MonToPendulum --> SubPre[subsidizePreSwap]
+
+    %% --- BRL via Avenia/BRLA on Base ---
+    Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC]
+    BrlaMint --> BrlaSubPreEvm[subsidizePreSwapEvm]
+    BrlaSubPreEvm --> BrlaApproveEvm[nablaApproveEvm]
+    BrlaApproveEvm --> BrlaSwapEvm[nablaSwapEvm]
+    BrlaSwapEvm --> BrlaSubPostEvm[subsidizePostSwapEvm]
+    BrlaSubPostEvm --> BrlaDistEvm[distributeFeesEvm]
+    BrlaDistEvm --> BrlaDest{Destination = Base USDC?}
+    BrlaDest -->|Yes - skip Squid| DestTransfer[destinationTransfer]
+    BrlaDest -->|No| BrlaSquidApprove[squidRouterApprove]
+    BrlaSquidApprove --> BrlaSquidSwap[squidRouterSwap]
+    BrlaSquidSwap --> BrlaSquidPay[squidRouterPay]
+    BrlaSquidPay --> BrlaBackup{Backup tx needed?}
+    BrlaBackup -->|Yes| BrlaBackupSquid[backupSquidRouter*]
+    BrlaBackup -->|No| DestTransfer
+    BrlaBackupSquid --> DestTransfer
+
+    %% --- Alfredpay ---
+    Provider -->|Alfredpay| AfMint[alfredpayOnrampMint]
+    AfMint --> AfFund[fundEphemeral]
+    AfFund --> AfSquidSwap[squidRouterSwap]
+    AfSquidSwap --> AfSquidPay[squidRouterPay]
+    AfSquidPay --> FinalSubsidy
+
+    %% --- Common Pendulum swap path (Monerium AssetHub / Hydration) ---
+    SubPre --> NablaApprove[nablaApprove]
+    NablaApprove --> NablaSwap[nablaSwap]
+    NablaSwap --> SubPost[subsidizePostSwap]
+    SubPost --> Dist[distributeFees]
+    Dist --> AhRoute{Output token?}
+    AhRoute -->|USDC| ToAh[pendulumToAssethubXcm]
+    AhRoute -->|DOT / USDT| ToHydra[pendulumToHydrationXcm]
+    ToHydra --> HydraSwap[hydrationSwap]
+    HydraSwap --> HydraToAh[hydrationToAssethubXcm]
+
+    %% --- Final settlement (EVM via Squid) ---
+    FinalSubsidy --> DestTransfer
+
+    %% --- Terminal ---
+    DestTransfer --> Complete([complete])
+    ToAh --> Complete
+    HydraToAh --> Complete
+```
+
+#### Off-Ramp Phase Flow
+
+```mermaid
+graph TD
+    Start([Start Off-Ramp]) --> Init[initial]
+    Init --> Corridor{Output fiat?}
+
+    %% --- BRL via Avenia/BRLA on Base ---
+    Corridor -->|BRL on Base| BrlSquidEntry{Entry mode?}
+    BrlSquidEntry -->|Permit| BrlPermit[squidRouterPermitExecute]
+    BrlSquidEntry -->|Approve+Swap| BrlApproveUser[squidRouterApprove]
+    BrlApproveUser --> BrlSwapUser[squidRouterSwap]
+    BrlSquidEntry -->|No-permit fallback| BrlNoPermit[squidRouterNoPermit*]
+    BrlSquidEntry -->|Direct transfer| BrlDirect[isDirectTransfer]
+    BrlPermit --> BrlSquidPay[squidRouterPay]
+    BrlSwapUser --> BrlSquidPay
+    BrlNoPermit --> BrlSquidPay
+    BrlDirect --> BrlSquidPay
+    BrlSquidPay --> BrlDistEvm[distributeFeesEvm]
+    BrlDistEvm --> BrlSubPreEvm[subsidizePreSwapEvm]
+    BrlSubPreEvm --> BrlApproveEvm[nablaApproveEvm]
+    BrlApproveEvm --> BrlSwapEvm[nablaSwapEvm - USDC to BRLA]
+    BrlSwapEvm --> BrlPayout[brlaPayoutOnBase]
+    BrlPayout --> Complete([complete])
+    Complete -.post-process.-> BaseCleanup[BaseChainPostProcessHandler<br/>sweeps BRLA + USDC]
+
+    %% --- Stellar-anchored fiat (EUR / ARS) ---
+    Corridor -->|EUR / ARS via Stellar| StellarStart{Source chain?}
+    StellarStart -->|EVM| MoonToPendulum[moonbeamToPendulumXcm]
+    StellarStart -->|AssetHub| AhDist[distributeFees]
+    MoonToPendulum --> EvmDist[distributeFees]
+    EvmDist --> SubPre[subsidizePreSwap]
+    AhDist --> SubPre
+    SubPre --> NablaApprove[nablaApprove]
+    NablaApprove --> NablaSwap[nablaSwap - input to wrapped EURC]
+    NablaSwap --> SubPost[subsidizePostSwap]
+    SubPost --> Spacewalk[spacewalkRedeem]
+    Spacewalk --> StellarPay[stellarPayment]
+    StellarPay --> Complete
+
+    %% --- Alfredpay ---
+    Corridor -->|Alfredpay| AfPermit[squidRouterPermitExecute]
+    AfPermit --> AfFund[fundEphemeral]
+    AfFund --> AfFinalSubsidy[finalSettlementSubsidy]
+    AfFinalSubsidy --> AfTransfer[alfredpayOfframpTransfer]
+    AfTransfer --> Complete
+```
+
+> Note: `pendulumCleanup` and any chain-specific post-process handlers (`PolygonPostProcessHandler`, `HydrationPostProcessHandler`, `BaseChainPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
+
 ### Phase Handler Categories
 
 | Category | Handlers | Funds Controlled By |
