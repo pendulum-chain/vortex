@@ -147,6 +147,12 @@ export async function assertQuoteOwnership(
         status: httpStatus.FORBIDDEN
       });
     }
+    if (quote.userId !== null && quote.userId !== req.userId) {
+      throw new APIError({
+        message: "Authenticated user does not own this quote",
+        status: httpStatus.FORBIDDEN
+      });
+    }
     return;
   }
 
