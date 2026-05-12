@@ -16,8 +16,8 @@
 
 **Spec:** `00-system-overview/architecture.md`
 
-#### 1. `[FAIL]` Every route has appropriate auth middleware
-Multiple security-sensitive routes (ramp start/update, fundEphemeral, subsidize, execute-xcm, webhook, maintenance) have **no authentication**. → [F-013](FINDINGS.md)
+#### 1. `[PASS]` Every route has appropriate auth middleware
+Originally a critical gap (multiple ramp/quote/BRLA/maintenance/webhook routes were unauthenticated). Resolved: legacy `pendulum/fundEphemeral`, `moonbeam/execute-xcm`, and `subsidize/*` routes were removed; all `/v1/ramp/*` and `/v1/ramp/quotes(/best)` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `requireAuth`/`adminAuth`/`apiKeyAuth` cover the remaining sensitive routes. → [F-013](FINDINGS.md)
 
 #### 2. `[FAIL]` No controller directly accesses `process.env` for secrets
 `PENDULUM_FUNDING_SEED` accessed directly via `process.env` in `pendulum.service.ts`, bypassing centralized config. Other violations are low-severity (URL configs, non-critical API keys). → [F-016](FINDINGS.md)
@@ -50,7 +50,7 @@ Different env var names and separate config files.
 
 | # | Check | Result |
 |---|---|---|
-| 1 | All routes have auth middleware | 🔴 FAIL — F-013 |
+| 1 | All routes have auth middleware | ✅ PASS — F-013 resolved |
 | 2 | No direct `process.env` in controllers | 🔴 FAIL — F-016 |
 | 3 | Ephemeral keys not in payloads/logs | ✅ PASS |
 | 4 | Phase processor reads fresh state | ✅ PASS |
@@ -65,7 +65,7 @@ Different env var names and separate config files.
 
 | ID | Severity | Summary |
 |---|---|---|
-| F-013 | 🔴 CRITICAL | Multiple security-sensitive endpoints have no authentication middleware |
+| F-013 | ✅ RESOLVED | Multiple security-sensitive endpoints had no authentication middleware (now strict dual-track auth + ownership guards) |
 | F-014 | 🟠 HIGH | Most external HTTP `fetch()` calls lack timeout — hanging services can stall ramp processing |
 | F-015 | 🟡 MEDIUM | Raw `err.message` from internal errors passed to API responses |
 | F-016 | 🟡 MEDIUM | `PENDULUM_FUNDING_SEED` accessed directly via `process.env` in service file |
@@ -77,8 +77,8 @@ Different env var names and separate config files.
 
 **Spec:** `01-auth/supabase-otp.md`
 
-#### 1. `[FAIL]` `requireAuth` applied to all protected endpoints
-Cross-ref with F-013. Ramp start/update, ramp history, BRLA user data endpoints all lack auth.
+#### 1. `[PASS]` `requireAuth` applied to all protected endpoints
+Resolved alongside F-013. `/v1/ramp/*` endpoints now require either `X-API-Key: sk_*` (partner) or `Authorization: Bearer` (Supabase user) via `requirePartnerOrUserAuth()`; `/v1/brla/*` user-data endpoints use `requireAuth`; `adminAuth` and `apiKeyAuth` cover maintenance and webhook routes respectively.
 
 #### 2. `[PASS]` `optionalAuth` only where unauthenticated access is intentionally allowed
 Used on ramp `/register`, quote creation, BRLA KYC — all reasonable uses.
@@ -111,7 +111,7 @@ BRLA KYC endpoints use `optionalAuth` for user-specific resources — questionab
 
 | # | Checklist Item | Result |
 |---|---|---|
-| 1 | `requireAuth` on all protected endpoints | 🔴 FAIL — F-013 |
+| 1 | `requireAuth` on all protected endpoints | ✅ PASS — F-013 resolved |
 | 2 | `optionalAuth` only where intended | ✅ PASS |
 | 3 | `verifyToken()` uses service role key | 🔵 FAIL — F-018 |
 | 4 | `Bearer ` prefix check correct | ✅ PASS |
@@ -199,7 +199,7 @@ No new standalone findings. Commented-out `enforcePartnerAuth` and partner name 
 **Spec:** `01-auth/admin-auth.md`
 
 #### 1. `[PASS]` `adminAuth` on all admin endpoints
-`router.use(adminAuth)` applied globally on admin route file. Maintenance toggle lacks auth (covered by F-013).
+`router.use(adminAuth)` applied globally on admin route file. The maintenance toggle gap previously cross-referenced under F-013 has been closed.
 
 #### 2. `[PASS]` Only `safeCompare` used for comparison
 No `===` or `==` comparison of token.

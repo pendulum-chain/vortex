@@ -77,7 +77,7 @@ Code references:
 |---|---|---|
 | `00-system-overview/architecture.md` | Patch | Added Base to chain list; updated BRL provider name to "BRLA/Avenia" |
 | `03-ramp-engine/ramp-phase-flows.md` | Major rewrite (BRL section) | Replaced Moonbeam/Pendulum BRL corridors with Base flows; updated handler categories table; added new audit checklist items |
-| `03-ramp-engine/ephemeral-accounts.md` | Patch | Added Base ephemeral; reframed F-045 as accepted-risk policy decision (no EVM cleanup) |
+| `03-ramp-engine/ephemeral-accounts.md` | Patch | Added Base ephemeral; F-045/F-NEW-05 resolved by `BaseChainPostProcessHandler` (sweeps BRLA + USDC on Base) |
 | `03-ramp-engine/fee-integrity.md` | Patch | Added EVM Multicall3 distribution mechanism; documented `Partner.payout_address_evm`/`payout_address_substrate`; documented BRL ordering invariants |
 | `03-ramp-engine/transaction-validation.md` | Patch | Documented partitioning + filtering + deposit-QR gating; documented no-permit fallback phase skip |
 | `05-integrations/brla.md` | **Full rewrite** | Replaced Moonbeam/PIX/XCM content with Base + Avenia API flow; added three-amount model; new audit checklist |
@@ -156,15 +156,13 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ---
 
-### F-NEW-05 — No EVM ephemeral cleanup (ACCEPTED RISK)
+### F-NEW-05 — Base ephemeral cleanup (RESOLVED)
 
-**Location:** `apps/api/src/api/services/phases/post-process/` — no `BasePostProcessHandler`, `PolygonPostProcessHandler`, etc.
+**Location:** `apps/api/src/api/services/phases/post-process/base-chain-post-process-handler.ts`; presigned approvals in `apps/api/src/api/services/transactions/base/cleanup.ts`.
 
-**Issue:** EVM ephemerals (Base, Polygon, etc.) accumulate residual ETH (gas) and any leftover tokens after each ramp. Unlike Stellar/Pendulum/Moonbeam, no cleanup transactions are issued.
+**Issue (original):** Base ephemerals could accumulate residual BRLA/USDC after BRL ramps. Other EVM ephemerals were treated similarly: no cleanup.
 
-**User decision:** **Accepted risk.** Team explicitly decided to skip cleanup transactions on EVM networks until a proper custody setup is in place. F-045 reframed as policy choice.
-
-**Action:** No code change required. Tracked here for visibility. Revisit when custody solution is designed.
+**Resolution:** A `BaseChainPostProcessHandler` is now registered. After `currentPhase === "complete"`, it sweeps BRLA and USDC residuals from the Base ephemeral via presigned `approve(funding, MAX_UINT256)` (ephemeral-signed) + `transferFrom(ephemeral, funding, balance)` (funding-key-signed), mirroring the Polygon pattern. ETH gas dust remains unswept by design (gas is funded just-in-time and rarely accumulates). Polygon and Hydration cleanups remain active. AssetHub cleanup remains a no-op stub.
 
 ---
 
@@ -249,7 +247,7 @@ These pre-existing findings remain open and are unchanged by the BRL migration:
 - **F-056**: `sandboxEnabled` bypass
 - **F-057**: `destinationTransfer` does not validate `to` address against quote
 - **F-058**: No per-presigned-transaction TTL
-- **F-051, F-052**: Cleanup observability gaps (less relevant now that EVM cleanup is intentionally skipped — F-NEW-05)
+- **F-051, F-052**: Cleanup observability gaps — now partially relevant again since Base/Polygon/Hydration cleanups are active and benefit from per-handler success/failure metrics.
 
 ---
 
@@ -270,4 +268,27 @@ Priority order for the next audit/dev cycle, based on severity × likelihood. Re
 | 9 | **F-NEW-08** — Investigate skip-Squid passthrough divergence. | NO BUG — same-chain same-token passthrough has no Squid fee; `networkFeeUSD="0"` and 1:1 rate are correct. |
 | 10 | **F-NEW-09** — Investigate BRLA payout recovery branches. | NO BUG — once `payOutTicketId` exists, BRLA acknowledged the EVM payout; on-chain receipt is no longer authoritative. |
 | 11 | **F-NEW-10** — Avenia anchor-fee assumption in three-amount model. | NO BUG — `OffRampMergeSubsidyEvmEngine` adds the projected subsidy into `nablaSwapEvm.outputAmountRaw`, and `OffRampFinalizeEngine` then sets `quote.outputAmount = nablaSwapEvm.outputAmountDecimal − anchorFee`. The relationship `nablaSwapEvm.outputAmountRaw ≥ quote.outputAmount × 10^brlaDecimals` is therefore tautological at quote-build time. The actual safety net is `subsidize-post-swap-evm-handler.ts`, which tops the ephemeral up to `nablaSwapEvm.outputAmountRaw` at runtime (capped by F-NEW-02's 5% USD subsidy bound). No build-time assertion needed. |
-| 12 | **F-NEW-05** — Defer until custody solution is designed (per team decision). | DEFERRED — accepted risk; no EVM cleanup transactions implemented. |
+| 12 | **F-NEW-05** — Add Base ephemeral cleanup. | RESOLVED — `BaseChainPostProcessHandler` sweeps BRLA and USDC residuals after `currentPhase === "complete"` via presigned `approve` + funding-key `transferFrom`. Wired into both `evm-to-brl-base.ts` (offramp) and `avenia-to-evm-base.ts` (onramp). New phase keys `baseCleanupBrla` and `baseCleanupUsdc`. ETH gas dust on EVM ephemerals remains unswept (intentional). |
+| 13 | **F-013** — Multiple security-sensitive endpoints have no authentication. | RESOLVED — strict dual-track auth enforced on all `/v1/ramp/*` and `/v1/ramp/quotes(/best)` endpoints via the new `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`). Each request must carry **either** `X-API-Key: sk_*` (partner SDK) **or** `Authorization: Bearer <jwt>` (Supabase frontend); anonymous access is rejected. Per-principal ownership guards (`assertRampOwnership`, `assertQuoteOwnership`) prevent cross-tenant access: partners are scoped via `RampState.quoteId → QuoteTicket.partnerId`, Supabase users via `RampState.userId`. `getRampHistory` filters at the service layer by the same chain. The previous backwards-compat carve-out for `/ramp/start` and `/ramp/update` has been removed. `enforcePartnerAuth()` is now active on `/quotes` and `/quotes/best`, closing the partner-spoofing vector. |
+
+---
+
+## 6. Auth Posture (Post-Delta)
+
+The dual-track auth model — partner SDK key OR Supabase user session — is the canonical model going forward. There is **no anonymous access** to ramp or quote endpoints.
+
+| Endpoint | Auth | Owner check |
+|---|---|---|
+| `POST /v1/ramp/quotes` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Partner key, if present, must match `partnerId` in body |
+| `POST /v1/ramp/quotes/best` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Same as above |
+| `POST /v1/ramp/register` | `requirePartnerOrUserAuth()` | `assertQuoteOwnership(req, quoteId)` |
+| `POST /v1/ramp/update` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` |
+| `POST /v1/ramp/start` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` |
+| `GET /v1/ramp/:id` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, id)` |
+| `GET /v1/ramp/:id/errors` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, id)` |
+| `GET /v1/ramp/history/:walletAddress` | `requirePartnerOrUserAuth()` | Service-layer filter: partner → owned `quoteId`s; user → matching `userId` |
+| `/v1/brla/*` user data | `requireAuth` | Supabase userId scoping |
+| `/v1/maintenance/*` | `adminAuth` | n/a |
+| `/v1/webhook/*` | `apiKeyAuth` | Partner ownership |
+
+Frontend uses `Authorization: Bearer` (Supabase). SDK uses `X-API-Key: sk_*`. Both grant equal access subject to per-principal ownership scoping.

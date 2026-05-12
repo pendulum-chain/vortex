@@ -82,7 +82,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 
 ## Audit Checklist
 
-- [FAIL] Every route in `apps/api/src/api/routes/v1/` has appropriate auth middleware applied — **F-013: Multiple critical endpoints unprotected (ramp start/update, fundEphemeral, subsidize, execute-xcm)**
+- [x] Every route in `apps/api/src/api/routes/v1/` has appropriate auth middleware applied — **PASS: F-013 resolved. Legacy fundEphemeral/execute-xcm/subsidize endpoints removed. `/v1/ramp/*` and `/v1/ramp/quotes(/best)` enforce `requirePartnerOrUserAuth()` with per-principal ownership guards. `/v1/brla/*`, `/v1/maintenance/*`, `/v1/webhook/*` use `requireAuth`/`adminAuth`/`apiKeyAuth` respectively.**
 - [FAIL] No controller directly accesses `process.env` for secrets — all go through `config/vars.ts` — **F-016: `PENDULUM_FUNDING_SEED` accessed directly in `pendulum.service.ts`; also `SLACK_WEB_HOOK_TOKEN`, `COINGECKO_API_KEY`**
 - [x] Ephemeral key secrets never appear in API request/response payloads or logs
 - [x] Phase processor always reads fresh state from DB before executing a phase (no stale cache)

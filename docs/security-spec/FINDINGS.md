@@ -57,12 +57,12 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 | Field | Value |
 |---|---|
 | **Location** | `apps/api/src/api/routes/v1/ramp.route.ts`, `pendulum.route.ts`, `subsidize.route.ts`, `moonbeam.route.ts`, `stellar.route.ts`, `webhook.route.ts`, `brla.route.ts`, `maintenance.route.ts` |
-| **Spec** | `00-system-overview/architecture.md` |
-| **Status** | ✅ **FIXED** (legacy endpoints removed, auth added per CTO decisions) |
+| **Spec** | `00-system-overview/architecture.md`, `01-auth/api-keys.md`, `01-auth/supabase-otp.md` |
+| **Status** | ✅ **FIXED** (legacy endpoints removed; strict dual-track auth enforced on all remaining sensitive routes) |
 | **Found** | Code audit, iteration 2 |
 | **Impact** | Attacker can start ramps, trigger XCM execution, fund ephemeral accounts, and initiate subsidization — all spending platform funds — without any authentication. |
 
-**Description:** The following endpoints have **zero authentication middleware**:
+**Description:** The following endpoints originally had **zero authentication middleware**:
 
 - `POST /v1/ramp/start` — starts ramp phase processing
 - `POST /v1/ramp/update` — updates ramp with presigned transactions
@@ -75,20 +75,24 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 - `PATCH /v1/maintenance/schedules/:id/active` — toggle maintenance mode
 - `GET /v1/brla/getUser`, `GET /v1/brla/getUserRemainingLimit`, etc. — user data without auth
 
-**CTO Clarification (2026-04-02):**
-- `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap` are **legacy endpoints that should be removed**. They were from a time when the frontend managed ramp progression directly. The server now handles this internally.
-- `/ramp/start` and `/ramp/update` must remain **unauthenticated for now** (backwards compatibility with existing SDK users who haven't implemented auth yet). Auth will be added in a future iteration once all SDK consumers are notified.
-- `/stellar/create` — **add auth** (requireAuth or apiKeyAuth).
-- `/maintenance/schedules/:id/active` — **add adminAuth**.
-- `/webhook` POST/DELETE — **add apiKeyAuth** (partners register webhooks).
-- `/brla/getUser`, `/brla/getUserRemainingLimit` — **add requireAuth** (user data must require authenticated session).
-- The API is **directly exposed to the internet** with no reverse proxy or firewall restricting endpoint access.
+**Resolution:**
 
-**Fix:**
-1. **Remove** legacy endpoints: `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap`
-2. **Add auth middleware**: `requireAuth` to `/stellar/create` and `/brla/*` user data endpoints; `adminAuth` to `/maintenance/*`; `apiKeyAuth` to `/webhook` POST/DELETE
-3. **Document** that `/ramp/start` and `/ramp/update` are intentionally unauthenticated (temporary, backwards compat) with a TODO to add API key auth once SDK users migrate
-4. **Future:** Require API key auth on `/ramp/start` and `/ramp/update`
+1. **Legacy endpoints removed:** `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap` were deleted; the server now drives ramp progression internally.
+2. **Strict dual-track auth on all `/v1/ramp/*` endpoints** (`/register`, `/update`, `/start`, `/:id`, `/:id/errors`, `/history/:walletAddress`) and on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. The `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`) accepts **either**:
+   - `X-API-Key: sk_*` — partner API key (used by the SDK), or
+   - `Authorization: Bearer <jwt>` — Supabase access token (used by the first-party frontend).
+
+   Anonymous access is rejected with HTTP 401. The previous backwards-compat carve-out (allowing `/ramp/start` and `/ramp/update` to remain unauthenticated until SDK consumers migrated) has been removed.
+
+3. **Ownership enforcement:** every authenticated principal can only access its own resources.
+   - **Partner principal:** ownership is the chain `RampState.quoteId → QuoteTicket.partnerId === authenticatedPartner.id`. `getRampHistory` joins through `QuoteTicket` to filter by `partnerId`.
+   - **Supabase user principal:** ownership is `RampState.userId === req.userId` (and the analogous check on `QuoteTicket.userId` for `/ramp/register`).
+   - Cross-principal access is rejected with HTTP 403.
+
+4. **Other routes:** `requireAuth` was added to `/stellar/create` and the `/brla/*` user data endpoints; `adminAuth` was added to `/maintenance/*`; `apiKeyAuth` was added to `/webhook` POST/DELETE.
+5. **Quotes:** `enforcePartnerAuth()` is now active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. Passing a `partnerId` without a matching secret API key is rejected (closes a partner-spoofing vector).
+
+The API remains directly internet-exposed; defence-in-depth (rate limits, request validators, ownership guards) is the protection model.
 
 ---
 
