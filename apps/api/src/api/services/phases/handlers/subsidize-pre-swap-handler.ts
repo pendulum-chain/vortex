@@ -13,6 +13,10 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
     return "subsidizePreSwap";
   }
 
+  public getMaxRetries(): number {
+    return 200;
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const apiManager = ApiManager.getInstance();
     const networkName = "pendulum";

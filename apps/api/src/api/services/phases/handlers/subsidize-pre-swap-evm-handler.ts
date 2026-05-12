@@ -27,6 +27,10 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
     return "subsidizePreSwapEvm";
   }
 
+  public getMaxRetries(): number {
+    return 200;
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {

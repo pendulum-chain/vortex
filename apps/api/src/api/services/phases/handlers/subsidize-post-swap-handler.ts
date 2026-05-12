@@ -21,6 +21,10 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     return "subsidizePostSwap";
   }
 
+  public getMaxRetries(): number {
+    return 200;
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
