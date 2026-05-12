@@ -7,15 +7,14 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
-  RampDirection,
-  TokenType
+  RampDirection
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
-import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useAlfredpayFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
@@ -33,7 +32,6 @@ interface UseButtonContentProps {
 const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const stellarData = useStellarKycSelector();
   const { address: accountAddress } = useVortexAccount();
 
   const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, walletLocked, quote } = useSelector(
@@ -148,17 +146,10 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     }
 
     if (isOfframp && isAnchorWithRedirect) {
-      if (stellarData?.stateValue === "Sep24Second") {
-        return {
-          icon: <Spinner />,
-          text: t("components.SummaryPage.continueOnPartnersPage")
-        };
-      } else {
-        return {
-          icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-          text: t("components.SummaryPage.continueWithPartner")
-        };
-      }
+      return {
+        icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
+        text: t("components.SummaryPage.continueWithPartner")
+      };
     }
     return {
       icon: <Spinner />,
@@ -171,7 +162,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     machineState,
     t,
     toToken,
-    stellarData,
     rampPaymentConfirmed,
     quote,
     accountAddress,
@@ -182,7 +172,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
 export const RampSubmitButton = ({ className, hasValidationErrors }: { className?: string; hasValidationErrors?: boolean }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
-  const stellarData = useStellarKycSelector();
   const router = useRouter();
   const params = useParams({ strict: false });
 
@@ -197,9 +186,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     rampState: state.context.rampState,
     walletLocked: state.context.walletLocked
   }));
-
-  const stellarContext = stellarData?.context;
-  const anchorUrl = stellarContext?.redirectUrl;
 
   const isOnramp = quote?.rampType === RampDirection.BUY;
   const isOfframp = quote?.rampType === RampDirection.SELL;
@@ -244,8 +230,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     if (!executionInput) return true;
 
     if (isOfframp) {
-      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
-      if (stellarData?.stateValue !== "StartSep24") return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
@@ -264,10 +248,8 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOnramp,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.achPaymentData,
-    anchorUrl,
     fiatToken,
     effectiveSelectedFiatAccountId,
-    stellarData,
     machineState,
     moneriumKycActor,
     walletLocked,
@@ -310,13 +292,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       if (machineState === "UpdateRamp") {
         rampActor.send({ type: "PAYMENT_CONFIRMED" });
       }
-    }
-
-    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
-      // If signing was rejected, we do not open the anchor URL again
-      // if (!signingRejected) {
-      //   window.open(anchorUrl, "_blank");
-      // }
     }
 
     // if (signingRejected) {

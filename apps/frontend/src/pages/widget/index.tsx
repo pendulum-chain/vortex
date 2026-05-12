@@ -6,6 +6,7 @@ import { LoadingScreen } from "../../components/Alfredpay/LoadingScreen";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
+import { MykoboKycFlow } from "../../components/Mykobo/MykoboKycFlow";
 import { HistoryMenu } from "../../components/menus/HistoryMenu";
 import { SettingsMenu } from "../../components/menus/SettingsMenu";
 import { AuthEmailStep } from "../../components/widget-steps/AuthEmailStep";
@@ -23,6 +24,7 @@ import {
   useAveniaKycActor,
   useAveniaKycSelector,
   useMoneriumKycActor,
+  useMykoboKycActor,
   useRampActor
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
@@ -55,6 +57,7 @@ const WidgetContent = () => {
   const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
   const alfredpayKycActor = useAlfredpayKycActor();
+  const mykoboKycActor = useMykoboKycActor();
 
   const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
   const fiatRegistrationCountry = useFiatAccountSelector(s => s.context.fiatRegistrationCountry);
@@ -134,6 +137,10 @@ const WidgetContent = () => {
 
   if (alfredpayKycActor) {
     return <AlfredpayKycFlow />;
+  }
+
+  if (mykoboKycActor) {
+    return <MykoboKycFlow />;
   }
 
   if (isInitialQuoteFailed) {
