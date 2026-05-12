@@ -216,6 +216,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.EURC]: {
+      assetSymbol: "EURC",
+      decimals: 6,
+      erc20AddressSourceChain: "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      isNative: false,
+      network: Networks.Base,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.BaseSepolia]: {
