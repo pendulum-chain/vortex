@@ -117,7 +117,7 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
 
   // Fee distribution transaction on EVM MUST be built before the Nabla swap on offramps:
   // fees are paid in USDC, which on offramps is available before the USDC -> BRLA swap.
-  // Nonce ordering on Base: distributeFeesEvm=0, nablaApproveEvm=1, nablaSwapEvm=2, brlaPayoutOnBase=3.
+  // Nonce ordering on Base: distributeFees=0, nablaApprove=1, nablaSwap=2, brlaPayoutOnBase=3.
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
   // Add Base Nabla swap transactions (USDC to BRLA on Base)

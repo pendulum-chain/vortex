@@ -73,15 +73,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     // Determine next phase
-    const isBrlInvolved = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
-    const nextPhase =
-      state.type === RampDirection.BUY
-        ? isBrlInvolved
-          ? "subsidizePostSwapEvm"
-          : "subsidizePostSwap"
-        : isBrlInvolved
-          ? "subsidizePreSwapEvm"
-          : "subsidizePreSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
 
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
@@ -120,9 +112,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
     try {
       // Get the pre-signed fee distribution transaction.
-      // Use "distributeFeesEvm" for EVM flows, "distributeFees" for substrate flows.
-      const presignedPhase = isEvmTransaction ? "distributeFeesEvm" : "distributeFees";
-      const distributeFeeTransaction = this.getPresignedTransaction(state, presignedPhase);
+      const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
       if (distributeFeeTransaction === undefined) {
         logger.info("No fee distribution transaction data found. Skipping fee distribution.");
         return this.transitionToNextPhase(state, nextPhase);

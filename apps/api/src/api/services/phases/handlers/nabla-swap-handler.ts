@@ -34,7 +34,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
     if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
-      return this.executeEvmSwap(state, quote);
+      return this.executeEvmSwap(state);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateSwap(state, quote);
     } else {
@@ -146,12 +146,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(state, nextPhase);
   }
 
-  private async executeEvmSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
+  private async executeEvmSwap(state: RampState): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
 
     try {
-      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
 
       if (typeof nablaSwapTransaction !== "string") {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
@@ -180,9 +180,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
-    const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
-    const nextPhase =
-      state.type === RampDirection.BUY ? "distributeFees" : isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

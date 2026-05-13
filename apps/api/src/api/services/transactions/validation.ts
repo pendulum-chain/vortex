@@ -9,6 +9,7 @@ import {
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
+  Networks,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -104,7 +105,17 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
   return true;
 }
 
-function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralAccountType {
+function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Networks): EphemeralAccountType {
+  // Phases that dispatch polymorphically between substrate and EVM based on the network of the presigned tx.
+  switch (phase) {
+    case "nablaApprove":
+    case "nablaSwap":
+    case "distributeFees":
+    case "subsidizePreSwap":
+    case "subsidizePostSwap":
+      return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
+  }
+
   switch (phase) {
     case "hydrationToAssethubXcm":
     case "moonbeamToPendulumXcm":
@@ -113,11 +124,6 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "pendulumToMoonbeamXcm":
     case "assethubToPendulum":
     case "hydrationSwap":
-    case "subsidizePreSwap":
-    case "subsidizePostSwap":
-    case "distributeFees":
-    case "nablaApprove":
-    case "nablaSwap":
     case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
@@ -147,9 +153,6 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "polygonCleanup":
     case "baseCleanupBrla":
     case "baseCleanupUsdc":
-    case "nablaApproveEvm":
-    case "nablaSwapEvm":
-    case "distributeFeesEvm":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({
@@ -179,7 +182,7 @@ export async function validatePresignedTxs(
       });
     }
 
-    const txType = getTransactionTypeForPhase(tx.phase);
+    const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
     if (
       tx.phase === "squidRouterNoPermitTransfer" ||
