@@ -29,7 +29,6 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   complete: 0,
   destinationTransfer: 12,
   distributeFees: 24,
-  distributeFeesEvm: 24,
   failed: 0,
   finalSettlementSubsidy: 30,
   fundEphemeral: 20,
@@ -41,9 +40,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   nablaApprove: 24,
-  nablaApproveEvm: 24,
   nablaSwap: 24,
-  nablaSwapEvm: 24,
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
@@ -58,9 +55,7 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   stellarCreateAccount: 0,
   stellarPayment: 6,
   subsidizePostSwap: 24,
-  subsidizePostSwapEvm: 24,
   subsidizePreSwap: 24,
-  subsidizePreSwapEvm: 24,
   timedOut: 0
 };
 
