@@ -19,7 +19,7 @@ This means the fees shown to the user (from the database system) may differ from
 - **On-ramp:** Fees are deducted from the input amount BEFORE the swap. `inputAmountAfterFees = inputAmount - fees`.
 - **Off-ramp:** Fees are deducted from the swap output AFTER the swap. `outputAfterFees = swapOutput - fees`.
 - **Anchor fees** (Avenia/BRLA, Stellar) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
-- **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` (Substrate) or `distributeFeesEvm` (EVM) phase.
+- **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` phase, which dispatches to a Substrate (Pendulum) or EVM (Base, Multicall3) implementation based on the ephemeral chain in use.
 
 ### Distribution Mechanisms
 
@@ -28,12 +28,12 @@ Two parallel implementations live in `apps/api/src/api/services/transactions/com
 1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `Partner.payout_address_substrate`.
 2. **EVM (Base)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `Partner.payout_address_evm`. The handler pre-checks the active `vortex` partner row has a non-NULL `payout_address_evm` and aborts the phase otherwise; partner-markup recipients fall through silently when the quote partner's `payout_address_evm` is NULL.
 
-The `distribute-fees-handler.ts` chooses the correct path based on phase name (`distributeFees` vs `distributeFeesEvm`). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
+The `distribute-fees-handler.ts` chooses the correct path at runtime based on the ephemeral network (Pendulum vs. Base). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
 
 ### Ordering with Nabla swap (BRL flows on Base)
 
-- **Offramp (USDC → BRLA)**: `distributeFeesEvm` runs **before** `nablaSwapEvm` so partner/vortex fees are taken in USDC (the universal stablecoin) before swapping the remainder to BRLA.
-- **Onramp (BRLA → USDC)**: `distributeFeesEvm` runs **after** `nablaSwapEvm`, again ensuring fees are denominated in USDC.
+- **Offramp (USDC → BRLA)**: `distributeFees` runs **before** `nablaSwap` so partner/vortex fees are taken in USDC (the universal stablecoin) before swapping the remainder to BRLA.
+- **Onramp (BRLA → USDC)**: `distributeFees` runs **after** `nablaSwap`, again ensuring fees are denominated in USDC.
 
 ## Security Invariants
 
@@ -76,8 +76,8 @@ The `distribute-fees-handler.ts` chooses the correct path based on phase name (`
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
 - [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
 - [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.
-- [x] EVM `distributeFeesEvm` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
+- [x] EVM branch of `distributeFees` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
 - [x] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts`.
-- [x] BRL offramp ordering: `distributeFeesEvm` BEFORE `nablaSwapEvm`. **PASS** — verified in `evm-to-brl-base.ts`.
+- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — verified in `evm-to-brl-base.ts`.
 - [x] **Vortex `payout_address_evm` NULL fallback**: `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` / `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address.
 - [x] **Partner `payout_address_evm` NULL no longer drops markup silently**: BRL-on-Base quote creation rejects partner-markup routes when the partner lacks EVM payout config, and runtime fee distribution logs a warning if the condition slips through.

@@ -12,13 +12,11 @@ There are now **five** subsidization-related phase handlers and one settlement p
 - `final-settlement-subsidy.ts` — Tops up an EVM ephemeral by SquidRouter-swapping native → ERC-20 (legacy / cross-chain settlement). Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`).
 - `destination-transfer-handler.ts` — Sends the presigned EVM transfer from the ephemeral to the user's destination address
 
-**Phase handlers (EVM):**
-- `subsidize-pre-swap-evm-handler.ts` — Tops up the Base ephemeral before `nablaSwapEvm` to ensure it has the expected input amount. Enforces the quote-relative USD cap `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`.
-- `subsidize-post-swap-evm-handler.ts` — Tops up the Base ephemeral after `nablaSwapEvm` to ensure it has the expected output amount. Enforces the quote-relative USD cap `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`.
+**Phase handlers (EVM):** The Substrate handlers above are polymorphic: `subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` dispatch to their EVM branches when the ephemeral involved is on a supported EVM chain (currently Base). The EVM branches top the ephemeral up before/after `nablaSwap` (EVM branch) and enforce the quote-relative USD cap `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`.
 
 **How subsidization works:**
 1. Read the ephemeral account's current balance
-2. Compare against the expected amount (from ramp state metadata, e.g. `nablaSwapEvm.inputAmountForSwapRaw` for pre-swap EVM)
+2. Compare against the expected amount (from ramp state metadata, e.g. `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` for pre-swap on the EVM branch)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
 4. The funding account is derived from `FUNDING_SECRET` / `PENDULUM_FUNDING_SEED` (Pendulum/Stellar) or `EVM_FUNDING_PRIVATE_KEY` through `getEvmFundingAccount(network)` (EVM — used on **Moonbeam, Base, and any other EVM chain**; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible fallback)
 

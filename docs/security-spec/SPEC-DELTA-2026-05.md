@@ -29,7 +29,7 @@ Code references:
 
 **Old flow:** User's crypto → Pendulum (Nabla swap) → Moonbeam (XCM) → BRLA payout via `brla-payout-moonbeam-handler`.
 
-**New flow:** User EVM (any supported) → Squid bridge to **Base USDC** → `distributeFeesEvm` (USDC fees first) → Nabla-on-EVM swap (USDC → BRLA) on Base → `brla-payout-base-handler` triggers Avenia PIX payout.
+**New flow:** User EVM (any supported) → Squid bridge to **Base USDC** → `distributeFees` (USDC fees first) → Nabla-on-EVM swap (USDC → BRLA) on Base → `brla-payout-base-handler` triggers Avenia PIX payout.
 
 Code references:
 - Route builder: `apps/api/src/api/services/transactions/offramp/routes/evm-to-brl-base.ts`
@@ -42,18 +42,15 @@ Code references:
 | New Phase | Handler | Purpose |
 |---|---|---|
 | `brlaPayoutOnBase` | `brla-payout-base-handler.ts` | BRLA→Avenia transfer + PIX payout trigger |
-| `nablaApproveEvm` | (existing handler, EVM variant) | Approve Nabla router on Base |
-| `nablaSwapEvm` | (existing handler, EVM variant) | Execute swap on Nabla-on-Base |
-| `subsidizePreSwapEvm` | `subsidize-pre-swap-evm-handler.ts` | Top up Base ephemeral input balance |
-| `subsidizePostSwapEvm` | `subsidize-post-swap-evm-handler.ts` | Top up Base ephemeral output balance |
-| `distributeFeesEvm` | `distribute-fees-handler.ts` (multiplexed) | Multicall3 batch ERC-20 fee distribution on Base |
 | `squidRouterNoPermitTransfer` | (handled in `squidrouter-permit-execution-handler.ts` no-permit branch) | User-wallet ERC-20 direct transfer (no permit available) |
 | `squidRouterNoPermitApprove` | (same handler) | User-wallet approve to Squid spender |
 | `squidRouterNoPermitSwap` | (same handler) | User-wallet Squid swap call |
 
+`nablaApprove`, `nablaSwap`, `subsidizePreSwap`, `subsidizePostSwap`, and `distributeFees` are polymorphic phases whose handlers dispatch to a Substrate (Pendulum) or EVM (Base) branch at runtime based on the ephemeral chain involved. They are not new phases; they were extended with EVM branches as part of this delta.
+
 ### 1.4 Phase ordering changes
 
-- **BRL offramp on Base**: `distributeFeesEvm` runs **before** `nablaSwapEvm` (commit `423a38c79`) so partner/vortex fees are taken in USDC before swapping to BRLA.
+- **BRL offramp on Base**: `distributeFees` (EVM branch) runs **before** `nablaSwap` (EVM branch) (commit `423a38c79`) so partner/vortex fees are taken in USDC before swapping to BRLA.
 
 ### 1.5 Cross-cutting infrastructure changes
 
@@ -65,7 +62,7 @@ Code references:
 | Squid arrival timeout | `waitUntilTrue` enforces a finite timeout | `f7905dc40` |
 | Squid 429 backoff | Exponential retry on rate-limit responses | `ff0b82feb` |
 | EVM fee distribution | New Multicall3 path; `Partner.payout_address_evm` column added (migration 026); old `payout_address` renamed to `payout_address_substrate` (migration 027) | `544f70aee`, `f3dbb7ea7` |
-| EVM fee balance precondition | 60-second poll (`FEE_BALANCE_POLL_TIMEOUT_MS`) before `distributeFeesEvm` | `b518fcec8` |
+| EVM fee balance precondition | 60-second poll (`FEE_BALANCE_POLL_TIMEOUT_MS`) before the EVM branch of `distributeFees` | `b518fcec8` |
 | Skip-Squid trivial case | Quote engine + route builder short-circuit for Base+USDC destination | `4b0017adb` |
 | Mint optimization | Skip `brlaOnrampMint` polling if balance already present (recovery scenario) | `6ea53d9d0` |
 
@@ -106,9 +103,9 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-02 — EVM subsidy handlers lack USD cap (MEDIUM, confirmed bug)
 
-**Location:** `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-evm-handler.ts` and `subsidize-post-swap-evm-handler.ts`.
+**Location:** `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` (EVM branches).
 
-**Issue:** Unlike `final-settlement-subsidy.ts` (which enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` after the F-001 fix), the new EVM subsidize-pre/post handlers have **no USD cap**. They trust `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` directly.
+**Issue:** Unlike `final-settlement-subsidy.ts` (which enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` after the F-001 fix), the EVM branches of the subsidize-pre/post handlers had **no USD cap**. They trusted `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` directly.
 
 **Risk:** If quote metadata is ever manipulable (DB compromise, race in quote engine, partner-controlled input fed without sanitization), the funding key on Base can be drained on a single ramp. Same risk class as original F-001.
 
@@ -166,15 +163,15 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ---
 
-### F-NEW-12 — BRL on-ramp skipped `subsidizePreSwapEvm` (RESOLVED)
+### F-NEW-12 — BRL on-ramp skipped EVM pre-swap subsidization (RESOLVED)
 
 **Location:** `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts:220-222`.
 
-**Issue:** The BRL on-ramp runtime phase chain transitioned `fundEphemeral → nablaApprove` directly, skipping `subsidizePreSwapEvm`. The handler was registered and wired downstream (`subsidizePreSwapEvm → nablaApprove`), but no upstream handler returned `"subsidizePreSwapEvm"` as its next phase for BRL onramps. The symmetric `subsidizePostSwapEvm` phase was reached normally via `nablaSwap`'s nextPhase logic, producing an asymmetric flow where pre-swap subsidization was unreachable.
+**Issue:** The BRL on-ramp runtime phase chain transitioned `fundEphemeral → nablaApprove` directly, skipping `subsidizePreSwap`. The handler was registered and wired downstream (`subsidizePreSwap → nablaApprove`), but no upstream handler returned `"subsidizePreSwap"` as its next phase for BRL onramps. The symmetric `subsidizePostSwap` phase was reached normally via `nablaSwap`'s nextPhase logic, producing an asymmetric flow where pre-swap subsidization was unreachable.
 
 **Risk:** If the Avenia BRLA mint underdelivers (e.g. anchor fee not pre-deducted, transient rounding, or mint amount slightly below `inputAmountForSwapRaw`), the on-ramp would fail at `nablaSwap` with insufficient input balance instead of being topped up by the funding key (capped at 5% of `outputAmount` via `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`). User funds remained on the Base ephemeral until manual recovery.
 
-**Resolution:** Changed the BRL onramp branch of `FundEphemeralHandler.nextPhaseSelector` to return `"subsidizePreSwapEvm"`. The phase chain is now `fundEphemeral → subsidizePreSwapEvm → nablaApprove → nablaSwap → ...`, symmetric with the BRL off-ramp pre-swap subsidization path.
+**Resolution:** Changed the BRL onramp branch of `FundEphemeralHandler.nextPhaseSelector` to return `"subsidizePreSwap"`. The phase chain is now `fundEphemeral → subsidizePreSwap → nablaApprove → nablaSwap → ...`, symmetric with the BRL off-ramp pre-swap subsidization path.
 
 ---
 
@@ -182,7 +179,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 **Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:232-241`.
 
-**Issue:** When the active `vortex` partner row has `payout_address_evm = NULL`, `distributeFeesEvm` throws `Error("Vortex partner is missing payout_address_evm...")` and the phase fails. There is no env-var fallback (e.g., `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`) despite team intent to fall back to a default Vortex address.
+**Issue:** When the active `vortex` partner row has `payout_address_evm = NULL`, the EVM branch of `distributeFees` throws `Error("Vortex partner is missing payout_address_evm...")` and the phase fails. There is no env-var fallback (e.g., `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`) despite team intent to fall back to a default Vortex address.
 
 **Risk:** No fund loss (phase aborts before any transfer). Operational risk only — a misconfigured or pre-026 vortex row blocks all EVM fee distribution.
 
@@ -279,7 +276,7 @@ Priority order for the next audit/dev cycle, based on severity × likelihood. Re
 | 8 | **F-NEW-03** (LOW) — Tighten `backupApprove` allowance from `maxUint256` to a calculated bound. | RESOLVED — `avenia-to-evm-base.ts` `backupApprove` now uses `inputAmountRawFinalBridge × 1.05`. |
 | 9 | **F-NEW-08** — Investigate skip-Squid passthrough divergence. | NO BUG — same-chain same-token passthrough has no Squid fee; `networkFeeUSD="0"` and 1:1 rate are correct. |
 | 10 | **F-NEW-09** — Investigate BRLA payout recovery branches. | NO BUG — once `payOutTicketId` exists, BRLA acknowledged the EVM payout; on-chain receipt is no longer authoritative. |
-| 11 | **F-NEW-10** — Avenia anchor-fee assumption in three-amount model. | NO BUG — `OffRampMergeSubsidyEvmEngine` adds the projected subsidy into `nablaSwapEvm.outputAmountRaw`, and `OffRampFinalizeEngine` then sets `quote.outputAmount = nablaSwapEvm.outputAmountDecimal − anchorFee`. The relationship `nablaSwapEvm.outputAmountRaw ≥ quote.outputAmount × 10^brlaDecimals` is therefore tautological at quote-build time. The actual safety net is `subsidize-post-swap-evm-handler.ts`, which tops the ephemeral up to `nablaSwapEvm.outputAmountRaw` at runtime (capped by F-NEW-02's 5% USD subsidy bound). No build-time assertion needed. |
+| 11 | **F-NEW-10** — Avenia anchor-fee assumption in three-amount model. | NO BUG — `OffRampMergeSubsidyEvmEngine` adds the projected subsidy into `nablaSwapEvm.outputAmountRaw`, and `OffRampFinalizeEngine` then sets `quote.outputAmount = nablaSwapEvm.outputAmountDecimal − anchorFee`. The relationship `nablaSwapEvm.outputAmountRaw ≥ quote.outputAmount × 10^brlaDecimals` is therefore tautological at quote-build time. The actual safety net is the EVM branch of `subsidize-post-swap-handler.ts`, which tops the ephemeral up to `nablaSwapEvm.outputAmountRaw` at runtime (capped by F-NEW-02's 5% USD subsidy bound). No build-time assertion needed. |
 | 12 | **F-NEW-05** — Add Base ephemeral cleanup. | RESOLVED — `BaseChainPostProcessHandler` sweeps BRLA and USDC residuals after `currentPhase === "complete"` via presigned `approve` + funding-key `transferFrom`. Wired into both `evm-to-brl-base.ts` (offramp) and `avenia-to-evm-base.ts` (onramp). New phase keys `baseCleanupBrla` and `baseCleanupUsdc`. ETH gas dust on EVM ephemerals remains unswept (intentional). |
 | 13 | **F-013** — Multiple security-sensitive endpoints have no authentication. | RESOLVED — strict dual-track auth enforced on all `/v1/ramp/*` and `/v1/ramp/quotes(/best)` endpoints via the new `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`). Each request must carry **either** `X-API-Key: sk_*` (partner SDK) **or** `Authorization: Bearer <jwt>` (Supabase frontend); anonymous access is rejected. Per-principal ownership guards (`assertRampOwnership`, `assertQuoteOwnership`) prevent cross-tenant access: partners are scoped via `RampState.quoteId → QuoteTicket.partnerId`, Supabase users via `RampState.userId`. `getRampHistory` filters at the service layer by the same chain. The previous backwards-compat carve-out for `/ramp/start` and `/ramp/update` has been removed. `enforcePartnerAuth()` is now active on `/quotes` and `/quotes/best`, closing the partner-spoofing vector. |
 

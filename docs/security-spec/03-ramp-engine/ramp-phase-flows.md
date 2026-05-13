@@ -20,14 +20,14 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - Phases: `initial` → `moneriumOnrampMint` (poll) → `moneriumOnrampSelfTransfer` → `squidRouterApprove` → `squidRouterSwap` → `moonbeamToPendulumXcm` → `nablaApprove` → `nablaSwap` → ... → `complete`
 
 **BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC (user-signed, client-side) → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
-- Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwapEvm` → `nablaApprove` → `nablaSwap` → `subsidizePostSwapEvm` → `brlaPayoutOnBase` → `complete`
+- Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `brlaPayoutOnBase` → `complete`
 - The Squid bridge from the source EVM chain to Base is executed by the user's wallet (presigned `squidRouterApprove` + `squidRouterSwap` are submitted client-side); there is no runtime `squidRouterPay` phase in the BRL off-ramp.
 - **Temporary disablement:** AssetHub→BRL quotes are currently not returned by the quote engine. The active BRL off-ramp corridor is source EVM → Base → PIX only; any legacy AssetHub→BRL route code should be treated as unreachable until the corridor is re-enabled.
 - Note: `distributeFees` runs **before** `nablaSwap` on offramp because fees are denominated in USDC and must be deducted before swapping to BRLA.
-- Naming: `nablaApprove`/`nablaSwap`/`distributeFees` are polymorphic runtime phases that dispatch to the EVM (Base) branch when BRL is the input or output currency. The `*Evm` strings (e.g. `nablaApproveEvm`, `nablaSwapEvm`, `distributeFeesEvm`) are presigned-tx phase keys, not runtime phase names. `subsidizePreSwapEvm` and `subsidizePostSwapEvm` are distinct runtime phases.
+- Naming: `nablaApprove`, `nablaSwap`, `distributeFees`, `subsidizePreSwap`, and `subsidizePostSwap` are polymorphic runtime phases that dispatch to the EVM (Base) branch when the ephemeral involved is on Base (BRL input or output corridor) and to the Substrate (Pendulum) branch otherwise.
 
 **BRL On-ramp (Avenia/BRLA on Base):** PIX payment → Avenia mints BRLA on Base ephemeral → Nabla-on-Base swap (BRLA→USDC) → optional Squid → user destination
-- Runtime backend phases: `initial` → `brlaOnrampMint` (poll Base RPC, 30min outer / 5min inner) → `fundEphemeral` → `subsidizePreSwapEvm` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwapEvm` → `squidRouterSwap` → `destinationTransfer` → `complete`
+- Runtime backend phases: `initial` → `brlaOnrampMint` (poll Base RPC, 30min outer / 5min inner) → `fundEphemeral` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
 - Skip-Squid case (destination = Base USDC): the `squidRouterSwap` handler short-circuits directly to `destinationTransfer`.
 - Cross-chain case (destination ≠ Base USDC): `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` for supported EVM destinations. **BRL→AssetHub quotes are temporarily disabled** and should not enter this phase chain.
 - Base ephemeral cleanup (`baseCleanupUsdc`, `baseCleanupBrla`) is performed out-of-flow by a separate sweeper after `complete`; cleanup approvals are presigned but not part of the runtime nextPhase chain.
@@ -67,11 +67,11 @@ graph TD
     %% --- BRL via Avenia/BRLA on Base ---
     Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC]
     BrlaMint --> BrlaFund[fundEphemeral]
-    BrlaFund --> BrlaSubPreEvm[subsidizePreSwapEvm]
-    BrlaSubPreEvm --> BrlaApproveEvm["nablaApprove (EVM branch, presigned: nablaApproveEvm)"]
-    BrlaApproveEvm --> BrlaSwapEvm["nablaSwap (EVM branch, presigned: nablaSwapEvm)"]
-    BrlaSwapEvm --> BrlaDistEvm["distributeFees (EVM branch, presigned: distributeFeesEvm)"]
-    BrlaDistEvm --> BrlaSubPostEvm[subsidizePostSwapEvm]
+    BrlaFund --> BrlaSubPreEvm[subsidizePreSwap]
+    BrlaSubPreEvm --> BrlaApproveEvm["nablaApprove (EVM branch)"]
+    BrlaApproveEvm --> BrlaSwapEvm["nablaSwap (EVM branch)"]
+    BrlaSwapEvm --> BrlaDistEvm["distributeFees (EVM branch)"]
+    BrlaDistEvm --> BrlaSubPostEvm[subsidizePostSwap]
     BrlaSubPostEvm --> BrlaSquidSwap[squidRouterSwap]
     BrlaSquidSwap --> BrlaDest{Destination = Base USDC?}
     BrlaDest -->|Yes - short-circuit| DestTransfer[destinationTransfer]
@@ -122,11 +122,11 @@ graph TD
     %% before the backend runtime starts; squidRouterPay is a no-op for SELL.
     %% AssetHub -> BRL is temporarily disabled at quote eligibility.
     Corridor -->|BRL on Base| BrlFund[fundEphemeral]
-    BrlFund --> BrlDistEvm["distributeFees (EVM branch, presigned: distributeFeesEvm)"]
-    BrlDistEvm --> BrlSubPreEvm[subsidizePreSwapEvm]
-    BrlSubPreEvm --> BrlApproveEvm["nablaApprove (EVM branch, presigned: nablaApproveEvm)"]
-    BrlApproveEvm --> BrlSwapEvm["nablaSwap (EVM branch, USDC to BRLA, presigned: nablaSwapEvm)"]
-    BrlSwapEvm --> BrlSubPostEvm[subsidizePostSwapEvm]
+    BrlFund --> BrlDistEvm["distributeFees (EVM branch)"]
+    BrlDistEvm --> BrlSubPreEvm[subsidizePreSwap]
+    BrlSubPreEvm --> BrlApproveEvm["nablaApprove (EVM branch)"]
+    BrlApproveEvm --> BrlSwapEvm["nablaSwap (EVM branch, USDC to BRLA)"]
+    BrlSwapEvm --> BrlSubPostEvm[subsidizePostSwap]
     BrlSubPostEvm --> BrlPayout[brlaPayoutOnBase]
     BrlPayout --> Complete([complete])
     Complete -.post-process.-> BaseCleanup[BaseChainPostProcessHandler<br/>sweeps BRLA + USDC]
@@ -159,10 +159,10 @@ graph TD
 
 | Category | Handlers | Funds Controlled By |
 |---|---|---|
-| **Subsidization (Substrate)** | `subsidize-pre-swap-handler`, `subsidize-post-swap-handler`, `final-settlement-subsidy`, `fund-ephemeral-handler` | Pendulum funding account → Pendulum ephemeral |
-| **Subsidization (EVM)** | `subsidize-pre-swap-evm-handler`, `subsidize-post-swap-evm-handler` | EVM funding account (`EVM_FUNDING_PRIVATE_KEY`, resolved per-network via `getEvmFundingAccount(network)` — currently the same key on Moonbeam and **Base**) → EVM ephemeral |
-| **DEX Swap (Substrate)** | `nabla-approve-handler`, `nabla-swap-handler`, `hydration-swap-handler` | Ephemeral → DEX contract → ephemeral |
-| **DEX Swap (EVM)** | `nabla-approve-evm-handler`, `nabla-swap-evm-handler` | Base ephemeral → Nabla-on-Base contract → Base ephemeral |
+| **Subsidization (Substrate)** | `subsidize-pre-swap-handler` (Substrate branch), `subsidize-post-swap-handler` (Substrate branch), `final-settlement-subsidy`, `fund-ephemeral-handler` | Pendulum funding account → Pendulum ephemeral |
+| **Subsidization (EVM)** | `subsidize-pre-swap-handler` (EVM branch), `subsidize-post-swap-handler` (EVM branch) | EVM funding account (`EVM_FUNDING_PRIVATE_KEY`, resolved per-network via `getEvmFundingAccount(network)` — currently the same key on Moonbeam and **Base**) → EVM ephemeral |
+| **DEX Swap (Substrate)** | `nabla-approve-handler` (Substrate branch), `nabla-swap-handler` (Substrate branch), `hydration-swap-handler` | Ephemeral → DEX contract → ephemeral |
+| **DEX Swap (EVM)** | `nabla-approve-handler` (EVM branch), `nabla-swap-handler` (EVM branch) | Base ephemeral → Nabla-on-Base contract → Base ephemeral |
 | **Bridge / XCM** | `moonbeam-to-pendulum-handler`, `moonbeam-to-pendulum-xcm-handler`, `pendulum-to-moonbeam-xcm-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-to-assethub-xcm-phase-handler`, `spacewalk-redeem-handler` | Source chain ephemeral → destination chain ephemeral |
 | **Fiat provider** | `stellar-payment-handler`, `brla-payout-base-handler` (Base), `brla-onramp-mint-handler` (polls Base BRLA arrival), `monerium-onramp-mint-handler`, `monerium-onramp-self-transfer-handler`, `alfredpay-offramp-transfer-handler`, `alfredpay-onramp-mint-handler` | Ephemeral ↔ provider |
 | **SquidRouter** | `squid-router-phase-handler`, `squid-router-pay-phase-handler`, `squidrouter-permit-execution-handler` (incl. no-permit fallback) | Ephemeral/executor → SquidRouter → destination |
@@ -207,8 +207,8 @@ graph TD
 - [EXISTING FINDING] **F-054**: Backup presigned transactions (`backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove`) have no registered phase handlers — dead code or missing implementation.
 - [ ] No aggregate cross-ramp subsidy rate limiting — many concurrent ramps could drain funding account
 - [x] Active BRL corridors are end-to-end on Base — no Moonbeam/Pendulum/XCM involvement. **PASS** — `register-handlers.ts` does not register any `brlaPayoutOnMoonbeam` phase; active BRL quotes are limited to the Base/EVM route builders (`evm-to-brl-base.ts` and `avenia-to-evm-base.ts`). BRL↔AssetHub is temporarily disabled at quote eligibility.
-- [x] `distributeFeesEvm` is positioned **before** `nablaSwapEvm` on offramp (USDC fees deducted pre-BRL-swap) and **after** `nablaSwapEvm` on onramp (USDC fees deducted post-BRL→USDC swap). **PASS** — verified in `evm-to-brl-base.ts` and `avenia-to-evm-base.ts`.
-- [x] EVM subsidy handlers (`subsidize-pre/post-swap-evm-handler.ts`) enforce a USD-equivalent cap. **PASS** — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION="0.05"` clamps subsidy to ≤5% of the quote's input/output amount in `subsidize-pre-swap-evm-handler.ts` and `subsidize-post-swap-evm-handler.ts` (F-NEW-02 resolved). Over-cap cases are intentionally recoverable retries: no transfer is submitted, and the ramp waits for operator intervention instead of moving to `failed`.
+- [x] On the BRL/Base corridor, `distributeFees` is positioned **before** `nablaSwap` on offramp (USDC fees deducted pre-BRL-swap) and **after** `nablaSwap` on onramp (USDC fees deducted post-BRL→USDC swap). **PASS** — verified in `evm-to-brl-base.ts` and `avenia-to-evm-base.ts`.
+- [x] EVM subsidy phases enforce a USD-equivalent cap. **PASS** — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION="0.05"` clamps subsidy to ≤5% of the quote's input/output amount in the EVM branches of `subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` (F-NEW-02 resolved). Over-cap cases are intentionally recoverable retries: no transfer is submitted, and the ramp waits for operator intervention instead of moving to `failed`.
 - [x] BRL on-ramp `backupApprove` allowance is bounded (no `maxUint256`). **PASS** — `avenia-to-evm-base.ts` `backupApprove` is set to `inputAmountRawFinalBridge × 1.05` (F-NEW-03 resolved).
 - [x] EVM ephemeral cleanup coverage. **PASS** — **Polygon** (`PolygonPostProcessHandler`), **Hydration** (`HydrationPostProcessHandler`), and **Base** (`BaseChainPostProcessHandler`, sweeping both BRLA and USDC) are registered and active. **AssetHub** handler is registered but a no-op stub (`shouldProcess` always returns `false`). ETH gas dust on EVM ephemerals is not swept (intentional). F-NEW-05 resolved. See `ephemeral-accounts.md` for the full cleanup architecture.
-- [x] Subsidy phase handlers extend the recoverable-retry budget. **PASS** — `subsidize-{pre,post}-swap-handler.ts` and `subsidize-{pre,post}-swap-evm-handler.ts` declare `getMaxRetries(): 200`, overriding the global `MAX_RETRIES = 8` in `phase-processor.ts`. Recoverable-exhausted ramps in subsidy phases wait (no `failed` transition) until a human tops up the funding account or cancels the ramp.
+- [x] Subsidy phase handlers extend the recoverable-retry budget. **PASS** — `subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` declare `getMaxRetries(): 200`, overriding the global `MAX_RETRIES = 8` in `phase-processor.ts`. Recoverable-exhausted ramps in subsidy phases wait (no `failed` transition) until a human tops up the funding account or cancels the ramp.

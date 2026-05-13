@@ -18,15 +18,15 @@ BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, acces
 1. User receives PIX deposit details (QR code) during ramp registration. The deposit QR code is gated behind successful presigned-tx validation (see `transaction-validation.md`).
 2. User makes PIX payment to the Avenia-managed account.
 3. `brlaOnrampMint`: Avenia mints BRLA on Base directly to the user's Base ephemeral. Handler polls `evmEphemeralAddress` balance every 5s for up to **30 minutes** (`PAYMENT_TIMEOUT_MS`) using `checkEvmBalancePeriodically` against a 5-minute inner balance-arrival timeout (`EVM_BALANCE_CHECK_TIMEOUT_MS`).
-4. `subsidizePreSwapEvm` (if needed) → `nablaApproveEvm` → `nablaSwapEvm`: Nabla DEX **on Base** swaps BRLA → USDC.
-5. `subsidizePostSwapEvm` (if needed) → `distributeFeesEvm` (Multicall3 batch on Base, see `fee-integrity.md`).
+4. `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps BRLA → USDC.
+5. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
 6. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's supported destination EVM chain → optional fallback `backupSquidRouter*` swap on the destination chain → `destinationTransfer`. BRL→AssetHub is temporarily disabled at quote eligibility and should not reach registration.
 
 ### Off-ramp flow (User EVM → Base USDC → BRLA → PIX)
 
 1. User signs Squid permit / no-permit fallback / direct transfer (depending on source chain) → tokens arrive on Base ephemeral as USDC.
-2. `distributeFeesEvm` runs **before** Nabla swap so partner/vortex fees are taken in USDC.
-3. `subsidizePreSwapEvm` → `nablaApproveEvm` → `nablaSwapEvm`: Nabla DEX on Base swaps USDC → BRLA.
+2. `distributeFees` runs **before** Nabla swap so partner/vortex fees are taken in USDC.
+3. `subsidizePreSwap` → `nablaApprove` → `nablaSwap`: Nabla DEX on Base swaps USDC → BRLA.
 4. `brlaPayoutOnBase`:
    1. Sends presigned ERC-20 transfer of `brlaTransferAmountRaw` (= `nablaSwapEvm.outputAmountRaw`) BRLA from the ephemeral to the Avenia deposit address (the Avenia subaccount's EVM wallet).
    2. Polls Avenia's `getAccountBalance(subAccountId)` until the BRLA balance is ≥ `nablaSwapEvm.outputAmountDecimal` (rounded to 2dp). 5s poll interval, 5-minute timeout.
@@ -78,7 +78,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **Amount manipulation between quote and payout** | Attacker modifies the payout amount between quote and execution | `quote.outputAmount` read from DB at execution time; quote is immutable post-creation. |
 | **Avenia service outage** | Avenia API is unreachable mid-ramp | `RecoverablePhaseError` → phase processor retries; off-ramp fails to payout but BRLA is held on the Avenia subaccount, not lost. |
 | **Subaccount data leak** | Avenia subaccount details exposed via API | Only `subAccountId`, EVM wallet address, and balances are stored locally; no PII beyond CPF (which is itself a regulatory requirement). |
-| **Underdelivery from Nabla** | Nabla swap returns less BRLA than quoted, balance poll times out, ramp stuck | Balance-poll timeout (5min) fails the phase as recoverable; `subsidizePostSwapEvm` tops up shortfalls subject to the quote-relative EVM subsidy cap documented in `fund-routing.md`. |
+| **Underdelivery from Nabla** | Nabla swap returns less BRLA than quoted, balance poll times out, ramp stuck | Balance-poll timeout (5min) fails the phase as recoverable; `subsidizePostSwap` (EVM branch) tops up shortfalls subject to the quote-relative EVM subsidy cap documented in `fund-routing.md`. |
 | **Disabled AssetHub corridor accidentally re-enabled** | Legacy BRL↔AssetHub route files are selected and a user registers a route that the Base BRL rail no longer supports | Quote eligibility must return no quote for BRL→AssetHub and AssetHub→BRL. Treat any successful quote for those corridors as a regression until the corridor is intentionally re-enabled. |
 
 ## Audit Checklist

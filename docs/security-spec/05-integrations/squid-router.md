@@ -19,7 +19,7 @@ It handles cross-chain swap execution, Axelar bridge status monitoring, and gas 
 
 ### On-ramp flow (BRL onramp post-Nabla, e.g. Base USDC → user's Polygon ERC-20)
 
-1. After `nablaSwapEvm` + `distributeFeesEvm` on Base.
+1. After `nablaSwap` + `distributeFees` on Base.
 2. `squidRouterApprove` (Base): approve the Squid router for Base USDC.
 3. `squidRouterSwap` (Base): submit Squid swap call.
 4. `squidRouterPay`: poll Axelar GMP status + ephemeral balance on destination chain via `Promise.any` race; fund Axelar gas with `addNativeGas`; arrival is bounded by a finite timeout.
