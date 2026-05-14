@@ -1,0 +1,157 @@
+import { RampPhase } from "@vortexfi/shared";
+
+export const PHASE_DURATIONS: Record<RampPhase, number> = {
+  alfredOnrampMintFallback: 0,
+  alfredpayOfframpTransfer: 30,
+  alfredpayOfframpTransferFallback: 30,
+  alfredpayOnrampMint: 5 * 60,
+  assethubToPendulum: 24,
+  backupApprove: 0,
+  backupSquidRouterApprove: 0,
+  backupSquidRouterSwap: 0,
+  baseTransfer: 10,
+  brlaOnrampMint: 5 * 60,
+  brlaPayoutOnBase: 30,
+  complete: 0,
+  destinationTransfer: 12,
+  distributeFees: 24,
+  failed: 0,
+  finalSettlementSubsidy: 30,
+  fundEphemeral: 20,
+  hydrationSwap: 30,
+  hydrationToAssethubXcm: 30,
+  initial: 0,
+  moneriumOnrampMint: 60,
+  moneriumOnrampSelfTransfer: 20,
+  moonbeamToPendulum: 40,
+  moonbeamToPendulumXcm: 30,
+  nablaApprove: 24,
+  nablaSwap: 24,
+  pendulumToAssethubXcm: 30,
+  pendulumToHydrationXcm: 30,
+  pendulumToMoonbeamXcm: 40,
+  spacewalkRedeem: 130,
+  squidRouterApprove: 10,
+  squidRouterNoPermitApprove: 10,
+  squidRouterNoPermitSwap: 60,
+  squidRouterNoPermitTransfer: 30,
+  squidRouterPay: 60,
+  squidRouterPermitExecute: 30,
+  squidRouterSwap: 10,
+  stellarCreateAccount: 0,
+  stellarPayment: 6,
+  subsidizePostSwap: 24,
+  subsidizePreSwap: 24,
+  timedOut: 0
+};
+
+export const PHASE_FLOWS = {
+  assethub_offramp_through_stellar: [
+    "initial",
+    "fundEphemeral",
+    "assethubToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[],
+
+  evm_offramp_through_stellar: [
+    "initial",
+    "fundEphemeral",
+    "moonbeamToPendulum", // or "assethubToPendulum",
+    "distributeFees",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "assethubToPendulum",
+    "spacewalkRedeem",
+    "stellarPayment",
+    "complete"
+  ] as RampPhase[],
+
+  offramp_brl: [
+    "initial",
+    "fundEphemeral",
+    "distributeFees",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "brlaPayoutOnBase",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_brl: [
+    "initial",
+    "brlaOnrampMint",
+    "fundEphemeral",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    // Base USDC destinations skip directly from squidRouterSwap to destinationTransfer.
+    "squidRouterSwap",
+    "squidRouterPay",
+    "finalSettlementSubsidy",
+    "destinationTransfer",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_assethub: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_assethub_via_hydration: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "moonbeamToPendulum",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "pendulumToHydrationXcm",
+    "hydrationSwap",
+    "hydrationToAssethubXcm",
+    "complete"
+  ] as RampPhase[],
+
+  onramp_eur_evm: [
+    "initial",
+    "moneriumOnrampMint",
+    "fundEphemeral",
+    "moneriumOnrampSelfTransfer",
+    "squidRouterApprove",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "distributeFees",
+    "complete"
+  ] as RampPhase[]
+};
