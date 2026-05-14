@@ -1,10 +1,11 @@
 import {describe, expect, it} from "bun:test";
 import {EphemeralAccountType, Networks, PresignedTx, RampDirection} from "@vortexfi/shared";
 import {validatePresignedTxs} from "./validation";
+import { NUMBER_OF_PRESIGNED_TXS } from "@vortexfi/shared";
 
 function withBackups(tx: PresignedTx): PresignedTx {
   const additionalTxs: Record<string, PresignedTx> = {};
-  for (let i = 1; i <= 4; i++) {
+  for (let i = 1; i <= NUMBER_OF_PRESIGNED_TXS - 1; i++) {
     additionalTxs[`backup${i}`] = { ...tx, nonce: tx.nonce + i, meta: {} };
   }
   return { ...tx, meta: { additionalTxs } };
