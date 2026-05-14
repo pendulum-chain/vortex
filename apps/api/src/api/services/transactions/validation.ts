@@ -72,6 +72,39 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
   }
 }
 
+function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in EphemeralAccountType]: string }) {
+  const isEphemeralSigner =
+    (ephemerals.EVM && tx.signer.toLowerCase() === ephemerals.EVM.toLowerCase()) ||
+    (ephemerals.Substrate && tx.signer.toLowerCase() === ephemerals.Substrate.toLowerCase()) ||
+    (ephemerals.Stellar && tx.signer.toLowerCase() === ephemerals.Stellar.toLowerCase());
+
+  if (!isEphemeralSigner) {
+    return;
+  }
+
+  const additionalTxs = tx.meta?.additionalTxs;
+  if (!additionalTxs || Object.keys(additionalTxs).length < 4) {
+    throw new APIError({
+      message: `Transaction for phase ${tx.phase} must include at least 4 backup transactions in meta.additionalTxs`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const backupNonces = Object.values(additionalTxs)
+    .map(backup => backup.nonce)
+    .sort((a, b) => a - b);
+
+  for (let i = 0; i < 4; i++) {
+    const expectedNonce = tx.nonce + 1 + i;
+    if (backupNonces[i] !== expectedNonce) {
+      throw new APIError({
+        message: `Transaction for phase ${tx.phase} has invalid backup nonce sequence. Expected ${expectedNonce}, got ${backupNonces[i]}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+}
+
 export async function validatePresignedTxs(
   direction: RampDirection,
   presignedTxs: PresignedTx[],
@@ -104,6 +137,8 @@ export async function validatePresignedTxs(
     if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
+
+    validateBackupTransactions(tx, ephemerals);
   }
 }
 
