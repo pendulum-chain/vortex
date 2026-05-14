@@ -281,4 +281,19 @@ describe("Presigned Transaction validation", () => {
       "Transaction for phase squidRouterSwap must include at least 4 backup transactions in meta.additionalTxs"
     );
   });
+
+  it("should throw when backup transaction nonces are not sequential", async () => {
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP));
+    invalidTxs[2].meta.additionalTxs.backup2.nonce = 9;
+
+    const ephemerals: {[key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: "0x441D7df1551e3750AD2B5629A5DB2c316e7e0f89",
+      Stellar: ""
+    }
+
+    await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals)).rejects.toThrow(
+      "Transaction for phase squidRouterSwap has invalid backup nonce sequence. Expected 4, got 5"
+    );
+  });
 });
