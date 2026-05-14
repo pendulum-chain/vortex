@@ -74,10 +74,8 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
 }
 
 function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in EphemeralAccountType]: string }) {
-  const isEphemeralSigner =
-    (ephemerals.EVM && tx.signer.toLowerCase() === ephemerals.EVM.toLowerCase()) ||
-    (ephemerals.Substrate && tx.signer.toLowerCase() === ephemerals.Substrate.toLowerCase()) ||
-    (ephemerals.Stellar && tx.signer.toLowerCase() === ephemerals.Stellar.toLowerCase());
+  const signer = tx.signer.toLowerCase();
+  const isEphemeralSigner = Object.values(ephemerals).some(addr => addr && addr.toLowerCase() === signer);
 
   if (!isEphemeralSigner) {
     return;
