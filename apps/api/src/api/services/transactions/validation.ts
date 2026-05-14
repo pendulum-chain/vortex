@@ -20,6 +20,8 @@ import logger from "../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../constants/constants";
 import { APIError } from "../../errors/api-error";
 
+const NUMBER_OF_PRESIGNED_TXS = 5;
+
 /// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
   for (const subsetTx of subset) {
@@ -83,9 +85,9 @@ function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in Ephem
   }
 
   const additionalTxs = tx.meta?.additionalTxs;
-  if (!additionalTxs || Object.keys(additionalTxs).length < 4) {
+  if (!additionalTxs || Object.keys(additionalTxs).length < NUMBER_OF_PRESIGNED_TXS - 1) {
     throw new APIError({
-      message: `Transaction for phase ${tx.phase} must include at least 4 backup transactions in meta.additionalTxs`,
+      message: `Transaction for phase ${tx.phase} must include at least ${NUMBER_OF_PRESIGNED_TXS - 1} backup transactions in meta.additionalTxs`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -94,7 +96,7 @@ function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in Ephem
     .map(backup => backup.nonce)
     .sort((a, b) => a - b);
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS - 1; i++) {
     const expectedNonce = tx.nonce + 1 + i;
     if (backupNonces[i] !== expectedNonce) {
       throw new APIError({
