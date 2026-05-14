@@ -157,14 +157,43 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Invalid input token ${quote.metadata.nablaSwapEvm.inputCurrency} for Base nabla swap`);
     }
 
-    await checkEvmBalanceForToken({
-      amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
-      chain: Networks.Base,
-      intervalMs: 1000,
-      ownerAddress: evmEphemeralAddress,
-      timeoutMs: 5000,
-      tokenDetails: inputTokenDetails
-    });
+    const isRecoverableBalanceCheckFailure = (error: unknown): boolean => {
+      if (!(error instanceof Error)) {
+        return false;
+      }
+
+      const normalizedMessage = error.message.toLowerCase();
+      return (
+        error.name === "BalanceCheckError" ||
+        normalizedMessage.includes("timeout") ||
+        normalizedMessage.includes("timed out") ||
+        normalizedMessage.includes("read failure") ||
+        normalizedMessage.includes("failed to read") ||
+        normalizedMessage.includes("network") ||
+        normalizedMessage.includes("rpc") ||
+        normalizedMessage.includes("fetch")
+      );
+    };
+
+    try {
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
+        chain: Networks.Base,
+        intervalMs: 1000,
+        ownerAddress: evmEphemeralAddress,
+        timeoutMs: 5000,
+        tokenDetails: inputTokenDetails
+      });
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      logger.error(`Could not validate EVM input balance before swap: ${errorMessage}`);
+
+      if (isRecoverableBalanceCheckFailure(e)) {
+        throw this.createRecoverableError(`Could not validate EVM input balance before swap: ${errorMessage}`);
+      }
+
+      throw this.createUnrecoverableError(`Could not validate EVM input balance before swap: ${errorMessage}`);
+    }
 
     try {
       const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
