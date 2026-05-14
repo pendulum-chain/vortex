@@ -1,6 +1,7 @@
 import { getEnvVar } from "./helpers/environment";
 
 export const SANDBOX_ENABLED = getEnvVar("SANDBOX_ENABLED");
+export const NUMBER_OF_PRESIGNED_TXS = 5;
 
 export const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = "0x2AB52086e8edaB28193172209407FF9df1103CDc";
 
