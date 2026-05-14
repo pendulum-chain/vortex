@@ -46,6 +46,8 @@ export class SubsidizePreSwapEvmPhaseHandler extends BasePhaseHandler {
     }
 
     try {
+      await new Promise(resolve => setTimeout(resolve, 15000));
+
       // Get token details for the input token
       const inputToken = quote.metadata.nablaSwapEvm.inputCurrency as EvmToken;
 
