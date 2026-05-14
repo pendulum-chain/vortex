@@ -2,9 +2,12 @@ import { createExecuteMessageExtrinsic, ExecuteMessageResult, readMessage, submi
 import { Abi } from "@polkadot/api-contract";
 import {
   ApiManager,
+  checkEvmBalanceForToken,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
   EvmClientManager,
+  EvmTokenDetails,
+  evmTokenConfig,
   FiatToken,
   NABLA_ROUTER,
   Networks,
@@ -137,6 +140,31 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
   private async executeEvmSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
+
+    if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw || !quote.metadata.nablaSwapEvm.inputCurrency) {
+      throw new Error("Missing nablaSwapEvm input metadata required to validate pre-swap balance");
+    }
+
+    const evmEphemeralAddress = state.state.evmEphemeralAddress;
+    if (!evmEphemeralAddress) {
+      throw new Error("Missing EVM ephemeral address to validate nabla swap input balance");
+    }
+
+    const inputTokenDetails = evmTokenConfig[Networks.Base]?.[quote.metadata.nablaSwapEvm.inputCurrency] as
+      | EvmTokenDetails
+      | undefined;
+    if (!inputTokenDetails) {
+      throw new Error(`Invalid input token ${quote.metadata.nablaSwapEvm.inputCurrency} for Base nabla swap`);
+    }
+
+    await checkEvmBalanceForToken({
+      amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
+      chain: Networks.Base,
+      intervalMs: 1000,
+      ownerAddress: evmEphemeralAddress,
+      timeoutMs: 5000,
+      tokenDetails: inputTokenDetails
+    });
 
     try {
       const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");

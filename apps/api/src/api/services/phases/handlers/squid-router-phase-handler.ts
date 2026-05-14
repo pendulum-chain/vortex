@@ -1,6 +1,10 @@
 import {
+  checkEvmBalanceForToken,
   EvmClientManager,
+  EvmNetworks,
   EvmToken,
+  EvmTokenDetails,
+  evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
@@ -71,6 +75,36 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     if (quote.to === Networks.Base && quote.outputCurrency === EvmToken.USDC) {
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
+
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    if (!bridgeMeta?.inputAmountRaw || !bridgeMeta.fromNetwork || !bridgeMeta.fromToken) {
+      throw new Error("Missing bridge metadata required to validate squidRouter input balance");
+    }
+
+    const evmEphemeralAddress = state.state.evmEphemeralAddress;
+    if (!evmEphemeralAddress) {
+      throw new Error("Missing EVM ephemeral address to validate squidRouter input balance");
+    }
+
+    const sourceNetwork = bridgeMeta.fromNetwork as EvmNetworks;
+    const sourceTokenDetails = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
+      token => token.erc20AddressSourceChain.toLowerCase() === bridgeMeta.fromToken.toLowerCase()
+    ) as EvmTokenDetails | undefined;
+
+    if (!sourceTokenDetails) {
+      throw new Error(
+        `Could not resolve source token details on ${bridgeMeta.fromNetwork} for token ${bridgeMeta.fromToken} in squidRouter phase`
+      );
+    }
+
+    await checkEvmBalanceForToken({
+      amountDesiredRaw: bridgeMeta.inputAmountRaw,
+      chain: sourceNetwork,
+      intervalMs: 1000,
+      ownerAddress: evmEphemeralAddress,
+      timeoutMs: 5000,
+      tokenDetails: sourceTokenDetails
+    });
 
     try {
       // Get the presigned transactions for this phase
