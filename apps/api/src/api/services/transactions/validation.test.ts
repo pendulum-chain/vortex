@@ -335,6 +335,41 @@ describe("Presigned Transaction validation", () => {
     ).resolves.toBeUndefined();
   });
 
+  it("validates polymorphic phases as EVM transactions when they are on Base", async () => {
+    const expectedEvmSigner = "0x1111111111111111111111111111111111111111";
+    const wrongEvmSigner = "0x2222222222222222222222222222222222222222";
+    const polymorphicBasePhases: PresignedTx["phase"][] = [
+      "nablaApprove",
+      "nablaSwap",
+      "distributeFees",
+      "subsidizePreSwap",
+      "subsidizePostSwap"
+    ];
+
+    for (const phase of polymorphicBasePhases) {
+      await expect(
+        validatePresignedTxs(
+          RampDirection.BUY,
+          [
+            {
+              meta: {},
+              network: Networks.Base,
+              nonce: 0,
+              phase,
+              signer: wrongEvmSigner,
+              txData: "0x"
+            }
+          ],
+          {
+            EVM: expectedEvmSigner,
+            Stellar: "",
+            Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz"
+          }
+        )
+      ).rejects.toThrow(`EVM transaction signer ${wrongEvmSigner} does not match the expected signer ${expectedEvmSigner}`);
+    }
+  });
+
   it("should pass validation for valid presigned EVM transactions", () => {
 
     const ephemerals: {[key in EphemeralAccountType]: string } = {
