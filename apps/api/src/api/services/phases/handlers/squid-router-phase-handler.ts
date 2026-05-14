@@ -97,16 +97,22 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       );
     }
 
-    await checkEvmBalanceForToken({
-      amountDesiredRaw: bridgeMeta.inputAmountRaw,
-      chain: sourceNetwork,
-      intervalMs: 1000,
-      ownerAddress: evmEphemeralAddress,
-      timeoutMs: 5000,
-      tokenDetails: sourceTokenDetails
-    });
-
     try {
+      try {
+        await checkEvmBalanceForToken({
+          amountDesiredRaw: bridgeMeta.inputAmountRaw,
+          chain: sourceNetwork,
+          intervalMs: 1000,
+          ownerAddress: evmEphemeralAddress,
+          timeoutMs: 15000,
+          tokenDetails: sourceTokenDetails
+        });
+      } catch (error) {
+        throw this.createRecoverableError(
+          `Unable to verify squidRouter input balance for ${evmEphemeralAddress} on ${sourceNetwork}; balance may not be settled yet`
+        );
+      }
+
       // Get the presigned transactions for this phase
       const approveTransaction = this.getPresignedTransaction(state, "squidRouterApprove");
       const swapTransaction = this.getPresignedTransaction(state, "squidRouterSwap");
