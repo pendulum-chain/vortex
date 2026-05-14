@@ -284,7 +284,12 @@ describe("Presigned Transaction validation", () => {
 
   it("should throw when backup transaction nonces are not sequential", async () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP));
-    invalidTxs[2].meta.additionalTxs.backup2.nonce = 9;
+    // Replace proper nonce with an invalid one to simulate wrong use
+    const backupTx = invalidTxs[2]?.meta?.additionalTxs?.backup2;
+    if (!backupTx) {
+      throw new Error("Missing backup transaction for test setup");
+    }
+    backupTx.nonce = 9;
 
     const ephemerals: {[key in EphemeralAccountType]: string } = {
       Substrate: "",

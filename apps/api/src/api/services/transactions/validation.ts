@@ -7,6 +7,7 @@ import {
   getNetworkId,
   isSignedTypedData,
   isSignedTypedDataArray,
+  NUMBER_OF_PRESIGNED_TXS,
   PresignedTx,
   RampDirection,
   RampPhase,
@@ -19,8 +20,6 @@ import { Networks as StellarNetworks, Transaction as StellarTransaction, Transac
 import logger from "../../../config/logger";
 import { SANDBOX_ENABLED } from "../../../constants/constants";
 import { APIError } from "../../errors/api-error";
-
-const NUMBER_OF_PRESIGNED_TXS = 5;
 
 /// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
