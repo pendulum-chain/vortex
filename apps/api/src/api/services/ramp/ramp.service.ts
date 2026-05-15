@@ -1236,7 +1236,19 @@ export class RampService extends BaseRampService {
         tx.signer === rampState.state.stellarEphemeralAccountId
     );
 
-    return areAllTxsIncluded(ephemeralTransactions, rampState.presignedTxs || []);
+    // areAllTxsIncluded(subset, set) calls txDataMatchesSignedSubmission(subsetTx, setTx)
+    // which expects (signed/submitted, unsigned) — so presignedTxs must be the subset.
+    const presignedEphemerals = (rampState.presignedTxs || []).filter(
+      tx =>
+        tx.signer === rampState.state.substrateEphemeralAddress ||
+        tx.signer === rampState.state.evmEphemeralAddress ||
+        tx.signer === rampState.state.stellarEphemeralAccountId
+    );
+
+    return (
+      presignedEphemerals.length >= ephemeralTransactions.length &&
+      areAllTxsIncluded(presignedEphemerals, ephemeralTransactions)
+    );
   }
 
   private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
@@ -1266,8 +1278,15 @@ export class RampService extends BaseRampService {
     try {
       this.validateRampStateData(rampState, quote);
       await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
-      if (!this.validateAllPresignedTransactionsSigned(rampState)) return false;
-    } catch {
+      const allSigned = this.validateAllPresignedTransactionsSigned(rampState);
+      if (!allSigned) {
+        logger.info(
+          `[tryReleaseDepositQr] rampId=${rampState.id} allPresignedSigned=false, presignedTxs=${rampState.presignedTxs?.length ?? 0}, unsignedTxs=${rampState.unsignedTxs?.length ?? 0}`
+        );
+        return false;
+      }
+    } catch (err) {
+      logger.info(`[tryReleaseDepositQr] rampId=${rampState.id} validation threw: ${err instanceof Error ? err.message : err}`);
       return false;
     }
 
