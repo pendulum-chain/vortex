@@ -201,6 +201,7 @@ export class RampService extends BaseRampService {
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
+      const prepareStart = Date.now();
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
@@ -225,31 +226,35 @@ export class RampService extends BaseRampService {
       handleQuoteConsumptionForDiscountState(partner);
 
       // Create initial ramp state
-      const rampState = await this.createRampState({
-        currentPhase: "initial" as RampPhase,
-        from: quote.from,
-        paymentMethod: quote.paymentMethod,
-        postCompleteState: {
-          cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null }
+      const createRampStateStart = Date.now();
+      const rampState = await this.createRampState(
+        {
+          currentPhase: "initial" as RampPhase,
+          from: quote.from,
+          paymentMethod: quote.paymentMethod,
+          postCompleteState: {
+            cleanup: { cleanupAt: null, cleanupCompleted: false, errors: null }
+          },
+          presignedTxs: null,
+          processingLock: { locked: false, lockedAt: null },
+          quoteId: quote.id,
+          state: {
+            aveniaTicketId,
+            depositQrCode,
+            evmEphemeralAddress: ephemerals.EVM,
+            ibanPaymentData,
+            stellarEphemeralAccountId: ephemerals.Stellar,
+            substrateEphemeralAddress: ephemerals.Substrate,
+            ...request.additionalData,
+            ...stateMeta
+          } as StateMetadata,
+          to: quote.to,
+          type: quote.rampType,
+          unsignedTxs,
+          userId: request.userId || quote.userId
         },
-        presignedTxs: null,
-        processingLock: { locked: false, lockedAt: null },
-        quoteId: quote.id,
-        state: {
-          aveniaTicketId,
-          depositQrCode,
-          evmEphemeralAddress: ephemerals.EVM,
-          ibanPaymentData,
-          stellarEphemeralAccountId: ephemerals.Stellar,
-          substrateEphemeralAddress: ephemerals.Substrate,
-          ...request.additionalData,
-          ...stateMeta
-        } as StateMetadata,
-        to: quote.to,
-        type: quote.rampType,
-        unsignedTxs,
-        userId: request.userId || quote.userId
-      });
+        transaction
+      );
 
       const response: RegisterRampResponse = {
         createdAt: rampState.createdAt.toISOString(),

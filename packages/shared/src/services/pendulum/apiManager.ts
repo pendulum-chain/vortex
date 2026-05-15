@@ -78,11 +78,13 @@ export class ApiManager {
     const network = this.getNetworkConfig(networkName);
     const index = wsUrlIndex ?? 0;
     const wsUrl = network.wsUrls[index];
-    logger.current.info(`Connecting to node ${wsUrl}...`);
-    const newApi = await this.connectApi(networkName, index);
     const instanceKey = this.generateInstanceKey(networkName, index);
+    const existingInstance = this.apiInstances.get(instanceKey);
+    if (existingInstance) {
+      return existingInstance;
+    }
+    const newApi = await this.connectApi(networkName, index);
     this.apiInstances.set(instanceKey, newApi);
-    logger.current.info(`Connected to node ${wsUrl}`);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
