@@ -13,14 +13,12 @@ import {
   isSignedTypedData,
   isSignedTypedDataArray,
   Networks,
+  NUMBER_OF_PRESIGNED_TXS,
   PresignedTx,
   SANDBOX_ENABLED,
   UnsignedTx
 } from "../index";
 import logger from "../logger";
-
-// Number of transactions to pre-sign for each transaction
-const NUMBER_OF_PRESIGNED_TXS = 5;
 
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {

@@ -193,6 +193,9 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         );
       }
 
+      // Wait for token settlement before checking balance
+      await new Promise(resolve => setTimeout(resolve, 15000));
+
       // Check current balance on EVM
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",
