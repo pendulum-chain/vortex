@@ -58,15 +58,15 @@ All ramping and quote endpoints require authentication. Two principals are accep
 
 Anonymous access to ramp/quote endpoints is rejected with HTTP 401. Cross-tenant access (e.g. one partner reading another partner's ramp) is rejected with HTTP 403.
 
-`POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best` additionally enforce that any `partnerId` in the body matches the authenticated partner key (HTTP 403 on mismatch).
+`POST /v1/quotes` and `POST /v1/quotes/best` additionally enforce that any `partnerId` in the body matches the authenticated partner key (HTTP 403 on mismatch).
 
 ### Ramping Endpoints
 
 #### Quote Management
 
-- `POST /v1/ramp/quotes` - Create a new quote (auth required when `partnerId` is present)
-- `POST /v1/ramp/quotes/best` - Create the best-priced quote across providers
-- `GET /v1/ramp/quotes/:id` - Get quote information
+- `POST /v1/quotes` - Create a new quote (auth required when `partnerId` is present)
+- `POST /v1/quotes/best` - Create the best-priced quote across providers
+- `GET /v1/quotes/:id` - Get quote information (public)
 
 #### Ramp Flow Management
 
@@ -76,7 +76,6 @@ Anonymous access to ramp/quote endpoints is rejected with HTTP 401. Cross-tenant
 - `GET /v1/ramp/:id` - Get the status of a ramping process
 - `GET /v1/ramp/:id/errors` - Get error logs for a ramp
 - `GET /v1/ramp/history/:walletAddress` - Get ramp history for a wallet (filtered by authenticated principal)
-- `GET /v1/ramp/phases/:phase/transitions` - Get valid transitions for a phase
 
 ### Legacy Endpoints
 

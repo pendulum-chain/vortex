@@ -1,0 +1,3883 @@
+{
+  "components": {
+    "responses": {
+      "Invalid input": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "code": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "type": "object"
+            }
+          }
+        },
+        "description": ""
+      },
+      "Record not found": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "properties": {
+                "code": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "type": "object"
+            }
+          }
+        },
+        "description": ""
+      }
+    },
+    "schemas": {
+      "AccountMeta": {
+        "properties": {
+          "address": {
+            "description": "The account address.",
+            "type": "string"
+          },
+          "type": {
+            "description": "The type of the account.",
+            "enum": ["EVM", "Stellar", "Substrate"],
+            "type": "string"
+          }
+        },
+        "required": ["address", "type"],
+        "type": "object"
+      },
+      "AveniaDocumentType": {
+        "enum": ["ID", "DRIVERS-LICENSE", "PASSPORT", "SELFIE", "SELFIE-FROM-LIVENESS"],
+        "type": "string"
+      },
+      "AveniaKYCDataUploadRequest": {
+        "properties": {
+          "documentType": {
+            "$ref": "#/components/schemas/AveniaDocumentType"
+          },
+          "taxId": {
+            "description": "CPF or CNPJ.",
+            "type": "string"
+          }
+        },
+        "required": ["documentType", "taxId"],
+        "type": "object"
+      },
+      "AveniaKYCDataUploadResponse": {
+        "properties": {
+          "idUpload": {
+            "$ref": "#/components/schemas/DocumentUploadEntry"
+          },
+          "selfieUpload": {
+            "$ref": "#/components/schemas/DocumentUploadEntry"
+          }
+        },
+        "required": ["idUpload", "selfieUpload"],
+        "type": "object"
+      },
+      "BrlaAddress": {
+        "properties": {
+          "cep": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "complement": {
+            "type": ["string", "null"]
+          },
+          "district": {
+            "type": "string"
+          },
+          "number": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "street": {
+            "type": "string"
+          }
+        },
+        "required": ["cep", "city", "state", "street", "number", "district"],
+        "type": "object"
+      },
+      "BrlaErrorResponse": {
+        "properties": {
+          "details": {
+            "description": "Detailed error message or object from BRLA API or server.",
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            ],
+            "type": "null"
+          },
+          "error": {
+            "description": "A summary of the error.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "BrlaGetSelfieLivenessUrlResponse": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "livenessUrl": {
+            "type": "string"
+          },
+          "uploadURLFront": {
+            "type": "string"
+          },
+          "validateLivenessToken": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "livenessUrl", "uploadURLFront", "validateLivenessToken"],
+        "type": "object"
+      },
+      "BrlaValidatePixKeyResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": ["valid"],
+        "type": "object"
+      },
+      "CleanupPhase": {
+        "properties": {
+          "string": {
+            "enum": ["moonbeamCleanup", "pendulumCleanup", "stellarCleanup"],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CountryCode": {
+        "description": "Allowed values: `AR`, `BR`, `EU`",
+        "type": "string"
+      },
+      "CreateBestQuoteRequest": {
+        "properties": {
+          "apiKey": {
+            "description": "Your api key, if available.",
+            "type": "string"
+          },
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
+          },
+          "from": {
+            "$ref": "#/components/schemas/PaymentMethod",
+            "description": "`PIX`, `SEPA`, `CBU`. Only required if `rampType` is \"BUY\". "
+          },
+          "inputAmount": {
+            "description": "The amount of currency to be input.",
+            "examples": ["100.00"],
+            "type": "string"
+          },
+          "inputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency",
+            "description": "The currency type for the input amount."
+          },
+          "outputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency",
+            "description": "The desired currency type for the output amount."
+          },
+          "partnerId": {
+            "description": "Your partner ID, if available.",
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "rampType": {
+            "$ref": "#/components/schemas/RampDirection",
+            "description": "The type of ramp process (on-ramp or off-ramp)."
+          },
+          "to": {
+            "$ref": "#/components/schemas/PaymentMethod",
+            "description": "`PIX`, `SEPA`, `CBU`. Only required if `rampType` is \"SELL\"."
+          }
+        },
+        "required": ["rampType", "inputAmount", "inputCurrency", "outputCurrency"],
+        "type": "object"
+      },
+      "CreateQuoteRequest": {
+        "properties": {
+          "apiKey": {
+            "description": "Your api key, if available.",
+            "type": "string"
+          },
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
+          },
+          "from": {
+            "$ref": "#/components/schemas/DestinationType",
+            "description": "From destination"
+          },
+          "inputAmount": {
+            "description": "The amount of currency to be input.",
+            "examples": ["100.00"],
+            "type": "string"
+          },
+          "inputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency",
+            "description": "The currency type for the input amount."
+          },
+          "network": {
+            "$ref": "#/components/schemas/Networks"
+          },
+          "outputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency",
+            "description": "The desired currency type for the output amount."
+          },
+          "partnerId": {
+            "description": "Your partner ID, if available.",
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "rampType": {
+            "$ref": "#/components/schemas/RampDirection",
+            "description": "The type of ramp process (on-ramp or off-ramp)."
+          },
+          "to": {
+            "$ref": "#/components/schemas/DestinationType",
+            "description": "To destination"
+          }
+        },
+        "required": ["rampType", "from", "to", "inputAmount", "inputCurrency", "outputCurrency"],
+        "type": "object"
+      },
+      "CreateSubaccountRequest": {
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/BrlaAddress"
+          },
+          "birthdate": {
+            "description": "Date must be in format YYYY-MMM-DD.",
+            "format": "date",
+            "type": "string"
+          },
+          "cnpj": {
+            "type": ["string", "null"]
+          },
+          "companyName": {
+            "type": ["string", "null"]
+          },
+          "cpf": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "startDate": {
+            "description": "Date must be in format YYYY-MMM-DD.",
+            "format": "date",
+            "type": ["string", "null"]
+          },
+          "taxIdType": {
+            "$ref": "#/components/schemas/TaxIdType"
+          }
+        },
+        "required": ["phone", "taxIdType", "address", "fullName", "cpf", "birthdate"],
+        "type": "object"
+      },
+      "CreateSubaccountResponse": {
+        "properties": {
+          "subaccountId": {
+            "description": "The ID of the created or processed subaccount.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DestinationType": {
+        "description": "Represents either a blockchain network or a traditional payment method.",
+        "enum": [
+          "assethub",
+          "arbitrum",
+          "avalanche",
+          "base",
+          "bsc",
+          "ethereum",
+          "polygon",
+          "moonbeam",
+          "pendulum",
+          "stellar",
+          "pix",
+          "sepa",
+          "cbu"
+        ],
+        "type": "string"
+      },
+      "DocumentUploadEntry": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "livenessUrl": {
+            "type": "string"
+          },
+          "uploadURLBack": {
+            "type": "string"
+          },
+          "uploadURLFront": {
+            "type": "string"
+          },
+          "validateLivenessToken": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "uploadURLFront"],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "message": {
+            "description": "A human-readable error message.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "FiatToken": {
+        "enum": ["EUR", "ARS", "BRL"],
+        "type": "string"
+      },
+      "GetKycStatusResponse": {
+        "properties": {
+          "level": {
+            "description": "The KYC level achieved.",
+            "type": "number"
+          },
+          "status": {
+            "description": "The KYC status.",
+            "enum": ["PENDING", "APPROVED", "REJECTED"],
+            "type": "string"
+          },
+          "type": {
+            "description": "Event type, typically \"KYC\".",
+            "enum": ["KYC"],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GetRampErrorLogsResponse": {
+        "items": {
+          "$ref": "#/components/schemas/RampErrorLog"
+        },
+        "type": "array"
+      },
+      "GetRampHistoryResponse": {
+        "properties": {
+          "totalCount": {
+            "type": "string"
+          },
+          "transactions": {
+            "$ref": "#/components/schemas/GetRampHistoryTransaction"
+          }
+        },
+        "required": ["transactions", "totalCount"],
+        "type": "object"
+      },
+      "GetRampHistoryTransaction": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "externalTxExplorerLink": {
+            "description": "A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps.\n",
+            "type": "string"
+          },
+          "externalTxHash": {
+            "description": "The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps.",
+            "type": "string"
+          },
+          "from": {
+            "$ref": "#/components/schemas/DestinationType"
+          },
+          "fromAmount": {
+            "type": "string"
+          },
+          "fromCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SimpleStatus"
+          },
+          "to": {
+            "$ref": "#/components/schemas/DestinationType"
+          },
+          "toAmount": {
+            "type": "string"
+          },
+          "toCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RampDirection"
+          }
+        },
+        "required": ["id", "type", "from", "to", "fromAmount", "toAmount", "fromCurrency", "toCurrency", "status", "date"],
+        "type": "object"
+      },
+      "GetUserRemainingLimitResponse": {
+        "properties": {
+          "remainingLimitOfframp": {
+            "description": "The remaining limit for offramp operations.",
+            "format": "double",
+            "type": "number"
+          },
+          "remainingLimitOnramp": {
+            "description": "The remaining limit for onramp operations.",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GetUserResponse": {
+        "properties": {
+          "evmAddress": {
+            "description": "The user's EVM wallet address.",
+            "type": "string"
+          },
+          "kycLevel": {
+            "description": "The user's KYC level.",
+            "enum": [1, 2],
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GetWidgetUrlLocked": {
+        "properties": {
+          "callbackUrl": {
+            "description": "The widget will redirect to this callbackUrl after the user successfully created the transaction.",
+            "type": "string"
+          },
+          "externalSessionId": {
+            "description": "A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. ",
+            "type": "string"
+          },
+          "quoteId": {
+            "description": "Pass the ID of an existing quote to make the widget lock in that particular quote without allowing to change it.",
+            "type": "string"
+          },
+          "walletAddressLocked": {
+            "description": "Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. ",
+            "type": "string"
+          }
+        },
+        "required": ["quoteId"],
+        "type": "object"
+      },
+      "GetWidgetUrlRefresh": {
+        "properties": {
+          "apiKey": {
+            "description": "Your api key, if available. This is passed to all the quotes generated in this widget session. ",
+            "type": "string"
+          },
+          "callbackUrl": {
+            "description": "The widget will redirect to this callbackUrl after the user successfully created the transaction.",
+            "type": "string"
+          },
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
+          },
+          "cryptoLocked": {
+            "$ref": "#/components/schemas/OnChainToken"
+          },
+          "externalSessionId": {
+            "description": "A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. ",
+            "type": "string"
+          },
+          "fiat": {
+            "$ref": "#/components/schemas/FiatToken"
+          },
+          "inputAmount": {
+            "type": "string"
+          },
+          "network": {
+            "$ref": "#/components/schemas/Networks"
+          },
+          "partnerId": {
+            "description": "The identifier of a partner. ",
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "rampType": {
+            "$ref": "#/components/schemas/RampDirection"
+          },
+          "walletAddressLocked": {
+            "description": "Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. ",
+            "type": "string"
+          }
+        },
+        "required": ["externalSessionId", "cryptoLocked", "rampType", "network", "inputAmount", "fiat", "paymentMethod"],
+        "type": "object"
+      },
+      "KYCDataUploadFileFiles": {
+        "properties": {
+          "CNHUploadUrl": {
+            "format": "url",
+            "type": "string"
+          },
+          "RGBackUploadUrl": {
+            "format": "url",
+            "type": "string"
+          },
+          "RGFrontUploadUrl": {
+            "format": "url",
+            "type": "string"
+          },
+          "selfieUploadUrl": {
+            "format": "url",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "KYCDocType": {
+        "enum": ["RG", "CNH"],
+        "type": "string"
+      },
+      "KycLevel1Payload": {
+        "properties": {
+          "city": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "countryOfTaxId": {
+            "type": "string"
+          },
+          "dateOfBirth": {
+            "description": "ISO date (YYYY-MM-DD).",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "streetAddress": {
+            "type": "string"
+          },
+          "subAccountId": {
+            "type": "string"
+          },
+          "taxIdNumber": {
+            "type": "string"
+          },
+          "uploadedDocumentId": {
+            "type": "string"
+          },
+          "uploadedSelfieId": {
+            "type": "string"
+          },
+          "zipCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subAccountId",
+          "fullName",
+          "dateOfBirth",
+          "countryOfTaxId",
+          "taxIdNumber",
+          "email",
+          "country",
+          "state",
+          "city",
+          "zipCode",
+          "streetAddress",
+          "uploadedSelfieId",
+          "uploadedDocumentId"
+        ],
+        "type": "object"
+      },
+      "KycLevel1Response": {
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": ["id"],
+        "type": "object"
+      },
+      "Networks": {
+        "description": "Supported blockchain networks.",
+        "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
+        "type": "string"
+      },
+      "OnChainToken": {
+        "enum": ["USDC", "USDT", "ETH", "USDC.E"],
+        "type": "string"
+      },
+      "PaymentData": {
+        "description": "Data related to the payment for the ramp transaction.",
+        "properties": {
+          "amount": {
+            "description": "The amount for the payment.",
+            "examples": ["0.05"],
+            "type": "string"
+          },
+          "anchorTargetAccount": {
+            "description": "The target account for an anchor operation.",
+            "examples": ["GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF"],
+            "type": "string"
+          },
+          "memo": {
+            "description": "The memo content.",
+            "examples": ["1204asjfnaksf10982e4"],
+            "type": "string"
+          },
+          "memoType": {
+            "description": "Type of memo (e.g., text, id).",
+            "examples": ["text"],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PaymentMethod": {
+        "description": "`PIX`, `SEPA`, `CBU`",
+        "type": "string"
+      },
+      "PresignedTx": {
+        "additionalProperties": true,
+        "description": "Represents a transaction that has been presigned. Based on UnsignedTx structure.",
+        "properties": {
+          "meta": {
+            "additionalProperties": true,
+            "description": "Any additional metadata associated with the transaction. Can be an empty object.",
+            "properties": {},
+            "type": "object"
+          },
+          "nonce": {
+            "description": "Nonce for the transaction, if applicable.",
+            "format": "int64",
+            "type": "number"
+          },
+          "phase": {
+            "description": "The phase this transaction belongs to within the ramp logic.",
+            "enum": ["RampPhase", "CleanupPhase"],
+            "type": "string"
+          },
+          "signer": {
+            "description": "Address of the account that signed/will sign this transaction.",
+            "type": "string"
+          },
+          "txData": {
+            "description": "The presigned transaction payload or relevant data.",
+            "examples": ["AAAAAKg..."],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "QuoteResponse": {
+        "properties": {
+          "anchorFeeFiat": {
+            "type": "string"
+          },
+          "anchorFeeUSD": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "The timestamp when this quote expires.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "feeCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "from": {
+            "$ref": "#/components/schemas/DestinationType"
+          },
+          "id": {
+            "description": "Unique identifier for the quote.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "inputAmount": {
+            "description": "The input amount specified in the request.",
+            "type": "string"
+          },
+          "inputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "networkFeeFiat": {
+            "type": "string"
+          },
+          "networkFeeUSD": {
+            "type": "string"
+          },
+          "outputAmount": {
+            "description": "The calculated output amount after fees and conversions.",
+            "type": "string"
+          },
+          "outputCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "partnerFeeFiat": {
+            "type": "string"
+          },
+          "partnerFeeUSD": {
+            "type": "string"
+          },
+          "processingFeeFiat": {
+            "type": "string"
+          },
+          "processingFeeUSD": {
+            "type": "string"
+          },
+          "rampType": {
+            "$ref": "#/components/schemas/RampDirection",
+            "description": "The type of ramp process."
+          },
+          "to": {
+            "$ref": "#/components/schemas/DestinationType"
+          },
+          "totalFeeFiat": {
+            "type": "string"
+          },
+          "totalFeeUSD": {
+            "type": "string"
+          },
+          "vortexFeeFiat": {
+            "type": "string"
+          },
+          "vortexFeeUSD": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "networkFeeFiat",
+          "networkFeeUSD",
+          "anchorFeeFiat",
+          "anchorFeeUSD",
+          "vortexFeeFiat",
+          "vortexFeeUSD",
+          "partnerFeeFiat",
+          "partnerFeeUSD",
+          "totalFeeFiat",
+          "totalFeeUSD",
+          "processingFeeFiat",
+          "processingFeeUSD",
+          "feeCurrency"
+        ],
+        "type": "object"
+      },
+      "RampCurrency": {
+        "description": "Represents supported currencies for ramp operations, including fiat and on-chain tokens.",
+        "enum": ["EUR", "ARS", "BRL", "USDC", "USDT", "USDC.E"],
+        "examples": ["USDC"],
+        "type": "string"
+      },
+      "RampDirection": {
+        "enum": ["BUY", "SELL"],
+        "type": "string"
+      },
+      "RampErrorLog": {
+        "properties": {
+          "details": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/RampPhase"
+          },
+          "recoverable": {
+            "type": "boolean"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": ["timestamp", "phase", "error"],
+        "type": "object"
+      },
+      "RampPhase": {
+        "description": "The current phase of the ramp process.",
+        "enum": [
+          "initial",
+          "timedOut",
+          "stellarCreateAccount",
+          "squidrouterApprove",
+          "squidrouterSwap",
+          "fundEphemeral",
+          "nablaApprove",
+          "nablaSwap",
+          "moonbeamToPendulum",
+          "moonbeamToPendulumXcm",
+          "pendulumToMoonbeam",
+          "assethubToPendulum",
+          "pendulumToAssethub",
+          "spacewalkRedeem",
+          "stellarPayment",
+          "subsidizePreSwap",
+          "subsidizePostSwap",
+          "brlaTeleport",
+          "brlaPayoutOnMoonbeam",
+          "failed"
+        ],
+        "type": "string"
+      },
+      "RampProcess": {
+        "properties": {
+          "anchorFeeFiat": {
+            "type": "string"
+          },
+          "anchorFeeUSD": {
+            "type": "string"
+          },
+          "countryCode": {
+            "$ref": "#/components/schemas/CountryCode"
+          },
+          "createdAt": {
+            "description": "Timestamp of when the ramp process was created.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "currentPhase": {
+            "$ref": "#/components/schemas/RampPhase"
+          },
+          "depositQrCode": {
+            "description": "BR Code for PIX payment, if applicable.",
+            "type": ["string", "null"]
+          },
+          "feeCurrency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "from": {
+            "$ref": "#/components/schemas/DestinationType",
+            "description": "The source network or payment method."
+          },
+          "id": {
+            "description": "Unique identifier for the ramp process.",
+            "type": "string"
+          },
+          "inputAmount": {
+            "type": "string"
+          },
+          "inputCurrency": {
+            "type": "string"
+          },
+          "network": {
+            "$ref": "#/components/schemas/Networks"
+          },
+          "networkFeeFiat": {
+            "type": "string"
+          },
+          "networkFeeUSD": {
+            "type": "string"
+          },
+          "outputAmount": {
+            "type": "string"
+          },
+          "outputCurrency": {
+            "type": "string"
+          },
+          "partnerFeeFiat": {
+            "type": "string"
+          },
+          "partnerFeeUSD": {
+            "type": "string"
+          },
+          "paymentMethod": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "processingFeeFiat": {
+            "type": "string"
+          },
+          "processingFeeUSD": {
+            "type": "string"
+          },
+          "quoteId": {
+            "description": "The quote ID associated with this ramp process.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API.",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SimpleStatus"
+          },
+          "to": {
+            "$ref": "#/components/schemas/DestinationType",
+            "description": "The destination network or payment method."
+          },
+          "totalFeeFiat": {
+            "type": "string"
+          },
+          "totalFeeUSD": {
+            "type": "string"
+          },
+          "transactionExplorerLink": {
+            "description": "(BUY-only) A link to a block explorer showing the details for the transaction hash.",
+            "type": "string"
+          },
+          "transactionHash": {
+            "description": "(BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. ",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/RampDirection",
+            "description": "Type of ramp process."
+          },
+          "unsignedTxs": {
+            "description": "Array of unsigned transactions that need to be signed by the user.",
+            "items": {
+              "$ref": "#/components/schemas/UnsignedTx"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "description": "Timestamp of the last update to the ramp process.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "vortexFeeFiat": {
+            "type": "string"
+          },
+          "vortexFeeUSD": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "description": "The address of the source account for SELL, or the address the destination account for BUY transactions.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentMethod",
+          "inputAmount",
+          "outputAmount",
+          "inputCurrency",
+          "outputCurrency",
+          "networkFeeFiat",
+          "networkFeeUSD",
+          "anchorFeeFiat",
+          "anchorFeeUSD",
+          "vortexFeeFiat",
+          "vortexFeeUSD",
+          "partnerFeeFiat",
+          "partnerFeeUSD",
+          "totalFeeFiat",
+          "totalFeeUSD",
+          "processingFeeFiat",
+          "processingFeeUSD",
+          "feeCurrency"
+        ],
+        "type": "object"
+      },
+      "RegisterRampRequest": {
+        "properties": {
+          "additionalData": {
+            "additionalProperties": true,
+            "description": "Optional additional data for the ramp process.\n\nFor Stellar offramps, paymentData is required.\n\nFor Brazil onramps, destinationAddress and taxId  arerequired.\n\nFor Brazil offramps, pixDestination, taxId and receiverTaxId are required.",
+            "properties": {
+              "destinationAddress": {
+                "description": "Destination address, used for onramp.",
+                "type": "string"
+              },
+              "moneriumAuthToken": {
+                "description": "Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps.",
+                "type": "string"
+              },
+              "paymentData": {
+                "$ref": "#/components/schemas/PaymentData"
+              },
+              "pixDestination": {
+                "description": "PIX key for the destination account in an onramp.",
+                "type": "string"
+              },
+              "receiverTaxId": {
+                "description": "Tax ID of the receiver for onramp.",
+                "type": "string"
+              },
+              "taxId": {
+                "description": "Tax ID of the user.",
+                "type": "string"
+              },
+              "walletAddress": {
+                "description": "Wallet address initiating the offramp.",
+                "type": "string"
+              }
+            },
+            "required": ["walletAddress", "moneriumAuthToken"],
+            "type": "object"
+          },
+          "quoteId": {
+            "description": "The unique identifier for the quote.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "signingAccounts": {
+            "description": "Array of accounts that will be used for signing transactions.\n\nFor Stellar offramps, Stellar and Pendulum ephemerals are required.\nFor Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.\n",
+            "items": {
+              "properties": {
+                "address": {
+                  "description": "The account address.",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "The type of the account.",
+                  "enum": ["EVM", "Stellar", "Substrate"],
+                  "type": "string"
+                }
+              },
+              "required": ["address", "type"],
+              "type": "object"
+            },
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["quoteId", "signingAccounts"],
+        "type": "object"
+      },
+      "SimpleStatus": {
+        "description": "`PENDING`, `FAILED`, `COMPLETED`",
+        "type": "string"
+      },
+      "StartKYC2Request": {
+        "properties": {
+          "documentType": {
+            "$ref": "#/components/schemas/KYCDocType"
+          },
+          "taxId": {
+            "type": "string"
+          }
+        },
+        "required": ["documentType", "taxId"],
+        "type": "object"
+      },
+      "StartKYC2Response": {
+        "properties": {
+          "uploadUrls": {
+            "$ref": "#/components/schemas/KYCDataUploadFileFiles"
+          }
+        },
+        "type": "object"
+      },
+      "StartRampRequest": {
+        "properties": {
+          "rampId": {
+            "type": "string"
+          }
+        },
+        "required": ["rampId"],
+        "type": "object"
+      },
+      "TaxIdType": {
+        "enum": ["CPF", "CNPJ"],
+        "type": "string"
+      },
+      "TriggerOfframpRequest": {
+        "properties": {
+          "amount": {
+            "description": "The amount to offramp.",
+            "examples": ["100.50"],
+            "type": "string"
+          },
+          "pixKey": {
+            "description": "The recipient's PIX key.",
+            "type": "string"
+          },
+          "receiverTaxId": {
+            "description": "The recipient's Tax ID for validation.",
+            "type": "string"
+          },
+          "taxId": {
+            "description": "The sender's Tax ID.",
+            "type": "string"
+          }
+        },
+        "required": ["taxId", "pixKey", "amount", "receiverTaxId"],
+        "type": "object"
+      },
+      "TriggerOfframpResponse": {
+        "properties": {
+          "offrampId": {
+            "description": "The ID of the triggered offramp transaction.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UnsignedTx": {
+        "additionalProperties": true,
+        "description": "Represents an unsigned transaction that requires user signature. Actual properties will depend on the transaction type and network.",
+        "properties": {
+          "meta": {
+            "properties": {},
+            "type": "object"
+          },
+          "nonce": {
+            "type": "number"
+          },
+          "phase": {
+            "enum": ["RampPhase", "CleanupPhase"],
+            "type": "string"
+          },
+          "signer": {
+            "type": "string"
+          },
+          "txData": {
+            "description": "The unsigned transaction payload or relevant data.",
+            "examples": ["AAAAAKu..."],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateRampRequest": {
+        "properties": {
+          "additionalData": {
+            "additionalProperties": true,
+            "description": "Optional additional data, like transaction hashes from external services.",
+            "properties": {
+              "assetHubToPendulumHash": {
+                "description": "Transaction hash for AssetHub to Pendulum transfer, if applicable.",
+                "type": ["string", "null"]
+              },
+              "moneriumOfframpSignature": {
+                "description": "Signed message to trigger a Monerium offramp.\n",
+                "type": "string"
+              },
+              "squidRouterApproveHash": {
+                "description": "Transaction hash for Squid Router approval, if applicable.",
+                "type": ["string", "null"]
+              },
+              "squidRouterSwapHash": {
+                "description": "Transaction hash for Squid Router swap, if applicable.",
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["moneriumOfframpSignature"],
+            "type": ["object", "null"]
+          },
+          "presignedTxs": {
+            "description": "An array of transactions that have been pre-signed by the user.",
+            "items": {
+              "$ref": "#/components/schemas/PresignedTx"
+            },
+            "type": "array"
+          },
+          "rampId": {
+            "description": "The unique identifier of the ramp process to start.",
+            "examples": ["proc_12345"],
+            "type": "string"
+          }
+        },
+        "required": ["rampId", "presignedTxs"],
+        "type": "object"
+      },
+      "ValidatePixKeyResponse": {
+        "properties": {
+          "valid": {
+            "description": "Indicates if the PIX key is valid.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {}
+  },
+  "info": {
+    "description": "API reference for partner-facing Vortex integrations and the `@vortexfi/sdk` package.\n\nVortex orchestrates cross-chain on-ramp and off-ramp flows. A typical SDK flow creates a quote, registers a ramp, signs required transactions with client-held ephemeral accounts, updates the ramp with signatures or transaction hashes, and starts processing.\n\n**Use the Vortex SDK whenever possible.** The SDK creates fresh ephemeral accounts, signs transactions returned by Vortex, submits required update calls, and can keep local backups of ephemeral account secrets. Direct API integrations must implement those responsibilities themselves.\n\n**Ephemeral key custody is the integrator's responsibility.** Vortex never receives, stores, or reconstructs ephemeral account secret keys. The API client must store those secrets securely until the ramp is complete and any recovery window has passed. If the client loses the ephemeral secrets, Vortex may be unable to complete recovery or move funds on behalf of the user.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` - partner SDK key for trusted server-side use.\n- `X-Public-Key: pk_<live|test>_...` - partner public key for attribution only.\n- `Authorization: Bearer <Supabase JWT>` - first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer auth only; partner keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "title": "Vortex Partner API",
+    "version": "1.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/brla/createSubaccount": {
+      "post": {
+        "deprecated": false,
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "operationId": "createSubaccount",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSubaccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSubaccountResponse"
+                }
+              }
+            },
+            "description": "Subaccount created or KYC retry initiated successfully.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (cpf, cnpj, companyName, startDate)\n- Subaccount already created and KYC level > 0\n- Other invalid request details",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Create user or retry KYC",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/getKycStatus": {
+      "get": {
+        "deprecated": false,
+        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "operationId": "fetchSubaccountKycStatus",
+        "parameters": [
+          {
+            "description": "The user's Tax ID.",
+            "in": "query",
+            "name": "taxId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetKycStatusResponse"
+                }
+              }
+            },
+            "description": "Successfully retrieved KYC status.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing taxId or subaccount not found (returned as 400 from code).",
+            "headers": {}
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "No KYC process started.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error (e.g., no KYC events found when expected).",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get user's KYC status",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/getOfframpStatus": {
+      "get": {
+        "deprecated": false,
+        "description": "",
+        "operationId": "getOfframpStatus",
+        "parameters": [
+          {
+            "description": "The user's Tax ID.",
+            "in": "query",
+            "name": "taxId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successfully retrieved offramp status.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing taxId or subaccount not found (returned as 400 from code).",
+            "headers": {}
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "No status events found for the user.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get status of the last ramp event for a user",
+        "tags": ["BRLA"]
+      }
+    },
+    "/v1/brla/getSelfieLivenessUrl": {
+      "get": {
+        "deprecated": false,
+        "description": "Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "operationId": "brlaGetSelfieLivenessUrl",
+        "parameters": [
+          {
+            "description": "CPF or CNPJ.",
+            "in": "query",
+            "name": "taxId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaGetSelfieLivenessUrlResponse"
+                }
+              }
+            },
+            "description": "Liveness URL returned.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing taxId or ramp disabled.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get selfie liveness URL",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/getUploadUrls": {
+      "post": {
+        "deprecated": false,
+        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "operationId": "brlaGetUploadUrls",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AveniaKYCDataUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AveniaKYCDataUploadResponse"
+                }
+              }
+            },
+            "description": "Upload URLs returned.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing/invalid documentType or taxId; or ramp disabled for this tax ID.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get KYC document upload URLs",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/getUser": {
+      "get": {
+        "deprecated": false,
+        "description": "Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "operationId": "getBrlaUser",
+        "parameters": [
+          {
+            "description": "The user's Tax ID.",
+            "in": "query",
+            "name": "taxId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserResponse"
+                }
+              }
+            },
+            "description": "Successfully retrieved user information.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing taxId query parameter\n- KYC invalid",
+            "headers": {}
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Subaccount not found.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get user information",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/getUserRemainingLimit": {
+      "get": {
+        "deprecated": false,
+        "description": "\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "operationId": "getBrlaUserRemainingLimit",
+        "parameters": [
+          {
+            "description": "The user's Tax ID.",
+            "in": "query",
+            "name": "taxId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserRemainingLimitResponse"
+                }
+              }
+            },
+            "description": "Successfully retrieved user's remaining limits.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing taxId query parameter or other invalid request.",
+            "headers": {}
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Subaccount not found or limits not found.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get user's remaining transaction limits",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/newKyc": {
+      "post": {
+        "deprecated": false,
+        "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** uses `optionalAuth`.",
+        "operationId": "brlaNewKyc",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KycLevel1Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KycLevel1Response"
+                }
+              }
+            },
+            "description": "KYC submission accepted.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Validation failure.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Submit KYC level 1 data",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/brla/startKYC2": {
+      "post": {
+        "deprecated": false,
+        "description": "Requests document upload URLs for KYC level 2 verification.",
+        "operationId": "startKYC2",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "examples": {},
+              "schema": {
+                "$ref": "#/components/schemas/StartKYC2Request"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartKYC2Response"
+                }
+              }
+            },
+            "description": "Successfully initiated KYC level 2 and retrieved upload URLs.\n\nStatus and errors can be fetched from /getKycStatus.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Subaccount not found\n- User not at KYC level 1\n- Other invalid request details",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Start KYC level 2 process for a user",
+        "tags": ["BRLA"]
+      }
+    },
+    "/v1/brla/validatePixKey": {
+      "get": {
+        "deprecated": false,
+        "description": "Checks whether a Pix key exists and is valid. The key value itself is intentionally not echoed back in the response for security.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>`.",
+        "operationId": "brlaValidatePixKey",
+        "parameters": [
+          {
+            "description": "Pix key to validate (CPF, CNPJ, email, phone, or random key).",
+            "in": "query",
+            "name": "pixKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaValidatePixKeyResponse"
+                }
+              }
+            },
+            "description": "Validation result.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid pix key.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrlaErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Validate Pix key",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/public-key": {
+      "get": {
+        "deprecated": false,
+        "description": "\n\nReturns the RSA-PSS 2048 / SHA-256 public key used to verify Vortex webhook signatures. This is NOT a partner `pk_*` API key.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Public Key",
+        "tags": ["Public Key"]
+      }
+    },
+    "/v1/quotes": {
+      "post": {
+        "deprecated": false,
+        "description": "Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.",
+        "operationId": "createQuote",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "from": "pix",
+                "inputAmount": "33",
+                "inputCurrency": "BRL",
+                "outputCurrency": "USDC",
+                "partnerId": "myPartnerId",
+                "rampType": "BUY",
+                "to": "polygon"
+              },
+              "schema": {
+                "properties": {
+                  "apiKey": {
+                    "description": "Your api key, if available.",
+                    "type": "string"
+                  },
+                  "countryCode": {
+                    "$ref": "#/components/schemas/CountryCode"
+                  },
+                  "from": {
+                    "$ref": "#/components/schemas/DestinationType",
+                    "description": "From destination"
+                  },
+                  "inputAmount": {
+                    "description": "The amount of currency to be input.",
+                    "examples": ["100.00"],
+                    "type": "string"
+                  },
+                  "inputCurrency": {
+                    "$ref": "#/components/schemas/RampCurrency",
+                    "description": "The currency type for the input amount."
+                  },
+                  "network": {
+                    "$ref": "#/components/schemas/Networks"
+                  },
+                  "outputCurrency": {
+                    "$ref": "#/components/schemas/RampCurrency",
+                    "description": "The desired currency type for the output amount."
+                  },
+                  "partnerId": {
+                    "description": "Your partner ID, if available.",
+                    "type": "string"
+                  },
+                  "paymentMethod": {
+                    "$ref": "#/components/schemas/PaymentMethod"
+                  },
+                  "rampType": {
+                    "$ref": "#/components/schemas/RampDirection",
+                    "description": "The type of ramp process (on-ramp or off-ramp)."
+                  },
+                  "to": {
+                    "$ref": "#/components/schemas/DestinationType",
+                    "description": "To destination"
+                  }
+                },
+                "required": ["rampType", "from", "to", "inputAmount", "inputCurrency", "outputCurrency"],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "expiresAt": "2025-05-16T12:30:00Z",
+                  "fee": "0.50",
+                  "from": "polygon",
+                  "id": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+                  "inputAmount": "33",
+                  "inputCurrency": "usdc",
+                  "outputAmount": "32500.50",
+                  "outputCurrency": "ars",
+                  "rampType": "sell",
+                  "to": "cbu"
+                },
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "description": "The timestamp when this quote expires.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType"
+                    },
+                    "id": {
+                      "description": "Unique identifier for the quote.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "description": "The input amount specified in the request.",
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "description": "The calculated output amount after fees and conversions.",
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "rampType": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "The type of ramp process."
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType"
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Quote successfully created.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "2": {
+                    "summary": "Example of missing fields error",
+                    "value": {
+                      "message": "Missing required fields"
+                    }
+                  },
+                  "3": {
+                    "summary": "Example of invalid ramp type error",
+                    "value": {
+                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                    }
+                  }
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "An unexpected error occurred."
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Create a new quote",
+        "tags": ["Quotes"]
+      }
+    },
+    "/v1/quotes/{id}": {
+      "get": {
+        "deprecated": false,
+        "description": "Get a quote by ID.",
+        "parameters": [
+          {
+            "description": "Quote Id.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuoteResponse"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get existing quote",
+        "tags": []
+      }
+    },
+    "/v1/quotes/best": {
+      "post": {
+        "deprecated": false,
+        "description": "Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output. ",
+        "operationId": "createBestQuote",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "from": "pix",
+                "inputAmount": "30",
+                "inputCurrency": "BRL",
+                "outputCurrency": "USDC",
+                "partnerId": "myPartnerId",
+                "rampType": "BUY"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/CreateBestQuoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "1": {
+                    "summary": "Success",
+                    "value": {
+                      "expiresAt": "2025-05-16T12:30:00Z",
+                      "fee": "0.50",
+                      "from": "polygon",
+                      "id": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+                      "inputAmount": "33",
+                      "inputCurrency": "usdc",
+                      "outputAmount": "32500.50",
+                      "outputCurrency": "ars",
+                      "rampType": "sell",
+                      "to": "cbu"
+                    }
+                  },
+                  "2": {
+                    "summary": "Example of missing fields error",
+                    "value": {
+                      "message": "Missing required fields"
+                    }
+                  },
+                  "3": {
+                    "summary": "Example of invalid ramp type error",
+                    "value": {
+                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                    }
+                  },
+                  "4": {
+                    "summary": "Success",
+                    "value": {
+                      "message": "An unexpected error occurred."
+                    }
+                  }
+                },
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "description": "The timestamp when this quote expires.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType"
+                    },
+                    "id": {
+                      "description": "Unique identifier for the quote.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "description": "The input amount specified in the request.",
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "description": "The calculated output amount after fees and conversions.",
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "rampType": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "The type of ramp process."
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType"
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Quote successfully created.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Create a quote for the best network",
+        "tags": ["Quotes"]
+      }
+    },
+    "/v1/ramp/{id}": {
+      "get": {
+        "deprecated": false,
+        "description": "Fetches an updated ramp process.",
+        "parameters": [
+          {
+            "description": "Ramp ID.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "countryCode": {
+                      "$ref": "#/components/schemas/CountryCode"
+                    },
+                    "createdAt": {
+                      "description": "Timestamp of when the ramp process was created.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "currentPhase": {
+                      "$ref": "#/components/schemas/RampPhase"
+                    },
+                    "depositQrCode": {
+                      "description": "BR Code for PIX payment, if applicable.",
+                      "type": ["string", "null"]
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The source network or payment method."
+                    },
+                    "id": {
+                      "description": "Unique identifier for the ramp process.",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "$ref": "#/components/schemas/Networks"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "type": "string"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "paymentMethod": {
+                      "$ref": "#/components/schemas/PaymentMethod"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "quoteId": {
+                      "description": "The quote ID associated with this ramp process.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "description": "The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/SimpleStatus"
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The destination network or payment method."
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "transactionExplorerLink": {
+                      "description": "(BUY-only) A link to a block explorer showing the details for the transaction hash.",
+                      "type": "string"
+                    },
+                    "transactionHash": {
+                      "description": "(BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. ",
+                      "type": "string"
+                    },
+                    "type": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "Type of ramp process."
+                    },
+                    "unsignedTxs": {
+                      "description": "Array of unsigned transactions that need to be signed by the user.",
+                      "items": {
+                        "$ref": "#/components/schemas/UnsignedTx"
+                      },
+                      "type": "array"
+                    },
+                    "updatedAt": {
+                      "description": "Timestamp of the last update to the ramp process.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    },
+                    "walletAddress": {
+                      "description": "The address of the source account for SELL, or the address the destination account for BUY transactions.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "inputAmount",
+                    "inputCurrency",
+                    "outputAmount",
+                    "outputCurrency",
+                    "paymentMethod",
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get ramp status",
+        "tags": []
+      }
+    },
+    "/v1/ramp/{id}/errors": {
+      "get": {
+        "deprecated": false,
+        "description": "Returns the chronological error log for a ramp.\n\n**Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.",
+        "operationId": "getRampErrorLogs",
+        "parameters": [
+          {
+            "description": "Ramp ID.",
+            "example": "",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRampErrorLogsResponse"
+                }
+              }
+            },
+            "description": "Error log array (empty if no errors).",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get ramp error logs",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/ramp/history/{walletAddress}": {
+      "get": {
+        "deprecated": false,
+        "description": "Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters. ",
+        "parameters": [
+          {
+            "description": "The wallet address for which the ramp history is queried for.",
+            "example": "",
+            "in": "path",
+            "name": "walletAddress",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The maximum count of transaction items returned in this query. The maximum value is `100`. ",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The offset for querying the transactions. Necessary if the number of transaction items of the address is larger than the maximum limit. A larger value will return older transaction items. ",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRampHistoryResponse"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get ramp history for wallet address",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/ramp/register": {
+      "post": {
+        "deprecated": false,
+        "description": "Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.",
+        "operationId": "registerRamp",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "additionalData": {
+                  "pixDestination": "711.711.011-11",
+                  "receiverTaxId": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
+                  "taxId": "711.711.011-11"
+                },
+                "quoteId": "8e4bca04-aa22-4f86-9ce5-80aaef58ef83",
+                "signingAccounts": [
+                  {
+                    "address": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
+                    "network": "moonbeam"
+                  },
+                  {
+                    "address": "6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv",
+                    "network": "pendulum"
+                  }
+                ]
+              },
+              "schema": {
+                "properties": {
+                  "additionalData": {
+                    "additionalProperties": true,
+                    "description": "Optional additional data for the ramp process.\n\nFor Stellar offramps, paymentData is required.\n\nFor Brazil onramps, destinationAddress and taxId  arerequired.\n\nFor Brazil offramps, pixDestination, taxId and receiverTaxId are required.",
+                    "properties": {
+                      "destinationAddress": {
+                        "description": "Destination address, used for onramp.",
+                        "type": "string"
+                      },
+                      "moneriumAuthToken": {
+                        "description": "Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps.",
+                        "type": "string"
+                      },
+                      "paymentData": {
+                        "$ref": "#/components/schemas/PaymentData"
+                      },
+                      "pixDestination": {
+                        "description": "PIX key for the destination account in an onramp.",
+                        "type": "string"
+                      },
+                      "receiverTaxId": {
+                        "description": "Tax ID of the receiver for onramp.",
+                        "type": "string"
+                      },
+                      "sessionId": {
+                        "type": "string"
+                      },
+                      "taxId": {
+                        "description": "Tax ID of the user.",
+                        "type": "string"
+                      },
+                      "walletAddress": {
+                        "description": "Wallet address initiating the offramp.",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["walletAddress", "moneriumAuthToken"],
+                    "type": "object"
+                  },
+                  "quoteId": {
+                    "description": "The unique identifier for the quote.",
+                    "format": "uuid",
+                    "type": "string"
+                  },
+                  "signingAccounts": {
+                    "description": "Array of accounts that will be used for signing transactions.\n\nFor Stellar offramps, Stellar and Pendulum ephemerals are required.\nFor Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.\n",
+                    "items": {
+                      "properties": {
+                        "address": {
+                          "description": "The account address.",
+                          "type": "string"
+                        },
+                        "type": {
+                          "description": "The type of the account.",
+                          "enum": ["EVM", "Stellar", "Substrate"],
+                          "type": "string"
+                        }
+                      },
+                      "required": ["address", "type"],
+                      "type": "object"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  }
+                },
+                "required": ["quoteId", "signingAccounts"],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "brCode": "00020126...",
+                  "createdAt": "2024-05-16T10:00:00Z",
+                  "currentPhase": "pending_signature",
+                  "from": "stellar",
+                  "id": "proc_12345",
+                  "quoteId": "41a756dc-04e4-4e4b-b243-9c8f977c24d6",
+                  "to": "pix",
+                  "type": "off",
+                  "unsignedTxs": [
+                    {
+                      "data": "AAAA...",
+                      "type": "stellar_payment"
+                    }
+                  ],
+                  "updatedAt": "2024-05-16T10:00:00Z"
+                },
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "countryCode": {
+                      "$ref": "#/components/schemas/CountryCode"
+                    },
+                    "createdAt": {
+                      "description": "Timestamp of when the ramp process was created.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "currentPhase": {
+                      "$ref": "#/components/schemas/RampPhase"
+                    },
+                    "depositQrCode": {
+                      "description": "BR Code for PIX payment, if applicable.",
+                      "type": ["string", "null"]
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The source network or payment method."
+                    },
+                    "id": {
+                      "description": "Unique identifier for the ramp process.",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "$ref": "#/components/schemas/Networks"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "type": "string"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "paymentMethod": {
+                      "$ref": "#/components/schemas/PaymentMethod"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "quoteId": {
+                      "description": "The quote ID associated with this ramp process.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "description": "The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/SimpleStatus"
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The destination network or payment method."
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "transactionExplorerLink": {
+                      "description": "(BUY-only) A link to a block explorer showing the details for the transaction hash.",
+                      "type": "string"
+                    },
+                    "transactionHash": {
+                      "description": "(BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. ",
+                      "type": "string"
+                    },
+                    "type": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "Type of ramp process."
+                    },
+                    "unsignedTxs": {
+                      "description": "Array of unsigned transactions that need to be signed by the user.",
+                      "items": {
+                        "$ref": "#/components/schemas/UnsignedTx"
+                      },
+                      "type": "array"
+                    },
+                    "updatedAt": {
+                      "description": "Timestamp of the last update to the ramp process.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    },
+                    "walletAddress": {
+                      "description": "The address of the source account for SELL, or the address the destination account for BUY transactions.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "inputAmount",
+                    "inputCurrency",
+                    "outputAmount",
+                    "outputCurrency",
+                    "paymentMethod",
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Ramp process successfully registered.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "Missing required fields"
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request - Invalid input, missing required fields, or validation error.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "An unexpected error occurred."
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Register new ramp process",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/ramp/start": {
+      "post": {
+        "deprecated": false,
+        "description": "Starts a ramp process. \n\nIt is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.",
+        "operationId": "startRamp",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "rampId": "proc_12345"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/StartRampRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "createdAt": "2024-05-16T10:00:00Z",
+                  "currentPhase": "processing",
+                  "depositQrCode": "00020126...",
+                  "from": "stellar",
+                  "id": "proc_12345",
+                  "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+                  "to": "pix",
+                  "type": "sell",
+                  "unsignedTxs": [],
+                  "updatedAt": "2024-05-16T12:30:00Z"
+                },
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "countryCode": {
+                      "$ref": "#/components/schemas/CountryCode"
+                    },
+                    "createdAt": {
+                      "description": "Timestamp of when the ramp process was created.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "currentPhase": {
+                      "$ref": "#/components/schemas/RampPhase"
+                    },
+                    "depositQrCode": {
+                      "description": "BR Code for PIX payment, if applicable.",
+                      "type": ["string", "null"]
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The source network or payment method."
+                    },
+                    "id": {
+                      "description": "Unique identifier for the ramp process.",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "$ref": "#/components/schemas/Networks"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "type": "string"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "paymentMethod": {
+                      "$ref": "#/components/schemas/PaymentMethod"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "quoteId": {
+                      "description": "The quote ID associated with this ramp process.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "description": "The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/SimpleStatus"
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The destination network or payment method."
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "transactionExplorerLink": {
+                      "description": "(BUY-only) A link to a block explorer showing the details for the transaction hash.",
+                      "type": "string"
+                    },
+                    "transactionHash": {
+                      "description": "(BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. ",
+                      "type": "string"
+                    },
+                    "type": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "Type of ramp process."
+                    },
+                    "unsignedTxs": {
+                      "description": "Array of unsigned transactions that need to be signed by the user.",
+                      "items": {
+                        "$ref": "#/components/schemas/UnsignedTx"
+                      },
+                      "type": "array"
+                    },
+                    "updatedAt": {
+                      "description": "Timestamp of the last update to the ramp process.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    },
+                    "walletAddress": {
+                      "description": "The address of the source account for SELL, or the address the destination account for BUY transactions.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "inputAmount",
+                    "inputCurrency",
+                    "outputAmount",
+                    "outputCurrency",
+                    "paymentMethod",
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Ramp process successfully started or updated.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "2": {
+                    "summary": "Example of missing fields error",
+                    "value": {
+                      "message": "Missing required fields"
+                    }
+                  },
+                  "3": {
+                    "summary": "Example of invalid additional data format",
+                    "value": {
+                      "message": "Invalid additional data format"
+                    }
+                  }
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampId, presignedTxs)\n- Invalid additional data format (if provided, must be an object)",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "An unexpected error occurred."
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Start ramp process ",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/ramp/update": {
+      "post": {
+        "deprecated": false,
+        "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided. \n\nFor onramps, no additional data is required after registering the ramp.",
+        "operationId": "startRamp",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "additionalData": {
+                  "squidRouterApproveHash": "0x123...",
+                  "squidRouterSwapHash": "0x456..."
+                },
+                "presignedTxs": [
+                  {
+                    "meta": {},
+                    "nonce": 1,
+                    "phase": "RampPhase",
+                    "signer": "GB2TP24WCY6BPGFX4SOGDHT7IGJRR7HCDQT2VL2MVCZJTJCGKMVGQGQB",
+                    "txData": "AAAAAKu..."
+                  }
+                ],
+                "rampId": "proc_12345"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRampRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "createdAt": "2024-05-16T10:00:00Z",
+                  "currentPhase": "processing",
+                  "depositQrCode": "00020126...",
+                  "from": "stellar",
+                  "id": "proc_12345",
+                  "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+                  "to": "pix",
+                  "type": "off",
+                  "unsignedTxs": [],
+                  "updatedAt": "2024-05-16T12:30:00Z"
+                },
+                "schema": {
+                  "properties": {
+                    "anchorFeeFiat": {
+                      "type": "string"
+                    },
+                    "anchorFeeUSD": {
+                      "type": "string"
+                    },
+                    "countryCode": {
+                      "$ref": "#/components/schemas/CountryCode"
+                    },
+                    "createdAt": {
+                      "description": "Timestamp of when the ramp process was created.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "currentPhase": {
+                      "$ref": "#/components/schemas/RampPhase"
+                    },
+                    "depositQrCode": {
+                      "description": "BR Code for PIX payment, if applicable.",
+                      "type": ["string", "null"]
+                    },
+                    "feeCurrency": {
+                      "$ref": "#/components/schemas/RampCurrency"
+                    },
+                    "from": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The source network or payment method."
+                    },
+                    "id": {
+                      "description": "Unique identifier for the ramp process.",
+                      "type": "string"
+                    },
+                    "inputAmount": {
+                      "type": "string"
+                    },
+                    "inputCurrency": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "$ref": "#/components/schemas/Networks"
+                    },
+                    "networkFeeFiat": {
+                      "type": "string"
+                    },
+                    "networkFeeUSD": {
+                      "type": "string"
+                    },
+                    "outputAmount": {
+                      "type": "string"
+                    },
+                    "outputCurrency": {
+                      "type": "string"
+                    },
+                    "partnerFeeFiat": {
+                      "type": "string"
+                    },
+                    "partnerFeeUSD": {
+                      "type": "string"
+                    },
+                    "paymentMethod": {
+                      "$ref": "#/components/schemas/PaymentMethod"
+                    },
+                    "processingFeeFiat": {
+                      "type": "string"
+                    },
+                    "processingFeeUSD": {
+                      "type": "string"
+                    },
+                    "quoteId": {
+                      "description": "The quote ID associated with this ramp process.",
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "description": "The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "$ref": "#/components/schemas/SimpleStatus"
+                    },
+                    "to": {
+                      "$ref": "#/components/schemas/DestinationType",
+                      "description": "The destination network or payment method."
+                    },
+                    "totalFeeFiat": {
+                      "type": "string"
+                    },
+                    "totalFeeUSD": {
+                      "type": "string"
+                    },
+                    "transactionExplorerLink": {
+                      "description": "(BUY-only) A link to a block explorer showing the details for the transaction hash.",
+                      "type": "string"
+                    },
+                    "transactionHash": {
+                      "description": "(BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. ",
+                      "type": "string"
+                    },
+                    "type": {
+                      "$ref": "#/components/schemas/RampDirection",
+                      "description": "Type of ramp process."
+                    },
+                    "unsignedTxs": {
+                      "description": "Array of unsigned transactions that need to be signed by the user.",
+                      "items": {
+                        "$ref": "#/components/schemas/UnsignedTx"
+                      },
+                      "type": "array"
+                    },
+                    "updatedAt": {
+                      "description": "Timestamp of the last update to the ramp process.",
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "vortexFeeFiat": {
+                      "type": "string"
+                    },
+                    "vortexFeeUSD": {
+                      "type": "string"
+                    },
+                    "walletAddress": {
+                      "description": "The address of the source account for SELL, or the address the destination account for BUY transactions.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "inputAmount",
+                    "inputCurrency",
+                    "outputAmount",
+                    "outputCurrency",
+                    "paymentMethod",
+                    "networkFeeFiat",
+                    "networkFeeUSD",
+                    "anchorFeeFiat",
+                    "anchorFeeUSD",
+                    "vortexFeeFiat",
+                    "vortexFeeUSD",
+                    "partnerFeeFiat",
+                    "partnerFeeUSD",
+                    "totalFeeFiat",
+                    "totalFeeUSD",
+                    "processingFeeFiat",
+                    "processingFeeUSD",
+                    "feeCurrency"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Ramp process successfully started or updated.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "examples": {
+                  "2": {
+                    "summary": "Example of missing fields error",
+                    "value": {
+                      "message": "Missing required fields"
+                    }
+                  },
+                  "3": {
+                    "summary": "Example of invalid additional data format",
+                    "value": {
+                      "message": "Invalid additional data format"
+                    }
+                  }
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampId, presignedTxs)\n- Invalid additional data format (if provided, must be an object)",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "An unexpected error occurred."
+                },
+                "schema": {
+                  "properties": {},
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Internal Server Error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Update ramp process",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/session/create": {
+      "post": {
+        "deprecated": false,
+        "description": "You can call this endpoint to get a widget URL ready with a quote you provide. You need to pass the `quoteId` parameter to the body, and optionally supply the  `callbackUrl`, `walletAddressLocked` and `externalSessionId`. The quote will not automatically refresh and if it expires, the user needs to close the window and start over.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "callbackUrl": "https://www.example.com/",
+                "externalSessionId": "my-session-id",
+                "quoteId": "my-quote-id",
+                "walletAddressLocked": "0x00000000000000000000000000000000"
+              },
+              "schema": {
+                "$ref": "#/components/schemas/GetWidgetUrlLocked"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The url that the user must use to complete the ramp.",
+                  "properties": {
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["url"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Generating widget URL (for existing quote)",
+        "tags": []
+      }
+    },
+    "/v1/supported-countries": {
+      "get": {
+        "deprecated": false,
+        "description": "",
+        "parameters": [
+          {
+            "description": "ISO code: \"BR\", \"AR\", etc.",
+            "example": "",
+            "in": "query",
+            "name": "countryCode",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "e.g. \"Brazil\", \"Germany\"",
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "e.g. \"BRL\". All the supported currencies you can get from `supported-fiat-currencies` endpoint.",
+            "in": "query",
+            "name": "fiatCurrency",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "countries": {
+                      "items": {
+                        "properties": {
+                          "countryCode": {
+                            "description": "e.g. `DE`",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["countryCode"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "emoji": {
+                      "description": "e.g. 🇩🇪",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "e.g. `Germany`",
+                      "type": "string"
+                    },
+                    "support": {
+                      "properties": {
+                        "buy": {
+                          "description": "e.g. `true`",
+                          "type": "boolean"
+                        },
+                        "sell": {
+                          "description": "e.g. `true`",
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["buy", "sell"],
+                      "type": "object"
+                    },
+                    "supportedCurrencies": {
+                      "description": " All the supported currencies you can get from `supported-fiat-currencies` endpoint.",
+                      "items": {
+                        "description": "e.g. `EUR`",
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": ["countries", "emoji", "name", "support", "supportedCurrencies"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Supported Countries",
+        "tags": ["Reference Data"]
+      }
+    },
+    "/v1/supported-cryptocurrencies": {
+      "get": {
+        "deprecated": false,
+        "description": "Retrieve all supported cryptocurrencies, filtered by network.",
+        "parameters": [
+          {
+            "description": "Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`",
+            "example": "",
+            "in": "query",
+            "name": "network",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "cryptocurrencies": {
+                      "items": {
+                        "properties": {
+                          "assetContractAddress": {
+                            "description": "Defined if network is EVM.",
+                            "type": ["string", "null"]
+                          },
+                          "assetDecimals": {
+                            "type": "integer"
+                          },
+                          "assetForeignAssetId": {
+                            "description": "Defined if network is Assethub.",
+                            "type": ["string", "null"]
+                          },
+                          "assetNetwork": {
+                            "$ref": "#/components/schemas/Networks"
+                          },
+                          "assetSymbol": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["assetDecimals", "assetNetwork", "assetSymbol"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": ["cryptocurrencies"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Supported Cryptocurrencies",
+        "tags": ["Reference Data"]
+      }
+    },
+    "/v1/supported-fiat-currencies": {
+      "get": {
+        "deprecated": false,
+        "description": "",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "currencies": {
+                      "items": {
+                        "properties": {
+                          "decimals": {
+                            "description": "e.g. `2`",
+                            "type": "integer"
+                          },
+                          "name": {
+                            "description": "e.g. `Brazilian Real`",
+                            "type": "string"
+                          },
+                          "symbol": {
+                            "description": "e.g. `BRL`",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["decimals", "name", "symbol"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": ["currencies"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Supported Fiat Currencies",
+        "tags": ["Reference Data"]
+      }
+    },
+    "/v1/supported-payment-methods": {
+      "get": {
+        "deprecated": false,
+        "description": "Retrieve all available payment methods, filtered by type or fiat.",
+        "parameters": [
+          {
+            "description": "Filter supported payment methods by the ramp type. Allowed values: `sell` or `buy`.",
+            "example": "",
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Filter supported payment methods Allowed values: `ars`, `brl`, `eur` ",
+            "example": "",
+            "in": "query",
+            "name": "fiat",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "paymentMethods:": {
+                      "description": "Array of supported payment methods matching the params.",
+                      "items": {
+                        "description": "Object of the payment method",
+                        "properties": {
+                          "id": {
+                            "description": "Unique identifier of the payment method: `sepa`, `pix`, `cbu`",
+                            "type": "string"
+                          },
+                          "limits": {
+                            "description": "Payment method limits in USD",
+                            "properties": {
+                              "max": {
+                                "type": "integer"
+                              },
+                              "min": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": ["min", "max"],
+                            "type": "object"
+                          },
+                          "name": {
+                            "description": "Unique name of the payment method: `SEPA`, `PIX`, `CBU`",
+                            "type": "string"
+                          },
+                          "supportedFiats": {
+                            "description": "Array of supported fiat currencies by payment method.",
+                            "items": {
+                              "description": "Supported fiat currency for a given payment method",
+                              "type": "string"
+                            },
+                            "type": "array"
+                          }
+                        },
+                        "required": ["id", "name", "supportedFiats", "limits"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": ["paymentMethods:"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Supported Payment Methods",
+        "tags": ["Reference Data"]
+      }
+    },
+    "/v1/webhook": {
+      "post": {
+        "deprecated": false,
+        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "events": {
+                    "items": {
+                      "description": "(optional): Array of event types to subscribe to. Defaults to all events if not specified. [\"TRANSACTION_CREATED\", \"STATUS_CHANGE\"]",
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "quoteId": {
+                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote",
+                    "type": "string"
+                  },
+                  "sessionId": {
+                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific session",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Your HTTPS webhook endpoint URL",
+                    "type": "string"
+                  }
+                },
+                "required": ["url"],
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "createdAt": "2025-10-01T16:21:04.648Z",
+                  "events": ["TRANSACTION_CREATED", "STATUS_CHANGE"],
+                  "id": "340ba946-f3f3-4007-893c-3374bfcd096b",
+                  "isActive": true,
+                  "quoteId": "3258910e-93ee-443e-b793-28cc1d4ccdf3",
+                  "sessionId": null,
+                  "url": "https://your-website.com"
+                },
+                "schema": {
+                  "properties": {
+                    "createdAt": {
+                      "description": "The creation date of the webhook",
+                      "type": "string"
+                    },
+                    "events": {
+                      "description": "The events the webhook is subscribed for",
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "id": {
+                      "description": "Webhook UUID",
+                      "type": "string"
+                    },
+                    "isActive": {
+                      "description": "Is the webhook active",
+                      "type": "boolean"
+                    },
+                    "quoteId": {
+                      "description": "(optional): The specific transactionId that the events are subscribed for",
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "description": "(optional): The specific sessionId that the events are subscribed for",
+                      "type": "string"
+                    },
+                    "url": {
+                      "description": "Your HTTPS webhook endpoint URL",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["id", "url", "isActive", "createdAt", "events"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Register Webhook",
+        "tags": ["Webhooks"]
+      }
+    },
+    "/v1/webhook/{id}": {
+      "delete": {
+        "deprecated": false,
+        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "parameters": [
+          {
+            "description": "",
+            "example": "",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Delete Webhook",
+        "tags": ["Webhooks"]
+      }
+    }
+  },
+  "security": [],
+  "servers": [],
+  "tags": [
+    {
+      "name": "Quotes"
+    },
+    {
+      "name": "Vortex Widget"
+    },
+    {
+      "name": "Ramp"
+    },
+    {
+      "name": "BRLA"
+    },
+    {
+      "name": "Account Management"
+    },
+    {
+      "name": "Webhooks"
+    },
+    {
+      "name": "Public Key"
+    },
+    {
+      "name": "Reference Data"
+    }
+  ],
+  "webhooks": {}
+}

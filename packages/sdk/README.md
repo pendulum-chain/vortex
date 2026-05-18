@@ -15,8 +15,7 @@ npm install @vortexfi/sdk
 ## Quick Start
 
 ```typescript
-import {  VortexSdk } from "@vortexfi/sdk";
-import { FiatToken, EvmToken, Networks} from "@vortexfi/sdk";
+import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
 import type { VortexSdkConfig } from "@vortexfi/sdk";
 
 const config: VortexSdkConfig = {
@@ -30,7 +29,7 @@ const quoteRequest = {
   inputAmount: "150000",
   inputCurrency: FiatToken.BRL,
   outputCurrency: EvmToken.USDC,
-  rampType: "on" as const,
+  rampType: RampDirection.BUY,
   to: Networks.Polygon,
 };
 
@@ -45,11 +44,11 @@ const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);
 
 // Make the FIAT payment.
 // The sdk will provide the information to make the payment.
-const { depositQrCode } = rampProcess
-console.log("Please do the pix transfer using the following code: ", depositQrCode)
+const { depositQrCode } = rampProcess;
+console.log("Please do the pix transfer using the following code: ", depositQrCode);
 
-//Once the payment is done, start the ramp.
-const startedRamp = await sdk.startRamp(quote, rampProcess.id);
+// Once the payment is done, start the ramp.
+const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
 ## Core Features
@@ -77,12 +76,14 @@ Retrieves an existing quote by ID.
 ##### `getRampStatus(rampId: string): Promise<RampProcess>`
 Gets the current status of a ramp process.
 
-##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<RampProcess>`
-Registers a new onramp process. Returns the ramp process, and a 
-list of transaction data objects (`unsignedTransactions`) that must be signed and sent before starting the ramp.
+##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
+Registers a new ramp process. Creates fresh ephemeral accounts on Stellar, Pendulum, and Moonbeam, submits the quote and ephemeral addresses to the API, then signs and submits the returned unsigned transactions. Returns the ramp process and the list of unsigned transactions returned by the API for the caller's reference.
 
-##### `startRamp<Q extends QuoteResponse>(quote: Q, rampId: string): Promise<RampProcess>`
-Starts a registered onramp process.
+##### `updateRamp<Q extends QuoteResponse>(quote: Q, rampId: string, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess>`
+Submits route-specific transaction hashes after off-chain steps complete. Used for sell flows. Buy flows do not require a separate update call.
+
+##### `startRamp(rampId: string): Promise<RampProcess>`
+Starts a registered ramp process.
 
 ## Configuration
 
@@ -93,6 +94,7 @@ interface VortexSdkConfig {
   secretKey?: string;
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
+  hydrationWsUrl?: string;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;

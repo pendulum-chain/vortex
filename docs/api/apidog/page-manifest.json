@@ -1,0 +1,118 @@
+{
+  "apidogProjectId": "918521",
+  "endpointReference": {
+    "currentDocumentedPaths": [
+      "/v1/brla/createSubaccount",
+      "/v1/brla/getKycStatus",
+      "/v1/brla/getOfframpStatus",
+      "/v1/brla/getSelfieLivenessUrl",
+      "/v1/brla/getUploadUrls",
+      "/v1/brla/getUser",
+      "/v1/brla/getUserRemainingLimit",
+      "/v1/brla/newKyc",
+      "/v1/brla/startKYC2",
+      "/v1/brla/validatePixKey",
+      "/v1/public-key",
+      "/v1/quotes",
+      "/v1/quotes/best",
+      "/v1/quotes/{id}",
+      "/v1/ramp/history/{walletAddress}",
+      "/v1/ramp/register",
+      "/v1/ramp/start",
+      "/v1/ramp/update",
+      "/v1/ramp/{id}",
+      "/v1/ramp/{id}/errors",
+      "/v1/session/create",
+      "/v1/supported-countries",
+      "/v1/supported-cryptocurrencies",
+      "/v1/supported-fiat-currencies",
+      "/v1/supported-payment-methods",
+      "/v1/webhook",
+      "/v1/webhook/{id}"
+    ],
+    "recommendedGroups": [
+      "Quotes",
+      "Ramp",
+      "BRLA",
+      "Account Management",
+      "Widget session",
+      "Reference Data",
+      "Webhooks",
+      "Public Key"
+    ],
+    "source": "docs/api/openapi/vortex.openapi.json"
+  },
+  "markdownSync": {
+    "mode": "manual-import",
+    "reason": "Apidog's documented Git connection currently targets OpenAPI/Swagger files. Until Apidog exposes a documented API or Git sync for pure Markdown pages, these files are the repository source of truth and must be imported or pasted into Apidog intentionally."
+  },
+  "pages": [
+    {
+      "order": 1,
+      "slug": "overview",
+      "source": "docs/api/pages/01-overview.md",
+      "title": "Overview"
+    },
+    {
+      "order": 2,
+      "slug": "quick-start-with-the-sdk",
+      "source": "docs/api/pages/02-quick-start-with-the-sdk.md",
+      "title": "Quick Start With The SDK"
+    },
+    {
+      "order": 3,
+      "slug": "ramp-lifecycle",
+      "source": "docs/api/pages/03-ramp-lifecycle.md",
+      "title": "Ramp Lifecycle"
+    },
+    {
+      "order": 4,
+      "slug": "ephemeral-key-custody",
+      "source": "docs/api/pages/04-ephemeral-key-custody.md",
+      "title": "Ephemeral Key Custody"
+    },
+    {
+      "order": 5,
+      "slug": "authentication-and-partner-keys",
+      "source": "docs/api/pages/05-authentication-and-partner-keys.md",
+      "title": "Authentication And Partner Keys"
+    },
+    {
+      "order": 6,
+      "slug": "quotes-and-pricing",
+      "source": "docs/api/pages/06-quotes-and-pricing.md",
+      "title": "Quotes And Pricing"
+    },
+    {
+      "order": 7,
+      "slug": "webhooks",
+      "source": "docs/api/pages/07-webhooks.md",
+      "title": "Webhooks"
+    },
+    {
+      "order": 8,
+      "slug": "widget-integration",
+      "source": "docs/api/pages/08-widget-integration.md",
+      "title": "Widget Integration"
+    },
+    {
+      "order": 9,
+      "slug": "sandbox",
+      "source": "docs/api/pages/09-sandbox.md",
+      "title": "Sandbox"
+    },
+    {
+      "order": 10,
+      "slug": "brl-kyc-notes",
+      "source": "docs/api/pages/10-brl-kyc-notes.md",
+      "title": "BRL / KYC Notes"
+    },
+    {
+      "order": 11,
+      "slug": "production-checklist",
+      "source": "docs/api/pages/11-production-checklist.md",
+      "title": "Production Checklist"
+    }
+  ],
+  "publicDocsUrl": "https://api-docs.vortexfinance.co/"
+}
