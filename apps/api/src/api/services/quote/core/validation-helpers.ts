@@ -2,7 +2,11 @@ import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@vortexfi/shar
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
-import { ResolvedAlfredpayLimits, resolveAlfredpayQuoteLimits } from "../../alfredpay/alfredpay.helpers";
+import {
+  getAlfredpayMonthlyUsage,
+  ResolvedAlfredpayLimits,
+  resolveAlfredpayQuoteLimits
+} from "../../alfredpay/alfredpay.helpers";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { QuoteContext } from "./types";
 
@@ -70,15 +74,15 @@ export function validateAlfredpayLimits(amount: Big.BigSource, limits: ResolvedA
   }
   if (amountBig.gt(max)) {
     throw new APIError({
-      message: `Input amount exceeds maximum ${verb} limit of ${max.toFixed(2)} ${unitSymbol}`,
+      message: `Input amount exceeds monthly ${verb} limit of ${max.toFixed(2)} ${unitSymbol}`,
       status: httpStatus.BAD_REQUEST
     });
   }
 }
 
 /**
- * Resolves AlfredPay limits for the quote, records them on the context, and validates the given amount.
  * Returns true when the quote routes through AlfredPay (caller should skip generic validation).
+ * The max is a monthly cap; unauthenticated quotes only get per-tx checks.
  */
 export async function applyAlfredpayLimits(ctx: QuoteContext, amount: Big.BigSource): Promise<boolean> {
   const alfredpayLimits = await resolveAlfredpayQuoteLimits({
@@ -90,5 +94,19 @@ export async function applyAlfredpayLimits(ctx: QuoteContext, amount: Big.BigSou
   if (!alfredpayLimits) return false;
   ctx.alfredpayInputLimits = { max: alfredpayLimits.max, min: alfredpayLimits.min };
   validateAlfredpayLimits(amount, alfredpayLimits);
-  return true;
+
+  const { userId } = ctx.request;
+  if (!userId) return true;
+
+  const used = await getAlfredpayMonthlyUsage(userId, alfredpayLimits.direction, alfredpayLimits.fiat);
+  const max = new Big(alfredpayLimits.max);
+  if (used.plus(new Big(amount)).lte(max)) return true;
+
+  const isOnramp = alfredpayLimits.direction === RampDirection.BUY;
+  const verb = isOnramp ? "onramp" : "offramp";
+  const unitSymbol = isOnramp ? getAnyFiatTokenDetails(alfredpayLimits.fiat).fiat.symbol : alfredpayLimits.stablecoin;
+  throw new APIError({
+    message: `Monthly ${verb} limit of ${max.toFixed(2)} ${unitSymbol} would be exceeded (already used ${used.toFixed(2)} ${unitSymbol} this month).`,
+    status: httpStatus.BAD_REQUEST
+  });
 }

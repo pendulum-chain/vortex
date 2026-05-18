@@ -10,7 +10,10 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { Op } from "sequelize";
 import AlfredPayCustomer from "../../../models/alfredPayCustomer.model";
+import QuoteTicket from "../../../models/quoteTicket.model";
+import RampState from "../../../models/rampState.model";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
 
@@ -91,4 +94,32 @@ export async function resolveAlfredpayQuoteLimits(args: {
     min: multiplyByPowerOfTen(new Big(raw.minRaw), -decimals).toFixed(),
     stablecoin
   };
+}
+
+function startOfCurrentUtcMonth(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+/** Returned in input-currency human units: fiat on onramp, stablecoin on offramp. */
+export async function getAlfredpayMonthlyUsage(userId: string, direction: RampDirection, fiat: FiatToken): Promise<Big> {
+  const isOnramp = direction === RampDirection.BUY;
+  const fiatSide = isOnramp ? { inputCurrency: fiat } : { outputCurrency: fiat };
+
+  const completedRamps = await RampState.findAll({
+    include: [{ as: "quote", model: QuoteTicket, required: true, where: fiatSide }],
+    where: {
+      createdAt: { [Op.gte]: startOfCurrentUtcMonth() },
+      currentPhase: "complete",
+      type: direction,
+      userId
+    }
+  });
+
+  let total = new Big(0);
+  for (const ramp of completedRamps) {
+    const quote = (ramp as RampState & { quote: QuoteTicket }).quote;
+    total = total.plus(quote.inputAmount);
+  }
+  return total;
 }
