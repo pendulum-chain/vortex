@@ -76,14 +76,14 @@ async function verifySignedEvmTransaction(
     maxPriorityFeePerGas: parsed.maxPriorityFeePerGas,
     nonce: parsed.nonce,
     to: parsed.to,
-    type: (parsed.type || "eip1559") as TransactionType,
+    type: parsed.type || "eip1559",
     value: parsed.value ?? 0n
-  });
+  } as any);
 
   const hash = keccak256(toBytes(unsignedTx));
 
   const yParity = parsed.yParity !== undefined ? Number(parsed.yParity) : parsed.v !== undefined ? Number(parsed.v) - 27 : 0;
-  const signature = parsed.r + parsed.s.slice(2) + yParity.toString(16).padStart(2, "0");
+  const signature = (parsed.r + parsed.s.slice(2) + yParity.toString(16).padStart(2, "0")) as `0x${string}`;
 
   const recoveredSigner = await recoverAddress({ hash, signature });
 

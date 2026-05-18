@@ -432,7 +432,7 @@ describe("Presigned Transaction validation", () => {
     await expect(validatePresignedTxs(RampDirection.BUY, singleTx, ephemerals, singleUnsigned)).resolves.toBeUndefined();
   });
 
-  it("should pass validation for valid presigned mixed transactions", { timeout: 30000 }, async () => {
+  it("should pass validation for valid presigned mixed transactions", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
       EVM: EVM_SIGNER_2,
@@ -440,7 +440,7 @@ describe("Presigned Transaction validation", () => {
     };
 
     await expect(validatePresignedTxs(RampDirection.SELL, VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).resolves.toBeUndefined();
-  });
+  }, 30000);
 
   it("should throw for transaction with mismatch of expected signer for Substrate tx", async () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP));
@@ -807,7 +807,7 @@ describe("Presigned Transaction validation", () => {
 
   it("should throw when an ephemeral transaction is missing from presignedTxs", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
-    const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "fundEphemeral", signer: EVM_SIGNER, txData: { data: "0x", to: "0x", value: "0" } };
+    const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "fundEphemeral", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
     const userTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampMint", signer: EVM_SIGNER_2, txData: "invalid" };
     await expect(validatePresignedTxs(RampDirection.BUY, [userTx], ephemerals, [unsignedTx, userTx])).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
   });
