@@ -34,24 +34,6 @@ import { config } from "../../../config";
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
 
-function stripSignaturesForComparison(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(stripSignaturesForComparison);
-  }
-
-  if (value && typeof value === "object") {
-    return Object.keys(value as Record<string, unknown>)
-      .filter(key => key !== "signature")
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = stripSignaturesForComparison((value as Record<string, unknown>)[key]);
-        return acc;
-      }, {});
-  }
-
-  return value;
-}
-
 interface VerifiedEvmTransaction {
   signer: string;
   nonce: number;
@@ -141,7 +123,7 @@ async function verifySignedEvmTransaction(
       });
     }
 
-    if (parsed.value !== BigInt(unsignedTxData.value || "0")) {
+    if ((parsed.value ?? 0n) !== BigInt(unsignedTxData.value || "0")) {
       throw new APIError({
         message: `Signed EVM transaction value ${parsed.value} does not match expected ${unsignedTxData.value || "0"}`,
         status: httpStatus.BAD_REQUEST
@@ -166,50 +148,7 @@ async function verifySignedEvmTransaction(
   };
 }
 
-function signedEvmTransactionMatchesUnsigned(
-  signedTxData: string,
-  unsignedTxData: EvmTransactionData,
-  expectedNonce: number
-): boolean {
-  try {
-    const parsed = parseTransaction(signedTxData as Hex);
-    return (
-      parsed.to?.toLowerCase() === unsignedTxData.to.toLowerCase() &&
-      parsed.data?.toLowerCase() === unsignedTxData.data.toLowerCase() &&
-      parsed.value === BigInt(unsignedTxData.value || "0") &&
-      parsed.nonce === expectedNonce
-    );
-  } catch {
-    return false;
-  }
-}
-
-function txDataMatchesSignedSubmission(submittedTx: PresignedTx, unsignedTx: PresignedTx): boolean {
-  if (typeof submittedTx.txData === "string" && isEvmTransactionData(unsignedTx.txData)) {
-    return signedEvmTransactionMatchesUnsigned(submittedTx.txData, unsignedTx.txData, submittedTx.nonce);
-  }
-
-  if (
-    (isSignedTypedData(submittedTx.txData) || isSignedTypedDataArray(submittedTx.txData)) &&
-    (isSignedTypedData(unsignedTx.txData) || isSignedTypedDataArray(unsignedTx.txData))
-  ) {
-    return (
-      JSON.stringify(stripSignaturesForComparison(submittedTx.txData)) ===
-      JSON.stringify(stripSignaturesForComparison(unsignedTx.txData))
-    );
-  }
-
-  if (typeof submittedTx.txData === "string" && typeof unsignedTx.txData === "string") {
-    // Signed Substrate/Stellar payloads cannot be byte-compared to their unsigned payloads here.
-    // Their signer/shape checks happen in validatePresignedTxs before this inclusion check.
-    return submittedTx.txData === unsignedTx.txData || submittedTx.signer === unsignedTx.signer;
-  }
-
-  return JSON.stringify(submittedTx.txData) === JSON.stringify(unsignedTx.txData);
-}
-
-/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, signer,
-/// and a signed-payload-aware comparison of txData.
+/// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
   for (const subsetTx of subset) {
     const match = set.find(
@@ -217,8 +156,7 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
         setTx.phase === subsetTx.phase &&
         setTx.network === subsetTx.network &&
         setTx.nonce === subsetTx.nonce &&
-        setTx.signer === subsetTx.signer &&
-        txDataMatchesSignedSubmission(subsetTx, setTx)
+        setTx.signer === subsetTx.signer
     );
 
     if (!match) {
@@ -345,7 +283,6 @@ export async function validatePresignedTxs(
       });
     }
 
-    const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
     if (
       tx.phase === "squidRouterNoPermitTransfer" ||
@@ -354,13 +291,20 @@ export async function validatePresignedTxs(
     )
       continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
     if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
+    const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     if (txType === EphemeralAccountType.EVM) {
       // Deep comparisson to get the unsigned tx data for this EVM phase
-      const matchingUnsigned = unsignedTxs?.find(
-        u => u.phase === tx.phase && u.network === tx.network && u.signer === tx.signer
-      );
-      const unsignedTxData =
-        matchingUnsigned && isEvmTransactionData(matchingUnsigned.txData) ? matchingUnsigned.txData : undefined;
+      const matchingUnsigned = unsignedTxs?.find(u => u.phase === tx.phase && u.network === tx.network);
+      if (!matchingUnsigned) {
+        console.log(
+          `No matching unsigned transaction found for EVM transaction with phase ${tx.phase}, network ${tx.network}, signer ${tx.signer}`
+        );
+        throw new APIError({
+          message: "Some presigned transactions do not match any unsigned transaction",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      const unsignedTxData = matchingUnsigned.txData as EvmTransactionData;
       await validateEvmTransaction(tx, ephemerals.EVM, unsignedTxData);
     }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
