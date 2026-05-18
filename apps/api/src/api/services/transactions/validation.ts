@@ -224,7 +224,11 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
   }
 }
 
-async function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in EphemeralAccountType]: string }) {
+async function validateBackupTransactions(
+  tx: PresignedTx,
+  ephemerals: { [key in EphemeralAccountType]: string },
+  unsignedTxData?: EvmTransactionData
+) {
   const signer = tx.signer.toLowerCase();
   const isEphemeralSigner = Object.values(ephemerals).some(addr => addr && addr.toLowerCase() === signer);
 
@@ -257,7 +261,7 @@ async function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in
     // here; their per-tx validators already cover the main tx and the sequence above covers nonces.
     const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     if (txType === EphemeralAccountType.EVM && typeof backup.txData === "string") {
-      await verifySignedEvmTransaction(backup.txData, tx.signer, expectedNonce, tx.network);
+      await verifySignedEvmTransaction(backup.txData, tx.signer, expectedNonce, tx.network, unsignedTxData);
     }
   }
 }
@@ -292,6 +296,7 @@ export async function validatePresignedTxs(
       continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
     if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
     const txType = getTransactionTypeForPhase(tx.phase, tx.network);
+    let evmUnsignedTxData: EvmTransactionData | undefined;
     if (txType === EphemeralAccountType.EVM) {
       // Deep comparisson to get the unsigned tx data for this EVM phase
       const matchingUnsigned = unsignedTxs?.find(u => u.phase === tx.phase && u.network === tx.network);
@@ -304,13 +309,13 @@ export async function validatePresignedTxs(
           status: httpStatus.BAD_REQUEST
         });
       }
-      const unsignedTxData = matchingUnsigned.txData as EvmTransactionData;
-      await validateEvmTransaction(tx, ephemerals.EVM, unsignedTxData);
+      evmUnsignedTxData = matchingUnsigned.txData as EvmTransactionData;
+      await validateEvmTransaction(tx, ephemerals.EVM, evmUnsignedTxData);
     }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
 
-    await validateBackupTransactions(tx, ephemerals);
+    await validateBackupTransactions(tx, ephemerals, evmUnsignedTxData);
   }
 
   if (!areAllTxsIncluded(presignedTxs, unsignedTxs)) {
