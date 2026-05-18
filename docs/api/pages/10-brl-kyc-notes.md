@@ -6,6 +6,8 @@ Level 1 onboarding collects basic identity information and enables lower-limit B
 
 The SDK ramp flow assumes that the user is eligible for the selected corridor. If the user has not completed the required onboarding, the ramp may fail or require additional account-management steps.
 
-KYC endpoints are available for account-management integrations, but they should not be treated as the primary SDK ramp flow. When possible, use the Vortex application or a dedicated onboarding flow to complete KYC before ramp execution.
+Partner integrations cannot drive BRLA KYC directly with only `sk_*` or `pk_*` keys. BRLA endpoints are first-party, user-oriented flows and rely on a Vortex-authenticated user context rather than partner key authentication.
+
+KYC endpoints are documented for first-party flows and account-management integrations. They should not be treated as the primary SDK ramp flow. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution.
 
 ---

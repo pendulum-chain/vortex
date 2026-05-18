@@ -2,6 +2,8 @@
 
 The Vortex Widget provides a hosted checkout experience for buy and sell flows. It is useful when you want Vortex to handle more of the user-facing ramp flow instead of building the complete SDK experience yourself.
 
+Widget sessions are created via `POST /v1/session/create`, which accepts an `apiKey` (`pk_*`) in the body for attribution. No secret key is required to create a session.
+
 The widget supports two quote modes.
 
 ## Auto-Refresh Mode

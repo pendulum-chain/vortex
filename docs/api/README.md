@@ -7,6 +7,7 @@ This directory is the repository source of truth for the partner-facing Vortex A
 - `openapi/vortex.openapi.json` is the OpenAPI reference used for the Apidog endpoint catalog.
 - `pages/*.md` contains the pure Markdown guide pages that sit around the endpoint reference.
 - `apidog/page-manifest.json` records the intended page order, source files, current Apidog project ID, and endpoint grouping decisions.
+- `scripts/*.ts` contains the local export, validation, and type-generation helpers for this docs source.
 
 ## Daily Workflow
 
@@ -32,11 +33,27 @@ bun run docs:api:export
 
 `docs:api:export` reads `APIDOG_ACCESS_TOKEN` from the environment or from `apps/api/.env`. It never prints the token.
 
+## Apidog Access
+
+The Apidog project ID is recorded in `apidog/page-manifest.json`. The export script defaults to that same project and can be overridden with `--project-id`.
+
+Keep the Apidog token in `apps/api/.env` as `APIDOG_ACCESS_TOKEN`, or provide it through the shell environment. Never paste the token into docs, source files, logs, screenshots, support tickets, or command output. If it is accidentally printed, rotate it before publishing further docs changes.
+
+The export script calls Apidog's official OpenAPI export endpoint with `X-Apidog-Api-Version: 2024-03-28`. It is safe to use for read-only refreshes:
+
+```bash
+bun run docs:api:export
+```
+
 ## Publishing To Apidog
 
 Apidog's documented Git connection currently targets OpenAPI/Swagger files. Use it for `docs/api/openapi/vortex.openapi.json`.
 
 The Markdown guide pages are tracked here so they can be reviewed in normal Git diffs. Until Apidog exposes documented Git sync or CRUD APIs for pure Markdown pages, import or paste those pages into Apidog intentionally and keep `apidog/page-manifest.json` updated when the page order changes.
+
+Do not import an updated OpenAPI file into Apidog without an explicit human review of the path summary and secret scan results. Apidog's documented OpenAPI import flow expects a remotely reachable HTTPS URL, so local files under `/private/tmp` are not directly reachable by Apidog cloud.
+
+Apidog sprint branches are supported in the UI, but the public OpenAPI import/export API does not clearly document a branch selector. If a sprint branch is required, generate the local OpenAPI file here and import it manually into the desired branch through the Apidog UI.
 
 ## Type Generation Direction
 
@@ -49,3 +66,9 @@ The likely long-term path is schema first: move API request and response contrac
 The endpoint reference should stay SDK-led and partner-facing. Preserve currently documented Apidog endpoints unless we intentionally decide to remove one. Do not add internal routes just because they exist in the API server.
 
 The docs must strongly state that Vortex does not receive, store, or reconstruct ephemeral account secret keys. The SDK or direct API client is responsible for keeping those secrets available until the ramp and any recovery window are complete.
+
+Do not add `subsidize`, `moonbeam`, or `pendulum` route files to the public docs just because they exist on disk. Also keep auth, SIWE, metrics, prices, maintenance, admin, and other first-party/internal routes out of the partner docs unless their inclusion is explicitly approved.
+
+`GET /v1/public-key` returns the RSA-PSS webhook verification key. It is unrelated to partner `pk_*` public keys.
+
+The public Sandbox page previously exposed a shared test-wallet recovery phrase. Do not restore shared recovery phrases, seed phrases, mnemonics, private keys, or real API keys to any generated docs. Use placeholder values such as `sk_live_...` and `pk_live_...` when examples need key-shaped strings.

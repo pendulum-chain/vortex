@@ -14,7 +14,7 @@ SDK/API base URL:
 https://api-sandbox.vortexfinance.co
 ```
 
-Use test keys in sandbox. Do not use production API keys, production wallets, production private keys, or production user data.
+Use test keys (`pk_test_*`, `sk_test_*`) in sandbox. Do not use production API keys, production wallets, production private keys, or production user data.
 
 For EVM-based test flows, use your own test wallet and fund it from public testnet faucets. Do not publish shared recovery phrases or reuse them in partner applications, CI logs, screenshots, or documentation.
 

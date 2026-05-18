@@ -4,6 +4,273 @@
  */
 
 export interface paths {
+  "/v1/brla/createSubaccount": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create user or retry KYC
+     * @description `companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`
+     *
+     *     **Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.
+     */
+    post: operations["createSubaccount"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getKycStatus": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get user's KYC status
+     * @description **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
+     */
+    get: operations["fetchSubaccountKycStatus"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getOfframpStatus": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get status of the last ramp event for a user */
+    get: operations["getOfframpStatus"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getSelfieLivenessUrl": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get selfie liveness URL
+     * @description Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.
+     *
+     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
+     */
+    get: operations["brlaGetSelfieLivenessUrl"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getUploadUrls": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Get KYC document upload URLs
+     * @description Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
+     *
+     *     **Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.
+     */
+    post: operations["brlaGetUploadUrls"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getUser": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get user information
+     * @description Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.
+     *
+     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
+     */
+    get: operations["getBrlaUser"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/getUserRemainingLimit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get user's remaining transaction limits
+     * @description **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
+     */
+    get: operations["getBrlaUserRemainingLimit"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/newKyc": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Submit KYC level 1 data
+     * @description Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.
+     *
+     *     **Auth:** uses `optionalAuth`.
+     */
+    post: operations["brlaNewKyc"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/startKYC2": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start KYC level 2 process for a user
+     * @description Requests document upload URLs for KYC level 2 verification.
+     */
+    post: operations["startKYC2"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/brla/validatePixKey": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Validate Pix key
+     * @description Checks whether a Pix key exists and is valid. The key value itself is intentionally not echoed back in the response for security.
+     *
+     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
+     */
+    get: operations["brlaValidatePixKey"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/public-key": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Public Key
+     * @description Returns the RSA-PSS 2048 / SHA-256 public key used to verify Vortex webhook signatures. This is NOT a partner `pk_*` API key.
+     */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": Record<string, never>;
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/quotes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create a new quote
+     * @description Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.
+     */
+    post: operations["createQuote"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/quotes/{id}": {
     parameters: {
       query?: never;
@@ -45,26 +312,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/quotes": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Create a new quote
-     * @description Generates a quote for a specified ramp transaction, detailing input and output amounts, fees, and expiration.
-     */
-    post: operations["createQuote"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/quotes/best": {
     parameters: {
       query?: never;
@@ -79,58 +326,6 @@ export interface paths {
      * @description Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output.
      */
     post: operations["createBestQuote"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/session/create": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Generating widget URL (for existing quote)
-     * @description You can call this endpoint to get a widget URL ready with a quote you provide. You need to pass the `quoteId` parameter to the body, and optionally supply the  `callbackUrl`, `walletAddressLocked` and `externalSessionId`. The quote will not automatically refresh and if it expires, the user needs to close the window and start over.
-     */
-    post: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: {
-        content: {
-          /**
-           * @example {
-           *       "quoteId": "my-quote-id",
-           *       "externalSessionId": "my-session-id",
-           *       "callbackUrl": "https://www.example.com/",
-           *       "walletAddressLocked": "0x00000000000000000000000000000000"
-           *     }
-           */
-          "application/json": components["schemas"]["GetWidgetUrlLocked"];
-        };
-      };
-      responses: {
-        201: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              url: string;
-            };
-          };
-        };
-      };
-    };
     delete?: never;
     options?: never;
     head?: never;
@@ -166,68 +361,90 @@ export interface paths {
           };
           content: {
             "application/json": {
-              /** @description Unique identifier for the ramp process. */
-              id?: string;
-              /**
-               * Format: uuid
-               * @description The quote ID associated with this ramp process.
-               */
-              quoteId?: string;
-              /** @description Type of ramp process. */
-              type?: components["schemas"]["RampDirection"];
-              currentPhase?: components["schemas"]["RampPhase"];
-              /** @description The source network or payment method. */
-              from?: components["schemas"]["DestinationType"];
-              /** @description The destination network or payment method. */
-              to?: components["schemas"]["DestinationType"];
-              inputAmount: string;
-              inputCurrency: string;
-              outputAmount: string;
-              outputCurrency: string;
+              anchorFeeFiat: string;
+              anchorFeeUSD: string;
+              countryCode?: components["schemas"]["CountryCode"];
               /**
                * Format: date-time
                * @description Timestamp of when the ramp process was created.
                */
               createdAt?: string;
+              currentPhase?: components["schemas"]["RampPhase"];
+              /** @description BR Code for PIX payment, if applicable. */
+              depositQrCode?: string | null;
+              feeCurrency: components["schemas"]["RampCurrency"];
+              /** @description The source network or payment method. */
+              from?: components["schemas"]["DestinationType"];
+              /** @description Unique identifier for the ramp process. */
+              id?: string;
+              inputAmount: string;
+              inputCurrency: string;
+              network?: components["schemas"]["Networks"];
+              networkFeeFiat: string;
+              networkFeeUSD: string;
+              outputAmount: string;
+              outputCurrency: string;
+              partnerFeeFiat: string;
+              partnerFeeUSD: string;
+              paymentMethod: components["schemas"]["PaymentMethod"];
+              processingFeeFiat: string;
+              processingFeeUSD: string;
+              /**
+               * Format: uuid
+               * @description The quote ID associated with this ramp process.
+               */
+              quoteId?: string;
+              /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
+              sessionId?: string;
+              status?: components["schemas"]["SimpleStatus"];
+              /** @description The destination network or payment method. */
+              to?: components["schemas"]["DestinationType"];
+              totalFeeFiat: string;
+              totalFeeUSD: string;
+              /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
+              transactionExplorerLink?: string;
+              /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
+              transactionHash?: string;
+              /** @description Type of ramp process. */
+              type?: components["schemas"]["RampDirection"];
+              /** @description Array of unsigned transactions that need to be signed by the user. */
+              unsignedTxs?: components["schemas"]["UnsignedTx"][];
               /**
                * Format: date-time
                * @description Timestamp of the last update to the ramp process.
                */
               updatedAt?: string;
-              /** @description Array of unsigned transactions that need to be signed by the user. */
-              unsignedTxs?: components["schemas"]["UnsignedTx"][];
-              /** @description BR Code for PIX payment, if applicable. */
-              depositQrCode?: string | null;
-              /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
-              sessionId?: string;
-              countryCode?: components["schemas"]["CountryCode"];
-              paymentMethod: components["schemas"]["PaymentMethod"];
-              network?: components["schemas"]["Networks"];
-              status?: components["schemas"]["SimpleStatus"];
-              /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
-              transactionHash?: string;
-              /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
-              transactionExplorerLink?: string;
-              /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
-              walletAddress?: string;
-              networkFeeFiat: string;
-              networkFeeUSD: string;
-              anchorFeeFiat: string;
-              anchorFeeUSD: string;
               vortexFeeFiat: string;
               vortexFeeUSD: string;
-              partnerFeeFiat: string;
-              partnerFeeUSD: string;
-              totalFeeFiat: string;
-              totalFeeUSD: string;
-              processingFeeFiat: string;
-              processingFeeUSD: string;
-              feeCurrency: components["schemas"]["RampCurrency"];
+              /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
+              walletAddress?: string;
             };
           };
         };
       };
     };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/ramp/{id}/errors": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get ramp error logs
+     * @description Returns the chronological error log for a ramp.
+     *
+     *     **Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.
+     */
+    get: operations["getRampErrorLogs"];
     put?: never;
     post?: never;
     delete?: never;
@@ -305,6 +522,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/ramp/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Start ramp process
+     * @description Starts a ramp process.
+     *
+     *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
+     */
+    post: operations["startRamp"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/ramp/update": {
     parameters: {
       query?: never;
@@ -336,7 +575,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/ramp/start": {
+  "/v1/session/create": {
     parameters: {
       query?: never;
       header?: never;
@@ -346,263 +585,8 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Start ramp process
-     * @description Starts a ramp process.
-     *
-     *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
-     */
-    post: operations["startRamp"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/ramp/{id}/errors": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get ramp error logs
-     * @description Returns the chronological error log for a ramp.
-     *
-     *     **Auth:** requires either `X-API-Key: sk_*` (partner) OR `Authorization: Bearer <Supabase JWT>` (user). Ownership is enforced.
-     */
-    get: operations["getRampErrorLogs"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getOfframpStatus": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get status of the last ramp event for a user */
-    get: operations["getOfframpStatus"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/startKYC2": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Start KYC level 2 process for a user
-     * @description Requests document upload URLs for KYC level 2 verification.
-     */
-    post: operations["startKYC2"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getUserRemainingLimit": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get user's remaining transaction limits
-     * @description **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
-     */
-    get: operations["getBrlaUserRemainingLimit"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getUploadUrls": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Get KYC document upload URLs
-     * @description Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).
-     *
-     *     **Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.
-     */
-    post: operations["brlaGetUploadUrls"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getUser": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get user information
-     * @description Fetches a user's subaccount information. The response contains only the EVM wallet address and KYC level.
-     *
-     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
-     */
-    get: operations["getBrlaUser"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/createSubaccount": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Create user or retry KYC
-     * @description `companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`
-     *
-     *     **Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.
-     */
-    post: operations["createSubaccount"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/newKyc": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Submit KYC level 1 data
-     * @description Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.
-     *
-     *     **Auth:** uses `optionalAuth`.
-     */
-    post: operations["brlaNewKyc"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getSelfieLivenessUrl": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get selfie liveness URL
-     * @description Returns the Avenia selfie/liveness-check URL for the subaccount associated with this tax ID.
-     *
-     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
-     */
-    get: operations["brlaGetSelfieLivenessUrl"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/getKycStatus": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Get user's KYC status
-     * @description **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
-     */
-    get: operations["fetchSubaccountKycStatus"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/brla/validatePixKey": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Validate Pix key
-     * @description Checks whether a Pix key exists and is valid. The key value itself is intentionally not echoed back in the response for security.
-     *
-     *     **Auth:** requires `Authorization: Bearer <Supabase JWT>`.
-     */
-    get: operations["brlaValidatePixKey"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/webhook": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Register Webhook
-     * @description Register a new webhook to receive event notifications.
-     *
-     *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
+     * Generating widget URL (for existing quote)
+     * @description You can call this endpoint to get a widget URL ready with a quote you provide. You need to pass the `quoteId` parameter to the body, and optionally supply the  `callbackUrl`, `walletAddressLocked` and `externalSessionId`. The quote will not automatically refresh and if it expires, the user needs to close the window and start over.
      */
     post: {
       parameters: {
@@ -613,259 +597,30 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": {
-            /** @description Your HTTPS webhook endpoint URL */
-            url: string;
-            /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific quote */
-            quoteId?: string;
-            /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific session */
-            sessionId?: string;
-            events?: string[];
-          };
+          /**
+           * @example {
+           *       "callbackUrl": "https://www.example.com/",
+           *       "externalSessionId": "my-session-id",
+           *       "quoteId": "my-quote-id",
+           *       "walletAddressLocked": "0x00000000000000000000000000000000"
+           *     }
+           */
+          "application/json": components["schemas"]["GetWidgetUrlLocked"];
         };
       };
       responses: {
-        200: {
+        201: {
           headers: {
             [name: string]: unknown;
           };
           content: {
-            /**
-             * @example {
-             *       "createdAt": "2025-10-01T16:21:04.648Z",
-             *       "events": [
-             *         "TRANSACTION_CREATED",
-             *         "STATUS_CHANGE"
-             *       ],
-             *       "id": "340ba946-f3f3-4007-893c-3374bfcd096b",
-             *       "isActive": true,
-             *       "sessionId": null,
-             *       "quoteId": "3258910e-93ee-443e-b793-28cc1d4ccdf3",
-             *       "url": "https://your-website.com"
-             *     }
-             */
             "application/json": {
-              /** @description Webhook UUID */
-              id: string;
-              /** @description Your HTTPS webhook endpoint URL */
               url: string;
-              /** @description (optional): The specific transactionId that the events are subscribed for */
-              quoteId?: string;
-              /** @description (optional): The specific sessionId that the events are subscribed for */
-              sessionId?: string;
-              /** @description The events the webhook is subscribed for */
-              events: string[];
-              /** @description Is the webhook active */
-              isActive: boolean;
-              /** @description The creation date of the webhook */
-              createdAt: string;
             };
           };
         };
       };
     };
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/webhook/{id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    /**
-     * Delete Webhook
-     * @description Remove a webhook subscription.
-     *
-     *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
-     */
-    delete: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path: {
-          /** @example  */
-          id: string;
-        };
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              success: boolean;
-              message: string;
-            };
-          };
-        };
-      };
-    };
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/public-key": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Public Key
-     * @description Returns the RSA-PSS 2048 / SHA-256 public key used to verify Vortex webhook signatures. This is NOT a partner `pk_*` API key.
-     */
-    get: {
-      parameters: {
-        query?: never;
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": Record<string, never>;
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/supported-payment-methods": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Supported Payment Methods
-     * @description Retrieve all available payment methods, filtered by type or fiat.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Filter supported payment methods by the ramp type. Allowed values: `sell` or `buy`.
-           * @example
-           */
-          type?: string;
-          /**
-           * @description Filter supported payment methods Allowed values: `ars`, `brl`, `eur`
-           * @example
-           */
-          fiat?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              /** @description Array of supported payment methods matching the params. */
-              "paymentMethods:": {
-                /** @description Unique identifier of the payment method: `sepa`, `pix`, `cbu` */
-                id: string;
-                /** @description Unique name of the payment method: `SEPA`, `PIX`, `CBU` */
-                name: string;
-                /** @description Array of supported fiat currencies by payment method. */
-                supportedFiats: string[];
-                /** @description Payment method limits in USD */
-                limits: {
-                  min: number;
-                  max: number;
-                };
-              }[];
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/v1/supported-cryptocurrencies": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /**
-     * Supported Cryptocurrencies
-     * @description Retrieve all supported cryptocurrencies, filtered by network.
-     */
-    get: {
-      parameters: {
-        query?: {
-          /**
-           * @description Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`
-           * @example
-           */
-          network?: string;
-        };
-        header?: never;
-        path?: never;
-        cookie?: never;
-      };
-      requestBody?: never;
-      responses: {
-        200: {
-          headers: {
-            [name: string]: unknown;
-          };
-          content: {
-            "application/json": {
-              cryptocurrencies: {
-                /** @description Defined if network is Assethub. */
-                assetForeignAssetId?: string | null;
-                assetDecimals: number;
-                assetNetwork: components["schemas"]["Networks"];
-                /** @description Defined if network is EVM. */
-                assetContractAddress?: string | null;
-                assetSymbol: string;
-              }[];
-            };
-          };
-        };
-      };
-    };
-    put?: never;
-    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -934,6 +689,60 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/supported-cryptocurrencies": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Supported Cryptocurrencies
+     * @description Retrieve all supported cryptocurrencies, filtered by network.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /**
+           * @description Filter supported cryptocurrencies by network. Allowed values: `assethub`, `avalanche`, `base`,  `bsc`,  `ethereum`, `polygon`
+           * @example
+           */
+          network?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              cryptocurrencies: {
+                /** @description Defined if network is EVM. */
+                assetContractAddress?: string | null;
+                assetDecimals: number;
+                /** @description Defined if network is Assethub. */
+                assetForeignAssetId?: string | null;
+                assetNetwork: components["schemas"]["Networks"];
+                assetSymbol: string;
+              }[];
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/supported-fiat-currencies": {
     parameters: {
       query?: never;
@@ -978,114 +787,201 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/supported-payment-methods": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Supported Payment Methods
+     * @description Retrieve all available payment methods, filtered by type or fiat.
+     */
+    get: {
+      parameters: {
+        query?: {
+          /**
+           * @description Filter supported payment methods by the ramp type. Allowed values: `sell` or `buy`.
+           * @example
+           */
+          type?: string;
+          /**
+           * @description Filter supported payment methods Allowed values: `ars`, `brl`, `eur`
+           * @example
+           */
+          fiat?: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** @description Array of supported payment methods matching the params. */
+              "paymentMethods:": {
+                /** @description Unique identifier of the payment method: `sepa`, `pix`, `cbu` */
+                id: string;
+                /** @description Payment method limits in USD */
+                limits: {
+                  max: number;
+                  min: number;
+                };
+                /** @description Unique name of the payment method: `SEPA`, `PIX`, `CBU` */
+                name: string;
+                /** @description Array of supported fiat currencies by payment method. */
+                supportedFiats: string[];
+              }[];
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/webhook": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Register Webhook
+     * @description Register a new webhook to receive event notifications.
+     *
+     *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
+     */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": {
+            events?: string[];
+            /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific quote */
+            quoteId?: string;
+            /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific session */
+            sessionId?: string;
+            /** @description Your HTTPS webhook endpoint URL */
+            url: string;
+          };
+        };
+      };
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "createdAt": "2025-10-01T16:21:04.648Z",
+             *       "events": [
+             *         "TRANSACTION_CREATED",
+             *         "STATUS_CHANGE"
+             *       ],
+             *       "id": "340ba946-f3f3-4007-893c-3374bfcd096b",
+             *       "isActive": true,
+             *       "quoteId": "3258910e-93ee-443e-b793-28cc1d4ccdf3",
+             *       "sessionId": null,
+             *       "url": "https://your-website.com"
+             *     }
+             */
+            "application/json": {
+              /** @description The creation date of the webhook */
+              createdAt: string;
+              /** @description The events the webhook is subscribed for */
+              events: string[];
+              /** @description Webhook UUID */
+              id: string;
+              /** @description Is the webhook active */
+              isActive: boolean;
+              /** @description (optional): The specific transactionId that the events are subscribed for */
+              quoteId?: string;
+              /** @description (optional): The specific sessionId that the events are subscribed for */
+              sessionId?: string;
+              /** @description Your HTTPS webhook endpoint URL */
+              url: string;
+            };
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/webhook/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Webhook
+     * @description Remove a webhook subscription.
+     *
+     *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
+     */
+    delete: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          /** @example  */
+          id: string;
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              message: string;
+              success: boolean;
+            };
+          };
+        };
+      };
+    };
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    RampErrorLog: {
-      /** Format: date-time */
-      timestamp: string;
-      phase: components["schemas"]["RampPhase"];
-      error: string;
-      details?: string;
-      recoverable?: boolean;
-    };
-    GetRampErrorLogsResponse: components["schemas"]["RampErrorLog"][];
-    BrlaValidatePixKeyResponse: {
-      valid: boolean;
-    };
-    BrlaGetSelfieLivenessUrlResponse: {
-      id: string;
-      livenessUrl: string;
-      uploadURLFront: string;
-      validateLivenessToken: string;
-    };
-    /** @enum {string} */
-    AveniaDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "SELFIE" | "SELFIE-FROM-LIVENESS";
-    AveniaKYCDataUploadRequest: {
-      documentType: components["schemas"]["AveniaDocumentType"];
-      /** @description CPF or CNPJ. */
-      taxId: string;
-    };
-    DocumentUploadEntry: {
-      id: string;
-      uploadURLFront: string;
-      uploadURLBack?: string;
-      livenessUrl?: string;
-      validateLivenessToken?: string;
-    };
-    AveniaKYCDataUploadResponse: {
-      idUpload: components["schemas"]["DocumentUploadEntry"];
-      selfieUpload: components["schemas"]["DocumentUploadEntry"];
-    };
-    KycLevel1Payload: {
-      subAccountId: string;
-      fullName: string;
-      /** @description ISO date (YYYY-MM-DD). */
-      dateOfBirth: string;
-      countryOfTaxId: string;
-      taxIdNumber: string;
-      /** Format: email */
-      email: string;
-      country: string;
-      state: string;
-      city: string;
-      zipCode: string;
-      streetAddress: string;
-      uploadedSelfieId: string;
-      uploadedDocumentId: string;
-    };
-    KycLevel1Response: {
-      id: string;
-    };
-    RegisterRampRequest: {
-      /**
-       * Format: uuid
-       * @description The unique identifier for the quote.
-       */
-      quoteId: string;
-      /**
-       * @description Array of accounts that will be used for signing transactions.
-       *
-       *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
-       *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
-       */
-      signingAccounts: {
-        /** @description The account address. */
-        address: string;
-        /**
-         * @description The type of the account.
-         * @enum {string}
-         */
-        type: "EVM" | "Stellar" | "Substrate";
-      }[];
-      /**
-       * @description Optional additional data for the ramp process.
-       *
-       *     For Stellar offramps, paymentData is required.
-       *
-       *     For Brazil onramps, destinationAddress and taxId  arerequired.
-       *
-       *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
-       */
-      additionalData?: {
-        /** @description Wallet address initiating the offramp. */
-        walletAddress: string;
-        /** @description Destination address, used for onramp. */
-        destinationAddress?: string;
-        paymentData?: components["schemas"]["PaymentData"];
-        /** @description PIX key for the destination account in an onramp. */
-        pixDestination?: string;
-        /** @description Tax ID of the receiver for onramp. */
-        receiverTaxId?: string;
-        /** @description Tax ID of the user. */
-        taxId?: string;
-        /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-        moneriumAuthToken: string;
-      } & {
-        [key: string]: unknown;
-      };
-    };
     AccountMeta: {
       /** @description The account address. */
       address: string;
@@ -1095,11 +991,278 @@ export interface components {
        */
       type: "EVM" | "Stellar" | "Substrate";
     };
+    /** @enum {string} */
+    AveniaDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "SELFIE" | "SELFIE-FROM-LIVENESS";
+    AveniaKYCDataUploadRequest: {
+      documentType: components["schemas"]["AveniaDocumentType"];
+      /** @description CPF or CNPJ. */
+      taxId: string;
+    };
+    AveniaKYCDataUploadResponse: {
+      idUpload: components["schemas"]["DocumentUploadEntry"];
+      selfieUpload: components["schemas"]["DocumentUploadEntry"];
+    };
+    BrlaAddress: {
+      cep: string;
+      city: string;
+      complement?: string | null;
+      district: string;
+      number: string;
+      state: string;
+      street: string;
+    };
+    BrlaErrorResponse: {
+      /** @description Detailed error message or object from BRLA API or server. */
+      details?: null &
+        (
+          | string
+          | {
+              [key: string]: unknown;
+            }
+        );
+      /** @description A summary of the error. */
+      error?: string;
+    };
+    BrlaGetSelfieLivenessUrlResponse: {
+      id: string;
+      livenessUrl: string;
+      uploadURLFront: string;
+      validateLivenessToken: string;
+    };
+    BrlaValidatePixKeyResponse: {
+      valid: boolean;
+    };
+    CleanupPhase: {
+      /** @enum {string} */
+      string?: "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
+    };
+    /** @description Allowed values: `AR`, `BR`, `EU` */
+    CountryCode: string;
+    CreateBestQuoteRequest: {
+      /** @description Your api key, if available. */
+      apiKey?: string;
+      countryCode?: components["schemas"]["CountryCode"];
+      /** @description `PIX`, `SEPA`, `CBU`. Only required if `rampType` is "BUY". */
+      from?: components["schemas"]["PaymentMethod"];
+      /**
+       * @description The amount of currency to be input.
+       * @example 100.00
+       */
+      inputAmount: string;
+      /** @description The currency type for the input amount. */
+      inputCurrency: components["schemas"]["RampCurrency"];
+      /** @description The desired currency type for the output amount. */
+      outputCurrency: components["schemas"]["RampCurrency"];
+      /** @description Your partner ID, if available. */
+      partnerId?: string;
+      paymentMethod?: components["schemas"]["PaymentMethod"];
+      /** @description The type of ramp process (on-ramp or off-ramp). */
+      rampType: components["schemas"]["RampDirection"];
+      /** @description `PIX`, `SEPA`, `CBU`. Only required if `rampType` is "SELL". */
+      to?: components["schemas"]["PaymentMethod"];
+    };
+    CreateQuoteRequest: {
+      /** @description Your api key, if available. */
+      apiKey?: string;
+      countryCode?: components["schemas"]["CountryCode"];
+      /** @description From destination */
+      from: components["schemas"]["DestinationType"];
+      /**
+       * @description The amount of currency to be input.
+       * @example 100.00
+       */
+      inputAmount: string;
+      /** @description The currency type for the input amount. */
+      inputCurrency: components["schemas"]["RampCurrency"];
+      network?: components["schemas"]["Networks"];
+      /** @description The desired currency type for the output amount. */
+      outputCurrency: components["schemas"]["RampCurrency"];
+      /** @description Your partner ID, if available. */
+      partnerId?: string;
+      paymentMethod?: components["schemas"]["PaymentMethod"];
+      /** @description The type of ramp process (on-ramp or off-ramp). */
+      rampType: components["schemas"]["RampDirection"];
+      /** @description To destination */
+      to: components["schemas"]["DestinationType"];
+    };
+    CreateSubaccountRequest: {
+      address: components["schemas"]["BrlaAddress"];
+      /**
+       * Format: date
+       * @description Date must be in format YYYY-MMM-DD.
+       */
+      birthdate: string;
+      cnpj?: string | null;
+      companyName?: string | null;
+      cpf: string;
+      fullName: string;
+      phone: string;
+      /**
+       * Format: date
+       * @description Date must be in format YYYY-MMM-DD.
+       */
+      startDate?: string | null;
+      taxIdType: components["schemas"]["TaxIdType"];
+    };
+    CreateSubaccountResponse: {
+      /** @description The ID of the created or processed subaccount. */
+      subaccountId?: string;
+    };
+    /**
+     * @description Represents either a blockchain network or a traditional payment method.
+     * @enum {string}
+     */
+    DestinationType:
+      | "assethub"
+      | "arbitrum"
+      | "avalanche"
+      | "base"
+      | "bsc"
+      | "ethereum"
+      | "polygon"
+      | "moonbeam"
+      | "pendulum"
+      | "stellar"
+      | "pix"
+      | "sepa"
+      | "cbu";
+    DocumentUploadEntry: {
+      id: string;
+      livenessUrl?: string;
+      uploadURLBack?: string;
+      uploadURLFront: string;
+      validateLivenessToken?: string;
+    };
+    ErrorResponse: {
+      /** @description A human-readable error message. */
+      message?: string;
+    };
+    /** @enum {string} */
+    FiatToken: "EUR" | "ARS" | "BRL";
+    GetKycStatusResponse: {
+      /** @description The KYC level achieved. */
+      level?: number;
+      /**
+       * @description The KYC status.
+       * @enum {string}
+       */
+      status?: "PENDING" | "APPROVED" | "REJECTED";
+      /**
+       * @description Event type, typically "KYC".
+       * @enum {string}
+       */
+      type?: "KYC";
+    };
+    GetRampErrorLogsResponse: components["schemas"]["RampErrorLog"][];
+    GetRampHistoryResponse: {
+      totalCount: string;
+      transactions: components["schemas"]["GetRampHistoryTransaction"];
+    };
+    GetRampHistoryTransaction: {
+      date: string;
+      /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
+      externalTxExplorerLink?: string;
+      /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
+      externalTxHash?: string;
+      from: components["schemas"]["DestinationType"];
+      fromAmount: string;
+      fromCurrency: components["schemas"]["RampCurrency"];
+      id: string;
+      status: components["schemas"]["SimpleStatus"];
+      to: components["schemas"]["DestinationType"];
+      toAmount: string;
+      toCurrency: components["schemas"]["RampCurrency"];
+      type: components["schemas"]["RampDirection"];
+    };
+    GetUserRemainingLimitResponse: {
+      /**
+       * Format: double
+       * @description The remaining limit for offramp operations.
+       */
+      remainingLimitOfframp?: number;
+      /**
+       * Format: double
+       * @description The remaining limit for onramp operations.
+       */
+      remainingLimitOnramp?: number;
+    };
+    GetUserResponse: {
+      /** @description The user's EVM wallet address. */
+      evmAddress?: string;
+      /**
+       * @description The user's KYC level.
+       * @enum {number}
+       */
+      kycLevel?: 1 | 2;
+    };
+    GetWidgetUrlLocked: {
+      /** @description The widget will redirect to this callbackUrl after the user successfully created the transaction. */
+      callbackUrl?: string;
+      /** @description A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. */
+      externalSessionId?: string;
+      /** @description Pass the ID of an existing quote to make the widget lock in that particular quote without allowing to change it. */
+      quoteId: string;
+      /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
+      walletAddressLocked?: string;
+    };
+    GetWidgetUrlRefresh: {
+      /** @description Your api key, if available. This is passed to all the quotes generated in this widget session. */
+      apiKey?: string;
+      /** @description The widget will redirect to this callbackUrl after the user successfully created the transaction. */
+      callbackUrl?: string;
+      countryCode?: components["schemas"]["CountryCode"];
+      cryptoLocked: components["schemas"]["OnChainToken"];
+      /** @description A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. */
+      externalSessionId: string;
+      fiat: components["schemas"]["FiatToken"];
+      inputAmount: string;
+      network: components["schemas"]["Networks"];
+      /** @description The identifier of a partner. */
+      partnerId?: string;
+      paymentMethod: components["schemas"]["PaymentMethod"];
+      rampType: components["schemas"]["RampDirection"];
+      /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
+      walletAddressLocked?: string;
+    };
+    KYCDataUploadFileFiles: {
+      /** Format: url */
+      CNHUploadUrl?: string;
+      /** Format: url */
+      RGBackUploadUrl?: string;
+      /** Format: url */
+      RGFrontUploadUrl?: string;
+      /** Format: url */
+      selfieUploadUrl?: string;
+    };
+    /** @enum {string} */
+    KYCDocType: "RG" | "CNH";
+    KycLevel1Payload: {
+      city: string;
+      country: string;
+      countryOfTaxId: string;
+      /** @description ISO date (YYYY-MM-DD). */
+      dateOfBirth: string;
+      /** Format: email */
+      email: string;
+      fullName: string;
+      state: string;
+      streetAddress: string;
+      subAccountId: string;
+      taxIdNumber: string;
+      uploadedDocumentId: string;
+      uploadedSelfieId: string;
+      zipCode: string;
+    };
+    KycLevel1Response: {
+      id: string;
+    };
     /**
      * @description Supported blockchain networks.
      * @enum {string}
      */
     Networks: "assethub" | "arbitrum" | "avalanche" | "base" | "bsc" | "ethereum" | "polygon" | "moonbeam";
+    /** @enum {string} */
+    OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E";
     /** @description Data related to the payment for the ramp transaction. */
     PaymentData: {
       /**
@@ -1108,79 +1271,99 @@ export interface components {
        */
       amount?: string;
       /**
-       * @description Type of memo (e.g., text, id).
-       * @example text
+       * @description The target account for an anchor operation.
+       * @example GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF
        */
-      memoType?: string;
+      anchorTargetAccount?: string;
       /**
        * @description The memo content.
        * @example 1204asjfnaksf10982e4
        */
       memo?: string;
       /**
-       * @description The target account for an anchor operation.
-       * @example GDSDQLBVDD5RZYKNDM2LAX5JDNNQOTSZOKECUYEXYMUZMAPXTMDUJCVF
+       * @description Type of memo (e.g., text, id).
+       * @example text
        */
-      anchorTargetAccount?: string;
+      memoType?: string;
     };
-    RampProcess: {
-      /** @description Unique identifier for the ramp process. */
-      id?: string;
+    /** @description `PIX`, `SEPA`, `CBU` */
+    PaymentMethod: string;
+    /** @description Represents a transaction that has been presigned. Based on UnsignedTx structure. */
+    PresignedTx: {
+      /** @description Any additional metadata associated with the transaction. Can be an empty object. */
+      meta?: {
+        [key: string]: unknown;
+      };
       /**
-       * Format: uuid
-       * @description The quote ID associated with this ramp process.
+       * Format: int64
+       * @description Nonce for the transaction, if applicable.
        */
-      quoteId?: string;
-      /** @description Type of ramp process. */
-      type?: components["schemas"]["RampDirection"];
-      currentPhase?: components["schemas"]["RampPhase"];
-      /** @description The source network or payment method. */
-      from?: components["schemas"]["DestinationType"];
-      /** @description The destination network or payment method. */
-      to?: components["schemas"]["DestinationType"];
-      inputAmount: string;
-      inputCurrency: string;
-      outputAmount: string;
-      outputCurrency: string;
+      nonce?: number;
       /**
-       * Format: date-time
-       * @description Timestamp of when the ramp process was created.
+       * @description The phase this transaction belongs to within the ramp logic.
+       * @enum {string}
        */
-      createdAt?: string;
+      phase?: "RampPhase" | "CleanupPhase";
+      /** @description Address of the account that signed/will sign this transaction. */
+      signer?: string;
       /**
-       * Format: date-time
-       * @description Timestamp of the last update to the ramp process.
+       * @description The presigned transaction payload or relevant data.
+       * @example AAAAAKg...
        */
-      updatedAt?: string;
-      /** @description Array of unsigned transactions that need to be signed by the user. */
-      unsignedTxs?: components["schemas"]["UnsignedTx"][];
-      /** @description BR Code for PIX payment, if applicable. */
-      depositQrCode?: string | null;
-      /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
-      sessionId?: string;
-      countryCode?: components["schemas"]["CountryCode"];
-      paymentMethod: components["schemas"]["PaymentMethod"];
-      network?: components["schemas"]["Networks"];
-      status?: components["schemas"]["SimpleStatus"];
-      /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
-      transactionHash?: string;
-      /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
-      transactionExplorerLink?: string;
-      /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
-      walletAddress?: string;
-      networkFeeFiat: string;
-      networkFeeUSD: string;
+      txData?: string;
+    } & {
+      [key: string]: unknown;
+    };
+    QuoteResponse: {
       anchorFeeFiat: string;
       anchorFeeUSD: string;
-      vortexFeeFiat: string;
-      vortexFeeUSD: string;
+      /**
+       * Format: date-time
+       * @description The timestamp when this quote expires.
+       */
+      expiresAt?: string;
+      feeCurrency: components["schemas"]["RampCurrency"];
+      from?: components["schemas"]["DestinationType"];
+      /**
+       * Format: uuid
+       * @description Unique identifier for the quote.
+       */
+      id?: string;
+      /** @description The input amount specified in the request. */
+      inputAmount?: string;
+      inputCurrency?: components["schemas"]["RampCurrency"];
+      networkFeeFiat: string;
+      networkFeeUSD: string;
+      /** @description The calculated output amount after fees and conversions. */
+      outputAmount?: string;
+      outputCurrency?: components["schemas"]["RampCurrency"];
       partnerFeeFiat: string;
       partnerFeeUSD: string;
-      totalFeeFiat: string;
-      totalFeeUSD: string;
       processingFeeFiat: string;
       processingFeeUSD: string;
-      feeCurrency: components["schemas"]["RampCurrency"];
+      /** @description The type of ramp process. */
+      rampType?: components["schemas"]["RampDirection"];
+      to?: components["schemas"]["DestinationType"];
+      totalFeeFiat: string;
+      totalFeeUSD: string;
+      vortexFeeFiat: string;
+      vortexFeeUSD: string;
+    };
+    /**
+     * @description Represents supported currencies for ramp operations, including fiat and on-chain tokens.
+     * @example USDC
+     * @enum {string}
+     */
+    RampCurrency: "EUR" | "ARS" | "BRL" | "USDC" | "USDT" | "USDC.E";
+    /** @enum {string} */
+    RampDirection: "BUY" | "SELL";
+    RampErrorLog: {
+      details?: string;
+      error: string;
+      phase: components["schemas"]["RampPhase"];
+      recoverable?: boolean;
+      /** Format: date-time */
+      timestamp: string;
     };
     /**
      * @description The current phase of the ramp process.
@@ -1207,276 +1390,115 @@ export interface components {
       | "brlaTeleport"
       | "brlaPayoutOnMoonbeam"
       | "failed";
-    /**
-     * @description Represents either a blockchain network or a traditional payment method.
-     * @enum {string}
-     */
-    DestinationType:
-      | "assethub"
-      | "arbitrum"
-      | "avalanche"
-      | "base"
-      | "bsc"
-      | "ethereum"
-      | "polygon"
-      | "moonbeam"
-      | "pendulum"
-      | "stellar"
-      | "pix"
-      | "sepa"
-      | "cbu";
-    /** @description Represents an unsigned transaction that requires user signature. Actual properties will depend on the transaction type and network. */
-    UnsignedTx: {
-      /**
-       * @description The unsigned transaction payload or relevant data.
-       * @example AAAAAKu...
-       */
-      txData?: string;
-      /** @enum {string} */
-      phase?: "RampPhase" | "CleanupPhase";
-      nonce?: number;
-      signer?: string;
-      meta?: Record<string, never>;
-    } & {
-      [key: string]: unknown;
-    };
-    ErrorResponse: {
-      /** @description A human-readable error message. */
-      message?: string;
-    };
-    CleanupPhase: {
-      /** @enum {string} */
-      string?: "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
-    };
-    CreateQuoteRequest: {
-      /** @description The type of ramp process (on-ramp or off-ramp). */
-      rampType: components["schemas"]["RampDirection"];
-      /** @description From destination */
-      from: components["schemas"]["DestinationType"];
-      /** @description To destination */
-      to: components["schemas"]["DestinationType"];
-      /**
-       * @description The amount of currency to be input.
-       * @example 100.00
-       */
-      inputAmount: string;
-      /** @description The currency type for the input amount. */
-      inputCurrency: components["schemas"]["RampCurrency"];
-      /** @description The desired currency type for the output amount. */
-      outputCurrency: components["schemas"]["RampCurrency"];
-      countryCode?: components["schemas"]["CountryCode"];
-      paymentMethod?: components["schemas"]["PaymentMethod"];
-      network?: components["schemas"]["Networks"];
-      /** @description Your api key, if available. */
-      apiKey?: string;
-      /** @description Your partner ID, if available. */
-      partnerId?: string;
-    };
-    QuoteResponse: {
-      /**
-       * Format: uuid
-       * @description Unique identifier for the quote.
-       */
-      id?: string;
-      /** @description The type of ramp process. */
-      rampType?: components["schemas"]["RampDirection"];
-      from?: components["schemas"]["DestinationType"];
-      to?: components["schemas"]["DestinationType"];
-      /** @description The input amount specified in the request. */
-      inputAmount?: string;
-      /** @description The calculated output amount after fees and conversions. */
-      outputAmount?: string;
-      inputCurrency?: components["schemas"]["RampCurrency"];
-      outputCurrency?: components["schemas"]["RampCurrency"];
-      /**
-       * Format: date-time
-       * @description The timestamp when this quote expires.
-       */
-      expiresAt?: string;
-      networkFeeFiat: string;
-      networkFeeUSD: string;
+    RampProcess: {
       anchorFeeFiat: string;
       anchorFeeUSD: string;
-      vortexFeeFiat: string;
-      vortexFeeUSD: string;
+      countryCode?: components["schemas"]["CountryCode"];
+      /**
+       * Format: date-time
+       * @description Timestamp of when the ramp process was created.
+       */
+      createdAt?: string;
+      currentPhase?: components["schemas"]["RampPhase"];
+      /** @description BR Code for PIX payment, if applicable. */
+      depositQrCode?: string | null;
+      feeCurrency: components["schemas"]["RampCurrency"];
+      /** @description The source network or payment method. */
+      from?: components["schemas"]["DestinationType"];
+      /** @description Unique identifier for the ramp process. */
+      id?: string;
+      inputAmount: string;
+      inputCurrency: string;
+      network?: components["schemas"]["Networks"];
+      networkFeeFiat: string;
+      networkFeeUSD: string;
+      outputAmount: string;
+      outputCurrency: string;
       partnerFeeFiat: string;
       partnerFeeUSD: string;
-      totalFeeFiat: string;
-      totalFeeUSD: string;
+      paymentMethod: components["schemas"]["PaymentMethod"];
       processingFeeFiat: string;
       processingFeeUSD: string;
-      feeCurrency: components["schemas"]["RampCurrency"];
+      /**
+       * Format: uuid
+       * @description The quote ID associated with this ramp process.
+       */
+      quoteId?: string;
+      /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
+      sessionId?: string;
+      status?: components["schemas"]["SimpleStatus"];
+      /** @description The destination network or payment method. */
+      to?: components["schemas"]["DestinationType"];
+      totalFeeFiat: string;
+      totalFeeUSD: string;
+      /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
+      transactionExplorerLink?: string;
+      /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
+      transactionHash?: string;
+      /** @description Type of ramp process. */
+      type?: components["schemas"]["RampDirection"];
+      /** @description Array of unsigned transactions that need to be signed by the user. */
+      unsignedTxs?: components["schemas"]["UnsignedTx"][];
+      /**
+       * Format: date-time
+       * @description Timestamp of the last update to the ramp process.
+       */
+      updatedAt?: string;
+      vortexFeeFiat: string;
+      vortexFeeUSD: string;
+      /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
+      walletAddress?: string;
     };
-    /**
-     * @description Represents supported currencies for ramp operations, including fiat and on-chain tokens.
-     * @example USDC
-     * @enum {string}
-     */
-    RampCurrency: "EUR" | "ARS" | "BRL" | "USDC" | "USDT" | "USDC.E";
-    UpdateRampRequest: {
+    RegisterRampRequest: {
       /**
-       * @description The unique identifier of the ramp process to start.
-       * @example proc_12345
+       * @description Optional additional data for the ramp process.
+       *
+       *     For Stellar offramps, paymentData is required.
+       *
+       *     For Brazil onramps, destinationAddress and taxId  arerequired.
+       *
+       *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
        */
-      rampId: string;
-      /** @description An array of transactions that have been pre-signed by the user. */
-      presignedTxs: components["schemas"]["PresignedTx"][];
-      /** @description Optional additional data, like transaction hashes from external services. */
-      additionalData?:
-        | ({
-            /** @description Transaction hash for Squid Router approval, if applicable. */
-            squidRouterApproveHash?: string | null;
-            /** @description Transaction hash for Squid Router swap, if applicable. */
-            squidRouterSwapHash?: string | null;
-            /** @description Transaction hash for AssetHub to Pendulum transfer, if applicable. */
-            assetHubToPendulumHash?: string | null;
-            /** @description Signed message to trigger a Monerium offramp. */
-            moneriumOfframpSignature: string;
-          } & {
-            [key: string]: unknown;
-          })
-        | null;
-    };
-    /** @description Represents a transaction that has been presigned. Based on UnsignedTx structure. */
-    PresignedTx: {
-      /**
-       * @description The phase this transaction belongs to within the ramp logic.
-       * @enum {string}
-       */
-      phase?: "RampPhase" | "CleanupPhase";
-      /**
-       * Format: int64
-       * @description Nonce for the transaction, if applicable.
-       */
-      nonce?: number;
-      /** @description Address of the account that signed/will sign this transaction. */
-      signer?: string;
-      /** @description Any additional metadata associated with the transaction. Can be an empty object. */
-      meta?: {
+      additionalData?: {
+        /** @description Destination address, used for onramp. */
+        destinationAddress?: string;
+        /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
+        moneriumAuthToken: string;
+        paymentData?: components["schemas"]["PaymentData"];
+        /** @description PIX key for the destination account in an onramp. */
+        pixDestination?: string;
+        /** @description Tax ID of the receiver for onramp. */
+        receiverTaxId?: string;
+        /** @description Tax ID of the user. */
+        taxId?: string;
+        /** @description Wallet address initiating the offramp. */
+        walletAddress: string;
+      } & {
         [key: string]: unknown;
       };
       /**
-       * @description The presigned transaction payload or relevant data.
-       * @example AAAAAKg...
+       * Format: uuid
+       * @description The unique identifier for the quote.
        */
-      txData?: string;
-    } & {
-      [key: string]: unknown;
-    };
-    BrlaErrorResponse: {
-      /** @description A summary of the error. */
-      error?: string;
-      /** @description Detailed error message or object from BRLA API or server. */
-      details?: null &
-        (
-          | string
-          | {
-              [key: string]: unknown;
-            }
-        );
-    };
-    GetUserResponse: {
-      /** @description The user's EVM wallet address. */
-      evmAddress?: string;
+      quoteId: string;
       /**
-       * @description The user's KYC level.
-       * @enum {number}
+       * @description Array of accounts that will be used for signing transactions.
+       *
+       *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
+       *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
        */
-      kycLevel?: 1 | 2;
+      signingAccounts: {
+        /** @description The account address. */
+        address: string;
+        /**
+         * @description The type of the account.
+         * @enum {string}
+         */
+        type: "EVM" | "Stellar" | "Substrate";
+      }[];
     };
-    GetKycStatusResponse: {
-      /**
-       * @description Event type, typically "KYC".
-       * @enum {string}
-       */
-      type?: "KYC";
-      /**
-       * @description The KYC status.
-       * @enum {string}
-       */
-      status?: "PENDING" | "APPROVED" | "REJECTED";
-      /** @description The KYC level achieved. */
-      level?: number;
-    };
-    ValidatePixKeyResponse: {
-      /** @description Indicates if the PIX key is valid. */
-      valid?: boolean;
-    };
-    GetUserRemainingLimitResponse: {
-      /**
-       * Format: double
-       * @description The remaining limit for onramp operations.
-       */
-      remainingLimitOnramp?: number;
-      /**
-       * Format: double
-       * @description The remaining limit for offramp operations.
-       */
-      remainingLimitOfframp?: number;
-    };
-    TriggerOfframpRequest: {
-      /** @description The sender's Tax ID. */
-      taxId: string;
-      /** @description The recipient's PIX key. */
-      pixKey: string;
-      /**
-       * @description The amount to offramp.
-       * @example 100.50
-       */
-      amount: string;
-      /** @description The recipient's Tax ID for validation. */
-      receiverTaxId: string;
-    };
-    TriggerOfframpResponse: {
-      /** @description The ID of the triggered offramp transaction. */
-      offrampId?: string;
-    };
-    BrlaAddress: {
-      cep: string;
-      city: string;
-      state: string;
-      street: string;
-      number: string;
-      district: string;
-      complement?: string | null;
-    };
-    /** @enum {string} */
-    TaxIdType: "CPF" | "CNPJ";
-    CreateSubaccountRequest: {
-      phone: string;
-      taxIdType: components["schemas"]["TaxIdType"];
-      address: components["schemas"]["BrlaAddress"];
-      fullName: string;
-      cpf: string;
-      /**
-       * Format: date
-       * @description Date must be in format YYYY-MMM-DD.
-       */
-      birthdate: string;
-      companyName?: string | null;
-      /**
-       * Format: date
-       * @description Date must be in format YYYY-MMM-DD.
-       */
-      startDate?: string | null;
-      cnpj?: string | null;
-    };
-    CreateSubaccountResponse: {
-      /** @description The ID of the created or processed subaccount. */
-      subaccountId?: string;
-    };
-    /** @enum {string} */
-    KYCDocType: "RG" | "CNH";
-    KYCDataUploadFileFiles: {
-      /** Format: url */
-      selfieUploadUrl?: string;
-      /** Format: url */
-      RGFrontUploadUrl?: string;
-      /** Format: url */
-      RGBackUploadUrl?: string;
-      /** Format: url */
-      CNHUploadUrl?: string;
-    };
+    /** @description `PENDING`, `FAILED`, `COMPLETED` */
+    SimpleStatus: string;
     StartKYC2Request: {
       documentType: components["schemas"]["KYCDocType"];
       taxId: string;
@@ -1488,92 +1510,70 @@ export interface components {
       rampId: string;
     };
     /** @enum {string} */
-    RampDirection: "BUY" | "SELL";
-    GetWidgetUrlLocked: {
-      /** @description Pass the ID of an existing quote to make the widget lock in that particular quote without allowing to change it. */
-      quoteId: string;
-      /** @description A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. */
-      externalSessionId?: string;
-      /** @description The widget will redirect to this callbackUrl after the user successfully created the transaction. */
-      callbackUrl?: string;
-      /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
-      walletAddressLocked?: string;
-    };
-    /** @description Allowed values: `AR`, `BR`, `EU` */
-    CountryCode: string;
-    /** @description `PIX`, `SEPA`, `CBU` */
-    PaymentMethod: string;
-    /** @description `PENDING`, `FAILED`, `COMPLETED` */
-    SimpleStatus: string;
-    /** @enum {string} */
-    FiatToken: "EUR" | "ARS" | "BRL";
-    /** @enum {string} */
-    OnChainToken: "USDC" | "USDT" | "ETH" | "USDC.E";
-    GetWidgetUrlRefresh: {
-      /** @description The widget will redirect to this callbackUrl after the user successfully created the transaction. */
-      callbackUrl?: string;
-      countryCode?: components["schemas"]["CountryCode"];
-      cryptoLocked: components["schemas"]["OnChainToken"];
-      /** @description A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. */
-      externalSessionId: string;
-      fiat: components["schemas"]["FiatToken"];
-      inputAmount: string;
-      network: components["schemas"]["Networks"];
-      paymentMethod: components["schemas"]["PaymentMethod"];
-      /** @description The identifier of a partner. */
-      partnerId?: string;
-      rampType: components["schemas"]["RampDirection"];
-      /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
-      walletAddressLocked?: string;
-      /** @description Your api key, if available. This is passed to all the quotes generated in this widget session. */
-      apiKey?: string;
-    };
-    CreateBestQuoteRequest: {
-      /** @description The type of ramp process (on-ramp or off-ramp). */
-      rampType: components["schemas"]["RampDirection"];
-      /** @description `PIX`, `SEPA`, `CBU`. Only required if `rampType` is "BUY". */
-      from?: components["schemas"]["PaymentMethod"];
-      /** @description `PIX`, `SEPA`, `CBU`. Only required if `rampType` is "SELL". */
-      to?: components["schemas"]["PaymentMethod"];
+    TaxIdType: "CPF" | "CNPJ";
+    TriggerOfframpRequest: {
       /**
-       * @description The amount of currency to be input.
-       * @example 100.00
+       * @description The amount to offramp.
+       * @example 100.50
        */
-      inputAmount: string;
-      /** @description The currency type for the input amount. */
-      inputCurrency: components["schemas"]["RampCurrency"];
-      /** @description The desired currency type for the output amount. */
-      outputCurrency: components["schemas"]["RampCurrency"];
-      countryCode?: components["schemas"]["CountryCode"];
-      paymentMethod?: components["schemas"]["PaymentMethod"];
-      /** @description Your api key, if available. */
-      apiKey?: string;
-      /** @description Your partner ID, if available. */
-      partnerId?: string;
+      amount: string;
+      /** @description The recipient's PIX key. */
+      pixKey: string;
+      /** @description The recipient's Tax ID for validation. */
+      receiverTaxId: string;
+      /** @description The sender's Tax ID. */
+      taxId: string;
     };
-    GetRampHistoryTransaction: {
-      id: string;
-      type: components["schemas"]["RampDirection"];
-      from: components["schemas"]["DestinationType"];
-      to: components["schemas"]["DestinationType"];
-      fromAmount: string;
-      toAmount: string;
-      fromCurrency: components["schemas"]["RampCurrency"];
-      toCurrency: components["schemas"]["RampCurrency"];
-      status: components["schemas"]["SimpleStatus"];
-      date: string;
-      /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
-      externalTxHash?: string;
-      /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
-      externalTxExplorerLink?: string;
+    TriggerOfframpResponse: {
+      /** @description The ID of the triggered offramp transaction. */
+      offrampId?: string;
     };
-    GetRampHistoryResponse: {
-      totalCount: string;
-      transactions: components["schemas"]["GetRampHistoryTransaction"];
+    /** @description Represents an unsigned transaction that requires user signature. Actual properties will depend on the transaction type and network. */
+    UnsignedTx: {
+      meta?: Record<string, never>;
+      nonce?: number;
+      /** @enum {string} */
+      phase?: "RampPhase" | "CleanupPhase";
+      signer?: string;
+      /**
+       * @description The unsigned transaction payload or relevant data.
+       * @example AAAAAKu...
+       */
+      txData?: string;
+    } & {
+      [key: string]: unknown;
+    };
+    UpdateRampRequest: {
+      /** @description Optional additional data, like transaction hashes from external services. */
+      additionalData?:
+        | ({
+            /** @description Transaction hash for AssetHub to Pendulum transfer, if applicable. */
+            assetHubToPendulumHash?: string | null;
+            /** @description Signed message to trigger a Monerium offramp. */
+            moneriumOfframpSignature: string;
+            /** @description Transaction hash for Squid Router approval, if applicable. */
+            squidRouterApproveHash?: string | null;
+            /** @description Transaction hash for Squid Router swap, if applicable. */
+            squidRouterSwapHash?: string | null;
+          } & {
+            [key: string]: unknown;
+          })
+        | null;
+      /** @description An array of transactions that have been pre-signed by the user. */
+      presignedTxs: components["schemas"]["PresignedTx"][];
+      /**
+       * @description The unique identifier of the ramp process to start.
+       * @example proc_12345
+       */
+      rampId: string;
+    };
+    ValidatePixKeyResponse: {
+      /** @description Indicates if the PIX key is valid. */
+      valid?: boolean;
     };
   };
   responses: {
-    "Record not found": {
+    "Invalid input": {
       headers: {
         [name: string]: unknown;
       };
@@ -1584,7 +1584,7 @@ export interface components {
         };
       };
     };
-    "Invalid input": {
+    "Record not found": {
       headers: {
         [name: string]: unknown;
       };
@@ -1603,7 +1603,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  createQuote: {
+  createSubaccount: {
     parameters: {
       query?: never;
       header?: never;
@@ -1612,540 +1612,31 @@ export interface operations {
     };
     requestBody?: {
       content: {
-        /**
-         * @example {
-         *       "rampType": "BUY",
-         *       "from": "pix",
-         *       "to": "polygon",
-         *       "inputAmount": "33",
-         *       "inputCurrency": "BRL",
-         *       "outputCurrency": "USDC",
-         *       "partnerId": "myPartnerId"
-         *     }
-         */
-        "application/json": {
-          /** @description The type of ramp process (on-ramp or off-ramp). */
-          rampType: components["schemas"]["RampDirection"];
-          /** @description From destination */
-          from: components["schemas"]["DestinationType"];
-          /** @description To destination */
-          to: components["schemas"]["DestinationType"];
-          /**
-           * @description The amount of currency to be input.
-           * @example 100.00
-           */
-          inputAmount: string;
-          /** @description The currency type for the input amount. */
-          inputCurrency: components["schemas"]["RampCurrency"];
-          /** @description The desired currency type for the output amount. */
-          outputCurrency: components["schemas"]["RampCurrency"];
-          countryCode?: components["schemas"]["CountryCode"];
-          paymentMethod?: components["schemas"]["PaymentMethod"];
-          network?: components["schemas"]["Networks"];
-          /** @description Your api key, if available. */
-          apiKey?: string;
-          /** @description Your partner ID, if available. */
-          partnerId?: string;
-        };
+        "application/json": components["schemas"]["CreateSubaccountRequest"];
       };
     };
     responses: {
-      /** @description Quote successfully created. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "id": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-           *       "rampType": "sell",
-           *       "from": "polygon",
-           *       "to": "cbu",
-           *       "inputAmount": "33",
-           *       "outputAmount": "32500.50",
-           *       "inputCurrency": "usdc",
-           *       "outputCurrency": "ars",
-           *       "fee": "0.50",
-           *       "expiresAt": "2025-05-16T12:30:00Z"
-           *     }
-           */
-          "application/json": {
-            /**
-             * Format: uuid
-             * @description Unique identifier for the quote.
-             */
-            id?: string;
-            /** @description The type of ramp process. */
-            rampType?: components["schemas"]["RampDirection"];
-            from?: components["schemas"]["DestinationType"];
-            to?: components["schemas"]["DestinationType"];
-            /** @description The input amount specified in the request. */
-            inputAmount?: string;
-            /** @description The calculated output amount after fees and conversions. */
-            outputAmount?: string;
-            inputCurrency?: components["schemas"]["RampCurrency"];
-            outputCurrency?: components["schemas"]["RampCurrency"];
-            /**
-             * Format: date-time
-             * @description The timestamp when this quote expires.
-             */
-            expiresAt?: string;
-            networkFeeFiat: string;
-            networkFeeUSD: string;
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
-            totalFeeFiat: string;
-            totalFeeUSD: string;
-            processingFeeFiat: string;
-            processingFeeUSD: string;
-            feeCurrency: components["schemas"]["RampCurrency"];
-          };
-        };
-      };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
-       *     - Invalid ramp type (must be "on" or "off")
-       */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": Record<string, never>;
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "message": "An unexpected error occurred."
-           *     }
-           */
-          "application/json": Record<string, never>;
-        };
-      };
-    };
-  };
-  createBestQuote: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        /**
-         * @example {
-         *       "rampType": "BUY",
-         *       "from": "pix",
-         *       "inputAmount": "30",
-         *       "inputCurrency": "BRL",
-         *       "outputCurrency": "USDC",
-         *       "partnerId": "myPartnerId"
-         *     }
-         */
-        "application/json": components["schemas"]["CreateBestQuoteRequest"];
-      };
-    };
-    responses: {
-      /** @description Quote successfully created. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": {
-            /**
-             * Format: uuid
-             * @description Unique identifier for the quote.
-             */
-            id?: string;
-            /** @description The type of ramp process. */
-            rampType?: components["schemas"]["RampDirection"];
-            from?: components["schemas"]["DestinationType"];
-            to?: components["schemas"]["DestinationType"];
-            /** @description The input amount specified in the request. */
-            inputAmount?: string;
-            /** @description The calculated output amount after fees and conversions. */
-            outputAmount?: string;
-            inputCurrency?: components["schemas"]["RampCurrency"];
-            outputCurrency?: components["schemas"]["RampCurrency"];
-            /**
-             * Format: date-time
-             * @description The timestamp when this quote expires.
-             */
-            expiresAt?: string;
-            networkFeeFiat: string;
-            networkFeeUSD: string;
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
-            totalFeeFiat: string;
-            totalFeeUSD: string;
-            processingFeeFiat: string;
-            processingFeeUSD: string;
-            feeCurrency: components["schemas"]["RampCurrency"];
-          };
-        };
-      };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
-       *     - Invalid ramp type (must be "on" or "off")
-       */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": Record<string, never>;
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": Record<string, never>;
-        };
-      };
-    };
-  };
-  registerRamp: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        /**
-         * @example {
-         *       "quoteId": "8e4bca04-aa22-4f86-9ce5-80aaef58ef83",
-         *       "signingAccounts": [
-         *         {
-         *           "network": "moonbeam",
-         *           "address": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9"
-         *         },
-         *         {
-         *           "network": "pendulum",
-         *           "address": "6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv"
-         *         }
-         *       ],
-         *       "additionalData": {
-         *         "taxId": "711.711.011-11",
-         *         "receiverTaxId": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
-         *         "pixDestination": "711.711.011-11"
-         *       }
-         *     }
-         */
-        "application/json": {
-          /**
-           * Format: uuid
-           * @description The unique identifier for the quote.
-           */
-          quoteId: string;
-          /**
-           * @description Array of accounts that will be used for signing transactions.
-           *
-           *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
-           *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
-           */
-          signingAccounts: {
-            /** @description The account address. */
-            address: string;
-            /**
-             * @description The type of the account.
-             * @enum {string}
-             */
-            type: "EVM" | "Stellar" | "Substrate";
-          }[];
-          /**
-           * @description Optional additional data for the ramp process.
-           *
-           *     For Stellar offramps, paymentData is required.
-           *
-           *     For Brazil onramps, destinationAddress and taxId  arerequired.
-           *
-           *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
-           */
-          additionalData?: {
-            /** @description Wallet address initiating the offramp. */
-            walletAddress: string;
-            /** @description Destination address, used for onramp. */
-            destinationAddress?: string;
-            paymentData?: components["schemas"]["PaymentData"];
-            /** @description PIX key for the destination account in an onramp. */
-            pixDestination?: string;
-            /** @description Tax ID of the receiver for onramp. */
-            receiverTaxId?: string;
-            /** @description Tax ID of the user. */
-            taxId?: string;
-            /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
-            moneriumAuthToken: string;
-            sessionId?: string;
-          } & {
-            [key: string]: unknown;
-          };
-        };
-      };
-    };
-    responses: {
-      /** @description Ramp process successfully registered. */
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "id": "proc_12345",
-           *       "quoteId": "41a756dc-04e4-4e4b-b243-9c8f977c24d6",
-           *       "type": "off",
-           *       "currentPhase": "pending_signature",
-           *       "from": "stellar",
-           *       "to": "pix",
-           *       "createdAt": "2024-05-16T10:00:00Z",
-           *       "updatedAt": "2024-05-16T10:00:00Z",
-           *       "unsignedTxs": [
-           *         {
-           *           "type": "stellar_payment",
-           *           "data": "AAAA..."
-           *         }
-           *       ],
-           *       "brCode": "00020126..."
-           *     }
-           */
-          "application/json": {
-            /** @description Unique identifier for the ramp process. */
-            id?: string;
-            /**
-             * Format: uuid
-             * @description The quote ID associated with this ramp process.
-             */
-            quoteId?: string;
-            /** @description Type of ramp process. */
-            type?: components["schemas"]["RampDirection"];
-            currentPhase?: components["schemas"]["RampPhase"];
-            /** @description The source network or payment method. */
-            from?: components["schemas"]["DestinationType"];
-            /** @description The destination network or payment method. */
-            to?: components["schemas"]["DestinationType"];
-            inputAmount: string;
-            inputCurrency: string;
-            outputAmount: string;
-            outputCurrency: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of when the ramp process was created.
-             */
-            createdAt?: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of the last update to the ramp process.
-             */
-            updatedAt?: string;
-            /** @description Array of unsigned transactions that need to be signed by the user. */
-            unsignedTxs?: components["schemas"]["UnsignedTx"][];
-            /** @description BR Code for PIX payment, if applicable. */
-            depositQrCode?: string | null;
-            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
-            sessionId?: string;
-            countryCode?: components["schemas"]["CountryCode"];
-            paymentMethod: components["schemas"]["PaymentMethod"];
-            network?: components["schemas"]["Networks"];
-            status?: components["schemas"]["SimpleStatus"];
-            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
-            transactionHash?: string;
-            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
-            transactionExplorerLink?: string;
-            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
-            walletAddress?: string;
-            networkFeeFiat: string;
-            networkFeeUSD: string;
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
-            totalFeeFiat: string;
-            totalFeeUSD: string;
-            processingFeeFiat: string;
-            processingFeeUSD: string;
-            feeCurrency: components["schemas"]["RampCurrency"];
-          };
-        };
-      };
-      /** @description Bad Request - Invalid input, missing required fields, or validation error. */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "message": "Missing required fields"
-           *     }
-           */
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "message": "An unexpected error occurred."
-           *     }
-           */
-          "application/json": components["schemas"]["ErrorResponse"];
-        };
-      };
-    };
-  };
-  startRamp: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        /**
-         * @example {
-         *       "rampId": "proc_12345",
-         *       "presignedTxs": [
-         *         {
-         *           "phase": "RampPhase",
-         *           "nonce": 1,
-         *           "signer": "GB2TP24WCY6BPGFX4SOGDHT7IGJRR7HCDQT2VL2MVCZJTJCGKMVGQGQB",
-         *           "meta": {},
-         *           "txData": "AAAAAKu..."
-         *         }
-         *       ],
-         *       "additionalData": {
-         *         "squidRouterApproveHash": "0x123...",
-         *         "squidRouterSwapHash": "0x456..."
-         *       }
-         *     }
-         */
-        "application/json": components["schemas"]["UpdateRampRequest"];
-      };
-    };
-    responses: {
-      /** @description Ramp process successfully started or updated. */
+      /** @description Subaccount created or KYC retry initiated successfully. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          /**
-           * @example {
-           *       "id": "proc_12345",
-           *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-           *       "type": "off",
-           *       "currentPhase": "processing",
-           *       "from": "stellar",
-           *       "to": "pix",
-           *       "createdAt": "2024-05-16T10:00:00Z",
-           *       "updatedAt": "2024-05-16T12:30:00Z",
-           *       "unsignedTxs": [],
-           *       "depositQrCode": "00020126..."
-           *     }
-           */
-          "application/json": {
-            /** @description Unique identifier for the ramp process. */
-            id?: string;
-            /**
-             * Format: uuid
-             * @description The quote ID associated with this ramp process.
-             */
-            quoteId?: string;
-            /** @description Type of ramp process. */
-            type?: components["schemas"]["RampDirection"];
-            currentPhase?: components["schemas"]["RampPhase"];
-            /** @description The source network or payment method. */
-            from?: components["schemas"]["DestinationType"];
-            /** @description The destination network or payment method. */
-            to?: components["schemas"]["DestinationType"];
-            inputAmount: string;
-            inputCurrency: string;
-            outputAmount: string;
-            outputCurrency: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of when the ramp process was created.
-             */
-            createdAt?: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of the last update to the ramp process.
-             */
-            updatedAt?: string;
-            /** @description Array of unsigned transactions that need to be signed by the user. */
-            unsignedTxs?: components["schemas"]["UnsignedTx"][];
-            /** @description BR Code for PIX payment, if applicable. */
-            depositQrCode?: string | null;
-            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
-            sessionId?: string;
-            countryCode?: components["schemas"]["CountryCode"];
-            paymentMethod: components["schemas"]["PaymentMethod"];
-            network?: components["schemas"]["Networks"];
-            status?: components["schemas"]["SimpleStatus"];
-            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
-            transactionHash?: string;
-            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
-            transactionExplorerLink?: string;
-            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
-            walletAddress?: string;
-            networkFeeFiat: string;
-            networkFeeUSD: string;
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
-            totalFeeFiat: string;
-            totalFeeUSD: string;
-            processingFeeFiat: string;
-            processingFeeUSD: string;
-            feeCurrency: components["schemas"]["RampCurrency"];
-          };
+          "application/json": components["schemas"]["CreateSubaccountResponse"];
         };
       };
       /**
        * @description Bad Request. Possible reasons:
-       *     - Missing required fields (rampId, presignedTxs)
-       *     - Invalid additional data format (if provided, must be an object)
+       *     - Missing required fields (cpf, cnpj, companyName, startDate)
+       *     - Subaccount already created and KYC level > 0
+       *     - Other invalid request details
        */
       400: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["BrlaErrorResponse"];
         };
       };
       /** @description Internal Server Error. */
@@ -2154,166 +1645,57 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          /**
-           * @example {
-           *       "message": "An unexpected error occurred."
-           *     }
-           */
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["BrlaErrorResponse"];
         };
       };
     };
   };
-  startRamp: {
+  fetchSubaccountKycStatus: {
     parameters: {
-      query?: never;
+      query: {
+        /** @description The user's Tax ID. */
+        taxId: string;
+      };
       header?: never;
       path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        /**
-         * @example {
-         *       "rampId": "proc_12345"
-         *     }
-         */
-        "application/json": components["schemas"]["StartRampRequest"];
-      };
-    };
-    responses: {
-      /** @description Ramp process successfully started or updated. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "id": "proc_12345",
-           *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
-           *       "type": "sell",
-           *       "currentPhase": "processing",
-           *       "from": "stellar",
-           *       "to": "pix",
-           *       "createdAt": "2024-05-16T10:00:00Z",
-           *       "updatedAt": "2024-05-16T12:30:00Z",
-           *       "unsignedTxs": [],
-           *       "depositQrCode": "00020126..."
-           *     }
-           */
-          "application/json": {
-            /** @description Unique identifier for the ramp process. */
-            id?: string;
-            /**
-             * Format: uuid
-             * @description The quote ID associated with this ramp process.
-             */
-            quoteId?: string;
-            /** @description Type of ramp process. */
-            type?: components["schemas"]["RampDirection"];
-            currentPhase?: components["schemas"]["RampPhase"];
-            /** @description The source network or payment method. */
-            from?: components["schemas"]["DestinationType"];
-            /** @description The destination network or payment method. */
-            to?: components["schemas"]["DestinationType"];
-            inputAmount: string;
-            inputCurrency: string;
-            outputAmount: string;
-            outputCurrency: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of when the ramp process was created.
-             */
-            createdAt?: string;
-            /**
-             * Format: date-time
-             * @description Timestamp of the last update to the ramp process.
-             */
-            updatedAt?: string;
-            /** @description Array of unsigned transactions that need to be signed by the user. */
-            unsignedTxs?: components["schemas"]["UnsignedTx"][];
-            /** @description BR Code for PIX payment, if applicable. */
-            depositQrCode?: string | null;
-            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
-            sessionId?: string;
-            countryCode?: components["schemas"]["CountryCode"];
-            paymentMethod: components["schemas"]["PaymentMethod"];
-            network?: components["schemas"]["Networks"];
-            status?: components["schemas"]["SimpleStatus"];
-            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
-            transactionHash?: string;
-            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
-            transactionExplorerLink?: string;
-            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
-            walletAddress?: string;
-            networkFeeFiat: string;
-            networkFeeUSD: string;
-            anchorFeeFiat: string;
-            anchorFeeUSD: string;
-            vortexFeeFiat: string;
-            vortexFeeUSD: string;
-            partnerFeeFiat: string;
-            partnerFeeUSD: string;
-            totalFeeFiat: string;
-            totalFeeUSD: string;
-            processingFeeFiat: string;
-            processingFeeUSD: string;
-            feeCurrency: components["schemas"]["RampCurrency"];
-          };
-        };
-      };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Missing required fields (rampId, presignedTxs)
-       *     - Invalid additional data format (if provided, must be an object)
-       */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": Record<string, never>;
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          /**
-           * @example {
-           *       "message": "An unexpected error occurred."
-           *     }
-           */
-          "application/json": Record<string, never>;
-        };
-      };
-    };
-  };
-  getRampErrorLogs: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /**
-         * @description Ramp ID.
-         * @example
-         */
-        id: string;
-      };
       cookie?: never;
     };
     requestBody?: never;
     responses: {
-      /** @description Error log array (empty if no errors). */
+      /** @description Successfully retrieved KYC status. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["GetRampErrorLogsResponse"];
+          "application/json": components["schemas"]["GetKycStatusResponse"];
+        };
+      };
+      /** @description Missing taxId or subaccount not found (returned as 400 from code). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BrlaErrorResponse"];
+        };
+      };
+      /** @description No KYC process started. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BrlaErrorResponse"];
+        };
+      };
+      /** @description Internal Server Error (e.g., no KYC events found when expected). */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BrlaErrorResponse"];
         };
       };
     };
@@ -2368,61 +1750,10 @@ export interface operations {
       };
     };
   };
-  startKYC2: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["StartKYC2Request"];
-      };
-    };
-    responses: {
-      /**
-       * @description Successfully initiated KYC level 2 and retrieved upload URLs.
-       *
-       *     Status and errors can be fetched from /getKycStatus.
-       */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["StartKYC2Response"];
-        };
-      };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Subaccount not found
-       *     - User not at KYC level 1
-       *     - Other invalid request details
-       */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-    };
-  };
-  getBrlaUserRemainingLimit: {
+  brlaGetSelfieLivenessUrl: {
     parameters: {
       query: {
-        /** @description The user's Tax ID. */
+        /** @description CPF or CNPJ. */
         taxId: string;
       };
       header?: never;
@@ -2431,16 +1762,16 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
-      /** @description Successfully retrieved user's remaining limits. */
+      /** @description Liveness URL returned. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["GetUserRemainingLimitResponse"];
+          "application/json": components["schemas"]["BrlaGetSelfieLivenessUrlResponse"];
         };
       };
-      /** @description Missing taxId query parameter or other invalid request. */
+      /** @description Missing taxId or ramp disabled. */
       400: {
         headers: {
           [name: string]: unknown;
@@ -2449,16 +1780,7 @@ export interface operations {
           "application/json": components["schemas"]["BrlaErrorResponse"];
         };
       };
-      /** @description Subaccount not found or limits not found. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error. */
+      /** @description Internal server error. */
       500: {
         headers: {
           [name: string]: unknown;
@@ -2565,35 +1887,38 @@ export interface operations {
       };
     };
   };
-  createSubaccount: {
+  getBrlaUserRemainingLimit: {
     parameters: {
-      query?: never;
+      query: {
+        /** @description The user's Tax ID. */
+        taxId: string;
+      };
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["CreateSubaccountRequest"];
-      };
-    };
+    requestBody?: never;
     responses: {
-      /** @description Subaccount created or KYC retry initiated successfully. */
+      /** @description Successfully retrieved user's remaining limits. */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["CreateSubaccountResponse"];
+          "application/json": components["schemas"]["GetUserRemainingLimitResponse"];
         };
       };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Missing required fields (cpf, cnpj, companyName, startDate)
-       *     - Subaccount already created and KYC level > 0
-       *     - Other invalid request details
-       */
+      /** @description Missing taxId query parameter or other invalid request. */
       400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BrlaErrorResponse"];
+        };
+      };
+      /** @description Subaccount not found or limits not found. */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -2654,28 +1979,38 @@ export interface operations {
       };
     };
   };
-  brlaGetSelfieLivenessUrl: {
+  startKYC2: {
     parameters: {
-      query: {
-        /** @description CPF or CNPJ. */
-        taxId: string;
-      };
+      query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["StartKYC2Request"];
+      };
+    };
     responses: {
-      /** @description Liveness URL returned. */
+      /**
+       * @description Successfully initiated KYC level 2 and retrieved upload URLs.
+       *
+       *     Status and errors can be fetched from /getKycStatus.
+       */
       200: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["BrlaGetSelfieLivenessUrlResponse"];
+          "application/json": components["schemas"]["StartKYC2Response"];
         };
       };
-      /** @description Missing taxId or ramp disabled. */
+      /**
+       * @description Bad Request. Possible reasons:
+       *     - Subaccount not found
+       *     - User not at KYC level 1
+       *     - Other invalid request details
+       */
       400: {
         headers: {
           [name: string]: unknown;
@@ -2684,57 +2019,7 @@ export interface operations {
           "application/json": components["schemas"]["BrlaErrorResponse"];
         };
       };
-      /** @description Internal server error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-    };
-  };
-  fetchSubaccountKycStatus: {
-    parameters: {
-      query: {
-        /** @description The user's Tax ID. */
-        taxId: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successfully retrieved KYC status. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["GetKycStatusResponse"];
-        };
-      };
-      /** @description Missing taxId or subaccount not found (returned as 400 from code). */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description No KYC process started. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error (e.g., no KYC events found when expected). */
+      /** @description Internal Server Error. */
       500: {
         headers: {
           [name: string]: unknown;
@@ -2782,6 +2067,721 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["BrlaErrorResponse"];
+        };
+      };
+    };
+  };
+  createQuote: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "from": "pix",
+         *       "inputAmount": "33",
+         *       "inputCurrency": "BRL",
+         *       "outputCurrency": "USDC",
+         *       "partnerId": "myPartnerId",
+         *       "rampType": "BUY",
+         *       "to": "polygon"
+         *     }
+         */
+        "application/json": {
+          /** @description Your api key, if available. */
+          apiKey?: string;
+          countryCode?: components["schemas"]["CountryCode"];
+          /** @description From destination */
+          from: components["schemas"]["DestinationType"];
+          /**
+           * @description The amount of currency to be input.
+           * @example 100.00
+           */
+          inputAmount: string;
+          /** @description The currency type for the input amount. */
+          inputCurrency: components["schemas"]["RampCurrency"];
+          network?: components["schemas"]["Networks"];
+          /** @description The desired currency type for the output amount. */
+          outputCurrency: components["schemas"]["RampCurrency"];
+          /** @description Your partner ID, if available. */
+          partnerId?: string;
+          paymentMethod?: components["schemas"]["PaymentMethod"];
+          /** @description The type of ramp process (on-ramp or off-ramp). */
+          rampType: components["schemas"]["RampDirection"];
+          /** @description To destination */
+          to: components["schemas"]["DestinationType"];
+        };
+      };
+    };
+    responses: {
+      /** @description Quote successfully created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "expiresAt": "2025-05-16T12:30:00Z",
+           *       "fee": "0.50",
+           *       "from": "polygon",
+           *       "id": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+           *       "inputAmount": "33",
+           *       "inputCurrency": "usdc",
+           *       "outputAmount": "32500.50",
+           *       "outputCurrency": "ars",
+           *       "rampType": "sell",
+           *       "to": "cbu"
+           *     }
+           */
+          "application/json": {
+            anchorFeeFiat: string;
+            anchorFeeUSD: string;
+            /**
+             * Format: date-time
+             * @description The timestamp when this quote expires.
+             */
+            expiresAt?: string;
+            feeCurrency: components["schemas"]["RampCurrency"];
+            from?: components["schemas"]["DestinationType"];
+            /**
+             * Format: uuid
+             * @description Unique identifier for the quote.
+             */
+            id?: string;
+            /** @description The input amount specified in the request. */
+            inputAmount?: string;
+            inputCurrency?: components["schemas"]["RampCurrency"];
+            networkFeeFiat: string;
+            networkFeeUSD: string;
+            /** @description The calculated output amount after fees and conversions. */
+            outputAmount?: string;
+            outputCurrency?: components["schemas"]["RampCurrency"];
+            partnerFeeFiat: string;
+            partnerFeeUSD: string;
+            processingFeeFiat: string;
+            processingFeeUSD: string;
+            /** @description The type of ramp process. */
+            rampType?: components["schemas"]["RampDirection"];
+            to?: components["schemas"]["DestinationType"];
+            totalFeeFiat: string;
+            totalFeeUSD: string;
+            vortexFeeFiat: string;
+            vortexFeeUSD: string;
+          };
+        };
+      };
+      /**
+       * @description Bad Request. Possible reasons:
+       *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
+       *     - Invalid ramp type (must be "on" or "off")
+       */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Internal Server Error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "An unexpected error occurred."
+           *     }
+           */
+          "application/json": Record<string, never>;
+        };
+      };
+    };
+  };
+  createBestQuote: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "from": "pix",
+         *       "inputAmount": "30",
+         *       "inputCurrency": "BRL",
+         *       "outputCurrency": "USDC",
+         *       "partnerId": "myPartnerId",
+         *       "rampType": "BUY"
+         *     }
+         */
+        "application/json": components["schemas"]["CreateBestQuoteRequest"];
+      };
+    };
+    responses: {
+      /** @description Quote successfully created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            anchorFeeFiat: string;
+            anchorFeeUSD: string;
+            /**
+             * Format: date-time
+             * @description The timestamp when this quote expires.
+             */
+            expiresAt?: string;
+            feeCurrency: components["schemas"]["RampCurrency"];
+            from?: components["schemas"]["DestinationType"];
+            /**
+             * Format: uuid
+             * @description Unique identifier for the quote.
+             */
+            id?: string;
+            /** @description The input amount specified in the request. */
+            inputAmount?: string;
+            inputCurrency?: components["schemas"]["RampCurrency"];
+            networkFeeFiat: string;
+            networkFeeUSD: string;
+            /** @description The calculated output amount after fees and conversions. */
+            outputAmount?: string;
+            outputCurrency?: components["schemas"]["RampCurrency"];
+            partnerFeeFiat: string;
+            partnerFeeUSD: string;
+            processingFeeFiat: string;
+            processingFeeUSD: string;
+            /** @description The type of ramp process. */
+            rampType?: components["schemas"]["RampDirection"];
+            to?: components["schemas"]["DestinationType"];
+            totalFeeFiat: string;
+            totalFeeUSD: string;
+            vortexFeeFiat: string;
+            vortexFeeUSD: string;
+          };
+        };
+      };
+      /**
+       * @description Bad Request. Possible reasons:
+       *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
+       *     - Invalid ramp type (must be "on" or "off")
+       */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Internal Server Error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+    };
+  };
+  getRampErrorLogs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /**
+         * @description Ramp ID.
+         * @example
+         */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Error log array (empty if no errors). */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["GetRampErrorLogsResponse"];
+        };
+      };
+    };
+  };
+  registerRamp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "additionalData": {
+         *         "pixDestination": "711.711.011-11",
+         *         "receiverTaxId": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
+         *         "taxId": "711.711.011-11"
+         *       },
+         *       "quoteId": "8e4bca04-aa22-4f86-9ce5-80aaef58ef83",
+         *       "signingAccounts": [
+         *         {
+         *           "address": "0x7b79995e5f793a07bc00c21412e50ecae098e7f9",
+         *           "network": "moonbeam"
+         *         },
+         *         {
+         *           "address": "6ftBYTotU4mmCuvUqJvk6qEP7uCzzz771pTMoxcbHFb9rcPv",
+         *           "network": "pendulum"
+         *         }
+         *       ]
+         *     }
+         */
+        "application/json": {
+          /**
+           * @description Optional additional data for the ramp process.
+           *
+           *     For Stellar offramps, paymentData is required.
+           *
+           *     For Brazil onramps, destinationAddress and taxId  arerequired.
+           *
+           *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
+           */
+          additionalData?: {
+            /** @description Destination address, used for onramp. */
+            destinationAddress?: string;
+            /** @description Auth token obtained from Monerium's API, for the current user. Only required for Monerium-related ramps. */
+            moneriumAuthToken: string;
+            paymentData?: components["schemas"]["PaymentData"];
+            /** @description PIX key for the destination account in an onramp. */
+            pixDestination?: string;
+            /** @description Tax ID of the receiver for onramp. */
+            receiverTaxId?: string;
+            sessionId?: string;
+            /** @description Tax ID of the user. */
+            taxId?: string;
+            /** @description Wallet address initiating the offramp. */
+            walletAddress: string;
+          } & {
+            [key: string]: unknown;
+          };
+          /**
+           * Format: uuid
+           * @description The unique identifier for the quote.
+           */
+          quoteId: string;
+          /**
+           * @description Array of accounts that will be used for signing transactions.
+           *
+           *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
+           *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
+           */
+          signingAccounts: {
+            /** @description The account address. */
+            address: string;
+            /**
+             * @description The type of the account.
+             * @enum {string}
+             */
+            type: "EVM" | "Stellar" | "Substrate";
+          }[];
+        };
+      };
+    };
+    responses: {
+      /** @description Ramp process successfully registered. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "brCode": "00020126...",
+           *       "createdAt": "2024-05-16T10:00:00Z",
+           *       "currentPhase": "pending_signature",
+           *       "from": "stellar",
+           *       "id": "proc_12345",
+           *       "quoteId": "41a756dc-04e4-4e4b-b243-9c8f977c24d6",
+           *       "to": "pix",
+           *       "type": "off",
+           *       "unsignedTxs": [
+           *         {
+           *           "data": "AAAA...",
+           *           "type": "stellar_payment"
+           *         }
+           *       ],
+           *       "updatedAt": "2024-05-16T10:00:00Z"
+           *     }
+           */
+          "application/json": {
+            anchorFeeFiat: string;
+            anchorFeeUSD: string;
+            countryCode?: components["schemas"]["CountryCode"];
+            /**
+             * Format: date-time
+             * @description Timestamp of when the ramp process was created.
+             */
+            createdAt?: string;
+            currentPhase?: components["schemas"]["RampPhase"];
+            /** @description BR Code for PIX payment, if applicable. */
+            depositQrCode?: string | null;
+            feeCurrency: components["schemas"]["RampCurrency"];
+            /** @description The source network or payment method. */
+            from?: components["schemas"]["DestinationType"];
+            /** @description Unique identifier for the ramp process. */
+            id?: string;
+            inputAmount: string;
+            inputCurrency: string;
+            network?: components["schemas"]["Networks"];
+            networkFeeFiat: string;
+            networkFeeUSD: string;
+            outputAmount: string;
+            outputCurrency: string;
+            partnerFeeFiat: string;
+            partnerFeeUSD: string;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            processingFeeFiat: string;
+            processingFeeUSD: string;
+            /**
+             * Format: uuid
+             * @description The quote ID associated with this ramp process.
+             */
+            quoteId?: string;
+            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
+            sessionId?: string;
+            status?: components["schemas"]["SimpleStatus"];
+            /** @description The destination network or payment method. */
+            to?: components["schemas"]["DestinationType"];
+            totalFeeFiat: string;
+            totalFeeUSD: string;
+            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
+            transactionExplorerLink?: string;
+            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
+            transactionHash?: string;
+            /** @description Type of ramp process. */
+            type?: components["schemas"]["RampDirection"];
+            /** @description Array of unsigned transactions that need to be signed by the user. */
+            unsignedTxs?: components["schemas"]["UnsignedTx"][];
+            /**
+             * Format: date-time
+             * @description Timestamp of the last update to the ramp process.
+             */
+            updatedAt?: string;
+            vortexFeeFiat: string;
+            vortexFeeUSD: string;
+            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
+            walletAddress?: string;
+          };
+        };
+      };
+      /** @description Bad Request - Invalid input, missing required fields, or validation error. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "Missing required fields"
+           *     }
+           */
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+      /** @description Internal Server Error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "An unexpected error occurred."
+           *     }
+           */
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  startRamp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "rampId": "proc_12345"
+         *     }
+         */
+        "application/json": components["schemas"]["StartRampRequest"];
+      };
+    };
+    responses: {
+      /** @description Ramp process successfully started or updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "createdAt": "2024-05-16T10:00:00Z",
+           *       "currentPhase": "processing",
+           *       "depositQrCode": "00020126...",
+           *       "from": "stellar",
+           *       "id": "proc_12345",
+           *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+           *       "to": "pix",
+           *       "type": "sell",
+           *       "unsignedTxs": [],
+           *       "updatedAt": "2024-05-16T12:30:00Z"
+           *     }
+           */
+          "application/json": {
+            anchorFeeFiat: string;
+            anchorFeeUSD: string;
+            countryCode?: components["schemas"]["CountryCode"];
+            /**
+             * Format: date-time
+             * @description Timestamp of when the ramp process was created.
+             */
+            createdAt?: string;
+            currentPhase?: components["schemas"]["RampPhase"];
+            /** @description BR Code for PIX payment, if applicable. */
+            depositQrCode?: string | null;
+            feeCurrency: components["schemas"]["RampCurrency"];
+            /** @description The source network or payment method. */
+            from?: components["schemas"]["DestinationType"];
+            /** @description Unique identifier for the ramp process. */
+            id?: string;
+            inputAmount: string;
+            inputCurrency: string;
+            network?: components["schemas"]["Networks"];
+            networkFeeFiat: string;
+            networkFeeUSD: string;
+            outputAmount: string;
+            outputCurrency: string;
+            partnerFeeFiat: string;
+            partnerFeeUSD: string;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            processingFeeFiat: string;
+            processingFeeUSD: string;
+            /**
+             * Format: uuid
+             * @description The quote ID associated with this ramp process.
+             */
+            quoteId?: string;
+            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
+            sessionId?: string;
+            status?: components["schemas"]["SimpleStatus"];
+            /** @description The destination network or payment method. */
+            to?: components["schemas"]["DestinationType"];
+            totalFeeFiat: string;
+            totalFeeUSD: string;
+            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
+            transactionExplorerLink?: string;
+            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
+            transactionHash?: string;
+            /** @description Type of ramp process. */
+            type?: components["schemas"]["RampDirection"];
+            /** @description Array of unsigned transactions that need to be signed by the user. */
+            unsignedTxs?: components["schemas"]["UnsignedTx"][];
+            /**
+             * Format: date-time
+             * @description Timestamp of the last update to the ramp process.
+             */
+            updatedAt?: string;
+            vortexFeeFiat: string;
+            vortexFeeUSD: string;
+            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
+            walletAddress?: string;
+          };
+        };
+      };
+      /**
+       * @description Bad Request. Possible reasons:
+       *     - Missing required fields (rampId, presignedTxs)
+       *     - Invalid additional data format (if provided, must be an object)
+       */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Internal Server Error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "An unexpected error occurred."
+           *     }
+           */
+          "application/json": Record<string, never>;
+        };
+      };
+    };
+  };
+  startRamp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        /**
+         * @example {
+         *       "additionalData": {
+         *         "squidRouterApproveHash": "0x123...",
+         *         "squidRouterSwapHash": "0x456..."
+         *       },
+         *       "presignedTxs": [
+         *         {
+         *           "meta": {},
+         *           "nonce": 1,
+         *           "phase": "RampPhase",
+         *           "signer": "GB2TP24WCY6BPGFX4SOGDHT7IGJRR7HCDQT2VL2MVCZJTJCGKMVGQGQB",
+         *           "txData": "AAAAAKu..."
+         *         }
+         *       ],
+         *       "rampId": "proc_12345"
+         *     }
+         */
+        "application/json": components["schemas"]["UpdateRampRequest"];
+      };
+    };
+    responses: {
+      /** @description Ramp process successfully started or updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "createdAt": "2024-05-16T10:00:00Z",
+           *       "currentPhase": "processing",
+           *       "depositQrCode": "00020126...",
+           *       "from": "stellar",
+           *       "id": "proc_12345",
+           *       "quoteId": "quote_7af7171e-aa42-49a2-80c2-9e18483bad38",
+           *       "to": "pix",
+           *       "type": "off",
+           *       "unsignedTxs": [],
+           *       "updatedAt": "2024-05-16T12:30:00Z"
+           *     }
+           */
+          "application/json": {
+            anchorFeeFiat: string;
+            anchorFeeUSD: string;
+            countryCode?: components["schemas"]["CountryCode"];
+            /**
+             * Format: date-time
+             * @description Timestamp of when the ramp process was created.
+             */
+            createdAt?: string;
+            currentPhase?: components["schemas"]["RampPhase"];
+            /** @description BR Code for PIX payment, if applicable. */
+            depositQrCode?: string | null;
+            feeCurrency: components["schemas"]["RampCurrency"];
+            /** @description The source network or payment method. */
+            from?: components["schemas"]["DestinationType"];
+            /** @description Unique identifier for the ramp process. */
+            id?: string;
+            inputAmount: string;
+            inputCurrency: string;
+            network?: components["schemas"]["Networks"];
+            networkFeeFiat: string;
+            networkFeeUSD: string;
+            outputAmount: string;
+            outputCurrency: string;
+            partnerFeeFiat: string;
+            partnerFeeUSD: string;
+            paymentMethod: components["schemas"]["PaymentMethod"];
+            processingFeeFiat: string;
+            processingFeeUSD: string;
+            /**
+             * Format: uuid
+             * @description The quote ID associated with this ramp process.
+             */
+            quoteId?: string;
+            /** @description The `externalSessionId` is an optional URL parameter that integrators can provide to track ramp transactions within their own systems. This identifier allows you to correlate Vortex transactions with your internal session or transaction tracking. `externalSessionId` url param is named `sessionId` in the Vortex API. */
+            sessionId?: string;
+            status?: components["schemas"]["SimpleStatus"];
+            /** @description The destination network or payment method. */
+            to?: components["schemas"]["DestinationType"];
+            totalFeeFiat: string;
+            totalFeeUSD: string;
+            /** @description (BUY-only) A link to a block explorer showing the details for the transaction hash. */
+            transactionExplorerLink?: string;
+            /** @description (BUY-only) The hash of the transaction transferring the expected outputAmount to the wallet address. */
+            transactionHash?: string;
+            /** @description Type of ramp process. */
+            type?: components["schemas"]["RampDirection"];
+            /** @description Array of unsigned transactions that need to be signed by the user. */
+            unsignedTxs?: components["schemas"]["UnsignedTx"][];
+            /**
+             * Format: date-time
+             * @description Timestamp of the last update to the ramp process.
+             */
+            updatedAt?: string;
+            vortexFeeFiat: string;
+            vortexFeeUSD: string;
+            /** @description The address of the source account for SELL, or the address the destination account for BUY transactions. */
+            walletAddress?: string;
+          };
+        };
+      };
+      /**
+       * @description Bad Request. Possible reasons:
+       *     - Missing required fields (rampId, presignedTxs)
+       *     - Invalid additional data format (if provided, must be an object)
+       */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": Record<string, never>;
+        };
+      };
+      /** @description Internal Server Error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          /**
+           * @example {
+           *       "message": "An unexpected error occurred."
+           *     }
+           */
+          "application/json": Record<string, never>;
         };
       };
     };

@@ -10,16 +10,19 @@ Initialize it:
 
 ```ts
 import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
+import type { VortexSdkConfig } from "@vortexfi/sdk";
 
-const sdk = new VortexSdk({
+const config: VortexSdkConfig = {
   apiBaseUrl: "https://api.vortexfinance.co",
   publicKey: "pk_live_...",
   secretKey: "sk_live_...",
   storeEphemeralKeys: true
-});
+};
+
+const sdk = new VortexSdk(config);
 ```
 
-`publicKey` is used for partner attribution and partner-specific pricing. `secretKey` is sent as the `X-API-Key` header for partner-authenticated operations. Secret keys must only be used in trusted server-side environments.
+`publicKey` is attached to quote requests for partner attribution and discount eligibility. `secretKey` is sent as the `X-API-Key` header on authenticated requests. Secret keys must only be used in trusted server-side environments.
 
 Create a quote:
 
@@ -66,5 +69,7 @@ const status = await sdk.getRampStatus(rampProcess.id);
 The SDK creates fresh ephemeral accounts for each ramp, signs the transactions returned by Vortex, submits required update calls, and can store a local backup of ephemeral secrets. This removes several integration risks from partner applications.
 
 If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup mechanism.
+
+The default local backup is a JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat that file as sensitive key material. It is not encrypted by the SDK, so production integrations should run from a restricted directory, encrypt the file themselves, or disable `storeEphemeralKeys` and provide a custom secure store.
 
 ---

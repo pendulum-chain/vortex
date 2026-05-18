@@ -88,12 +88,28 @@ function findSensitiveMatches(filePath: string): string[] {
   const contents = readFileSync(filePath, "utf8");
   const patterns = [
     {
+      name: "Apidog access token",
+      regex: /\badgp_[A-Za-z0-9_-]{8,}/g
+    },
+    {
       name: "Apidog access token assignment",
       regex: /\bAPIDOG_ACCESS_TOKEN\s*=\s*(?!\.\.\.|<)[^\s#'"]{12,}/g
     },
     {
       name: "live/test secret key",
       regex: /\bsk_(?:live|test)_(?!\.\.\.|<)[A-Za-z0-9_-]{8,}/g
+    },
+    {
+      name: "live/test public key",
+      regex: /\bpk_(?:live|test)_(?!\.\.\.|<)[A-Za-z0-9_-]{8,}/g
+    },
+    {
+      name: "seed or recovery phrase",
+      regex: /\b(?:recovery phrase|mnemonic|seed phrase):\s*`[^`]+`/gi
+    },
+    {
+      name: "private key block",
+      regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g
     },
     {
       name: "64-byte hex private key",
