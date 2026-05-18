@@ -327,7 +327,8 @@ async function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in
 export async function validatePresignedTxs(
   direction: RampDirection,
   presignedTxs: PresignedTx[],
-  ephemerals: { [key in EphemeralAccountType]: string }
+  ephemerals: { [key in EphemeralAccountType]: string },
+  unsignedTxs: PresignedTx[]
 ): Promise<void> {
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
@@ -353,15 +354,44 @@ export async function validatePresignedTxs(
     )
       continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
     if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
-    if (txType === EphemeralAccountType.EVM) await validateEvmTransaction(tx, ephemerals.EVM);
+    if (txType === EphemeralAccountType.EVM) {
+      // Deep comparisson to get the unsigned tx data for this EVM phase
+      const matchingUnsigned = unsignedTxs?.find(
+        u => u.phase === tx.phase && u.network === tx.network && u.signer === tx.signer
+      );
+      const unsignedTxData =
+        matchingUnsigned && isEvmTransactionData(matchingUnsigned.txData) ? matchingUnsigned.txData : undefined;
+      await validateEvmTransaction(tx, ephemerals.EVM, unsignedTxData);
+    }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
 
     await validateBackupTransactions(tx, ephemerals);
   }
+
+  if (!areAllTxsIncluded(presignedTxs, unsignedTxs)) {
+    throw new APIError({
+      message: "Some presigned transactions do not match any unsigned transaction",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const ephemeralSigners = new Set(
+    Object.values(ephemerals)
+      .filter((v): v is string => Boolean(v))
+      .map(s => s.toLowerCase())
+  );
+  const ephemeralUnsigned = unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
+  const ephemeralPresigned = presignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
+  if (!areAllTxsIncluded(ephemeralUnsigned, ephemeralPresigned)) {
+    throw new APIError({
+      message: "Not all unsigned transactions have a corresponding presigned transaction",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 }
 
-async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
+async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string, unsignedTxData?: EvmTransactionData) {
   const { txData, signer } = tx;
   logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
 
@@ -399,7 +429,7 @@ async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
     });
   }
 
-  await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network);
+  await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, unsignedTxData);
 }
 
 function validateSignedTypedData(tx: PresignedTx, expectedSigner: string) {

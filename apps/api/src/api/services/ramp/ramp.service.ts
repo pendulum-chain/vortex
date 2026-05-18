@@ -60,7 +60,7 @@ import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
-import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
+import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
@@ -321,14 +321,7 @@ export class RampService extends BaseRampService {
         Substrate: rampState.state.substrateEphemeralAddress
       };
       if (presignedTxs && presignedTxs.length > 0) {
-        await validatePresignedTxs(rampState.type, presignedTxs, ephemerals);
-      }
-
-      if (!areAllTxsIncluded(presignedTxs, rampState.unsignedTxs)) {
-        throw new APIError({
-          message: "Some presigned transactions do not match any unsigned transaction",
-          status: httpStatus.BAD_REQUEST
-        });
+        await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs);
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
@@ -442,14 +435,7 @@ export class RampService extends BaseRampService {
         Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals);
-
-      if (!this.validateAllPresignedTransactionsSigned(rampState)) {
-        throw new APIError({
-          message: "Not all unsigned transactions have a corresponding presigned transaction.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals, rampState.unsignedTxs);
 
       const rampStateCreationTime = new Date(rampState.createdAt);
       const currentTime = new Date();
@@ -1228,29 +1214,6 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private validateAllPresignedTransactionsSigned(rampState: RampState): boolean {
-    const ephemeralTransactions = rampState.unsignedTxs.filter(
-      tx =>
-        tx.signer === rampState.state.substrateEphemeralAddress ||
-        tx.signer === rampState.state.evmEphemeralAddress ||
-        tx.signer === rampState.state.stellarEphemeralAccountId
-    );
-
-    // areAllTxsIncluded(subset, set) calls txDataMatchesSignedSubmission(subsetTx, setTx)
-    // which expects (signed/submitted, unsigned) — so presignedTxs must be the subset.
-    const presignedEphemerals = (rampState.presignedTxs || []).filter(
-      tx =>
-        tx.signer === rampState.state.substrateEphemeralAddress ||
-        tx.signer === rampState.state.evmEphemeralAddress ||
-        tx.signer === rampState.state.stellarEphemeralAccountId
-    );
-
-    return (
-      presignedEphemerals.length >= ephemeralTransactions.length &&
-      areAllTxsIncluded(presignedEphemerals, ephemeralTransactions)
-    );
-  }
-
   private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       EVM: rampState.state.evmEphemeralAddress,
@@ -1259,8 +1222,8 @@ export class RampService extends BaseRampService {
     };
 
     try {
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
-      return this.validateAllPresignedTransactionsSigned(rampState);
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs);
+      return true;
     } catch {
       return false;
     }
@@ -1277,14 +1240,7 @@ export class RampService extends BaseRampService {
 
     try {
       this.validateRampStateData(rampState, quote);
-      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals);
-      const allSigned = this.validateAllPresignedTransactionsSigned(rampState);
-      if (!allSigned) {
-        logger.info(
-          `[tryReleaseDepositQr] rampId=${rampState.id} allPresignedSigned=false, presignedTxs=${rampState.presignedTxs?.length ?? 0}, unsignedTxs=${rampState.unsignedTxs?.length ?? 0}`
-        );
-        return false;
-      }
+      await validatePresignedTxs(rampState.type, rampState.presignedTxs || [], ephemerals, rampState.unsignedTxs);
     } catch (err) {
       logger.info(`[tryReleaseDepositQr] rampId=${rampState.id} validation threw: ${err instanceof Error ? err.message : err}`);
       return false;
@@ -1379,10 +1335,6 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     transaction: Transaction
   ): Promise<AlfredpayFiatPaymentInstructions | undefined> {
-    if (!this.validateAllPresignedTransactionsSigned(rampState)) {
-      return;
-    }
-
     if (rampState.state.alfredpayTransactionId) {
       return;
     }
@@ -1450,10 +1402,6 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     transaction: Transaction
   ): Promise<void> {
-    if (!this.validateAllPresignedTransactionsSigned(rampState)) {
-      return;
-    }
-
     if (rampState.state.alfredpayTransactionId) {
       return;
     }
