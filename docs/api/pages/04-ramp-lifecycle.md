@@ -1,4 +1,4 @@
-# 3. Ramp Lifecycle
+# 4. Ramp Lifecycle
 
 Every Vortex ramp follows the same high-level lifecycle.
 

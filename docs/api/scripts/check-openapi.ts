@@ -6,13 +6,11 @@ const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 const REQUIRED_PATHS = [
   "/v1/brla/createSubaccount",
   "/v1/brla/getKycStatus",
-  "/v1/brla/getOfframpStatus",
   "/v1/brla/getSelfieLivenessUrl",
   "/v1/brla/getUploadUrls",
   "/v1/brla/getUser",
   "/v1/brla/getUserRemainingLimit",
   "/v1/brla/newKyc",
-  "/v1/brla/startKYC2",
   "/v1/brla/validatePixKey",
   "/v1/public-key",
   "/v1/quotes",

@@ -15,5 +15,6 @@ Before going live, verify the following:
 - Define a support process for users who close the app before a ramp finishes.
 - Rotate partner keys if they are exposed or no longer needed.
 - For BRL flows, confirm that your onboarding path produces an eligible user before starting the ramp.
+- Confirm your integration complies with the Vortex [Terms and Conditions](https://www.vortexfinance.co/en/terms-and-conditions) and [Privacy Policy](https://www.vortexfinance.co/en/privacy-policy).
 
 Direct API integrations should also verify that their signing implementation only signs the transactions returned by Vortex for the current ramp and phase. Never sign arbitrary transaction payloads without validating their destination, amount, asset, network, and signer.

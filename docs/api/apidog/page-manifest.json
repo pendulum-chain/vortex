@@ -4,13 +4,11 @@
     "currentDocumentedPaths": [
       "/v1/brla/createSubaccount",
       "/v1/brla/getKycStatus",
-      "/v1/brla/getOfframpStatus",
       "/v1/brla/getSelfieLivenessUrl",
       "/v1/brla/getUploadUrls",
       "/v1/brla/getUser",
       "/v1/brla/getUserRemainingLimit",
       "/v1/brla/newKyc",
-      "/v1/brla/startKYC2",
       "/v1/brla/validatePixKey",
       "/v1/public-key",
       "/v1/quotes",
@@ -30,16 +28,7 @@
       "/v1/webhook",
       "/v1/webhook/{id}"
     ],
-    "recommendedGroups": [
-      "Quotes",
-      "Ramp",
-      "BRLA",
-      "Account Management",
-      "Widget session",
-      "Reference Data",
-      "Webhooks",
-      "Public Key"
-    ],
+    "recommendedGroups": ["Quotes", "Vortex Widget", "Ramp", "Account Management", "Webhooks", "Public Key", "Reference Data"],
     "source": "docs/api/openapi/vortex.openapi.json"
   },
   "markdownSync": {
@@ -61,21 +50,21 @@
     },
     {
       "order": 3,
-      "slug": "ramp-lifecycle",
-      "source": "docs/api/pages/03-ramp-lifecycle.md",
-      "title": "Ramp Lifecycle"
+      "slug": "authentication-and-partner-keys",
+      "source": "docs/api/pages/03-authentication-and-partner-keys.md",
+      "title": "Authentication And Partner Keys"
     },
     {
       "order": 4,
-      "slug": "ephemeral-key-custody",
-      "source": "docs/api/pages/04-ephemeral-key-custody.md",
-      "title": "Ephemeral Key Custody"
+      "slug": "ramp-lifecycle",
+      "source": "docs/api/pages/04-ramp-lifecycle.md",
+      "title": "Ramp Lifecycle"
     },
     {
       "order": 5,
-      "slug": "authentication-and-partner-keys",
-      "source": "docs/api/pages/05-authentication-and-partner-keys.md",
-      "title": "Authentication And Partner Keys"
+      "slug": "ephemeral-key-custody",
+      "source": "docs/api/pages/05-ephemeral-key-custody.md",
+      "title": "Ephemeral Key Custody"
     },
     {
       "order": 6,
@@ -97,21 +86,27 @@
     },
     {
       "order": 9,
-      "slug": "sandbox",
-      "source": "docs/api/pages/09-sandbox.md",
-      "title": "Sandbox"
+      "slug": "brl-kyc-notes",
+      "source": "docs/api/pages/09-brl-kyc-notes.md",
+      "title": "BRL / KYC Notes"
     },
     {
       "order": 10,
-      "slug": "brl-kyc-notes",
-      "source": "docs/api/pages/10-brl-kyc-notes.md",
-      "title": "BRL / KYC Notes"
+      "slug": "sandbox",
+      "source": "docs/api/pages/10-sandbox.md",
+      "title": "Sandbox"
     },
     {
       "order": 11,
       "slug": "production-checklist",
       "source": "docs/api/pages/11-production-checklist.md",
       "title": "Production Checklist"
+    },
+    {
+      "order": 12,
+      "slug": "ai-agent-integration",
+      "source": "docs/api/pages/12-ai-agent-integration.md",
+      "title": "AI Agent Integration"
     }
   ],
   "publicDocsUrl": "https://api-docs.vortexfinance.co/"

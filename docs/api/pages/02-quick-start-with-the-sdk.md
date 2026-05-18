@@ -1,15 +1,25 @@
 # 2. Quick Start With The SDK
 
-Install the SDK:
+This page walks through a complete BRL ramp end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
+
+## Install
 
 ```bash
 npm install @vortexfi/sdk
+# or
+bun add @vortexfi/sdk
 ```
 
-Initialize it:
+## Initialize
 
 ```ts
-import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
+import {
+  VortexSdk,
+  FiatToken,
+  EvmToken,
+  Networks,
+  RampDirection
+} from "@vortexfi/sdk";
 import type { VortexSdkConfig } from "@vortexfi/sdk";
 
 const config: VortexSdkConfig = {
@@ -22,54 +32,100 @@ const config: VortexSdkConfig = {
 const sdk = new VortexSdk(config);
 ```
 
-`publicKey` is attached to quote requests for partner attribution and discount eligibility. `secretKey` is sent as the `X-API-Key` header on authenticated requests. Secret keys must only be used in trusted server-side environments.
+`publicKey` is attached to quote requests for partner attribution and discount eligibility. `secretKey` is sent as the `X-API-Key` header on authenticated requests and must only be used server-side.
 
-Create a quote:
+Constructing `VortexSdk` opens three WebSocket connections (Pendulum, Moonbeam, Hydration). Reuse one instance per process; do not construct a new SDK per request.
+
+## BRL Onramp (Buy)
 
 ```ts
 const quote = await sdk.createQuote({
   rampType: RampDirection.BUY,
   from: "pix",
   to: Networks.Polygon,
-  inputAmount: "150000",
+  inputAmount: "150",            // 150 BRL
   inputCurrency: FiatToken.BRL,
   outputCurrency: EvmToken.USDC
 });
-```
 
-Register the ramp:
-
-```ts
 const { rampProcess } = await sdk.registerRamp(quote, {
   destinationAddress: "0x1234567890123456789012345678901234567890",
+  taxId: "12345678900"           // user's CPF
+});
+
+// Show the PIX QR to the user and wait for them to pay.
+console.log(rampProcess.depositQrCode);
+
+// After the user completes the PIX payment, start the ramp.
+const started = await sdk.startRamp(rampProcess.id);
+```
+
+The user must have completed BRLA KYC level 1 or higher under the same `taxId`. Partner `sk_*` keys cannot drive BRLA KYC; onboard the user through the Vortex app or Widget first.
+
+## BRL Offramp (Sell)
+
+Selling crypto for BRL requires the user to sign one transaction with their own wallet. The SDK returns those transactions for you to route to the user's wallet provider.
+
+```ts
+const quote = await sdk.createQuote({
+  rampType: RampDirection.SELL,
+  from: Networks.Polygon,
+  to: "pix",
+  inputAmount: "100",            // 100 USDC
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.BRL
+});
+
+const { rampProcess, userTransactions } = await sdk.registerRamp(quote, {
+  userAddress: "0xUSER...",
+  pixKey: "user@example.com",
   taxId: "12345678900"
 });
+
+// userTransactions contains the transactions the SDK could not sign on the
+// user's behalf. Route them to the user's wallet (see below).
 ```
 
-For BRL buy flows, the ramp process may contain a PIX payment payload:
+### Signing The User Transaction With Wagmi
+
+The user-owned transactions are EVM typed-data payloads. With wagmi:
 
 ```ts
-console.log(rampProcess.depositQrCode);
+import { signTypedData, sendTransaction } from "@wagmi/core";
+
+for (const tx of userTransactions) {
+  if (tx.type === "evm-typed-data") {
+    const signature = await signTypedData(wagmiConfig, tx.payload);
+    await sdk.submitUserSignature(rampProcess.id, tx.id, signature);
+  } else if (tx.type === "evm-transaction") {
+    const hash = await sendTransaction(wagmiConfig, tx.payload);
+    await sdk.submitUserTxHash(rampProcess.id, tx.id, hash);
+  }
+}
+
+const started = await sdk.startRamp(rampProcess.id);
 ```
 
-After the user completes the fiat payment, start the ramp:
+Validate every field before signing: `chainId`, `verifyingContract`, `value`, `to`, and `data` must match what your application requested. Never sign payloads blindly.
 
-```ts
-const startedRamp = await sdk.startRamp(rampProcess.id);
-```
+## Tracking Status
 
-Poll status or use webhooks:
+Poll for user-facing screens, use webhooks for back-office reconciliation:
 
 ```ts
 const status = await sdk.getRampStatus(rampProcess.id);
 ```
 
+See [7. Webhooks](./07-webhooks.md).
+
+## Updating A Ramp
+
+Most updates happen inside the SDK. For BRL buys, `registerRamp` already submits the presigned ephemeral transactions via `POST /v1/ramp/update` before returning. You typically only call `submitUserSignature` / `submitUserTxHash` explicitly for offramp user transactions, then `startRamp`.
+
 ## Why The SDK Is Preferred
 
-The SDK creates fresh ephemeral accounts for each ramp, signs the transactions returned by Vortex, submits required update calls, and can store a local backup of ephemeral secrets. This removes several integration risks from partner applications.
+The SDK creates fresh ephemeral accounts per ramp, signs the transactions Vortex returns, submits ramp updates, and can persist a local backup of ephemeral secrets. This removes the most error-prone parts of a custom integration.
 
-If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup mechanism.
-
-The default local backup is a JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat that file as sensitive key material. It is not encrypted by the SDK, so production integrations should run from a restricted directory, encrypt the file themselves, or disable `storeEphemeralKeys` and provide a custom secure store.
+If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup. The default backup is an **unencrypted** JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat it as sensitive key material; encrypt it, restrict the directory, or disable storage and implement your own store. See [5. Ephemeral Key Custody](./05-ephemeral-key-custody.md).
 
 ---

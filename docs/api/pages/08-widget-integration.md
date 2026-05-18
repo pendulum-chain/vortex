@@ -1,25 +1,99 @@
 # 8. Widget Integration
 
-The Vortex Widget provides a hosted checkout experience for buy and sell flows. It is useful when you want Vortex to handle more of the user-facing ramp flow instead of building the complete SDK experience yourself.
+The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended path when your application runs in a browser, mobile WebView, or anywhere you cannot run `@vortexfi/sdk` server-side.
 
-Widget sessions are created via `POST /v1/session/create`, which accepts an `apiKey` (`pk_*`) in the body for attribution. No secret key is required to create a session.
+## Create A Session
 
-The widget supports two quote modes.
+Sessions are created with the partner public key (`pk_*`). No secret key is required.
 
-## Auto-Refresh Mode
+```http
+POST /v1/session/create
+Content-Type: application/json
+```
 
-In auto-refresh mode, the widget creates and refreshes quotes based on the requested direction, amount, fiat currency, crypto asset, network, and payment method.
+```json
+{
+  "apiKey": "pk_live_...",
+  "mode": "auto",
+  "rampType": "BUY",
+  "from": "pix",
+  "to": "polygon",
+  "fiatCurrency": "BRL",
+  "cryptoCurrency": "USDC",
+  "paymentMethod": "pix",
+  "destinationAddress": "0x1234567890123456789012345678901234567890",
+  "redirectUrl": "https://partner.example.com/ramp/complete"
+}
+```
 
-Use this when your application wants the user to complete checkout from a route definition rather than from a pre-selected quote.
+The response returns a `sessionId` and a hosted URL.
 
-## Fixed-Quote Mode
+```json
+{
+  "sessionId": "session_...",
+  "url": "https://widget.vortexfinance.co/?session=session_..."
+}
+```
 
-In fixed-quote mode, your application creates a quote first and passes the `quoteId` to the widget. The widget uses that quote for checkout.
+## Embed
 
-Fixed quotes do not refresh automatically. If the quote expires, the user must restart from a fresh quote.
+Open the hosted URL in a popup, iframe, or top-level redirect:
+
+```html
+<iframe
+  src="https://widget.vortexfinance.co/?session=session_..."
+  allow="clipboard-write; payment"
+  style="width: 100%; height: 720px; border: 0;"
+></iframe>
+```
+
+Or as a popup:
+
+```ts
+window.open(
+  "https://widget.vortexfinance.co/?session=session_...",
+  "vortex-widget",
+  "width=480,height=760"
+);
+```
+
+## Quote Modes
+
+### Auto-Refresh Mode (`mode: "auto"`)
+
+The widget creates and refreshes quotes based on the route definition (direction, amount, fiat currency, crypto asset, network, payment method). Use this when you want the user to complete checkout from a route rather than a pinned price.
+
+### Fixed-Quote Mode (`mode: "fixed"`)
+
+Your application creates a quote first (see [6. Quotes And Pricing](./06-quotes-and-pricing.md)) and passes `quoteId` in the session-create request. The widget checks out against that exact quote. Fixed quotes do not refresh; if the quote expires, the user must restart with a fresh quote.
+
+## Receiving Results
+
+Subscribe to widget events through webhooks against the session:
+
+```http
+POST /v1/webhook
+X-API-Key: sk_live_...
+Content-Type: application/json
+```
+
+```json
+{
+  "url": "https://partner.example.com/vortex/webhook",
+  "sessionId": "session_...",
+  "events": ["TRANSACTION_CREATED", "STATUS_CHANGE"]
+}
+```
+
+See [7. Webhooks](./07-webhooks.md).
 
 ## When To Use The Widget
 
-Use the Widget when you want a hosted UX and less direct orchestration. Use the SDK when you want to own the UX but still want Vortex to handle transaction signing and ramp update mechanics. Use the raw API only when you need a custom backend integration and can handle ephemeral key custody yourself.
+| Scenario | Use |
+|---|---|
+| Browser / mobile app, no trusted backend | Widget |
+| Trusted Node.js backend, custom UX | `@vortexfi/sdk` |
+| Trusted Python backend | `vortex-sdk-python` |
+| Other backend stacks | Direct API ([12. AI Agent Integration](./12-ai-agent-integration.md)) |
 
 ---

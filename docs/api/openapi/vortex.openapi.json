@@ -1227,8 +1227,8 @@
     "securitySchemes": {}
   },
   "info": {
-    "description": "API reference for partner-facing Vortex integrations and the `@vortexfi/sdk` package.\n\nVortex orchestrates cross-chain on-ramp and off-ramp flows. A typical SDK flow creates a quote, registers a ramp, signs required transactions with client-held ephemeral accounts, updates the ramp with signatures or transaction hashes, and starts processing.\n\n**Use the Vortex SDK whenever possible.** The SDK creates fresh ephemeral accounts, signs transactions returned by Vortex, submits required update calls, and can keep local backups of ephemeral account secrets. Direct API integrations must implement those responsibilities themselves.\n\n**Ephemeral key custody is the integrator's responsibility.** Vortex never receives, stores, or reconstructs ephemeral account secret keys. The API client must store those secrets securely until the ramp is complete and any recovery window has passed. If the client loses the ephemeral secrets, Vortex may be unable to complete recovery or move funds on behalf of the user.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` - partner SDK key for trusted server-side use.\n- `X-Public-Key: pk_<live|test>_...` - partner public key for attribution only.\n- `Authorization: Bearer <Supabase JWT>` - first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer auth only; partner keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
-    "title": "Vortex Partner API",
+    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**Scope:** 25 paths verified against `apps/api/src/api/routes/v1/`.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` \u2014 partner SDK key (server-side).\n- `X-Public-Key: pk_<live|test>_...` \u2014 partner public key (browser; attribution only).\n- `Authorization: Bearer <Supabase JWT>` \u2014 first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer only; partner sk_*/pk_* keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "title": "Vortex API",
     "version": "1.1.0"
   },
   "openapi": "3.1.0",
@@ -1236,12 +1236,13 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "createSubaccount",
         "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {},
               "schema": {
                 "$ref": "#/components/schemas/CreateSubaccountRequest"
               }
@@ -1355,71 +1356,6 @@
         "tags": ["Account Management"]
       }
     },
-    "/v1/brla/getOfframpStatus": {
-      "get": {
-        "deprecated": false,
-        "description": "",
-        "operationId": "getOfframpStatus",
-        "parameters": [
-          {
-            "description": "The user's Tax ID.",
-            "in": "query",
-            "name": "taxId",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successfully retrieved offramp status.",
-            "headers": {}
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
-                }
-              }
-            },
-            "description": "Missing taxId or subaccount not found (returned as 400 from code).",
-            "headers": {}
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
-                }
-              }
-            },
-            "description": "No status events found for the user.",
-            "headers": {}
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error.",
-            "headers": {}
-          }
-        },
-        "security": [],
-        "summary": "Get status of the last ramp event for a user",
-        "tags": ["BRLA"]
-      }
-    },
     "/v1/brla/getSelfieLivenessUrl": {
       "get": {
         "deprecated": false,
@@ -1459,6 +1395,11 @@
             "description": "Missing taxId or ramp disabled.",
             "headers": {}
           },
+          "401": {
+            "content": {},
+            "description": "Supabase Bearer required.",
+            "headers": {}
+          },
           "500": {
             "content": {
               "application/json": {
@@ -1479,9 +1420,8 @@
     "/v1/brla/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "brlaGetUploadUrls",
-        "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1671,7 +1611,6 @@
         "deprecated": false,
         "description": "Submits the user's KYC level 1 payload to Avenia after documents have been uploaded via `/v1/brla/getUploadUrls`. Includes a built-in 5-second delay to allow upstream document propagation.\n\n**Auth:** uses `optionalAuth`.",
         "operationId": "brlaNewKyc",
-        "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1722,62 +1661,6 @@
         "tags": ["Account Management"]
       }
     },
-    "/v1/brla/startKYC2": {
-      "post": {
-        "deprecated": false,
-        "description": "Requests document upload URLs for KYC level 2 verification.",
-        "operationId": "startKYC2",
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "examples": {},
-              "schema": {
-                "$ref": "#/components/schemas/StartKYC2Request"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StartKYC2Response"
-                }
-              }
-            },
-            "description": "Successfully initiated KYC level 2 and retrieved upload URLs.\n\nStatus and errors can be fetched from /getKycStatus.",
-            "headers": {}
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
-                }
-              }
-            },
-            "description": "Bad Request. Possible reasons:\n- Subaccount not found\n- User not at KYC level 1\n- Other invalid request details",
-            "headers": {}
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BrlaErrorResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error.",
-            "headers": {}
-          }
-        },
-        "security": [],
-        "summary": "Start KYC level 2 process for a user",
-        "tags": ["BRLA"]
-      }
-    },
     "/v1/brla/validatePixKey": {
       "get": {
         "deprecated": false,
@@ -1815,6 +1698,11 @@
               }
             },
             "description": "Missing or invalid pix key.",
+            "headers": {}
+          },
+          "401": {
+            "content": {},
+            "description": "Supabase Bearer required.",
             "headers": {}
           },
           "500": {
@@ -2091,7 +1979,7 @@
     "/v1/quotes/{id}": {
       "get": {
         "deprecated": false,
-        "description": "Get a quote by ID.",
+        "description": "Get a quote by ID.\n\n**Auth:** none. This endpoint is fully public; anyone with the quote ID can read it.",
         "parameters": [
           {
             "description": "Quote Id.",
@@ -2118,7 +2006,7 @@
         },
         "security": [],
         "summary": "Get existing quote",
-        "tags": []
+        "tags": ["Quotes"]
       }
     },
     "/v1/quotes/best": {
@@ -2487,7 +2375,7 @@
         },
         "security": [],
         "summary": "Get ramp status",
-        "tags": []
+        "tags": ["Ramp"]
       }
     },
     "/v1/ramp/{id}/errors": {
@@ -2498,7 +2386,6 @@
         "parameters": [
           {
             "description": "Ramp ID.",
-            "example": "",
             "in": "path",
             "name": "id",
             "required": true,
@@ -2518,6 +2405,21 @@
             },
             "description": "Error log array (empty if no errors).",
             "headers": {}
+          },
+          "401": {
+            "content": {},
+            "description": "Authentication required.",
+            "headers": {}
+          },
+          "403": {
+            "content": {},
+            "description": "Ramp does not belong to authenticated principal.",
+            "headers": {}
+          },
+          "404": {
+            "content": {},
+            "description": "Ramp not found.",
+            "headers": {}
           }
         },
         "security": [],
@@ -2532,7 +2434,6 @@
         "parameters": [
           {
             "description": "The wallet address for which the ramp history is queried for.",
-            "example": "",
             "in": "path",
             "name": "walletAddress",
             "required": true,
@@ -3412,7 +3313,7 @@
         },
         "security": [],
         "summary": "Generating widget URL (for existing quote)",
-        "tags": []
+        "tags": ["Vortex Widget"]
       }
     },
     "/v1/supported-countries": {
@@ -3469,7 +3370,7 @@
                       "type": "array"
                     },
                     "emoji": {
-                      "description": "e.g. 🇩🇪",
+                      "description": "e.g. \ud83c\udde9\ud83c\uddea",
                       "type": "string"
                     },
                     "name": {
@@ -3718,6 +3619,7 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {},
               "schema": {
                 "properties": {
                   "events": {
@@ -3814,7 +3716,6 @@
         "parameters": [
           {
             "description": "",
-            "example": "",
             "in": "path",
             "name": "id",
             "required": true,
@@ -3855,27 +3756,31 @@
   "servers": [],
   "tags": [
     {
+      "description": "Create and retrieve cross-border payment quotes.",
       "name": "Quotes"
     },
     {
+      "description": "Session creation for the embeddable Vortex Widget.",
       "name": "Vortex Widget"
     },
     {
+      "description": "Register, sign, and track on/off-ramp transactions.",
       "name": "Ramp"
     },
     {
-      "name": "BRLA"
-    },
-    {
+      "description": "User account, KYC, and BRLA subaccount operations.",
       "name": "Account Management"
     },
     {
+      "description": "Register and remove webhook endpoints for ramp events.",
       "name": "Webhooks"
     },
     {
+      "description": "RSA-PSS public key used to verify webhook signatures.",
       "name": "Public Key"
     },
     {
+      "description": "Lookup endpoints for supported countries, currencies, and payment methods.",
       "name": "Reference Data"
     }
   ],
