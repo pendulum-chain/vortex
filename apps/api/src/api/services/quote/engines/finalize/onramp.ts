@@ -3,7 +3,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { QuoteContext } from "../../core/types";
-import { validateAmountLimits } from "../../core/validation-helpers";
+import { applyAlfredpayLimits, validateAmountLimits } from "../../core/validation-helpers";
 import { BaseFinalizeEngine, FinalizeComputation } from ".";
 
 export class OnRampFinalizeEngine extends BaseFinalizeEngine {
@@ -86,7 +86,8 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
     };
   }
 
-  protected validate(ctx: QuoteContext): void {
+  protected async validate(ctx: QuoteContext): Promise<void> {
+    if (await applyAlfredpayLimits(ctx, ctx.request.inputAmount)) return;
     validateAmountLimits(ctx.request.inputAmount, ctx.request.inputCurrency as FiatToken, "min", ctx.request.rampType);
   }
 }
