@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BrlaCreateSubaccountRequest, BrlaGetKycStatusResponse, FiatToken, KycLevel1Payload } from "@vortexfi/shared";
+import { BrlaCreateSubaccountRequest, BrlaGetKycStatusResponse, KycLevel1Payload } from "@vortexfi/shared";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 interface AccountStatusResponse {
@@ -9,15 +9,7 @@ interface AccountStatusResponse {
 
 interface SigningServiceStatus {
   pendulum: AccountStatusResponse;
-  stellar: AccountStatusResponse;
   moonbeam: AccountStatusResponse;
-}
-
-interface SignerServiceSep10Response {
-  clientSignature: string;
-  clientPublic: string;
-  masterClientSignature: string;
-  masterClientPublic: string;
 }
 
 export enum KycStatus {
@@ -49,14 +41,6 @@ export interface RegisterSubaccountPayload {
   startDate?: number; // Denoted in milliseconds since epoch
 }
 
-export interface SignerServiceSep10Request {
-  challengeXDR: string;
-  outToken: FiatToken;
-  clientPublicKey: string;
-  address: string;
-  usesMemo?: boolean;
-}
-
 // Generic error for signing service
 export class SigningServiceError extends Error {
   constructor(message: string) {
@@ -66,13 +50,6 @@ export class SigningServiceError extends Error {
 }
 
 // Specific errors for each funding account
-export class StellarFundingAccountError extends SigningServiceError {
-  constructor() {
-    super("Stellar account is inactive");
-    this.name = "StellarFundingAccountError";
-  }
-}
-
 export class PendulumFundingAccountError extends SigningServiceError {
   constructor() {
     super("Pendulum account is inactive");
@@ -96,9 +73,6 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
 
     const serviceResponse: SigningServiceStatus = await response.json();
 
-    if (!serviceResponse.stellar?.status) {
-      throw new StellarFundingAccountError();
-    }
     if (!serviceResponse.pendulum?.status) {
       throw new PendulumFundingAccountError();
     }
@@ -108,8 +82,7 @@ export const fetchSigningServiceAccountId = async (): Promise<SigningServiceStat
 
     return {
       moonbeam: serviceResponse.moonbeam,
-      pendulum: serviceResponse.pendulum,
-      stellar: serviceResponse.stellar
+      pendulum: serviceResponse.pendulum
     };
   } catch (error) {
     if (error instanceof SigningServiceError) {
@@ -125,40 +98,12 @@ export const useSigningService = () => {
     queryFn: fetchSigningServiceAccountId,
     queryKey: ["signingService"],
     retry: (failureCount, error) => {
-      if (
-        error instanceof StellarFundingAccountError ||
-        error instanceof PendulumFundingAccountError ||
-        error instanceof MoonbeamFundingAccountError
-      ) {
+      if (error instanceof PendulumFundingAccountError || error instanceof MoonbeamFundingAccountError) {
         return false;
       }
       return failureCount < 3;
     }
   });
-};
-
-export const fetchSep10Signatures = async ({
-  challengeXDR,
-  outToken,
-  clientPublicKey,
-  usesMemo,
-  address
-}: SignerServiceSep10Request): Promise<SignerServiceSep10Response> => {
-  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/stellar/sep10`, {
-    body: JSON.stringify({ address, challengeXDR, clientPublicKey, outToken, usesMemo }),
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    method: "POST"
-  });
-  if (response.status !== 200) {
-    if (response.status === 401) {
-      throw new Error("Invalid signature");
-    }
-    throw new Error(`Failed to fetch SEP10 challenge from server: ${response.statusText}`);
-  }
-
-  const { clientSignature, clientPublic, masterClientSignature, masterClientPublic } = await response.json();
-  return { clientPublic, clientSignature, masterClientPublic, masterClientSignature };
 };
 
 export const fetchKycStatus = async (taxId: string, quoteId: string, sessionId?: string) => {

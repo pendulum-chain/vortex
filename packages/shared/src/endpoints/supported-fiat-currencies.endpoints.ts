@@ -16,7 +16,7 @@ export interface GetSupportedFiatCurrenciesResponse {
 export const SUPPORTED_FIAT_CURRENCIES: SupportedFiatCurrency[] = [
   { decimals: 2, enabled: true, name: "Euro", symbol: FiatToken.EURC },
   { decimals: 2, enabled: true, name: "Brazilian Real", symbol: FiatToken.BRL },
-  { decimals: 2, enabled: true, name: "Argentine Peso", symbol: FiatToken.ARS },
+  { decimals: 2, enabled: false, name: "Argentine Peso", symbol: FiatToken.ARS },
   { decimals: 2, enabled: true, name: "US Dollar", symbol: FiatToken.USD },
   { decimals: 2, enabled: true, name: "Mexican Peso", symbol: FiatToken.MXN },
   { decimals: 2, enabled: true, name: "Colombian Peso", symbol: FiatToken.COP }

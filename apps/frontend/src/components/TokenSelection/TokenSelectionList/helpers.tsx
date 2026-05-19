@@ -145,16 +145,18 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
     ? Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
     : Object.entries(stellarTokenConfig);
 
-  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => ({
-    assetIcon: value.fiat.assetIcon,
-    assetSymbol: value.fiat.symbol,
-    details: value as FiatTokenDetails,
-    name: value.fiat.name,
-    network: key === FiatToken.BRL ? Networks.Moonbeam : Networks.Stellar,
-    networkDisplayName:
-      key === FiatToken.BRL ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
-    type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
-  }));
+  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => {
+    const network = key === FiatToken.BRL ? Networks.Moonbeam : key === FiatToken.EURC ? Networks.Base : Networks.Stellar;
+    return {
+      assetIcon: value.fiat.assetIcon,
+      assetSymbol: value.fiat.symbol,
+      details: value as FiatTokenDetails,
+      name: value.fiat.name,
+      network,
+      networkDisplayName: getNetworkDisplayName(network),
+      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
+    };
+  });
 }
 
 function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {

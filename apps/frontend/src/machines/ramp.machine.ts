@@ -16,7 +16,7 @@ import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
-import { stellarKycMachine } from "./stellarKyc.machine";
+import { mykoboKycMachine } from "./mykoboKyc.machine";
 import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
 
 const QUOTE_EXPIRY_THRESHOLD_PERCENTAGE = 60; // 60%
@@ -227,6 +227,7 @@ export const rampMachine = setup({
       return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
     }),
     moneriumKyc: moneriumKycMachine,
+    mykoboKyc: mykoboKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       const { quote, quoteLocked, apiKey, partnerId } = input.context;
       // Quote will exist at this stage, but to be type safe we check again.
@@ -245,7 +246,6 @@ export const rampMachine = setup({
     requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
-    stellarKyc: stellarKycMachine,
     urlCleaner: fromPromise(
       () =>
         new Promise<void>(resolve => {

@@ -1,6 +1,6 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
-import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
@@ -9,13 +9,13 @@ import {
   AveniaKycSnapshot,
   MoneriumKycActorRef,
   MoneriumKycSnapshot,
+  MykoboKycActorRef,
+  MykoboKycSnapshot,
   RampMachineSnapshot,
   SelectedAlfredpayData,
   SelectedAveniaData,
   SelectedMoneriumData,
-  SelectedStellarData,
-  StellarKycActorRef,
-  StellarKycSnapshot
+  SelectedMykoboData
 } from "../machines/types";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
@@ -34,10 +34,6 @@ export const useRampStateSelector = RampStateContext.useSelector;
 
 const PersistenceEffect = () => {
   const rampActor = useRampActor();
-
-  const stellarActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
 
   const moneriumActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
     | MoneriumKycActorRef
@@ -58,10 +54,6 @@ const PersistenceEffect = () => {
     moneriumState: state?.value
   }));
 
-  const { stellarState } = useSelector(stellarActor, state => ({
-    stellarState: state?.value
-  }));
-
   const { aveniaState } = useSelector(aveniaActor, state => ({
     aveniaState: state?.value
   }));
@@ -71,7 +63,7 @@ const PersistenceEffect = () => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
     // It's important to have `isQuoteExpired` and `quote` here in the deps array to persist them when they change
-  }, [rampContext, rampState, moneriumState, stellarState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
+  }, [rampContext, rampState, moneriumState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;
 };
@@ -84,41 +76,6 @@ export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ child
     </RampStateContext.Provider>
   );
 };
-
-export function useStellarKycActor(): StellarKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
-}
-
-export function useStellarKycSelector(): SelectedStellarData | undefined {
-  const rampActor = useRampActor();
-
-  const stellarActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
-
-  return useSelector(
-    stellarActor,
-    (snapshot: StellarKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as StellarKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
-}
 
 export function useMoneriumKycActor(): MoneriumKycActorRef | undefined {
   const rampActor = useRampActor();
@@ -143,6 +100,41 @@ export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {
       }
       return {
         context: snapshot.context as MoneriumKycContext,
+        stateValue: snapshot.value
+      };
+    },
+    (prev, next) => {
+      if (!prev || !next) {
+        return prev === next;
+      }
+      return prev.stateValue === next.stateValue && prev.context === next.context;
+    }
+  );
+}
+
+export function useMykoboKycActor(): MykoboKycActorRef | undefined {
+  const rampActor = useRampActor();
+
+  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).mykoboKyc) as
+    | MykoboKycActorRef
+    | undefined;
+}
+
+export function useMykoboKycSelector(): SelectedMykoboData | undefined {
+  const rampActor = useRampActor();
+
+  const mykoboActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).mykoboKyc) as
+    | MykoboKycActorRef
+    | undefined;
+
+  return useSelector(
+    mykoboActor,
+    (snapshot: MykoboKycSnapshot | undefined) => {
+      if (!snapshot) {
+        return undefined;
+      }
+      return {
+        context: snapshot.context as MykoboKycContext,
         stateValue: snapshot.value
       };
     },
