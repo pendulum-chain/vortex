@@ -106,7 +106,7 @@ export async function getAlfredpayMonthlyUsage(userId: string, direction: RampDi
   const isOnramp = direction === RampDirection.BUY;
   const fiatSide = isOnramp ? { inputCurrency: fiat } : { outputCurrency: fiat };
 
-  const completedRamps = await RampState.findAll({
+  const completedRamps = (await RampState.findAll({
     include: [{ as: "quote", model: QuoteTicket, required: true, where: fiatSide }],
     where: {
       createdAt: { [Op.gte]: startOfCurrentUtcMonth() },
@@ -114,12 +114,11 @@ export async function getAlfredpayMonthlyUsage(userId: string, direction: RampDi
       type: direction,
       userId
     }
-  });
+  })) as Array<RampState & { quote: QuoteTicket }>;
 
   let total = new Big(0);
   for (const ramp of completedRamps) {
-    const quote = (ramp as RampState & { quote: QuoteTicket }).quote;
-    total = total.plus(quote.inputAmount);
+    total = total.plus(ramp.quote.inputAmount);
   }
   return total;
 }
