@@ -93,6 +93,44 @@ async function makeSignedEvmTxWithBackups(overrides: {
   return { ...main, meta: { additionalTxs } };
 }
 
+// Helper for legacy (type 0) EVM transactions which use `gasPrice` and omit
+// maxFeePerGas / maxPriorityFeePerGas entirely. Used to test the zero-minimum branch
+// of assertSignedEvmMinimum, since some chains/SDKs sign legacy-style.
+async function makeLegacySignedEvmTxWithBackups(overrides: {
+  nonce: number;
+  phase: PresignedTx["phase"];
+  network: Networks;
+  chainId?: number;
+  gasPrice?: bigint;
+}): Promise<PresignedTx> {
+  const chainId = overrides.chainId || 137;
+  const sign = async (nonce: number) =>
+    EVM_WALLET.signTransaction({
+      chainId,
+      data: "0x12345678",
+      gasLimit: 21000n,
+      gasPrice: overrides.gasPrice ?? 1000000000n,
+      nonce,
+      to: "0x000000000000000000000000000000000000dEaD",
+      type: 0,
+      value: 0n
+    });
+
+  const main: PresignedTx = {
+    meta: {},
+    network: overrides.network,
+    nonce: overrides.nonce,
+    phase: overrides.phase,
+    signer: EVM_SIGNER,
+    txData: await sign(overrides.nonce)
+  };
+  const additionalTxs: Record<string, PresignedTx> = {};
+  for (let i = 1; i <= NUMBER_OF_PRESIGNED_TXS - 1; i++) {
+    additionalTxs[`backup${i}`] = { ...main, nonce: overrides.nonce + i, txData: await sign(overrides.nonce + i), meta: {} };
+  }
+  return { ...main, meta: { additionalTxs } };
+}
+
 // Used for non-EVM transactions where we check structure (reported nonce, amount of transactions in object) but not the actual
 // signed data.
 function withBackups(tx: PresignedTx): PresignedTx {
@@ -946,6 +984,35 @@ describe("Presigned Transaction validation", () => {
     await expect(
       validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
     ).rejects.toThrow("maxPriorityFeePerGas");
+  });
+
+  it("accepts legacy signed EVM tx without maxPriorityFeePerGas when server unsigned minimum is 0", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "0",
+      maxPriorityFeePerGas: "0",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeLegacySignedEvmTxWithBackups({
+      gasPrice: 1000000000n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).resolves.toBeUndefined();
   });
 
   it("accepts signed EVM hex blob when gas and fee caps exceed server unsigned values", async () => {

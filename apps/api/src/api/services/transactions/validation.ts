@@ -41,6 +41,19 @@ function assertSignedEvmMinimum(fieldName: string, actual: bigint | undefined, e
   }
 
   const expectedMinimum = BigInt(expectedMinimumRaw);
+  // When the server-issued minimum is 0, a missing field is equivalent to "≥ 0" (e.g., legacy txs that
+  // use gasPrice instead of maxPriorityFeePerGas, or chains that accept zero priority fee). Reject only
+  // if a concrete value is present and is strictly below the minimum.
+  if (expectedMinimum === 0n) {
+    if (actual !== undefined && actual < expectedMinimum) {
+      throw new APIError({
+        message: `Signed EVM transaction ${fieldName} ${actual.toString()} is below expected minimum ${expectedMinimum.toString()}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    return;
+  }
+
   if (actual === undefined || actual < expectedMinimum) {
     throw new APIError({
       message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
