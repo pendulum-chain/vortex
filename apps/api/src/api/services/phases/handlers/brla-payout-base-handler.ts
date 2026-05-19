@@ -33,6 +33,8 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
+    throw new Error("Unimplemented");
+
     const outputAmount = quote.outputAmount;
     const outputCurrency = quote.outputCurrency;
 

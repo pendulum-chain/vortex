@@ -242,8 +242,10 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "backupSquidRouterSwap":
     case "backupApprove":
     case "polygonCleanup":
+    case "polygonCleanupAxlUsdc":
     case "baseCleanupBrla":
     case "baseCleanupUsdc":
+    case "baseCleanupAxlUsdc":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({

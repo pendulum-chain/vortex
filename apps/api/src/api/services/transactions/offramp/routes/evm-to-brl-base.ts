@@ -187,6 +187,26 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
   });
 
+  // Squidrouter delivers axlUSDC (not USDC) to the Base ephemeral if its destination swap
+  // exceeds slippage. This approval lets the funding account sweep that residual via post-process.
+  const baseAxlUsdcAddress = evmTokenConfig[Networks.Base][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
+  if (!baseAxlUsdcAddress) {
+    throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
+  }
+  const axlUsdcCleanupApproval = await prepareBaseCleanupApproval(
+    baseAxlUsdcAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupAxlUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(axlUsdcCleanupApproval) as EvmTransactionData
+  });
+
   stateMeta = {
     ...stateMeta,
     brlaEvmAddress: validatedBrlaEvmAddress,

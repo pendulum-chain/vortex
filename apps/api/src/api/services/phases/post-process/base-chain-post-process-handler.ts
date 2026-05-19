@@ -6,7 +6,7 @@ import RampState from "../../../../models/rampState.model";
 import { getEvmFundingAccount } from "../evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
-const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc"];
+const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupAxlUsdc"];
 
 export class BaseChainPostProcessHandler extends BasePostProcessHandler {
   public getCleanupName(): CleanupPhase {
