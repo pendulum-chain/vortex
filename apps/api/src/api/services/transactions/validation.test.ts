@@ -784,6 +784,75 @@ describe("Presigned Transaction validation", () => {
     );
   });
 
+  it("rejects signed EVM hex blob when destination address differs from server unsigned", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const signedRawTx = await EVM_WALLET.signTransaction({
+      chainId: 137,
+      data: unsignedTxData.data,
+      gasLimit: BigInt(unsignedTxData.gas),
+      maxFeePerGas: BigInt(unsignedTxData.maxFeePerGas!),
+      maxPriorityFeePerGas: BigInt(unsignedTxData.maxPriorityFeePerGas!),
+      nonce: 5,
+      to: "0x000000000000000000000000000000000000bEEF",
+      type: 2,
+      value: 0n
+    });
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx: PresignedTx = { ...unsignedTx, txData: signedRawTx };
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("Signed EVM transaction 'to'");
+  });
+
+  it("rejects signed EVM contract-creation transactions", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const signedRawTx = await EVM_WALLET.signTransaction({
+      chainId: 137,
+      data: unsignedTxData.data,
+      gasLimit: BigInt(unsignedTxData.gas),
+      maxFeePerGas: BigInt(unsignedTxData.maxFeePerGas!),
+      maxPriorityFeePerGas: BigInt(unsignedTxData.maxPriorityFeePerGas!),
+      nonce: 5,
+      type: 2,
+      value: 0n
+    });
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx: PresignedTx = { ...unsignedTx, txData: signedRawTx };
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("contract creation not allowed");
+  });
+
   it("should throw error when transaction is missing required properties", async () => {
     const invalidTx: any = { network: Networks.Polygon, nonce: 0, signer: EVM_SIGNER, txData: "0x" }; // missing phase
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
@@ -895,6 +964,48 @@ describe("Presigned Transaction validation", () => {
     );
   });
 
+  it("rejects extra backup transactions beyond the required backup set", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon,
+      data: unsignedTxData.data
+    });
+
+    presignedTx.meta!.additionalTxs!.unexpectedExtra = await makeSignedEvmTx({
+      nonce: 99,
+      phase: "fundEphemeral",
+      network: Networks.Polygon,
+      data: "0x99999999"
+    });
+
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: EVM_SIGNER,
+      Stellar: ""
+    };
+
+    await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
+      "must include exactly 4 backup transactions"
+    );
+  });
+
   it("rejects when a Substrate backup encodes a different call than the primary", async () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
     const substrateTx = invalidTxs.find(tx => tx.phase === "nablaApprove" && tx.network === Networks.Pendulum)!;
@@ -1000,6 +1111,29 @@ describe("Presigned Transaction validation", () => {
     const presignedTx: PresignedTx = {
       meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
       txData: [{ ...unsignedTypedData, message: tamperedMessage, signature: { deadline: 9999999999, r: sig.r as `0x${string}`, s: sig.s as `0x${string}`, v: sig.v } }]
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [unsignedTypedData]
+    };
+
+    await expect(
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+    ).rejects.toThrow("does not match the server-issued unsigned typed data");
+  });
+
+  it("rejects signed permit when typed-data domain differs from server unsigned", async () => {
+    const unsignedTypedData: SignedTypedData = {
+      domain: { chainId: 137, name: "Token", verifyingContract: "0x0000000000000000000000000000000000000001", version: "1" },
+      message: { deadline: "9999999999", nonce: "0", owner: EVM_WALLET.address, spender: "0x0000000000000000000000000000000000000003", value: "1" },
+      primaryType: "Permit",
+      types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] }
+    };
+    const tamperedDomain = { ...unsignedTypedData.domain, verifyingContract: "0x000000000000000000000000000000000000BEEF" };
+    const sig = EthersSignature.from(await EVM_WALLET.signTypedData(tamperedDomain, unsignedTypedData.types, unsignedTypedData.message));
+    const presignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [{ ...unsignedTypedData, domain: tamperedDomain, signature: { deadline: 9999999999, r: sig.r as `0x${string}`, s: sig.s as `0x${string}`, v: sig.v } }]
     };
     const unsignedTx: PresignedTx = {
       meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,

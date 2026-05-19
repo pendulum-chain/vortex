@@ -238,6 +238,13 @@ async function validateBackupTransactions(
     });
   }
 
+  if (Object.keys(additionalTxs).length !== NUMBER_OF_PRESIGNED_TXS - 1) {
+    throw new APIError({
+      message: `Transaction for phase ${tx.phase} must include exactly ${NUMBER_OF_PRESIGNED_TXS - 1} backup transactions in meta.additionalTxs`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
   const backupsSorted = Object.values(additionalTxs).sort((a, b) => a.nonce - b.nonce);
   const txType = getTransactionTypeForPhase(tx.phase, tx.network);
 
