@@ -46,23 +46,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/brla/getOfframpStatus": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Get status of the last ramp event for a user */
-    get: operations["getOfframpStatus"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/brla/getSelfieLivenessUrl": {
     parameters: {
       query?: never;
@@ -171,26 +154,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/v1/brla/startKYC2": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /**
-     * Start KYC level 2 process for a user
-     * @description Requests document upload URLs for KYC level 2 verification.
-     */
-    post: operations["startKYC2"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/v1/brla/validatePixKey": {
     parameters: {
       query?: never;
@@ -281,6 +244,8 @@ export interface paths {
     /**
      * Get existing quote
      * @description Get a quote by ID.
+     *
+     *     **Auth:** none. This endpoint is fully public; anyone with the quote ID can read it.
      */
     get: {
       parameters: {
@@ -474,10 +439,7 @@ export interface paths {
         };
         header?: never;
         path: {
-          /**
-           * @description The wallet address for which the ramp history is queried for.
-           * @example
-           */
+          /** @description The wallet address for which the ramp history is queried for. */
           walletAddress: string;
         };
         cookie?: never;
@@ -953,7 +915,6 @@ export interface paths {
         query?: never;
         header?: never;
         path: {
-          /** @example  */
           id: string;
         };
         cookie?: never;
@@ -1700,56 +1661,6 @@ export interface operations {
       };
     };
   };
-  getOfframpStatus: {
-    parameters: {
-      query: {
-        /** @description The user's Tax ID. */
-        taxId: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successfully retrieved offramp status. */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": unknown;
-        };
-      };
-      /** @description Missing taxId or subaccount not found (returned as 400 from code). */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description No status events found for the user. */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-    };
-  };
   brlaGetSelfieLivenessUrl: {
     parameters: {
       query: {
@@ -1779,6 +1690,13 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["BrlaErrorResponse"];
         };
+      };
+      /** @description Supabase Bearer required. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Internal server error. */
       500: {
@@ -1979,57 +1897,6 @@ export interface operations {
       };
     };
   };
-  startKYC2: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        "application/json": components["schemas"]["StartKYC2Request"];
-      };
-    };
-    responses: {
-      /**
-       * @description Successfully initiated KYC level 2 and retrieved upload URLs.
-       *
-       *     Status and errors can be fetched from /getKycStatus.
-       */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["StartKYC2Response"];
-        };
-      };
-      /**
-       * @description Bad Request. Possible reasons:
-       *     - Subaccount not found
-       *     - User not at KYC level 1
-       *     - Other invalid request details
-       */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-      /** @description Internal Server Error. */
-      500: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["BrlaErrorResponse"];
-        };
-      };
-    };
-  };
   brlaValidatePixKey: {
     parameters: {
       query: {
@@ -2059,6 +1926,13 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["BrlaErrorResponse"];
         };
+      };
+      /** @description Supabase Bearer required. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Internal server error. */
       500: {
@@ -2299,10 +2173,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        /**
-         * @description Ramp ID.
-         * @example
-         */
+        /** @description Ramp ID. */
         id: string;
       };
       cookie?: never;
@@ -2317,6 +2188,27 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["GetRampErrorLogsResponse"];
         };
+      };
+      /** @description Authentication required. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Ramp does not belong to authenticated principal. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Ramp not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

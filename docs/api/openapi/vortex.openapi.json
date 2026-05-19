@@ -542,7 +542,7 @@
             "type": "string"
           }
         },
-        "required": ["externalSessionId", "cryptoLocked", "rampType", "network", "inputAmount", "fiat", "paymentMethod"],
+        "required": ["network", "inputAmount", "rampType", "externalSessionId"],
         "type": "object"
       },
       "KYCDataUploadFileFiles": {
@@ -1731,13 +1731,22 @@
           "200": {
             "content": {
               "application/json": {
+                "example": {
+                  "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...replace-with-actual-key...\n-----END PUBLIC KEY-----\n"
+                },
                 "schema": {
-                  "properties": {},
+                  "properties": {
+                    "publicKey": {
+                      "description": "RSA-PSS 2048-bit public key in PEM format. Use this key to verify webhook signatures with RSA-PSS / SHA-256.",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["publicKey"],
                   "type": "object"
                 }
               }
             },
-            "description": "",
+            "description": "RSA-PSS public key in PEM format.",
             "headers": {}
           }
         },
@@ -3273,32 +3282,66 @@
     },
     "/v1/session/create": {
       "post": {
-        "deprecated": false,
-        "description": "You can call this endpoint to get a widget URL ready with a quote you provide. You need to pass the `quoteId` parameter to the body, and optionally supply the  `callbackUrl`, `walletAddressLocked` and `externalSessionId`. The quote will not automatically refresh and if it expires, the user needs to close the window and start over.",
+        "description": "Creates a hosted Vortex Widget session and returns the URL to open for the user.\n\nThis single endpoint supports two mutually exclusive request shapes:\n\n- **Fixed quote** (`GetWidgetUrlLocked`) \u2014 pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.\n\n- **Auto-refresh** (`GetWidgetUrlRefresh`) \u2014 pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.\n\nUse the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.",
         "parameters": [],
         "requestBody": {
           "content": {
             "application/json": {
-              "example": {
-                "callbackUrl": "https://www.example.com/",
-                "externalSessionId": "my-session-id",
-                "quoteId": "my-quote-id",
-                "walletAddressLocked": "0x00000000000000000000000000000000"
+              "examples": {
+                "autoRefresh": {
+                  "description": "Pass the route definition. The widget creates and refreshes quotes on demand for the user.",
+                  "summary": "Auto-refresh",
+                  "value": {
+                    "apiKey": "pk_live_...",
+                    "callbackUrl": "https://partner.example.com/ramp/complete",
+                    "cryptoLocked": "USDC",
+                    "externalSessionId": "my-session-id",
+                    "fiat": "BRL",
+                    "inputAmount": "150",
+                    "network": "polygon",
+                    "paymentMethod": "pix",
+                    "rampType": "BUY",
+                    "walletAddressLocked": "0x1234567890123456789012345678901234567890"
+                  }
+                },
+                "fixedQuote": {
+                  "description": "Pass an existing `quoteId`. The widget locks in that quote and does not refresh it.",
+                  "summary": "Fixed quote",
+                  "value": {
+                    "callbackUrl": "https://partner.example.com/ramp/complete",
+                    "externalSessionId": "my-session-id",
+                    "quoteId": "quote_01HXY...",
+                    "walletAddressLocked": "0x1234567890123456789012345678901234567890"
+                  }
+                }
               },
               "schema": {
-                "$ref": "#/components/schemas/GetWidgetUrlLocked"
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/GetWidgetUrlLocked",
+                    "title": "Fixed quote (GetWidgetUrlLocked)"
+                  },
+                  {
+                    "$ref": "#/components/schemas/GetWidgetUrlRefresh",
+                    "title": "Auto-refresh (GetWidgetUrlRefresh)"
+                  }
+                ]
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
+                "example": {
+                  "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..."
+                },
                 "schema": {
-                  "description": "The url that the user must use to complete the ramp.",
                   "properties": {
                     "url": {
+                      "description": "The widget URL to open for the user.",
                       "type": "string"
                     }
                   },
@@ -3307,12 +3350,37 @@
                 }
               }
             },
-            "description": "",
-            "headers": {}
+            "description": "Returned when a fixed-quote session was created."
+          },
+          "201": {
+            "content": {
+              "application/json": {
+                "example": {
+                  "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
+                },
+                "schema": {
+                  "properties": {
+                    "url": {
+                      "description": "The widget URL to open for the user.",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["url"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Returned when an auto-refresh session was created."
+          },
+          "400": {
+            "description": "Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode."
+          },
+          "404": {
+            "description": "Quote not found or expired (fixed-quote mode only)."
           }
         },
         "security": [],
-        "summary": "Generating widget URL (for existing quote)",
+        "summary": "Create widget session",
         "tags": ["Vortex Widget"]
       }
     },
