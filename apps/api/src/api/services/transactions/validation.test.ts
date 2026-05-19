@@ -1,8 +1,15 @@
-import { describe, expect, it } from "bun:test";
-import { Signature as EthersSignature, Wallet } from "ethers";
-import { EphemeralAccountType, Networks, PresignedTx, RampDirection, SignedTypedData, EvmTransactionData } from "@vortexfi/shared";
-import { areAllTxsIncluded, validatePresignedTxs } from "./validation";
-import { NUMBER_OF_PRESIGNED_TXS } from "@vortexfi/shared";
+import {describe, expect, it} from "bun:test";
+import {Signature as EthersSignature, Wallet} from "ethers";
+import {
+  EphemeralAccountType,
+  EvmTransactionData,
+  Networks,
+  NUMBER_OF_PRESIGNED_TXS,
+  PresignedTx,
+  RampDirection,
+  SignedTypedData
+} from "@vortexfi/shared";
+import {areAllTxsIncluded, validatePresignedTxs} from "./validation";
 
 const EVM_WALLET = new Wallet("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 const EVM_SIGNER = EVM_WALLET.address;
@@ -382,7 +389,7 @@ describe("Presigned Transaction validation", () => {
         network: Networks.Base,
         nonce: 0,
         phase,
-        signer: expectedEvmSigner,
+        signer: wrongEvmSigner,
         txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
       };
       await expect(
@@ -469,7 +476,7 @@ describe("Presigned Transaction validation", () => {
       network: Networks.Polygon,
       nonce: 5,
       phase: "fundEphemeral",
-      signer: EVM_SIGNER,
+      signer: wrongSigner,
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
@@ -610,16 +617,15 @@ describe("Presigned Transaction validation", () => {
       phase: "fundEphemeral",
       network: Networks.Polygon
     });
+    const presignedTxWithWrongNonce: PresignedTx = { ...presignedTx, nonce: 99 };
     const unsignedTx: PresignedTx = {
       meta: {},
       network: Networks.Polygon,
-      nonce: 5,
+      nonce: 99,
       phase: "fundEphemeral",
       signer: EVM_SIGNER,
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
-
-    const presignedTxWithWrongNonce: PresignedTx = { ...presignedTx, nonce: 99 };
 
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       Substrate: "",
@@ -887,5 +893,155 @@ describe("Presigned Transaction validation", () => {
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Signed EVM transaction data does not match expected data"
     );
+  });
+
+  it("rejects when a Substrate backup encodes a different call than the primary", async () => {
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
+    const substrateTx = invalidTxs.find(tx => tx.phase === "nablaApprove" && tx.network === Networks.Pendulum)!;
+    substrateTx.meta!.additionalTxs!.backup2.txData = MOCK_TX_DATA_SUBSTRATE_SIGNER_1;
+
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
+      EVM: EVM_SIGNER_2,
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    };
+
+    await expect(validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).rejects.toThrow(
+      /does not (match|encode)/
+    );
+  }, 30000);
+
+  it("rejects when a Stellar backup has the wrong shape for its phase", async () => {
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
+    const stellarPayment = invalidTxs.find(tx => tx.phase === "stellarPayment")!;
+    stellarPayment.meta!.additionalTxs!.backup2.txData = MOCK_TX_DATA_STELLAR_CREATE_ACCOUNT;
+
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
+      EVM: EVM_SIGNER_2,
+      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
+    };
+
+    await expect(validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).rejects.toThrow(
+      /Stellar Payment transaction must have exactly 1 operation/
+    );
+  }, 30000);
+
+  it("accepts a subset of presigned txs when requireComplete is false (updateRamp partial submission)", async () => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: EVM_SIGNER,
+      Stellar: ""
+    };
+    const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
+    ).resolves.toBeUndefined();
+  });
+
+  it("still rejects subset submissions by default (requireComplete defaults to true)", async () => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: EVM_SIGNER,
+      Stellar: ""
+    };
+    const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)
+    ).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
+  });
+
+  it("still rejects extra/unknown txs when requireComplete is false", async () => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = {
+      Substrate: "",
+      EVM: EVM_SIGNER,
+      Stellar: ""
+    };
+    const extra = await makeSignedEvmTxWithBackups({ nonce: 99, phase: "fundEphemeral", network: Networks.Polygon });
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [extra], ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
+    ).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
+  });
+
+  it("rejects signed permit when typed-data field (e.g. spender) differs from server unsigned", async () => {
+    const unsignedTypedData: SignedTypedData = {
+      domain: { chainId: 137, name: "Token", verifyingContract: "0x0000000000000000000000000000000000000001", version: "1" },
+      message: { deadline: "9999999999", nonce: "0", owner: EVM_WALLET.address, spender: "0x0000000000000000000000000000000000000003", value: "1" },
+      primaryType: "Permit",
+      types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] }
+    };
+    const tamperedMessage = { ...unsignedTypedData.message, spender: "0x000000000000000000000000000000000000BEEF" };
+    const sig = EthersSignature.from(await EVM_WALLET.signTypedData(unsignedTypedData.domain, unsignedTypedData.types, tamperedMessage));
+
+    const presignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [{ ...unsignedTypedData, message: tamperedMessage, signature: { deadline: 9999999999, r: sig.r as `0x${string}`, s: sig.s as `0x${string}`, v: sig.v } }]
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [unsignedTypedData]
+    };
+
+    await expect(
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+    ).rejects.toThrow("does not match the server-issued unsigned typed data");
+  });
+
+  it("rejects signed permit when value is inflated relative to server unsigned", async () => {
+    const unsignedTypedData: SignedTypedData = {
+      domain: { chainId: 137, name: "Token", verifyingContract: "0x0000000000000000000000000000000000000001", version: "1" },
+      message: { deadline: "9999999999", nonce: "0", owner: EVM_WALLET.address, spender: "0x0000000000000000000000000000000000000003", value: "1" },
+      primaryType: "Permit",
+      types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] }
+    };
+    const tamperedMessage = { ...unsignedTypedData.message, value: "1000000000000000000000" };
+    const sig = EthersSignature.from(await EVM_WALLET.signTypedData(unsignedTypedData.domain, unsignedTypedData.types, tamperedMessage));
+
+    const presignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [{ ...unsignedTypedData, message: tamperedMessage, signature: { deadline: 9999999999, r: sig.r as `0x${string}`, s: sig.s as `0x${string}`, v: sig.v } }]
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
+      txData: [unsignedTypedData]
+    };
+
+    await expect(
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+    ).rejects.toThrow("does not match the server-issued unsigned typed data");
+  });
+
+  it("rejects a chainless legacy EVM tx (chainId undefined) that would otherwise replay across chains", async () => {
+    const legacySignedRawTx = await EVM_WALLET.signTransaction({
+      data: "0x12345678",
+      gasLimit: 21000n,
+      gasPrice: 1000000000n,
+      nonce: 5,
+      to: "0x000000000000000000000000000000000000dEaD",
+      type: 0,
+      value: 0n
+    });
+    const presignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 5, phase: "fundEphemeral", signer: EVM_SIGNER, txData: legacySignedRawTx
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 5, phase: "fundEphemeral", signer: EVM_SIGNER,
+      txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
+    };
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("does not match expected network ID");
+  });
+
+  it("rejects a presigned tx whose nonce/signer match no unsigned tx (even though phase+network match a different one)", async () => {
+    const fundEphemeralAt0: PresignedTx = {
+      meta: {}, network: Networks.Polygon, nonce: 0, phase: "fundEphemeral", signer: EVM_SIGNER,
+      txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
+    };
+    const presignedAtWrongNonce = await makeSignedEvmTxWithBackups({ nonce: 7, phase: "fundEphemeral", network: Networks.Polygon });
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedAtWrongNonce], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [fundEphemeralAt0])
+    ).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
   });
 });

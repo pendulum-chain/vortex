@@ -321,7 +321,10 @@ export class RampService extends BaseRampService {
         Substrate: rampState.state.substrateEphemeralAddress
       };
       if (presignedTxs && presignedTxs.length > 0) {
-        await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs);
+        // updateRamp accepts partial submissions; the strict completeness check runs later in
+        // ephemeralPresignChecksPass against the full merged set, which gates payment-data
+        // release in filterUnsignedTxsForResponse.
+        await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs, { requireComplete: false });
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)

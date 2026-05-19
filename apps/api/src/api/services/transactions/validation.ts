@@ -6,6 +6,7 @@ import {
   EphemeralAccountType,
   EvmTransactionData,
   getNetworkId,
+  isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
   Networks,
@@ -92,9 +93,11 @@ async function verifySignedEvmTransaction(
     });
   }
 
-  if (parsed.chainId && Number(parsed.chainId) !== getNetworkId(network) && Boolean(config.sandboxEnabled) !== true) {
+  // Reject both wrong-chain and chainless (replay-protectable) txs. parseTransaction returns
+  // chainId === undefined for pre-EIP-155 raw txs, which would otherwise bypass the check.
+  if (Number(parsed.chainId || 0) !== getNetworkId(network) && Boolean(config.sandboxEnabled) !== true) {
     throw new APIError({
-      message: `Signed EVM transaction chainId ${parsed.chainId} does not match expected network ID ${getNetworkId(network)}`,
+      message: `Signed EVM transaction chainId ${parsed.chainId ?? "missing"} does not match expected network ID ${getNetworkId(network)}`,
       status: httpStatus.BAD_REQUEST
     });
   }
@@ -236,6 +239,7 @@ async function validateBackupTransactions(
   }
 
   const backupsSorted = Object.values(additionalTxs).sort((a, b) => a.nonce - b.nonce);
+  const txType = getTransactionTypeForPhase(tx.phase, tx.network);
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS - 1; i++) {
     const expectedNonce = tx.nonce + 1 + i;
@@ -247,13 +251,47 @@ async function validateBackupTransactions(
       });
     }
 
-    // For EVM signed hex blobs, also verify the signed payload's nonce/signer/chainId
-    // match the backup's declared metadata. Substrate/Stellar payloads are not deep-checked
-    // here; their per-tx validators already cover the main tx and the sequence above covers nonces.
-    const txType = getTransactionTypeForPhase(tx.phase, tx.network);
-    if (txType === EphemeralAccountType.EVM && typeof backup.txData === "string") {
+    // Re-run the primary's validator against each backup so backups cannot encode a different
+    // signer or a different call than the primary tx (the engine may broadcast a backup on retry).
+    const backupTx: PresignedTx = {
+      meta: {},
+      network: tx.network,
+      nonce: backup.nonce,
+      phase: tx.phase,
+      signer: tx.signer,
+      txData: backup.txData
+    };
+
+    if (txType === EphemeralAccountType.EVM) {
+      if (typeof backup.txData !== "string") {
+        throw new APIError({
+          message: `Backup EVM transaction for phase ${tx.phase} must be a signed hex string`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
       await verifySignedEvmTransaction(backup.txData, tx.signer, expectedNonce, tx.network, unsignedTxData);
+    } else if (txType === EphemeralAccountType.Substrate) {
+      await validateSubstrateTransaction(backupTx, ephemerals.Substrate, ephemerals.EVM);
+      await assertSubstrateBackupMatchesPrimary(tx, backup);
+    } else if (txType === EphemeralAccountType.Stellar) {
+      await validateStellarTransaction(backupTx, ephemerals.Stellar);
     }
+  }
+}
+
+// Ensures a Substrate backup encodes the same call (section/method/args) as the primary, so a
+// malicious client cannot register a backup that would broadcast a different on-chain action
+// if the primary fails.
+async function assertSubstrateBackupMatchesPrimary(primary: PresignedTx, backup: PresignedTx) {
+  const api = (await ApiManager.getInstance().getApi(primary.network as SubstrateApiNetwork)).api;
+  const primaryCallHex = api.tx(primary.txData as string).method.toHex();
+  const backupCallHex = api.tx(backup.txData as string).method.toHex();
+
+  if (primaryCallHex !== backupCallHex) {
+    throw new APIError({
+      message: `Substrate backup transaction for phase ${primary.phase} does not encode the same call as the primary transaction`,
+      status: httpStatus.BAD_REQUEST
+    });
   }
 }
 
@@ -261,8 +299,11 @@ export async function validatePresignedTxs(
   direction: RampDirection,
   presignedTxs: PresignedTx[],
   ephemerals: { [key in EphemeralAccountType]: string },
-  unsignedTxs: PresignedTx[]
+  unsignedTxs: PresignedTx[],
+  options: { requireComplete?: boolean } = {}
 ): Promise<void> {
+  const requireComplete = options.requireComplete ?? true;
+
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
       message: "presignedTxs must be an array with 1-100 elements",
@@ -278,19 +319,27 @@ export async function validatePresignedTxs(
       });
     }
 
-    if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
-    if (
+    // These phases are signed by the end user's own wallet, not by an ephemeral account, so the
+    // server cannot recover or shape-check them. moneriumOnrampMint, squidRouterNoPermit*, and
+    // squidRouterSwap/Approve on SELL all flow back to us only via tx hashes in additionalData.
+    const isUserWalletPhase =
+      tx.phase === "moneriumOnrampMint" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
-      tx.phase === "squidRouterNoPermitSwap"
-    )
-      continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
-    if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
+      tx.phase === "squidRouterNoPermitSwap" ||
+      (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"));
+    if (isUserWalletPhase) continue;
+
     const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     let evmUnsignedTxData: EvmTransactionData | undefined;
     if (txType === EphemeralAccountType.EVM) {
-      // Deep comparisson to get the unsigned tx data for this EVM phase
-      const matchingUnsigned = unsignedTxs?.find(u => u.phase === tx.phase && u.network === tx.network);
+      const matchingUnsigned = unsignedTxs?.find(
+        u =>
+          u.phase === tx.phase &&
+          u.network === tx.network &&
+          u.nonce === tx.nonce &&
+          u.signer.toLowerCase() === tx.signer.toLowerCase()
+      );
       if (!matchingUnsigned) {
         logger.info(
           `No matching unsigned transaction found for EVM transaction with phase ${tx.phase}, network ${tx.network}, signer ${tx.signer}`
@@ -301,7 +350,7 @@ export async function validatePresignedTxs(
         });
       }
       evmUnsignedTxData = matchingUnsigned.txData as EvmTransactionData;
-      await validateEvmTransaction(tx, ephemerals.EVM, evmUnsignedTxData);
+      await validateEvmTransaction(tx, ephemerals.EVM, matchingUnsigned.txData);
     }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
@@ -315,6 +364,8 @@ export async function validatePresignedTxs(
       status: httpStatus.BAD_REQUEST
     });
   }
+
+  if (!requireComplete) return;
 
   const ephemeralSigners = new Set(
     Object.values(ephemerals)
@@ -331,7 +382,11 @@ export async function validatePresignedTxs(
   }
 }
 
-async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string, unsignedTxData?: EvmTransactionData) {
+async function validateEvmTransaction(
+  tx: PresignedTx,
+  expectedSigner: string,
+  unsignedTxData?: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+) {
   const { txData, signer } = tx;
   logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
 
@@ -344,7 +399,7 @@ async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string, u
 
   // EIP-712 typed data is signed by the user wallet for permit flows, not by the EVM ephemeral.
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
-    validateSignedTypedData(tx, signer);
+    validateSignedTypedData(tx, signer, unsignedTxData);
     return;
   }
 
@@ -369,13 +424,42 @@ async function validateEvmTransaction(tx: PresignedTx, expectedSigner: string, u
     });
   }
 
-  await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, unsignedTxData);
+  const evmUnsigned = unsignedTxData && isEvmTransactionData(unsignedTxData) ? unsignedTxData : undefined;
+  await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, evmUnsigned);
 }
 
-function validateSignedTypedData(tx: PresignedTx, expectedSigner: string) {
+function validateSignedTypedData(
+  tx: PresignedTx,
+  expectedSigner: string,
+  unsignedTxData?: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+) {
   const typedDataItems = isSignedTypedDataArray(tx.txData) ? tx.txData : [tx.txData as SignedTypedData];
 
-  for (const typedData of typedDataItems) {
+  // Server-issued unsigned typed data is the source of truth. The signed form must match every
+  // field except the appended signature, otherwise the user could swap token/spender/value/etc.
+  let unsignedItems: SignedTypedData[] | undefined;
+  if (unsignedTxData !== undefined) {
+    if (isSignedTypedDataArray(unsignedTxData)) {
+      unsignedItems = unsignedTxData;
+    } else if (isSignedTypedData(unsignedTxData)) {
+      unsignedItems = [unsignedTxData];
+    } else {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} does not match the server-issued unsigned typed data shape`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (unsignedItems.length !== typedDataItems.length) {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} has ${typedDataItems.length} items, expected ${unsignedItems.length}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
+  for (let i = 0; i < typedDataItems.length; i++) {
+    const typedData = typedDataItems[i];
     const signature = typedData.signature;
     if (!signature || Array.isArray(signature)) {
       throw new APIError({
@@ -403,6 +487,10 @@ function validateSignedTypedData(tx: PresignedTx, expectedSigner: string) {
       });
     }
 
+    if (unsignedItems) {
+      assertTypedDataMatchesUnsigned(typedData, unsignedItems[i], tx.phase);
+    }
+
     const recoveredSigner = verifyTypedData(
       typedData.domain,
       typedData.types,
@@ -418,6 +506,44 @@ function validateSignedTypedData(tx: PresignedTx, expectedSigner: string) {
   }
 
   logger.info(`Validated EIP-712 typed data signature for phase ${tx.phase}: ${expectedSigner}`);
+}
+
+// Deep-compare domain/primaryType/types/message between signed and unsigned typed data.
+// Any divergence (e.g. swapped token, inflated value, different spender, extended deadline) is
+// fatal because the user must sign exactly what the server prepared.
+function assertTypedDataMatchesUnsigned(signed: SignedTypedData, unsigned: SignedTypedData, phase: RampPhase | CleanupPhase) {
+  const stripSig = (td: SignedTypedData) => {
+    const { signature: _sig, ...rest } = td;
+    return rest;
+  };
+  const a = stripSig(signed);
+  const b = stripSig(unsigned);
+  if (!deepEqualNormalized(a, b)) {
+    throw new APIError({
+      message: `EVM typed data for phase ${phase} does not match the server-issued unsigned typed data`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+function deepEqualNormalized(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === "string" && typeof b === "string") return a.toLowerCase() === b.toLowerCase();
+  if (typeof a === "bigint" || typeof b === "bigint") return String(a) === String(b);
+  if (typeof a === "number" || typeof b === "number") return String(a) === String(b);
+  if (a === null || b === null) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => deepEqualNormalized(v, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const aKeys = Object.keys(a as Record<string, unknown>);
+    const bKeys = Object.keys(b as Record<string, unknown>);
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every(k => deepEqualNormalized((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+  }
+  return false;
 }
 
 async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
