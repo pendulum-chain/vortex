@@ -985,32 +985,67 @@ describe("Presigned Transaction validation", () => {
     await expect(validatePresignedTxs(RampDirection.BUY, [invalidTx], ephemerals, [])).rejects.toThrow("Each transaction must have txData, phase, network, nonce and signer properties");
   });
 
-  it("skips validation for moneriumOnrampMint phase", async () => {
+  it("rejects presignedTx submitted for moneriumOnrampMint (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampMint", signer: EVM_SIGNER, txData: "invalid data" };
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
     const unsignedTx = { ...tx };
-    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
+    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
+      "Phase moneriumOnrampMint is broadcast by the user wallet"
+    );
   });
 
-  it("skips validation for user-submitted wallet phases like squidRouterNoPermitTransfer", async () => {
+  it("rejects presignedTx submitted for squidRouterNoPermitTransfer (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterNoPermitTransfer", signer: EVM_SIGNER, txData: "invalid data" };
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
     const unsignedTx = { ...tx };
-    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
+    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
+      "Phase squidRouterNoPermitTransfer is broadcast by the user wallet"
+    );
   });
 
-  it("skips validation for squidRouterSwap when direction is SELL", async () => {
+  it("rejects presignedTx for squidRouterNoPermitApprove and squidRouterNoPermitSwap (user-wallet phases)", async () => {
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const approveTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterNoPermitApprove", signer: EVM_SIGNER, txData: "data" };
+    await expect(validatePresignedTxs(RampDirection.BUY, [approveTx], ephemerals, [approveTx])).rejects.toThrow(
+      "Phase squidRouterNoPermitApprove is broadcast by the user wallet"
+    );
+    const swapTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 1, phase: "squidRouterNoPermitSwap", signer: EVM_SIGNER, txData: "data" };
+    await expect(validatePresignedTxs(RampDirection.BUY, [swapTx], ephemerals, [swapTx])).rejects.toThrow(
+      "Phase squidRouterNoPermitSwap is broadcast by the user wallet"
+    );
+  });
+
+  it("rejects presignedTx submitted for squidRouterSwap when direction is SELL (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: "invalid data" };
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
     const unsignedTx = { ...tx };
-    await expect(validatePresignedTxs(RampDirection.SELL, [tx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
+    await expect(validatePresignedTxs(RampDirection.SELL, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
+      "Phase squidRouterSwap is broadcast by the user wallet"
+    );
+  });
+
+  it("rejects presignedTx submitted for squidRouterApprove when direction is SELL (user-wallet phase)", async () => {
+    const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterApprove", signer: EVM_SIGNER, txData: "invalid data" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const unsignedTx = { ...tx };
+    await expect(validatePresignedTxs(RampDirection.SELL, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
+      "Phase squidRouterApprove is broadcast by the user wallet"
+    );
+  });
+
+  it("still validates squidRouterSwap on BUY direction (signed by EVM ephemeral, not user wallet)", async () => {
+    const tx = await makeSignedEvmTxWithBackups({ nonce: 0, phase: "squidRouterSwap", network: Networks.Polygon });
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
+    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
   });
 
   it("should throw when an ephemeral transaction is missing from presignedTxs", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
     const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "fundEphemeral", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
-    const userTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampMint", signer: EVM_SIGNER_2, txData: "invalid" };
-    await expect(validatePresignedTxs(RampDirection.BUY, [userTx], ephemerals, [unsignedTx, userTx])).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
+    const ephemeralTx: PresignedTx = await makeSignedEvmTxWithBackups({ nonce: 0, phase: "fundEphemeral", network: Networks.Polygon });
+    const unsignedExtra: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 1, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
+    await expect(validatePresignedTxs(RampDirection.BUY, [ephemeralTx], ephemerals, [unsignedTx, unsignedExtra])).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
   });
 
   it("should throw when there is an extra presigned transaction not in unsignedTxs", async () => {

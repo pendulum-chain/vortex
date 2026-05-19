@@ -348,16 +348,22 @@ export async function validatePresignedTxs(
       });
     }
 
-    // These phases are signed by the end user's own wallet, not by an ephemeral account, so the
-    // server cannot recover or shape-check them. moneriumOnrampMint, squidRouterNoPermit*, and
-    // squidRouterSwap/Approve on SELL all flow back to us only via tx hashes in additionalData.
+    // These phases are broadcast by the end user's own wallet. We never accept a presignedTx for
+    // them — only the resulting on-chain tx hash via /v1/ramp/update additionalData. The receipt
+    // is then verified against the unsigned blueprint by user-tx-verifier at phase execution time.
+    // Accepting a presignedTx here would create a fake authority surface that bypasses that check.
     const isUserWalletPhase =
       tx.phase === "moneriumOnrampMint" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
       tx.phase === "squidRouterNoPermitSwap" ||
       (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"));
-    if (isUserWalletPhase) continue;
+    if (isUserWalletPhase) {
+      throw new APIError({
+        message: `Phase ${tx.phase} is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const txType = getTransactionTypeForPhase(tx.phase, tx.network);
     let evmUnsignedTxData: EvmTransactionData | undefined;

@@ -2,7 +2,6 @@ import {
   EvmClientManager,
   EvmNetworks,
   getNetworkFromDestination,
-  isEvmTransactionData,
   isNetworkEVM,
   isSignedTypedDataArray,
   RampPhase,
@@ -16,6 +15,7 @@ import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { RELAYER_ADDRESS } from "../../transactions/offramp/routes/evm-to-alfredpay";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 
 type VrsSignature = { v: number; r: `0x${string}`; s: `0x${string}` };
 
@@ -120,52 +120,20 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     hash: `0x${string}` | undefined,
     fromNetwork: EvmNetworks,
     label: string,
-    presignedPhase: RampPhase,
-    expectedFrom?: `0x${string}`
+    presignedPhase: RampPhase
   ): Promise<void> {
-    if (!hash) {
-      throw this.createRecoverableError(`${label} hash not yet reported by frontend`);
-    }
-    const presigned = this.getPresignedTransaction(state, presignedPhase);
-    if (!presigned || !isEvmTransactionData(presigned.txData)) {
-      throw this.createUnrecoverableError(`${label}: presigned tx for phase ${presignedPhase} missing or not EVM`);
-    }
-    const expectedTo = presigned.txData.to.toLowerCase();
-    const expectedData = presigned.txData.data.toLowerCase();
-
-    const { publicClient } = this.getExecutorClients(fromNetwork);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    if (!receipt || receipt.status !== "success") {
-      throw this.createRecoverableError(`${label} tx failed: ${hash}`);
-    }
-    if (expectedFrom && receipt.from.toLowerCase() !== expectedFrom.toLowerCase()) {
-      throw this.createUnrecoverableError(`${label} tx ${hash} was sent by ${receipt.from}, expected ${expectedFrom}`);
-    }
-    if (!receipt.to || receipt.to.toLowerCase() !== expectedTo) {
-      throw this.createUnrecoverableError(
-        `${label} tx ${hash} was sent to ${receipt.to ?? "<contract creation>"}, expected ${expectedTo}`
-      );
-    }
-
-    const tx = await publicClient.getTransaction({ hash });
-    if (tx.input.toLowerCase() !== expectedData) {
-      throw this.createUnrecoverableError(`${label} tx ${hash} calldata does not match presigned payload`);
-    }
-
+    await verifyUserSubmittedTxByHash({ fromNetwork, hash, label, presignedPhase, state });
     logger.info(`${label} tx confirmed: ${hash}`);
   }
 
   private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks): Promise<RampState> {
-    const expectedFrom = state.state.walletAddress as `0x${string}` | undefined;
-
     if (state.state.isDirectTransfer) {
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit direct transfer",
-        "squidRouterNoPermitTransfer",
-        expectedFrom
+        "squidRouterNoPermitTransfer"
       );
     } else {
       await this.waitForUserHash(
@@ -173,16 +141,14 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit approve",
-        "squidRouterNoPermitApprove",
-        expectedFrom
+        "squidRouterNoPermitApprove"
       );
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit swap",
-        "squidRouterNoPermitSwap",
-        expectedFrom
+        "squidRouterNoPermitSwap"
       );
     }
 

@@ -27,6 +27,7 @@ import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
+import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 import { StateMetadata } from "../meta-state-types";
 import {
   DESTINATION_EVM_FUNDING_AMOUNTS,
@@ -110,11 +111,42 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return false;
   }
 
+  // SELL ramps where the user broadcasts squidRouterApprove + squidRouterSwap from their own
+  // wallet only report tx hashes back via /v1/ramp/update. Before we spend ephemeral gas funding
+  // the downstream phases, we must confirm on-chain that those hashes correspond to txs matching
+  // the blueprint we issued — otherwise an integrator could point us at any tx and have us fund
+  // ephemerals based on a tx that does not actually deliver tokens to our ephemeral.
+  private async verifyUserSubmittedSquidHashes(state: RampState, quote: QuoteTicket): Promise<void> {
+    if (state.type !== RampDirection.SELL) return;
+    if (state.from === Networks.AssetHub) return;
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken)) return;
+
+    const fromNetwork = state.from as EvmNetworks;
+    if (!isNetworkEVM(fromNetwork)) return;
+
+    await verifyUserSubmittedTxByHash({
+      fromNetwork,
+      hash: state.state.squidRouterApproveHash as `0x${string}` | undefined,
+      label: "User squidRouter approve",
+      presignedPhase: "squidRouterApprove",
+      state
+    });
+    await verifyUserSubmittedTxByHash({
+      fromNetwork,
+      hash: state.state.squidRouterSwapHash as `0x${string}` | undefined,
+      label: "User squidRouter swap",
+      presignedPhase: "squidRouterSwap",
+      state
+    });
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
+
+    await this.verifyUserSubmittedSquidHashes(state, quote);
 
     const apiManager = ApiManager.getInstance();
     const pendulumNode = await apiManager.getApi("pendulum");
