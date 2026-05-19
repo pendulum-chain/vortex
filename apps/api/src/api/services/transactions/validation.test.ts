@@ -1290,7 +1290,10 @@ describe("Presigned Transaction validation", () => {
       primaryType: "Permit",
       types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] }
     };
-    const tamperedDomain = { ...unsignedTypedData.domain, verifyingContract: "0x000000000000000000000000000000000000BEEF" };
+    const tamperedDomain = {
+      ...unsignedTypedData.domain,
+      verifyingContract: "0x000000000000000000000000000000000000BEEF" as `0x${string}`
+    };
     const sig = EthersSignature.from(await EVM_WALLET.signTypedData(tamperedDomain, unsignedTypedData.types, unsignedTypedData.message));
     const presignedTx: PresignedTx = {
       meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address,
