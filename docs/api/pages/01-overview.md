@@ -1,4 +1,4 @@
-# 1. Overview
+# Overview
 
 Vortex is a cross-border payments gateway that moves value between fiat currencies and crypto assets. It coordinates quoting, cross-chain swaps via XCM, anchor settlement, and payout across networks such as Base, Polygon, Ethereum, Arbitrum, BSC, Avalanche, Pendulum, Stellar, Moonbeam, AssetHub, and Hydration.
 
@@ -38,13 +38,13 @@ The SDK is intended for **trusted server-side Node.js** only. Browser support is
 
 Vortex does not custody user private keys. During a ramp, short-lived blockchain accounts called **ephemeral accounts** hold funds in transit. Vortex receives their public addresses; their secret keys never leave the SDK or your API client.
 
-This boundary is non-negotiable: if ephemeral secrets are lost while a ramp is in flight, recovery may be impossible for that ramp. See [5. Ephemeral Key Custody](./05-ephemeral-key-custody.md).
+This boundary is non-negotiable: if ephemeral secrets are lost while a ramp is in flight, recovery may be impossible for that ramp. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 
 ## Next Steps
 
-- New integrators: [2. Quick Start With The SDK](./02-quick-start-with-the-sdk.md).
-- Building for a non-Node stack: [12. AI Agent Integration](./12-ai-agent-integration.md).
-- Hosted checkout: [8. Widget Integration](./08-widget-integration.md).
+- New integrators: [Quick Start With The SDK](https://api-docs.vortexfinance.co/quick-start-with-the-sdk).
+- Building for a non-Node stack: [AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration).
+- Hosted checkout: [Widget Integration](https://api-docs.vortexfinance.co/widget-integration).
 
 ## Terms
 

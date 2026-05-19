@@ -1,4 +1,4 @@
-# 5. Ephemeral Key Custody
+# Ephemeral Key Custody
 
 Ephemeral accounts are temporary blockchain accounts created for a single ramp. The SDK creates fresh chain-specific accounts for each flow, such as Stellar, Substrate, or EVM accounts depending on the route. They may hold funds in transit while Vortex coordinates swaps, transfers, bridge operations, or payment settlement.
 

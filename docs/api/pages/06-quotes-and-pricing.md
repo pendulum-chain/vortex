@@ -1,4 +1,4 @@
-# 6. Quotes And Pricing
+# Quotes And Pricing
 
 Quotes are the entry point for every Vortex ramp. A quote pins down the route, input amount, expected output, fee breakdown, payment method, network, and expiry timestamp. Once you register a ramp against a quote, the quote is consumed; you cannot reuse it.
 
@@ -76,6 +76,6 @@ Quotes are immutable and short-lived. If the user takes too long to confirm, or 
 
 ## Partner Pricing
 
-Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [3. Authentication And Partner Keys](./03-authentication-and-partner-keys.md).
+Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And Partner Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
 ---

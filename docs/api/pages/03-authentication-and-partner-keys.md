@@ -1,4 +1,4 @@
-# 3. Authentication And Partner Keys
+# Authentication And Partner Keys
 
 Vortex authenticates partners with two key types and also accepts Supabase Bearer tokens for first-party user flows.
 

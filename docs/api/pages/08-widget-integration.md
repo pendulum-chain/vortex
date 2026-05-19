@@ -1,4 +1,4 @@
-# 8. Widget Integration
+# Widget Integration
 
 The Vortex Widget is a hosted checkout that handles the user-facing ramp UX, signing, and ephemeral key custody for you. It is the recommended path when your application runs in a browser, mobile WebView, or anywhere you cannot run `@vortexfi/sdk` server-side.
 
@@ -12,7 +12,7 @@ This single endpoint creates a widget session and returns a hosted URL. It suppo
 
 Authentication: pass your partner public key (`pk_live_*` / `pk_test_*`) as `apiKey` in the body for attribution. No secret key is required to create a session.
 
-`externalSessionId` is **required in both modes**. It is your own opaque identifier for the session and is echoed back in [webhook payloads](./07-webhooks.md) so you can correlate events to your records.
+`externalSessionId` is **required in both modes**. It is your own opaque identifier for the session and is echoed back in [webhook payloads](https://api-docs.vortexfinance.co/webhooks) so you can correlate events to your records.
 
 ## Mode A: Fixed Quote
 
@@ -118,7 +118,7 @@ Open the returned URL in a popup, iframe, or top-level redirect.
 ></iframe>
 ```
 
-```ts
+```js
 window.open(
   "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY...",
   "vortex-widget",
@@ -128,7 +128,7 @@ window.open(
 
 ## Receiving Results
 
-Subscribe to widget events through [webhooks](./07-webhooks.md) using the session identifier:
+Subscribe to widget events through [webhooks](https://api-docs.vortexfinance.co/webhooks) using the session identifier:
 
 ```http
 POST /v1/webhook
@@ -153,6 +153,6 @@ Webhook payloads include the `sessionId` so you can correlate events back to you
 | Browser / mobile app, no trusted backend | Widget |
 | Trusted Node.js backend, custom UX | `@vortexfi/sdk` |
 | Trusted Python backend | `vortex-sdk-python` |
-| Other backend stacks | Direct API ([12. AI Agent Integration](./12-ai-agent-integration.md)) |
+| Other backend stacks | Direct API ([AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration)) |
 
 ---

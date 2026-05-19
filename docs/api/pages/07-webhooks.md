@@ -1,4 +1,4 @@
-# 7. Webhooks
+# Webhooks
 
 Vortex webhooks let your application receive real-time notifications when ramp lifecycle events occur, instead of continuously polling `GET /v1/ramp/{id}`.
 
@@ -118,7 +118,7 @@ Verify signatures using RSA-PSS with SHA-256. Reject requests that fail signatur
 
 ### Example: Bun + TypeScript Listener
 
-```ts
+```js
 import { serve } from "bun";
 import crypto, { KeyObject } from "crypto";
 

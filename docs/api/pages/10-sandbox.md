@@ -1,4 +1,4 @@
-# 10. Sandbox
+# Sandbox
 
 Use the sandbox environment to test quote creation, ramp registration, signing, updates, webhook handling, and status tracking without touching production funds.
 

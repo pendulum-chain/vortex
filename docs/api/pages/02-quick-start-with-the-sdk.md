@@ -1,4 +1,4 @@
-# 2. Quick Start With The SDK
+# Quick Start With The SDK
 
 This page walks through a complete BRL ramp end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
 
@@ -12,7 +12,7 @@ bun add @vortexfi/sdk
 
 ## Initialize
 
-```ts
+```js
 import {
   VortexSdk,
   FiatToken,
@@ -38,7 +38,7 @@ Constructing `VortexSdk` opens three WebSocket connections (Pendulum, Moonbeam, 
 
 ## BRL Onramp (Buy)
 
-```ts
+```js
 const quote = await sdk.createQuote({
   rampType: RampDirection.BUY,
   from: "pix",
@@ -66,7 +66,7 @@ The user must have completed BRLA KYC level 1 or higher under the same `taxId`. 
 
 Selling crypto for BRL requires the user to sign one transaction with their own wallet. The SDK returns those transactions for you to route to the user's wallet provider.
 
-```ts
+```js
 const quote = await sdk.createQuote({
   rampType: RampDirection.SELL,
   from: Networks.Polygon,
@@ -90,7 +90,7 @@ const { rampProcess, userTransactions } = await sdk.registerRamp(quote, {
 
 The user-owned transactions are EVM typed-data payloads. With wagmi:
 
-```ts
+```js
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
 for (const tx of userTransactions) {
@@ -112,11 +112,11 @@ Validate every field before signing: `chainId`, `verifyingContract`, `value`, `t
 
 Poll for user-facing screens, use webhooks for back-office reconciliation:
 
-```ts
+```js
 const status = await sdk.getRampStatus(rampProcess.id);
 ```
 
-See [7. Webhooks](./07-webhooks.md).
+See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 
 ## Updating A Ramp
 
@@ -126,6 +126,6 @@ Most updates happen inside the SDK. For BRL buys, `registerRamp` already submits
 
 The SDK creates fresh ephemeral accounts per ramp, signs the transactions Vortex returns, submits ramp updates, and can persist a local backup of ephemeral secrets. This removes the most error-prone parts of a custom integration.
 
-If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup. The default backup is an **unencrypted** JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat it as sensitive key material; encrypt it, restrict the directory, or disable storage and implement your own store. See [5. Ephemeral Key Custody](./05-ephemeral-key-custody.md).
+If you disable SDK key storage with `storeEphemeralKeys: false`, your application must provide an equivalent secure backup. The default backup is an **unencrypted** JSON file named `ephemerals_{rampId}.json` written to the Node process's current working directory. Treat it as sensitive key material; encrypt it, restrict the directory, or disable storage and implement your own store. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 
 ---

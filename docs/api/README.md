@@ -45,6 +45,15 @@ The export script calls Apidog's official OpenAPI export endpoint with `X-Apidog
 bun run docs:api:export
 ```
 
+## Page Conventions
+
+- Markdown filenames are numbered (`01-overview.md`, `02-...`) to preserve repo ordering, but page H1 titles **must not** be numbered. Apidog renders H1 as the page title and is responsible for ordering through the manifest.
+- Use fenced code blocks with `js` (not `ts`). Apidog's renderer does not highlight `ts` reliably; `js` is rendered consistently for both plain JavaScript and TypeScript snippets.
+- Cross-page links between Markdown docs must use the **deterministic published URL** with a custom Apidog slug: `https://api-docs.vortexfinance.co/<slug>`. Relative `.md` links break on import because Apidog assigns its own page IDs and does not parse Markdown frontmatter.
+- The slug for each page must be set once in Apidog (Page → SEO Settings → URL Slug) to match the manifest `slug` field. Without a custom slug, Apidog auto-suffixes the URL (e.g. `/webhooks-1648582m0`) and links become fragile.
+
+The current slug-to-source mapping is the `slug` field in `apidog/page-manifest.json`. Keep them aligned with the published Apidog pages.
+
 ## Publishing To Apidog
 
 Apidog's documented Git connection currently targets OpenAPI/Swagger files. Use it for `docs/api/openapi/vortex.openapi.json`.

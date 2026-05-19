@@ -1,4 +1,4 @@
-# 11. Production Checklist
+# Production Checklist
 
 Before going live, verify the following:
 

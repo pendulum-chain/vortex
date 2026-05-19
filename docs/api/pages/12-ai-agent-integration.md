@@ -1,4 +1,4 @@
-# 12. AI Agent Integration
+# AI Agent Integration
 
 This page is written so that an AI coding agent (or a human engineer using one) can build a production-quality Vortex integration in any language or stack. It also explains how to keep these docs themselves useful when retrieved into a coding agent's context.
 
@@ -18,7 +18,7 @@ When you point an AI coding agent at Vortex:
 |---|---|
 | Node.js (server-side, trusted) | Use [`@vortexfi/sdk`](https://www.npmjs.com/package/@vortexfi/sdk). |
 | Python (server-side, trusted) | Use [`vortex-sdk-python`](https://pypi.org/project/vortex-sdk-python). |
-| Browser, mobile, WebView | Use the [Vortex Widget](./08-widget-integration.md). |
+| Browser, mobile, WebView | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
 Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
@@ -83,7 +83,7 @@ Reject startup if a `sk_live_*` key is detected in a browser-shaped runtime.
 POST /v1/quotes
 ```
 
-Request body: see [6. Quotes And Pricing](./06-quotes-and-pricing.md). Treat monetary fields as strings end-to-end; never parse them into floats. Store `id`, `expiresAt`, `fee`, and the resolved route. Surface expiry to the caller as a domain error.
+Request body: see [Quotes And Pricing](https://api-docs.vortexfinance.co/quotes-and-pricing). Treat monetary fields as strings end-to-end; never parse them into floats. Store `id`, `expiresAt`, `fee`, and the resolved route. Surface expiry to the caller as a domain error.
 
 ### D.3 Register
 
@@ -142,7 +142,7 @@ X-API-Key: sk_*
 
 ### D.6 Track
 
-- Register a webhook via `POST /v1/webhook` against `quoteId` or `sessionId`. Verify every delivery using RSA-PSS / SHA-256 against `GET /v1/public-key`. See [7. Webhooks](./07-webhooks.md).
+- Register a webhook via `POST /v1/webhook` against `quoteId` or `sessionId`. Verify every delivery using RSA-PSS / SHA-256 against `GET /v1/public-key`. See [Webhooks](https://api-docs.vortexfinance.co/webhooks).
 - Poll `GET /v1/ramp/{id}` for live user-facing UI.
 - Pull `GET /v1/ramp/{id}/errors` for support.
 
@@ -150,7 +150,7 @@ X-API-Key: sk_*
 
 These are not optional. The SDK handles them for you; a custom client must implement them explicitly.
 
-1. **Ephemeral key custody.** Generate fresh per-ramp keypairs. Store them encrypted, keyed by `rampId`. Keep them until the ramp is `COMPLETE` or `FAILED` **and** any recovery window has passed. Never transmit secrets to Vortex, support, logs, or analytics. See [5. Ephemeral Key Custody](./05-ephemeral-key-custody.md).
+1. **Ephemeral key custody.** Generate fresh per-ramp keypairs. Store them encrypted, keyed by `rampId`. Keep them until the ramp is `COMPLETE` or `FAILED` **and** any recovery window has passed. Never transmit secrets to Vortex, support, logs, or analytics. See [Ephemeral Key Custody](https://api-docs.vortexfinance.co/ephemeral-key-custody).
 2. **Payload validation before signing.** Every field that affects funds movement must match what your application requested.
 3. **Idempotency.** Wrap `register`, `update`, and `start` with idempotency keys at your layer. Retries must not produce duplicate ramps.
 4. **Retries with backoff.** The Vortex SDK does not retry, time out, or poll on your behalf. Add a retry policy with jittered exponential backoff for transient failures (5xx, network) and surface 4xx errors as terminal.
@@ -188,6 +188,6 @@ Before going live without the SDK:
 - [ ] Sandbox tested for: successful buy, successful sell, expired quote, failed payment, webhook retry, dropped ephemeral signer.
 - [ ] Production runbook covers ramp recovery using persisted `rampId` and ephemeral backup.
 
-See also [11. Production Checklist](./11-production-checklist.md).
+See also [Production Checklist](https://api-docs.vortexfinance.co/production-checklist).
 
 ---

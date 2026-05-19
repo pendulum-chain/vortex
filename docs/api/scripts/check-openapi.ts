@@ -167,7 +167,7 @@ const pageFiles = manifest.pages.map(page => {
   }
 
   const markdown = readFileSync(source, "utf8");
-  const expectedHeading = `# ${order}. ${title}`;
+  const expectedHeading = `# ${title}`;
   if (!markdown.includes(expectedHeading)) {
     throw new Error(`Manifest title "${title}" was not found as a heading in ${source}.`);
   }

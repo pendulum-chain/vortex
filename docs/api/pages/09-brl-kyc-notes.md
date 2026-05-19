@@ -1,4 +1,4 @@
-# 9. BRL / KYC Notes
+# BRL / KYC Notes
 
 BRL routes require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID, either CPF for individuals or CNPJ for businesses, is used as the primary identifier.
 
