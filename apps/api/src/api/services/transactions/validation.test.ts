@@ -39,6 +39,9 @@ async function makeSignedEvmTx(overrides: {
   data?: string;
   value?: string;
   chainId?: number;
+  gasLimit?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
 }): Promise<PresignedTx> {
   const to = overrides.to || "0x000000000000000000000000000000000000dEaD";
   const data = overrides.data || "0x12345678";
@@ -48,9 +51,9 @@ async function makeSignedEvmTx(overrides: {
   const signedRawTx = await EVM_WALLET.signTransaction({
     chainId,
     data,
-    gasLimit: 21000n,
-    maxFeePerGas: 1000000000n,
-    maxPriorityFeePerGas: 1000000000n,
+    gasLimit: overrides.gasLimit ?? 21000n,
+    maxFeePerGas: overrides.maxFeePerGas ?? 1000000000n,
+    maxPriorityFeePerGas: overrides.maxPriorityFeePerGas ?? 1000000000n,
     nonce: overrides.nonce,
     to,
     type: 2,
@@ -78,6 +81,9 @@ async function makeSignedEvmTxWithBackups(overrides: {
   data?: string;
   value?: string;
   chainId?: number;
+  gasLimit?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
 }): Promise<PresignedTx> {
   const main = await makeSignedEvmTx(overrides);
   const additionalTxs: Record<string, PresignedTx> = {};
@@ -851,6 +857,126 @@ describe("Presigned Transaction validation", () => {
     await expect(
       validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
     ).rejects.toThrow("contract creation not allowed");
+  });
+
+  it("rejects signed EVM hex blob when gas limit is below server unsigned gas", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      gasLimit: 20000n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("gas limit");
+  });
+
+  it("rejects signed EVM hex blob when maxFeePerGas is below server unsigned maxFeePerGas", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "500000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      maxFeePerGas: 999999999n,
+      maxPriorityFeePerGas: 500000000n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("maxFeePerGas");
+  });
+
+  it("rejects signed EVM hex blob when maxPriorityFeePerGas is below server unsigned maxPriorityFeePerGas", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "500000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      maxFeePerGas: 1000000000n,
+      maxPriorityFeePerGas: 499999999n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).rejects.toThrow("maxPriorityFeePerGas");
+  });
+
+  it("accepts signed EVM hex blob when gas and fee caps exceed server unsigned values", async () => {
+    const unsignedTxData: EvmTransactionData = {
+      data: "0x12345678",
+      gas: "21000",
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "500000000",
+      to: "0x000000000000000000000000000000000000dEaD",
+      value: "0"
+    };
+    const unsignedTx: PresignedTx = {
+      meta: {},
+      network: Networks.Polygon,
+      nonce: 5,
+      phase: "fundEphemeral",
+      signer: EVM_SIGNER,
+      txData: unsignedTxData
+    };
+    const presignedTx = await makeSignedEvmTxWithBackups({
+      gasLimit: 30000n,
+      maxFeePerGas: 2000000000n,
+      maxPriorityFeePerGas: 1000000000n,
+      nonce: 5,
+      phase: "fundEphemeral",
+      network: Networks.Polygon
+    });
+
+    await expect(
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+    ).resolves.toBeUndefined();
   });
 
   it("should throw error when transaction is missing required properties", async () => {

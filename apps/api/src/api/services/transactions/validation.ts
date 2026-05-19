@@ -35,6 +35,20 @@ interface VerifiedEvmTransaction {
   chainId: number;
 }
 
+function assertSignedEvmMinimum(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
+  if (expectedMinimumRaw === undefined) {
+    return;
+  }
+
+  const expectedMinimum = BigInt(expectedMinimumRaw);
+  if (actual === undefined || actual < expectedMinimum) {
+    throw new APIError({
+      message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
 async function verifySignedEvmTransaction(
   signedTxHex: string,
   expectedSigner: string,
@@ -123,6 +137,14 @@ async function verifySignedEvmTransaction(
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    assertSignedEvmMinimum("gas limit", parsed.gas, unsignedTxData.gas);
+    assertSignedEvmMinimum("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
+    assertSignedEvmMinimum(
+      "maxPriorityFeePerGas",
+      parsed.maxPriorityFeePerGas ?? parsed.gasPrice,
+      unsignedTxData.maxPriorityFeePerGas
+    );
   }
 
   if (!parsed.to) {
