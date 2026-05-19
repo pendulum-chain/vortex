@@ -6,7 +6,6 @@ import {
   EphemeralAccountType,
   EvmTransactionData,
   getNetworkId,
-  isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
   Networks,
@@ -21,15 +20,7 @@ import {
 import { Signature as EvmSignature, verifyTypedData } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
-import {
-  type Hex,
-  keccak256,
-  parseTransaction,
-  recoverAddress,
-  serializeTransaction,
-  type TransactionType,
-  toBytes
-} from "viem";
+import { type Hex, keccak256, parseTransaction, recoverAddress, serializeTransaction, toBytes } from "viem";
 import { config } from "../../../config";
 import logger from "../../../config/logger";
 import { APIError } from "../../errors/api-error";
@@ -301,7 +292,7 @@ export async function validatePresignedTxs(
       // Deep comparisson to get the unsigned tx data for this EVM phase
       const matchingUnsigned = unsignedTxs?.find(u => u.phase === tx.phase && u.network === tx.network);
       if (!matchingUnsigned) {
-        console.log(
+        logger.info(
           `No matching unsigned transaction found for EVM transaction with phase ${tx.phase}, network ${tx.network}, signer ${tx.signer}`
         );
         throw new APIError({
