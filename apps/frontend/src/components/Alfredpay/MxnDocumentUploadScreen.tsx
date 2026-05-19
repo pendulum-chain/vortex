@@ -7,6 +7,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 interface MxnDocumentUploadScreenProps {
+  includeSelfie?: boolean;
   onSubmit: (files: MxnKycFiles) => void;
 }
 
@@ -59,16 +60,18 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
   );
 }
 
-export function MxnDocumentUploadScreen({ onSubmit }: MxnDocumentUploadScreenProps) {
+export function MxnDocumentUploadScreen({ onSubmit, includeSelfie = false }: MxnDocumentUploadScreenProps) {
   const { t } = useTranslation();
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
+  const [selfie, setSelfie] = useState<File | null>(null);
 
-  const isValid = front !== null && back !== null;
+  const isValid = front !== null && back !== null && (!includeSelfie || selfie !== null);
 
   const handleSubmit = () => {
     if (!front || !back) return;
-    onSubmit({ back, front });
+    if (includeSelfie && !selfie) return;
+    onSubmit({ back, front, selfie: selfie ?? undefined });
   };
 
   return (
@@ -80,6 +83,9 @@ export function MxnDocumentUploadScreen({ onSubmit }: MxnDocumentUploadScreenPro
       <div className="flex grow-1 flex-col space-y-4 px-1 pb-4">
         <FileDropZone file={front} label={t("components.mxnDocumentUpload.frontLabel")} onChange={setFront} />
         <FileDropZone file={back} label={t("components.mxnDocumentUpload.backLabel")} onChange={setBack} />
+        {includeSelfie && (
+          <FileDropZone file={selfie} label={t("components.mxnDocumentUpload.selfieLabel")} onChange={setSelfie} />
+        )}
 
         <p className="text-center text-gray-400 text-xs">{t("components.mxnDocumentUpload.fileHint")}</p>
 

@@ -33,6 +33,32 @@
       "verifyingStatus": "Verifying {{kycOrKyb}} Status",
       "verifyingStatusDescription": "This may take a few moments. Please do not close this window."
     },
+    "arDocumentUpload": {
+      "backLabel": "Back of DNI",
+      "fileHint": "Accepted formats: JPG, PNG, PDF — max 5 MB each",
+      "fileTooLarge": "File exceeds the 5 MB limit.",
+      "frontLabel": "Front of DNI",
+      "invalidType": "Only JPG, PNG, or PDF files are accepted.",
+      "selfieLabel": "Selfie",
+      "submit": "Submit Documents",
+      "subtitle": "Please upload a photo or scan of your DNI (front and back) and a selfie. Max 5 MB per file.",
+      "tapToSelect": "Tap to select file",
+      "title": "Upload ID Documents"
+    },
+    "arKycForm": {
+      "cuit": "CUIT",
+      "cuitPlaceholder": "CUIT",
+      "dni": "DNI Number",
+      "dniPlaceholder": "DNI number",
+      "documentType": "Document Type",
+      "options": {
+        "dni": "DNI (Documento Nacional de Identidad)"
+      },
+      "pepLabel": "I am a Politically Exposed Person (PEP)",
+      "phoneNumber": "Phone Number",
+      "subtitle": "Please provide your personal information to complete KYC.",
+      "title": "Identity Verification"
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continue",
@@ -390,12 +416,14 @@
       "descriptions": {
         "ACH": "1-2 business days",
         "ACH_COL": "Colombian bank transfer",
+        "COELSA": "Argentine bank transfer",
         "SPEI": "Instant interbank transfer via CLABE number",
         "WIRE": "Same day"
       },
       "labels": {
         "ACH": "ACH Transfer",
         "ACH_COL": "ACH Colombia",
+        "COELSA": "COELSA",
         "SPEI": "SPEI",
         "WIRE": "Wire Transfer"
       },
@@ -542,6 +570,7 @@
       "fileTooLarge": "File exceeds the 5 MB limit.",
       "frontLabel": "Front of Document",
       "invalidType": "Only JPG, PNG, or PDF files are accepted.",
+      "selfieLabel": "Selfie",
       "submit": "Submit Documents",
       "subtitle": "Please upload a photo or scan of your ID document. Max 5 MB per file (JPG, PNG, PDF).",
       "tapToSelect": "Tap to select file",

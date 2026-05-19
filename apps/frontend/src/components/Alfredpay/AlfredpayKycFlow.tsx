@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
 import { CustomerDefinitionScreen } from "./CustomerDefinitionScreen";
 import { DoneScreen } from "./DoneScreen";
@@ -59,6 +60,7 @@ export const AlfredpayKycFlow = () => {
   const kycOrKyb = context.business ? "KYB" : "KYC";
   const isMxn = context.country === "MX";
   const isCo = context.country === "CO";
+  const isAr = context.country === "AR";
 
   if (
     stateValue === "CheckingStatus" ||
@@ -86,8 +88,13 @@ export const AlfredpayKycFlow = () => {
     return <ColKycFormScreen onSubmit={submitForm} />;
   }
 
-  if (stateValue === "UploadingDocuments" && (isMxn || isCo)) {
-    return <MxnDocumentUploadScreen onSubmit={submitFiles} />;
+  if (stateValue === "FillingKycForm" && isAr) {
+    return <ArKycFormScreen onSubmit={submitForm} />;
+  }
+
+  if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
+    const includeSelfie = isAr;
+    return <MxnDocumentUploadScreen includeSelfie={includeSelfie} onSubmit={submitFiles} />;
   }
 
   if (stateValue === "FillingKybForm") {

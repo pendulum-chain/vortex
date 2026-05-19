@@ -30,7 +30,6 @@ export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
       rampType: req.rampType,
       toNetwork: this.network
     };
-
     const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
 
     ctx.evmToEvm = {

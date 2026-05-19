@@ -70,9 +70,10 @@ export class RouteResolver {
       case "wire":
       case "ach":
       case "spei":
+      case "cbu":
         return new OfframpEvmToAlfredpayStrategy();
       case "sepa":
-      case "cbu":
+
       default:
         return new OfframpToStellarStrategy();
     }

@@ -71,7 +71,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
     [FiatToken.USD]: AlfredPayCountry.US,
     [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO
+    [FiatToken.COP]: AlfredPayCountry.CO,
+    [FiatToken.ARS]: AlfredPayCountry.AR
   };
   const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
   if (!customerCountry) {

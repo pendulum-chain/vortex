@@ -19,6 +19,7 @@ export type KybFormData = Omit<SubmitKybInformationRequest, "country">;
 export interface MxnKycFiles {
   front: File;
   back: File;
+  selfie?: File;
 }
 
 export interface KybBusinessFiles {
@@ -184,6 +185,10 @@ export const alfredpayKycMachine = setup({
         if (!input.mxnFiles) throw new Error("KYC files missing");
         await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.FRONT, input.mxnFiles.front);
         await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.BACK, input.mxnFiles.back);
+        if (country === "AR") {
+          if (!input.mxnFiles.selfie) throw new Error("Selfie file missing");
+          await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.SELFIE, input.mxnFiles.selfie);
+        }
       }
     ),
 
@@ -375,8 +380,8 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
-            // MXN and CO use API-based form, not iFrame link
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            // MXN, CO, and AR use API-based form, not iFrame link
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -415,11 +420,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -654,11 +660,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -721,11 +728,7 @@ export const alfredpayKycMachine = setup({
           target: "SendingSubmission"
         },
         onError: {
-          actions: assign({
-            error: () =>
-              new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError)
-          }),
-          target: "Failure"
+          target: "UploadingDocuments"
         },
         src: "submitFiles"
       }

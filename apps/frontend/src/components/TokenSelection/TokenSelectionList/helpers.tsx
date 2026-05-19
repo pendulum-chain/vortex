@@ -157,10 +157,6 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
   }));
 }
 
-function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  return direction === RampDirection.BUY && type === "from";
-}
-
 export function useIsFiatDirection() {
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
@@ -174,7 +170,7 @@ function isFiatDirection(type: "from" | "to", direction: RampDirection) {
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
   if (isFiatDirection(type, direction)) {
-    return getFiatTokens(isFilterEurcOnly(type, direction));
+    return getFiatTokens();
   } else {
     return getAllOnChainTokens();
   }

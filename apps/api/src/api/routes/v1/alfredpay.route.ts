@@ -3,6 +3,7 @@ import multer from "multer";
 import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requireAuth } from "../../middlewares/supabaseAuth";
+import { validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 }, storage: multer.memoryStorage() });
@@ -18,7 +19,13 @@ router.post("/createBusinessCustomer", requireAuth, validateResultCountry, Alfre
 router.get("/getKybRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKybRedirectLink);
 
 // MXN/CO API-based KYC
-router.post("/submitKycInformation", requireAuth, validateResultCountry, AlfredpayController.submitKycInformation);
+router.post(
+  "/submitKycInformation",
+  requireAuth,
+  validateResultCountry,
+  validateKycSubmission,
+  AlfredpayController.submitKycInformation
+);
 router.post("/submitKycFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKycFile);
 router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKycSubmission);
 
