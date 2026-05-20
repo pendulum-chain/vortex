@@ -15,7 +15,7 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
-import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/dualAuth";
+import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
 import rampService from "../services/ramp/ramp.service";
 
 /**
