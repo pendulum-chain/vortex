@@ -56,6 +56,19 @@ export async function assertRampOwnership(
     return;
   }
 
+  // Anonymous caller: allow only when the ramp itself is fully anonymous
+  // (no user owner AND its source quote has no partner owner). Owned ramps
+  // always require matching credentials.
+  if (ramp.userId === null) {
+    const quote = await QuoteTicket.findByPk(ramp.quoteId);
+    if (!quote) {
+      throw new APIError({ message: "Associated quote not found", status: httpStatus.NOT_FOUND });
+    }
+    if (quote.partnerId === null) {
+      return;
+    }
+  }
+
   throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
 }
 
@@ -94,6 +107,13 @@ export async function assertQuoteOwnership(
         status: httpStatus.FORBIDDEN
       });
     }
+    return;
+  }
+
+  // Anonymous caller: allow only when the quote is fully anonymous
+  // (no partner owner AND no user owner). Owned quotes always require
+  // matching credentials.
+  if (quote.partnerId === null && quote.userId === null) {
     return;
   }
 
