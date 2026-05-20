@@ -2,12 +2,13 @@ import {
   AccountMeta,
   EphemeralAccount,
   EphemeralAccountType,
+  RampDirection,
   RampProcess,
   RegisterRampRequest,
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { BrlKycStatusError } from "../errors";
+import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError } from "../errors";
 import type { ApiService } from "../services/ApiService";
 import type {
   BrlOfframpAdditionalData,
@@ -61,6 +62,7 @@ export class BrlHandler implements RampHandler {
     }
 
     await this.validateBrlKyc(additionalData.taxId);
+    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.BUY);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -100,6 +102,8 @@ export class BrlHandler implements RampHandler {
     }
 
     await this.validateBrlKyc(additionalData.taxId);
+    await this.assertValidPixKey(additionalData.pixDestination);
+    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.SELL);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -170,6 +174,31 @@ export class BrlHandler implements RampHandler {
     const kycStatus = await this.apiService.getBrlKycStatus(taxId);
     if (kycStatus.kycLevel < 1) {
       throw new Error(`Insufficient KYC level. Current: ${kycStatus.kycLevel}`);
+    }
+  }
+
+  private async assertValidPixKey(pixKey: string): Promise<void> {
+    let result: { valid: boolean };
+    try {
+      result = await this.apiService.validateBrlPixKey(pixKey);
+    } catch {
+      throw new InvalidPixKeyError();
+    }
+    if (!result.valid) {
+      throw new InvalidPixKeyError();
+    }
+  }
+
+  private async assertWithinBrlLimit(taxId: string, quoteId: string, direction: RampDirection): Promise<void> {
+    const quote = await this.apiService.getQuote(quoteId);
+    // BRL is the input on BUY (onramp) and the output on SELL (offramp).
+    const brlAmount = Number(direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount);
+    if (!Number.isFinite(brlAmount)) {
+      return;
+    }
+    const { remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction);
+    if (brlAmount > remainingLimit) {
+      throw new AmountExceedsLimitError();
     }
   }
 }
