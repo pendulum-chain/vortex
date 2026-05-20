@@ -1,6 +1,6 @@
 import { MoonpayPriceResponse, RampDirection } from "@vortexfi/shared";
-import { config } from "../../../config";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import { ProviderInternalError } from "../../errors/providerErrors";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import { createQuoteRequest } from "./request-creator";

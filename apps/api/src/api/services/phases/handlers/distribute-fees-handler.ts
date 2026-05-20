@@ -22,8 +22,8 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";

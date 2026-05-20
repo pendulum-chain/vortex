@@ -10,8 +10,8 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { config } from "../../config";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import { MOONBEAM_FUNDING_AMOUNT_UNITS, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../constants/constants";
 import { SlackNotifier } from "../services/slack.service";
 

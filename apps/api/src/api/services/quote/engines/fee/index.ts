@@ -1,6 +1,6 @@
 import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";

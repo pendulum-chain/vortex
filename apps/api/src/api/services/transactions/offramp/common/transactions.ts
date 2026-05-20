@@ -19,7 +19,7 @@ import {
 import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";

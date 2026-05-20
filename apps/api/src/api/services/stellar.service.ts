@@ -1,6 +1,6 @@
 import { getTokenConfigByAssetCode, HORIZON_URL, StellarTokenConfig, TOKEN_CONFIG } from "@vortexfi/shared";
 import { Asset, Horizon, Keypair, Networks, Operation, TransactionBuilder } from "stellar-sdk";
-import { config } from "../../config";
+import { config } from "../../config/vars";
 import { STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../constants/constants";
 
 interface CreationTxResult {

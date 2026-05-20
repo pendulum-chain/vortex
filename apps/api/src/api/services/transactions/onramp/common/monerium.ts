@@ -1,6 +1,6 @@
 import { ERC20_EURE_POLYGON_V2, EvmClientManager, EvmTransactionData, Networks } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 
 export async function createOnrampEphemeralSelfTransfer(

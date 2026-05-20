@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { config } from "../../../config";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";

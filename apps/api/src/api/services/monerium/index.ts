@@ -14,8 +14,8 @@ import {
   MoneriumUserProfile,
   Networks
 } from "@vortexfi/shared";
-import { config } from "../../../config";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 
 const MONERIUM_API_URL = config.sandboxEnabled ? "https://api.monerium.dev" : "https://api.monerium.app";

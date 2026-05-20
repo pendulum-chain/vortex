@@ -9,8 +9,8 @@ import {
 import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { base, polygon } from "viem/chains";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,

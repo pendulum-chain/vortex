@@ -12,8 +12,8 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

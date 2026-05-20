@@ -36,7 +36,7 @@ import {
   toHex
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";

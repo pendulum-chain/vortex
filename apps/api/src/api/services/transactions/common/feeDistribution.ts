@@ -15,8 +15,8 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem/utils";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import erc20ABI from "../../../../contracts/ERC20";
 import { MULTICALL3_ADDRESS, multicall3ABI } from "../../../../contracts/Multicall3";
 import Partner from "../../../../models/partner.model";

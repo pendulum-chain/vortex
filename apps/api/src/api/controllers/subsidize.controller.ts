@@ -13,8 +13,8 @@ import {
 import Big from "big.js";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { config } from "../../config";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 
 export const getFundingAccount = () => {
   if (!config.secrets.pendulumFundingSeed) {

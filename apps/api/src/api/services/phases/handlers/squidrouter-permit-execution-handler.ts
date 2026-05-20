@@ -8,8 +8,8 @@ import {
   SignedTypedData
 } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import { tokenRelayerAbi } from "../../../../contracts/TokenRelayer";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";

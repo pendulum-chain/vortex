@@ -14,7 +14,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";

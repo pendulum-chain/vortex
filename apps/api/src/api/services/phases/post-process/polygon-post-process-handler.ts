@@ -1,8 +1,8 @@
 import { CleanupPhase, EvmClientManager, EvmNetworks, Networks, PresignedTx, RampDirection } from "@vortexfi/shared";
 import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import RampState from "../../../../models/rampState.model";
 import { getEvmFundingAccount } from "../evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";

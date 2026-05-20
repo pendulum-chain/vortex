@@ -22,8 +22,8 @@ import { Signature as EvmSignature, verifyTypedData } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
 import { type Hex, keccak256, parseTransaction, recoverAddress, serializeTransaction, toBytes } from "viem";
-import { config } from "../../../config";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
 
 interface VerifiedEvmTransaction {

@@ -1,8 +1,14 @@
-import { HORIZON_URL, NUMBER_OF_PRESIGNED_TXS, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@vortexfi/shared";
+import {
+  HORIZON_URL,
+  NUMBER_OF_PRESIGNED_TXS,
+  PaymentData,
+  STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS,
+  StellarTokenDetails
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS, SEQUENCE_TIME_WINDOWS, STELLAR_BASE_FEE } from "../../../../constants/constants";
 
 // Define HorizonServer type

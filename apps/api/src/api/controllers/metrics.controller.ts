@@ -1,7 +1,7 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { Request, Response } from "express";
-import { config } from "../../config";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import { cache } from "../services";
 
 const CACHE_TTL_SECONDS = 5 * 60; // 5 minutes

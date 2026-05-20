@@ -1,7 +1,7 @@
 import { CleanupPhase, FiatToken, HORIZON_URL, RampDirection } from "@vortexfi/shared";
 import { Horizon, NetworkError, Networks as StellarNetworks, Transaction } from "stellar-sdk";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import { SEQUENCE_TIME_WINDOWS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";

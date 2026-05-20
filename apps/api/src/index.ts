@@ -1,10 +1,11 @@
 import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
-import { config, testDatabaseConnection } from "./config";
 import cryptoService from "./config/crypto";
+import { testDatabaseConnection } from "./config/database";
 import app from "./config/express";
 import logger from "./config/logger";
+import { config } from "./config/vars";
 
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models

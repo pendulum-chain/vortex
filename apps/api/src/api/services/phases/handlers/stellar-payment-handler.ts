@@ -1,7 +1,7 @@
 import { HORIZON_URL, RampPhase } from "@vortexfi/shared";
 import { Horizon, NetworkError, Networks, Transaction } from "stellar-sdk";
-import { config } from "../../../../config";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { verifyStellarPaymentSuccess } from "../helpers/stellar-payment-verifier";
