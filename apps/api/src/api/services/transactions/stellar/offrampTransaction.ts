@@ -1,4 +1,4 @@
-import { HORIZON_URL, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@vortexfi/shared";
+import { HORIZON_URL, NUMBER_OF_PRESIGNED_TXS, PaymentData, STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS, StellarTokenDetails } from "@vortexfi/shared";
 import Big from "big.js";
 import { Account, Asset, Horizon, Keypair, Memo, Networks, Operation, TransactionBuilder } from "stellar-sdk";
 import { config } from "../../../../config";
@@ -36,7 +36,6 @@ export async function buildPaymentAndMergeTx({
   createAccountTransactions: Array<{ sequence: string; tx: string }>;
 }> {
   const baseFee = STELLAR_BASE_FEE;
-  const NUMBER_OF_PRESIGNED_TXS = 5;
 
   if (!config.secrets.stellarFundingSecret) {
     logger.error("Stellar funding secret not defined");

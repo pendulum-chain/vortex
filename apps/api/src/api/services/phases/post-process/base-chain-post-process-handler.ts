@@ -13,6 +13,13 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
     return "baseCleanupBrla";
   }
 
+  protected override createErrorObject(error: Error | string, phase?: CleanupPhase): Error {
+    const errorMessage = error instanceof Error ? error.message : error;
+    const handlerName = phase ?? this.getCleanupName();
+    logger.error(`Cleanup phase '${handlerName}' failed: ${errorMessage}`);
+    return new Error(`Cleanup phase '${handlerName}' failed: ${errorMessage}`);
+  }
+
   public shouldProcess(state: RampState): boolean {
     if (state.currentPhase !== "complete") {
       return false;
@@ -53,7 +60,7 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       const parsedTx = EvmTransaction.from(signedApproveTx);
       const tokenAddress = parsedTx.to as `0x${string}`;
       if (!tokenAddress) {
-        return [false, this.createErrorObject(`Could not extract token address from presigned ${phase} tx`)];
+        return [false, this.createErrorObject(`Could not extract token address from presigned ${phase} tx`, phase)];
       }
 
       const evmClientManager = EvmClientManager.getInstance();
@@ -74,7 +81,7 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
       const txHash = await evmClientManager.sendRawTransactionWithRetry(Networks.Base, signedApproveTx as `0x${string}`);
       const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: txHash as `0x${string}` });
       if (!approveReceipt || approveReceipt.status !== "success") {
-        return [false, this.createErrorObject(`Approve tx ${txHash} for ${phase} failed`)];
+        return [false, this.createErrorObject(`Approve tx ${txHash} for ${phase} failed`, phase)];
       }
 
       const fundingAccount = getEvmFundingAccount(Networks.Base);
@@ -89,13 +96,13 @@ export class BaseChainPostProcessHandler extends BasePostProcessHandler {
 
       const transferReceipt = await publicClient.waitForTransactionReceipt({ hash: transferFromHash });
       if (!transferReceipt || transferReceipt.status !== "success") {
-        return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`)];
+        return [false, this.createErrorObject(`transferFrom tx ${transferFromHash} for ${phase} failed`, phase)];
       }
 
       logger.info(`Successfully swept ${balance} tokens for Base cleanup ${phase} on ramp ${state.id}`);
       return [true, null];
     } catch (e) {
-      return [false, this.createErrorObject(`Error in Base cleanup ${phase}: ${e}`)];
+      return [false, this.createErrorObject(`Error in Base cleanup ${phase}: ${e}`, phase)];
     }
   }
 }

@@ -201,7 +201,6 @@ export class RampService extends BaseRampService {
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      const prepareStart = Date.now();
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
@@ -226,7 +225,6 @@ export class RampService extends BaseRampService {
       handleQuoteConsumptionForDiscountState(partner);
 
       // Create initial ramp state
-      const createRampStateStart = Date.now();
       const rampState = await this.createRampState(
         {
           currentPhase: "initial" as RampPhase,

@@ -77,7 +77,6 @@ export class ApiManager {
   public async populateApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
     const network = this.getNetworkConfig(networkName);
     const index = wsUrlIndex ?? 0;
-    const wsUrl = network.wsUrls[index];
     const instanceKey = this.generateInstanceKey(networkName, index);
     const existingInstance = this.apiInstances.get(instanceKey);
     if (existingInstance) {

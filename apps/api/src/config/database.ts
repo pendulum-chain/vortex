@@ -24,7 +24,7 @@ const sequelize = new Sequelize(config.database.database, config.database.userna
     config.env === "production"
       ? {
           ssl: {
-            rejectUnauthorized: false,
+            rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
             require: true
           }
         }

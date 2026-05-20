@@ -4,7 +4,6 @@ import {
   getAddressForFormat,
   RampPhase,
   submitXTokens,
-  waitUntilTrue,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -55,7 +54,7 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
         `PendulumToHydrationXCMPhaseHandler: Transaction already submitted (${pendulumToHydrationXcmHash}), waiting for arrival`
       );
       logger.info("Waiting for assets to arrive on Hydration");
-      await waitUntilTrue(didInputTokenArriveOnHydration, 60000);
+      await waitUntilTrueWithTimeout(didInputTokenArriveOnHydration, 5000, 120000);
       return this.transitionToNextPhase(state, "hydrationSwap");
     }
 
