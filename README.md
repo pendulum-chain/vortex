@@ -11,6 +11,20 @@
 
 Vortex is a gateway for cross-border payments. It is built on top of the Pendulum blockchain.
 
+## AI Agent Skill
+
+This repository includes a repo-scoped Codex/Agent Skills skill for Vortex integrations:
+
+- [`.agents/skills/vortex-integration/SKILL.md`](.agents/skills/vortex-integration/SKILL.md)
+
+When this repository is open in Codex, the skill is discovered automatically from `.agents/skills`. If you are integrating Vortex from another repository, install the public skill directory URL instead:
+
+```text
+https://github.com/pendulum-chain/vortex/tree/main/.agents/skills/vortex-integration
+```
+
+Use the skill for task-shaped guidance around quotes, BRL PIX onramps/offramps, ramp polling, webhook verification, supported corridors, auth setup, and error recovery. The hosted AI-agent integration guide is available at <https://api-docs.vortexfinance.co/ai-agent-integration>.
+
 ## Repository Structure
 
 This is a **Bun monorepo** containing multiple sub-projects organized into apps, packages, and contracts:
