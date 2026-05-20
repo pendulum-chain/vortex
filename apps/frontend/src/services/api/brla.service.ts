@@ -8,6 +8,7 @@ import {
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
+  KycLevel1Payload,
   RampDirection
 } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
@@ -88,6 +89,15 @@ export class BrlaService {
    */
   static async createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse> {
     return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
+  }
+
+  /**
+   * Submit a Level 1 KYC payload for an existing subaccount
+   * @param payload The KYC Level 1 payload
+   * @returns The KYC attempt ID
+   */
+  static async submitNewKyc(payload: KycLevel1Payload): Promise<{ id: string }> {
+    return apiRequest<{ id: string }>("post", `${this.BASE_PATH}/newKyc`, payload);
   }
 
   /**

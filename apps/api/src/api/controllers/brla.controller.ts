@@ -102,8 +102,13 @@ function mapKycFailureReason(webhookReason: string | undefined): KycFailureReaso
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   logger.error(`Error while performing ${apiMethod}: `, error);
 
+  if (error instanceof APIError) {
+    res.status(error.status ?? httpStatus.INTERNAL_SERVER_ERROR).json({ error: error.message });
+    return;
+  }
+
   if (error instanceof Error && error.message.includes("status '400'")) {
-    const splitError = error.message.split("Error: ", 1);
+    const splitError = error.message.split("Error: ", 2);
     if (splitError.length > 1) {
       const errorMessageString = splitError[1];
       try {
@@ -133,7 +138,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  *
  * @returns void - Sends JSON response with evmAddress on success, or appropriate error status
  *
- * @throws 400 - If taxId or pixId are missing or if KYC level is invalid
+ * @throws 400 - If taxId is missing
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
@@ -160,6 +165,14 @@ export const getAveniaUser = async (
     });
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    // When the caller authenticated as a Supabase user, only the owning user may read this taxId.
+    // Partner SDK callers (no req.userId) are intentionally exempt: they authenticate via API key
+    // and may need to look up any taxId for their integration flow.
+    if (req.userId && taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
       return;
     }
 
@@ -192,7 +205,7 @@ export const getAveniaUser = async (
 
 export const recordInitialKycAttempt = async (
   req: Request<unknown, unknown, BrlaPostRecordInitialKycAttemptRequest, unknown>,
-  res: Response<{} | BrlaErrorResponse>
+  res: Response<Record<string, never> | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId, quoteId, sessionId } = req.body;
@@ -299,7 +312,7 @@ export const getAveniaUserRemainingLimit = async (
 
 export const createSubaccount = async (
   req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
-  res: Response<BrlaCreateSubaccountResponse>
+  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
@@ -311,9 +324,25 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
+    // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
+    // on every conflict and to prevent account-takeover via subAccountId overwrite.
+    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
+    if (existingTaxId && existingTaxId.internalStatus !== TaxIdInternalStatus.Consulted) {
+      const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== (req.userId ?? null);
+      if (ownedByAnotherUser) {
+        res.status(httpStatus.CONFLICT).json({
+          error: "A subaccount already exists for this taxId"
+        });
+        return;
+      }
+      // Allow authenticated users to claim anonymous records by updating userId
+      if (existingTaxId.userId === null && req.userId) {
+        await existingTaxId.update({ userId: req.userId });
+      }
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
-    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
 
     if (existingTaxId) {
       await existingTaxId.update({
@@ -514,6 +543,11 @@ export const getUploadUrls = async (
       return;
     }
 
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
 
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
@@ -552,8 +586,26 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    await new Promise(resolve => setTimeout(resolve, 5000));
     const subAccountId = req.body.subAccountId;
+
+    if (!subAccountId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing subAccountId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      return;
+    }
+
+    // Wait for previously uploaded documents to propagate before submitting KYC
+    await new Promise(resolve => setTimeout(resolve, 5000));
     await brlaApiService.getUploadedDocuments(subAccountId);
     const response = await brlaApiService.submitKycLevel1(req.body);
 
@@ -586,6 +638,11 @@ export const initiateKybLevel1 = async (
     const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
       return;
     }
 
