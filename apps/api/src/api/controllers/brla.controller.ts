@@ -102,6 +102,11 @@ function mapKycFailureReason(webhookReason: string | undefined): KycFailureReaso
 function handleApiError(error: unknown, res: Response, apiMethod: string): void {
   logger.error(`Error while performing ${apiMethod}: `, error);
 
+  if (error instanceof APIError) {
+    res.status(error.status ?? httpStatus.INTERNAL_SERVER_ERROR).json({ error: error.message });
+    return;
+  }
+
   if (error instanceof Error && error.message.includes("status '400'")) {
     const splitError = error.message.split("Error: ", 1);
     if (splitError.length > 1) {
@@ -133,7 +138,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
  *
  * @returns void - Sends JSON response with evmAddress on success, or appropriate error status
  *
- * @throws 400 - If taxId or pixId are missing or if KYC level is invalid
+ * @throws 400 - If taxId is missing
  * @throws 404 - If the subaccount cannot be found
  * @throws 500 - For any server-side errors during processing
  */
@@ -192,7 +197,7 @@ export const getAveniaUser = async (
 
 export const recordInitialKycAttempt = async (
   req: Request<unknown, unknown, BrlaPostRecordInitialKycAttemptRequest, unknown>,
-  res: Response<{} | BrlaErrorResponse>
+  res: Response<Record<string, never> | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { taxId, quoteId, sessionId } = req.body;
@@ -311,9 +316,22 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
+    // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
+    // on every conflict and to prevent account-takeover via subAccountId overwrite.
+    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
+    if (existingTaxId && existingTaxId.internalStatus !== TaxIdInternalStatus.Consulted) {
+      const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== (req.userId ?? null);
+      const ownedByAnonymousAndCallerIsUser = existingTaxId.userId === null && !!req.userId;
+      if (ownedByAnotherUser || ownedByAnonymousAndCallerIsUser) {
+        res.status(httpStatus.CONFLICT).json({
+          error: "A subaccount already exists for this taxId"
+        } as unknown as BrlaCreateSubaccountResponse);
+        return;
+      }
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
-    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
 
     if (existingTaxId) {
       await existingTaxId.update({
