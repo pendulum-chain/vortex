@@ -46,5 +46,19 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     minBuyAmountRaw: "3500000",
     minSellAmountRaw: "100",
     type: TokenType.Fiat
+  },
+  [FiatToken.ARS]: {
+    assetSymbol: "ARS",
+    decimals: 2,
+    fiat: {
+      assetIcon: "ars",
+      name: "Argentine Peso",
+      symbol: "ARS"
+    },
+    maxBuyAmountRaw: "10000000000",
+    maxSellAmountRaw: "100000000000000000000",
+    minBuyAmountRaw: "110000",
+    minSellAmountRaw: "1100",
+    type: TokenType.Fiat
   }
 };

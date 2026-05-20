@@ -10,6 +10,7 @@ const schema = z
   .object({
     address: z.string().min(1),
     city: z.string().min(1),
+    countryCode: z.literal("AR"),
     cuit: z.string().optional(),
     dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
     dni: z.string().min(1),
@@ -45,6 +46,7 @@ export function ArKycFormScreen({ onSubmit }: ArKycFormScreenProps) {
     watch
   } = useForm<ArKycFormValues>({
     defaultValues: {
+      countryCode: "AR",
       cuit: "",
       nationalities: ["AR"],
       pep: false,

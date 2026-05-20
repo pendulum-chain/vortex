@@ -49,48 +49,5 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     type: TokenType.Stellar,
     usesMemo: false,
     vaultAccountId: "6dgJM1ijyHFEfzUokJ1AHq3z3R3Z8ouc8B5SL9YjMRUaLsjh"
-  },
-  [FiatToken.ARS]: {
-    anchorHomepageUrl: "https://home.anclap.com",
-    assetSymbol: "ARS",
-    decimals: 12,
-    fiat: {
-      assetIcon: "ars",
-      name: "Argentine Peso",
-      symbol: "ARS"
-    },
-    maxBuyAmountRaw: "500000000000000000",
-    maxSellAmountRaw: "500000000000000000",
-    minBuyAmountRaw: "11000000000000",
-    minSellAmountRaw: "11000000000000",
-    pendulumRepresentative: {
-      assetSymbol: "ARS",
-      currency: FiatToken.ARS,
-      currencyId: {
-        Stellar: {
-          AlphaNum4: {
-            code: "0x41525300",
-            issuer: "0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1"
-          }
-        }
-      },
-      decimals: 12,
-      erc20WrapperAddress: "6f7VMG1ERxpZMvFE2CbdWb7phxDgnoXrdornbV3CCd51nFsj"
-    },
-    stellarAsset: {
-      code: {
-        hex: "0x41525300",
-        string: "ARS"
-      },
-      issuer: {
-        hex: "0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1",
-        stellarEncoding: "GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS"
-      }
-    }, // 11 ARS
-    supportsClientDomain: true, // 500000 ARS
-    tomlFileUrl: getTomlFileUrl("ARS"), // 2%
-    type: TokenType.Stellar, // 10 ARS
-    usesMemo: true,
-    vaultAccountId: "6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs"
   }
 };

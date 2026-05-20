@@ -250,7 +250,8 @@ export class AlfredpayApiService {
     data: SubmitKycInformationRequest
   ): Promise<SubmitKycInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc`;
-    const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
+    const kycSubmission: Record<string, unknown> = { ...data };
+    if (!kycSubmission.nationalities) kycSubmission.nationalities = [data.country];
     if (!data.typeDocument) delete kycSubmission.typeDocument;
     if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
     delete kycSubmission.typeDocumentAr; // Currently not required, (typeDocument throws an error on Alfredpay side)
@@ -258,7 +259,8 @@ export class AlfredpayApiService {
     if (!data.cuit) delete kycSubmission.cuit;
     if (data.pep !== false && !data.pep) delete kycSubmission.pep;
     if (!data.countryCode) delete kycSubmission.countryCode;
-    if (data.nationalities) kycSubmission.nationalities = data.nationalities;
+    console.log("Submitting KYC information with payload:", kycSubmission);
+    throw new Error("KYC submission is currently disabled for testing purposes.");
     return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 

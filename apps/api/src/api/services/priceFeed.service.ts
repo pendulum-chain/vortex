@@ -116,7 +116,7 @@ export class PriceFeedService {
     logger.debug(`Cache miss for ${cacheKey}. Fetching from CoinGecko API.`);
 
     try {
-      logger.debug(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
+      logger.info(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
 
       // Construct the API URL
       const url = new URL(`${this.coingeckoApiBaseUrl}/simple/price`);
@@ -200,7 +200,7 @@ export class PriceFeedService {
     }
 
     // Check if the currency has a Pendulum representative (Nabla pool).
-    // Currencies like MXN and COP are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
+    // Currencies like MXN, COP, and ARS are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
     let outputTokenPendulumDetails;
     try {
       outputTokenPendulumDetails = getPendulumDetails(toCurrency);
