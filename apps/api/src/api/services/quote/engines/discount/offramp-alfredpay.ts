@@ -47,9 +47,12 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
       ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency,
       outputCurrency as RampCurrency
     );
-    const effectiveRate = new Big(oneUnitInFiat);
+    // priceFeedService returns USD-FIAT (e.g., 3764.67), but calculateExpectedOutput expects FIAT-USD
+    const effectiveRate = new Big(1).div(oneUnitInFiat);
 
-    const finalOutput = usdOnPolygon.mul(effectiveRate);
+    // finalOutput uses the non-inverted rate for display/logging
+    const usdToFiatRate = new Big(oneUnitInFiat);
+    const finalOutput = usdOnPolygon.mul(usdToFiatRate);
 
     console.log(
       `[OffRampAlfredpayDiscountEngine] input=${inputAmount} ${outputCurrency}, usdOnPolygon=${usdOnPolygon.toString()}, oracleRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()} ${outputCurrency}`
