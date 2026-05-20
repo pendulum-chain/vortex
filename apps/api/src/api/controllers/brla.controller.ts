@@ -108,7 +108,7 @@ function handleApiError(error: unknown, res: Response, apiMethod: string): void 
   }
 
   if (error instanceof Error && error.message.includes("status '400'")) {
-    const splitError = error.message.split("Error: ", 1);
+    const splitError = error.message.split("Error: ", 2);
     if (splitError.length > 1) {
       const errorMessageString = splitError[1];
       try {
@@ -169,7 +169,8 @@ export const getAveniaUser = async (
     }
 
     // When the caller authenticated as a Supabase user, only the owning user may read this taxId.
-    // Partner SDK callers (no req.userId) are intentionally exempt: they are scoped by API key, not by user.
+    // Partner SDK callers (no req.userId) are intentionally exempt: they authenticate via API key
+    // and may need to look up any taxId for their integration flow.
     if (req.userId && taxIdRecord.userId !== req.userId) {
       res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
       return;
@@ -311,7 +312,7 @@ export const getAveniaUserRemainingLimit = async (
 
 export const createSubaccount = async (
   req: Request<unknown, unknown, BrlaCreateSubaccountRequest>,
-  res: Response<BrlaCreateSubaccountResponse>
+  res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
     const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
@@ -328,12 +329,15 @@ export const createSubaccount = async (
     const existingTaxId = await TaxId.findByPk(normalizedTaxId);
     if (existingTaxId && existingTaxId.internalStatus !== TaxIdInternalStatus.Consulted) {
       const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== (req.userId ?? null);
-      const ownedByAnonymousAndCallerIsUser = existingTaxId.userId === null && !!req.userId;
-      if (ownedByAnotherUser || ownedByAnonymousAndCallerIsUser) {
+      if (ownedByAnotherUser) {
         res.status(httpStatus.CONFLICT).json({
           error: "A subaccount already exists for this taxId"
-        } as unknown as BrlaCreateSubaccountResponse);
+        });
         return;
+      }
+      // Allow authenticated users to claim anonymous records by updating userId
+      if (existingTaxId.userId === null && req.userId) {
+        await existingTaxId.update({ userId: req.userId });
       }
     }
 
@@ -582,7 +586,6 @@ export const newKyc = async (
 ): Promise<void> => {
   try {
     const brlaApiService = BrlaApiService.getInstance();
-    await new Promise(resolve => setTimeout(resolve, 5000));
     const subAccountId = req.body.subAccountId;
 
     if (!subAccountId) {
@@ -601,6 +604,8 @@ export const newKyc = async (
       return;
     }
 
+    // Wait for document propagation before fetching uploaded documents
+    await new Promise(resolve => setTimeout(resolve, 5000));
     await brlaApiService.getUploadedDocuments(subAccountId);
     const response = await brlaApiService.submitKycLevel1(req.body);
 

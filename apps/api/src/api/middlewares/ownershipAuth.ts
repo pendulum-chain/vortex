@@ -15,7 +15,7 @@ async function ownsPartnerRecord(authenticatedPartner: AuthenticatedPartner, par
   }
 
   const quotePartner = await Partner.findByPk(partnerId);
-  return quotePartner?.name === authenticatedPartner.name;
+  return quotePartner?.isActive === true && quotePartner.name === authenticatedPartner.name;
 }
 
 /**

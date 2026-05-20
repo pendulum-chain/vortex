@@ -194,7 +194,7 @@ export class BrlHandler implements RampHandler {
     // BRL is the input on BUY (onramp) and the output on SELL (offramp).
     const brlAmount = Number(direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount);
     if (!Number.isFinite(brlAmount)) {
-      return;
+      throw new AmountExceedsLimitError();
     }
     const { remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction);
     if (brlAmount > remainingLimit) {

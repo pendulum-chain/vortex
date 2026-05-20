@@ -214,8 +214,8 @@ export const config: Config = {
 export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
-if (config.deploymentEnv === "production" && config.sandboxEnabled) {
-  throw new Error("SANDBOX_ENABLED=true requires DEPLOYMENT_ENV=sandbox; refusing to start production deployment");
+if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
+  throw new Error(`SANDBOX_ENABLED=true requires DEPLOYMENT_ENV=sandbox (got '${config.deploymentEnv}'); refusing to start`);
 }
 
 if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
