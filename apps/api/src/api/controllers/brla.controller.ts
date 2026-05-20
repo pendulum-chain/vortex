@@ -604,7 +604,7 @@ export const newKyc = async (
       return;
     }
 
-    // Wait for document propagation before fetching uploaded documents
+    // Wait for previously uploaded documents to propagate before submitting KYC
     await new Promise(resolve => setTimeout(resolve, 5000));
     await brlaApiService.getUploadedDocuments(subAccountId);
     const response = await brlaApiService.submitKycLevel1(req.body);
