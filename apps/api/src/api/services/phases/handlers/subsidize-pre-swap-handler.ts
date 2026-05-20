@@ -1,6 +1,7 @@
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
+  ALFREDPAY_EVM_TOKEN,
   ApiManager,
   checkEvmBalanceForToken,
   EvmClientManager,
@@ -63,19 +64,19 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("Missing evmToEvm information in quote metadata");
       }
 
-      const inputTokenDetails = getOnChainTokenDetails(Networks.Polygon, EvmToken.USDT) as EvmTokenDetails;
+      const inputTokenDetails = getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN) as EvmTokenDetails;
       if (!inputTokenDetails) {
-        throw new Error("Could not find token details for USDT on Polygon. Invalid quote metadata.");
+        throw new Error("Could not find token details for Alfredpay token on Polygon. Invalid quote metadata.");
       }
 
       return {
         expectedInputAmountForSwapRaw: quote.metadata.evmToEvm.inputAmountRaw,
         inputAmountDecimals: ALFREDPAY_ERC20_DECIMALS, // TODO no need to keep this constant, let's identify simply by token/chain itself.
-        inputToken: EvmToken.USDT,
+        inputToken: ALFREDPAY_EVM_TOKEN,
         inputTokenDetails,
         logLabel: "Alfredpay",
         nextPhase: "squidRouterSwap" as RampPhase,
-        subsidyToken: EvmToken.USDT as unknown as SubsidyToken,
+        subsidyToken: ALFREDPAY_EVM_TOKEN as unknown as SubsidyToken,
         tokenContract: ALFREDPAY_ERC20_TOKEN
       };
     }
