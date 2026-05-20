@@ -25,11 +25,11 @@ router.get("/validatePixKey", requirePartnerOrUserAuth(), brlaController.validat
 
 router.route("/createSubaccount").post(validateSubaccountCreation, optionalAuth, brlaController.createSubaccount);
 
-router.route("/getUploadUrls").post(validateStartKyc2, optionalAuth, brlaController.getUploadUrls);
+router.route("/getUploadUrls").post(validateStartKyc2, requireAuth, brlaController.getUploadUrls);
 
-router.route("/newKyc").post(optionalAuth, brlaController.newKyc);
+router.route("/newKyc").post(requireAuth, brlaController.newKyc);
 
-router.route("/kyb/new-level-1/web-sdk").post(optionalAuth, brlaController.initiateKybLevel1);
+router.route("/kyb/new-level-1/web-sdk").post(requireAuth, brlaController.initiateKybLevel1);
 
 router.route("/kyb/attempt-status").get(requireAuth, brlaController.getKybAttemptStatus);
 

@@ -168,6 +168,13 @@ export const getAveniaUser = async (
       return;
     }
 
+    // When the caller authenticated as a Supabase user, only the owning user may read this taxId.
+    // Partner SDK callers (no req.userId) are intentionally exempt: they are scoped by API key, not by user.
+    if (req.userId && taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      return;
+    }
+
     const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
     if (!accountInfo) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
@@ -532,6 +539,11 @@ export const getUploadUrls = async (
       return;
     }
 
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
 
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
@@ -572,6 +584,23 @@ export const newKyc = async (
     const brlaApiService = BrlaApiService.getInstance();
     await new Promise(resolve => setTimeout(resolve, 5000));
     const subAccountId = req.body.subAccountId;
+
+    if (!subAccountId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing subAccountId" });
+      return;
+    }
+
+    const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
+    if (!taxIdRecord) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      return;
+    }
+
     await brlaApiService.getUploadedDocuments(subAccountId);
     const response = await brlaApiService.submitKycLevel1(req.body);
 
@@ -604,6 +633,11 @@ export const initiateKybLevel1 = async (
     const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
     if (!taxIdRecord) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+      return;
+    }
+
+    if (!req.userId || taxIdRecord.userId !== req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
       return;
     }
 

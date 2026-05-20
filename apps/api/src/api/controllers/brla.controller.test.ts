@@ -40,8 +40,8 @@ describe("getAveniaUser", () => {
     logger.info = originalLoggerInfo;
   });
 
-  function mockConfirmedAveniaUser() {
-    TaxId.findOne = mock(async () => ({ subAccountId: "subaccount-1" })) as typeof TaxId.findOne;
+  function mockConfirmedAveniaUser(userId: string | null = null) {
+    TaxId.findOne = mock(async () => ({ subAccountId: "subaccount-1", userId })) as typeof TaxId.findOne;
     BrlaApiService.getInstance = mock(
       () =>
         ({
@@ -92,7 +92,7 @@ describe("getAveniaUser", () => {
   });
 
   it("allows Supabase-authenticated user lookups", async () => {
-    mockConfirmedAveniaUser();
+    mockConfirmedAveniaUser("user-1");
 
     const res = createResponse();
     await getAveniaUser(
@@ -105,6 +105,22 @@ describe("getAveniaUser", () => {
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(res.body).toEqual(expectedConfirmedBody);
+  });
+
+  it("rejects Supabase-authenticated lookups for another user's taxId", async () => {
+    mockConfirmedAveniaUser("victim-user");
+
+    const res = createResponse();
+    await getAveniaUser(
+      {
+        query: { taxId: "08786985906" },
+        userId: "attacker-user"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
+    expect(res.body).toEqual({ error: "Forbidden" });
   });
 });
 
