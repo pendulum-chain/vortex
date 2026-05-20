@@ -2,12 +2,13 @@ import {
   AccountMeta,
   EphemeralAccount,
   EphemeralAccountType,
+  RampDirection,
   RampProcess,
   RegisterRampRequest,
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { BrlKycStatusError } from "../errors";
+import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors";
 import type { ApiService } from "../services/ApiService";
 import type {
   BrlOfframpAdditionalData,
@@ -60,7 +61,8 @@ export class BrlHandler implements RampHandler {
       throw new Error("Tax ID is required for BRL onramp");
     }
 
-    await this.validateBrlKyc(additionalData.taxId, quoteId);
+    await this.validateBrlKyc(additionalData.taxId);
+    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.BUY);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -99,7 +101,9 @@ export class BrlHandler implements RampHandler {
       throw new Error("Tax ID is required for BRL offramps");
     }
 
-    await this.validateBrlKyc(additionalData.taxId, quoteId);
+    await this.validateBrlKyc(additionalData.taxId);
+    await this.assertValidPixKey(additionalData.pixDestination);
+    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.SELL);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
@@ -162,14 +166,67 @@ export class BrlHandler implements RampHandler {
     return this.apiService.startRamp(startRequest);
   }
 
-  private async validateBrlKyc(taxId: string, quoteId: string): Promise<void> {
+  private async validateBrlKyc(taxId: string): Promise<void> {
     if (!taxId) {
       throw new BrlKycStatusError("Tax ID is required", 400);
     }
 
-    const kycStatus = await this.apiService.getBrlKycStatus(taxId, quoteId);
+    const kycStatus = await this.apiService.getBrlKycStatus(taxId);
     if (kycStatus.kycLevel < 1) {
       throw new Error(`Insufficient KYC level. Current: ${kycStatus.kycLevel}`);
+    }
+  }
+
+  private async assertValidPixKey(pixKey: string): Promise<void> {
+    let result: { valid: boolean };
+    try {
+      result = await this.apiService.validateBrlPixKey(pixKey);
+    } catch (error) {
+      // Only treat client-side validation errors (4xx) as invalid PIX key.
+      // Network/server errors (5xx, connection failures) must propagate so the
+      // user retries instead of being told the key is invalid.
+      if (error instanceof VortexSdkError && error.status >= 400 && error.status < 500) {
+        throw new InvalidPixKeyError();
+      }
+      throw error;
+    }
+    if (!result.valid) {
+      throw new InvalidPixKeyError();
+    }
+  }
+
+  private async assertWithinBrlLimit(taxId: string, quoteId: string, direction: RampDirection): Promise<void> {
+    const quote = await this.apiService.getQuote(quoteId);
+    // BRL is the input on BUY (onramp) and the output on SELL (offramp).
+    // On SELL, `outputAmount` is the user-received BRL (net of the anchor fee),
+    // but the BRLA debit/limit applies to the gross amount before the anchor fee.
+    // So we add `anchorFeeFiat` back to compare against the remaining limit.
+    let brlAmount: number;
+    if (direction === RampDirection.BUY) {
+      brlAmount = Number(quote.inputAmount);
+    } else {
+      const net = Number(quote.outputAmount);
+      const anchorFee = Number(quote.anchorFeeFiat ?? 0);
+      brlAmount = net + (Number.isFinite(anchorFee) ? anchorFee : 0);
+    }
+    if (!Number.isFinite(brlAmount)) {
+      throw new AmountExceedsLimitError();
+    }
+    let remainingLimit: number;
+    try {
+      ({ remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction));
+    } catch (error) {
+      // The backend returns 404 "Limits not found" for KYC-approved users whose
+      // BRLA subaccount has not yet been initialized for limits. Treat this as
+      // permissive (skip pre-flight) so legitimate users are not blocked; the
+      // backend will enforce limits authoritatively during ramp execution.
+      if (error instanceof VortexSdkError && error.status === 404) {
+        return;
+      }
+      throw error;
+    }
+    if (brlAmount > remainingLimit) {
+      throw new AmountExceedsLimitError();
     }
   }
 }

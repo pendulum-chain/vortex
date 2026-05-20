@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { BrlaCreateSubaccountRequest, BrlaGetKycStatusResponse, FiatToken, KycLevel1Payload } from "@vortexfi/shared";
 import { SIGNING_SERVICE_URL } from "../constants/constants";
+import { isApiError } from "./api/api-client";
+import { BrlaService } from "./api/brla.service";
 
 interface AccountStatusResponse {
   status: boolean;
@@ -210,51 +212,35 @@ export const createSubaccount = async ({
   quoteId,
   sessionId
 }: BrlaCreateSubaccountRequest): Promise<{ subAccountId: string }> => {
-  const accountCreationResponse = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/createSubaccount`, {
-    body: JSON.stringify({ accountType, name, quoteId, sessionId, taxId }),
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    method: "POST"
-  });
-
-  if (accountCreationResponse.status === 400) {
-    const { details } = await accountCreationResponse.json();
-    throw new SubaccountCreationRejectedError(details.error || "Sub-account creation was rejected.");
+  try {
+    return await BrlaService.createSubaccount({ accountType, name, quoteId, sessionId, taxId });
+  } catch (error) {
+    if (isApiError(error)) {
+      if (error.status === 400) {
+        throw new SubaccountCreationRejectedError(error.data?.details || error.message || "Sub-account creation was rejected.");
+      }
+      if (error.status >= 500) {
+        throw new SubaccountCreationNetworkError(`Failed to create sub-account due to a server error: ${error.message}`);
+      }
+      throw new SubaccountCreationNetworkError(`Failed to create sub-account: ${error.message}`);
+    }
+    throw error;
   }
-
-  if (accountCreationResponse.status >= 500) {
-    throw new SubaccountCreationNetworkError(
-      `Failed to create sub-account due to a server error: ${accountCreationResponse.statusText}`
-    );
-  }
-
-  if (accountCreationResponse.status !== 200) {
-    throw new SubaccountCreationNetworkError(`Failed to create sub-account: ${accountCreationResponse.statusText}`);
-  }
-
-  return await accountCreationResponse.json();
 };
 
 export const submitNewKyc = async (kycData: KycLevel1Payload): Promise<{ id: string }> => {
-  const response = await fetch(`${SIGNING_SERVICE_URL}/v1/brla/newKyc`, {
-    body: JSON.stringify(kycData),
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    method: "POST"
-  });
-
-  if (response.status === 400) {
-    const { details } = await response.json();
-    throw new KycSubmissionRejectedError(details || "Submission was rejected.");
+  try {
+    return await BrlaService.submitNewKyc(kycData);
+  } catch (error) {
+    if (isApiError(error)) {
+      if (error.status === 400) {
+        throw new KycSubmissionRejectedError(error.data?.details || error.message || "Submission was rejected.");
+      }
+      if (error.status >= 500) {
+        throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${error.message}`);
+      }
+      throw new KycSubmissionNetworkError(`Failed to submit KYC: ${error.message}`);
+    }
+    throw error;
   }
-
-  if (response.status >= 500) {
-    throw new KycSubmissionNetworkError(`Failed to submit KYC due to a server error: ${response.statusText}`);
-  }
-
-  if (response.status !== 200) {
-    throw new KycSubmissionNetworkError(`Failed to submit KYC: ${response.statusText}`);
-  }
-
-  return await response.json();
 };

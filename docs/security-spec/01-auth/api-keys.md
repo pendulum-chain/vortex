@@ -40,7 +40,7 @@ Three middleware components:
 
 ## Audit Checklist
 
-- [x] All endpoints requiring partner auth use `apiKeyAuth({ required: true })` or `enforcePartnerAuth()` — **PASS: `enforcePartnerAuth()` is now active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. Ramp endpoints additionally enforce sk_ OR Supabase via `requirePartnerOrUserAuth()`.**
+- [x] All endpoints requiring partner auth use `apiKeyAuth({ required: true })` or `enforcePartnerAuth()` — **PASS: `enforcePartnerAuth()` is now active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. Ramp endpoints additionally enforce sk_ OR Supabase via `requirePartnerOrUserAuth()` (history) or `optionalPartnerOrUserAuth()` (register/update/start/status/errors). Anonymous access is permitted on the optional set only when the underlying quote/ramp is fully anonymous (no partner, no user owner).**
 - [x] Secret key validation (`validateSecretApiKey`) always uses bcrypt comparison, never plaintext comparison — **PASS**
 - [x] Public key validation (`validatePublicApiKey`) stores keys in plaintext (by design for lookup) but never returns auth credentials — **PASS**
 - [x] `getKeyType()` correctly identifies `pk_` as public, `sk_` as secret, and anything else as `null` — **PASS**

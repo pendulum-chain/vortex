@@ -132,7 +132,7 @@ export class MissingBrlOfframpParametersError extends BrlOfframpError {
 
 export class InvalidPixKeyError extends BrlOfframpError {
   constructor() {
-    super("Invalid pixKey or receiverTaxId", 400);
+    super("Invalid pixKey", 400);
     this.name = "InvalidPixKeyError";
   }
 }
