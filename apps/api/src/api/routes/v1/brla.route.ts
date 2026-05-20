@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
-import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
+import { optionalPartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { optionalAuth, requireAuth } from "../../middlewares/supabaseAuth";
 import { validateStartKyc2, validateSubaccountCreation } from "../../middlewares/validators";
 
@@ -9,11 +9,16 @@ const router: Router = Router({ mergeParams: true });
 // Controllers use typed Request generics (e.g. Request<unknown, unknown, unknown, BrlaGetUserRequest>)
 // which don't extend Express's ParsedQs. Double-cast via unknown is the standard Express pattern
 // for combining middleware with narrowly-typed handlers. Runtime query validation is in each controller.
-router.get("/getUser", requirePartnerOrUserAuth(), brlaController.getAveniaUser as unknown as RequestHandler);
+//
+// /getUser, /getUserRemainingLimit, and /validatePixKey use optionalPartnerOrUserAuth so that SDK
+// clients without API keys can drive a BRL ramp pre-flight against fully-anonymous quotes. The
+// controllers themselves apply ownership scoping when req.userId is set; anonymous callers see
+// the same data surface a partner X-API-Key caller would (taxId is the lookup key in both cases).
+router.get("/getUser", optionalPartnerOrUserAuth(), brlaController.getAveniaUser as unknown as RequestHandler);
 
 router.get(
   "/getUserRemainingLimit",
-  requirePartnerOrUserAuth(),
+  optionalPartnerOrUserAuth(),
   brlaController.getAveniaUserRemainingLimit as unknown as RequestHandler
 );
 
@@ -21,7 +26,7 @@ router.get("/getKycStatus", requireAuth, brlaController.fetchSubaccountKycStatus
 
 router.get("/getSelfieLivenessUrl", requireAuth, brlaController.getSelfieLivenessUrl as unknown as RequestHandler);
 
-router.get("/validatePixKey", requirePartnerOrUserAuth(), brlaController.validatePixKey as unknown as RequestHandler);
+router.get("/validatePixKey", optionalPartnerOrUserAuth(), brlaController.validatePixKey as unknown as RequestHandler);
 
 router.route("/createSubaccount").post(validateSubaccountCreation, optionalAuth, brlaController.createSubaccount);
 
