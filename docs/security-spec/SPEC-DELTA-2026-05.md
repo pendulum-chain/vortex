@@ -278,26 +278,28 @@ Priority order for the next audit/dev cycle, based on severity × likelihood. Re
 | 10 | **F-NEW-09** — Investigate BRLA payout recovery branches. | NO BUG — once `payOutTicketId` exists, BRLA acknowledged the EVM payout; on-chain receipt is no longer authoritative. |
 | 11 | **F-NEW-10** — Avenia anchor-fee assumption in three-amount model. | NO BUG — `OffRampMergeSubsidyEvmEngine` adds the projected subsidy into `nablaSwapEvm.outputAmountRaw`, and `OffRampFinalizeEngine` then sets `quote.outputAmount = nablaSwapEvm.outputAmountDecimal − anchorFee`. The relationship `nablaSwapEvm.outputAmountRaw ≥ quote.outputAmount × 10^brlaDecimals` is therefore tautological at quote-build time. The actual safety net is the EVM branch of `subsidize-post-swap-handler.ts`, which tops the ephemeral up to `nablaSwapEvm.outputAmountRaw` at runtime (capped by F-NEW-02's 5% USD subsidy bound). No build-time assertion needed. |
 | 12 | **F-NEW-05** — Add Base ephemeral cleanup. | RESOLVED — `BaseChainPostProcessHandler` sweeps BRLA and USDC residuals after `currentPhase === "complete"` via presigned `approve` + funding-key `transferFrom`. Wired into both `evm-to-brl-base.ts` (offramp) and `avenia-to-evm-base.ts` (onramp). New phase keys `baseCleanupBrla` and `baseCleanupUsdc`. ETH gas dust on EVM ephemerals remains unswept (intentional). |
-| 13 | **F-013** — Multiple security-sensitive endpoints have no authentication. | RESOLVED — strict dual-track auth enforced on all `/v1/ramp/*` and `/v1/ramp/quotes(/best)` endpoints via the new `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`). Each request must carry **either** `X-API-Key: sk_*` (partner SDK) **or** `Authorization: Bearer <jwt>` (Supabase frontend); anonymous access is rejected. Per-principal ownership guards (`assertRampOwnership`, `assertQuoteOwnership`) prevent cross-tenant access: partners are scoped via `RampState.quoteId → QuoteTicket.partnerId`, Supabase users via `RampState.userId`. `getRampHistory` filters at the service layer by the same chain. The previous backwards-compat carve-out for `/ramp/start` and `/ramp/update` has been removed. `enforcePartnerAuth()` is now active on `/quotes` and `/quotes/best`, closing the partner-spoofing vector. |
+| 13 | **F-013** — Multiple security-sensitive endpoints have no authentication. | RESOLVED — dual-track auth wired across all `/v1/ramp/*` and `/v1/ramp/quotes(/best)` endpoints. Each request carrying credentials must present **either** `X-API-Key: sk_*` (partner SDK) **or** `Authorization: Bearer <jwt>` (Supabase frontend); invalid credentials are always rejected. Per-principal ownership guards (`assertRampOwnership`, `assertQuoteOwnership`) prevent cross-tenant access: partners are scoped via `RampState.quoteId → QuoteTicket.partnerId`, Supabase users via `RampState.userId`. Anonymous access is permitted only on register/update/start/status/errors and only when the underlying resource is fully anonymous (no partner, no user owner); `getRampHistory` always requires credentials. `enforcePartnerAuth()` is active on `/quotes` and `/quotes/best`, closing the partner-spoofing vector. |
 
 ---
 
 ## 6. Auth Posture (Post-Delta)
 
-The dual-track auth model — partner SDK key OR Supabase user session — is the canonical model going forward. There is **no anonymous access** to ramp or quote endpoints.
+The dual-track auth model — partner SDK key OR Supabase user session — is the canonical model going forward. Anonymous access is permitted **only** on register/update/start/status/errors endpoints, and **only** when the underlying quote/ramp is itself fully anonymous (no `partnerId` and no `userId`). Owned resources always require matching credentials.
 
 | Endpoint | Auth | Owner check |
 |---|---|---|
 | `POST /v1/ramp/quotes` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Partner key, if present, must match `partnerId` in body |
 | `POST /v1/ramp/quotes/best` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Same as above |
-| `POST /v1/ramp/register` | `requirePartnerOrUserAuth()` | `assertQuoteOwnership(req, quoteId)` |
-| `POST /v1/ramp/update` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` |
-| `POST /v1/ramp/start` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` |
-| `GET /v1/ramp/:id` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, id)` |
-| `GET /v1/ramp/:id/errors` | `requirePartnerOrUserAuth()` | `assertRampOwnership(req, id)` |
-| `GET /v1/ramp/history/:walletAddress` | `requirePartnerOrUserAuth()` | Service-layer filter: partner → owned `quoteId`s; user → matching `userId` |
+| `POST /v1/ramp/register` | `optionalPartnerOrUserAuth()` | `assertQuoteOwnership(req, quoteId)` — anonymous caller allowed iff quote has `partnerId === null AND userId === null` |
+| `POST /v1/ramp/update` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` — anonymous caller allowed iff ramp has `userId === null` AND its quote has `partnerId === null` |
+| `POST /v1/ramp/start` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` — same condition as update |
+| `GET /v1/ramp/:id` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, id)` — same condition as update |
+| `GET /v1/ramp/:id/errors` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, id)` — same condition as update |
+| `GET /v1/ramp/history/:walletAddress` | `requirePartnerOrUserAuth()` | Service-layer filter: partner → owned `quoteId`s; user → matching `userId`. **Never anonymous.** |
 | `/v1/brla/*` user data | `requireAuth` | Supabase userId scoping |
 | `/v1/maintenance/*` | `adminAuth` | n/a |
 | `/v1/webhook/*` | `apiKeyAuth` | Partner ownership |
 
-Frontend uses `Authorization: Bearer` (Supabase). SDK uses `X-API-Key: sk_*`. Both grant equal access subject to per-principal ownership scoping.
+`optionalPartnerOrUserAuth()` accepts a request with no credentials, but a request that *presents* invalid credentials (malformed `X-API-Key` or expired/forged Bearer) is still rejected with 401. The downstream ownership checks then decide whether the resource is reachable: anonymous callers are admitted only for fully-anonymous quotes/ramps. This preserves the principle that owned resources are never reachable without matching credentials, while allowing API clients without keys (or first-time users without a Supabase session) to drive a ramp end-to-end.
+
+Frontend uses `Authorization: Bearer` (Supabase). SDK partners use `X-API-Key: sk_*`. SDK clients without keys may operate against fully-anonymous quotes (no partner-rate benefits). Both authenticated principals grant equal access subject to per-principal ownership scoping.

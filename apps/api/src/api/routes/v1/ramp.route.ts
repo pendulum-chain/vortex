@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as rampController from "../../controllers/ramp.controller";
-import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
+import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 
 const router = Router();
 
@@ -30,7 +30,7 @@ const router = Router();
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
 
-router.post("/register", requirePartnerOrUserAuth(), rampController.registerRamp as unknown as RequestHandler);
+router.post("/register", optionalPartnerOrUserAuth(), rampController.registerRamp as unknown as RequestHandler);
 
 /**
  * @api {post} v1/ramp/update Update ramping process
@@ -57,7 +57,7 @@ router.post("/register", requirePartnerOrUserAuth(), rampController.registerRamp
  * @apiError (Not Found 404) NotFound Ramp does not exist
  * @apiError (Conflict 409) ConflictError Ramp is not in a state that allows updates
  */
-router.post("/update", requirePartnerOrUserAuth(), rampController.updateRamp as unknown as RequestHandler);
+router.post("/update", optionalPartnerOrUserAuth(), rampController.updateRamp as unknown as RequestHandler);
 
 /**
  * @api {post} v1/ramp/start Start ramping process
@@ -83,7 +83,7 @@ router.post("/update", requirePartnerOrUserAuth(), rampController.updateRamp as 
  * @apiError (Bad Request 400) ValidationError Some parameters may contain invalid values
  * @apiError (Not Found 404) NotFound Quote does not exist
  */
-router.post("/start", requirePartnerOrUserAuth(), rampController.startRamp as unknown as RequestHandler);
+router.post("/start", optionalPartnerOrUserAuth(), rampController.startRamp as unknown as RequestHandler);
 
 /**
  * @api {get} v1/ramp/:id Get ramp status
@@ -106,7 +106,7 @@ router.post("/start", requirePartnerOrUserAuth(), rampController.startRamp as un
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get("/:id", requirePartnerOrUserAuth(), rampController.getRampStatus as unknown as RequestHandler);
+router.get("/:id", optionalPartnerOrUserAuth(), rampController.getRampStatus as unknown as RequestHandler);
 
 /**
  * @api {get} v1/ramp/:id/errors Get error logs
@@ -122,7 +122,7 @@ router.get("/:id", requirePartnerOrUserAuth(), rampController.getRampStatus as u
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
-router.get("/:id/errors", requirePartnerOrUserAuth(), rampController.getErrorLogs as unknown as RequestHandler);
+router.get("/:id/errors", optionalPartnerOrUserAuth(), rampController.getErrorLogs as unknown as RequestHandler);
 
 /**
  * @api {get} v1/ramp/history/:walletAddress Get transaction history

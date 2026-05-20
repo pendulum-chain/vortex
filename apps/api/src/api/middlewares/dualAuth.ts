@@ -11,6 +11,22 @@ export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
  * Exactly one of req.authenticatedPartner or req.userId is populated on success.
  */
 export function requirePartnerOrUserAuth() {
+  return dualAuthHandler({ requireCredentials: true });
+}
+
+/**
+ * Dual-track authentication that does not reject anonymous callers.
+ * If credentials are provided, they MUST be valid (same checks as
+ * `requirePartnerOrUserAuth`). If no credentials are provided, the request
+ * proceeds and downstream ownership checks decide whether the resource is
+ * accessible. Use only on endpoints where anonymous access is intentionally
+ * allowed for fully-anonymous resources (no userId, no partnerId).
+ */
+export function optionalPartnerOrUserAuth() {
+  return dualAuthHandler({ requireCredentials: false });
+}
+
+function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const apiKey = req.headers["x-api-key"] as string | undefined;
@@ -58,6 +74,10 @@ export function requirePartnerOrUserAuth() {
 
         req.userId = result.user_id;
         req.userEmail = result.email;
+        return next();
+      }
+
+      if (!requireCredentials) {
         return next();
       }
 
