@@ -8,13 +8,14 @@ import {
   SignedTypedData
 } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../constants/constants";
 import { tokenRelayerAbi } from "../../../../contracts/TokenRelayer";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { RELAYER_ADDRESS } from "../../transactions/offramp/routes/evm-to-alfredpay";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 
 type VrsSignature = { v: number; r: `0x${string}`; s: `0x${string}` };
 
@@ -76,7 +77,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
   }
 
   private getExecutorClients(fromNetwork: EvmNetworks) {
-    const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const executorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     return {
       publicClient: this.evmClientManager.getClient(fromNetwork),
       walletClient: this.evmClientManager.getWalletClient(fromNetwork, executorAccount)
@@ -119,32 +120,20 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     hash: `0x${string}` | undefined,
     fromNetwork: EvmNetworks,
     label: string,
-    expectedFrom?: `0x${string}`
+    presignedPhase: RampPhase
   ): Promise<void> {
-    if (!hash) {
-      throw this.createRecoverableError(`${label} hash not yet reported by frontend`);
-    }
-    const { publicClient } = this.getExecutorClients(fromNetwork);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    if (!receipt || receipt.status !== "success") {
-      throw this.createRecoverableError(`${label} tx failed: ${hash}`);
-    }
-    if (expectedFrom && receipt.from.toLowerCase() !== expectedFrom.toLowerCase()) {
-      throw this.createUnrecoverableError(`${label} tx ${hash} was sent by ${receipt.from}, expected ${expectedFrom}`);
-    }
+    await verifyUserSubmittedTxByHash({ fromNetwork, hash, label, presignedPhase, state });
     logger.info(`${label} tx confirmed: ${hash}`);
   }
 
   private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks): Promise<RampState> {
-    const expectedFrom = state.state.walletAddress as `0x${string}` | undefined;
-
     if (state.state.isDirectTransfer) {
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit direct transfer",
-        expectedFrom
+        "squidRouterNoPermitTransfer"
       );
     } else {
       await this.waitForUserHash(
@@ -152,14 +141,14 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit approve",
-        expectedFrom
+        "squidRouterNoPermitApprove"
       );
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit swap",
-        expectedFrom
+        "squidRouterNoPermitSwap"
       );
     }
 
@@ -223,6 +212,10 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     const payloadData = payloadMessage.data as `0x${string}`;
     const payloadNonce = BigInt(payloadMessage.nonce as string);
     const payloadDeadline = BigInt(payloadMessage.deadline as string);
+    const executionValue = state.state.squidRouterPermitExecutionValue;
+    if (executionValue === undefined || executionValue === null) {
+      throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
+    }
 
     const { walletClient } = this.getExecutorClients(fromNetwork);
 
@@ -239,7 +232,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
           payloadR: payloadSig.r,
           payloadS: payloadSig.s,
           payloadV: payloadSig.v,
-          payloadValue: state.state.squidRouterPermitExecutionValue,
+          payloadValue: executionValue,
           permitR: permitSig.r,
           permitS: permitSig.s,
           permitV: permitSig.v,
@@ -248,7 +241,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         }
       ],
       functionName: "execute",
-      value: BigInt(state.state.squidRouterPermitExecutionValue!)
+      value: BigInt(executionValue)
     });
 
     return this.saveHashAndAwaitReceipt(state, hash, fromNetwork, "Relayer execute");
@@ -300,9 +293,21 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       }
 
       const signedTypedDataArray = permitExecuteTransaction.txData as SignedTypedData[];
-
       if (state.state.isDirectTransfer) {
         return await this.executeDirectTransfer(state, signedTypedDataArray, fromNetwork);
+      }
+
+      const executionValue = state.state.squidRouterPermitExecutionValue;
+      if (executionValue === undefined || executionValue === null) {
+        throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
+      }
+
+      const executionValueBigInt = BigInt(executionValue);
+      const maxAllowedValue = BigInt("1000000000000000000"); // 1 ETH in wei
+      if (executionValueBigInt > maxAllowedValue) {
+        throw this.createUnrecoverableError(
+          `squidRouterPermitExecutionValue ${executionValueBigInt} exceeds maximum allowed ${maxAllowedValue}`
+        );
       }
 
       return await this.executeRelayerTransfer(state, signedTypedDataArray, fromNetwork);

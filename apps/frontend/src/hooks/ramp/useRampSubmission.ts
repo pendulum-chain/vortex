@@ -100,9 +100,7 @@ export const useRampSubmission = () => {
       const moneriumWalletAddress = data.moneriumWalletAddress ?? (isMoneriumOnramp ? connectedEvmAddress : undefined);
 
       if (isMoneriumOnramp && !moneriumWalletAddress) {
-        throw new Error(
-          "No Monerium wallet address found. Please connect an EVM wallet or provide a Monerium wallet address."
-        );
+        throw new Error("No Monerium wallet address found. Please connect an EVM wallet or provide a Monerium wallet address.");
       }
 
       const executionInput: RampExecutionInput = {

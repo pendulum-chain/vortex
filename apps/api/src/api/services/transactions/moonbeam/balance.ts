@@ -1,7 +1,7 @@
-import { ApiManager, EvmAddress, EvmClientManager, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
-import { privateKeyToAccount } from "viem/accounts";
+import { ApiManager, EvmClientManager, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../../constants/constants";
+import { getEvmFundingAccount } from "../../phases/evm-funding";
 
 export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => {
   try {
@@ -10,7 +10,7 @@ export const fundMoonbeamEphemeralAccount = async (ephemeralAddress: string) => 
 
     const fundingAmountRaw = multiplyByPowerOfTen(MOONBEAM_EPHEMERAL_STARTING_BALANCE_UNITS, apiData.decimals).toFixed();
 
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as EvmAddress);
+    const moonbeamExecutorAccount = getEvmFundingAccount(Networks.Moonbeam);
     const evmClientManager = EvmClientManager.getInstance();
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
     const walletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);

@@ -26,9 +26,7 @@ export type RampPhase =
   | "fundEphemeral"
   | "destinationTransfer"
   | "nablaApprove"
-  | "nablaApproveEvm"
   | "nablaSwap"
-  | "nablaSwapEvm"
   | "hydrationSwap"
   | "hydrationToAssethubXcm"
   | "moonbeamToPendulum"
@@ -40,11 +38,8 @@ export type RampPhase =
   | "spacewalkRedeem"
   | "stellarPayment"
   | "subsidizePreSwap"
-  | "subsidizePreSwapEvm"
   | "subsidizePostSwap"
-  | "subsidizePostSwapEvm"
   | "distributeFees"
-  | "distributeFeesEvm"
   | "alfredpayOnrampMint"
   | "alfredOnrampMintFallback"
   | "alfredpayOfframpTransfer"
@@ -61,7 +56,17 @@ export type RampPhase =
   | "backupApprove"
   | "complete";
 
-export type CleanupPhase = "moonbeamCleanup" | "pendulumCleanup" | "stellarCleanup";
+export type CleanupPhase =
+  | "moonbeamCleanup"
+  | "pendulumCleanup"
+  | "stellarCleanup"
+  | "polygonCleanup"
+  | "polygonCleanupAxlUsdc"
+  | "hydrationCleanup"
+  | "assetHubCleanup"
+  | "baseCleanupUsdc"
+  | "baseCleanupBrla"
+  | "baseCleanupAxlUsdc";
 
 export enum EphemeralAccountType {
   Stellar = "Stellar",

@@ -28,7 +28,7 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
     const pendulumNode = await apiManager.getApi("pendulum");
     const hydrationNode = await apiManager.getApi("hydration");
 
-    const { substrateEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress, pendulumToHydrationXcmHash } = state.state as StateMetadata;
 
     if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
@@ -48,6 +48,15 @@ export class PendulumToHydrationXCMPhaseHandler extends BasePhaseHandler {
       const currentBalance = Big(balanceResponse?.free?.toString() ?? "0");
       return currentBalance.gt(Big(0));
     };
+
+    if (pendulumToHydrationXcmHash) {
+      logger.info(
+        `PendulumToHydrationXCMPhaseHandler: Transaction already submitted (${pendulumToHydrationXcmHash}), waiting for arrival`
+      );
+      logger.info("Waiting for assets to arrive on Hydration");
+      await waitUntilTrueWithTimeout(didInputTokenArriveOnHydration, 5000, 120000);
+      return this.transitionToNextPhase(state, "hydrationSwap");
+    }
 
     try {
       const { txData: pendulumToHydrationTransaction } = this.getPresignedTransaction(state, "pendulumToHydrationXcm");

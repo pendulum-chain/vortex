@@ -21,15 +21,14 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import { base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { getEvmFundingAccount } from "../evm-funding";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
@@ -60,7 +59,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
     this.basePublicClient = evmClientManager.getClient(Networks.Base);
 
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+    const moonbeamExecutorAccount = getEvmFundingAccount(Networks.Moonbeam);
     this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
     this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
     this.baseWalletClient = evmClientManager.getWalletClient(Networks.Base, moonbeamExecutorAccount);

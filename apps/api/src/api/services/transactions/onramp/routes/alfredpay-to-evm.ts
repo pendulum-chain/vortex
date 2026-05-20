@@ -4,6 +4,7 @@ import {
   AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
+  ERC20_USDC_POLYGON,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
@@ -19,11 +20,11 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
+import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 
@@ -98,6 +99,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   };
 
   let polygonAccountNonce = 0; // Starts fresh
+  const fundingAccount = getEvmFundingAccount(Networks.Polygon);
 
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
@@ -110,15 +112,25 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     unsignedTxs.push({
       meta: {},
       network: toNetwork,
-      nonce: polygonAccountNonce,
+      nonce: polygonAccountNonce++,
       phase: "destinationTransfer",
       signer: evmEphemeralEntry.address,
       txData: encodeEvmTransactionData(finalTransferTxData) as EvmTransactionData
     });
 
-    stateMeta = {
-      ...stateMeta
-    };
+    const polygonCleanupApproval = await preparePolygonCleanupApproval(
+      ERC20_USDC_POLYGON,
+      fundingAccount.address,
+      Networks.Polygon
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: polygonAccountNonce++,
+      phase: "polygonCleanup",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(polygonCleanupApproval) as EvmTransactionData
+    });
 
     return { stateMeta, unsignedTxs };
   }
@@ -149,6 +161,20 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const polygonCleanupApproval = await preparePolygonCleanupApproval(
+    ERC20_USDC_POLYGON,
+    fundingAccount.address,
+    Networks.Polygon
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: polygonAccountNonce++,
+    phase: "polygonCleanup",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(polygonCleanupApproval) as EvmTransactionData
   });
 
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
@@ -206,7 +232,6 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   destinationNonce++;
 
   const maxUint256 = 2n ** 256n - 1n;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
 
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
     amountRaw: maxUint256.toString(),

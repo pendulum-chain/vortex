@@ -1,27 +1,21 @@
+import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
-
-dotenv.config({
-  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
-});
-
-import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import { config, testDatabaseConnection } from "./config";
 import cryptoService from "./config/crypto";
 import app from "./config/express";
 import logger from "./config/logger";
-import {
-  CLIENT_DOMAIN_SECRET,
-  FUNDING_SECRET,
-  MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  PENDULUM_FUNDING_SEED
-} from "./constants/constants";
+
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
+
+dotenv.config({
+  path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
+});
 
 const { port, env } = config;
 
@@ -30,10 +24,10 @@ setLogger(logger);
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {
   const requiredVars = {
-    CLIENT_DOMAIN_SECRET,
-    FUNDING_SECRET,
-    MOONBEAM_EXECUTOR_PRIVATE_KEY,
-    PENDULUM_FUNDING_SEED
+    CLIENT_DOMAIN_SECRET: config.secrets.clientDomainSecret,
+    FUNDING_SECRET: config.secrets.stellarFundingSecret,
+    MOONBEAM_EXECUTOR_PRIVATE_KEY: config.secrets.moonbeamExecutorPrivateKey,
+    PENDULUM_FUNDING_SEED: config.secrets.pendulumFundingSeed
   };
 
   for (const [key, value] of Object.entries(requiredVars)) {

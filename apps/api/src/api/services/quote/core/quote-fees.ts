@@ -57,6 +57,10 @@ async function calculateFeeComponent(
     feeComponent = new Big(baseAmountInTargetCurrency).mul(feeValue);
   }
 
+  if (feeComponent.lt(0)) {
+    feeComponent = new Big(0);
+  }
+
   return feeComponent;
 }
 

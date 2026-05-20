@@ -306,13 +306,14 @@ export const createSubaccount = async (
 
     const isCnpj = isValidCnpj(taxId);
 
+    // normalize taxId for further operations
+    const normalizedTaxId = normalizeTaxId(taxId);
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
-
-    const existingTaxId = await TaxId.findByPk(normalizeTaxId(taxId));
+    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
 
     if (existingTaxId) {
       await existingTaxId.update({
@@ -332,7 +333,7 @@ export const createSubaccount = async (
         internalStatus: TaxIdInternalStatus.Requested,
         requestedDate: new Date(),
         subAccountId: id,
-        taxId: taxId,
+        taxId: normalizedTaxId,
         userId: req.userId ?? null
       });
     }

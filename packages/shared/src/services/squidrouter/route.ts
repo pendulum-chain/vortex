@@ -265,10 +265,9 @@ async function getRouteInternal(params: RouteParams): Promise<SquidrouterRouteRe
   const route = data.route;
   if (route.estimate?.aggregateSlippage !== undefined) {
     const slippage = route.estimate.aggregateSlippage;
-    if (slippage > 2.5) {
+    if (slippage > 5) {
       logger.current.warn(`Received route with high slippage: ${slippage}%. Request ID: ${requestId}`);
-      // FIXME: temporarily disabled because we are facing issues with squidrouter routes failing the swap to USDT
-      // throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
+      throw new Error(`The slippage of the route is too high: ${slippage}%. Please try again later.`);
     }
   }
 

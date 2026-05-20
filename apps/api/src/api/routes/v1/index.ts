@@ -14,9 +14,7 @@ import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
-import moonbeamRoutes from "./moonbeam.route";
 import paymentMethodsRoutes from "./payment-methods.route";
-import pendulumRoutes from "./pendulum.route";
 import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
@@ -26,7 +24,6 @@ import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
 import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
-import subsidizeRoutes from "./subsidize.route";
 import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
@@ -74,16 +71,6 @@ router.use("/quotes", quoteRoutes);
 router.use("/stellar", stellarRoutes);
 
 /**
- * POST v1/moonbeam
- */
-router.use("/moonbeam", moonbeamRoutes);
-
-/**
- * POST v1/pendulum
- */
-router.use("/pendulum", pendulumRoutes);
-
-/**
  * POST v1/storage
  */
 router.use("/storage", storageRoutes);
@@ -97,11 +84,6 @@ router.use("/contact", contactRoutes);
  * POST v1/email
  */
 router.use("/email", emailRoutes);
-
-/**
- * POST v1/subsidize
- */
-router.use("/subsidize", subsidizeRoutes);
 
 /**
  * POST v1/rating

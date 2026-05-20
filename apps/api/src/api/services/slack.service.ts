@@ -1,4 +1,6 @@
-// 6 hours in milliseconds
+import { config } from "../../config/vars";
+import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
+
 const COOLDOWN_PERIOD_MS = 6 * 60 * 60 * 1000;
 
 function generateMessageSignature(message: SlackMessage): string {
@@ -16,7 +18,7 @@ export class SlackNotifier {
   private readonly messageHistory: Map<string, number>;
 
   constructor() {
-    const token = process.env.SLACK_WEB_HOOK_TOKEN;
+    const token = config.integrations.slack.webhookToken;
     if (!token) {
       throw new Error("SLACK_WEB_HOOK_TOKEN is not defined");
     }
@@ -25,7 +27,7 @@ export class SlackNotifier {
   }
 
   public async sendMessage(message: SlackMessage): Promise<void> {
-    const slackUserId = process.env.SLACK_USER_ID;
+    const slackUserId = config.integrations.slack.userId;
 
     const messageWithUserTag = {
       ...message,
@@ -39,7 +41,7 @@ export class SlackNotifier {
       return;
     }
 
-    const response = await fetch(this.webhookUrl, {
+    const response = await fetchWithTimeout(this.webhookUrl, {
       body: JSON.stringify(message),
       headers: {
         "Content-Type": "application/json"

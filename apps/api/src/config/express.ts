@@ -14,6 +14,7 @@ import routes from "../api/routes/v1";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
+const REQUEST_BODY_LIMIT = "20mb";
 
 /**
  * Express instance
@@ -31,9 +32,9 @@ app.use(
     origin: [
       "https://app.vortexfinance.co",
       "https://metrics.vortexfinance.co",
-      "https://staging--vortexfi.netlify.app",
-      process.env.NODE_ENV === "development" ? "http://localhost:5173" : null,
-      process.env.NODE_ENV === "development" ? "http://localhost:6006" : null
+      config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
+      config.env === "development" ? "http://localhost:5173" : null,
+      config.env === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]
   })
 );
@@ -58,8 +59,8 @@ app.use(cookieParser());
 app.use(morgan(logs));
 
 // parse body params and attach them to req.body
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "50mb" }));
+app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(bodyParser.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // gzip compression
 app.use(compress());

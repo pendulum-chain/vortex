@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -20,6 +21,10 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
+      logger.warn("Admin auth attempt without Authorization header", {
+        ip: req.ip,
+        path: req.path
+      });
       res.status(httpStatus.UNAUTHORIZED).json({
         error: {
           code: "ADMIN_AUTH_REQUIRED",
@@ -63,6 +68,10 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
     const isValid = safeCompare(token, config.adminSecret);
 
     if (!isValid) {
+      logger.warn("Failed admin auth attempt", {
+        ip: req.ip,
+        path: req.path
+      });
       res.status(httpStatus.FORBIDDEN).json({
         error: {
           code: "INVALID_ADMIN_TOKEN",
@@ -94,14 +103,12 @@ export function adminAuth(req: Request, res: Response, next: NextFunction): void
  * @returns True if strings are equal
  */
 function safeCompare(a: string, b: string): boolean {
-  if (a.length !== b.length) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    const dummyBuf = Buffer.alloc(bufA.length);
+    crypto.timingSafeEqual(bufA, dummyBuf);
     return false;
   }
-
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-
-  return result === 0;
+  return crypto.timingSafeEqual(bufA, bufB);
 }

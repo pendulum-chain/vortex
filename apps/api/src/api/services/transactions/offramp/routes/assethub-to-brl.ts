@@ -6,7 +6,7 @@ import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { preparePendulumCleanupTransaction } from "../../pendulum/cleanup";
 import { createAssetHubSourceTransactions, createBRLTransactions, createNablaSwapTransactions } from "../common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
-import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
+import { validateBRLOfframp, validateBRLOfframpMetadata, validateOfframpQuote } from "../common/validation";
 
 /**
  * Prepares all transactions for an AssetHub to BRL offramp.
@@ -34,9 +34,9 @@ export async function prepareAssethubToBRLOfframpTransactions({
     brlaEvmAddress: validatedBrlaEvmAddress,
     pixDestination: validatedPixDestination,
     taxId: validatedTaxId,
-    receiverTaxId: validatedReceiverTaxId,
-    offrampAmountBeforeAnchorFeesRaw
+    receiverTaxId: validatedReceiverTaxId
   } = validateBRLOfframp(quote, { brlaEvmAddress, pixDestination, receiverTaxId, taxId });
+  const { offrampAmountBeforeAnchorFeesRaw } = validateBRLOfframpMetadata(quote);
 
   const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
 

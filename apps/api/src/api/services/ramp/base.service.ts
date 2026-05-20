@@ -45,19 +45,23 @@ export class BaseRampService {
    * Create a new ramp state
    */
   protected async createRampState(
-    data: Omit<RampStateAttributes, "id" | "createdAt" | "updatedAt" | "errorLogs" | "phaseHistory">
+    data: Omit<RampStateAttributes, "id" | "createdAt" | "updatedAt" | "errorLogs" | "phaseHistory">,
+    transaction?: Transaction
   ): Promise<RampState> {
-    return RampState.create({
-      id: uuidv4(),
-      ...data,
-      errorLogs: [],
-      phaseHistory: [
-        {
-          phase: data.currentPhase,
-          timestamp: new Date()
-        }
-      ]
-    });
+    return RampState.create(
+      {
+        id: uuidv4(),
+        ...data,
+        errorLogs: [],
+        phaseHistory: [
+          {
+            phase: data.currentPhase,
+            timestamp: new Date()
+          }
+        ]
+      },
+      transaction ? { transaction } : undefined
+    );
   }
 
   /**

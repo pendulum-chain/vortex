@@ -1,6 +1,6 @@
 import { FiatToken, isAlfredpayToken, RampDirection, RampPhase } from "@vortexfi/shared";
+import { config } from "../../../../config";
 import logger from "../../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -29,7 +29,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
 
     logger.info(`Executing initial phase for ramp ${state.id}`);
 
-    if (SANDBOX_ENABLED) {
+    if (config.sandboxEnabled) {
       await new Promise(resolve => setTimeout(resolve, 10000));
       return this.transitionToNextPhase(state, "complete");
     }

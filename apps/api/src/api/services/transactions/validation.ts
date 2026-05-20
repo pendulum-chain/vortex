@@ -4,22 +4,178 @@ import {
   ApiManager,
   CleanupPhase,
   EphemeralAccountType,
+  EvmTransactionData,
   getNetworkId,
+  isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
+  Networks,
   NUMBER_OF_PRESIGNED_TXS,
   PresignedTx,
   RampDirection,
   RampPhase,
+  SignedTypedData,
   SubstrateApiNetwork,
   substrateAddressEqual
 } from "@vortexfi/shared";
-import { Transaction as EvmTransaction } from "ethers";
+import { Signature as EvmSignature, verifyTypedData } from "ethers";
 import httpStatus from "http-status";
 import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
+import { type Hex, keccak256, parseTransaction, recoverAddress, serializeTransaction, toBytes } from "viem";
+import { config } from "../../../config";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
 import { APIError } from "../../errors/api-error";
+
+interface VerifiedEvmTransaction {
+  signer: string;
+  nonce: number;
+  to: string;
+  data: string;
+  value: bigint;
+  chainId: number;
+}
+
+function assertSignedEvmMinimum(fieldName: string, actual: bigint | undefined, expectedMinimumRaw: string | undefined) {
+  if (expectedMinimumRaw === undefined) {
+    return;
+  }
+
+  const expectedMinimum = BigInt(expectedMinimumRaw);
+  // When the server-issued minimum is 0, a missing field is equivalent to "≥ 0" (e.g., legacy txs that
+  // use gasPrice instead of maxPriorityFeePerGas, or chains that accept zero priority fee). Reject only
+  // if a concrete value is present and is strictly below the minimum.
+  if (expectedMinimum === 0n) {
+    if (actual !== undefined && actual < expectedMinimum) {
+      throw new APIError({
+        message: `Signed EVM transaction ${fieldName} ${actual.toString()} is below expected minimum ${expectedMinimum.toString()}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    return;
+  }
+
+  if (actual === undefined || actual < expectedMinimum) {
+    throw new APIError({
+      message: `Signed EVM transaction ${fieldName} ${actual?.toString() ?? "missing"} is below expected minimum ${expectedMinimum.toString()}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+}
+
+async function verifySignedEvmTransaction(
+  signedTxHex: string,
+  expectedSigner: string,
+  expectedNonce: number,
+  network: Networks,
+  unsignedTxData?: EvmTransactionData
+): Promise<VerifiedEvmTransaction> {
+  const parsed = parseTransaction(signedTxHex as Hex);
+
+  if (parsed.nonce === undefined) {
+    throw new APIError({
+      message: "Signed EVM transaction must include a nonce",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (parsed.r === undefined || parsed.s === undefined) {
+    throw new APIError({
+      message: "Signed EVM transaction must include signature components",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const unsignedTx = serializeTransaction({
+    accessList: parsed.accessList,
+    chainId: parsed.chainId,
+    data: parsed.data,
+    gas: parsed.gas,
+    gasPrice: parsed.gasPrice,
+    maxFeePerGas: parsed.maxFeePerGas,
+    maxPriorityFeePerGas: parsed.maxPriorityFeePerGas,
+    nonce: parsed.nonce,
+    to: parsed.to,
+    type: parsed.type || "eip1559",
+    value: parsed.value ?? 0n
+  } as any);
+
+  const hash = keccak256(toBytes(unsignedTx));
+
+  const yParity = parsed.yParity !== undefined ? Number(parsed.yParity) : parsed.v !== undefined ? Number(parsed.v) - 27 : 0;
+  const signature = (parsed.r + parsed.s.slice(2) + yParity.toString(16).padStart(2, "0")) as `0x${string}`;
+
+  const recoveredSigner = await recoverAddress({ hash, signature });
+
+  if (recoveredSigner.toLowerCase() !== expectedSigner.toLowerCase()) {
+    throw new APIError({
+      message: `Recovered signer ${recoveredSigner} does not match expected signer ${expectedSigner}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (parsed.nonce !== expectedNonce) {
+    throw new APIError({
+      message: `Signed EVM transaction nonce ${parsed.nonce} does not match expected nonce ${expectedNonce}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  // Reject both wrong-chain and chainless (replay-protectable) txs. parseTransaction returns
+  // chainId === undefined for pre-EIP-155 raw txs, which would otherwise bypass the check.
+  if (Number(parsed.chainId || 0) !== getNetworkId(network) && Boolean(config.sandboxEnabled) !== true) {
+    throw new APIError({
+      message: `Signed EVM transaction chainId ${parsed.chainId ?? "missing"} does not match expected network ID ${getNetworkId(network)}`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (unsignedTxData) {
+    if (parsed.to && parsed.to.toLowerCase() !== unsignedTxData.to.toLowerCase()) {
+      throw new APIError({
+        message: `Signed EVM transaction 'to' ${parsed.to} does not match expected ${unsignedTxData.to}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (parsed.data?.toLowerCase() !== unsignedTxData.data.toLowerCase()) {
+      throw new APIError({
+        message: "Signed EVM transaction data does not match expected data",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if ((parsed.value ?? 0n) !== BigInt(unsignedTxData.value || "0")) {
+      throw new APIError({
+        message: `Signed EVM transaction value ${parsed.value} does not match expected ${unsignedTxData.value || "0"}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    assertSignedEvmMinimum("gas limit", parsed.gas, unsignedTxData.gas);
+    assertSignedEvmMinimum("maxFeePerGas", parsed.maxFeePerGas ?? parsed.gasPrice, unsignedTxData.maxFeePerGas);
+    assertSignedEvmMinimum(
+      "maxPriorityFeePerGas",
+      parsed.maxPriorityFeePerGas ?? parsed.gasPrice,
+      unsignedTxData.maxPriorityFeePerGas
+    );
+  }
+
+  if (!parsed.to) {
+    throw new APIError({
+      message: "EVM transaction must have a 'to' address (contract creation not allowed)",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  return {
+    chainId: Number(parsed.chainId || 0),
+    data: parsed.data || "0x",
+    nonce: parsed.nonce,
+    signer: recoveredSigner,
+    to: parsed.to,
+    value: parsed.value || 0n
+  };
+}
 
 /// Checks if all the transactions in 'subset' are contained in 'set' based on phase, network, nonce, and signer.
 export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): boolean {
@@ -40,7 +196,17 @@ export function areAllTxsIncluded(subset: PresignedTx[], set: PresignedTx[]): bo
   return true;
 }
 
-function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralAccountType {
+function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Networks): EphemeralAccountType {
+  // Phases that dispatch polymorphically between substrate and EVM based on the network of the presigned tx.
+  switch (phase) {
+    case "nablaApprove":
+    case "nablaSwap":
+    case "distributeFees":
+    case "subsidizePreSwap":
+    case "subsidizePostSwap":
+      return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
+  }
+
   switch (phase) {
     case "hydrationToAssethubXcm":
     case "moonbeamToPendulumXcm":
@@ -49,14 +215,10 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
     case "pendulumToMoonbeamXcm":
     case "assethubToPendulum":
     case "hydrationSwap":
-    case "subsidizePreSwap":
-    case "subsidizePostSwap":
-    case "distributeFees":
-    case "nablaApprove":
-    case "nablaSwap":
     case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
+    case "hydrationCleanup":
       return EphemeralAccountType.Substrate;
     case "stellarCreateAccount":
     case "stellarPayment":
@@ -64,16 +226,40 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase): EphemeralA
       return EphemeralAccountType.Stellar;
     case "squidRouterApprove":
     case "squidRouterSwap":
-    case "nablaApproveEvm":
-    case "nablaSwapEvm":
-    case "distributeFeesEvm":
+    case "squidRouterPermitExecute":
+    case "squidRouterPay":
+    case "moneriumOnrampSelfTransfer":
+    case "moneriumOnrampMint":
+    case "fundEphemeral":
+    case "destinationTransfer":
+    case "moonbeamToPendulum":
+    case "alfredpayOnrampMint":
+    case "alfredpayOfframpTransfer":
+    case "brlaOnrampMint":
+    case "brlaPayoutOnBase":
+    case "finalSettlementSubsidy":
+    case "backupSquidRouterApprove":
+    case "backupSquidRouterSwap":
+    case "backupApprove":
+    case "polygonCleanup":
+    case "polygonCleanupAxlUsdc":
+    case "baseCleanupBrla":
+    case "baseCleanupUsdc":
+    case "baseCleanupAxlUsdc":
       return EphemeralAccountType.EVM;
     default:
-      return EphemeralAccountType.EVM;
+      throw new APIError({
+        message: `Unknown phase "${phase}" — cannot determine transaction type`,
+        status: httpStatus.BAD_REQUEST
+      });
   }
 }
 
-function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in EphemeralAccountType]: string }) {
+async function validateBackupTransactions(
+  tx: PresignedTx,
+  ephemerals: { [key in EphemeralAccountType]: string },
+  unsignedTxData?: EvmTransactionData
+) {
   const signer = tx.signer.toLowerCase();
   const isEphemeralSigner = Object.values(ephemerals).some(addr => addr && addr.toLowerCase() === signer);
 
@@ -89,26 +275,79 @@ function validateBackupTransactions(tx: PresignedTx, ephemerals: { [key in Ephem
     });
   }
 
-  const backupNonces = Object.values(additionalTxs)
-    .map(backup => backup.nonce)
-    .sort((a, b) => a - b);
+  if (Object.keys(additionalTxs).length !== NUMBER_OF_PRESIGNED_TXS - 1) {
+    throw new APIError({
+      message: `Transaction for phase ${tx.phase} must include exactly ${NUMBER_OF_PRESIGNED_TXS - 1} backup transactions in meta.additionalTxs`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  const backupsSorted = Object.values(additionalTxs).sort((a, b) => a.nonce - b.nonce);
+  const txType = getTransactionTypeForPhase(tx.phase, tx.network);
 
   for (let i = 0; i < NUMBER_OF_PRESIGNED_TXS - 1; i++) {
     const expectedNonce = tx.nonce + 1 + i;
-    if (backupNonces[i] !== expectedNonce) {
+    const backup = backupsSorted[i];
+    if (backup.nonce !== expectedNonce) {
       throw new APIError({
-        message: `Transaction for phase ${tx.phase} has invalid backup nonce sequence. Expected ${expectedNonce}, got ${backupNonces[i]}`,
+        message: `Transaction for phase ${tx.phase} has invalid backup nonce sequence. Expected ${expectedNonce}, got ${backup.nonce}`,
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    // Re-run the primary's validator against each backup so backups cannot encode a different
+    // signer or a different call than the primary tx (the engine may broadcast a backup on retry).
+    const backupTx: PresignedTx = {
+      meta: {},
+      network: tx.network,
+      nonce: backup.nonce,
+      phase: tx.phase,
+      signer: tx.signer,
+      txData: backup.txData
+    };
+
+    if (txType === EphemeralAccountType.EVM) {
+      if (typeof backup.txData !== "string") {
+        throw new APIError({
+          message: `Backup EVM transaction for phase ${tx.phase} must be a signed hex string`,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      await verifySignedEvmTransaction(backup.txData, tx.signer, expectedNonce, tx.network, unsignedTxData);
+    } else if (txType === EphemeralAccountType.Substrate) {
+      await validateSubstrateTransaction(backupTx, ephemerals.Substrate, ephemerals.EVM);
+      await assertSubstrateBackupMatchesPrimary(tx, backup);
+    } else if (txType === EphemeralAccountType.Stellar) {
+      await validateStellarTransaction(backupTx, ephemerals.Stellar);
+    }
+  }
+}
+
+// Ensures a Substrate backup encodes the same call (section/method/args) as the primary, so a
+// malicious client cannot register a backup that would broadcast a different on-chain action
+// if the primary fails.
+async function assertSubstrateBackupMatchesPrimary(primary: PresignedTx, backup: PresignedTx) {
+  const api = (await ApiManager.getInstance().getApi(primary.network as SubstrateApiNetwork)).api;
+  const primaryCallHex = api.tx(primary.txData as string).method.toHex();
+  const backupCallHex = api.tx(backup.txData as string).method.toHex();
+
+  if (primaryCallHex !== backupCallHex) {
+    throw new APIError({
+      message: `Substrate backup transaction for phase ${primary.phase} does not encode the same call as the primary transaction`,
+      status: httpStatus.BAD_REQUEST
+    });
   }
 }
 
 export async function validatePresignedTxs(
   direction: RampDirection,
   presignedTxs: PresignedTx[],
-  ephemerals: { [key in EphemeralAccountType]: string }
+  ephemerals: { [key in EphemeralAccountType]: string },
+  unsignedTxs: PresignedTx[],
+  options: { requireComplete?: boolean } = {}
 ): Promise<void> {
+  const requireComplete = options.requireComplete ?? true;
+
   if (!Array.isArray(presignedTxs) || presignedTxs.length > 100) {
     throw new APIError({
       message: "presignedTxs must be an array with 1-100 elements",
@@ -124,29 +363,101 @@ export async function validatePresignedTxs(
       });
     }
 
-    const txType = getTransactionTypeForPhase(tx.phase);
-    if (tx.phase === "moneriumOnrampMint") continue; // Skip validation for this as it's from the user's wallet
-    if (
+    // These phases are broadcast by the end user's own wallet. We never accept a presignedTx for
+    // them — only the resulting on-chain tx hash via /v1/ramp/update additionalData. The receipt
+    // is then verified against the unsigned blueprint by user-tx-verifier at phase execution time.
+    // Accepting a presignedTx here would create a fake authority surface that bypasses that check.
+    const isUserWalletPhase =
+      tx.phase === "moneriumOnrampMint" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
-      tx.phase === "squidRouterNoPermitSwap"
-    )
-      continue; // User-submitted from their own wallet; only the resulting tx hash flows back via additionalData
-    if (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove")) continue; // Skip validation for this as it's from the user's wallet
-    if (txType === EphemeralAccountType.EVM) validateEvmTransaction(tx, ephemerals.EVM);
+      tx.phase === "squidRouterNoPermitSwap" ||
+      (direction === RampDirection.SELL && (tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove"));
+    if (isUserWalletPhase) {
+      throw new APIError({
+        message: `Phase ${tx.phase} is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const txType = getTransactionTypeForPhase(tx.phase, tx.network);
+    let evmUnsignedTxData: EvmTransactionData | undefined;
+    if (txType === EphemeralAccountType.EVM) {
+      const matchingUnsigned = unsignedTxs?.find(
+        u =>
+          u.phase === tx.phase &&
+          u.network === tx.network &&
+          u.nonce === tx.nonce &&
+          u.signer.toLowerCase() === tx.signer.toLowerCase()
+      );
+      if (!matchingUnsigned) {
+        logger.info(
+          `No matching unsigned transaction found for EVM transaction with phase ${tx.phase}, network ${tx.network}, signer ${tx.signer}`
+        );
+        throw new APIError({
+          message: "Some presigned transactions do not match any unsigned transaction",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      evmUnsignedTxData = matchingUnsigned.txData as EvmTransactionData;
+      await validateEvmTransaction(tx, ephemerals.EVM, matchingUnsigned.txData);
+    }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
     if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
 
-    validateBackupTransactions(tx, ephemerals);
+    await validateBackupTransactions(tx, ephemerals, evmUnsignedTxData);
+  }
+
+  if (!areAllTxsIncluded(presignedTxs, unsignedTxs)) {
+    throw new APIError({
+      message: "Some presigned transactions do not match any unsigned transaction",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  if (!requireComplete) return;
+
+  const ephemeralSigners = new Set(
+    Object.values(ephemerals)
+      .filter((v): v is string => Boolean(v))
+      .map(s => s.toLowerCase())
+  );
+  const ephemeralUnsigned = unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
+  const ephemeralPresigned = presignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
+  if (!areAllTxsIncluded(ephemeralUnsigned, ephemeralPresigned)) {
+    throw new APIError({
+      message: "Not all unsigned transactions have a corresponding presigned transaction",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 }
 
-function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
+async function validateEvmTransaction(
+  tx: PresignedTx,
+  expectedSigner: string,
+  unsignedTxData?: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+) {
   const { txData, signer } = tx;
   logger.debug(`Validating EVM transaction with signer: ${signer}, on network: ${tx.network}, for phase: ${tx.phase}`);
-  // do not validate typed data
+
+  if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
+    throw new APIError({
+      message: "EVM signer must be a valid Ethereum address",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  // EIP-712 typed data is signed by the user wallet for permit flows, not by the EVM ephemeral.
   if (isSignedTypedData(txData) || isSignedTypedDataArray(txData)) {
+    validateSignedTypedData(tx, signer, unsignedTxData);
     return;
+  }
+
+  if (typeof txData !== "string") {
+    throw new APIError({
+      message: "EVM transaction data must be a signed hex string",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (!expectedSigner) {
@@ -163,34 +474,126 @@ function validateEvmTransaction(tx: PresignedTx, expectedSigner: string) {
     });
   }
 
-  if (typeof signer !== "string" || !signer.startsWith("0x") || signer.length !== 42) {
-    throw new APIError({
-      message: "EVM signer must be a valid Ethereum address",
-      status: httpStatus.BAD_REQUEST
-    });
+  const evmUnsigned = unsignedTxData && isEvmTransactionData(unsignedTxData) ? unsignedTxData : undefined;
+  await verifySignedEvmTransaction(txData, signer, tx.nonce, tx.network, evmUnsigned);
+}
+
+function validateSignedTypedData(
+  tx: PresignedTx,
+  expectedSigner: string,
+  unsignedTxData?: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
+) {
+  const typedDataItems = isSignedTypedDataArray(tx.txData) ? tx.txData : [tx.txData as SignedTypedData];
+
+  // Server-issued unsigned typed data is the source of truth. The signed form must match every
+  // field except the appended signature, otherwise the user could swap token/spender/value/etc.
+  let unsignedItems: SignedTypedData[] | undefined;
+  if (unsignedTxData !== undefined) {
+    if (isSignedTypedDataArray(unsignedTxData)) {
+      unsignedItems = unsignedTxData;
+    } else if (isSignedTypedData(unsignedTxData)) {
+      unsignedItems = [unsignedTxData];
+    } else {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} does not match the server-issued unsigned typed data shape`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (unsignedItems.length !== typedDataItems.length) {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} has ${typedDataItems.length} items, expected ${unsignedItems.length}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 
-  const transactionMeta = EvmTransaction.from(txData);
-  if (!transactionMeta.from) {
-    throw new APIError({
-      message: "EVM transaction data must be signed and include a 'from' address",
-      status: httpStatus.BAD_REQUEST
-    });
+  for (let i = 0; i < typedDataItems.length; i++) {
+    const typedData = typedDataItems[i];
+    const signature = typedData.signature;
+    if (!signature || Array.isArray(signature)) {
+      throw new APIError({
+        message: `EVM typed data for phase ${tx.phase} must include exactly one signature`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (
+      typedData.domain.chainId &&
+      typedData.domain.chainId !== getNetworkId(tx.network) &&
+      Boolean(config.sandboxEnabled) !== true
+    ) {
+      throw new APIError({
+        message: `EVM typed data chainId ${typedData.domain.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const owner = typedData.message.owner;
+    if (typeof owner === "string" && owner.toLowerCase() !== expectedSigner.toLowerCase()) {
+      throw new APIError({
+        message: `EVM typed data owner ${owner} does not match signer ${expectedSigner}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (unsignedItems) {
+      assertTypedDataMatchesUnsigned(typedData, unsignedItems[i], tx.phase);
+    }
+
+    const recoveredSigner = verifyTypedData(
+      typedData.domain,
+      typedData.types,
+      typedData.message,
+      EvmSignature.from({ r: signature.r, s: signature.s, v: signature.v }).serialized
+    );
+    if (recoveredSigner.toLowerCase() !== expectedSigner.toLowerCase()) {
+      throw new APIError({
+        message: `EVM typed data signature was produced by ${recoveredSigner}, expected ${expectedSigner}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 
-  if (transactionMeta.from.toLowerCase() !== signer.toLowerCase()) {
-    throw new APIError({
-      message: `EVM transaction 'from' address ${transactionMeta.from} does not match the signer address ${signer}`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
+  logger.info(`Validated EIP-712 typed data signature for phase ${tx.phase}: ${expectedSigner}`);
+}
 
-  if (Number(transactionMeta.chainId) !== getNetworkId(tx.network) && Boolean(SANDBOX_ENABLED) !== true) {
+// Deep-compare domain/primaryType/types/message between signed and unsigned typed data.
+// Any divergence (e.g. swapped token, inflated value, different spender, extended deadline) is
+// fatal because the user must sign exactly what the server prepared.
+function assertTypedDataMatchesUnsigned(signed: SignedTypedData, unsigned: SignedTypedData, phase: RampPhase | CleanupPhase) {
+  const stripSig = (td: SignedTypedData) => {
+    const { signature: _sig, ...rest } = td;
+    return rest;
+  };
+  const a = stripSig(signed);
+  const b = stripSig(unsigned);
+  if (!deepEqualNormalized(a, b)) {
     throw new APIError({
-      message: `EVM transaction chainId ${transactionMeta.chainId} does not match the expected network ID ${getNetworkId(tx.network)}`,
+      message: `EVM typed data for phase ${phase} does not match the server-issued unsigned typed data`,
       status: httpStatus.BAD_REQUEST
     });
   }
+}
+
+function deepEqualNormalized(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (typeof a === "string" && typeof b === "string") return a.toLowerCase() === b.toLowerCase();
+  if (typeof a === "bigint" || typeof b === "bigint") return String(a) === String(b);
+  if (typeof a === "number" || typeof b === "number") return String(a) === String(b);
+  if (a === null || b === null) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((v, i) => deepEqualNormalized(v, b[i]));
+  }
+  if (typeof a === "object" && typeof b === "object") {
+    const aKeys = Object.keys(a as Record<string, unknown>);
+    const bKeys = Object.keys(b as Record<string, unknown>);
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every(k => deepEqualNormalized((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+  }
+  return false;
 }
 
 async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubstrate: string, expectedSignerEvm: string) {
@@ -245,6 +648,15 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
       status: httpStatus.BAD_REQUEST
     });
   }
+
+  const method = extrinsic.method;
+  if (!method || !method.section || !method.method) {
+    throw new APIError({
+      message: `Substrate transaction for phase ${tx.phase} has no decodable method`,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+  logger.debug(`Validated Substrate extrinsic for phase ${tx.phase}: ${method.section}.${method.method}`);
 }
 
 async function validateStellarTransaction(tx: PresignedTx, expectedSigner: string) {
@@ -297,6 +709,12 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
         status: httpStatus.BAD_REQUEST
       });
     }
+    if (!createAccountOp.startingBalance || parseFloat(createAccountOp.startingBalance) <= 0) {
+      throw new APIError({
+        message: "Stellar Create Account operation must have a positive startingBalance",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     const setOptionsOp = transaction.operations[1];
     if (setOptionsOp.type !== "setOptions") {
@@ -308,6 +726,12 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     if (setOptionsOp.source !== signer) {
       throw new APIError({
         message: `Stellar Set Options operation source ${setOptionsOp.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (setOptionsOp.type === "setOptions" && !setOptionsOp.signer) {
+      throw new APIError({
+        message: "Stellar SetOptions operation must include a signer (cosigner) key",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -325,9 +749,22 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
         status: httpStatus.BAD_REQUEST
       });
     }
+    if (changeTrustOp.type === "changeTrust" && !changeTrustOp.line) {
+      throw new APIError({
+        message: "Stellar ChangeTrust operation must specify a trust line asset",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
   }
 
   if (phase === "stellarPayment") {
+    if (transaction.operations.length !== 1) {
+      throw new APIError({
+        message: `Stellar Payment transaction must have exactly 1 operation, found ${transaction.operations.length}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     const paymentOp = transaction.operations[0];
     if (paymentOp.type !== "payment") {
       throw new APIError({
@@ -338,6 +775,42 @@ async function validateStellarTransaction(tx: PresignedTx, expectedSigner: strin
     if (transaction.source !== signer) {
       throw new APIError({
         message: `Stellar Payment transaction source ${transaction.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    if (paymentOp.type === "payment") {
+      if (!paymentOp.destination) {
+        throw new APIError({
+          message: "Stellar Payment operation must have a destination address",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!paymentOp.amount || parseFloat(paymentOp.amount) <= 0) {
+        throw new APIError({
+          message: "Stellar Payment operation must have a positive amount",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!paymentOp.asset) {
+        throw new APIError({
+          message: "Stellar Payment operation must specify an asset",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+    }
+  }
+
+  if (phase === "stellarCleanup") {
+    if (transaction.source !== signer) {
+      throw new APIError({
+        message: `Stellar Cleanup transaction source ${transaction.source} does not match the signer ${signer}`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (transaction.operations.length === 0 || transaction.operations.length > 5) {
+      throw new APIError({
+        message: `Stellar Cleanup transaction has unexpected operation count: ${transaction.operations.length} (expected 1-5)`,
         status: httpStatus.BAD_REQUEST
       });
     }

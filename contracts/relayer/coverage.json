@@ -1,0 +1,261 @@
+{
+  "contracts/TokenRelayer.sol": {
+    "b": {
+      "1": [0, 0],
+      "2": [0, 0],
+      "3": [0, 0],
+      "4": [0, 0],
+      "5": [0, 0],
+      "6": [0, 0],
+      "7": [0, 0],
+      "8": [0, 0],
+      "9": [0, 0],
+      "10": [0, 0],
+      "11": [0, 0],
+      "12": [0, 0],
+      "13": [0, 0]
+    },
+    "branchMap": {
+      "1": {
+        "line": 70,
+        "locations": [
+          { "end": { "column": 8, "line": 70 }, "start": { "column": 8, "line": 70 } },
+          { "end": { "column": 8, "line": 70 }, "start": { "column": 8, "line": 70 } }
+        ],
+        "type": "if"
+      },
+      "2": {
+        "line": 79,
+        "locations": [
+          { "end": { "column": 69, "line": 79 }, "start": { "column": 69, "line": 79 } },
+          { "end": { "column": 69, "line": 79 }, "start": { "column": 69, "line": 79 } }
+        ],
+        "type": "if"
+      },
+      "3": {
+        "line": 84,
+        "locations": [
+          { "end": { "column": 8, "line": 84 }, "start": { "column": 8, "line": 84 } },
+          { "end": { "column": 8, "line": 84 }, "start": { "column": 8, "line": 84 } }
+        ],
+        "type": "if"
+      },
+      "4": {
+        "line": 85,
+        "locations": [
+          { "end": { "column": 8, "line": 85 }, "start": { "column": 8, "line": 85 } },
+          { "end": { "column": 8, "line": 85 }, "start": { "column": 8, "line": 85 } }
+        ],
+        "type": "if"
+      },
+      "5": {
+        "line": 86,
+        "locations": [
+          { "end": { "column": 8, "line": 86 }, "start": { "column": 8, "line": 86 } },
+          { "end": { "column": 8, "line": 86 }, "start": { "column": 8, "line": 86 } }
+        ],
+        "type": "if"
+      },
+      "6": {
+        "line": 87,
+        "locations": [
+          { "end": { "column": 8, "line": 87 }, "start": { "column": 8, "line": 87 } },
+          { "end": { "column": 8, "line": 87 }, "start": { "column": 8, "line": 87 } }
+        ],
+        "type": "if"
+      },
+      "7": {
+        "line": 100,
+        "locations": [
+          { "end": { "column": 8, "line": 100 }, "start": { "column": 8, "line": 100 } },
+          { "end": { "column": 8, "line": 100 }, "start": { "column": 8, "line": 100 } }
+        ],
+        "type": "if"
+      },
+      "8": {
+        "line": 102,
+        "locations": [
+          { "end": { "column": 8, "line": 102 }, "start": { "column": 8, "line": 102 } },
+          { "end": { "column": 8, "line": 102 }, "start": { "column": 8, "line": 102 } }
+        ],
+        "type": "if"
+      },
+      "9": {
+        "line": 124,
+        "locations": [
+          { "end": { "column": 8, "line": 124 }, "start": { "column": 8, "line": 124 } },
+          { "end": { "column": 8, "line": 124 }, "start": { "column": 8, "line": 124 } }
+        ],
+        "type": "if"
+      },
+      "10": {
+        "line": 176,
+        "locations": [
+          { "end": { "column": 12, "line": 176 }, "start": { "column": 12, "line": 176 } },
+          { "end": { "column": 12, "line": 176 }, "start": { "column": 12, "line": 176 } }
+        ],
+        "type": "if"
+      },
+      "11": {
+        "line": 198,
+        "locations": [
+          { "end": { "column": 67, "line": 198 }, "start": { "column": 67, "line": 198 } },
+          { "end": { "column": 67, "line": 198 }, "start": { "column": 67, "line": 198 } }
+        ],
+        "type": "if"
+      },
+      "12": {
+        "line": 208,
+        "locations": [
+          { "end": { "column": 50, "line": 208 }, "start": { "column": 50, "line": 208 } },
+          { "end": { "column": 50, "line": 208 }, "start": { "column": 50, "line": 208 } }
+        ],
+        "type": "if"
+      },
+      "13": {
+        "line": 210,
+        "locations": [
+          { "end": { "column": 8, "line": 210 }, "start": { "column": 8, "line": 210 } },
+          { "end": { "column": 8, "line": 210 }, "start": { "column": 8, "line": 210 } }
+        ],
+        "type": "if"
+      }
+    },
+    "f": { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0, "7": 0, "8": 0 },
+    "fnMap": {
+      "1": {
+        "line": 68,
+        "loc": { "end": { "column": 4, "line": 72 }, "start": { "column": 4, "line": 66 } },
+        "name": "constructor"
+      },
+      "2": {
+        "line": 79,
+        "loc": { "end": { "column": 4, "line": 130 }, "start": { "column": 4, "line": 79 } },
+        "name": "execute"
+      },
+      "3": {
+        "line": 133,
+        "loc": { "end": { "column": 4, "line": 155 }, "start": { "column": 4, "line": 133 } },
+        "name": "_computeDigest"
+      },
+      "4": {
+        "line": 162,
+        "loc": { "end": { "column": 4, "line": 184 }, "start": { "column": 4, "line": 162 } },
+        "name": "_executePermitAndTransfer"
+      },
+      "5": {
+        "line": 186,
+        "loc": { "end": { "column": 4, "line": 189 }, "start": { "column": 4, "line": 186 } },
+        "name": "_forwardCall"
+      },
+      "6": {
+        "line": 198,
+        "loc": { "end": { "column": 4, "line": 201 }, "start": { "column": 4, "line": 198 } },
+        "name": "withdrawToken"
+      },
+      "7": {
+        "line": 208,
+        "loc": { "end": { "column": 4, "line": 212 }, "start": { "column": 4, "line": 208 } },
+        "name": "withdrawETH"
+      },
+      "8": {
+        "line": 215,
+        "loc": { "end": { "column": 4, "line": 217 }, "start": { "column": 4, "line": 215 } },
+        "name": "isExecutionCompleted"
+      }
+    },
+    "l": {
+      "70": 0,
+      "71": 0,
+      "80": 0,
+      "81": 0,
+      "84": 0,
+      "85": 0,
+      "86": 0,
+      "87": 0,
+      "90": 0,
+      "100": 0,
+      "102": 0,
+      "106": 0,
+      "110": 0,
+      "121": 0,
+      "123": 0,
+      "124": 0,
+      "127": 0,
+      "129": 0,
+      "142": 0,
+      "172": 0,
+      "176": 0,
+      "183": 0,
+      "187": 0,
+      "188": 0,
+      "199": 0,
+      "200": 0,
+      "209": 0,
+      "210": 0,
+      "211": 0,
+      "216": 0
+    },
+    "path": "/Users/marcel/Documents/pendulum-pay/contracts/relayer/contracts/TokenRelayer.sol",
+    "s": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0,
+      "14": 0,
+      "15": 0,
+      "16": 0,
+      "17": 0,
+      "18": 0,
+      "19": 0,
+      "20": 0,
+      "21": 0,
+      "22": 0,
+      "23": 0,
+      "24": 0,
+      "25": 0,
+      "26": 0,
+      "27": 0,
+      "28": 0
+    },
+    "statementMap": {
+      "1": { "end": { "column": 73, "line": 70 }, "start": { "column": 8, "line": 70 } },
+      "2": { "end": { "column": 36, "line": 80 }, "start": { "column": 8, "line": 80 } },
+      "3": { "end": { "column": 43, "line": 81 }, "start": { "column": 8, "line": 81 } },
+      "4": { "end": { "column": 52, "line": 84 }, "start": { "column": 8, "line": 84 } },
+      "5": { "end": { "column": 59, "line": 85 }, "start": { "column": 8, "line": 85 } },
+      "6": { "end": { "column": 62, "line": 86 }, "start": { "column": 8, "line": 86 } },
+      "7": { "end": { "column": 76, "line": 87 }, "start": { "column": 8, "line": 87 } },
+      "8": { "end": { "column": 3529, "line": 90 }, "start": { "column": 8, "line": 90 } },
+      "9": { "end": { "column": 112, "line": 100 }, "start": { "column": 8, "line": 100 } },
+      "10": { "end": { "column": 80, "line": 102 }, "start": { "column": 8, "line": 102 } },
+      "11": { "end": { "column": 4308, "line": 110 }, "start": { "column": 8, "line": 110 } },
+      "12": { "end": { "column": 75, "line": 121 }, "start": { "column": 8, "line": 121 } },
+      "13": { "end": { "column": 70, "line": 123 }, "start": { "column": 8, "line": 123 } },
+      "14": { "end": { "column": 42, "line": 124 }, "start": { "column": 8, "line": 124 } },
+      "15": { "end": { "column": 64, "line": 127 }, "start": { "column": 8, "line": 127 } },
+      "16": { "end": { "column": 63, "line": 129 }, "start": { "column": 8, "line": 129 } },
+      "17": { "end": { "column": 5301, "line": 142 }, "start": { "column": 8, "line": 142 } },
+      "18": { "end": { "column": 6217, "line": 172 }, "start": { "column": 8, "line": 172 } },
+      "19": { "end": { "column": 6432, "line": 176 }, "start": { "column": 12, "line": 176 } },
+      "20": { "end": { "column": 66, "line": 183 }, "start": { "column": 8, "line": 183 } },
+      "21": { "end": { "column": 71, "line": 187 }, "start": { "column": 8, "line": 187 } },
+      "22": { "end": { "column": 22, "line": 188 }, "start": { "column": 8, "line": 188 } },
+      "23": { "end": { "column": 50, "line": 199 }, "start": { "column": 8, "line": 199 } },
+      "24": { "end": { "column": 51, "line": 200 }, "start": { "column": 8, "line": 200 } },
+      "25": { "end": { "column": 58, "line": 209 }, "start": { "column": 8, "line": 209 } },
+      "26": { "end": { "column": 46, "line": 210 }, "start": { "column": 8, "line": 210 } },
+      "27": { "end": { "column": 42, "line": 211 }, "start": { "column": 8, "line": 211 } },
+      "28": { "end": { "column": 47, "line": 216 }, "start": { "column": 8, "line": 216 } }
+    }
+  }
+}

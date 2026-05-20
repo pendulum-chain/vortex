@@ -8,8 +8,8 @@ import {
   RampPhase,
   UnsignedTx
 } from "@vortexfi/shared";
-import {DataTypes, Model, Optional} from "sequelize";
-import {StateMetadata} from "../api/services/phases/meta-state-types";
+import { DataTypes, Model, Optional } from "sequelize";
+import { StateMetadata } from "../api/services/phases/meta-state-types";
 import sequelize from "../config/database";
 
 export interface PhaseHistoryEntry {
@@ -227,7 +227,8 @@ RampState.init(
       },
       {
         fields: ["quoteId"],
-        name: "idx_ramp_quote"
+        name: "uq_ramp_states_quote_id",
+        unique: true
       }
     ],
     modelName: "RampState",

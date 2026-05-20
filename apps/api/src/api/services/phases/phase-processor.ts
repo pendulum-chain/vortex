@@ -231,18 +231,22 @@ export class PhaseProcessor {
 
         const errorUpdatedState = await state.update({ errorLogs });
 
-        if (currentRetries < this.MAX_RETRIES) {
+        const phaseHandler = phaseRegistry.getHandler(state.currentPhase);
+        const maxRetries = phaseHandler?.getMaxRetries?.() ?? this.MAX_RETRIES;
+
+        if (currentRetries < maxRetries) {
           const nextRetry = currentRetries + 1;
           this.retriesMap.set(errorUpdatedState.id, nextRetry);
           const delayMs = minimumWaitSeconds ? minimumWaitSeconds * 1000 : 30 * 1000;
 
-          logger.info(`Scheduling retry ${nextRetry}/${this.MAX_RETRIES} for ramp ${errorUpdatedState.id} in ${delayMs}ms`);
+          logger.info(`Scheduling retry ${nextRetry}/${maxRetries} for ramp ${errorUpdatedState.id} in ${delayMs}ms`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
           return this.processPhase(errorUpdatedState);
         }
 
-        logger.error(`Max retries (${this.MAX_RETRIES}) reached for ramp ${errorUpdatedState.id}`);
+        logger.error(`Max retries (${maxRetries}) reached for ramp ${errorUpdatedState.id}`);
         this.retriesMap.delete(errorUpdatedState.id);
+        return;
       }
 
       if (isPhaseError && !isRecoverable) {

@@ -9,7 +9,10 @@ import {
   createOfframpSquidrouterTransactionsToEvm,
   EvmClientManager,
   EvmNetworks,
+  EvmToken,
   EvmTokenDetails,
+  EvmTransactionData,
+  evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
   getNetworkId,
@@ -33,10 +36,13 @@ import {
   toHex
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY } from "../../../../../constants/constants";
+import { config } from "../../../../../config";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
+import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
 export const RELAYER_ADDRESS = "0xC9ECD03c89349B3EAe4613c7091c6c3029413785" as const;
@@ -273,7 +279,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     if (isDirectPolygonTransfer) {
       // Source is already Polygon USDT — user permits the executor to transferFrom directly.
       // The executor has gas; the ephemeral is not yet funded at the squidRouterPermitExecute phase.
-      const executorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+      const executorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
       const permitTypedData: SignedTypedData = {
         domain: resolvedDomain,
         message: {
@@ -506,6 +512,28 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     phase: "alfredpayOfframpTransferFallback",
     signer: evmEphemeralEntry.address,
     txData: fallbackTransferTxData
+  });
+
+  // Squidrouter delivers axlUSDC (not USDT/ALFREDPAY_ERC20_TOKEN) to the Polygon ephemeral if its
+  // destination swap exceeds slippage. This approval lets the funding account sweep that residual
+  // via post-process. Runs at nonce 1 (after whichever of the two nonce-0 transfers executes).
+  const polygonAxlUsdcAddress = evmTokenConfig[Networks.Polygon][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
+  if (!polygonAxlUsdcAddress) {
+    throw new Error("Invalid AXLUSDC configuration for Polygon in evmTokenConfig");
+  }
+  const polygonFundingAccount = getEvmFundingAccount(Networks.Polygon);
+  const axlUsdcCleanupApproval = await preparePolygonCleanupApproval(
+    polygonAxlUsdcAddress as `0x${string}`,
+    polygonFundingAccount.address,
+    Networks.Polygon
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Polygon,
+    nonce: 1,
+    phase: "polygonCleanupAxlUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(axlUsdcCleanupApproval) as EvmTransactionData
   });
 
   return { stateMeta, unsignedTxs };
