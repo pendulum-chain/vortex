@@ -8,7 +8,7 @@ import {
   UnsignedTx,
   UpdateRampRequest
 } from "@vortexfi/shared";
-import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError } from "../errors";
+import { AmountExceedsLimitError, BrlKycStatusError, InvalidPixKeyError, VortexSdkError } from "../errors";
 import type { ApiService } from "../services/ApiService";
 import type {
   BrlOfframpAdditionalData,
@@ -181,8 +181,14 @@ export class BrlHandler implements RampHandler {
     let result: { valid: boolean };
     try {
       result = await this.apiService.validateBrlPixKey(pixKey);
-    } catch {
-      throw new InvalidPixKeyError();
+    } catch (error) {
+      // Only treat client-side validation errors (4xx) as invalid PIX key.
+      // Network/server errors (5xx, connection failures) must propagate so the
+      // user retries instead of being told the key is invalid.
+      if (error instanceof VortexSdkError && error.status >= 400 && error.status < 500) {
+        throw new InvalidPixKeyError();
+      }
+      throw error;
     }
     if (!result.valid) {
       throw new InvalidPixKeyError();
@@ -192,11 +198,33 @@ export class BrlHandler implements RampHandler {
   private async assertWithinBrlLimit(taxId: string, quoteId: string, direction: RampDirection): Promise<void> {
     const quote = await this.apiService.getQuote(quoteId);
     // BRL is the input on BUY (onramp) and the output on SELL (offramp).
-    const brlAmount = Number(direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount);
+    // On SELL, `outputAmount` is the user-received BRL (net of the anchor fee),
+    // but the BRLA debit/limit applies to the gross amount before the anchor fee.
+    // So we add `anchorFeeFiat` back to compare against the remaining limit.
+    let brlAmount: number;
+    if (direction === RampDirection.BUY) {
+      brlAmount = Number(quote.inputAmount);
+    } else {
+      const net = Number(quote.outputAmount);
+      const anchorFee = Number(quote.anchorFeeFiat ?? 0);
+      brlAmount = net + (Number.isFinite(anchorFee) ? anchorFee : 0);
+    }
     if (!Number.isFinite(brlAmount)) {
       throw new AmountExceedsLimitError();
     }
-    const { remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction);
+    let remainingLimit: number;
+    try {
+      ({ remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction));
+    } catch (error) {
+      // The backend returns 404 "Limits not found" for KYC-approved users whose
+      // BRLA subaccount has not yet been initialized for limits. Treat this as
+      // permissive (skip pre-flight) so legitimate users are not blocked; the
+      // backend will enforce limits authoritatively during ramp execution.
+      if (error instanceof VortexSdkError && error.status === 404) {
+        return;
+      }
+      throw error;
+    }
     if (brlAmount > remainingLimit) {
       throw new AmountExceedsLimitError();
     }
