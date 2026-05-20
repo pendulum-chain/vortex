@@ -1,5 +1,5 @@
 import { Networks, RampDirection } from "@vortexfi/shared";
-import { config } from "../../../config";
+import { config } from "../../../config/vars";
 
 /**
  * Payment method constants for Transak API

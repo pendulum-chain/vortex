@@ -9,8 +9,10 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
+import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
@@ -115,7 +117,7 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
 
   // Fee distribution transaction on EVM MUST be built before the Nabla swap on offramps:
   // fees are paid in USDC, which on offramps is available before the USDC -> BRLA swap.
-  // Nonce ordering on Base: distributeFeesEvm=0, nablaApproveEvm=1, nablaSwapEvm=2, brlaPayoutOnBase=3.
+  // Nonce ordering on Base: distributeFees=0, nablaApprove=1, nablaSwap=2, brlaPayoutOnBase=3.
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
   // Add Base Nabla swap transactions (USDC to BRLA on Base)
@@ -132,7 +134,6 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   stateMeta = { ...stateMeta, ...nablaStateMeta };
   baseNonce = nonceAfterNabla;
 
-  // Output after swap + discount and subsidy
   const brlaTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
   if (!brlaTransferAmountRaw) {
     throw new Error("Missing outputAmountRaw in nablaSwapEvm metadata");
@@ -156,9 +157,60 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
   });
   baseNonce++;
 
+  const baseFundingAccount = getEvmFundingAccount(Networks.Base);
+
+  const usdcCleanupApproval = await prepareBaseCleanupApproval(
+    baseUSDCTokenAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
+  });
+
+  const brlaCleanupApproval = await prepareBaseCleanupApproval(
+    baseBRLATokenAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupBrla",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+  });
+
+  // Squidrouter delivers axlUSDC (not USDC) to the Base ephemeral if its destination swap
+  // exceeds slippage. This approval lets the funding account sweep that residual via post-process.
+  const baseAxlUsdcAddress = evmTokenConfig[Networks.Base][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
+  if (!baseAxlUsdcAddress) {
+    throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
+  }
+  const axlUsdcCleanupApproval = await prepareBaseCleanupApproval(
+    baseAxlUsdcAddress as `0x${string}`,
+    baseFundingAccount.address,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupAxlUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(axlUsdcCleanupApproval) as EvmTransactionData
+  });
+
   stateMeta = {
     ...stateMeta,
     brlaEvmAddress: validatedBrlaEvmAddress,
+    evmEphemeralAddress: evmEphemeralEntry.address,
     pixDestination: validatedPixDestination,
     receiverTaxId: validatedReceiverTaxId,
     taxId: validatedTaxId

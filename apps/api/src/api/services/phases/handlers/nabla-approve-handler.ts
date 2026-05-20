@@ -131,7 +131,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
     const baseClient = evmClientManager.getClient(Networks.Base);
 
     try {
-      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, "nablaApproveEvm");
+      const { txData: nablaApproveTransaction } = this.getPresignedTransaction(state, "nablaApprove");
 
       if (typeof nablaApproveTransaction !== "string") {
         throw new Error("NablaApprovePhaseHandler: Invalid EVM transaction data. This is a bug.");

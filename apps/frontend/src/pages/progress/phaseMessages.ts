@@ -71,7 +71,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     complete: "",
     destinationTransfer: getDestinationTransferMessage(), // Not relevant for progress page
     distributeFees: getSwappingMessage(),
-    distributeFeesEvm: getSwappingMessage(),
     failed: "",
     finalSettlementSubsidy: getDestinationTransferMessage(),
     fundEphemeral: t("pages.progress.fundEphemeral"),
@@ -88,9 +87,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     nablaApprove: getSwappingMessage(),
-    nablaApproveEvm: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
-    nablaSwapEvm: getSwappingMessage(),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),
@@ -123,9 +120,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
-    subsidizePostSwapEvm: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
-    subsidizePreSwapEvm: getSwappingMessage(),
     timedOut: ""
   };
 

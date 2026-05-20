@@ -50,10 +50,16 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
+    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress, nablaSwapTxHash } = state.state as StateMetadata;
 
     if (!nablaSoftMinimumOutputRaw || !substrateEphemeralAddress) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
+    }
+
+    if (nablaSwapTxHash) {
+      logger.info(`NablaSwapPhaseHandler: Transaction already submitted (${nablaSwapTxHash}), skipping to next phase`);
+      const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+      return this.transitionToNextPhase(state, nextPhase);
     }
 
     if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
@@ -119,6 +125,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error("Could not swap token");
       }
+
+      state.state = {
+        ...state.state,
+        nablaSwapTxHash: result.txHash.toString()
+      };
+      await state.update({ state: state.state });
     } catch (e) {
       let errorMessage = "";
       const { result } = e as ExecuteMessageResult;
@@ -157,24 +169,6 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Invalid input token ${quote.metadata.nablaSwapEvm.inputCurrency} for Base nabla swap`);
     }
 
-    const isRecoverableBalanceCheckFailure = (error: unknown): boolean => {
-      if (!(error instanceof Error)) {
-        return false;
-      }
-
-      const normalizedMessage = error.message.toLowerCase();
-      return (
-        error.name === "BalanceCheckError" ||
-        normalizedMessage.includes("timeout") ||
-        normalizedMessage.includes("timed out") ||
-        normalizedMessage.includes("read failure") ||
-        normalizedMessage.includes("failed to read") ||
-        normalizedMessage.includes("network") ||
-        normalizedMessage.includes("rpc") ||
-        normalizedMessage.includes("fetch")
-      );
-    };
-
     try {
       await checkEvmBalanceForToken({
         amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
@@ -188,15 +182,11 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       const errorMessage = e instanceof Error ? e.message : String(e);
       logger.error(`Could not validate EVM input balance before swap: ${errorMessage}`);
 
-      if (isRecoverableBalanceCheckFailure(e)) {
-        throw this.createRecoverableError(`Could not validate EVM input balance before swap: ${errorMessage}`);
-      }
-
       throw this.createUnrecoverableError(`Could not validate EVM input balance before swap: ${errorMessage}`);
     }
 
     try {
-      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
 
       if (typeof nablaSwapTransaction !== "string") {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
@@ -225,9 +215,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
-    const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
-    const nextPhase =
-      state.type === RampDirection.BUY ? "distributeFees" : isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

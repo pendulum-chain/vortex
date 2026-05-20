@@ -15,6 +15,7 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
+import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/dualAuth";
 import rampService from "../services/ramp/ramp.service";
 
 /**
@@ -32,6 +33,8 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    await assertQuoteOwnership(req, quoteId);
 
     // Start ramping process
     const ramp = await rampService.registerRamp({
@@ -76,6 +79,8 @@ export const updateRamp = async (
       });
     }
 
+    await assertRampOwnership(req, rampId);
+
     // Update ramping process
     const ramp = await rampService.updateRamp({
       additionalData,
@@ -110,6 +115,8 @@ export const startRamp = async (
       });
     }
 
+    await assertRampOwnership(req, rampId);
+
     // Start ramping process
     const ramp = await rampService.startRamp({
       rampId
@@ -134,6 +141,8 @@ export const getRampStatus = async (
   try {
     const { id } = req.params;
     const showUnsignedTxs = req.query.showUnsignedTxs === "true";
+
+    await assertRampOwnership(req, id);
 
     const ramp = await rampService.getRampStatus(id, showUnsignedTxs);
 
@@ -162,6 +171,8 @@ export const getErrorLogs = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+
+    await assertRampOwnership(req, id);
 
     const errorLogs = await rampService.getErrorLogs(id);
 
@@ -205,7 +216,16 @@ export const getRampHistory = async (
       });
     }
 
-    const history = await rampService.getRampHistory(walletAddress, limit, offset);
+    const owner = req.authenticatedPartner
+      ? { partnerId: req.authenticatedPartner.id }
+      : req.userId
+        ? { userId: req.userId }
+        : null;
+    if (!owner) {
+      throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
+    }
+
+    const history = await rampService.getRampHistory(walletAddress, owner, limit, offset);
     res.status(httpStatus.OK).json(history);
   } catch (error) {
     logger.error("Error getting transaction history:", error);

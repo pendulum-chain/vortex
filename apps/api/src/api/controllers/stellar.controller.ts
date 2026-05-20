@@ -10,12 +10,15 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { Keypair } from "stellar-sdk";
 import logger from "../../config/logger";
-import { FUNDING_SECRET, SEP10_MASTER_SECRET, STELLAR_FUNDING_AMOUNT_UNITS } from "../../constants/constants";
+import { config, SEP10_MASTER_SECRET } from "../../config/vars";
+import { STELLAR_FUNDING_AMOUNT_UNITS } from "../../constants/constants";
 import { signSep10Challenge } from "../services/sep10/sep10.service";
 import { SlackNotifier } from "../services/slack.service";
 import { buildCreationStellarTx, horizonServer } from "../services/stellar.service";
 
-const FUNDING_PUBLIC_KEY = FUNDING_SECRET ? Keypair.fromSecret(FUNDING_SECRET).publicKey() : "";
+const FUNDING_PUBLIC_KEY = config.secrets.stellarFundingSecret
+  ? Keypair.fromSecret(config.secrets.stellarFundingSecret).publicKey()
+  : "";
 
 export const createStellarTransactionHandler = async (
   req: Request<unknown, unknown, CreateStellarTransactionRequest>,
@@ -23,11 +26,11 @@ export const createStellarTransactionHandler = async (
   _next: NextFunction
 ): Promise<void> => {
   try {
-    if (!FUNDING_SECRET) {
+    if (!config.secrets.stellarFundingSecret) {
       throw new Error("FUNDING_SECRET is not configured");
     }
     const { signature, sequence } = await buildCreationStellarTx(
-      FUNDING_SECRET,
+      config.secrets.stellarFundingSecret,
       req.body.accountId,
       req.body.maxTime,
       req.body.assetCode,

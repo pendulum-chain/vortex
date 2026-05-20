@@ -1,6 +1,6 @@
 import { ERC20_EURE_POLYGON_V2, EvmClientManager, EvmTransactionData, Networks } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem";
-import { SANDBOX_ENABLED } from "../../../../../constants/constants";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 
 export async function createOnrampEphemeralSelfTransfer(
@@ -9,7 +9,7 @@ export async function createOnrampEphemeralSelfTransfer(
   toAddress: string
 ): Promise<EvmTransactionData> {
   const evmClientManager = EvmClientManager.getInstance();
-  const network = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
+  const network = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
   const polygonClient = evmClientManager.getClient(network);
 
   const transferCallData = encodeFunctionData({

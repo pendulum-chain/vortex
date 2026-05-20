@@ -4,7 +4,7 @@ import {
   AveniaIdentityStatus,
   KycAttemptResult,
   KycAttemptStatus
-} from "../../src/services";
+} from "../services/brla/types";
 import { RampDirection } from "../types/rampDirection";
 
 export enum KycFailureReason {

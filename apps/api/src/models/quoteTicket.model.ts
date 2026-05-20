@@ -1,4 +1,4 @@
-import { DestinationType, Networks, PaymentMethod, QuoteFeeStructure, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";
@@ -14,7 +14,6 @@ export interface QuoteTicketAttributes {
   inputCurrency: RampCurrency;
   outputAmount: string;
   outputCurrency: RampCurrency;
-  fee: QuoteFeeStructure;
   partnerId: string | null;
   apiKey: string | null;
   expiresAt: Date;
@@ -49,8 +48,6 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   declare outputAmount: string;
 
   declare outputCurrency: RampCurrency;
-
-  declare fee: QuoteFeeStructure;
 
   declare partnerId: string | null;
 
@@ -97,10 +94,6 @@ QuoteTicket.init(
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       field: "expires_at",
       type: DataTypes.DATE
-    },
-    fee: {
-      allowNull: false,
-      type: DataTypes.JSONB
     },
     from: {
       allowNull: false,

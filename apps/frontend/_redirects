@@ -10,9 +10,12 @@
 /terms-and-conditions          /index.html  200
 /terms-and-conditions-full     /index.html  200
 /widget                        /index.html  200
-/es/*                          /index.html  200
-/pt/*                          /index.html  200
-/fr/*                          /index.html  200
+/en                            /index.html  200
+/en/*                          /index.html  200
+/pt-BR                         /index.html  200
+/pt-BR/*                       /index.html  200
+/pt-br                         /index.html  200
+/pt-br/*                       /index.html  200
 
 # Everything else is a real 404
 /*                             /404.html    404

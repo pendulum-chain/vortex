@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import logger from "./logger";
+import { config } from "./vars";
 
 export interface RSAKeyPair {
   privateKey: string;
@@ -24,7 +25,7 @@ export class CryptoService {
    */
   public initializeKeys(): void {
     try {
-      const privateKeyPem = process.env.WEBHOOK_PRIVATE_KEY;
+      const privateKeyPem = config.secrets.webhookPrivateKey;
 
       if (privateKeyPem) {
         const publicKey = crypto.createPublicKey(privateKeyPem).export({

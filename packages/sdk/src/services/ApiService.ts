@@ -29,7 +29,6 @@ export class ApiService {
   }
 
   async createQuote(request: CreateQuoteRequest): Promise<QuoteResponse> {
-    console.log("Creating quote with request:", request);
     const response = await fetch(`${this.apiBaseUrl}/v1/quotes`, {
       body: JSON.stringify(request),
       headers: this.buildHeaders(),

@@ -12,6 +12,7 @@ import {
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { buildHydrationSwapTransaction, buildHydrationToAssetHubTransfer } from "../../hydration";
+import { prepareHydrationCleanupTransaction } from "../../hydration/cleanup";
 import { addMoonbeamTransactions, addNablaSwapTransactions, addPendulumCleanupTx } from "../common/transactions";
 import { AveniaOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateAveniaOnramp } from "../common/validation";
@@ -184,6 +185,16 @@ export async function prepareAveniaToAssethubOnrampTransactions({
       phase: "hydrationToAssethubXcm",
       signer: substrateEphemeralEntry.address,
       txData: encodeSubmittableExtrinsic(hydrationToAssethubTransfer)
+    });
+
+    const hydrationCleanupTx = await prepareHydrationCleanupTransaction(inputAsset, outputAsset);
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Hydration,
+      nonce: hydrationNonce,
+      phase: "hydrationCleanup",
+      signer: substrateEphemeralEntry.address,
+      txData: encodeSubmittableExtrinsic(hydrationCleanupTx)
     });
   }
 

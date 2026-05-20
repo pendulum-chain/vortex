@@ -22,13 +22,14 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
-import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts";
+import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD, MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../constants/constants";
+import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { getEvmFundingAccount } from "../evm-funding";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -62,7 +63,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
     const evmClientManager = EvmClientManager.getInstance();
-    const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+    const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
@@ -224,7 +225,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       );
 
       if (new Big(requiredNativeInUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
-        this.createUnrecoverableError(
+        throw this.createUnrecoverableError(
           `FinalSettlementSubsidyHandler: Required subsidy swap amount $${requiredNativeInUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
         );
       }
@@ -245,6 +246,15 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       });
 
       const { route: swapRoute } = swapRouteResult.data;
+
+      // F-030: Validate swap route output is within acceptable range (≥80% of required subsidy)
+      const estimatedOutput = new Big(swapRoute.estimate.toAmount);
+      const minimumAcceptableOutput = subsidyAmountRaw.mul(0.8);
+      if (estimatedOutput.lt(minimumAcceptableOutput)) {
+        throw this.createUnrecoverableError(
+          `FinalSettlementSubsidyHandler: SquidRouter swap output ${estimatedOutput.toString()} is below 80% of required subsidy ${subsidyAmountRaw.toString()}`
+        );
+      }
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       const txHashIdx = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {

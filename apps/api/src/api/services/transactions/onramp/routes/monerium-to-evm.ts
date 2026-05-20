@@ -16,11 +16,12 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY, SANDBOX_ENABLED } from "../../../../../constants/constants";
+import { config } from "../../../../../config/vars";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { priceFeedService } from "../../../priceFeed.service";
 import { encodeEvmTransactionData } from "../../index";
+import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { createOnrampEphemeralSelfTransfer } from "../common/monerium";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { MoneriumOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
@@ -69,7 +70,8 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     walletAddress: destinationAddress
   };
 
-  const moneriumMintNetwork = SANDBOX_ENABLED ? Networks.PolygonAmoy : Networks.Polygon;
+  const moneriumMintNetwork = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
+  const fundingAccount = getEvmFundingAccount(moneriumMintNetwork);
 
   let polygonAccountNonce = 0;
 
@@ -114,6 +116,21 @@ export async function prepareMoneriumToEvmOnrampTransactions({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const polygonCleanupApproval = await preparePolygonCleanupApproval(
+    ERC20_EURE_POLYGON_V1,
+    fundingAccount.address,
+    moneriumMintNetwork
+  );
+
+  unsignedTxs.push({
+    meta: {},
+    network: moneriumMintNetwork,
+    nonce: polygonAccountNonce++,
+    phase: "polygonCleanup",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(polygonCleanupApproval) as EvmTransactionData
   });
 
   let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce : 0;
@@ -186,7 +203,6 @@ export async function prepareMoneriumToEvmOnrampTransactions({
   destinationNonce++;
 
   const maxUint256 = 2n ** 256n - 1n;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
 
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
     amountRaw: maxUint256.toString(),

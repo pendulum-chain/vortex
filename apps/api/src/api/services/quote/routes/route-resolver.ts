@@ -14,15 +14,15 @@ import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
-import { OfframpEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
-import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
-import { OfframpToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
-import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
-import { OnrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
-import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
-import { OnrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
-import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
-import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
+import { offrampEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
+import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
+import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
+import { offrampToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
+import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
+import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
+import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
+import { onrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
+import { onrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
 
 const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
 
@@ -35,17 +35,17 @@ export class RouteResolver {
           throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
         }
         if (ctx.from === "pix") {
-          return new OnrampAveniaToAssethubStrategy();
+          return onrampAveniaToAssethubStrategy;
         } else {
-          return new OnrampMoneriumToAssethubStrategy();
+          return onrampMoneriumToAssethubStrategy;
         }
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
-          return new OnrampMoneriumToEvmStrategy();
+          return onrampMoneriumToEvmStrategy;
         } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
-          return new OnrampAlfredpayToEvmStrategy();
+          return onrampAlfredpayToEvmStrategy;
         } else {
-          return new OnrampAveniaToEvmBaseStrategy();
+          return onrampAveniaToEvmBaseStrategy;
         }
       }
     }
@@ -66,15 +66,15 @@ export class RouteResolver {
 
     switch (ctx.to) {
       case "pix":
-        return ctx.from === Networks.AssetHub ? new OfframpToPixStrategy() : new OfframpToPixEvmStrategy();
+        return ctx.from === Networks.AssetHub ? offrampToPixStrategy : offrampToPixEvmStrategy;
       case "wire":
       case "ach":
       case "spei":
-        return new OfframpEvmToAlfredpayStrategy();
+        return offrampEvmToAlfredpayStrategy;
       case "sepa":
       case "cbu":
       default:
-        return new OfframpToStellarStrategy();
+        return offrampToStellarStrategy;
     }
   }
 }

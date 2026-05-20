@@ -1,6 +1,7 @@
 import { AlchemyPayPriceResponse, RampDirection } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { ProviderInternalError } from "../../errors/providerErrors";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import { createQuoteRequest } from "./request-creator";
 import { AlchemyPayResponse, processAlchemyPayResponse } from "./response-handler";
 import { getAlchemyPayNetworkCode, getCryptoCurrencyCode, getFiatCode } from "./utils";
@@ -18,7 +19,7 @@ type FetchResult = {
  */
 async function fetchAlchemyPayData(url: string, request: RequestInit): Promise<FetchResult> {
   try {
-    const response = await fetch(url, request);
+    const response = await fetchWithTimeout(url, request);
     const body = (await response.json()) as AlchemyPayResponse;
     return { body, response };
   } catch (fetchError) {

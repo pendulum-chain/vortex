@@ -2,6 +2,7 @@ import { Networks, RampDirection, TransakPriceResponse } from "@vortexfi/shared"
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { ProviderInternalError } from "../../errors/providerErrors";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import { createQuoteRequest } from "./request-creator";
 import { processTransakResponse, TransakApiResponse } from "./response-handler";
 import { getCryptoCode, getFiatCode } from "./utils";
@@ -23,7 +24,7 @@ type FetchResult = {
  */
 async function fetchTransakData(url: string): Promise<FetchResult> {
   try {
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url);
     const body = (await response.json()) as TransakApiResponse;
     return { body, response };
   } catch (fetchError) {

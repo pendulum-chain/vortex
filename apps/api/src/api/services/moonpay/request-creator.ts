@@ -1,5 +1,5 @@
 import { FiatToken, RampDirection } from "@vortexfi/shared";
-import { config } from "../../../config";
+import { config } from "../../../config/vars";
 
 const PAYMENT_METHODS = {
   ACH: "ach_bank_transfer",

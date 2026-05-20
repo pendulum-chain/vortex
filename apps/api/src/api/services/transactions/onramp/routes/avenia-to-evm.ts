@@ -20,8 +20,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { addFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -241,7 +240,7 @@ export async function prepareAveniaToEvmOnrampTransactions({
   destinationNonce++;
 
   const maxUint256 = 2n ** 256n - 1n;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
     amountRaw: maxUint256.toString(),

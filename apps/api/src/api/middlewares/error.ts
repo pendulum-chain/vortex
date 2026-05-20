@@ -20,8 +20,10 @@ interface ErrorResponse {
  */
 const handler = (err: APIError | Error, _req: Request, res: Response, _next: NextFunction): void => {
   const apiError = err as APIError;
+  const statusCode = apiError.status || httpStatus.INTERNAL_SERVER_ERROR;
+
   const response: ErrorResponse = {
-    code: apiError.status || httpStatus.INTERNAL_SERVER_ERROR,
+    code: statusCode,
     errors: apiError.errors,
     message: apiError.message || httpStatus[httpStatus.INTERNAL_SERVER_ERROR],
     stack: err.stack
@@ -29,9 +31,12 @@ const handler = (err: APIError | Error, _req: Request, res: Response, _next: Nex
 
   if (env !== "development") {
     delete response.stack;
+    if (statusCode >= 500) {
+      response.message = "Internal server error";
+    }
   }
 
-  res.status(apiError.status || httpStatus.INTERNAL_SERVER_ERROR);
+  res.status(statusCode);
   res.json(response);
 };
 

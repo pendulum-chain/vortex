@@ -10,17 +10,17 @@ import Big from "big.js";
 import { Horizon, Networks } from "stellar-sdk";
 import { base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
-  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
-  SANDBOX_ENABLED
+  POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../constants/constants";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 
 export const horizonServer = new Horizon.Server(HORIZON_URL);
-export const NETWORK_PASSPHRASE = SANDBOX_ENABLED ? Networks.TESTNET : Networks.PUBLIC;
+export const NETWORK_PASSPHRASE = config.sandboxEnabled ? Networks.TESTNET : Networks.PUBLIC;
 
 export async function isStellarEphemeralFunded(accountId: string, stellarTokenDetails: StellarTokenDetails): Promise<boolean> {
   try {
