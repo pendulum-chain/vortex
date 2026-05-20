@@ -22,8 +22,24 @@ interface SpreadsheetConfig {
   ratingSheetId: string | undefined;
 }
 
+type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
+
+const nodeEnv = process.env.NODE_ENV || "production";
+const deploymentEnvValues: DeploymentEnv[] = ["development", "production", "sandbox", "staging", "test"];
+
+function readDeploymentEnv(): DeploymentEnv {
+  const rawDeploymentEnv = process.env.DEPLOYMENT_ENV || (nodeEnv === "production" ? "production" : nodeEnv);
+
+  if (!deploymentEnvValues.includes(rawDeploymentEnv as DeploymentEnv)) {
+    throw new Error(`DEPLOYMENT_ENV must be one of: ${deploymentEnvValues.join(", ")}`);
+  }
+
+  return rawDeploymentEnv as DeploymentEnv;
+}
+
 interface Config {
   env: string;
+  deploymentEnv: DeploymentEnv;
   port: string | number;
   amplitudeWss: string;
   pendulumWss: string;
@@ -106,7 +122,7 @@ export const config: Config = {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
     host: process.env.DB_HOST || "localhost",
-    logging: process.env.NODE_ENV !== "production",
+    logging: nodeEnv !== "production",
     password: process.env.DB_PASSWORD || "postgres",
     port: parseInt(process.env.DB_PORT || "5432", 10),
     username: process.env.DB_USERNAME || "postgres"
@@ -114,7 +130,8 @@ export const config: Config = {
   defaults: {
     vortexEvmPayoutAddress: process.env.DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS
   },
-  env: process.env.NODE_ENV || "production",
+  deploymentEnv: readDeploymentEnv(),
+  env: nodeEnv,
 
   integrations: {
     alchemy: {
@@ -129,7 +146,7 @@ export const config: Config = {
       webhookToken: process.env.SLACK_WEB_HOOK_TOKEN
     }
   },
-  logs: process.env.NODE_ENV === "production" ? "combined" : "dev",
+  logs: nodeEnv === "production" ? "combined" : "dev",
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
@@ -197,11 +214,15 @@ export const config: Config = {
 export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
-if (config.env === "production") {
-  if (config.sandboxEnabled) {
-    throw new Error("SANDBOX_ENABLED must not be 'true' in production — refusing to start");
-  }
+if (config.deploymentEnv === "production" && config.sandboxEnabled) {
+  throw new Error("SANDBOX_ENABLED=true requires DEPLOYMENT_ENV=sandbox; refusing to start production deployment");
+}
 
+if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
+  throw new Error("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
+}
+
+if (config.env === "production") {
   const missing: string[] = [];
 
   if (!config.supabase.url) missing.push("SUPABASE_URL");
