@@ -30,14 +30,28 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
         "OnRampSquidRouterUsdToEvmEngine: Missing alfredpayMint.amountOut in context - ensure initialize stage ran successfully"
       );
     }
+
+    if (!ctx.subsidy) {
+      throw new Error("OnRampSquidRouterUsdToEvmEngine: Missing subsidy in context - ensure discount stage ran successfully");
+    }
   }
 
   protected compute(ctx: QuoteContext): SquidRouterComputation {
     if (ctx.to === Networks.Polygon && ctx.request.outputCurrency === ALFREDPAY_EVM_TOKEN) {
+      // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+      const subsidy = ctx.subsidy!;
       return {
         data: {
-          skipRouteCalculation: true
-        } as SquidRouterData,
+          amountRaw: subsidy.actualOutputAmountRaw,
+          fromNetwork: Networks.Polygon,
+          fromToken: ALFREDPAY_ERC20_TOKEN,
+          inputAmountDecimal: subsidy.actualOutputAmountDecimal,
+          inputAmountRaw: subsidy.actualOutputAmountRaw,
+          outputDecimals: 6,
+          skipRouteCalculation: true,
+          toNetwork: Networks.Polygon,
+          toToken: ALFREDPAY_EVM_TOKEN
+        } as unknown as SquidRouterData,
         type: "evm-to-evm"
       };
     }
@@ -53,15 +67,15 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
 
     const toTokenDetails = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to);
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const alfredpayMint = ctx.alfredpayMint!;
+    const subsidy = ctx.subsidy!;
 
     return {
       data: {
-        amountRaw: alfredpayMint.outputAmountRaw,
+        amountRaw: subsidy.actualOutputAmountRaw,
         fromNetwork: Networks.Polygon,
         fromToken: ALFREDPAY_ERC20_TOKEN,
-        inputAmountDecimal: alfredpayMint.outputAmountDecimal,
-        inputAmountRaw: alfredpayMint.outputAmountRaw,
+        inputAmountDecimal: subsidy.actualOutputAmountDecimal,
+        inputAmountRaw: subsidy.actualOutputAmountRaw,
         outputDecimals: toTokenDetails.decimals,
         toNetwork,
         toToken: toTokenDetails.erc20AddressSourceChain
