@@ -1,4 +1,3 @@
-import { ApiPromise } from "@polkadot/api";
 import { ISubmittableResult, Signer } from "@polkadot/types/types";
 import { WalletAccount } from "@talismn/connect-wallets";
 import {
@@ -7,11 +6,10 @@ import {
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
-  Signature,
   SignedTypedData,
   UnsignedTx
 } from "@vortexfi/shared";
-import { Config, getAccount, sendTransaction, signTypedData, switchChain } from "@wagmi/core";
+import { getAccount, sendTransaction, signTypedData, switchChain } from "@wagmi/core";
 import { config } from "../../config";
 import { waitForTransactionConfirmation } from "../../helpers/safe-wallet/waitForTransactionConfirmation";
 import { wagmiConfig } from "../../wagmiConfig";
@@ -88,8 +86,10 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
   }
 
   try {
+    const gas = BigInt(txData.gas);
     const hash = await sendTransaction(wagmiConfig, {
       data: txData.data,
+      ...(gas > 0n ? { gas } : {}),
       to: txData.to,
       value: BigInt(txData.value)
     });
