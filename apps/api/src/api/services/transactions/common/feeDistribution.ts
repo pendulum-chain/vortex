@@ -16,6 +16,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData } from "viem/utils";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import erc20ABI from "../../../../contracts/ERC20";
 import { MULTICALL3_ADDRESS, multicall3ABI } from "../../../../contracts/Multicall3";
 import Partner from "../../../../models/partner.model";
@@ -230,16 +231,22 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
     );
   }
   if (!vortexPartner.payoutAddressEvm) {
-    logger.error(
-      "EVM FEE DISTRIBUTION FAILED: 'payout_address_evm' is not set on the 'vortex' partner row (rampType=" +
-        quote.rampType +
-        "). This column MUST be set to an EVM address (used on Base for BRL flows); otherwise no EVM fees can be collected."
-    );
-    throw new Error(
-      `Vortex partner is missing payout_address_evm (rampType=${quote.rampType}); cannot build EVM fee distribution transaction.`
+    const fallback = config.defaults.vortexEvmPayoutAddress;
+    if (!fallback) {
+      logger.error(
+        "EVM FEE DISTRIBUTION FAILED: 'payout_address_evm' is not set on the 'vortex' partner row (rampType=" +
+          quote.rampType +
+          ") and DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS env var is not configured. Set one to avoid losing fees."
+      );
+      throw new Error(
+        `Vortex partner is missing payout_address_evm (rampType=${quote.rampType}) and no DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS fallback configured; cannot build EVM fee distribution transaction.`
+      );
+    }
+    logger.warn(
+      `EVM FEE DISTRIBUTION: vortex partner row (rampType=${quote.rampType}) has no payout_address_evm; falling back to DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS=${fallback}.`
     );
   }
-  const vortexPayoutAddress = vortexPartner.payoutAddressEvm;
+  const vortexPayoutAddress = vortexPartner.payoutAddressEvm ?? (config.defaults.vortexEvmPayoutAddress as string);
 
   // Look up partner EVM payout address for markup split
   let partnerPayoutAddressEvm: string | null = null;
@@ -250,6 +257,12 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
     if (quotePartner?.payoutAddressEvm) {
       partnerPayoutAddressEvm = quotePartner.payoutAddressEvm;
     }
+  }
+
+  if (Big(partnerMarkupFeeUSD).gt(0) && partnerPayoutAddressEvm === null) {
+    logger.warn(
+      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (partnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+    );
   }
 
   // Use Base USDC for decimal calculations
@@ -370,7 +383,7 @@ export async function addEvmFeeDistributionTransaction(
       meta: {},
       network: Networks.Base,
       nonce: nextNonce,
-      phase: "distributeFeesEvm",
+      phase: "distributeFees",
       signer: account.address,
       txData: feeDistributionTx
     });

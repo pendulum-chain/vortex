@@ -1,8 +1,8 @@
+import { HORIZON_URL } from "@vortexfi/shared";
 import Big from "big.js";
 import { Horizon } from "stellar-sdk";
 
 import logger from "../../../config/logger";
-import { HORIZON_URL } from "../../../constants/constants";
 
 export function checkBalancePeriodically(
   stellarTargetAccountId: string,

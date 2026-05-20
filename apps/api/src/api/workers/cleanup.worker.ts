@@ -151,13 +151,10 @@ class CleanupWorker {
         limit: 5,
         order: [["updatedAt", "DESC"]],
         where: {
-          currentPhase: "complete",
-          from: {
-            [Op.ne]: "sepa" // Exclude SEPA onramp states as the ephemerals are not cleaned up.
-          },
+          currentPhase: { [Op.in]: ["complete", "failed", "timedOut"] },
           postCompleteState: {
             cleanup: {
-              cleanupCompleted: false
+              [Op.or]: [{ cleanupCompleted: false }, { cleanupCompleted: { [Op.is]: null } }]
             }
           }
         }

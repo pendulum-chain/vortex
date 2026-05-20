@@ -19,7 +19,7 @@ import {
 import Big from "big.js";
 import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";
-import { SANDBOX_ENABLED } from "../../../../../constants/constants";
+import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -60,7 +60,7 @@ export async function createEvmSourceTransactions(
   const { squidRouterReceiverId, squidRouterReceiverHash, squidRouterQuoteId } = squidResult;
 
   // Override approveData and swapData in sandbox mode
-  if (SANDBOX_ENABLED) {
+  if (config.sandboxEnabled) {
     const sandboxTransactions = createSandboxEvmTransactions(inputAmountRaw);
     approveData = sandboxTransactions.approveData;
     swapData = sandboxTransactions.swapData;
@@ -68,7 +68,7 @@ export async function createEvmSourceTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: SANDBOX_ENABLED ? Networks.PolygonAmoy : fromNetwork,
+    network: config.sandboxEnabled ? Networks.PolygonAmoy : fromNetwork,
     nonce: 0,
     phase: "squidRouterApprove",
     signer: userAddress,
@@ -77,7 +77,7 @@ export async function createEvmSourceTransactions(
 
   unsignedTxs.push({
     meta: {},
-    network: SANDBOX_ENABLED ? Networks.PolygonAmoy : fromNetwork,
+    network: config.sandboxEnabled ? Networks.PolygonAmoy : fromNetwork,
     nonce: 0,
     phase: "squidRouterSwap",
     signer: userAddress,
@@ -109,10 +109,10 @@ export async function createAssetHubSourceTransactions(
   const { userAddress, pendulumEphemeralAddress, inputAmountRaw } = params;
 
   // Create Assethub to Pendulum transaction
-  const assethubToPendulumTransaction = SANDBOX_ENABLED
+  const assethubToPendulumTransaction = config.sandboxEnabled
     ? await createPaseoToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw)
     : await createAssethubToPendulumXCM(pendulumEphemeralAddress, "usdc", inputAmountRaw);
-  const originNetwork = SANDBOX_ENABLED ? Networks.Paseo : fromNetwork;
+  const originNetwork = config.sandboxEnabled ? Networks.Paseo : fromNetwork;
 
   unsignedTxs.push({
     meta: {},

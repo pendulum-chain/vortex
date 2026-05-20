@@ -13,11 +13,12 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { isAddress } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../../config/logger";
-import { MOONBEAM_FUNDING_PRIVATE_KEY } from "../../../../../constants/constants";
+import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import {
@@ -109,10 +110,37 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     unsignedTxs.push({
       meta: {},
       network: Networks.Base,
-      nonce: baseNonce,
+      nonce: baseNonce++,
       phase: "destinationTransfer",
       signer: evmEphemeralEntry.address,
       txData: finalDestinationTransfer
+    });
+
+    const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
+    const brlaTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain as `0x${string}`;
+
+    const brlaCleanupApproval = await prepareBaseCleanupApproval(brlaTokenAddress, baseFundingAccountAddress, Networks.Base);
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupBrla",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+    });
+
+    const usdcCleanupApproval = await prepareBaseCleanupApproval(
+      nablaSwapOutputTokenAddress as `0x${string}`,
+      baseFundingAccountAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupUsdc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
     });
 
     return { stateMeta, unsignedTxs };
@@ -144,6 +172,33 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     phase: "squidRouterSwap",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+  });
+
+  const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
+  const brlaTokenAddress = (inputTokenDetails as EvmTokenDetails).erc20AddressSourceChain as `0x${string}`;
+
+  const brlaCleanupApproval = await prepareBaseCleanupApproval(brlaTokenAddress, baseFundingAccountAddress, Networks.Base);
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupBrla",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(brlaCleanupApproval) as EvmTransactionData
+  });
+
+  const usdcCleanupApproval = await prepareBaseCleanupApproval(
+    nablaSwapOutputTokenAddress as `0x${string}`,
+    baseFundingAccountAddress,
+    Networks.Base
+  );
+  unsignedTxs.push({
+    meta: {},
+    network: Networks.Base,
+    nonce: baseNonce++,
+    phase: "baseCleanupUsdc",
+    signer: evmEphemeralEntry.address,
+    txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
   let destinationNonce = 0;
@@ -210,11 +265,13 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   });
   destinationNonce++;
 
-  const maxUint256 = 2n ** 256n - 1n;
-  const fundingAccount = privateKeyToAccount(MOONBEAM_FUNDING_PRIVATE_KEY as `0x${string}`);
+  const fundingAccount = getEvmFundingAccount(Networks.Base);
+
+  // Bound approval to the bridged amount + 5% slippage cushion (replaces unbounded maxUint256).
+  const backupApproveAmountRaw = new Big(inputAmountRawFinalBridge).mul("1.05").toFixed(0, 0);
 
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
-    amountRaw: maxUint256.toString(),
+    amountRaw: backupApproveAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     spenderAddress: fundingAccount.address,
     tokenAddress: bridgedTokenForFallback

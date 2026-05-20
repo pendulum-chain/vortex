@@ -14,10 +14,15 @@ export class HydrationSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "hydration";
     const hydrationNode = await apiManager.getApi(networkName);
 
-    const { substrateEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress, hydrationSwapHash } = state.state as StateMetadata;
 
     if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
+    }
+
+    if (hydrationSwapHash) {
+      logger.info(`HydrationSwapPhaseHandler: Transaction already submitted (${hydrationSwapHash}), skipping to next phase`);
+      return this.transitionToNextPhase(state, "hydrationToAssethubXcm");
     }
 
     try {

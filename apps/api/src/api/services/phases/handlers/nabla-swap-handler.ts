@@ -2,9 +2,12 @@ import { createExecuteMessageExtrinsic, ExecuteMessageResult, readMessage, submi
 import { Abi } from "@polkadot/api-contract";
 import {
   ApiManager,
+  checkEvmBalanceForToken,
   decodeSubmittableExtrinsic,
   defaultReadLimits,
   EvmClientManager,
+  EvmTokenDetails,
+  evmTokenConfig,
   FiatToken,
   NABLA_ROUTER,
   Networks,
@@ -47,10 +50,16 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress } = state.state as StateMetadata;
+    const { nablaSoftMinimumOutputRaw, substrateEphemeralAddress, nablaSwapTxHash } = state.state as StateMetadata;
 
     if (!nablaSoftMinimumOutputRaw || !substrateEphemeralAddress) {
       throw new Error("State metadata is corrupt, missing values. This is a bug.");
+    }
+
+    if (nablaSwapTxHash) {
+      logger.info(`NablaSwapPhaseHandler: Transaction already submitted (${nablaSwapTxHash}), skipping to next phase`);
+      const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
+      return this.transitionToNextPhase(state, nextPhase);
     }
 
     if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
@@ -116,6 +125,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         logger.error(`Could not swap token: ${result.status.error.toString()}`);
         throw new Error("Could not swap token");
       }
+
+      state.state = {
+        ...state.state,
+        nablaSwapTxHash: result.txHash.toString()
+      };
+      await state.update({ state: state.state });
     } catch (e) {
       let errorMessage = "";
       const { result } = e as ExecuteMessageResult;
@@ -138,8 +153,40 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
 
+    if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw || !quote.metadata.nablaSwapEvm.inputCurrency) {
+      throw new Error("Missing nablaSwapEvm input metadata required to validate pre-swap balance");
+    }
+
+    const evmEphemeralAddress = state.state.evmEphemeralAddress;
+    if (!evmEphemeralAddress) {
+      throw new Error("Missing EVM ephemeral address to validate nabla swap input balance");
+    }
+
+    const inputTokenDetails = evmTokenConfig[Networks.Base]?.[quote.metadata.nablaSwapEvm.inputCurrency] as
+      | EvmTokenDetails
+      | undefined;
+    if (!inputTokenDetails) {
+      throw new Error(`Invalid input token ${quote.metadata.nablaSwapEvm.inputCurrency} for Base nabla swap`);
+    }
+
     try {
-      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwapEvm");
+      await checkEvmBalanceForToken({
+        amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
+        chain: Networks.Base,
+        intervalMs: 1000,
+        ownerAddress: evmEphemeralAddress,
+        timeoutMs: 5000,
+        tokenDetails: inputTokenDetails
+      });
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      logger.error(`Could not validate EVM input balance before swap: ${errorMessage}`);
+
+      throw this.createUnrecoverableError(`Could not validate EVM input balance before swap: ${errorMessage}`);
+    }
+
+    try {
+      const { txData: nablaSwapTransaction } = this.getPresignedTransaction(state, "nablaSwap");
 
       if (typeof nablaSwapTransaction !== "string") {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
@@ -168,9 +215,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
-    const isBrlInvolved = quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL;
-    const nextPhase =
-      state.type === RampDirection.BUY ? "distributeFees" : isBrlInvolved ? "subsidizePostSwapEvm" : "subsidizePostSwap";
+    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
   }
 }

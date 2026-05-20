@@ -1,8 +1,9 @@
 import { FiatToken, Networks } from "@vortexfi/shared";
 import logger from "../../../config/logger";
-import { SANDBOX_ENABLED } from "../../../constants/constants";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 
 enum TransactionHashKey {
   HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
@@ -26,7 +27,7 @@ const CHAIN_EXPLORERS: Record<string, string> = {
 
 async function getAxelarScanExecutionLink(hash: string): Promise<{ explorerLink: string; executionHash: string }> {
   const url = "https://api.axelarscan.io/gmp/searchGMP";
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     body: JSON.stringify({ txHash: hash }),
     headers: {
       "Content-Type": "application/json"
@@ -120,7 +121,7 @@ export async function getFinalTransactionHashForRamp(
     return { transactionExplorerLink: undefined, transactionHash: undefined };
   }
 
-  if (SANDBOX_ENABLED) {
+  if (config.sandboxEnabled) {
     const sandboxHash = deriveSandboxTransactionHash(rampState);
     return {
       transactionExplorerLink: `https://sandbox-explorer.example.com/tx/${sandboxHash}`,

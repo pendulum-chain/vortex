@@ -11,11 +11,8 @@ import httpStatus from "http-status";
 import { Address, encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../config/logger";
-import {
-  MOONBEAM_EXECUTOR_PRIVATE_KEY,
-  MOONBEAM_FUNDING_AMOUNT_UNITS,
-  MOONBEAM_RECEIVER_CONTRACT_ADDRESS
-} from "../../constants/constants";
+import { config } from "../../config/vars";
+import { MOONBEAM_FUNDING_AMOUNT_UNITS, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../constants/constants";
 import { SlackNotifier } from "../services/slack.service";
 
 interface StatusResponse {
@@ -38,7 +35,7 @@ export const executeXcmController = async (
   const { id, payload } = req.body;
 
   try {
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const moonbeamExecutorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     const { moonbeamClient } = createClients(moonbeamExecutorAccount);
     const evmClientManager = EvmClientManager.getInstance();
 
@@ -76,7 +73,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
   let moonbeamExecutorAccount;
 
   try {
-    moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    moonbeamExecutorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     const { moonbeamClient } = createClients(moonbeamExecutorAccount);
 
     const balance = await moonbeamClient.getBalance({

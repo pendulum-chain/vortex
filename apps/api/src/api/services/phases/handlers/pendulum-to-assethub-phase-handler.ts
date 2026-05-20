@@ -14,10 +14,17 @@ export class PendulumToAssethubXCMPhaseHandler extends BasePhaseHandler {
     const networkName = "pendulum";
     const pendulumNode = await apiManager.getApi(networkName);
 
-    const { substrateEphemeralAddress } = state.state as StateMetadata;
+    const { substrateEphemeralAddress, pendulumToAssethubXcmHash } = state.state as StateMetadata;
 
     if (!substrateEphemeralAddress) {
       throw new Error("Pendulum ephemeral address is not defined in the state. This is a bug.");
+    }
+
+    if (pendulumToAssethubXcmHash) {
+      logger.info(
+        `PendulumToAssethubXCMPhaseHandler: Transaction already submitted (${pendulumToAssethubXcmHash}), skipping to complete`
+      );
+      return this.transitionToNextPhase(state, "complete");
     }
 
     try {

@@ -1,12 +1,7 @@
-import { WalletAccount } from "@talismn/connect-wallets";
-import { FiatToken, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
-import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { QuoteService } from "../services/api";
-import { AuthAPI } from "../services/api/auth.api";
 import { AuthService } from "../services/auth";
-import { RampExecutionInput, RampSigningPhase } from "../types/phases";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
@@ -16,125 +11,39 @@ import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { moneriumKycMachine } from "./moneriumKyc.machine";
+import {
+  checkAndRefreshTokenActor,
+  cleanUrlActor,
+  createQuoteRefresher,
+  loadQuoteActor,
+  redirectToCallbackOrCleanUrl,
+  refreshQuoteIfNeeded
+} from "./ramp.actors";
+import { createResetRampContext, initialRampContext } from "./ramp.context";
 import { stellarKycMachine } from "./stellarKyc.machine";
-import { GetMessageSignatureCallback, RampContext, RampState } from "./types";
-
-const QUOTE_EXPIRY_THRESHOLD_PERCENTAGE = 60; // 60%
+import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./types";
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 
-const initialRampContext: RampContext = {
-  apiKey: undefined,
-  authToken: undefined,
-  callbackUrl: undefined,
-  chainId: undefined,
-  connectedWalletAddress: undefined,
-  enteredViaForm: undefined,
-  errorMessage: undefined,
-  executionInput: undefined,
-  externalSessionId: undefined,
-  getMessageSignature: undefined,
-  initializeFailedMessage: undefined,
-  isAuthenticated: false,
-  isQuoteExpired: false,
-  isSep24Redo: false,
-  partnerId: undefined,
-  paymentData: undefined,
-  postAuthTarget: undefined,
-  quote: undefined,
-  quoteId: undefined,
-  quoteLocked: undefined,
-  rampDirection: undefined,
-  rampPaymentConfirmed: false,
-  rampSigningPhase: undefined,
-  rampState: undefined,
-  substrateWalletAccount: undefined,
-  userEmail: undefined,
-  userId: undefined,
-  walletLocked: undefined
-};
+function getActorErrorMessage(event: unknown): string {
+  if (typeof event !== "object" || event === null || !("error" in event)) {
+    return "An unexpected error occurred.";
+  }
 
-const refetchQuote = async (
-  quote: QuoteResponse,
-  apiKey: string | undefined,
-  partnerId: string | undefined,
-  sendBack: (event: RampMachineEvents) => void
-) => {
-  const now = Date.now();
-  const expires = new Date(quote.expiresAt).getTime();
-  const created = new Date(quote.createdAt || now).getTime();
-  const totalDuration = expires - created;
-  const timeRemaining = expires - now;
+  const { error } = event as { error?: unknown };
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
 
-  const percentageRemaining = totalDuration > 0 ? (timeRemaining / totalDuration) * 100 : 0;
-
-  if (percentageRemaining <= QUOTE_EXPIRY_THRESHOLD_PERCENTAGE) {
-    try {
-      const newQuote = await QuoteService.createQuote(
-        quote.rampType,
-        quote.from,
-        quote.to,
-        quote.inputAmount,
-        quote.inputCurrency,
-        quote.outputCurrency,
-        apiKey,
-        partnerId
-      );
-      console.log("DEBUG: Quote refreshed", { newQuote, oldQuote: quote });
-      sendBack({ quote: newQuote, type: "UPDATE_QUOTE" });
-    } catch (error) {
-      console.error("Quote refresh failed:", error);
-      sendBack({ type: "REFRESH_FAILED" });
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const { message } = error as { message?: unknown };
+    if (typeof message === "string" && message.length > 0) {
+      return message;
     }
   }
-};
 
-const handleCallbackUrlRedirect = (callbackUrl: string | undefined) => {
-  if (callbackUrl) {
-    console.log("Redirecting to callback url...", callbackUrl);
-    window.location.assign(callbackUrl);
-  } else {
-    // As a fallback, we just clean the URL like in urlCleaner
-    console.log("No callback URL provided, cleaning URL parameters instead.");
-    const cleanUrl = window.location.origin;
-    window.history.replaceState({}, "", cleanUrl);
-  }
-};
-
-export type RampMachineEvents =
-  | { type: "CONFIRM"; input: { executionInput: RampExecutionInput; chainId: number; rampDirection: RampDirection } }
-  | { type: "onDone"; input: RampState }
-  | { type: "SET_ADDRESS"; address: string | undefined }
-  | { type: "SET_SUBSTRATE_WALLET_ACCOUNT"; walletAccount: WalletAccount | undefined }
-  | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
-  | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
-  | { type: "SummaryConfirm" }
-  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
-  | { type: "PAYMENT_CONFIRMED" }
-  | { type: "SET_RAMP_STATE"; rampState: RampState }
-  | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }
-  | { type: "RESET_RAMP_CALLBACK" }
-  | { type: "FINISH_OFFRAMPING" }
-  | { type: "SHOW_ERROR_TOAST"; message: ToastMessage }
-  | { type: "PROCEED_TO_REGISTRATION"; selectedFiatAccountId?: string }
-  | { type: "SET_QUOTE"; quoteId: string; lock: boolean; enteredViaForm?: boolean }
-  | { type: "UPDATE_QUOTE"; quote: QuoteResponse }
-  | { type: "SET_QUOTE_PARAMS"; apiKey?: string; partnerId?: string; walletLocked?: string; callbackUrl?: string }
-  | { type: "SET_EXTERNAL_ID"; externalSessionId: string | undefined }
-  | { type: "INITIAL_QUOTE_FETCH_FAILED" }
-  | { type: "SET_INITIALIZE_FAILED_MESSAGE"; message: string | undefined }
-  | { type: "EXPIRE_QUOTE" }
-  | { type: "REFRESH_FAILED" }
-  | { type: "GO_BACK" }
-  // Auth events
-  | { type: "ENTER_EMAIL"; email: string }
-  | { type: "EMAIL_VERIFIED" }
-  | { type: "OTP_SENT" }
-  | { type: "VERIFY_OTP"; code: string }
-  | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
-  | { type: "AUTH_ERROR"; error: string }
-  | { type: "CHANGE_EMAIL" }
-  | { type: "LOGOUT" };
+  return "An unexpected error occurred.";
+}
 
 export const rampMachine = setup({
   actions: {
@@ -144,116 +53,34 @@ export const rampMachine = setup({
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 30000));
-      await refetchQuote(quote, apiKey, partnerId, event => self.send(event));
+      await refreshQuoteIfNeeded(quote, apiKey, partnerId, event => self.send(event));
     },
 
-    resetRamp: assign(({ context }) => ({
-      ...initialRampContext,
-      apiKey: context.apiKey,
-      callbackUrl: context.callbackUrl,
-      connectedWalletAddress: context.connectedWalletAddress,
-      externalSessionId: context.externalSessionId,
-      initializeFailedMessage: context.initializeFailedMessage,
-      isAuthenticated: context.isAuthenticated,
-      partnerId: context.partnerId,
-      userEmail: context.userEmail,
-      userId: context.userId,
-      walletLocked: context.walletLocked
-    })),
+    resetRamp: assign(({ context }) => createResetRampContext(context)),
     setErrorMessage: assign({
-      errorMessage: ({ event }: { event: any }) => {
-        if (event.error?.message) {
-          return event.error.message;
-        }
-        return "An unexpected error occurred.";
-      }
+      errorMessage: ({ event }: { event: unknown }) => getActorErrorMessage(event)
     }),
     showSigningRejectedErrorToast: emit({ message: ToastMessage.SIGNING_REJECTED, type: "SHOW_ERROR_TOAST" }),
     urlCleanerWithCallbackAction: ({ context }) => {
-      handleCallbackUrlRedirect(context.callbackUrl);
+      redirectToCallbackOrCleanUrl(context.callbackUrl);
     }
   },
   actors: {
     alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
-    checkAndRefreshToken: fromPromise(async () => {
-      const tokens = AuthService.getTokens();
-      if (!tokens) {
-        return { success: false, tokens: null };
-      }
-
-      try {
-        const verifyResult = await AuthAPI.verifyToken(tokens.accessToken);
-        if (verifyResult.valid && verifyResult.userId) {
-          console.log("valid token");
-          return {
-            success: true,
-            tokens: {
-              accessToken: tokens.accessToken,
-              refreshToken: tokens.refreshToken,
-              userEmail: tokens.userEmail,
-              userId: verifyResult.userId
-            }
-          };
-        }
-      } catch (error) {}
-
-      let refreshedTokens = undefined;
-      try {
-        refreshedTokens = await AuthService.refreshAccessToken();
-      } catch (error) {
-        // If refreshing the token fails for any reason, we treat it as if there are no valid tokens and require the user to authenticate again.
-        AuthService.clearTokens();
-        return { success: false, tokens: null };
-      }
-
-      if (refreshedTokens) {
-        return { success: true, tokens: refreshedTokens };
-      }
-
-      AuthService.clearTokens();
-      return { success: false, tokens: null };
-    }),
+    checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
     checkEmail: fromPromise(checkEmailActor),
-    loadQuote: fromPromise(async ({ input }: { input: { quoteId: string } }) => {
-      if (!input.quoteId) {
-        throw new Error("Quote ID is required to load quote.");
-      }
-
-      const quote = await QuoteService.getQuote(input.quoteId);
-      if (!quote) {
-        throw new Error(`Quote with ID ${input.quoteId} not found.`);
-      }
-      return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
-    }),
+    loadQuote: fromPromise(loadQuoteActor),
     moneriumKyc: moneriumKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
-      const { quote, quoteLocked, apiKey, partnerId } = input.context;
-      // Quote will exist at this stage, but to be type safe we check again.
-      if (quoteLocked || !quote) {
-        return;
-      }
-
-      const doRefetch = () => refetchQuote(quote, apiKey, partnerId, sendBack);
-
-      doRefetch();
-      const timer = setInterval(doRefetch, 5000);
-
-      return () => clearInterval(timer);
+      return createQuoteRefresher(input.context, sendBack);
     }),
     registerRamp: fromPromise(registerRampActor),
     requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
     stellarKyc: stellarKycMachine,
-    urlCleaner: fromPromise(
-      () =>
-        new Promise<void>(resolve => {
-          const cleanUrl = window.location.pathname;
-          window.history.replaceState({}, "", cleanUrl);
-          resolve();
-        })
-    ),
+    urlCleaner: fromPromise(cleanUrlActor),
     validateKyc: fromPromise(validateKycActor),
     verifyOTP: fromPromise(verifyOTPActor)
   },
@@ -263,7 +90,6 @@ export const rampMachine = setup({
     events: {} as RampMachineEvents
   }
 }).createMachine({
-  /** @xstate-layout N4IgpgJg5mDOIC5QCcCGBbADgYgMoFEAVAfVwEkB1fYgYQHkA5Q-ADUIG0AGAXUVEwD2sAJYAXYQIB2fEAA9EARgBMAdgUA6TgFZOKg3pU6VAGhABPRAEZNAnYt36zVq0BfGvWboM2PAIIAItEASvi4uFy8SCCCIuJSMvIIyu7qbgpunCVavgrlela2CEql6i6ceg7F3oZGbkEhGDgEJADiEQCyibiRQ6RkAwyRhACqCSkyGWIS0mm5ykou6krFZkp++i7ldjWKnGaFWnaRut7GCsrdIKF9EZEACmS0dMNfRj4JjJHgrIRrbKbRRKVzqcxaBTOEouQ5mao2GGvd7qMgQAA2YGwAGMpAAzYTIdDLNKrLIbUBbBzqHTeK4qLR6FpuFRuC4INwuJTqMwqfTlXnNNx6MzY3rqADSAE0aNgIFIwOphJIAG4CADWmpxypoCG1euJqHpKRp-Ah9JyiBcCl2xk5xR5Yu8Cn5LV2Kh2dnqLS0KhcKjlWHUcV6cTAAEcAK5wUSYNUarW6g1G+UxrBxpMpyBmrOWs08W3pe3rR0CvQaEp6WEtTiw558zEC06NMPGXk7MynWXBN652MJ5OwVMQdOSTXm7PqHF5zAFyfTksWq3rG0KVJ2zI16F1hvNZsONvFX12f2B4POMMRkfL8eFqdpsDIZACZDqTD4q0yR-dAlzHfMJyLCBNwEMsdwrMFaWrKFGUQaVTybTkL0RK9O3MYUeRcOwVDsMwij0VEFEjTBozAKBhHfZAV1necs0NUCozjOiGJXaDYKkG0EIPSEGTkRQeS0EVTA9F03DsWSO1qHk7BFfxWy8QizlMKiaK41NGN6bBP2-X9-0A4D2Oozj6L0niFz4yQBP3KtD2Q0S8nEyS1DcIp3DkuTfUFdQ7lhcxeX0SotG03BRFQZBRCY1U50zPU2JxaLYvi3peO3fj4KcukjxQuoiM4TQjiItx0URThnH5SrhU5J5BQ8fwumfeV0ripijJ-P8ANEICqQs9ROsyrBsvLbhKwK1zciOFRStbY5KoMLxas7W5FowpozCRW4FECdqo3mTAICtMAEozBdUvlE6ztTWzSxyhy8vBFyRK2CpChlNQ7maAxQzq4iVL0NTOA03wtNeSQBAgOAZHeN7hNrABaH1OxItwRWUUGlDMRxSg8bSADFUGEfFE2QMAkYdY9YVklkIrUIVeXrALrmGwxOeaJFtLxQkacKtyeX5RE9CCrQfO0OSkUI7STUF2bEA5CT6juLxylcIpfUqPYdlhW4-TDQ6eg43piYEfF8QEAB3E7FY+xB6eUxEtFDF1VDQurdpZJsAd0bDOW0lc10gh3ayUQKikbBRjAcMw3ZUOqhRFSXVC5IiFF2lxg9o6zPxXcPjxx4UdhlbzY4DNzOxW32ngW+tymMKKYq63oi6K-ZeUKFxe7cPGzwOrQgeFYKWmUWS1A5bS7vOwvEPe2sDtMQoz3B-ZKpcAwR6CnHgsn2PIqCAIgA */
   context: initialRampContext,
   id: "ramp",
   initial: "Idle",
@@ -292,7 +118,7 @@ export const rampMachine = setup({
       target: ".Resetting"
     },
     RESET_RAMP_CALLBACK: {
-      actions: [{ type: "resetRamp" }, { params: { context: (self as any).context }, type: "urlCleanerWithCallbackAction" }]
+      actions: [{ type: "resetRamp" }, { type: "urlCleanerWithCallbackAction" }]
     },
     SET_ADDRESS: {
       actions: assign({
@@ -331,11 +157,8 @@ export const rampMachine = setup({
     ],
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
-        getMessageSignature: ({
-          event
-        }: {
-          event: { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined };
-        }) => event.getMessageSignature
+        getMessageSignature: ({ event }: { event: Extract<RampMachineEvents, { type: "SET_GET_MESSAGE_SIGNATURE" }> }) =>
+          event.getMessageSignature
       })
     },
     SET_INITIALIZE_FAILED_MESSAGE: {
@@ -578,6 +401,7 @@ export const rampMachine = setup({
       }
     },
     InitialFetchFailed: {},
+    // biome-ignore lint/suspicious/noExplicitAny: child KYC state node is shared across machines and XState cannot infer its event union here.
     KYC: kycStateNode as any,
     KycComplete: {
       invoke: {
@@ -653,9 +477,14 @@ export const rampMachine = setup({
     LoadingQuote: {
       invoke: {
         id: "loadQuote",
-        input: ({ event, context }) => ({
-          quoteId: (event as Extract<RampMachineEvents, { type: "SET_QUOTE" }>).quoteId || context.quoteId!
-        }),
+        input: ({ event, context }) => {
+          const quoteId = event.type === "SET_QUOTE" ? event.quoteId : context.quoteId;
+          if (!quoteId) {
+            throw new Error("Quote ID is required to load quote.");
+          }
+
+          return { quoteId };
+        },
         onDone: [
           {
             actions: assign({
@@ -741,7 +570,7 @@ export const rampMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ event }: any) => event.output.kycNeeded,
+            guard: ({ event }: { event: { output: { kycNeeded: boolean } } }) => event.output.kycNeeded,
             // The guard checks validateKyc output
             // do nothing otherwise, as we wait for modal confirmation.
             target: "KYC"
@@ -855,7 +684,7 @@ export const rampMachine = setup({
     UpdateRamp: {
       invoke: {
         id: "signingActor",
-        input: ({ self, context }) => ({ context, parent: self as any }),
+        input: ({ self, context }) => ({ context, parent: self as RampMachineActor }),
         // If offramp, we continue to StartRamp. For onramps we wait for payment confirmation.
         onDone: [
           {
@@ -906,10 +735,16 @@ export const rampMachine = setup({
     },
     VerifyingOTP: {
       invoke: {
-        input: ({ context, event }) => ({
-          code: (event as any).code,
-          email: context.userEmail!
-        }),
+        input: ({ context, event }) => {
+          if (!context.userEmail) {
+            throw new Error("Email is required to verify OTP.");
+          }
+
+          return {
+            code: (event as Extract<RampMachineEvents, { type: "VERIFY_OTP" }>).code,
+            email: context.userEmail
+          };
+        },
         onDone: [
           {
             actions: [

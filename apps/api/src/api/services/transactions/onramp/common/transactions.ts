@@ -278,7 +278,7 @@ export async function addNablaSwapTransactionsOnBase(
     meta: {},
     network: Networks.Base,
     nonce: nextNonce,
-    phase: "nablaApproveEvm",
+    phase: "nablaApprove",
     signer: account.address,
     txData: approve
   });
@@ -288,7 +288,7 @@ export async function addNablaSwapTransactionsOnBase(
     meta: {},
     network: Networks.Base,
     nonce: nextNonce,
-    phase: "nablaSwapEvm",
+    phase: "nablaSwap",
     signer: account.address,
     txData: swap
   });

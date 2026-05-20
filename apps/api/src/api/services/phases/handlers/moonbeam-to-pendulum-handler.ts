@@ -13,7 +13,8 @@ import Big from "big.js";
 import { encodeFunctionData, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
-import { MOONBEAM_EXECUTOR_PRIVATE_KEY, MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
+import { config } from "../../../../config/vars";
+import { MOONBEAM_RECEIVER_CONTRACT_ADDRESS } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../errors/phase-error";
@@ -61,7 +62,7 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
       return currentBalance.gt(Big(0));
     };
 
-    const moonbeamExecutorAccount = privateKeyToAccount(MOONBEAM_EXECUTOR_PRIVATE_KEY as `0x${string}`);
+    const moonbeamExecutorAccount = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
     const publicClient = evmClientManager.getClient(Networks.Moonbeam);
 
     const isHashRegisteredInSplitReceiver = async () => {
@@ -102,11 +103,11 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             `Sending transaction to Moonbeam split receiver contract at address ${MOONBEAM_RECEIVER_CONTRACT_ADDRESS} with data ${data}. Args: [${squidRouterReceiverId}, ${squidRouterPayload}]`
           );
 
-          const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
           let receipt: TransactionReceipt | undefined = undefined;
           let attempt = 0;
           while (attempt < 5 && (!receipt || receipt.status !== "success")) {
+            const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
             // blind retry for transaction submission
             obtainedHash = await evmClientManager.sendTransactionWithBlindRetry(Networks.Moonbeam, moonbeamExecutorAccount, {
               data,

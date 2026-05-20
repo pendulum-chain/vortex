@@ -1,6 +1,6 @@
 import type { SubmitContactErrorResponse, SubmitContactResponse } from "@vortexfi/shared";
 import type { Request, Response } from "express";
-import { config } from "../../config";
+import { config } from "../../config/vars";
 import { storeDataInGoogleSpreadsheet } from "./googleSpreadSheet.controller";
 
 enum ContactSheetHeaders {

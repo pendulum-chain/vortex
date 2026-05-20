@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./fetchWithTimeout";
+
 interface TomlValues {
   signingKey: string | undefined;
   webAuthEndpoint: string | undefined;
@@ -15,7 +17,7 @@ const TOML_KEYS = {
 } as const;
 
 const fetchTomlValues = async (tomlFileUrl: string): Promise<TomlValues> => {
-  const response = await fetch(tomlFileUrl);
+  const response = await fetchWithTimeout(tomlFileUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch TOML file: ${response.statusText}`);
   }

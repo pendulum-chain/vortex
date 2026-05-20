@@ -75,6 +75,8 @@ export interface StateMetadata {
   alfredpayOfframpTransferTxHash?: string;
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
+  stellarPaymentTxHash?: string;
+  nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and

@@ -1,6 +1,6 @@
 import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import { config } from "../../../../../config";
+import { config } from "../../../../../config/vars";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateFeeComponents } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
@@ -74,8 +74,13 @@ export abstract class BaseFeeEngine implements Stage {
 }
 
 /**
- * Assigns the normalized fee summary (USD + display currency) to the quote context.
- * Converts every component into both USD and the target display currency, and logs a standard note.
+ * Single source of truth for all fee representations on a quote.
+ *
+ * Produces both `fees.usd` (used for on-chain distribution) and `fees.displayFiat`
+ * (used for user-facing display) from the same source components in a single atomic
+ * operation. Both are persisted together inside `QuoteTicket.metadata.fees`.
+ *
+ * Do NOT assign `ctx.fees` outside this function.
  */
 export async function assignFeeSummary(ctx: QuoteContext, components: FeeSummaryInput): Promise<void> {
   const USD_CURRENCY = EvmToken.USDC as RampCurrency;

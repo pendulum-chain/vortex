@@ -41,6 +41,12 @@ interface Config {
     alchemyPay: PriceProvider;
     transak: PriceProvider;
     moonpay: PriceProvider;
+    coingecko: {
+      apiKey: string | undefined;
+      baseUrl: string;
+      cryptoCacheTtlMs: number;
+      fiatCacheTtlMs: number;
+    };
   };
   spreadsheet: SpreadsheetConfig;
   database: {
@@ -61,11 +67,41 @@ interface Config {
   };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
+
+  secrets: {
+    pendulumFundingSeed: string | undefined;
+    stellarFundingSecret: string | undefined;
+    moonbeamExecutorPrivateKey: string | undefined;
+    clientDomainSecret: string | undefined;
+    webhookPrivateKey: string | undefined;
+  };
+
+  integrations: {
+    monerium: {
+      clientId: string | undefined;
+      clientSecret: string | undefined;
+    };
+    alchemy: {
+      apiKey: string | undefined;
+    };
+    slack: {
+      webhookToken: string | undefined;
+      userId: string | undefined;
+    };
+  };
+
+  sandboxEnabled: boolean;
+  rampWidgetUrl: string;
+  backendTestStarterAccount: string | undefined;
+  defaults: {
+    vortexEvmPayoutAddress: string | undefined;
+  };
 }
 
 export const config: Config = {
   adminSecret: process.env.ADMIN_SECRET || "",
   amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
+  backendTestStarterAccount: process.env.BACKEND_TEST_STARTER_ACCOUNT,
   database: {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
@@ -75,7 +111,24 @@ export const config: Config = {
     port: parseInt(process.env.DB_PORT || "5432", 10),
     username: process.env.DB_USERNAME || "postgres"
   },
+  defaults: {
+    vortexEvmPayoutAddress: process.env.DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS
+  },
   env: process.env.NODE_ENV || "production",
+
+  integrations: {
+    alchemy: {
+      apiKey: process.env.ALCHEMY_API_KEY
+    },
+    monerium: {
+      clientId: process.env.MONERIUM_CLIENT_ID_APP,
+      clientSecret: process.env.MONERIUM_CLIENT_SECRET
+    },
+    slack: {
+      userId: process.env.SLACK_USER_ID,
+      webhookToken: process.env.SLACK_WEB_HOOK_TOKEN
+    }
+  },
   logs: process.env.NODE_ENV === "production" ? "combined" : "dev",
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
@@ -84,6 +137,12 @@ export const config: Config = {
       appId: process.env.ALCHEMYPAY_APP_ID,
       baseUrl: process.env.ALCHEMYPAY_PROD_URL || "https://openapi.alchemypay.org",
       secretKey: process.env.ALCHEMYPAY_SECRET_KEY
+    },
+    coingecko: {
+      apiKey: process.env.COINGECKO_API_KEY,
+      baseUrl: process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3",
+      cryptoCacheTtlMs: parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10),
+      fiatCacheTtlMs: parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10)
     },
     moonpay: {
       apiKey: process.env.MOONPAY_API_KEY,
@@ -98,9 +157,20 @@ export const config: Config = {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
   },
+  rampWidgetUrl: process.env.RAMP_WIDGET_URL || "https://www.vortexfinance.co/widget",
   rateLimitMaxRequests: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
+
+  sandboxEnabled: process.env.SANDBOX_ENABLED === "true",
+
+  secrets: {
+    clientDomainSecret: process.env.CLIENT_DOMAIN_SECRET,
+    moonbeamExecutorPrivateKey: process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY,
+    pendulumFundingSeed: process.env.PENDULUM_FUNDING_SEED,
+    stellarFundingSecret: process.env.FUNDING_SECRET,
+    webhookPrivateKey: process.env.WEBHOOK_PRIVATE_KEY
+  },
   spreadsheet: {
     contactSheetId: process.env.GOOGLE_CONTACT_SPREADSHEET_ID,
     emailSheetId: process.env.GOOGLE_EMAIL_SPREADSHEET_ID,
@@ -122,3 +192,25 @@ export const config: Config = {
   },
   vortexFeePenPercentage: parseFloat(process.env.VORTEX_FEE_PEN_PERCENTAGE || "0.0")
 };
+
+// Derived values — aliases kept for semantic clarity in consuming code
+export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
+export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
+
+if (config.env === "production") {
+  if (config.sandboxEnabled) {
+    throw new Error("SANDBOX_ENABLED must not be 'true' in production — refusing to start");
+  }
+
+  const missing: string[] = [];
+
+  if (!config.supabase.url) missing.push("SUPABASE_URL");
+  if (!config.supabase.anonKey) missing.push("SUPABASE_ANON_KEY");
+  if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
+  if (!config.secrets.webhookPrivateKey) missing.push("WEBHOOK_PRIVATE_KEY");
+  if (!config.adminSecret) missing.push("ADMIN_SECRET");
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);
+  }
+}

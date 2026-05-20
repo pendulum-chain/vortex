@@ -3,10 +3,9 @@ import { KeyringPair } from "@polkadot/keyring/types";
 import { ApiManager, SubstrateApiNetwork, TOKEN_CONFIG, waitUntilTrueWithTimeout } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import { GLMR_FUNDING_AMOUNT_RAW, PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS } from "../../../constants/constants";
 import { multiplyByPowerOfTen } from "./helpers";
-
-const { PENDULUM_FUNDING_SEED } = process.env;
 
 export function getFundingData(
   ss58Format: number,
@@ -16,7 +15,7 @@ export function getFundingData(
   fundingAmountRaw: string;
 } {
   const keyring = new Keyring({ ss58Format, type: "sr25519" });
-  const fundingAccountKeypair = keyring.addFromUri(PENDULUM_FUNDING_SEED || "");
+  const fundingAccountKeypair = keyring.addFromUri(config.secrets.pendulumFundingSeed || "");
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);
   const fundingAmountRaw = multiplyByPowerOfTen(fundingAmountUnits, decimals).toFixed();
 

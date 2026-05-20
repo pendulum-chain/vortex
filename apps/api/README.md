@@ -49,25 +49,33 @@ yarn dev
 
 ## API Endpoints
 
+### Authentication
+
+All ramping and quote endpoints require authentication. Two principals are accepted:
+
+- **Partner SDK**: `X-API-Key: sk_<live|test>_<32 chars>` — issued per partner via the admin API. Scoped to the partner's own quotes/ramps.
+- **First-party frontend**: `Authorization: Bearer <Supabase access token>` — issued by Supabase OTP. Scoped to the user's own ramps.
+
+Anonymous access to ramp/quote endpoints is rejected with HTTP 401. Cross-tenant access (e.g. one partner reading another partner's ramp) is rejected with HTTP 403.
+
+`POST /v1/quotes` and `POST /v1/quotes/best` additionally enforce that any `partnerId` in the body matches the authenticated partner key (HTTP 403 on mismatch).
+
 ### Ramping Endpoints
 
 #### Quote Management
 
-- `POST /v1/ramp/quotes` - Create a new quote
-- `GET /v1/ramp/quotes/:id` - Get quote information
+- `POST /v1/quotes` - Create a new quote (auth required when `partnerId` is present)
+- `POST /v1/quotes/best` - Create the best-priced quote across providers
+- `GET /v1/quotes/:id` - Get quote information (public)
 
 #### Ramp Flow Management
 
-- `POST /v1/ramp/start` - Start a new ramping process
+- `POST /v1/ramp/register` - Register a new ramping process from a quote
+- `POST /v1/ramp/update` - Submit presigned transactions for a registered ramp
+- `POST /v1/ramp/start` - Start phase processing for a ramp
 - `GET /v1/ramp/:id` - Get the status of a ramping process
-- `PATCH /v1/ramp/:id/phase` - Advance a ramping process to the next phase
-- `PATCH /v1/ramp/:id/state` - Update the state of a ramping process
-- `PATCH /v1/ramp/:id/subsidy` - Update subsidy details
-- `PATCH /v1/ramp/:id/nonce` - Update nonce sequences
-- `POST /v1/ramp/:id/error` - Log an error
-- `GET /v1/ramp/:id/history` - Get phase history
-- `GET /v1/ramp/:id/errors` - Get error logs
-- `GET /v1/ramp/phases/:phase/transitions` - Get valid transitions for a phase
+- `GET /v1/ramp/:id/errors` - Get error logs for a ramp
+- `GET /v1/ramp/history/:walletAddress` - Get ramp history for a wallet (filtered by authenticated principal)
 
 ### Legacy Endpoints
 

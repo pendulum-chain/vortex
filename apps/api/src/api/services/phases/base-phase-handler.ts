@@ -24,6 +24,12 @@ export interface PhaseHandler {
    * Get the phase name
    */
   getPhaseName(): string;
+
+  /**
+   * Optional per-phase override for the maximum number of recoverable retries.
+   * Defaults to the processor's global MAX_RETRIES when not implemented.
+   */
+  getMaxRetries?(): number;
 }
 
 /**
