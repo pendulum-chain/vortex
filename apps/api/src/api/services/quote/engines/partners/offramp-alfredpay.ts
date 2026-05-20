@@ -7,9 +7,11 @@ import {
   AlfredpayPaymentMethodType,
   CreateAlfredpayOfframpQuoteRequest,
   multiplyByPowerOfTen,
+  RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./../initialize/index";
 
@@ -26,11 +28,23 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
       throw new Error("OfframpTransactionAlfredpayEngine: No evmToEvm quote");
     }
 
-    const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
-    const inputAmountDecimal = new Big(ctx.evmToEvm.outputAmountDecimal);
+    if (!ctx.subsidy) {
+      throw new Error("OfframpTransactionAlfredpayEngine: Missing ctx.subsidy (Discount stage must run first)");
+    }
+
+    // Use the same oracle rate as Discount to back-solve the subsidized USD input.
+    const oneUnitInFiat = await priceFeedService.convertCurrency(
+      "1",
+      ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency,
+      req.outputCurrency as RampCurrency
+    );
+    const effectiveRate = new Big(oneUnitInFiat);
+
+    const inputAmountDecimal = effectiveRate.gt(0)
+      ? ctx.subsidy.targetOutputAmountDecimal.div(effectiveRate)
+      : ctx.evmToEvm.outputAmountDecimal;
 
     const alfredpayService = AlfredpayApiService.getInstance();
-
     const quoteRequest: CreateAlfredpayOfframpQuoteRequest = {
       chain: AlfredpayChain.MATIC,
       fromAmount: inputAmountDecimal.toString(),
@@ -45,27 +59,25 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
 
     const quote = await alfredpayService.createOfframpQuote(quoteRequest);
 
-    const fromAmount = new Big(ctx.evmToEvm.outputAmountDecimal);
     const toAmount = new Big(quote.toAmount);
-
     const alfredpayFee = AlfredpayApiService.sumFeesByCurrency(
       quote.fees,
       req.outputCurrency as unknown as AlfredpayFiatCurrency
     );
 
     ctx.alfredpayOfframp = {
-      currency: ctx.request.outputCurrency,
+      currency: req.outputCurrency,
       expirationDate: new Date(quote.expiration),
       fee: alfredpayFee,
-      inputAmountDecimal: fromAmount,
-      inputAmountRaw: multiplyByPowerOfTen(fromAmount, usdTokenDecimals).toFixed(0, 0),
+      inputAmountDecimal,
+      inputAmountRaw: multiplyByPowerOfTen(inputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
       outputAmountDecimal: toAmount,
-      outputAmountRaw: multiplyByPowerOfTen(toAmount, 2).toFixed(0, 0), // Assuming 2 decimals for fiat
+      outputAmountRaw: multiplyByPowerOfTen(toAmount, 2).toFixed(0, 0),
       quoteId: quote.quoteId
     };
 
     ctx.addNote?.(
-      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${toAmount.toString()} ${req.outputCurrency}`
+      `OfframpTransactionAlfredpayEngine: ${inputAmountDecimal.toString()} ${ALFREDPAY_ONCHAIN_CURRENCY} -> ${toAmount.toString()} ${req.outputCurrency} (fee ${alfredpayFee.toString()}, rate ${effectiveRate.toString()})`
     );
   }
 }

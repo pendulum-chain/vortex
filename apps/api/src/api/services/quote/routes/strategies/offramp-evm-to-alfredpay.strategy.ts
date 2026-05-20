@@ -17,5 +17,5 @@ export const offrampEvmToAlfredpayStrategy = defineRouteStrategy({
     [StageKey.Finalize]: new OffRampFinalizeEngine()
   }),
   name: "OfframpEvmToAlfredpay",
-  stages: [StageKey.Initialize, StageKey.PartnerOperation, StageKey.Fee, StageKey.Discount, StageKey.Finalize]
+  stages: [StageKey.Initialize, StageKey.Discount, StageKey.PartnerOperation, StageKey.Fee, StageKey.Finalize]
 });

@@ -1,4 +1,5 @@
-import { RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_ERC20_TOKEN } from "@packages/shared";
+import { ALFREDPAY_ERC20_DECIMALS, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
@@ -34,6 +35,10 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal;
 
+    console.log(
+      `[OnRampAlfredpayDiscountEngine] input=${inputAmount} ${ctx.request.outputCurrency}, alfredpayMintIn=${alfredpayMint.inputAmountDecimal.toString()} ${alfredpayMint.currency}, alfredpayMintOut=${alfredpayMint.outputAmountDecimal.toString()} ${ctx.request.outputCurrency}, effectiveRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()}`
+    );
+
     const {
       expectedOutput: expectedOutputDecimal,
       adjustedDifference,
@@ -51,19 +56,19 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     return {
       actualOutputAmountDecimal: finalOutput,
-      actualOutputAmountRaw: finalOutput.toFixed(6, 0),
+      actualOutputAmountRaw: multiplyByPowerOfTen(finalOutput, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
       adjustedDifference,
       adjustedTargetDiscount,
       expectedOutputAmountDecimal: expectedOutputDecimal,
-      expectedOutputAmountRaw: expectedOutputDecimal.toFixed(6, 0),
+      expectedOutputAmountRaw: multiplyByPowerOfTen(expectedOutputDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
       idealSubsidyAmountInOutputTokenDecimal: idealSubsidyDecimal,
-      idealSubsidyAmountInOutputTokenRaw: idealSubsidyDecimal.toFixed(6, 0),
+      idealSubsidyAmountInOutputTokenRaw: multiplyByPowerOfTen(idealSubsidyDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
       partnerId: partner ? partner.id : null,
       subsidyAmountInOutputTokenDecimal: actualSubsidyDecimal,
-      subsidyAmountInOutputTokenRaw: actualSubsidyDecimal.toFixed(6, 0),
+      subsidyAmountInOutputTokenRaw: multiplyByPowerOfTen(actualSubsidyDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0),
       subsidyRate,
       targetOutputAmountDecimal: targetOutputDecimal,
-      targetOutputAmountRaw: targetOutputDecimal.toFixed(6, 0)
+      targetOutputAmountRaw: multiplyByPowerOfTen(targetOutputDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0)
     };
   }
 }
