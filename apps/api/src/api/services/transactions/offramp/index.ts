@@ -6,12 +6,14 @@ import {
   isEvmTokenDetails,
   OnChainToken
 } from "@vortexfi/shared";
+import { isBaseEvmNetwork } from "../../mykobo";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/types";
 import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
 import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
 import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
 import { prepareEvmToBRLOfframpBaseTransactions } from "./routes/evm-to-brl-base";
 import { prepareEvmToMoneriumEvmOfframpTransactions } from "./routes/evm-to-monerium-evm";
+import { prepareEvmToMykoboOfframpTransactions } from "./routes/evm-to-mykobo-evm";
 import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
 
 export async function prepareOfframpTransactions(params: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
@@ -30,9 +32,14 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
     } else {
       return prepareAssethubToBRLOfframpTransactions(params);
     }
-  } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
-    // Monerium EVM offramp
-    return prepareEvmToMoneriumEvmOfframpTransactions(params);
+  } else if (quote.outputCurrency === FiatToken.EURC) {
+    if (isBaseEvmNetwork(fromNetwork)) {
+      return prepareEvmToMykoboOfframpTransactions(params);
+    }
+    if (params.moneriumAuthToken) {
+      return prepareEvmToMoneriumEvmOfframpTransactions(params);
+    }
+    throw new Error("EURC offramp requires either a Base source network (Mykobo) or moneriumAuthToken (Monerium)");
   } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
     // Alfredpay offramp (USD, MXN, COP)
     return prepareEvmToAlfredpayOfframpTransactions(params);

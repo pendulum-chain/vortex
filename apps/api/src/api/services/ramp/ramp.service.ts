@@ -50,12 +50,24 @@ import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
 import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
+import {
+  createMykoboDepositIntent,
+  createMykoboWithdrawIntent,
+  getMykoboProfile,
+  isBaseEvmNetwork,
+  isMykoboDepositInstructions,
+  isMykoboWithdrawInstructions
+} from "../mykobo";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
+import {
+  AveniaOnrampTransactionParams,
+  MoneriumOnrampTransactionParams,
+  MykoboOnrampTransactionParams
+} from "../transactions/onramp/common/types";
 import { areAllTxsIncluded, validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
@@ -131,7 +143,11 @@ export class RampService extends BaseRampService {
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
-  public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+  public async registerRamp(
+    request: RegisterRampRequest,
+    ipAddress?: string,
+    _route = "/v1/ramp/register"
+  ): Promise<RampProcess> {
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -167,7 +183,8 @@ export class RampService extends BaseRampService {
         normalizedSigningAccounts,
         additionalData,
         signingAccounts,
-        request.userId // will be undefined if not logged in. registerRamp is optional.
+        request.userId, // will be undefined if not logged in. registerRamp is optional.
+        ipAddress
       );
 
       await this.consumeQuote(quote.id, transaction);
@@ -1108,6 +1125,133 @@ export class RampService extends BaseRampService {
     }
   }
 
+  private async prepareMykoboOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    ipAddress: string | undefined
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    depositQrCode?: string;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (!additionalData || additionalData.walletAddress === undefined || additionalData.destinationAddress === undefined) {
+      throw new APIError({
+        message: "Parameters walletAddress and destinationAddress are required for Mykobo onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (!ipAddress) {
+      throw new APIError({
+        message: "Client IP address is required for Mykobo onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const profile = await getMykoboProfile(additionalData.walletAddress);
+    if (!profile) {
+      throw new APIError({
+        message: "Mykobo profile not found for wallet address. Complete KYC before registering ramp.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const intent = await createMykoboDepositIntent({
+      emailAddress: profile.email_address,
+      ipAddress,
+      value: quote.inputAmount,
+      walletAddress: additionalData.walletAddress
+    });
+
+    if (!isMykoboDepositInstructions(intent.instructions)) {
+      throw new Error("Mykobo DEPOSIT intent returned no IBAN instructions");
+    }
+
+    const params: MykoboOnrampTransactionParams = {
+      destinationAddress: additionalData.destinationAddress,
+      mykoboWalletAddress: additionalData.walletAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    };
+
+    const { unsignedTxs, stateMeta: routeStateMeta } = await prepareOnrampTransactions(params);
+
+    const ibanPaymentData: IbanPaymentData = {
+      bic: intent.instructions.bic ?? "",
+      iban: intent.instructions.iban,
+      receiverName: intent.instructions.bank_account_name,
+      reference: intent.reference
+    };
+
+    const stateMeta: Partial<StateMetadata> = {
+      ...(routeStateMeta as Partial<StateMetadata>),
+      mykoboTransactionId: intent.id,
+      mykoboTransactionReference: intent.reference
+    };
+
+    return {
+      ibanPaymentData,
+      stateMeta,
+      unsignedTxs
+    };
+  }
+
+  private async prepareMykoboOfframpTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"],
+    ipAddress: string | undefined
+  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    if (!additionalData || additionalData.walletAddress === undefined) {
+      throw new APIError({
+        message: "Parameter walletAddress is required for Mykobo offramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (!ipAddress) {
+      throw new APIError({
+        message: "Client IP address is required for Mykobo offramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const profile = await getMykoboProfile(additionalData.walletAddress);
+    if (!profile) {
+      throw new APIError({
+        message: "Mykobo profile not found for wallet address. Complete KYC before registering ramp.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const outputEurcValue = quote.metadata.mykoboOffRamp?.outputAmountDecimal?.toString() ?? quote.inputAmount;
+    const intent = await createMykoboWithdrawIntent({
+      emailAddress: profile.email_address,
+      ipAddress,
+      value: outputEurcValue,
+      walletAddress: additionalData.walletAddress
+    });
+
+    if (!isMykoboWithdrawInstructions(intent.instructions)) {
+      throw new Error("Mykobo WITHDRAW intent returned no settlement address");
+    }
+    const settlementAddress = intent.instructions.address;
+
+    const { unsignedTxs, stateMeta: routeStateMeta } = await prepareOfframpTransactions({
+      mykoboSettlementAddress: settlementAddress,
+      quote,
+      signingAccounts: normalizedSigningAccounts,
+      userAddress: additionalData.walletAddress
+    });
+
+    const stateMeta: Partial<StateMetadata> = {
+      ...(routeStateMeta as Partial<StateMetadata>),
+      mykoboWithdrawSettlementAddress: settlementAddress,
+      mykoboWithdrawTransactionId: intent.id
+    };
+    return { stateMeta, unsignedTxs };
+  }
+
   private async prepareMoneriumOfframpTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -1133,7 +1277,8 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
-    userId?: string
+    userId?: string,
+    ipAddress?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1144,9 +1289,14 @@ export class RampService extends BaseRampService {
     if (quote.rampType === RampDirection.SELL) {
       if (quote.outputCurrency === FiatToken.BRL) {
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
-        // If the property moneriumAuthToken is not provided, we assume this is a regular Stellar offramp.
-        // otherwise, it is automatically assumed to be a Monerium offramp.
-        // FIXME change to a better check once Mykobo support is dropped, or a better way to check if the transaction is a Monerium offramp arises.
+      } else if (quote.outputCurrency === FiatToken.EURC) {
+        if (isBaseEvmNetwork(quote.from)) {
+          return this.prepareMykoboOfframpTransactions(quote, normalizedSigningAccounts, additionalData, ipAddress);
+        }
+        if (!additionalData?.moneriumAuthToken) {
+          return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        }
+        return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
       } else if (!additionalData?.moneriumAuthToken) {
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
       } else {
@@ -1154,6 +1304,9 @@ export class RampService extends BaseRampService {
       }
     } else {
       if (quote.inputCurrency === FiatToken.EURC) {
+        if (isBaseEvmNetwork(quote.to)) {
+          return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, ipAddress);
+        }
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
       } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
@@ -1219,11 +1372,20 @@ export class RampService extends BaseRampService {
 
   private validateRampStateData(rampState: RampState, quote: QuoteTicket): void {
     if (rampState.type === RampDirection.SELL && !isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+      const isMykoboSell = quote.outputCurrency === FiatToken.EURC && isBaseEvmNetwork(rampState.from);
+
       if (rampState.from === Networks.AssetHub && !rampState.state.assethubToPendulumHash) {
         throw new APIError({
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
+      } else if (isMykoboSell) {
+        if (!rampState.state.squidRouterSwapHash && !rampState.state.destinationTransferTxHash) {
+          throw new APIError({
+            message: `Missing required additional data 'squidRouterSwapHash' or 'destinationTransferTxHash' for Mykobo ${rampState.type} ramp. Cannot proceed.`,
+            status: httpStatus.BAD_REQUEST
+          });
+        }
       } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
         throw new APIError({
           message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
@@ -1233,9 +1395,13 @@ export class RampService extends BaseRampService {
     }
 
     if (rampState.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
-      if (!rampState.state.moneriumOnrampPermit) {
+      const isMykoboBuy = isBaseEvmNetwork(rampState.to);
+      const permitName = isMykoboBuy ? "mykoboOnrampPermit" : "moneriumOnrampPermit";
+      const permit = isMykoboBuy ? rampState.state.mykoboOnrampPermit : rampState.state.moneriumOnrampPermit;
+
+      if (!permit) {
         throw new APIError({
-          message: "Missing moneriumOnrampPermit in state. Cannot proceed.",
+          message: `Missing ${permitName} in state. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
       }

@@ -25,6 +25,7 @@ export interface StateMetadata {
   pixDestination: string;
   brlaEvmAddress: string;
   moneriumWalletAddress: string | undefined;
+  mykoboWalletAddress: string | undefined;
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
@@ -57,6 +58,14 @@ export interface StateMetadata {
   // Only used in onramp, offramp - monerium
   moneriumOnrampPermit?: PermitSignature;
   permitTxHash?: string;
+  // Only used in onramp - mykobo
+  mykoboOnrampPermit?: PermitSignature;
+  mykoboPermitTxHash?: string;
+  mykoboTransactionId?: string;
+  mykoboTransactionReference?: string;
+  // Only used in offramp - mykobo
+  mykoboWithdrawTransactionId?: string;
+  mykoboWithdrawSettlementAddress?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

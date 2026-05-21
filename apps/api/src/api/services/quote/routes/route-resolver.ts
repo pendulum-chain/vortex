@@ -12,9 +12,11 @@ import {
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
+import { isBaseEvmNetwork } from "../../mykobo";
 import type { QuoteContext } from "../core/types";
 import { IRouteStrategy } from "../core/types";
 import { OfframpEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
+import { OfframpEvmToMykoboStrategy } from "./strategies/offramp-evm-to-mykobo.strategy";
 import { OfframpToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { OfframpToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
 import { OfframpToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
@@ -23,6 +25,7 @@ import { OnrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-as
 import { OnrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { OnrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
 import { OnrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
+import { OnrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
 const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
 
@@ -41,6 +44,9 @@ export class RouteResolver {
         }
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
+          if (isBaseEvmNetwork(ctx.to)) {
+            return new OnrampMykoboToEvmStrategy();
+          }
           return new OnrampMoneriumToEvmStrategy();
         } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           return new OnrampAlfredpayToEvmStrategy();
@@ -72,6 +78,10 @@ export class RouteResolver {
       case "spei":
         return new OfframpEvmToAlfredpayStrategy();
       case "sepa":
+        if (isBaseEvmNetwork(ctx.from)) {
+          return new OfframpEvmToMykoboStrategy();
+        }
+        return new OfframpToStellarStrategy();
       case "cbu":
       default:
         return new OfframpToStellarStrategy();

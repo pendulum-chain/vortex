@@ -1,5 +1,7 @@
 import {
   AccountMeta,
+  EphemeralAccountType,
+  EvmNetworks,
   EvmToken,
   evmTokenConfig,
   FiatToken,
@@ -10,6 +12,7 @@ import {
   getOnChainTokenDetailsOrDefault,
   isFiatToken,
   isMoonbeamTokenDetails,
+  isNetworkEVM,
   isOnChainToken,
   isOnChainTokenDetails,
   MoonbeamTokenDetails,
@@ -17,6 +20,29 @@ import {
   OnChainTokenDetails
 } from "@vortexfi/shared";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
+
+const resolveToNetwork = (quote: QuoteTicketAttributes): Networks => {
+  const toNetwork = getNetworkFromDestination(quote.to);
+  if (!toNetwork) throw new Error(`Invalid network for destination ${quote.to}`);
+  return toNetwork;
+};
+
+const resolveOutputOnChainTokenDetails = (toNetwork: Networks, quote: QuoteTicketAttributes): OnChainTokenDetails => {
+  if (!isOnChainToken(quote.outputCurrency)) {
+    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+  }
+  const details = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+  if (!details || !isOnChainTokenDetails(details)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
+  return details;
+};
+
+const requireEphemeral = (accounts: AccountMeta[], type: EphemeralAccountType, label: string): AccountMeta => {
+  const found = accounts.find(a => a.type === type);
+  if (!found) throw new Error(`${label} ephemeral not found`);
+  return found;
+};
 
 export function validateAveniaOnramp(
   quote: QuoteTicketAttributes,
@@ -28,39 +54,19 @@ export function validateAveniaOnramp(
   evmEphemeralEntry: AccountMeta;
   inputTokenDetails: MoonbeamTokenDetails;
 } {
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    throw new Error(`Invalid network for destination ${quote.to}`);
-  }
-
-  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
-  if (!substrateEphemeralEntry) {
-    throw new Error("Pendulum ephemeral not found");
-  }
-
-  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-  if (!evmEphemeralEntry) {
-    throw new Error("Moonbeam ephemeral not found");
-  }
+  const toNetwork = resolveToNetwork(quote);
+  const substrateEphemeralEntry = requireEphemeral(signingAccounts, EphemeralAccountType.Substrate, "Pendulum");
+  const evmEphemeralEntry = requireEphemeral(signingAccounts, EphemeralAccountType.EVM, "Moonbeam");
 
   if (!isFiatToken(quote.inputCurrency)) {
     throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
   }
   const inputTokenDetails = getAnyFiatTokenDetails(quote.inputCurrency);
-
   if (!isMoonbeamTokenDetails(inputTokenDetails)) {
     throw new Error(`Input token must be Moonbeam token for onramp, got ${quote.inputCurrency}`);
   }
 
-  if (!isOnChainToken(quote.outputCurrency)) {
-    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
-  }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-
-  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
-  }
-
+  const outputTokenDetails = resolveOutputOnChainTokenDetails(toNetwork, quote);
   return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, substrateEphemeralEntry, toNetwork };
 }
 
@@ -73,15 +79,8 @@ export function validateAveniaOnrampOnBase(
   evmEphemeralEntry: AccountMeta;
   inputTokenDetails: OnChainTokenDetails;
 } {
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    throw new Error(`Invalid network for destination ${quote.to}`);
-  }
-
-  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-  if (!evmEphemeralEntry) {
-    throw new Error("Base ephemeral not found");
-  }
+  const toNetwork = resolveToNetwork(quote);
+  const evmEphemeralEntry = requireEphemeral(signingAccounts, EphemeralAccountType.EVM, "Base");
 
   if (!isFiatToken(quote.inputCurrency)) {
     throw new Error(`Input currency must be fiat token for onramp, got ${quote.inputCurrency}`);
@@ -93,15 +92,7 @@ export function validateAveniaOnrampOnBase(
     throw new Error("BRLA token details not found for Base");
   }
 
-  if (!isOnChainToken(quote.outputCurrency)) {
-    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
-  }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-
-  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
-  }
-
+  const outputTokenDetails = resolveOutputOnChainTokenDetails(toNetwork, quote);
   return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
 }
 
@@ -114,36 +105,40 @@ export function validateMoneriumOnramp(
   substrateEphemeralEntry: AccountMeta;
   evmEphemeralEntry: AccountMeta;
 } {
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    throw new Error(`Invalid network for destination ${quote.to}`);
-  }
-
   if (quote.inputCurrency !== FiatToken.EURC) {
     throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
+  const toNetwork = resolveToNetwork(quote);
+  return {
+    evmEphemeralEntry: requireEphemeral(signingAccounts, EphemeralAccountType.EVM, "Polygon"),
+    outputTokenDetails: resolveOutputOnChainTokenDetails(toNetwork, quote),
+    substrateEphemeralEntry: requireEphemeral(signingAccounts, EphemeralAccountType.Substrate, "Pendulum"),
+    toNetwork
+  };
+}
 
-  if (!isOnChainToken(quote.outputCurrency)) {
-    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+export function validateMykoboOnramp(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[]
+): {
+  toNetwork: EvmNetworks;
+  outputTokenDetails: OnChainTokenDetails;
+  evmEphemeralEntry: AccountMeta;
+  inputCurrency: FiatToken.EURC;
+} {
+  if (quote.inputCurrency !== FiatToken.EURC) {
+    throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
   }
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-  if (!outputTokenDetails) {
-    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
+  // No substrate ephemeral: Mykobo path stays on Base and hands off to Squidrouter for the
+  // destination chain. Pendulum is not in the loop.
+  const toNetwork = resolveToNetwork(quote);
+  if (!isNetworkEVM(toNetwork)) {
+    throw new Error(`Mykobo onramp requires an EVM destination network, got ${toNetwork}`);
   }
-
-  if (!isOnChainTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
-  }
-
-  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-  if (!evmEphemeralEntry) {
-    throw new Error("Polygon ephemeral not found");
-  }
-
-  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
-  if (!substrateEphemeralEntry) {
-    throw new Error("Pendulum ephemeral not found");
-  }
-
-  return { evmEphemeralEntry, outputTokenDetails, substrateEphemeralEntry, toNetwork };
+  return {
+    evmEphemeralEntry: requireEphemeral(signingAccounts, EphemeralAccountType.EVM, "Base"),
+    inputCurrency: FiatToken.EURC,
+    outputTokenDetails: resolveOutputOnChainTokenDetails(toNetwork, quote),
+    toNetwork
+  };
 }

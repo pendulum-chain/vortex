@@ -167,6 +167,24 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  mykoboMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
+  mykoboOffRamp?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   alfredpayMint?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;

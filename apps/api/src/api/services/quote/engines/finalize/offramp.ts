@@ -14,27 +14,22 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
   } as const;
 
   protected async computeOutput(ctx: QuoteContext): Promise<FinalizeComputation> {
-    const offrampAmount =
-      ctx.request.to === "pix"
-        ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
-        : ctx.alfredpayOfframp
-          ? ctx.alfredpayOfframp.outputAmountDecimal
-          : ctx.pendulumToStellar?.outputAmountDecimal;
+    const offrampAmount = this.resolveOfframpAmount(ctx);
 
     if (!offrampAmount) {
       throw new APIError({
         message:
-          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
+          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp, pendulumToStellar or mykoboOffRamp output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
-    // AlfredPay's toAmount is already net-of-fees, so no fee subtraction needed.
+    // AlfredPay's toAmount and Mykobo's toAmount are already net-of-fees, so no fee subtraction needed.
     // For other providers (Stellar, BRLA), the anchor fee must still be subtracted.
-    const isAlfredpay = !!ctx.alfredpayOfframp;
+    const isFeeAlreadyApplied = !!ctx.alfredpayOfframp || !!ctx.mykoboOffRamp;
     let amount: Big;
 
-    if (isAlfredpay) {
+    if (isFeeAlreadyApplied) {
       amount = new Big(offrampAmount);
     } else {
       const anchorFee = ctx.fees?.displayFiat?.anchor;
@@ -55,5 +50,18 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
 
   protected validate(ctx: QuoteContext, { amount }: FinalizeComputation): void {
     validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "min", ctx.request.rampType);
+  }
+
+  private resolveOfframpAmount(ctx: QuoteContext): Big | undefined {
+    if (ctx.mykoboOffRamp) {
+      return ctx.mykoboOffRamp.outputAmountDecimal;
+    }
+    if (ctx.request.to === "pix") {
+      return ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal;
+    }
+    if (ctx.alfredpayOfframp) {
+      return ctx.alfredpayOfframp.outputAmountDecimal;
+    }
+    return ctx.pendulumToStellar?.outputAmountDecimal;
   }
 }

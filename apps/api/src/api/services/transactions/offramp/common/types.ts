@@ -11,6 +11,7 @@ export interface OfframpTransactionParams {
   receiverTaxId?: string;
   brlaEvmAddress?: string;
   moneriumAuthToken?: string;
+  mykoboSettlementAddress?: string;
   userId?: string;
   fiatAccountId?: string;
 }

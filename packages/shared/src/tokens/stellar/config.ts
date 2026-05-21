@@ -2,6 +2,7 @@
  * Stellar token configuration
  */
 
+import { PENDULUM_EURC_STELLAR } from "../pendulum/config";
 import { getTomlFileUrl } from "../tokenConfig";
 import { FiatToken, TokenType } from "../types/base";
 import { StellarTokenDetails } from "../types/stellar";
@@ -20,20 +21,7 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
     maxSellAmountRaw: "10000000000000000",
     minBuyAmountRaw: "1000000000000",
     minSellAmountRaw: "25000000000000",
-    pendulumRepresentative: {
-      assetSymbol: "EURC",
-      currency: FiatToken.EURC,
-      currencyId: {
-        Stellar: {
-          AlphaNum4: {
-            code: "0x45555243",
-            issuer: "0xcf4f5a26e2090bb3adcf02c7a9d73dbfe6659cc690461475b86437fa49c71136"
-          }
-        }
-      },
-      decimals: 12,
-      erc20WrapperAddress: "6eNUvRWCKE3kejoyrJTXiSM7NxtWi37eRXTnKhGKPsJevAj5"
-    },
+    pendulumRepresentative: PENDULUM_EURC_STELLAR,
     stellarAsset: {
       code: {
         hex: "0x45555243",
@@ -86,10 +74,10 @@ export const stellarTokenConfig: Partial<Record<FiatToken, StellarTokenDetails>>
         hex: "0xb04f8bff207a0b001aec7b7659a8d106e54e659cdf9533528f468e079628fba1",
         stellarEncoding: "GCYE7C77EB5AWAA25R5XMWNI2EDOKTTFTTPZKM2SR5DI4B4WFD52DARS"
       }
-    }, // 11 ARS
-    supportsClientDomain: true, // 500000 ARS
-    tomlFileUrl: getTomlFileUrl("ARS"), // 2%
-    type: TokenType.Stellar, // 10 ARS
+    },
+    supportsClientDomain: true,
+    tomlFileUrl: getTomlFileUrl("ARS"),
+    type: TokenType.Stellar,
     usesMemo: true,
     vaultAccountId: "6bE2vjpLRkRNoVDqDtzokxE34QdSJC2fz7c87R9yCVFFDNWs"
   }

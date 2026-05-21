@@ -34,12 +34,15 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
     }
 
     // Start ramping process
-    const ramp = await rampService.registerRamp({
-      additionalData,
-      quoteId,
-      signingAccounts,
-      userId: req.userId
-    });
+    const ramp = await rampService.registerRamp(
+      {
+        additionalData,
+        quoteId,
+        signingAccounts,
+        userId: req.userId
+      },
+      req.ip
+    );
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
