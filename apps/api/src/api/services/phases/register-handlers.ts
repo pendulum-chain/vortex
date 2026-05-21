@@ -12,6 +12,7 @@ import hydrationToAssethubXcmPhaseHandler from "./handlers/hydration-to-assethub
 import initialPhaseHandler from "./handlers/initial-phase-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
+import mykoboOnrampDepositHandler from "./handlers/mykobo-onramp-deposit-handler";
 import mykoboPayoutHandler from "./handlers/mykobo-payout-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
 import nablaSwapHandler from "./handlers/nabla-swap-handler";
@@ -45,6 +46,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
   phaseRegistry.registerHandler(brlaPayoutBaseHandler);
   phaseRegistry.registerHandler(mykoboPayoutHandler);
+  phaseRegistry.registerHandler(mykoboOnrampDepositHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(alfredpayOnrampMintHandler);
   phaseRegistry.registerHandler(alfredpayOfframpTransferHandler);
