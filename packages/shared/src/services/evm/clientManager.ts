@@ -9,7 +9,7 @@ export interface EvmNetworkConfig {
   rpcUrls: string[];
 }
 
-const DEFAULT_RPC_CACHE_KEY = "<default>";
+const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
 
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
@@ -39,11 +39,32 @@ export function redactRpcUrlForLogs(rpcUrl: string): string {
 }
 
 export function sanitizeRpcErrorMessage(message: string): string {
-  return message.replace(/https:\/\/[^\s"]+\/v2\/[^\s")]+/g, match => redactRpcUrlForLogs(match));
+  const urlTerminators = new Set([" ", "\n", "\r", "\t", '"', ")"]);
+  let sanitizedMessage = "";
+  let currentIndex = 0;
+
+  while (currentIndex < message.length) {
+    const nextUrlIndex = message.indexOf("https://", currentIndex);
+    if (nextUrlIndex === -1) {
+      sanitizedMessage += message.slice(currentIndex);
+      break;
+    }
+
+    sanitizedMessage += message.slice(currentIndex, nextUrlIndex);
+    let urlEndIndex = nextUrlIndex;
+    while (urlEndIndex < message.length && !urlTerminators.has(message[urlEndIndex] ?? "")) {
+      urlEndIndex++;
+    }
+
+    sanitizedMessage += redactRpcUrlForLogs(message.slice(nextUrlIndex, urlEndIndex));
+    currentIndex = urlEndIndex;
+  }
+
+  return sanitizedMessage;
 }
 
 function getRpcCacheKey(rpcUrl: string): string {
-  return rpcUrl === "" ? DEFAULT_RPC_CACHE_KEY : rpcUrl;
+  return rpcUrl === "" ? VIEM_DEFAULT_TRANSPORT_CACHE_KEY : redactRpcUrlForLogs(rpcUrl);
 }
 
 function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transport {

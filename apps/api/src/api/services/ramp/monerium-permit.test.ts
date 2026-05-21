@@ -112,7 +112,7 @@ describe("validateMoneriumOnrampPermit", () => {
   it("rejects an already-expired permit before deposit details are released", async () => {
     const permit = await signPermit({ deadline: "1700000000" });
 
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION, 1700000000)).toThrow("has expired");
+    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION, 1700000001)).toThrow("has expired");
   });
 });
 

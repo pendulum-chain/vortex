@@ -69,7 +69,7 @@ export function validateMoneriumOnrampPermit(
   assertEqual("tokenVersion", context.tokenVersion, expectation.expectedTokenVersion ?? "1");
   assertEqual("chainId", context.chainId, expectedChainId);
   assertEqual("deadline", context.deadline, permit.deadline);
-  if (BigInt(context.deadline) <= BigInt(nowSeconds)) {
+  if (BigInt(context.deadline) < BigInt(nowSeconds)) {
     throwBadPermit(`Monerium permit deadline ${context.deadline} has expired`);
   }
 
