@@ -10,7 +10,6 @@ export interface OfframpTransactionParams {
   taxId?: string;
   receiverTaxId?: string;
   brlaEvmAddress?: string;
-  moneriumAuthToken?: string;
   userId?: string;
   fiatAccountId?: string;
   email?: string;

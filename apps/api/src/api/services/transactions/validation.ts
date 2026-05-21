@@ -228,8 +228,6 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "squidRouterSwap":
     case "squidRouterPermitExecute":
     case "squidRouterPay":
-    case "moneriumOnrampSelfTransfer":
-    case "moneriumOnrampMint":
     case "fundEphemeral":
     case "destinationTransfer":
     case "moonbeamToPendulum":
@@ -370,7 +368,6 @@ export async function validatePresignedTxs(
     // is then verified against the unsigned blueprint by user-tx-verifier at phase execution time.
     // Accepting a presignedTx here would create a fake authority surface that bypasses that check.
     const isUserWalletPhase =
-      tx.phase === "moneriumOnrampMint" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
       tx.phase === "squidRouterNoPermitSwap" ||

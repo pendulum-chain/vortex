@@ -11,7 +11,6 @@ import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-br
 import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
 import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
 import { prepareEvmToBRLOfframpBaseTransactions } from "./routes/evm-to-brl-base";
-import { prepareEvmToMoneriumEvmOfframpTransactions } from "./routes/evm-to-monerium-evm";
 import { prepareEvmToMykoboOfframpTransactions } from "./routes/evm-to-mykobo";
 import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
 
@@ -31,9 +30,6 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
     } else {
       return prepareAssethubToBRLOfframpTransactions(params);
     }
-  } else if (quote.outputCurrency === FiatToken.EURC && params.moneriumAuthToken) {
-    // Monerium EVM offramp
-    return prepareEvmToMoneriumEvmOfframpTransactions(params);
   } else if (quote.outputCurrency === FiatToken.EURC) {
     // Mykobo EUR offramp on Base (EVM-only path)
     const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency as OnChainToken);

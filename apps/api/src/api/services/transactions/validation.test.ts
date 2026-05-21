@@ -142,13 +142,13 @@ function withBackups(tx: PresignedTx): PresignedTx {
 }
 
 const VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP: PresignedTx[] = await Promise.all([
-  makeSignedEvmTxWithBackups({ nonce: 0, phase: "moneriumOnrampSelfTransfer", network: Networks.Polygon }),
+  makeSignedEvmTxWithBackups({ nonce: 0, phase: "nablaApprove", network: Networks.Polygon }),
   makeSignedEvmTxWithBackups({ nonce: 1, phase: "squidRouterApprove", network: Networks.Polygon }),
   makeSignedEvmTxWithBackups({ nonce: 2, phase: "squidRouterSwap", network: Networks.Polygon }),
 ]);
 
 const VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP: PresignedTx[] = [
-  { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampSelfTransfer", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
+  { meta: {}, network: Networks.Polygon, nonce: 0, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
   { meta: {}, network: Networks.Polygon, nonce: 1, phase: "squidRouterApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
   { meta: {}, network: Networks.Polygon, nonce: 2, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
 ];
@@ -1050,15 +1050,6 @@ describe("Presigned Transaction validation", () => {
     const invalidTx: any = { network: Networks.Polygon, nonce: 0, signer: EVM_SIGNER, txData: "0x" }; // missing phase
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
     await expect(validatePresignedTxs(RampDirection.BUY, [invalidTx], ephemerals, [])).rejects.toThrow("Each transaction must have txData, phase, network, nonce and signer properties");
-  });
-
-  it("rejects presignedTx submitted for moneriumOnrampMint (user-wallet phase)", async () => {
-    const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampMint", signer: EVM_SIGNER, txData: "invalid data" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
-    const unsignedTx = { ...tx };
-    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
-      "Phase moneriumOnrampMint is broadcast by the user wallet"
-    );
   });
 
   it("rejects presignedTx submitted for squidRouterNoPermitTransfer (user-wallet phase)", async () => {

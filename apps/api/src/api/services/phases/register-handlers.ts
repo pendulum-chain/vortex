@@ -10,8 +10,6 @@ import fundEphemeralHandler from "./handlers/fund-ephemeral-handler";
 import hydrationSwapHandler from "./handlers/hydration-swap-handler";
 import hydrationToAssethubXcmPhaseHandler from "./handlers/hydration-to-assethub-xcm-phase-handler";
 import initialPhaseHandler from "./handlers/initial-phase-handler";
-import moneriumOnrampMintPhaseHandler from "./handlers/monerium-onramp-mint-handler";
-import moneriumOnrampSelfTransferHandler from "./handlers/monerium-onramp-self-transfer-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
 import mykoboPayoutHandler from "./handlers/mykobo-payout-handler";
@@ -54,8 +52,6 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(pendulumToAssethubPhaseHandler);
   phaseRegistry.registerHandler(squidRouterPayPhaseHandler);
   phaseRegistry.registerHandler(distributeFeesHandler);
-  phaseRegistry.registerHandler(moneriumOnrampSelfTransferHandler);
-  phaseRegistry.registerHandler(moneriumOnrampMintPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumXcmHandler);
   phaseRegistry.registerHandler(pendulumToMoonbeamXcmHandler);
   phaseRegistry.registerHandler(pendulumToHydrationXcmPhaseHandler);

@@ -22,7 +22,6 @@ import { offrampToStellarStrategy } from "./strategies/offramp-to-stellar.strate
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
-import { onrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
 import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
 const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
@@ -35,11 +34,13 @@ export class RouteResolver {
         if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
         }
-        if (ctx.from === "pix") {
-          return onrampAveniaToAssethubStrategy;
-        } else {
-          return onrampMoneriumToAssethubStrategy;
+        if (ctx.request.inputCurrency === FiatToken.EURC) {
+          throw new APIError({
+            message: "EUR onramp to AssetHub is not supported; please choose an EVM destination chain",
+            status: httpStatus.BAD_REQUEST
+          });
         }
+        return onrampAveniaToAssethubStrategy;
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return onrampMykoboToEvmStrategy;

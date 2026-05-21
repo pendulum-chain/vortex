@@ -1,10 +1,4 @@
-import {
-  AlfredpayFiatPaymentInstructions,
-  ExtrinsicOptions,
-  IbanPaymentData,
-  PermitSignature,
-  StellarTokenDetails
-} from "@vortexfi/shared";
+import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -24,7 +18,6 @@ export interface StateMetadata {
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
-  moneriumWalletAddress: string | undefined;
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
@@ -54,8 +47,6 @@ export interface StateMetadata {
   presignChecksPass?: boolean;
   payOutTicketId: string | undefined;
   brlaPayoutTxHash?: `0x${string}`;
-  // Only used in onramp, offramp - monerium
-  moneriumOnrampPermit?: PermitSignature;
   permitTxHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications

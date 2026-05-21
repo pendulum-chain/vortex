@@ -13,7 +13,6 @@ import {
   CreateAlfredpayOfframpRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
-  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -21,7 +20,6 @@ import {
   IbanPaymentData,
   isAlfredpayToken,
   Limit,
-  MoneriumErrors,
   MykoboApiService,
   MykoboCurrency,
   MykoboTransactionType,
@@ -56,13 +54,12 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
+import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
@@ -1097,77 +1094,6 @@ export class RampService extends BaseRampService {
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
-  private async prepareMoneriumOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{
-    unsignedTxs: UnsignedTx[];
-    stateMeta: Partial<StateMetadata>;
-    depositQrCode: string;
-    ibanPaymentData?: IbanPaymentData;
-  }> {
-    if (
-      !additionalData ||
-      !additionalData.moneriumAuthToken ||
-      !additionalData.destinationAddress ||
-      !additionalData.moneriumWalletAddress
-    ) {
-      throw new APIError({
-        message: "Parameters moneriumAuthToken, destinationAddress and moneriumWalletAddress are required for Monerium onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    try {
-      // Validate the user mint address
-      const ibanData = await getIbanForAddress(
-        additionalData.moneriumWalletAddress,
-        additionalData.moneriumAuthToken,
-        quote.to as EvmNetworks // Fixme: assethub network type issue.
-      );
-
-      const userProfile = config.sandboxEnabled
-        ? null
-        : await getMoneriumUserProfile({
-            authToken: additionalData.moneriumAuthToken,
-            profileId: ibanData.profile
-          });
-
-      const params: MoneriumOnrampTransactionParams = {
-        destinationAddress: additionalData.destinationAddress,
-        moneriumWalletAddress: additionalData.moneriumWalletAddress,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      };
-
-      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
-
-      const receiverName = config.sandboxEnabled ? "Sandbox User" : userProfile?.name || "User";
-      const ibanPaymentData = {
-        bic: ibanData.bic,
-        iban: ibanData.iban,
-        receiverName
-      };
-
-      const ibanCode = createEpcQrCodeData({
-        amount: quote.inputAmount,
-        bic: ibanData.bic,
-        iban: ibanData.iban,
-        name: receiverName
-      });
-      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
-        throw new APIError({
-          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      throw error;
-    }
-  }
-
   private async prepareMykoboOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -1230,26 +1156,6 @@ export class RampService extends BaseRampService {
     return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
-  private async prepareMoneriumOfframpTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
-      throw new APIError({
-        message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      moneriumAuthToken: additionalData.moneriumAuthToken,
-      quote,
-      signingAccounts: [],
-      userAddress: additionalData.walletAddress
-    });
-    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
   private async prepareRampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -1267,14 +1173,8 @@ export class RampService extends BaseRampService {
       case RampTransactionPreparationKind.OfframpBrl:
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
 
-      case RampTransactionPreparationKind.OfframpMonerium:
-        return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
-
       case RampTransactionPreparationKind.OfframpNonBrl:
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-
-      case RampTransactionPreparationKind.OnrampMonerium:
-        return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
 
       case RampTransactionPreparationKind.OnrampMykobo:
         return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
@@ -1341,15 +1241,6 @@ export class RampService extends BaseRampService {
       } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
         throw new APIError({
           message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    }
-
-    if (rampState.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
-      if (!rampState.state.moneriumOnrampPermit) {
-        throw new APIError({
-          message: "Missing moneriumOnrampPermit in state. Cannot proceed.",
           status: httpStatus.BAD_REQUEST
         });
       }

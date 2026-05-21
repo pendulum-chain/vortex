@@ -11,8 +11,6 @@ export type AveniaOnrampTransactionParams = OnrampTransactionParams & { taxId: s
 
 export type AlfredpayOnrampTransactionParams = OnrampTransactionParams & { userId: string };
 
-export type MoneriumOnrampTransactionParams = OnrampTransactionParams & { moneriumWalletAddress: string };
-
 export type MykoboOnrampTransactionParams = OnrampTransactionParams & {
   mykoboEmail: string;
   ipAddress: string;

@@ -4,17 +4,15 @@ import {
   EvmAddress,
   Networks,
   PaymentMethod,
-  PermitSignature,
   RampCurrency,
-  RampDirection,
-  Signature
+  RampDirection
 } from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
+export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
+
 export type RampPhase =
   | "initial"
-  | "moneriumOnrampSelfTransfer"
-  | "moneriumOnrampMint"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
@@ -184,12 +182,10 @@ export interface RegisterRampRequest {
     fiatAccountId?: string; // For determine the correct payment method for AlfredPay flows
     walletAddress?: string;
     destinationAddress?: string;
-    moneriumWalletAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;
     taxId?: string;
-    moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     sessionId?: string;
     email?: string; // Required for Mykobo EUR offramps (binds ramp to anchor profile)
     ipAddress?: string; // Required for Mykobo EUR offramps (user IP for fraud checks)
@@ -216,8 +212,6 @@ export interface UpdateRampRequest {
     squidRouterNoPermitApproveHash?: string;
     squidRouterNoPermitSwapHash?: string;
     assethubToPendulumHash?: string;
-    moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
-    moneriumOnrampPermit?: PermitSignature;
     [key: string]: unknown;
   };
 }

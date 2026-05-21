@@ -2,21 +2,15 @@ import { FiatToken, isAlfredpayToken, Networks } from "@vortexfi/shared";
 import {
   AlfredpayOnrampTransactionParams,
   AveniaOnrampTransactionParams,
-  MoneriumOnrampTransactionParams,
   OnrampTransactionParams,
   OnrampTransactionsWithMeta
 } from "./common/types";
 import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
-import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
 
 export async function prepareOnrampTransactions(
-  params:
-    | AveniaOnrampTransactionParams
-    | MoneriumOnrampTransactionParams
-    | AlfredpayOnrampTransactionParams
-    | OnrampTransactionParams
+  params: AveniaOnrampTransactionParams | AlfredpayOnrampTransactionParams | OnrampTransactionParams
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
@@ -33,15 +27,9 @@ export async function prepareOnrampTransactions(
       return prepareAveniaToEvmOnrampTransactionsOnBase(aveniaParams);
     }
   } else if (quote.inputCurrency === FiatToken.EURC) {
-    if (quote.to !== Networks.AssetHub) {
-      throw new Error(
-        "EURC onramp to EVM (Mykobo) must be prepared via prepareMykoboToEvmOnrampTransactions, not through prepareOnrampTransactions"
-      );
-    }
-    if (!("moneriumWalletAddress" in params)) {
-      throw new Error("moneriumWalletAddress is required for Monerium AssetHub onramp");
-    }
-    return prepareMoneriumToAssethubOnrampTransactions(params);
+    throw new Error(
+      "EURC onramp must be prepared via prepareMykoboToEvmOnrampTransactions, not through prepareOnrampTransactions"
+    );
   } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
     if (!("userId" in params)) {
       throw new Error("Alfredpay onramps requires logged in user");

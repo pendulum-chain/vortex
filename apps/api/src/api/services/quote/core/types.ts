@@ -158,15 +158,6 @@ export interface QuoteContext {
     slippagePercent: number;
   };
 
-  moneriumMint?: {
-    inputAmountDecimal: Big;
-    inputAmountRaw: string;
-    outputAmountDecimal: Big;
-    outputAmountRaw: string;
-    fee: Big;
-    currency: RampCurrency;
-  };
-
   alfredpayMint?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;

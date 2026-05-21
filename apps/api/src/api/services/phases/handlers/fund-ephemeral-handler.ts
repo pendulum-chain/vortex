@@ -261,10 +261,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
       return "squidRouterSwap";
     }
-    // monerium onramp case
-    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
-      return "moneriumOnrampSelfTransfer";
-    }
 
     // off ramp cases
     if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {

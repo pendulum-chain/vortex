@@ -1,4 +1,3 @@
-import { FiatToken, Networks } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -88,12 +87,7 @@ const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = 
 
   [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
 
-  [TransactionHashKey.SquidRouterSwapHash]: (hash, rampState, quote) => {
-    const isMoneriumPolygonOnramp =
-      rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
-
-    return isMoneriumPolygonOnramp ? `https://polygonscan.com/tx/${hash}` : `https://axelarscan.io/gmp/${hash}`;
-  }
+  [TransactionHashKey.SquidRouterSwapHash]: hash => `https://axelarscan.io/gmp/${hash}`
 };
 
 const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
@@ -136,18 +130,7 @@ export async function getFinalTransactionHashForRamp(
       // For SquidRouter swaps, query the execution hash from AxelarScan
       if (hashKey === TransactionHashKey.SquidRouterSwapHash) {
         try {
-          const isMoneriumPolygonOnramp =
-            rampState.from === "sepa" && quote.inputCurrency === FiatToken.EURC && rampState.to === Networks.Polygon;
-
-          if (isMoneriumPolygonOnramp) {
-            // For Monerium Polygon onramp, use the hash directly
-            return {
-              transactionExplorerLink: `https://polygonscan.com/tx/${hash}`,
-              transactionHash: hash
-            };
-          }
-
-          // For other cases, query AxelarScan for the execution hash and chain-specific explorer
+          // Query AxelarScan for the execution hash and chain-specific explorer
           const { explorerLink, executionHash } = await getAxelarScanExecutionLink(hash);
 
           return {
