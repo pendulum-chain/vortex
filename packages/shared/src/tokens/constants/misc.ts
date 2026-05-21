@@ -30,7 +30,6 @@ export const ERC20_USDT_POLYGON: `0x${string}` = "0xc2132d05d31c914a87c6611c1074
 // V2 is used for the permit - transferFrom flow.
 // The token balances are synced between both contracts.
 export const ERC20_EURE_POLYGON_V2: `0x${string}` = "0xE0aEa583266584DafBB3f9C3211d5588c73fEa8d"; // EUR.e on Polygon V2
-export const ERC20_EURE_POLYGON_SYMBOL = "EURe";
 export const ERC20_EURE_POLYGON_TOKEN_NAME = "Monerium EURe";
 export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals
 

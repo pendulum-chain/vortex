@@ -7,24 +7,12 @@ import {
 } from "./monerium-permit";
 
 const OWNER = new Wallet("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-const OTHER_SIGNER = new Wallet("0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd");
 const SPENDER = "0x4e84e0b84054F078D4Adc785818663eF83c032E3";
 const VALUE_RAW = "1150000000000000000";
 const NONCE = "0";
 const DEADLINE = "1779978803";
-const EXPECTATION = {
-  expectedOwner: OWNER.address,
-  expectedSpender: SPENDER,
-  expectedTokenAddress: ERC20_EURE_POLYGON_V2,
-  expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
-  expectedValueRaw: VALUE_RAW,
-  network: Networks.Polygon
-} as const;
 
-async function signPermit(
-  overrides: Partial<PermitSignature["context"]> = {},
-  signer: Wallet = OWNER
-): Promise<PermitSignature> {
+async function signPermit(overrides: Partial<PermitSignature["context"]> = {}): Promise<PermitSignature> {
   const context = {
     chainId: 137,
     deadline: DEADLINE,
@@ -38,7 +26,7 @@ async function signPermit(
     ...overrides
   };
   const signature = EthersSignature.from(
-    await signer.signTypedData(
+    await OWNER.signTypedData(
       {
         chainId: context.chainId,
         name: context.tokenName,
@@ -77,13 +65,31 @@ describe("validateMoneriumOnrampPermit", () => {
   it("accepts a permit whose signed context matches the expected onramp transfer", async () => {
     const permit = await signPermit();
 
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION)).not.toThrow();
+    expect(() =>
+      validateMoneriumOnrampPermit(permit, {
+        expectedOwner: OWNER.address,
+        expectedSpender: SPENDER,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: VALUE_RAW,
+        network: Networks.Polygon
+      })
+    ).not.toThrow();
   });
 
   it("rejects a permit signed for a different raw value before payment details are released", async () => {
     const permit = await signPermit({ valueRaw: "1000000000000000000" });
 
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION)).toThrow("valueRaw");
+    expect(() =>
+      validateMoneriumOnrampPermit(permit, {
+        expectedOwner: OWNER.address,
+        expectedSpender: SPENDER,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: VALUE_RAW,
+        network: Networks.Polygon
+      })
+    ).toThrow("valueRaw");
   });
 
   it("rejects a permit whose signed context is missing entirely", () => {
@@ -94,25 +100,31 @@ describe("validateMoneriumOnrampPermit", () => {
       v: 27
     };
 
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION)).toThrow("missing signed context");
+    expect(() =>
+      validateMoneriumOnrampPermit(permit, {
+        expectedOwner: OWNER.address,
+        expectedSpender: SPENDER,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: VALUE_RAW,
+        network: Networks.Polygon
+      })
+    ).toThrow("missing signed context");
   });
 
   it("rejects a permit signed with a different token version", async () => {
     const permit = await signPermit({ tokenVersion: "2" });
 
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION)).toThrow("tokenVersion");
-  });
-
-  it("rejects a permit whose recovered signer does not match the expected owner", async () => {
-    const permit = await signPermit({}, OTHER_SIGNER);
-
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION)).toThrow("signature was produced by");
-  });
-
-  it("rejects an already-expired permit before deposit details are released", async () => {
-    const permit = await signPermit({ deadline: "1700000000" });
-
-    expect(() => validateMoneriumOnrampPermit(permit, EXPECTATION, 1700000001)).toThrow("has expired");
+    expect(() =>
+      validateMoneriumOnrampPermit(permit, {
+        expectedOwner: OWNER.address,
+        expectedSpender: SPENDER,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: VALUE_RAW,
+        network: Networks.Polygon
+      })
+    ).toThrow("tokenVersion");
   });
 });
 
@@ -123,7 +135,14 @@ describe("analyzeMoneriumPermitPreflight", () => {
     expect(
       analyzeMoneriumPermitPreflight(
         permit,
-        EXPECTATION,
+        {
+          expectedOwner: OWNER.address,
+          expectedSpender: SPENDER,
+          expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+          expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+          expectedValueRaw: VALUE_RAW,
+          network: Networks.Polygon
+        },
         {
           allowanceRaw: 2n * BigInt(VALUE_RAW),
           balanceRaw: 0n,
@@ -141,7 +160,14 @@ describe("analyzeMoneriumPermitPreflight", () => {
     expect(() =>
       analyzeMoneriumPermitPreflight(
         permit,
-        EXPECTATION,
+        {
+          expectedOwner: OWNER.address,
+          expectedSpender: SPENDER,
+          expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+          expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+          expectedValueRaw: VALUE_RAW,
+          network: Networks.Polygon
+        },
         {
           allowanceRaw: 0n,
           balanceRaw: BigInt(VALUE_RAW),

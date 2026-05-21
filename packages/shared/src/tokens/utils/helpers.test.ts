@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { Networks } from "../../helpers";
 import {
   ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_SYMBOL,
+  ERC20_EURE_POLYGON_TOKEN_NAME,
   ERC20_EURE_POLYGON_V1,
   ERC20_EURE_POLYGON_V2
 } from "../constants/misc";
@@ -27,7 +27,7 @@ describe("getEvmTokenDetailsByAddress", () => {
     for (const tokenAddress of [ERC20_EURE_POLYGON_V1, ERC20_EURE_POLYGON_V2]) {
       const tokenDetails = getEvmTokenDetailsByAddress(Networks.Polygon, tokenAddress);
 
-      expect(tokenDetails?.assetSymbol).toBe(ERC20_EURE_POLYGON_SYMBOL);
+      expect(tokenDetails?.assetSymbol).toBe(ERC20_EURE_POLYGON_TOKEN_NAME);
       expect(tokenDetails?.decimals).toBe(ERC20_EURE_POLYGON_DECIMALS);
       expect(tokenDetails?.erc20AddressSourceChain).toBe(tokenAddress);
       expect(tokenDetails?.network).toBe(Networks.Polygon);

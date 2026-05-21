@@ -9,8 +9,6 @@ export interface EvmNetworkConfig {
   rpcUrls: string[];
 }
 
-const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
-
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
     return "<default>";
@@ -39,49 +37,7 @@ export function redactRpcUrlForLogs(rpcUrl: string): string {
 }
 
 export function sanitizeRpcErrorMessage(message: string): string {
-  const urlTerminators = new Set([" ", "\n", "\r", "\t", '"', ")"]);
-  let sanitizedMessage = "";
-  let currentIndex = 0;
-
-  while (currentIndex < message.length) {
-    const nextUrlIndex = message.indexOf("https://", currentIndex);
-    if (nextUrlIndex === -1) {
-      sanitizedMessage += message.slice(currentIndex);
-      break;
-    }
-
-    sanitizedMessage += message.slice(currentIndex, nextUrlIndex);
-    let urlEndIndex = nextUrlIndex;
-    while (urlEndIndex < message.length) {
-      const currentCharacter = message[urlEndIndex];
-      if (currentCharacter === undefined || urlTerminators.has(currentCharacter)) {
-        break;
-      }
-
-      urlEndIndex++;
-    }
-
-    sanitizedMessage += redactRpcUrlForLogs(message.slice(nextUrlIndex, urlEndIndex));
-    currentIndex = urlEndIndex;
-  }
-
-  return sanitizedMessage;
-}
-
-function getRpcCacheKey(rpcUrl: string): string {
-  return rpcUrl === "" ? VIEM_DEFAULT_TRANSPORT_CACHE_KEY : redactRpcUrlForLogs(rpcUrl);
-}
-
-function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transport {
-  if (rpcUrl === "") {
-    return http();
-  }
-  if (rpcUrl !== undefined) {
-    return http(rpcUrl);
-  }
-
-  const defaultRpcUrl = network.rpcUrls[0];
-  return defaultRpcUrl === "" ? http() : http(defaultRpcUrl);
+  return message.replace(/https:\/\/[^\s"]+\/v2\/[^\s")]+/g, match => redactRpcUrlForLogs(match));
 }
 
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
@@ -256,7 +212,7 @@ export class EvmClientManager {
   }
 
   private generatePublicClientKey(networkName: EvmNetworks, rpcUrl: string): string {
-    return `${networkName}-${getRpcCacheKey(rpcUrl)}`;
+    return `${networkName}-${rpcUrl}`;
   }
 
   private getNetworkConfig(networkName: EvmNetworks): EvmNetworkConfig {
@@ -270,16 +226,18 @@ export class EvmClientManager {
   private createClient(networkName: EvmNetworks, rpcUrl?: string): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
+    const transport = rpcUrl ? http(rpcUrl) : http(network.rpcUrls[0]);
+
     const client = createPublicClient({
       chain: network.chain,
-      transport: createRpcTransport(network, rpcUrl)
+      transport
     });
 
     return client;
   }
 
   private generateWalletClientKey(networkName: EvmNetworks, accountAddress: string, rpcUrl?: string): string {
-    const rpcSuffix = rpcUrl !== undefined ? `-${getRpcCacheKey(rpcUrl)}` : "";
+    const rpcSuffix = rpcUrl ? `-${rpcUrl}` : "";
     return `${networkName}-${accountAddress.toLowerCase()}${rpcSuffix}`;
   }
 
@@ -290,10 +248,12 @@ export class EvmClientManager {
   ): WalletClient<Transport, Chain, Account> {
     const network = this.getNetworkConfig(networkName);
 
+    const transport = rpcUrl ? http(rpcUrl) : http(network.rpcUrls[0]);
+
     const walletClient = createWalletClient({
       account,
       chain: network.chain,
-      transport: createRpcTransport(network, rpcUrl)
+      transport
     });
 
     return walletClient;
@@ -302,7 +262,7 @@ export class EvmClientManager {
   public getClient(networkName: EvmNetworks, rpcUrl?: string): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
-    const targetRpcUrl = rpcUrl ?? network.rpcUrls[0];
+    const targetRpcUrl = rpcUrl || network.rpcUrls[0];
     const key = this.generatePublicClientKey(networkName, targetRpcUrl);
     const client = this.clientInstances.get(key);
 

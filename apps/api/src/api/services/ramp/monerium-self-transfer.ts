@@ -1,5 +1,5 @@
 import { ERC20_EURE_POLYGON_V2 } from "@vortexfi/shared";
-import { decodeFunctionData, isAddress, parseTransaction, recoverTransactionAddress } from "viem";
+import { decodeFunctionData, parseTransaction, recoverTransactionAddress } from "viem";
 
 export const moneriumTransferFromAbi = [
   {
@@ -38,40 +38,14 @@ export interface MoneriumSelfTransferInspection {
   tokenAddress: `0x${string}`;
 }
 
-function requireAddress(value: string | null | undefined, label: string, rampId: string): `0x${string}` {
-  if (!value || !isAddress(value)) {
-    throw new Error(`[${rampId}] ${label} ${value ?? "<missing>"} is not a valid EVM address`);
-  }
-
-  return value as `0x${string}`;
-}
-
-interface MoneriumSelfTransferInspectionDependencies {
-  decodeFunctionData: typeof decodeFunctionData;
-  parseTransaction: typeof parseTransaction;
-  recoverTransactionAddress: typeof recoverTransactionAddress;
-}
-
-const defaultMoneriumSelfTransferInspectionDependencies: MoneriumSelfTransferInspectionDependencies = {
-  decodeFunctionData,
-  parseTransaction,
-  recoverTransactionAddress
-};
-
 export async function inspectMoneriumSelfTransferTransaction(
   txData: string,
-  expectation: MoneriumSelfTransferExpectation,
-  dependencies: MoneriumSelfTransferInspectionDependencies = defaultMoneriumSelfTransferInspectionDependencies
+  expectation: MoneriumSelfTransferExpectation
 ): Promise<MoneriumSelfTransferInspection> {
   const serializedTransaction = txData as RecoverableSerializedTransaction;
-  const parsedTx = dependencies.parseTransaction(serializedTransaction);
-  const signer = requireAddress(
-    await dependencies.recoverTransactionAddress({ serializedTransaction }),
-    "Self-transfer signer",
-    expectation.rampId
-  );
-  const expectedTokenAddress = expectation.expectedTokenAddress ?? ERC20_EURE_POLYGON_V2;
-  const transactionTokenAddress = requireAddress(parsedTx.to, "Self-transfer token", expectation.rampId);
+  const parsedTx = parseTransaction(serializedTransaction);
+  const signer = await recoverTransactionAddress({ serializedTransaction });
+  const tokenAddress = expectation.expectedTokenAddress ?? ERC20_EURE_POLYGON_V2;
   const signedNonce = parsedTx.nonce;
 
   if (signedNonce === undefined) {
@@ -84,10 +58,8 @@ export async function inspectMoneriumSelfTransferTransaction(
     );
   }
 
-  if (transactionTokenAddress.toLowerCase() !== expectedTokenAddress.toLowerCase()) {
-    throw new Error(
-      `[${expectation.rampId}] Self-transfer token ${transactionTokenAddress} does not match expected ${expectedTokenAddress}`
-    );
+  if (parsedTx.to?.toLowerCase() !== tokenAddress.toLowerCase()) {
+    throw new Error(`[${expectation.rampId}] Self-transfer token ${parsedTx.to} does not match expected ${tokenAddress}`);
   }
 
   if (expectation.expectedChainId !== undefined && parsedTx.chainId !== expectation.expectedChainId) {
@@ -96,20 +68,11 @@ export async function inspectMoneriumSelfTransferTransaction(
     );
   }
 
-  let decodedTransfer;
-  try {
-    decodedTransfer = dependencies.decodeFunctionData({
-      abi: moneriumTransferFromAbi,
-      data: parsedTx.data ?? "0x"
-    });
-  } catch (error) {
-    throw new Error(
-      `[${expectation.rampId}] Self-transfer calldata is not a valid transferFrom payload: ${error instanceof Error ? error.message : error}`
-    );
-  }
-  const [decodedOwner, decodedRecipient, amountRaw] = decodedTransfer.args;
-  const owner = requireAddress(decodedOwner, "Self-transfer owner", expectation.rampId);
-  const recipient = requireAddress(decodedRecipient, "Self-transfer recipient", expectation.rampId);
+  const decodedTransfer = decodeFunctionData({
+    abi: moneriumTransferFromAbi,
+    data: parsedTx.data ?? "0x"
+  });
+  const [owner, recipient, amountRaw] = decodedTransfer.args;
   const expectedAmount = BigInt(expectation.expectedAmountRaw);
 
   if (owner.toLowerCase() !== expectation.expectedOwner.toLowerCase()) {
@@ -136,6 +99,6 @@ export async function inspectMoneriumSelfTransferTransaction(
     signedGas: parsedTx.gas ?? 0n,
     signedNonce,
     signer,
-    tokenAddress: transactionTokenAddress
+    tokenAddress
   };
 }
