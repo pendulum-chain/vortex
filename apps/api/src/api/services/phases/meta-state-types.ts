@@ -57,6 +57,7 @@ export interface StateMetadata {
   // Only used in onramp, offramp - monerium
   moneriumOnrampPermit?: PermitSignature;
   permitTxHash?: string;
+  moneriumOnrampSelfTransferHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

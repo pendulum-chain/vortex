@@ -3,6 +3,8 @@ import { encodeFunctionData } from "viem";
 import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 
+export const MONERIUM_SELF_TRANSFER_GAS_LIMIT = "300000";
+
 export async function createOnrampEphemeralSelfTransfer(
   amountRaw: string,
   fromAddress: string,
@@ -22,7 +24,7 @@ export async function createOnrampEphemeralSelfTransfer(
 
   const txData: EvmTransactionData = {
     data: transferCallData as `0x${string}`,
-    gas: "100000",
+    gas: MONERIUM_SELF_TRANSFER_GAS_LIMIT,
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxFeePerGas),
     to: ERC20_EURE_POLYGON_V2,

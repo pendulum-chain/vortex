@@ -1,4 +1,4 @@
-import { Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
+import { Abi, Account, Chain, createPublicClient, createWalletClient, http, PublicClient, Transport, WalletClient } from "viem";
 import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import { ALCHEMY_API_KEY, EvmNetworks, Networks } from "../../index";
 import logger from "../../logger";
@@ -7,6 +7,48 @@ export interface EvmNetworkConfig {
   name: EvmNetworks;
   chain: Chain;
   rpcUrls: string[];
+}
+
+const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
+
+export function redactRpcUrlForLogs(rpcUrl: string): string {
+  if (!rpcUrl) {
+    return "<default>";
+  }
+
+  try {
+    const url = new URL(rpcUrl);
+    const pathSegments = url.pathname.split("/");
+    const secretSegmentIndex = pathSegments.findIndex(segment => segment === "v2") + 1;
+    if (secretSegmentIndex > 0 && secretSegmentIndex < pathSegments.length) {
+      pathSegments[secretSegmentIndex] = "[redacted]";
+      url.pathname = pathSegments.join("/");
+      return url.toString();
+    }
+
+    if (pathSegments[pathSegments.length - 1]?.length > 12) {
+      pathSegments[pathSegments.length - 1] = "[redacted]";
+      url.pathname = pathSegments.join("/");
+      return url.toString();
+    }
+
+    return rpcUrl;
+  } catch {
+    return "[redacted-rpc-url]";
+  }
+}
+
+export function sanitizeRpcErrorMessage(message: string): string {
+  return message.replace(/https:\/\/[^\s"]+\/v2\/[^\s")]+/g, match => redactRpcUrlForLogs(match));
+}
+
+function getRpcCacheKey(rpcUrl: string): string {
+  return rpcUrl === "" ? VIEM_DEFAULT_TRANSPORT_CACHE_KEY : rpcUrl;
+}
+
+function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transport {
+  const targetRpcUrl = rpcUrl ?? network.rpcUrls[0];
+  return targetRpcUrl === "" ? http() : http(targetRpcUrl);
 }
 
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
@@ -142,7 +184,7 @@ export class EvmClientManager {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         logger.current.warn(
-          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${rpcUrl}: ${lastError.message}`
+          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
         );
 
         if (attempt < maxRetries) {
@@ -156,7 +198,7 @@ export class EvmClientManager {
 
     // TODO should we return the raw rpc error here, instead of just the message?
     throw new Error(
-      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${lastError?.message}`
+      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`
     );
   }
 
@@ -168,7 +210,7 @@ export class EvmClientManager {
         const client = this.createClient(network.name, rpcUrl);
         const key = this.generatePublicClientKey(network.name, rpcUrl);
         this.clientInstances.set(key, client);
-        logger.current.info(`Pre-created EVM client for ${network.name} with RPC: ${rpcUrl}`);
+        logger.current.info(`Pre-created EVM client for ${network.name} with RPC: ${redactRpcUrlForLogs(rpcUrl)}`);
       });
     });
   }
@@ -181,7 +223,7 @@ export class EvmClientManager {
   }
 
   private generatePublicClientKey(networkName: EvmNetworks, rpcUrl: string): string {
-    return `${networkName}-${rpcUrl}`;
+    return `${networkName}-${getRpcCacheKey(rpcUrl)}`;
   }
 
   private getNetworkConfig(networkName: EvmNetworks): EvmNetworkConfig {
@@ -195,18 +237,16 @@ export class EvmClientManager {
   private createClient(networkName: EvmNetworks, rpcUrl?: string): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
-    const transport = rpcUrl ? http(rpcUrl) : http(network.rpcUrls[0]);
-
     const client = createPublicClient({
       chain: network.chain,
-      transport
+      transport: createRpcTransport(network, rpcUrl)
     });
 
     return client;
   }
 
   private generateWalletClientKey(networkName: EvmNetworks, accountAddress: string, rpcUrl?: string): string {
-    const rpcSuffix = rpcUrl ? `-${rpcUrl}` : "";
+    const rpcSuffix = rpcUrl === undefined ? "" : `-${getRpcCacheKey(rpcUrl)}`;
     return `${networkName}-${accountAddress.toLowerCase()}${rpcSuffix}`;
   }
 
@@ -217,12 +257,10 @@ export class EvmClientManager {
   ): WalletClient<Transport, Chain, Account> {
     const network = this.getNetworkConfig(networkName);
 
-    const transport = rpcUrl ? http(rpcUrl) : http(network.rpcUrls[0]);
-
     const walletClient = createWalletClient({
       account,
       chain: network.chain,
-      transport
+      transport: createRpcTransport(network, rpcUrl)
     });
 
     return walletClient;
@@ -231,7 +269,7 @@ export class EvmClientManager {
   public getClient(networkName: EvmNetworks, rpcUrl?: string): PublicClient {
     const network = this.getNetworkConfig(networkName);
 
-    const targetRpcUrl = rpcUrl || network.rpcUrls[0];
+    const targetRpcUrl = rpcUrl ?? network.rpcUrls[0];
     const key = this.generatePublicClientKey(networkName, targetRpcUrl);
     const client = this.clientInstances.get(key);
 
@@ -247,9 +285,8 @@ export class EvmClientManager {
     let walletClient = this.walletClientInstances.get(key);
 
     if (!walletClient) {
-      logger.current.info(
-        `Creating new EVM wallet client for ${networkName} with account ${account.address}${rpcUrl ? ` using RPC: ${rpcUrl}` : ""}`
-      );
+      const rpcLogSuffix = rpcUrl === undefined ? "" : ` using RPC: ${redactRpcUrlForLogs(rpcUrl)}`;
+      logger.current.info(`Creating new EVM wallet client for ${networkName} with account ${account.address}${rpcLogSuffix}`);
       walletClient = this.createWalletClient(networkName, account, rpcUrl);
       this.walletClientInstances.set(key, walletClient);
     }
@@ -270,10 +307,10 @@ export class EvmClientManager {
   public async readContractWithRetry<T = unknown>(
     networkName: EvmNetworks,
     contractParams: {
-      abi: any;
+      abi: readonly unknown[];
       address: `0x${string}`;
       functionName: string;
-      args?: any[];
+      args?: readonly unknown[];
     },
     maxRetries = 3,
     initialDelayMs = 1000
@@ -284,6 +321,7 @@ export class EvmClientManager {
         const publicClient = this.getClient(networkName, rpcUrl);
         return (await publicClient.readContract({
           ...contractParams,
+          abi: contractParams.abi as Abi,
           args: contractParams.args || []
         })) as T;
       },

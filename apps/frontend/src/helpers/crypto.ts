@@ -1,4 +1,4 @@
-import { multiplyByPowerOfTen } from "@vortexfi/shared";
+import { multiplyByPowerOfTen, PermitSignature } from "@vortexfi/shared";
 import { getAccount, readContract, signTypedData, switchChain } from "@wagmi/core";
 import { wagmiConfig } from "../wagmiConfig";
 
@@ -10,7 +10,7 @@ export async function signERC2612Permit(
   decimals: number,
   chainId: number,
   tokenName: string
-): Promise<{ r: `0x${string}`; s: `0x${string}`; v: number; deadline: number }> {
+): Promise<PermitSignature> {
   const account = getAccount(wagmiConfig);
   const originalChainId = account.chainId;
 
@@ -80,7 +80,23 @@ export async function signERC2612Permit(
     const r = `0x${signature.slice(2, 66)}` as `0x${string}`;
     const s = `0x${signature.slice(66, 130)}` as `0x${string}`;
 
-    return { deadline: Number(deadline), r, s, v };
+    return {
+      context: {
+        chainId,
+        deadline: deadline.toString(),
+        nonce: nonce.toString(),
+        owner,
+        spender,
+        tokenAddress,
+        tokenName,
+        tokenVersion: "1",
+        valueRaw: value.toFixed(0, 0)
+      },
+      deadline: Number(deadline),
+      r,
+      s,
+      v
+    };
   } catch (error) {
     throw new Error("Failed to sign ERC2612 permit: " + error);
   } finally {
