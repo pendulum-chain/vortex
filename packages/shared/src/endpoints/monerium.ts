@@ -30,6 +30,7 @@ export interface IbanData {
   profile: string;
   address: string;
   chain: string;
+  name: string;
 }
 
 export interface IbanDataResponse {
