@@ -4,6 +4,7 @@ export * from "./contact.service";
 export * from "./email.service";
 export * from "./maintenance.service";
 export * from "./moonbeam.service";
+export * from "./mykobo.service";
 export * from "./pendulum.service";
 export * from "./price.service";
 export * from "./quote.service";

@@ -1,4 +1,8 @@
 import {
+  BASE_CHAIN_ID,
+  ERC20_EURC_BASE,
+  ERC20_EURC_BASE_DECIMALS,
+  ERC20_EURC_BASE_TOKEN_NAME,
   ERC20_EURE_POLYGON_DECIMALS,
   ERC20_EURE_POLYGON_TOKEN_NAME,
   ERC20_EURE_POLYGON_V2,
@@ -100,6 +104,7 @@ export const signTransactionsActor = async ({
   let assethubToPendulumHash: string | undefined = undefined;
   let moneriumOfframpSignature: string | undefined = undefined;
   let moneriumOnrampPermit: PermitSignature | undefined = undefined;
+  let mykoboOnrampPermit: PermitSignature | undefined = undefined;
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
 
@@ -175,6 +180,18 @@ export const signTransactionsActor = async ({
           ERC20_EURE_POLYGON_TOKEN_NAME
         );
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+      } else if (tx.phase === "mykoboOnrampDeposit") {
+        input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+        mykoboOnrampPermit = await signERC2612Permit(
+          connectedWalletAddress as `0x${string}`,
+          executionInput?.ephemerals.evmEphemeral.address as `0x${string}`,
+          rampState.quote.inputAmount,
+          ERC20_EURC_BASE,
+          ERC20_EURC_BASE_DECIMALS,
+          BASE_CHAIN_ID,
+          ERC20_EURC_BASE_TOKEN_NAME
+        );
+        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else {
         throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
       }
@@ -195,6 +212,7 @@ export const signTransactionsActor = async ({
     assethubToPendulumHash,
     moneriumOfframpSignature,
     moneriumOnrampPermit,
+    mykoboOnrampPermit,
     squidRouterApproveHash,
     squidRouterNoPermitApproveHash,
     squidRouterNoPermitSwapHash,
@@ -213,6 +231,7 @@ export const signTransactionsActor = async ({
     userSigningMeta: {
       assethubToPendulumHash,
       moneriumOnrampPermit,
+      mykoboOnrampPermit,
       squidRouterApproveHash,
       squidRouterSwapHash
     }

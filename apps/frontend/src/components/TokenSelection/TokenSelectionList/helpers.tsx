@@ -2,6 +2,7 @@ import {
   assetHubTokenConfig,
   doesNetworkSupportRamp,
   EvmNetworks,
+  eurcMykoboTokenConfig,
   FiatToken,
   FiatTokenDetails,
   freeTokenConfig,
@@ -138,29 +139,41 @@ export function invalidateOnChainTokensCache(): void {
   cachedEvmConfigRef = null;
 }
 
-function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
+const FIAT_TOKEN_DISPLAY_NETWORK: Record<FiatToken, Networks> = {
+  [FiatToken.ARS]: Networks.Stellar,
+  [FiatToken.BRL]: Networks.Moonbeam,
+  [FiatToken.COP]: Networks.Stellar,
+  [FiatToken.EURC]: Networks.Base,
+  [FiatToken.MXN]: Networks.Stellar,
+  [FiatToken.USD]: Networks.Stellar
+};
+
+function getFiatTokens(): ExtendedTokenDefinition[] {
+  const eurcEntries = Object.entries(eurcMykoboTokenConfig);
   const moonbeamEntries = Object.entries(moonbeamTokenConfig);
   const freeFiatCurrencyEntries = Object.entries(freeTokenConfig);
-  const stellarEntries = filterEurcOnly
-    ? Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
-    : Object.entries(stellarTokenConfig);
+  // EURC's anchor is Mykobo on Base; restrict the Stellar list to ARS so future stellar additions don't leak through.
+  const stellarArsEntries = Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.ARS);
 
-  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => {
-    const network = key === FiatToken.BRL ? Networks.Moonbeam : key === FiatToken.EURC ? Networks.Base : Networks.Stellar;
-    return {
-      assetIcon: value.fiat.assetIcon,
-      assetSymbol: value.fiat.symbol,
-      details: value as FiatTokenDetails,
-      name: value.fiat.name,
-      network,
-      networkDisplayName: getNetworkDisplayName(network),
-      type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
-    };
-  });
+  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...eurcEntries, ...stellarArsEntries].map(([key, value]) =>
+    buildFiatEntry(key, value)
+  );
 }
 
-function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  return direction === RampDirection.BUY && type === "from";
+function buildFiatEntry(
+  key: string,
+  value: { fiat: { assetIcon: string; symbol: string; name: string } }
+): ExtendedTokenDefinition {
+  const network = FIAT_TOKEN_DISPLAY_NETWORK[key as FiatToken];
+  return {
+    assetIcon: value.fiat.assetIcon,
+    assetSymbol: value.fiat.symbol,
+    details: value as FiatTokenDetails,
+    name: value.fiat.name,
+    network,
+    networkDisplayName: getNetworkDisplayName(network),
+    type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
+  };
 }
 
 export function useIsFiatDirection() {
@@ -176,7 +189,7 @@ function isFiatDirection(type: "from" | "to", direction: RampDirection) {
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
   if (isFiatDirection(type, direction)) {
-    return getFiatTokens(isFilterEurcOnly(type, direction));
+    return getFiatTokens();
   } else {
     return getAllOnChainTokens();
   }

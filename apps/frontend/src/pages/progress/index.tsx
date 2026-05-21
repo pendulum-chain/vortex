@@ -40,6 +40,8 @@ const PHASE_DURATIONS: Record<RampPhase, number> = {
   moneriumOnrampSelfTransfer: 20,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
+  mykoboOnrampDeposit: 60,
+  mykoboOnrampTransfer: 20,
   nablaApprove: 24,
   nablaApproveEvm: 24,
   nablaSwap: 24,

@@ -49,8 +49,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
-    quoteLocked: state.context.quoteLocked,
-    rampState: state.context.rampState
+    quoteLocked: state.context.quoteLocked
   }));
 
   const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;
@@ -71,7 +70,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    if (fromToken.assetSymbol === "EURC") {
+    if (executionInput.fiatToken === FiatToken.EURC) {
       return "https://mykobo.co";
     }
     if (isAlfredpayToken(executionInput.fiatToken)) {
@@ -127,10 +126,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         toToken={toToken}
       />
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.MXN && <MXNOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.COP && <COPOnrampDetails />}
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {quoteLocked && targetTimestampMs !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

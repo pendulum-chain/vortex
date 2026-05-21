@@ -1,15 +1,6 @@
-import {
-  createMoonbeamEphemeral,
-  createPendulumEphemeral,
-  createStellarEphemeral,
-  FiatToken,
-  getNetworkId,
-  Networks,
-  RampDirection
-} from "@vortexfi/shared";
+import { createMoonbeamEphemeral, createPendulumEphemeral, FiatToken, getNetworkId, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
-import { useAccount } from "wagmi";
 import { useEventsContext } from "../../contexts/events";
 import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
@@ -23,10 +14,11 @@ interface SubmissionError extends Error {
   message: string;
 }
 
+// NOTE: Stellar ephemeral omitted — see matching note in register.actor.ts. Re-add a
+// stellarEphemeral here (and to the AccountMeta list in register.actor.ts) before re-enabling ARS.
 const createEphemerals = async () => {
   return {
     evmEphemeral: createMoonbeamEphemeral(),
-    stellarEphemeral: createStellarEphemeral(),
     substrateEphemeral: await createPendulumEphemeral()
   };
 };
@@ -45,8 +37,6 @@ export const useRampSubmission = () => {
 
   const storeQuote = useQuote();
   const quote = contextQuote || storeQuote;
-
-  const { address: connectedEvmAddress } = useAccount();
 
   const { inputAmount, fiatToken, onChainToken } = useQuoteFormStore();
   const network = quote
@@ -93,20 +83,11 @@ export const useRampSubmission = () => {
       }
 
       const ephemerals = await createEphemerals();
-      // For EUR (Monerium) onramps the moneriumWalletAddress is the user's connected EVM wallet.
-      // Callers that don't pass it explicitly (e.g. the Onramp / RampSubmitButton flows) would
-      // otherwise leave it undefined and the API rejects the registerRamp request.
-      const isMoneriumOnramp = quote.rampType === RampDirection.BUY && fiatToken === FiatToken.EURC;
-      const moneriumWalletAddress = data.moneriumWalletAddress ?? (isMoneriumOnramp ? connectedEvmAddress : undefined);
-
-      if (isMoneriumOnramp && !moneriumWalletAddress) {
-        throw new Error("No Monerium wallet address found. Please connect an EVM wallet or provide a Monerium wallet address.");
-      }
 
       const executionInput: RampExecutionInput = {
         ephemerals,
         fiatToken,
-        moneriumWalletAddress,
+        moneriumWalletAddress: data.moneriumWalletAddress,
         network,
         onChainToken,
         pixId: data.pixId,
@@ -119,7 +100,7 @@ export const useRampSubmission = () => {
       };
       return executionInput;
     },
-    [validateSubmissionData, quote, onChainToken, fiatToken, connectedWalletAddress, network, connectedEvmAddress]
+    [validateSubmissionData, quote, onChainToken, fiatToken, connectedWalletAddress, network]
   );
 
   const handleSubmissionError = useCallback(
@@ -144,7 +125,6 @@ export const useRampSubmission = () => {
       setExecutionPreparing(true);
 
       try {
-        console.log("DEBUG: Ramp Submission Data: ", data);
         const executionInput = await prepareExecutionInput(data);
 
         // This callback is generic and used for any ramp type.
@@ -161,7 +141,6 @@ export const useRampSubmission = () => {
         if (chainId === undefined) {
           throw new Error("ChainId must be defined at this stage");
         }
-        console.log("DEBUG: Ramp Execution Input: ", { input: { chainId, executionInput, rampDirection } });
         rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
       } catch (error) {
         handleSubmissionError(error as SubmissionError);

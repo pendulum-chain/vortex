@@ -7,6 +7,7 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
+  Networks,
   RampDirection
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
@@ -14,7 +15,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
-import { useMoneriumKycActor, useRampActor } from "../../contexts/rampState";
+import { useMoneriumKycActor, useMykoboKycActor, useRampActor } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useAlfredpayFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
@@ -29,7 +30,57 @@ interface UseButtonContentProps {
   submitButtonDisabled: boolean;
 }
 
-const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
+type ButtonContent = { icon: React.ReactNode; text: string };
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
+const quoteReadyLabel = (
+  t: TFn,
+  {
+    isOnramp,
+    isAnchorWithoutRedirect,
+    inputCurrency
+  }: { isOnramp: boolean; isAnchorWithoutRedirect: boolean; inputCurrency?: FiatToken }
+): ButtonContent => {
+  if (isOnramp && isAnchorWithoutRedirect) return { icon: null, text: t("components.SummaryPage.confirm") };
+  if (isOnramp && inputCurrency === FiatToken.BRL) return { icon: null, text: t("components.SummaryPage.continue") };
+  return { icon: null, text: t("components.SummaryPage.verifyWallet") };
+};
+
+interface ActiveRampInputs {
+  isOnramp: boolean;
+  isOfframp: boolean;
+  isAnchorWithoutRedirect: boolean;
+  isAnchorWithRedirect: boolean;
+  hasPaymentInstructions: boolean;
+  rampPaymentConfirmed: boolean;
+  rampStateDefined: boolean;
+}
+
+const activeRampLabel = (t: TFn, p: ActiveRampInputs): ButtonContent => {
+  if (p.isOfframp && p.isAnchorWithoutRedirect) return { icon: null, text: t("components.SummaryPage.confirm") };
+  if (p.isOfframp && p.rampStateDefined) return { icon: <Spinner />, text: t("components.SummaryPage.processing") };
+  if (p.isOnramp && p.hasPaymentInstructions && !p.rampPaymentConfirmed) {
+    return { icon: null, text: t("components.swapSubmitButton.confirmPayment") };
+  }
+  if (p.isOnramp && !p.hasPaymentInstructions) return { icon: null, text: t("components.SummaryPage.confirm") };
+  if (p.isOfframp && p.isAnchorWithRedirect) {
+    return { icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />, text: t("components.SummaryPage.continueWithPartner") };
+  }
+  return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
+};
+
+const isLockedToDesignatedWallet = (
+  walletLocked: string | undefined,
+  accountAddress: string | undefined,
+  isOfframp: boolean,
+  quoteFrom: string | undefined
+): boolean => {
+  if (!walletLocked || !accountAddress) return false;
+  if (!isOfframp && quoteFrom !== "sepa") return false;
+  return getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0);
+};
+
+const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps): ButtonContent => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const { address: accountAddress } = useVortexAccount();
@@ -49,112 +100,47 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+    const hasPaymentInstructions =
+      Boolean(rampState?.ramp?.depositQrCode) ||
+      Boolean(rampState?.ramp?.achPaymentData) ||
+      Boolean(rampState?.ramp?.ibanPaymentData);
     const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
-    if (
-      walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
-      accountAddress &&
-      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
-    ) {
-      return {
-        icon: null,
-        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
-      };
-    }
-
-    // BRL offramp has no redirect, it is the only with type moonbeam
-    const isAnchorWithoutRedirect = toToken.type === "moonbeam";
+    // BRL (Avenia/moonbeam) and Mykobo EURC (Base) offramps complete inline. Monerium EURC (other chains)
+    // still uses the redirect/auth flow. For EURC onramp (BUY), `quote.from` is "sepa" so
+    // `isMykoboEurc` is false here and the button falls through to the standard onramp/KYC labels;
+    // Mykobo's inline payment instructions are surfaced separately via EUROnrampDetails.
+    const isMykoboEurc =
+      quote?.outputCurrency === FiatToken.EURC && (quote?.from === Networks.Base || quote?.from === Networks.BaseSepolia);
+    const isAnchorWithoutRedirect = toToken.type === "moonbeam" || isMykoboEurc;
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
+    if (isLockedToDesignatedWallet(walletLocked, accountAddress, isOfframp, quote?.from)) {
+      return {
+        icon: null,
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked!) })
+      };
+    }
     if (machineState === "QuoteReady") {
-      if (isOnramp && isAnchorWithoutRedirect) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.confirm")
-        };
-      } else if (isOnramp && quote?.inputCurrency === FiatToken.BRL) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.continue")
-        };
-      } else {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.verifyWallet")
-        };
-      }
+      return quoteReadyLabel(t, {
+        inputCurrency: quote?.inputCurrency as FiatToken | undefined,
+        isAnchorWithoutRedirect,
+        isOnramp
+      });
     }
+    if (isQuoteExpired && !hasAchPaymentData) return { icon: null, text: t("components.SummaryPage.quoteExpired") };
+    if (machineState === "KycComplete") return { icon: null, text: t("components.SummaryPage.confirm") };
+    if (submitButtonDisabled) return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
 
-    if (isQuoteExpired && !hasAchPaymentData) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.quoteExpired")
-      };
-    }
-
-    if (machineState === "KycComplete") {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
-    }
-
-    // XSTATE migrate: we can display this on failure, generic failure.
-    // Add check for signing rejection
-    // if (signingRejected) {
-    //   return {
-    //     icon: null,
-    //     text: t("components.SummaryPage.tryAgain")
-    //   };
-    // }
-
-    if (submitButtonDisabled) {
-      return {
-        icon: <Spinner />,
-        text: t("components.swapSubmitButton.processing")
-      };
-    }
-
-    if (isOfframp && isAnchorWithoutRedirect) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
-    }
-
-    if (isOfframp && rampState !== undefined) {
-      return {
-        icon: <Spinner />,
-        text: t("components.SummaryPage.processing")
-      };
-    }
-
-    if (isOnramp && isDepositQrCodeReady && !rampPaymentConfirmed) {
-      return {
-        icon: null,
-        text: t("components.swapSubmitButton.confirmPayment")
-      };
-    }
-
-    if (isOnramp && !isDepositQrCodeReady) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
-    }
-
-    if (isOfframp && isAnchorWithRedirect) {
-      return {
-        icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-        text: t("components.SummaryPage.continueWithPartner")
-      };
-    }
-    return {
-      icon: <Spinner />,
-      text: t("components.swapSubmitButton.processing")
-    };
+    return activeRampLabel(t, {
+      hasPaymentInstructions,
+      isAnchorWithoutRedirect,
+      isAnchorWithRedirect,
+      isOfframp,
+      isOnramp,
+      rampPaymentConfirmed,
+      rampStateDefined: rampState !== undefined
+    });
   }, [
     submitButtonDisabled,
     isQuoteExpired,
@@ -176,6 +162,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   const params = useParams({ strict: false });
 
   const moneriumKycActor = useMoneriumKycActor();
+  const mykoboKycActor = useMykoboKycActor();
   const { address: accountAddress } = useVortexAccount();
 
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
@@ -220,7 +207,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       return false;
     }
 
-    if (machineState === "RegisterRamp" || moneriumKycActor) {
+    if (machineState === "RegisterRamp" || moneriumKycActor || mykoboKycActor) {
       return true;
     }
 
@@ -234,9 +221,11 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     }
 
     if (machineState === "UpdateRamp") {
-      const isDepositQrCodeReady =
-        Boolean(isOnramp && rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
-      if (isOnramp && !isDepositQrCodeReady) return true;
+      const hasPaymentInstructions =
+        Boolean(isOnramp && rampState?.ramp?.depositQrCode) ||
+        Boolean(rampState?.ramp?.achPaymentData) ||
+        Boolean(isOnramp && rampState?.ramp?.ibanPaymentData);
+      if (isOnramp && !hasPaymentInstructions) return true;
     }
 
     return false;
@@ -248,10 +237,12 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOnramp,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.achPaymentData,
+    rampState?.ramp?.ibanPaymentData,
     fiatToken,
     effectiveSelectedFiatAccountId,
     machineState,
     moneriumKycActor,
+    mykoboKycActor,
     walletLocked,
     accountAddress,
     quote?.from
@@ -283,20 +274,11 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
     rampActor.send({ type: "SummaryConfirm" });
 
-    // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
-      //setCanRegisterRamp(true);
-    }
-
     if (isOnramp) {
       if (machineState === "UpdateRamp") {
         rampActor.send({ type: "PAYMENT_CONFIRMED" });
       }
     }
-
-    // if (signingRejected) {
-    //   setSigningRejected(false);
-    // }
   };
 
   return (

@@ -28,7 +28,7 @@ export class RegisterRampError extends Error {
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote, userId } = input;
+  const { executionInput, chainId, connectedWalletAddress, paymentData, quote, userId } = input;
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
@@ -49,11 +49,11 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   }
 
   const quoteId = quote.id;
+  // NOTE: Stellar ephemeral is intentionally omitted — ARS is the only fiat that still uses
+  // the Stellar route and it's currently disabled. Re-enabling ARS requires reinstating
+  // createEphemerals' stellar entry here AND in useRampSubmission.ts to avoid a "Stellar
+  // signer not found" server error in prepareOnrampStellarPath.
   const signingAccounts: AccountMeta[] = [
-    {
-      address: executionInput.ephemerals.stellarEphemeral.address,
-      type: EphemeralAccountType.Stellar
-    },
     {
       address: executionInput.ephemerals.evmEphemeral.address,
       type: EphemeralAccountType.EVM
@@ -72,14 +72,18 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       sessionId: input.externalSessionId,
       taxId: executionInput.taxId
     };
-  } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
+  } else if (quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
-      moneriumAuthToken: authToken,
-      moneriumWalletAddress: executionInput.moneriumWalletAddress,
-      sessionId: input.externalSessionId
+      sessionId: input.externalSessionId,
+      walletAddress: connectedWalletAddress
     };
-  } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
+  } else if (quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.EURC) {
+    additionalData = {
+      sessionId: input.externalSessionId,
+      walletAddress: connectedWalletAddress
+    };
+  } else if (quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
     additionalData = {
       pixDestination: executionInput.pixId,
       receiverTaxId: executionInput.taxId,
@@ -87,14 +91,14 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       taxId: executionInput.taxId,
       walletAddress: connectedWalletAddress
     };
-  } else if (executionInput.quote.rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
+  } else if (quote.rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
       fiatAccountId: executionInput.selectedFiatAccountId,
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress
     };
-  } else if (executionInput.quote.rampType === RampDirection.SELL && isAlfredpayToken(executionInput.fiatToken)) {
+  } else if (quote.rampType === RampDirection.SELL && isAlfredpayToken(executionInput.fiatToken)) {
     additionalData = {
       fiatAccountId: executionInput.selectedFiatAccountId,
       sessionId: input.externalSessionId,
@@ -102,9 +106,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   } else {
     additionalData = {
-      // moneriumAuthToken is only relevant after enabling Monerium offramps.
-      // moneriumAuthToken: authToken,
-      // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress

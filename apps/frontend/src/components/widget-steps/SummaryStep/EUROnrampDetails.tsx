@@ -18,13 +18,11 @@ export const EUROnrampDetails: FC = () => {
     signingPhase: state.context.rampSigningPhase
   }));
 
-  if (!rampState?.ramp?.depositQrCode) return null;
-
   if (!rampState?.ramp?.ibanPaymentData) return null;
-  if (signingPhase !== "finished") return null; // Only show details if the ramp is finished
+  if (signingPhase !== "finished") return null;
   if (isQuoteExpired) return null;
 
-  const { iban, bic, receiverName } = rampState.ramp.ibanPaymentData;
+  const { iban, bic, receiverName, reference } = rampState.ramp.ibanPaymentData;
   const amount = rampState.quote.inputAmount;
 
   return (
@@ -54,6 +52,15 @@ export const EUROnrampDetails: FC = () => {
             <CopyButton text={bic} />
           </div>
         </div>
+        {reference && (
+          <div className="mt-2 flex items-center justify-between">
+            <span>{t("components.SummaryPage.EUROnrampDetails.reference")}</span>
+            <div className="flex items-center">
+              <span className="mr-2 font-mono">{reference}</span>
+              <CopyButton text={reference} />
+            </div>
+          </div>
+        )}
       </InfoBox>
       {rampState.quote.outputCurrency === EvmToken.ETH && (
         <AlertBanner
@@ -69,7 +76,13 @@ export const EUROnrampDetails: FC = () => {
           </InfoBox>
         </div>
       )}
-      <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.hint")}</p>
+      <p className="text-center">
+        {t(
+          rampState.ramp?.depositQrCode
+            ? "components.SummaryPage.EUROnrampDetails.hint"
+            : "components.SummaryPage.EUROnrampDetails.hintNoQr"
+        )}
+      </p>
       <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.footer")}</p>
     </section>
   );
