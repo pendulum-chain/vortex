@@ -46,6 +46,7 @@ export type RampPhase =
   | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
   | "brlaPayoutOnBase"
+  | "mykoboOnrampDeposit"
   | "mykoboPayoutOnBase"
   | "baseTransfer"
   | "failed"
@@ -171,6 +172,8 @@ export interface IbanPaymentData {
   receiverName: string;
   iban: string;
   bic: string;
+  /** Optional payment reference (e.g. Mykobo deposit SCOR). Caller should include it in the SEPA transfer. */
+  reference?: string;
 }
 
 export interface RegisterRampRequest {

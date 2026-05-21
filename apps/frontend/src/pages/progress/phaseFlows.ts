@@ -25,6 +25,7 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   moneriumOnrampSelfTransfer: 20,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
+  mykoboOnrampDeposit: 5 * 60,
   mykoboPayoutOnBase: 60,
   nablaApprove: 24,
   nablaSwap: 24,

@@ -36,6 +36,12 @@ export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decima
 export const ERC20_USDC_POLYGON_DECIMALS = 6; // USDC on Polygon has 6 decimals
 export const ERC20_USDT_POLYGON_DECIMALS = 6; // USDT on Polygon has 6 decimals
 
+export const ERC20_EURC_BASE: `0x${string}` = "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42";
+export const ERC20_EURC_BASE_TOKEN_NAME = "EURC";
+export const ERC20_EURC_BASE_DECIMALS = 6;
+export const BASE_CHAIN_ID = 8453;
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
+
 // ── AlfredPay on-chain token configuration ──────────────────────────────────
 // Change these constants to switch the stablecoin used in all AlfredPay flows.
 export const ALFREDPAY_ONCHAIN_CURRENCY = AlfredpayOnChainCurrency.USDT;

@@ -3,6 +3,7 @@
  */
 
 import { EvmNetworks, Networks } from "../../helpers";
+import { ERC20_EURC_BASE, ERC20_EURC_BASE_DECIMALS } from "../constants/misc";
 import { PENDULUM_USDC_AXL } from "../pendulum/config";
 import { TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
@@ -219,8 +220,8 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
     },
     [EvmToken.EURC]: {
       assetSymbol: "EURC",
-      decimals: 6,
-      erc20AddressSourceChain: "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      decimals: ERC20_EURC_BASE_DECIMALS,
+      erc20AddressSourceChain: ERC20_EURC_BASE,
       isNative: false,
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
