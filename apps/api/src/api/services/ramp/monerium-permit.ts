@@ -53,7 +53,7 @@ function getPermitContext(permit: PermitSignature) {
   return permit.context;
 }
 
-export function validateMoneriumOnrampPermit(permit: PermitSignature, expectation: MoneriumPermitExpectation): void {
+function validateMoneriumPermitSignature(permit: PermitSignature, expectation: MoneriumPermitExpectation) {
   const context = getPermitContext(permit);
   const expectedChainId = getNetworkId(expectation.network);
 
@@ -87,6 +87,23 @@ export function validateMoneriumOnrampPermit(permit: PermitSignature, expectatio
   if (recoveredSigner.toLowerCase() !== expectation.expectedOwner.toLowerCase()) {
     throwBadPermit(`Monerium permit signature was produced by ${recoveredSigner}, expected ${expectation.expectedOwner}`);
   }
+
+  return context;
+}
+
+function assertPermitDeadlineInFuture(deadline: string, nowSeconds: number): void {
+  if (BigInt(deadline) <= BigInt(nowSeconds)) {
+    throwBadPermit(`Monerium permit deadline ${deadline} has expired`);
+  }
+}
+
+export function validateMoneriumOnrampPermit(
+  permit: PermitSignature,
+  expectation: MoneriumPermitExpectation,
+  nowSeconds = Math.floor(Date.now() / 1000)
+): void {
+  const context = validateMoneriumPermitSignature(permit, expectation);
+  assertPermitDeadlineInFuture(context.deadline, nowSeconds);
 }
 
 export function analyzeMoneriumPermitPreflight(
@@ -95,9 +112,8 @@ export function analyzeMoneriumPermitPreflight(
   diagnostics: MoneriumPermitDiagnostics,
   nowSeconds = Math.floor(Date.now() / 1000)
 ): { reason: "allowance-sufficient" | "permit-required"; shouldSendPermit: boolean } {
-  validateMoneriumOnrampPermit(permit, expectation);
+  const context = validateMoneriumPermitSignature(permit, expectation);
 
-  const context = getPermitContext(permit);
   const expectedValueRaw = BigInt(expectation.expectedValueRaw);
 
   if (diagnostics.allowanceRaw >= expectedValueRaw) {
@@ -116,9 +132,7 @@ export function analyzeMoneriumPermitPreflight(
     );
   }
 
-  if (BigInt(context.deadline) <= BigInt(nowSeconds)) {
-    throwBadPermit(`Monerium permit deadline ${context.deadline} has expired`);
-  }
+  assertPermitDeadlineInFuture(context.deadline, nowSeconds);
 
   return { reason: "permit-required", shouldSendPermit: true };
 }

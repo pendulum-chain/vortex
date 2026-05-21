@@ -1,9 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { redactRpcUrlForLogs, sanitizeRpcErrorMessage } from "./clientManager";
+import { Networks } from "../../helpers";
+import { EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage } from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
-    expect(redactRpcUrlForLogs("https://polygon-mainnet.g.alchemy.com/v2/dUzb7oLgJ3f9T72vWR-Iw7X38wct7h62")).toBe(
+    expect(redactRpcUrlForLogs("https://polygon-mainnet.g.alchemy.com/v2/test-api-key")).toBe(
       "https://polygon-mainnet.g.alchemy.com/v2/[redacted]"
     );
   });
@@ -14,9 +15,17 @@ describe("redactRpcUrlForLogs", () => {
 
   it("redacts provider API keys embedded in RPC error messages", () => {
     expect(
-      sanitizeRpcErrorMessage(
-        "URL: https://polygon-mainnet.g.alchemy.com/v2/dUzb7oLgJ3f9T72vWR-Iw7X38wct7h62\nRequest failed"
-      )
+      sanitizeRpcErrorMessage("URL: https://polygon-mainnet.g.alchemy.com/v2/test-api-key\nRequest failed")
     ).toBe("URL: https://polygon-mainnet.g.alchemy.com/v2/[redacted]\nRequest failed");
+  });
+});
+
+describe("EvmClientManager RPC cache keys", () => {
+  it("keeps viem's default transport distinct from explicit RPC URLs", () => {
+    const manager = EvmClientManager.getInstance();
+    const explicitRpcClient = manager.getClient(Networks.PolygonAmoy, "https://polygon-amoy.api.onfinality.io/public");
+    const defaultRpcClient = manager.getClient(Networks.PolygonAmoy, "");
+
+    expect(defaultRpcClient).not.toBe(explicitRpcClient);
   });
 });

@@ -1,5 +1,5 @@
 import { ERC20_EURE_POLYGON_V2 } from "@vortexfi/shared";
-import { decodeFunctionData, parseTransaction, recoverTransactionAddress } from "viem";
+import { decodeFunctionData, isAddress, parseTransaction, recoverTransactionAddress } from "viem";
 
 export const moneriumTransferFromAbi = [
   {
@@ -38,14 +38,27 @@ export interface MoneriumSelfTransferInspection {
   tokenAddress: `0x${string}`;
 }
 
+function requireAddress(value: string | null | undefined, label: string, rampId: string): `0x${string}` {
+  if (!value || !isAddress(value)) {
+    throw new Error(`[${rampId}] ${label} ${value ?? "<missing>"} is not a valid EVM address`);
+  }
+
+  return value as `0x${string}`;
+}
+
 export async function inspectMoneriumSelfTransferTransaction(
   txData: string,
   expectation: MoneriumSelfTransferExpectation
 ): Promise<MoneriumSelfTransferInspection> {
   const serializedTransaction = txData as RecoverableSerializedTransaction;
   const parsedTx = parseTransaction(serializedTransaction);
-  const signer = await recoverTransactionAddress({ serializedTransaction });
-  const tokenAddress = expectation.expectedTokenAddress ?? ERC20_EURE_POLYGON_V2;
+  const signer = requireAddress(
+    await recoverTransactionAddress({ serializedTransaction }),
+    "Self-transfer signer",
+    expectation.rampId
+  );
+  const expectedTokenAddress = expectation.expectedTokenAddress ?? ERC20_EURE_POLYGON_V2;
+  const tokenAddress = requireAddress(parsedTx.to, "Self-transfer token", expectation.rampId);
   const signedNonce = parsedTx.nonce;
 
   if (signedNonce === undefined) {
@@ -58,8 +71,10 @@ export async function inspectMoneriumSelfTransferTransaction(
     );
   }
 
-  if (parsedTx.to?.toLowerCase() !== tokenAddress.toLowerCase()) {
-    throw new Error(`[${expectation.rampId}] Self-transfer token ${parsedTx.to} does not match expected ${tokenAddress}`);
+  if (tokenAddress.toLowerCase() !== expectedTokenAddress.toLowerCase()) {
+    throw new Error(
+      `[${expectation.rampId}] Self-transfer token ${tokenAddress} does not match expected ${expectedTokenAddress}`
+    );
   }
 
   if (expectation.expectedChainId !== undefined && parsedTx.chainId !== expectation.expectedChainId) {
@@ -72,7 +87,9 @@ export async function inspectMoneriumSelfTransferTransaction(
     abi: moneriumTransferFromAbi,
     data: parsedTx.data ?? "0x"
   });
-  const [owner, recipient, amountRaw] = decodedTransfer.args;
+  const [decodedOwner, decodedRecipient, amountRaw] = decodedTransfer.args;
+  const owner = requireAddress(decodedOwner, "Self-transfer owner", expectation.rampId);
+  const recipient = requireAddress(decodedRecipient, "Self-transfer recipient", expectation.rampId);
   const expectedAmount = BigInt(expectation.expectedAmountRaw);
 
   if (owner.toLowerCase() !== expectation.expectedOwner.toLowerCase()) {

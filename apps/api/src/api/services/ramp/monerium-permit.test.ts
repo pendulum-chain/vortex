@@ -126,6 +126,25 @@ describe("validateMoneriumOnrampPermit", () => {
       })
     ).toThrow("tokenVersion");
   });
+
+  it("rejects an expired permit before payment details are released", async () => {
+    const permit = await signPermit({ deadline: "1700000000" });
+
+    expect(() =>
+      validateMoneriumOnrampPermit(
+        permit,
+        {
+          expectedOwner: OWNER.address,
+          expectedSpender: SPENDER,
+          expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+          expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+          expectedValueRaw: VALUE_RAW,
+          network: Networks.Polygon
+        },
+        1700000000
+      )
+    ).toThrow("has expired");
+  });
 });
 
 describe("analyzeMoneriumPermitPreflight", () => {
