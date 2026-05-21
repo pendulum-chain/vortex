@@ -23,7 +23,7 @@ import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-e
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { onrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
-import { onrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
+import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
 const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
 
@@ -42,7 +42,7 @@ export class RouteResolver {
         }
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
-          return onrampMoneriumToEvmStrategy;
+          return onrampMykoboToEvmStrategy;
         } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           return onrampAlfredpayToEvmStrategy;
         } else {
