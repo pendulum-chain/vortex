@@ -9,7 +9,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, PublicClient, TransactionReceipt } from "viem";
+import { encodeFunctionData, isAddress, PublicClient, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
@@ -107,6 +107,10 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
 
     try {
       const account = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
+      if (!isAddress(account.address)) {
+        throw new Error(`Configured executor account produced invalid EVM address ${account.address}`);
+      }
+      const executorAddress = account.address as `0x${string}`;
       let permitHash: string;
 
       if (state.state.permitTxHash) {
@@ -133,7 +137,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
             deadlineIso: new Date(
               Number(moneriumOnrampPermit.context?.deadline ?? moneriumOnrampPermit.deadline) * 1000
             ).toISOString(),
-            executor: account.address,
+            executor: executorAddress,
             expectedValueRaw: mintedAmountRaw,
             nonce: permitDiagnostics.nonce.toString(),
             owner,
@@ -173,7 +177,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
         if (!permitPreflight.shouldSendPermit) {
           permitHash = "";
         } else {
-          await this.simulatePermit(state.id, account.address, permitArgs);
+          await this.simulatePermit(state.id, executorAddress, permitArgs);
 
           const walletClient = this.evmClientManager.getWalletClient(Networks.Polygon, account);
           permitHash = await walletClient.sendTransaction({
