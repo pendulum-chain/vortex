@@ -85,4 +85,10 @@ export interface StateMetadata {
   squidRouterNoPermitTransferHash?: string;
   squidRouterNoPermitApproveHash?: string;
   squidRouterNoPermitSwapHash?: string;
+  // Mykobo - EUR offramp on Base
+  mykoboEmail?: string;
+  mykoboTransactionId?: string;
+  mykoboReceivablesAddress?: string;
+  mykoboPayoutTxHash?: `0x${string}`;
+  mykoboTransactionReference?: string;
 }

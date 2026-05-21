@@ -17,6 +17,7 @@ import { IRouteStrategy } from "../core/types";
 import { offrampEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
 import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
+import { offrampToSepaEvmStrategy } from "./strategies/offramp-to-sepa-evm.strategy";
 import { offrampToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
@@ -72,6 +73,7 @@ export class RouteResolver {
       case "spei":
         return offrampEvmToAlfredpayStrategy;
       case "sepa":
+        return ctx.from === Networks.AssetHub ? offrampToStellarStrategy : offrampToSepaEvmStrategy;
       case "cbu":
       default:
         return offrampToStellarStrategy;
