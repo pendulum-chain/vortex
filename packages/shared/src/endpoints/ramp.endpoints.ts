@@ -15,6 +15,8 @@ export type RampPhase =
   | "initial"
   | "moneriumOnrampSelfTransfer"
   | "moneriumOnrampMint"
+  | "mykoboOnrampDeposit"
+  | "mykoboOnrampTransfer"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
@@ -164,6 +166,7 @@ export interface IbanPaymentData {
   receiverName: string;
   iban: string;
   bic: string;
+  reference?: string;
 }
 
 export interface RegisterRampRequest {
@@ -206,6 +209,7 @@ export interface UpdateRampRequest {
     assethubToPendulumHash?: string;
     moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
     moneriumOnrampPermit?: PermitSignature;
+    mykoboOnrampPermit?: PermitSignature;
     [key: string]: unknown;
   };
 }
