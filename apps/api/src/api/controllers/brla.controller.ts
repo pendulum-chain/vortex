@@ -249,6 +249,7 @@ export const getAveniaUserRemainingLimit = async (
     }
 
     const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
+
     if (!taxIdRecord) {
       throw new APIError({
         message: "Ramp disabled",

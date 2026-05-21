@@ -33,6 +33,13 @@ export const ERC20_EURE_POLYGON_V2: `0x${string}` = "0xE0aEa583266584DafBB3f9C32
 export const ERC20_EURE_POLYGON_TOKEN_NAME = "Monerium EURe";
 export const ERC20_EURE_POLYGON_DECIMALS = 18; // EUR.e on Polygon has 18 decimals
 
+// Constants relevant for the Mykobo ramps (EURC on Base)
+export const ERC20_EURC_BASE: `0x${string}` = "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42";
+export const ERC20_EURC_BASE_TOKEN_NAME = "EURC";
+export const ERC20_EURC_BASE_DECIMALS = 6;
+export const BASE_CHAIN_ID = 8453;
+export const BASE_SEPOLIA_CHAIN_ID = 84532;
+
 export const ERC20_USDC_POLYGON_DECIMALS = 6; // USDC on Polygon has 6 decimals
 export const ERC20_USDT_POLYGON_DECIMALS = 6; // USDT on Polygon has 6 decimals
 
