@@ -186,6 +186,7 @@ export interface RegisterRampRequest {
     taxId?: string;
     moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     sessionId?: string;
+    email?: string; // Required for Mykobo EUR offramps (binds ramp to anchor profile)
     [key: string]: unknown;
   };
 }
