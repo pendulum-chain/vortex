@@ -3,8 +3,8 @@
  */
 
 import { EvmNetworks, Networks } from "../../helpers";
-import { PENDULUM_USDC_AXL } from "../pendulum/config";
-import { TokenType } from "../types/base";
+import { PENDULUM_EURC_STELLAR, PENDULUM_USDC_AXL } from "../pendulum/config";
+import { FiatCurrencyDetails, FiatToken, TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 
 export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTokenDetails>>> = {
@@ -223,7 +223,10 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       erc20AddressSourceChain: "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
       isNative: false,
       network: Networks.Base,
-      pendulumRepresentative: PENDULUM_USDC_AXL,
+      // Circle's Base-native EURC has no direct Pendulum representative; we reuse the Stellar-EURC
+      // representative as a same-currency proxy for AMM quoting. The Mykobo flow stays on Base and
+      // does not traverse Pendulum, so this field is only consulted by non-Mykobo routes.
+      pendulumRepresentative: PENDULUM_EURC_STELLAR,
       type: TokenType.Evm
     }
   },
@@ -331,5 +334,23 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
     }
+  }
+};
+
+// Fiat-side metadata for EURC settled on Base via Mykobo.
+export const eurcMykoboTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = {
+  [FiatToken.EURC]: {
+    assetSymbol: "EURC",
+    decimals: 6,
+    fiat: {
+      assetIcon: "eur",
+      name: "Euro",
+      symbol: "EUR"
+    },
+    maxBuyAmountRaw: "10000000000",
+    maxSellAmountRaw: "10000000000",
+    minBuyAmountRaw: "1000",
+    minSellAmountRaw: "25000",
+    type: TokenType.Fiat
   }
 };
