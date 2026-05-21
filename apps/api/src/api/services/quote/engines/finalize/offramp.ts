@@ -17,9 +17,11 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
     const offrampAmount =
       ctx.request.to === "pix"
         ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
-        : ctx.alfredpayOfframp
-          ? ctx.alfredpayOfframp.outputAmountDecimal
-          : ctx.pendulumToStellar?.outputAmountDecimal;
+        : ctx.request.to === "sepa"
+          ? ctx.nablaSwapEvm?.outputAmountDecimal
+          : ctx.alfredpayOfframp
+            ? ctx.alfredpayOfframp.outputAmountDecimal
+            : ctx.pendulumToStellar?.outputAmountDecimal;
 
     if (!offrampAmount) {
       throw new APIError({

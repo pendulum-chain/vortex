@@ -49,7 +49,8 @@ export class MykoboApiService {
     }
     this.accessKey = MYKOBO_ACCESS_KEY;
     this.secretKey = MYKOBO_SECRET_KEY;
-    this.baseUrl = MYKOBO_BASE_URL.replace(/\/$/, "");
+    const trimmedBase = MYKOBO_BASE_URL.replace(/\/$/, "");
+    this.baseUrl = /\/v\d+$/.test(trimmedBase) ? trimmedBase : `${trimmedBase}/v1`;
     this.clientDomain = MYKOBO_CLIENT_DOMAIN || undefined;
   }
 
