@@ -52,7 +52,12 @@ export function sanitizeRpcErrorMessage(message: string): string {
 
     sanitizedMessage += message.slice(currentIndex, nextUrlIndex);
     let urlEndIndex = nextUrlIndex;
-    while (urlEndIndex < message.length && !urlTerminators.has(message[urlEndIndex] ?? "")) {
+    while (urlEndIndex < message.length) {
+      const currentCharacter = message[urlEndIndex];
+      if (currentCharacter === undefined || urlTerminators.has(currentCharacter)) {
+        break;
+      }
+
       urlEndIndex++;
     }
 
