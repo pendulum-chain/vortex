@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { FiatToken, RampDirection } from "@vortexfi/shared";
+import { FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import {
   RampTransactionPreparationKind,
   selectRampTransactionPreparationKind
@@ -37,15 +37,35 @@ describe("selectRampTransactionPreparationKind", () => {
     ).toBe(RampTransactionPreparationKind.OfframpMonerium);
   });
 
-  it("selects onramp preparers from the fiat input token", () => {
+  it("routes EURC onramps by destination network: AssetHub → Monerium, EVM → Mykobo", () => {
+    expect(
+      selectRampTransactionPreparationKind({
+        inputCurrency: FiatToken.EURC,
+        outputCurrency: FiatToken.EURC,
+        rampType: RampDirection.BUY,
+        to: Networks.AssetHub
+      })
+    ).toBe(RampTransactionPreparationKind.OnrampMonerium);
+
+    expect(
+      selectRampTransactionPreparationKind({
+        inputCurrency: FiatToken.EURC,
+        outputCurrency: FiatToken.EURC,
+        rampType: RampDirection.BUY,
+        to: Networks.Base
+      })
+    ).toBe(RampTransactionPreparationKind.OnrampMykobo);
+
     expect(
       selectRampTransactionPreparationKind({
         inputCurrency: FiatToken.EURC,
         outputCurrency: FiatToken.EURC,
         rampType: RampDirection.BUY
       })
-    ).toBe(RampTransactionPreparationKind.OnrampMonerium);
+    ).toBe(RampTransactionPreparationKind.OnrampMykobo);
+  });
 
+  it("selects non-EURC onramp preparers from the fiat input token", () => {
     expect(
       selectRampTransactionPreparationKind({
         inputCurrency: FiatToken.USD,

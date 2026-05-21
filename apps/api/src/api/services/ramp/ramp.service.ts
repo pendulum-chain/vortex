@@ -22,6 +22,9 @@ import {
   isAlfredpayToken,
   Limit,
   MoneriumErrors,
+  MykoboApiService,
+  MykoboCurrency,
+  MykoboTransactionType,
   Networks,
   normalizeTaxId,
   QuoteError,
@@ -60,6 +63,7 @@ import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
+import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
@@ -1164,6 +1168,68 @@ export class RampService extends BaseRampService {
     }
   }
 
+  private async prepareMykoboOnrampTransactions(
+    quote: QuoteTicket,
+    normalizedSigningAccounts: AccountMeta[],
+    additionalData: RegisterRampRequest["additionalData"]
+  ): Promise<{
+    unsignedTxs: UnsignedTx[];
+    stateMeta: Partial<StateMetadata>;
+    ibanPaymentData?: IbanPaymentData;
+  }> {
+    if (!additionalData?.destinationAddress || !additionalData?.email || !additionalData?.ipAddress) {
+      throw new APIError({
+        message: "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
+    if (!evmEphemeralEntry) {
+      throw new APIError({
+        message: "EVM ephemeral account is required for Mykobo EUR onramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
+    const mykobo = MykoboApiService.getInstance();
+    const intent = await mykobo.createTransactionIntent({
+      currency: MykoboCurrency.EURC,
+      email_address: additionalData.email,
+      ip_address: additionalData.ipAddress,
+      transaction_type: MykoboTransactionType.DEPOSIT,
+      value: new Big(quote.inputAmount).toFixed(2, 0),
+      wallet_address: evmEphemeralEntry.address
+    });
+
+    const instructions = intent.instructions;
+    if (!instructions || !("iban" in instructions)) {
+      throw new APIError({
+        message: "Mykobo deposit intent did not return IBAN instructions",
+        status: httpStatus.BAD_GATEWAY
+      });
+    }
+
+    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      ipAddress: additionalData.ipAddress,
+      mykoboEmail: additionalData.email,
+      mykoboTransactionId: intent.transaction.id,
+      mykoboTransactionReference: intent.transaction.reference,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    });
+
+    const ibanPaymentData: IbanPaymentData = {
+      bic: "",
+      iban: instructions.iban,
+      receiverName: instructions.bank_account_name,
+      reference: intent.transaction.reference
+    };
+
+    return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+  }
+
   private async prepareMoneriumOfframpTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
@@ -1209,6 +1275,9 @@ export class RampService extends BaseRampService {
 
       case RampTransactionPreparationKind.OnrampMonerium:
         return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+
+      case RampTransactionPreparationKind.OnrampMykobo:
+        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
 
       case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);

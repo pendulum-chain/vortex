@@ -10,7 +10,6 @@ import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-e
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
 import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
-import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
 export async function prepareOnrampTransactions(
   params:
@@ -21,7 +20,6 @@ export async function prepareOnrampTransactions(
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
-  // Route based on input currency and destination network
   if (quote.inputCurrency === FiatToken.BRL) {
     if (!("taxId" in params)) {
       throw new Error("taxId is required for Avenia onramp");
@@ -35,15 +33,15 @@ export async function prepareOnrampTransactions(
       return prepareAveniaToEvmOnrampTransactionsOnBase(aveniaParams);
     }
   } else if (quote.inputCurrency === FiatToken.EURC) {
+    if (quote.to !== Networks.AssetHub) {
+      throw new Error(
+        "EURC onramp to EVM (Mykobo) must be prepared via prepareMykoboToEvmOnrampTransactions, not through prepareOnrampTransactions"
+      );
+    }
     if (!("moneriumWalletAddress" in params)) {
-      throw new Error("moneriumWalletAddress is required for Monerium onramp");
+      throw new Error("moneriumWalletAddress is required for Monerium AssetHub onramp");
     }
-
-    if (quote.to === Networks.AssetHub) {
-      return prepareMoneriumToAssethubOnrampTransactions(params);
-    } else {
-      return prepareMoneriumToEvmOnrampTransactions(params);
-    }
+    return prepareMoneriumToAssethubOnrampTransactions(params);
   } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
     if (!("userId" in params)) {
       throw new Error("Alfredpay onramps requires logged in user");

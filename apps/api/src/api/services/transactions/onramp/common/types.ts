@@ -13,7 +13,10 @@ export type AlfredpayOnrampTransactionParams = OnrampTransactionParams & { userI
 
 export type MoneriumOnrampTransactionParams = OnrampTransactionParams & { moneriumWalletAddress: string };
 
-export type MykoboOnrampTransactionParams = OnrampTransactionParams & { mykoboEmail: string };
+export type MykoboOnrampTransactionParams = OnrampTransactionParams & {
+  mykoboEmail: string;
+  ipAddress: string;
+};
 
 export interface OnrampTransactionsWithMeta {
   unsignedTxs: UnsignedTx[];

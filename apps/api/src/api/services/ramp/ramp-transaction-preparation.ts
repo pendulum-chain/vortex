@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, RampDirection, RegisterRampRequest } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, Networks, RampDirection, RegisterRampRequest } from "@vortexfi/shared";
 
 export enum RampTransactionPreparationKind {
   OfframpBrl = "offramp-brl",
@@ -6,13 +6,15 @@ export enum RampTransactionPreparationKind {
   OfframpNonBrl = "offramp-non-brl",
   OnrampAlfredpay = "onramp-alfredpay",
   OnrampAvenia = "onramp-avenia",
-  OnrampMonerium = "onramp-monerium"
+  OnrampMonerium = "onramp-monerium",
+  OnrampMykobo = "onramp-mykobo"
 }
 
 export interface RampTransactionPreparationQuote {
   inputCurrency: string;
   outputCurrency: string;
   rampType: RampDirection;
+  to?: string;
 }
 
 export function selectRampTransactionPreparationKind(
@@ -30,7 +32,9 @@ export function selectRampTransactionPreparationKind(
   }
 
   if (quote.inputCurrency === FiatToken.EURC) {
-    return RampTransactionPreparationKind.OnrampMonerium;
+    return quote.to === Networks.AssetHub
+      ? RampTransactionPreparationKind.OnrampMonerium
+      : RampTransactionPreparationKind.OnrampMykobo;
   }
 
   if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
