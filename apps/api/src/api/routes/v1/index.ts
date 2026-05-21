@@ -15,6 +15,7 @@ import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
 import moonbeamRoutes from "./moonbeam.route";
+import mykoboRoutes from "./mykobo.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import pendulumRoutes from "./pendulum.route";
 import priceRoutes from "./price.route";
@@ -174,6 +175,13 @@ router.use("/alfredpay", alfredpayRoutes);
  * GET v1/monerium
  */
 router.use("/monerium", moneriumRoutes);
+
+/**
+ * GET v1/mykobo/profiles
+ * POST v1/mykobo/profiles
+ * POST v1/mykobo/webhook
+ */
+router.use("/mykobo", mykoboRoutes);
 
 /**
  * POST v1/webhook
