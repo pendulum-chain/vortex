@@ -38,6 +38,9 @@ function throwBadPermit(message: string): never {
 }
 
 function assertEqual(label: string, actual: string | number | undefined, expected: string | number): void {
+  if (actual === undefined) {
+    throwBadPermit(`Monerium permit ${label} is missing from signed context (expected ${String(expected)})`);
+  }
   if (String(actual).toLowerCase() !== String(expected).toLowerCase()) {
     throwBadPermit(`Monerium permit ${label} ${String(actual)} does not match expected ${String(expected)}`);
   }

@@ -3,6 +3,7 @@ import {
   ERC20_EURE_POLYGON_V2,
   EvmClientManager,
   getEvmTokenBalance,
+  getNetworkId,
   Networks,
   RampDirection,
   RampPhase
@@ -224,7 +225,8 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       await this.waitForTransactionConfirmation(transferHash);
       logger.info(`TransferFrom transaction confirmed: ${transferHash}`);
 
-      // Wait for another 30 seconds to give time for the balance to update (in case other RPC nodes are lagging)
+      // RPC nodes occasionally lag behind the chain tip; the next phase reads the ephemeral's
+      // EURe balance and would otherwise race against an under-replicated read replica.
       logger.info("Waiting 30 seconds to ensure balance is updated...");
       await new Promise(resolve => setTimeout(resolve, 30000));
 
@@ -247,6 +249,7 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
   ): Promise<void> {
     const transfer = await inspectMoneriumSelfTransferTransaction(txData, {
       expectedAmountRaw,
+      expectedChainId: getNetworkId(Networks.Polygon),
       expectedOwner,
       expectedRecipient: expectedSpender,
       expectedSigner: expectedSpender,
@@ -288,10 +291,15 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       })}`
     );
 
-    if (currentNonce > transfer.signedNonce) {
-      throw new Error(
-        `[${rampId}] Self-transfer signed nonce ${transfer.signedNonce} has already been consumed by ${transfer.signer} (current nonce ${currentNonce}). Do not resend this raw transaction; regenerate the presigned self-transfer transaction or inspect the previous nonce-${transfer.signedNonce} transaction.`
-      );
+    if (currentNonce !== transfer.signedNonce) {
+      // Strict equality: a gap (currentNonce < signedNonce) would leave the broadcast tx stuck pending
+      // in mempool forever because the ephemeral account will never fill the missing nonces.
+      // A past nonce (currentNonce > signedNonce) means the tx was already consumed.
+      const reason =
+        currentNonce > transfer.signedNonce
+          ? `signed nonce ${transfer.signedNonce} has already been consumed (current nonce ${currentNonce}). Do not resend this raw transaction; regenerate the presigned self-transfer transaction or inspect the previous nonce-${transfer.signedNonce} transaction`
+          : `signed nonce ${transfer.signedNonce} is ahead of current account nonce ${currentNonce}. Broadcasting would stall the tx in mempool until the missing nonces are filled (which will never happen for an ephemeral account). Regenerate the presigned self-transfer transaction`;
+      throw new Error(`[${rampId}] Self-transfer ${reason} for signer ${transfer.signer}.`);
     }
     if (transferDiagnostics.allowanceRaw < expectedAmount) {
       throw new Error(

@@ -19,6 +19,7 @@ type RecoverableSerializedTransaction = Parameters<typeof recoverTransactionAddr
 
 interface MoneriumSelfTransferExpectation {
   expectedAmountRaw: string;
+  expectedChainId?: number;
   expectedOwner: `0x${string}`;
   expectedRecipient: `0x${string}`;
   expectedSigner: `0x${string}`;
@@ -59,6 +60,12 @@ export async function inspectMoneriumSelfTransferTransaction(
 
   if (parsedTx.to?.toLowerCase() !== tokenAddress.toLowerCase()) {
     throw new Error(`[${expectation.rampId}] Self-transfer token ${parsedTx.to} does not match expected ${tokenAddress}`);
+  }
+
+  if (expectation.expectedChainId !== undefined && parsedTx.chainId !== expectation.expectedChainId) {
+    throw new Error(
+      `[${expectation.rampId}] Self-transfer chainId ${parsedTx.chainId} does not match expected ${expectation.expectedChainId}`
+    );
   }
 
   const decodedTransfer = decodeFunctionData({
