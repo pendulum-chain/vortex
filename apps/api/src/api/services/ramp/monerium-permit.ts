@@ -53,7 +53,11 @@ function getPermitContext(permit: PermitSignature) {
   return permit.context;
 }
 
-export function validateMoneriumOnrampPermit(permit: PermitSignature, expectation: MoneriumPermitExpectation): void {
+export function validateMoneriumOnrampPermit(
+  permit: PermitSignature,
+  expectation: MoneriumPermitExpectation,
+  nowSeconds = Math.floor(Date.now() / 1000)
+): void {
   const context = getPermitContext(permit);
   const expectedChainId = getNetworkId(expectation.network);
 
@@ -65,6 +69,9 @@ export function validateMoneriumOnrampPermit(permit: PermitSignature, expectatio
   assertEqual("tokenVersion", context.tokenVersion, expectation.expectedTokenVersion ?? "1");
   assertEqual("chainId", context.chainId, expectedChainId);
   assertEqual("deadline", context.deadline, permit.deadline);
+  if (BigInt(context.deadline) <= BigInt(nowSeconds)) {
+    throwBadPermit(`Monerium permit deadline ${context.deadline} has expired`);
+  }
 
   const recoveredSigner = verifyTypedData(
     {
@@ -95,7 +102,7 @@ export function analyzeMoneriumPermitPreflight(
   diagnostics: MoneriumPermitDiagnostics,
   nowSeconds = Math.floor(Date.now() / 1000)
 ): { reason: "allowance-sufficient" | "permit-required"; shouldSendPermit: boolean } {
-  validateMoneriumOnrampPermit(permit, expectation);
+  validateMoneriumOnrampPermit(permit, expectation, nowSeconds);
 
   const context = getPermitContext(permit);
   const expectedValueRaw = BigInt(expectation.expectedValueRaw);
@@ -114,10 +121,6 @@ export function analyzeMoneriumPermitPreflight(
     throwBadPermit(
       `Monerium permit nonce ${context.nonce} does not match current on-chain nonce ${diagnostics.nonce.toString()}`
     );
-  }
-
-  if (BigInt(context.deadline) <= BigInt(nowSeconds)) {
-    throwBadPermit(`Monerium permit deadline ${context.deadline} has expired`);
   }
 
   return { reason: "permit-required", shouldSendPermit: true };

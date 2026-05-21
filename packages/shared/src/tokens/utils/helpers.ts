@@ -7,7 +7,7 @@ import logger from "../../logger";
 import { assetHubTokenConfig } from "../assethub/config";
 import {
   ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_TOKEN_NAME,
+  ERC20_EURE_POLYGON_SYMBOL,
   ERC20_EURE_POLYGON_V1,
   ERC20_EURE_POLYGON_V2
 } from "../constants/misc";
@@ -77,7 +77,7 @@ export function getEvmTokenDetailsByAddress(
 
   if (network === Networks.Polygon && MONERIUM_EURE_POLYGON_ADDRESSES.has(normalizedTokenAddress)) {
     return {
-      assetSymbol: ERC20_EURE_POLYGON_TOKEN_NAME,
+      assetSymbol: ERC20_EURE_POLYGON_SYMBOL,
       decimals: ERC20_EURE_POLYGON_DECIMALS,
       erc20AddressSourceChain: tokenAddress,
       isNative: false,

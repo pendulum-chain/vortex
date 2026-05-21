@@ -1,19 +1,57 @@
 import { describe, expect, it } from "bun:test";
 import { inspectMoneriumSelfTransferTransaction } from "./monerium-self-transfer";
+import { Interface, Wallet } from "ethers";
+import { ERC20_EURE_POLYGON_V2 } from "@vortexfi/shared";
 
-const rawSelfTransferTx =
-  "0x02f8d381898085e64020937685e640209376830186a094e0aea583266584dafbb3f9c3211d5588c73fea8d80b86423b872dd000000000000000000000000976ff31a56daf5a0e09f411950311f5877ff00d50000000000000000000000007c4e657eeb8ba8bbf0882c817a7a9f2df55636ad0000000000000000000000000000000000000000000000000e27c49886e60000c001a029c840d52a6634e2ed642d50c306f08a379f8466a10c332e07f03bc85da1ae52a00ae865be836a16b25bbe9d647085930d4b0b1cedf3d3e84e127e14f7dddf660e";
+const transferFromInterface = new Interface(["function transferFrom(address from,address to,uint256 value)"]);
+const OWNER = new Wallet("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+const SIGNER = new Wallet("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+const OTHER_RECIPIENT = new Wallet("0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+const OTHER_TOKEN = "0x1111111111111111111111111111111111111111" as const;
 
 const expectation = {
   expectedAmountRaw: "1020000000000000000",
-  expectedOwner: "0x976fF31a56dAF5A0E09F411950311F5877ff00D5" as const,
-  expectedRecipient: "0x7c4E657EEb8bA8bBF0882C817A7A9f2Df55636AD" as const,
-  expectedSigner: "0x7c4E657EEb8bA8bBF0882C817A7A9f2Df55636AD" as const,
+  expectedOwner: OWNER.address as `0x${string}`,
+  expectedRecipient: SIGNER.address as `0x${string}`,
+  expectedSigner: SIGNER.address as `0x${string}`,
   rampId: "ramp-1"
 };
 
+async function signSelfTransferTx({
+  chainId = 137,
+  data,
+  gasLimit = 100000n,
+  nonce = 0,
+  to = ERC20_EURE_POLYGON_V2
+}: {
+  chainId?: number;
+  data?: `0x${string}`;
+  gasLimit?: bigint;
+  nonce?: number | undefined;
+  to?: `0x${string}`;
+} = {}): Promise<string> {
+  return SIGNER.signTransaction({
+    chainId,
+    data:
+      data ??
+      (transferFromInterface.encodeFunctionData("transferFrom", [
+        expectation.expectedOwner,
+        expectation.expectedRecipient,
+        BigInt(expectation.expectedAmountRaw)
+      ]) as `0x${string}`),
+    gasLimit,
+    maxFeePerGas: 10_000_000_000n,
+    maxPriorityFeePerGas: 1_000_000_000n,
+    nonce,
+    to,
+    type: 2,
+    value: 0
+  });
+}
+
 describe("inspectMoneriumSelfTransferTransaction", () => {
   it("decodes and validates a signed Monerium self-transfer", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx();
     const inspection = await inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, expectation);
 
     expect(inspection.amountRaw).toBe(1020000000000000000n);
@@ -22,10 +60,11 @@ describe("inspectMoneriumSelfTransferTransaction", () => {
     expect(inspection.signer.toLowerCase()).toBe(expectation.expectedSigner.toLowerCase());
     expect(inspection.signedGas).toBe(100000n);
     expect(inspection.signedNonce).toBe(0);
-    expect(inspection.tokenAddress.toLowerCase()).toBe("0xe0aea583266584dafbb3f9c3211d5588c73fea8d");
+    expect(inspection.tokenAddress.toLowerCase()).toBe(ERC20_EURE_POLYGON_V2.toLowerCase());
   });
 
   it("rejects a signed transfer for the wrong amount", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx();
     await expect(
       inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, {
         ...expectation,
@@ -35,6 +74,7 @@ describe("inspectMoneriumSelfTransferTransaction", () => {
   });
 
   it("accepts a signed transfer when chainId matches the expected network", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx();
     const inspection = await inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, {
       ...expectation,
       expectedChainId: 137
@@ -44,11 +84,64 @@ describe("inspectMoneriumSelfTransferTransaction", () => {
   });
 
   it("rejects a signed transfer when chainId does not match the expected network", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx();
     await expect(
       inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, {
         ...expectation,
         expectedChainId: 1
       })
     ).rejects.toThrow("Self-transfer chainId 137 does not match expected 1");
+  });
+
+  it("rejects a signed transfer for the wrong token contract", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx({ to: OTHER_TOKEN });
+
+    await expect(
+      inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, {
+        ...expectation,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2
+      })
+    ).rejects.toThrow(`Self-transfer token ${OTHER_TOKEN} does not match expected ${ERC20_EURE_POLYGON_V2}`);
+  });
+
+  it("rejects a signed transfer for the wrong recipient", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx({
+      data: transferFromInterface.encodeFunctionData("transferFrom", [
+        expectation.expectedOwner,
+        OTHER_RECIPIENT.address,
+        BigInt(expectation.expectedAmountRaw)
+      ]) as `0x${string}`
+    });
+
+    await expect(inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, expectation)).rejects.toThrow(
+      `Self-transfer recipient ${OTHER_RECIPIENT.address} does not match expected ${expectation.expectedRecipient}`
+    );
+  });
+
+  it("rejects a signed transfer with invalid calldata", async () => {
+    const rawSelfTransferTx = await signSelfTransferTx({ data: "0x1234" });
+
+    await expect(inspectMoneriumSelfTransferTransaction(rawSelfTransferTx, expectation)).rejects.toThrow(
+      "Self-transfer calldata is not a valid transferFrom payload"
+    );
+  });
+
+  it("rejects a signed transfer without a nonce", async () => {
+    await expect(
+      inspectMoneriumSelfTransferTransaction("0xdeadbeef", expectation, {
+        decodeFunctionData: () => ({
+          args: [expectation.expectedOwner, expectation.expectedRecipient, BigInt(expectation.expectedAmountRaw)]
+        }),
+        parseTransaction: () =>
+          ({
+            chainId: 137,
+            data: "0x23b872dd",
+            gas: 100000n,
+            nonce: undefined,
+            to: ERC20_EURE_POLYGON_V2
+          }) as ReturnType<typeof import("viem").parseTransaction>,
+        recoverTransactionAddress: async () => expectation.expectedSigner
+      })
+    ).rejects.toThrow("Self-transfer signed transaction is missing a nonce");
   });
 });

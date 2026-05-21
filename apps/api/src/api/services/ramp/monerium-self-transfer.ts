@@ -38,13 +38,26 @@ export interface MoneriumSelfTransferInspection {
   tokenAddress: `0x${string}`;
 }
 
+interface MoneriumSelfTransferInspectionDependencies {
+  decodeFunctionData: typeof decodeFunctionData;
+  parseTransaction: typeof parseTransaction;
+  recoverTransactionAddress: typeof recoverTransactionAddress;
+}
+
+const defaultMoneriumSelfTransferInspectionDependencies: MoneriumSelfTransferInspectionDependencies = {
+  decodeFunctionData,
+  parseTransaction,
+  recoverTransactionAddress
+};
+
 export async function inspectMoneriumSelfTransferTransaction(
   txData: string,
-  expectation: MoneriumSelfTransferExpectation
+  expectation: MoneriumSelfTransferExpectation,
+  dependencies: MoneriumSelfTransferInspectionDependencies = defaultMoneriumSelfTransferInspectionDependencies
 ): Promise<MoneriumSelfTransferInspection> {
   const serializedTransaction = txData as RecoverableSerializedTransaction;
-  const parsedTx = parseTransaction(serializedTransaction);
-  const signer = await recoverTransactionAddress({ serializedTransaction });
+  const parsedTx = dependencies.parseTransaction(serializedTransaction);
+  const signer = await dependencies.recoverTransactionAddress({ serializedTransaction });
   const tokenAddress = expectation.expectedTokenAddress ?? ERC20_EURE_POLYGON_V2;
   const signedNonce = parsedTx.nonce;
 
@@ -68,10 +81,17 @@ export async function inspectMoneriumSelfTransferTransaction(
     );
   }
 
-  const decodedTransfer = decodeFunctionData({
-    abi: moneriumTransferFromAbi,
-    data: parsedTx.data ?? "0x"
-  });
+  let decodedTransfer;
+  try {
+    decodedTransfer = dependencies.decodeFunctionData({
+      abi: moneriumTransferFromAbi,
+      data: parsedTx.data ?? "0x"
+    });
+  } catch (error) {
+    throw new Error(
+      `[${expectation.rampId}] Self-transfer calldata is not a valid transferFrom payload: ${error instanceof Error ? error.message : error}`
+    );
+  }
   const [owner, recipient, amountRaw] = decodedTransfer.args;
   const expectedAmount = BigInt(expectation.expectedAmountRaw);
 
