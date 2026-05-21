@@ -2,7 +2,6 @@ import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
-import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
 import { useSiweSignature } from "../../hooks/useSignChallenge";
@@ -19,7 +18,6 @@ export const Ramp = () => {
   const stellarKycActor = useStellarKycActor();
   const quote = useQuote();
   const { forceSetQuote } = useQuoteActions();
-  useMoneriumFlow();
   useSiweSignature(stellarKycActor);
   useAuthTokens(rampActor);
 

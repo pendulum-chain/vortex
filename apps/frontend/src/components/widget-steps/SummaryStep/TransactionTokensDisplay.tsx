@@ -72,9 +72,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    if (fromToken.assetSymbol === "EURC") {
-      return "https://monerium.com";
-    }
     if (isAlfredpayToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
     }

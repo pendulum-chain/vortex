@@ -4,12 +4,10 @@ import {
   createStellarEphemeral,
   FiatToken,
   getNetworkId,
-  Networks,
-  RampDirection
+  Networks
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
-import { useAccount } from "wagmi";
 import { useEventsContext } from "../../contexts/events";
 import { useRampActor } from "../../contexts/rampState";
 import { usePreRampCheck } from "../../services/initialChecks";
@@ -46,8 +44,6 @@ export const useRampSubmission = () => {
   const storeQuote = useQuote();
   const quote = contextQuote || storeQuote;
 
-  const { address: connectedEvmAddress } = useAccount();
-
   const { inputAmount, fiatToken, onChainToken } = useQuoteFormStore();
   const network = quote
     ? ((Object.values(Networks).includes(quote.to as Networks) ? quote.to : quote.from) as Networks)
@@ -79,7 +75,7 @@ export const useRampSubmission = () => {
   );
 
   const prepareExecutionInput = useCallback(
-    async (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string }) => {
+    async (data: { pixId?: string; taxId?: string; walletAddress?: string }) => {
       validateSubmissionData(data);
       if (!quote) {
         throw new Error("No quote available. Please try again.");
@@ -93,20 +89,10 @@ export const useRampSubmission = () => {
       }
 
       const ephemerals = await createEphemerals();
-      // For EUR (Monerium) onramps the moneriumWalletAddress is the user's connected EVM wallet.
-      // Callers that don't pass it explicitly (e.g. the Onramp / RampSubmitButton flows) would
-      // otherwise leave it undefined and the API rejects the registerRamp request.
-      const isMoneriumOnramp = quote.rampType === RampDirection.BUY && fiatToken === FiatToken.EURC;
-      const moneriumWalletAddress = data.moneriumWalletAddress ?? (isMoneriumOnramp ? connectedEvmAddress : undefined);
-
-      if (isMoneriumOnramp && !moneriumWalletAddress) {
-        throw new Error("No Monerium wallet address found. Please connect an EVM wallet or provide a Monerium wallet address.");
-      }
 
       const executionInput: RampExecutionInput = {
         ephemerals,
         fiatToken,
-        moneriumWalletAddress,
         network,
         onChainToken,
         pixId: data.pixId,
@@ -119,7 +105,7 @@ export const useRampSubmission = () => {
       };
       return executionInput;
     },
-    [validateSubmissionData, quote, onChainToken, fiatToken, connectedWalletAddress, network, connectedEvmAddress]
+    [validateSubmissionData, quote, onChainToken, fiatToken, connectedWalletAddress, network]
   );
 
   const handleSubmissionError = useCallback(
@@ -139,7 +125,7 @@ export const useRampSubmission = () => {
   );
 
   const onRampConfirm = useCallback(
-    async (data: { pixId?: string; taxId?: string; walletAddress?: string; moneriumWalletAddress?: string } = {}) => {
+    async (data: { pixId?: string; taxId?: string; walletAddress?: string } = {}) => {
       if (executionPreparing) return;
       setExecutionPreparing(true);
 

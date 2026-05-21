@@ -28,7 +28,7 @@ export class RegisterRampError extends Error {
 }
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote, userId } = input;
+  const { executionInput, chainId, connectedWalletAddress, paymentData, quote, userId } = input;
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
@@ -75,8 +75,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
-      moneriumAuthToken: authToken,
-      moneriumWalletAddress: executionInput.moneriumWalletAddress,
       sessionId: input.externalSessionId
     };
   } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
@@ -102,9 +100,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     };
   } else {
     additionalData = {
-      // moneriumAuthToken is only relevant after enabling Monerium offramps.
-      // moneriumAuthToken: authToken,
-      // moneriumWalletAddress: executionInput.moneriumWalletAddress,
       paymentData,
       sessionId: input.externalSessionId,
       walletAddress: connectedWalletAddress
@@ -142,7 +137,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     signedTransactions,
     userSigningMeta: {
       assethubToPendulumHash: undefined,
-      moneriumOnrampApproveHash: undefined,
       squidRouterApproveHash: undefined,
       squidRouterSwapHash: undefined
     }

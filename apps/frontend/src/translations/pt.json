@@ -458,7 +458,6 @@
         "avenia": "Avenia",
         "careers": "Carreiras",
         "licences": "Licenças",
-        "monerium": "Monerium",
         "mykobo": "MyKobo",
         "privacyPolicy": "Política de Privacidade",
         "termsAndConditions": "Termos e Condições",
@@ -525,20 +524,6 @@
         "started": "Início"
       },
       "button": "Modo de Manutenção"
-    },
-    "moneriumFormStep": {
-      "description": {
-        "1": "Por favor, insira o endereço onde deseja receber os ativos no AssetHub.",
-        "2": "Em seguida, autentique-se com nosso parceiro de stablecoin <a>Monerium</a> conectando sua carteira EVM."
-      },
-      "field": {
-        "label": "Endereço da Carteira AssetHub"
-      }
-    },
-    "moneriumRedirect": {
-      "cancel": "Cancelar",
-      "description": "Você foi redirecionado para nosso parceiro...",
-      "goToPartner": "Ir para o parceiro"
     },
     "mxnDocumentUpload": {
       "backLabel": "Verso do Documento",
@@ -755,8 +740,7 @@
   "hooks": {
     "useGetRampRegistrationErrorMessage": {
       "default": "Algo deu errado",
-      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
-      "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente."
     },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
@@ -1076,15 +1060,6 @@
                 "label": "Website:"
               }
             },
-            "monerium": {
-              "name": "Monerium EMI ehf. (EEA/Islândia)",
-              "privacyTos": {
-                "label": "Privacidade/ToS:"
-              },
-              "website": {
-                "label": "Website:"
-              }
-            },
             "mykobo": {
               "name": "MYKOBO UAB (UE/Lituânia)",
               "privacy": {
@@ -1186,8 +1161,6 @@
       "hydrationSwap": "Trocando {{inputAssetSymbol}} por {{outputAssetSymbol}} no Hydration DEX",
       "hydrationToAssethubXcm": "Transferindo {{assetSymbol}} de Hydration --> AssetHub",
       "initial": "Iniciando processo",
-      "moneriumOnrampMint": "Aguardando pagamento",
-      "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",

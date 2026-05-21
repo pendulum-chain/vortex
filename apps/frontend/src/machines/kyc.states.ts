@@ -12,7 +12,6 @@ import {
   MxnKycFormData
 } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
-import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
 import { RampContext, SelectedAveniaData } from "./types";
 
 // Extended context types for child KYC machines
@@ -51,21 +50,13 @@ export interface AveniaKycContext extends RampContext {
   representativeVerificationStarted?: boolean;
 }
 
-export interface MoneriumKycContext extends RampContext {
-  authCode?: string;
-  authUrl?: string;
-  codeVerifier?: string;
-  error?: MoneriumKycMachineError;
-  redirectReady?: boolean;
-}
-
 export interface StellarKycContext extends RampContext {
   token?: string;
-  sep10Account?: any;
+  sep10Account?: unknown;
   redirectUrl?: string;
-  tomlValues?: any;
+  tomlValues?: unknown;
   id?: string;
-  error?: any;
+  error?: unknown;
   sep24IntervalId?: NodeJS.Timeout;
 }
 
@@ -90,9 +81,6 @@ export const kycStateNode = {
             if (context.executionInput?.fiatToken === FiatToken.BRL) {
               return "aveniaKyc";
             }
-            if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
-              return "moneriumKyc";
-            }
             if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
               return "alfredpayKyc";
             }
@@ -100,7 +88,7 @@ export const kycStateNode = {
           },
           { type: "SummaryConfirm" }
         ),
-        ({ event }: any) => {
+        ({ event }: { event: unknown }) => {
           console.log("SummaryConfirm event:", event);
         }
       ]
@@ -122,10 +110,10 @@ export const kycStateNode = {
         onDone: [
           {
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) =>
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) =>
                 (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
             }),
-            guard: ({ event }: { event: any }) => !!event.output.error,
+            guard: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) => !!event.output.error,
             target: "#ramp.KycFailure"
           },
           {
@@ -154,7 +142,7 @@ export const kycStateNode = {
           return {
             ...context,
             kycFormData: context.kycFormData, // Pass kycFormData from parent RampContext to AveniaKycContext
-            taxId: context.executionInput?.taxId!
+            taxId: context.executionInput?.taxId ?? ""
           };
         },
         onDone: [
@@ -194,55 +182,9 @@ export const kycStateNode = {
           target: "Avenia"
         },
         {
-          guard: ({ context }: { context: RampContext }) =>
-            context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY,
-          target: "Monerium"
-        },
-        {
           target: "Stellar"
         }
       ]
-    },
-    Monerium: {
-      invoke: {
-        id: "moneriumKyc",
-        input: ({ context }: { context: RampContext }): MoneriumKycContext => ({
-          ...context
-        }),
-        onDone: [
-          {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
-              console.log("Monerium KYC completed with response:", event.output);
-              return {
-                ...context,
-                authToken: event.output.authToken
-              };
-            }),
-            guard: ({ event }: { event: any }) => !!event.output.authToken,
-            target: "VerificationComplete"
-          },
-          {
-            actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) =>
-              (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
-            target: "#ramp.QuoteReady"
-          },
-          {
-            actions: assign({
-              initializeFailedMessage: ({ event }) =>
-                (event.output.error as MoneriumKycMachineError)?.message || "An unknown error occurred"
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        onError: {
-          actions: assign({
-            initializeFailedMessage: "Monerium KYC verification failed. Please retry."
-          }),
-          target: "#ramp.KycFailure"
-        },
-        src: "moneriumKyc"
-      }
     },
     Stellar: {
       invoke: {
@@ -250,25 +192,27 @@ export const kycStateNode = {
         input: ({ context }: { context: RampContext }) => context,
         onDone: [
           {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
+            actions: assign(({ context, event }: { context: RampContext; event: DoneActorEvent<StellarKycContext> }) => {
               console.log("Stellar KYC completed with response:", event.output);
               return {
                 ...context,
                 paymentData: event.output.paymentData
               };
             }),
-            guard: ({ event }: { event: any }) => !!event.output.paymentData,
+            guard: ({ event }: { event: DoneActorEvent<StellarKycContext> }) => !!event.output.paymentData,
             target: "VerificationComplete"
           },
           {
             actions: [{ type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) => event.output?.error.includes("User rejected"), // TODO improve to error classes, as in moneriumKyc state machine.
+            guard: ({ event }: { event: DoneActorEvent<StellarKycContext> }) =>
+              typeof event.output?.error === "string" && event.output.error.includes("User rejected"),
             target: "#ramp.QuoteReady"
           },
           {
             // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) => event.output.error
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<StellarKycContext> }) =>
+                typeof event.output.error === "string" ? event.output.error : "Stellar KYC verification failed. Please retry."
             }),
             target: "#ramp.KycFailure"
           }
@@ -290,8 +234,8 @@ export const kycStateNode = {
       },
       entry: {
         actions: [
-          ({ context }: any) => {
-            console.log("KYC verification completed successfully:", context.kycResponse);
+          () => {
+            console.log("KYC verification completed successfully");
           }
         ]
       }

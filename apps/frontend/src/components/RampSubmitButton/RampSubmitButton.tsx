@@ -15,7 +15,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
-import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { useRampActor, useStellarKycSelector } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useAlfredpayFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
@@ -186,7 +186,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
   const router = useRouter();
   const params = useParams({ strict: false });
 
-  const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
@@ -234,7 +233,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       return false;
     }
 
-    if (machineState === "RegisterRamp" || moneriumKycActor) {
+    if (machineState === "RegisterRamp") {
       return true;
     }
 
@@ -269,7 +268,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     effectiveSelectedFiatAccountId,
     stellarData,
     machineState,
-    moneriumKycActor,
     walletLocked,
     accountAddress,
     quote?.from

@@ -13,7 +13,6 @@ import { AuthOTPStep } from "../../components/widget-steps/AuthOTPStep";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
-import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { FiatAccountMachineContext, useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
@@ -22,7 +21,6 @@ import {
   useAlfredpayKycSelector,
   useAveniaKycActor,
   useAveniaKycSelector,
-  useMoneriumKycActor,
   useRampActor
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
@@ -52,7 +50,6 @@ export const Widget = ({ className }: WidgetProps) => (
 const WidgetContent = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
-  const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
   const alfredpayKycActor = useAlfredpayKycActor();
 
@@ -70,13 +67,6 @@ const WidgetContent = () => {
 
   const rampSummaryVisible =
     rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
-
-  const isMoneriumRedirect = useSelector(moneriumKycActor, state => {
-    if (state) {
-      return state.value === "Redirect";
-    }
-    return false;
-  });
 
   const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
 
@@ -107,10 +97,6 @@ const WidgetContent = () => {
 
   if (isAuthOTP) {
     return <AuthOTPStep />;
-  }
-
-  if (isMoneriumRedirect) {
-    return <MoneriumRedirectStep />;
   }
 
   if (rampSummaryVisible) {

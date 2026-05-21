@@ -1,5 +1,5 @@
-import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
-import { FiatToken, isAlfredpayToken, MoneriumErrors, RampDirection } from "@vortexfi/shared";
+import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
+import { FiatToken, isAlfredpayToken, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -72,9 +72,6 @@ export const SummaryStep: FC = () => {
   if (!visible) return null;
   if (!executionInput) return null;
 
-  const isUserMintAddressNotFound =
-    rampRegistrationError && rampRegistrationError === MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND;
-
   const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
 
   const headerText = isOnramp ? t("components.SummaryPage.headerText.buy") : t("components.SummaryPage.headerText.sell");
@@ -96,17 +93,7 @@ export const SummaryStep: FC = () => {
         </div>
       )}
 
-      {isUserMintAddressNotFound && (
-        <AlertBanner
-          className="mt-4 mb-4"
-          icon={<UserIcon className="w-5 text-warning" />}
-          title={rampRegistrationErrorMessage ?? ""}
-        >
-          <progress className="progress progress-warning mt-4 w-56" />
-        </AlertBanner>
-      )}
-
-      {!isUserMintAddressNotFound && rampRegistrationErrorMessage && (
+      {rampRegistrationErrorMessage && (
         <AlertBanner
           className="mt-4 mb-4"
           icon={<ExclamationCircleIcon className="w-5 text-warning" />}

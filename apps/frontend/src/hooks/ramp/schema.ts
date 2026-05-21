@@ -10,7 +10,6 @@ export type RampFormValues = {
   taxId?: string;
   pixId?: string;
   walletAddress?: string;
-  moneriumWalletAddress?: string;
   fiatToken?: FiatToken;
 };
 
@@ -44,7 +43,6 @@ export const createRampFormSchema = (
   return z
     .object({
       fiatToken: z.string().optional() as z.ZodType<FiatToken | undefined>,
-      moneriumWalletAddress: z.string().optional(),
       pixId: z.string().optional(),
       taxId: z.string().optional(),
       walletAddress: z.string().optional()

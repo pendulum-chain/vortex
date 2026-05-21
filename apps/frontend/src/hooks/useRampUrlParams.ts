@@ -40,7 +40,6 @@ interface RampUrlParams {
   apiKey?: string;
   partnerId?: string;
   providedQuoteId?: string;
-  moneriumCode?: string;
   fiat?: FiatToken;
   countryCode?: string;
   cryptoLocked?: OnChainTokenSymbol;
@@ -170,7 +169,6 @@ export enum RampUrlParamsKeys {
   CALLBACK_URL = "callbackUrl",
   EXTERNAL_SESSION_ID = "externalSessionId",
   COUNTRY_CODE = "countryCode",
-  MONERIUM_CODE = "code",
   PROVIDED_QUOTE_ID = "quoteId"
 }
 
@@ -186,7 +184,6 @@ export const useRampUrlParams = (): RampUrlParams => {
     const cryptoLockedParam = searchParams.cryptoLocked?.toUpperCase();
     const countryCodeParam = searchParams.countryCode?.toUpperCase();
 
-    const moneriumCode = searchParams.code?.toLowerCase();
     const networkParam = searchParams.network?.toLowerCase();
     const providedQuoteId = searchParams.quoteId?.toLowerCase();
     const paymentMethodParam = searchParams.paymentMethod?.toLowerCase() as PaymentMethod | undefined;
@@ -218,7 +215,6 @@ export const useRampUrlParams = (): RampUrlParams => {
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
-      moneriumCode,
       network,
       partnerId: partnerIdParam || undefined,
       paymentMethod: paymentMethodParam || undefined,
@@ -246,8 +242,7 @@ export const useSetRampUrlParams = () => {
     paymentMethod,
     walletLocked,
     callbackUrl,
-    externalSessionId,
-    moneriumCode
+    externalSessionId
   } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
@@ -384,13 +379,6 @@ export const useSetRampUrlParams = () => {
       setApiKeyFn(null);
     }
 
-    const persistState = moneriumCode !== undefined;
-
-    if (persistState) {
-      hasInitialized.current = true;
-      return;
-    }
-
     resetRampForm();
 
     onToggle(rampDirection);
@@ -422,8 +410,7 @@ export const useSetRampUrlParams = () => {
     setApiKeyFn,
     setPartnerIdFn,
     onToggle,
-    handleFiatToken,
-    moneriumCode
+    handleFiatToken
   ]);
 
   useEffect(() => {

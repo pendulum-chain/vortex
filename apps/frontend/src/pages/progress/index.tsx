@@ -28,14 +28,6 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
       return "onramp_brl";
     }
 
-    if (rampState.quote?.inputCurrency === FiatToken.EURC && rampState.quote?.to === Networks.AssetHub) {
-      if (rampState.quote?.outputCurrency === "USDC") {
-        return "onramp_eur_assethub";
-      } else {
-        return "onramp_eur_assethub_via_hydration";
-      }
-    }
-
     return "onramp_eur_evm";
   }
 

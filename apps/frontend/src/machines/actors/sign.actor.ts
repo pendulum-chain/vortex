@@ -1,20 +1,12 @@
 import {
-  ERC20_EURE_POLYGON_DECIMALS,
-  ERC20_EURE_POLYGON_TOKEN_NAME,
-  ERC20_EURE_POLYGON_V2,
   getAddressForFormat,
   getOnChainTokenDetails,
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
-  Networks,
-  PermitSignature,
-  PresignedTx,
-  RampDirection
+  PresignedTx
 } from "@vortexfi/shared";
-import { signERC2612Permit } from "../../helpers/crypto";
 import { RampService } from "../../services/api";
-import { MoneriumService } from "../../services/api/monerium.service";
 import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
@@ -40,28 +32,15 @@ export const signTransactionsActor = async ({
 }: {
   input: { parent: RampMachineActor; context: RampContext };
 }): Promise<RampState> => {
-  const {
-    rampState,
-    rampDirection,
-    quote,
-    connectedWalletAddress,
-    chainId,
-    executionInput,
-    substrateWalletAccount,
-    getMessageSignature
-  } = input.context;
+  const { rampState, connectedWalletAddress, chainId, executionInput, substrateWalletAccount } = input.context;
 
   if (!rampState || !connectedWalletAddress || chainId === undefined) {
     throw new SignRampError("Missing required context for signing", SignRampErrorType.InvalidInput);
   }
 
   const userTxs = rampState?.ramp?.unsignedTxs?.filter(tx => {
-    // For substrate networks (Pendulum/AssetHub), always use connectedWalletAddress.
-    // moneriumWalletAddress is only for Monerium flows with EVM transactions.
     const isSubstrateTransaction = !isEvmTransactionData(tx.txData);
-    const signerAddress = isSubstrateTransaction
-      ? connectedWalletAddress
-      : executionInput?.moneriumWalletAddress || connectedWalletAddress;
+    const signerAddress = connectedWalletAddress;
 
     if (!signerAddress) {
       return false;
@@ -75,18 +54,6 @@ export const signTransactionsActor = async ({
     return match;
   });
 
-  // Add userTx for monerium onramp. Signature is required, which is created in this process.
-  if (rampDirection === RampDirection.BUY && quote?.from === "sepa") {
-    userTxs?.push({
-      meta: {},
-      network: Networks.Polygon,
-      nonce: 0,
-      phase: "moneriumOnrampMint",
-      signer: executionInput?.moneriumWalletAddress as `0x${string}`,
-      txData: {} as any // Placeholder, actual txData is not needed for signing the permit
-    });
-  }
-
   if (!userTxs || userTxs.length === 0) {
     console.log("No user transactions found requiring signature.");
     return rampState;
@@ -98,17 +65,8 @@ export const signTransactionsActor = async ({
   let squidRouterNoPermitApproveHash: string | undefined = undefined;
   let squidRouterNoPermitSwapHash: string | undefined = undefined;
   let assethubToPendulumHash: string | undefined = undefined;
-  let moneriumOfframpSignature: string | undefined = undefined;
-  let moneriumOnrampPermit: PermitSignature | undefined = undefined;
 
   const sortedTxs = userTxs?.sort((a, b) => a.nonce - b.nonce);
-
-  // Monerium onramp
-  if (rampDirection === RampDirection.SELL && quote?.from === "sepa") {
-    if (!getMessageSignature) throw new Error("getMessageSignature not available");
-    const offrampMessage = await MoneriumService.createRampMessage(rampState.quote.outputAmount, "THIS WILL BE THE IBAN");
-    moneriumOfframpSignature = await getMessageSignature(offrampMessage);
-  }
 
   if (!sortedTxs) {
     throw new SignRampError("Missing sorted transactions", SignRampErrorType.UnknownError);
@@ -163,18 +121,6 @@ export const signTransactionsActor = async ({
         input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
         assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, substrateWalletAccount);
         input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
-      } else if (tx.phase === "moneriumOnrampMint") {
-        input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
-        moneriumOnrampPermit = await signERC2612Permit(
-          executionInput?.moneriumWalletAddress as `0x${string}`,
-          executionInput?.ephemerals.evmEphemeral.address as `0x${string}`,
-          rampState.quote.inputAmount,
-          ERC20_EURE_POLYGON_V2, // EURe V2 address on Polygon
-          ERC20_EURE_POLYGON_DECIMALS,
-          137, // Polygon chainId
-          ERC20_EURE_POLYGON_TOKEN_NAME
-        );
-        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
       } else {
         throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
       }
@@ -193,8 +139,6 @@ export const signTransactionsActor = async ({
 
   const additionalData = {
     assethubToPendulumHash,
-    moneriumOfframpSignature,
-    moneriumOnrampPermit,
     squidRouterApproveHash,
     squidRouterNoPermitApproveHash,
     squidRouterNoPermitSwapHash,
@@ -212,7 +156,6 @@ export const signTransactionsActor = async ({
     ramp: updatedRampProcess,
     userSigningMeta: {
       assethubToPendulumHash,
-      moneriumOnrampPermit,
       squidRouterApproveHash,
       squidRouterSwapHash
     }

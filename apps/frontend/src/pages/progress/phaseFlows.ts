@@ -21,8 +21,6 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   hydrationSwap: 30,
   hydrationToAssethubXcm: 30,
   initial: 0,
-  moneriumOnrampMint: 60,
-  moneriumOnrampSelfTransfer: 20,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
   mykoboOnrampDeposit: 5 * 60,
@@ -107,53 +105,18 @@ export const PHASE_FLOWS = {
     "complete"
   ] as RampPhase[],
 
-  onramp_eur_assethub: [
-    "initial",
-    "moneriumOnrampMint",
-    "fundEphemeral",
-    "moneriumOnrampSelfTransfer",
-    "squidRouterApprove",
-    "squidRouterSwap",
-    "squidRouterPay",
-    "moonbeamToPendulum",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "distributeFees",
-    "subsidizePostSwap",
-    "pendulumToAssethubXcm",
-    "complete"
-  ] as RampPhase[],
-
-  onramp_eur_assethub_via_hydration: [
-    "initial",
-    "moneriumOnrampMint",
-    "fundEphemeral",
-    "moneriumOnrampSelfTransfer",
-    "squidRouterApprove",
-    "squidRouterSwap",
-    "squidRouterPay",
-    "moonbeamToPendulum",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "distributeFees",
-    "subsidizePostSwap",
-    "pendulumToHydrationXcm",
-    "hydrationSwap",
-    "hydrationToAssethubXcm",
-    "complete"
-  ] as RampPhase[],
-
   onramp_eur_evm: [
     "initial",
-    "moneriumOnrampMint",
-    "fundEphemeral",
-    "moneriumOnrampSelfTransfer",
+    "mykoboOnrampDeposit",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
     "squidRouterApprove",
     "squidRouterSwap",
     "squidRouterPay",
     "distributeFees",
+    "destinationTransfer",
     "complete"
   ] as RampPhase[]
 };

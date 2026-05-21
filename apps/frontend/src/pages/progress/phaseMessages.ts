@@ -82,8 +82,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     initial: t("pages.progress.initial"),
-    moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
-    moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     mykoboOnrampDeposit: t("pages.progress.initial"),

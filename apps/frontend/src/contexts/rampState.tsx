@@ -1,18 +1,15 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
-import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AlfredpayKycContext, AveniaKycContext, StellarKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
   AlfredpayKycSnapshot,
   AveniaKycActorRef,
   AveniaKycSnapshot,
-  MoneriumKycActorRef,
-  MoneriumKycSnapshot,
   RampMachineSnapshot,
   SelectedAlfredpayData,
   SelectedAveniaData,
-  SelectedMoneriumData,
   SelectedStellarData,
   StellarKycActorRef,
   StellarKycSnapshot
@@ -35,15 +32,11 @@ export const useRampStateSelector = RampStateContext.useSelector;
 const PersistenceEffect = () => {
   const rampActor = useRampActor();
 
-  const stellarActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
+  const stellarActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
     | StellarKycActorRef
     | undefined;
 
-  const moneriumActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
-    | MoneriumKycActorRef
-    | undefined;
-
-  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+  const aveniaActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
     | AveniaKycActorRef
     | undefined;
 
@@ -54,10 +47,6 @@ const PersistenceEffect = () => {
     rampState: state?.value
   }));
 
-  const { moneriumState } = useSelector(moneriumActor, state => ({
-    moneriumState: state?.value
-  }));
-
   const { stellarState } = useSelector(stellarActor, state => ({
     stellarState: state?.value
   }));
@@ -66,12 +55,12 @@ const PersistenceEffect = () => {
     aveniaState: state?.value
   }));
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run when selected snapshot pieces change
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
     // It's important to have `isQuoteExpired` and `quote` here in the deps array to persist them when they change
-  }, [rampContext, rampState, moneriumState, stellarState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
+  }, [rampContext, rampState, stellarState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;
 };
@@ -88,7 +77,7 @@ export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ child
 export function useStellarKycActor(): StellarKycActorRef | undefined {
   const rampActor = useRampActor();
 
-  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
+  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
     | StellarKycActorRef
     | undefined;
 }
@@ -96,7 +85,7 @@ export function useStellarKycActor(): StellarKycActorRef | undefined {
 export function useStellarKycSelector(): SelectedStellarData | undefined {
   const rampActor = useRampActor();
 
-  const stellarActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).stellarKyc) as
+  const stellarActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
     | StellarKycActorRef
     | undefined;
 
@@ -120,45 +109,10 @@ export function useStellarKycSelector(): SelectedStellarData | undefined {
   );
 }
 
-export function useMoneriumKycActor(): MoneriumKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
-    | MoneriumKycActorRef
-    | undefined;
-}
-
-export function useMoneriumKycSelector(): SelectedMoneriumData | undefined {
-  const rampActor = useRampActor();
-
-  const moneriumActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).moneriumKyc) as
-    | MoneriumKycActorRef
-    | undefined;
-
-  return useSelector(
-    moneriumActor,
-    (snapshot: MoneriumKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as MoneriumKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
-}
-
 export function useAveniaKycActor(): AveniaKycActorRef | undefined {
   const rampActor = useRampActor();
 
-  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
     | AveniaKycActorRef
     | undefined;
 }
@@ -166,7 +120,7 @@ export function useAveniaKycActor(): AveniaKycActorRef | undefined {
 export function useAveniaKycSelector(): SelectedAveniaData | undefined {
   const rampActor = useRampActor();
 
-  const aveniaActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).aveniaKyc) as
+  const aveniaActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
     | AveniaKycActorRef
     | undefined;
 
@@ -193,7 +147,7 @@ export function useAveniaKycSelector(): SelectedAveniaData | undefined {
 export function useAlfredpayKycActor(): AlfredpayKycActorRef | undefined {
   const rampActor = useRampActor();
 
-  return useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).alfredpayKyc) as
+  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).alfredpayKyc) as
     | AlfredpayKycActorRef
     | undefined;
 }
@@ -201,7 +155,7 @@ export function useAlfredpayKycActor(): AlfredpayKycActorRef | undefined {
 export function useAlfredpayKycSelector(): SelectedAlfredpayData | undefined {
   const rampActor = useRampActor();
 
-  const alfredpayActor = useSelector(rampActor, (snapshot: RampMachineSnapshot) => (snapshot.children as any).alfredpayKyc) as
+  const alfredpayActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).alfredpayKyc) as
     | AlfredpayKycActorRef
     | undefined;
 
