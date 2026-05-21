@@ -36,9 +36,13 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     await assertQuoteOwnership(req, quoteId);
 
-    // Start ramping process
+    const enrichedAdditionalData = {
+      ...(additionalData ?? {}),
+      ipAddress: additionalData?.ipAddress ?? req.ip
+    };
+
     const ramp = await rampService.registerRamp({
-      additionalData,
+      additionalData: enrichedAdditionalData,
       quoteId,
       signingAccounts,
       userId: req.userId

@@ -14,6 +14,7 @@ import moneriumOnrampMintPhaseHandler from "./handlers/monerium-onramp-mint-hand
 import moneriumOnrampSelfTransferHandler from "./handlers/monerium-onramp-self-transfer-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
+import mykoboPayoutHandler from "./handlers/mykobo-payout-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
 import nablaSwapHandler from "./handlers/nabla-swap-handler";
 import pendulumToAssethubPhaseHandler from "./handlers/pendulum-to-assethub-phase-handler";
@@ -45,6 +46,7 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(subsidizePreSwapPhaseHandler);
   phaseRegistry.registerHandler(moonbeamToPendulumPhaseHandler);
   phaseRegistry.registerHandler(brlaPayoutBaseHandler);
+  phaseRegistry.registerHandler(mykoboPayoutHandler);
   phaseRegistry.registerHandler(fundEphemeralHandler);
   phaseRegistry.registerHandler(alfredpayOnrampMintHandler);
   phaseRegistry.registerHandler(alfredpayOfframpTransferHandler);

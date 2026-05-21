@@ -1018,7 +1018,10 @@ export class RampService extends BaseRampService {
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      destinationAddress: additionalData?.destinationAddress,
+      email: additionalData?.email,
       fiatAccountId: additionalData?.fiatAccountId as string | undefined,
+      ipAddress: additionalData?.ipAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
       stellarPaymentData: additionalData?.paymentData,

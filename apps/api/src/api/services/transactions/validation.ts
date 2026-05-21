@@ -237,6 +237,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "alfredpayOfframpTransfer":
     case "brlaOnrampMint":
     case "brlaPayoutOnBase":
+    case "mykoboPayoutOnBase":
     case "finalSettlementSubsidy":
     case "backupSquidRouterApprove":
     case "backupSquidRouterSwap":
@@ -245,6 +246,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "polygonCleanupAxlUsdc":
     case "baseCleanupBrla":
     case "baseCleanupUsdc":
+    case "baseCleanupEurc":
     case "baseCleanupAxlUsdc":
       return EphemeralAccountType.EVM;
     default:

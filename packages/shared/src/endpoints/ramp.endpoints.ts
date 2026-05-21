@@ -46,6 +46,7 @@ export type RampPhase =
   | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
   | "brlaPayoutOnBase"
+  | "mykoboPayoutOnBase"
   | "baseTransfer"
   | "failed"
   | "timedOut"
@@ -66,6 +67,7 @@ export type CleanupPhase =
   | "assetHubCleanup"
   | "baseCleanupUsdc"
   | "baseCleanupBrla"
+  | "baseCleanupEurc"
   | "baseCleanupAxlUsdc";
 
 export enum EphemeralAccountType {
@@ -187,6 +189,7 @@ export interface RegisterRampRequest {
     moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     sessionId?: string;
     email?: string; // Required for Mykobo EUR offramps (binds ramp to anchor profile)
+    ipAddress?: string; // Required for Mykobo EUR offramps (user IP for fraud checks)
     [key: string]: unknown;
   };
 }

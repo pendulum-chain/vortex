@@ -13,6 +13,9 @@ export interface OfframpTransactionParams {
   moneriumAuthToken?: string;
   userId?: string;
   fiatAccountId?: string;
+  email?: string;
+  destinationAddress?: string;
+  ipAddress?: string;
 }
 
 export interface OfframpTransactionsWithMeta {

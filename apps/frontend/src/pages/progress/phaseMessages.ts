@@ -86,6 +86,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
+    mykoboPayoutOnBase: getTransferringMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {

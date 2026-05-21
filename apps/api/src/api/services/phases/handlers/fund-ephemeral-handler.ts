@@ -93,8 +93,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresBaseEphemeralAddress(inputCurrency?: string, outputCurrency?: string): boolean {
-    // Only required for BRLA onramps.
     if (inputCurrency === FiatToken.BRL || outputCurrency === FiatToken.BRL) {
+      return true;
+    }
+    if (outputCurrency === FiatToken.EURC) {
       return true;
     }
     return false;
@@ -123,6 +125,9 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     const fromNetwork = state.from as EvmNetworks;
     if (!isNetworkEVM(fromNetwork)) return;
+
+    const hasSquidApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterApprove");
+    if (!hasSquidApproveBlueprint) return;
 
     await verifyUserSubmittedTxByHash({
       fromNetwork,
