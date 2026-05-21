@@ -1,5 +1,6 @@
 import { assign, fromPromise, sendParent, setup } from "xstate";
 
+import { isApiError } from "../services/api/api-client";
 import { MykoboProfilePayload, MykoboService } from "../services/api/mykobo.service";
 import { RampSigningPhase } from "../types/phases";
 import { MykoboKycContext } from "./kyc.states";
@@ -43,11 +44,28 @@ export const mykoboKycMachine = setup({
       const deadline = Date.now() + POLLING_TIMEOUT_MS;
       while (Date.now() < deadline) {
         if (signal.aborted) throw new Error("Polling aborted");
-        const profile = await MykoboService.getProfile(address);
-        const status = profile?.kycStatus.reviewStatus;
-        if (status === "approved") return { status: "approved" as const };
-        if (status === "rejected") return { status: "rejected" as const };
-        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL_MS));
+        try {
+          const profile = await MykoboService.getProfile(address);
+          const status = profile?.kycStatus.reviewStatus;
+          if (status === "approved") return { status: "approved" as const };
+          if (status === "rejected") return { status: "rejected" as const };
+        } catch (err) {
+          // 4xx (other than 404, which getProfile already maps to null) means the request is bad — fail fast.
+          if (isApiError(err) && err.status >= 400 && err.status < 500) throw err;
+          console.warn("Mykobo profile poll failed, retrying:", err);
+        }
+        // Sleep between polls, but resolve early if the actor is cancelled so the loop can exit promptly.
+        await new Promise<void>(resolve => {
+          const timer = setTimeout(() => {
+            signal.removeEventListener("abort", onAbort);
+            resolve();
+          }, POLLING_INTERVAL_MS);
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          signal.addEventListener("abort", onAbort, { once: true });
+        });
       }
       throw new Error("KYC polling timed out");
     }),

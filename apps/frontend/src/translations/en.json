@@ -568,6 +568,14 @@
       "title": "Identity Verification",
       "zipCode": "ZIP Code"
     },
+    "mykoboKycFlow": {
+      "checkingProfile": "Checking your Mykobo profile…",
+      "done": "KYC complete.",
+      "failure": "Something went wrong with KYC.",
+      "rejected": "Your KYC was rejected.",
+      "submitting": "Submitting your KYC details…",
+      "verifying": "Verifying your KYC. This can take a few minutes…"
+    },
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
@@ -634,8 +642,10 @@
         "bic": "BIC",
         "footer": "Please ensure the amount is exact.",
         "hint": "Scan this QR code in your banking app to start the payment instantly.",
+        "hintNoQr": "Transfer the exact amount to the bank details above.",
         "iban": "IBAN",
         "receiver": "Recipient",
+        "reference": "Reference",
         "title": "Do an instant bank transfer with the following details"
       },
       "headerText": {
@@ -1184,6 +1194,8 @@
       "moneriumOnrampMint": "Waiting to receive payment",
       "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "mykoboOnrampDeposit": "Waiting to receive payment",
+      "mykoboOnrampTransfer": "Transferring EURC to the ephemeral account",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",

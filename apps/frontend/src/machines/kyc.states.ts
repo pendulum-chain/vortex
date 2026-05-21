@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
+import { FiatToken, KycFailureReason } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -12,7 +12,7 @@ import {
   MxnKycFormData
 } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
-import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
+import { MoneriumKycMachineError } from "./moneriumKyc.machine";
 import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
 import { RampContext, SelectedAveniaData } from "./types";
 
@@ -67,6 +67,20 @@ export interface MykoboKycContext extends RampContext {
   error?: MykoboKycMachineError;
 }
 
+type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
+
+// Single source of truth for KYC routing. Both the `SummaryConfirm` sendTo callback
+// and the `Deciding` state's `always` transitions read from this map.
+type KycRoute = { actorId: string; target: string };
+const KYC_ROUTE_BY_TOKEN: Partial<Record<FiatToken, KycRoute>> = {
+  [FiatToken.BRL]: { actorId: "aveniaKyc", target: "Avenia" },
+  [FiatToken.EURC]: { actorId: "mykoboKyc", target: "Mykobo" },
+  [FiatToken.USD]: { actorId: "alfredpayKyc", target: "Alfredpay" },
+  [FiatToken.MXN]: { actorId: "alfredpayKyc", target: "Alfredpay" },
+  [FiatToken.COP]: { actorId: "alfredpayKyc", target: "Alfredpay" }
+};
+const resolveKycRoute = (token: FiatToken | undefined): KycRoute | undefined => (token ? KYC_ROUTE_BY_TOKEN[token] : undefined);
+
 // Logic of the KYC node:
 // The node attempts to abstract the generic "Started" -> "Verifying" -> "Done" flow of any KYC process.
 // The "Verifying" state will invoke child actors based on the particula ramp.
@@ -82,24 +96,11 @@ export const kycStateNode = {
     },
     SummaryConfirm: {
       actions: [
-        // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
-        sendTo(
-          ({ context }) => {
-            const token = context.executionInput?.fiatToken;
-            if (token === FiatToken.BRL) {
-              return "aveniaKyc";
-            }
-            // Monerium onramp route (disabled — re-enable to restore EURC BUY → Monerium):
-            // if (token === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
-            //   return "moneriumKyc";
-            // }
-            if (token && isAlfredpayToken(token)) {
-              return "alfredpayKyc";
-            }
-            return "mykoboKyc";
-          },
-          { type: "SummaryConfirm" }
-        ),
+        // Routes the SummaryConfirm event to the active KYC actor. Unknown tokens get a sentinel
+        // actor id; XState logs a warning and the Deciding state's fallback routes to KycFailure.
+        sendTo(({ context }) => resolveKycRoute(context.executionInput?.fiatToken)?.actorId ?? "noKycActor", {
+          type: "SummaryConfirm"
+        }),
         ({ event }: any) => {
           console.log("SummaryConfirm event:", event);
         }
@@ -184,67 +185,20 @@ export const kycStateNode = {
     },
     Deciding: {
       always: [
+        ...(Object.entries(KYC_ROUTE_BY_TOKEN) as [FiatToken, KycRoute][]).map(([token, route]) => ({
+          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === token,
+          target: route.target
+        })),
+        // Fallback: any fiat token without a registered KYC actor (e.g. ARS today) fails fast
+        // rather than stalling in Deciding forever.
         {
-          guard: ({ context }: { context: RampContext }) =>
-            !!context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken),
-          target: "Alfredpay"
-        },
-        {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
-          target: "Avenia"
-        },
-        // Monerium onramp route (disabled — re-enable to restore EURC BUY → Monerium):
-        // {
-        //   guard: ({ context }: { context: RampContext }) =>
-        //     context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY,
-        //   target: "Monerium"
-        // },
-        {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.EURC,
-          target: "Mykobo"
-        }
-      ]
-    },
-    Monerium: {
-      invoke: {
-        id: "moneriumKyc",
-        input: ({ context }: { context: RampContext }): MoneriumKycContext => ({
-          ...context
-        }),
-        onDone: [
-          {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
-              console.log("Monerium KYC completed with response:", event.output);
-              return {
-                ...context,
-                authToken: event.output.authToken
-              };
-            }),
-            guard: ({ event }: { event: any }) => !!event.output.authToken,
-            target: "VerificationComplete"
-          },
-          {
-            actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) =>
-              (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
-            target: "#ramp.QuoteReady"
-          },
-          {
-            actions: assign({
-              initializeFailedMessage: ({ event }) =>
-                (event.output.error as MoneriumKycMachineError)?.message || "An unknown error occurred"
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        onError: {
           actions: assign({
-            initializeFailedMessage: "Monerium KYC verification failed. Please retry."
+            initializeFailedMessage: ({ context }: { context: RampContext }) =>
+              `No KYC flow available for ${context.executionInput?.fiatToken ?? "unknown"} token.`
           }),
           target: "#ramp.KycFailure"
-        },
-        src: "moneriumKyc"
-      }
+        }
+      ]
     },
     Mykobo: {
       invoke: {
@@ -254,19 +208,19 @@ export const kycStateNode = {
         }),
         onDone: [
           {
-            guard: ({ event }: { event: any }) => !!event.output.profileApproved,
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) => !!event.output.profileApproved,
             target: "VerificationComplete"
           },
           {
             actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) =>
-              (event.output.error as MykoboKycMachineError)?.type === MykoboKycMachineErrorType.UserRejected,
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+              event.output.error?.type === MykoboKycMachineErrorType.UserRejected,
             target: "#ramp.QuoteReady"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) =>
-                (event.output.error as MykoboKycMachineError)?.message || "An unknown error occurred"
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+                event.output.error?.message || "An unknown error occurred"
             }),
             target: "#ramp.KycFailure"
           }

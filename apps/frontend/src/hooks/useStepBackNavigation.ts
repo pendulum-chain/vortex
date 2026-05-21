@@ -7,6 +7,8 @@ import {
   useAlfredpayKycSelector,
   useAveniaKycActor,
   useAveniaKycSelector,
+  useMykoboKycActor,
+  useMykoboKycSelector,
   useRampActor
 } from "../contexts/rampState";
 import { isInCompoundState } from "../machines/types";
@@ -18,6 +20,8 @@ export const useStepBackNavigation = () => {
   const aveniaState = useAveniaKycSelector();
   const alfredpayKycActor = useAlfredpayKycActor();
   const alfredpayKycState = useAlfredpayKycSelector();
+  const mykoboKycActor = useMykoboKycActor();
+  const mykoboKycState = useMykoboKycSelector();
   const fiatAccountActor = useFiatAccountActor();
   const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
 
@@ -62,6 +66,13 @@ export const useStepBackNavigation = () => {
     if (alfredpayKycActor && alfredpayKycState) {
       if (alfredpayKycState.stateValue === "UploadingDocuments") {
         alfredpayKycActor.send({ type: "GO_BACK" });
+        return;
+      }
+    }
+
+    if (mykoboKycActor && mykoboKycState) {
+      if (mykoboKycState.stateValue === "FormFilling") {
+        mykoboKycActor.send({ type: "CANCEL" });
         return;
       }
     }
