@@ -1,4 +1,5 @@
 import {
+  ERC20_EURE_POLYGON_TOKEN_NAME,
   ERC20_EURE_POLYGON_V2,
   EvmClientManager,
   getEvmTokenBalance,
@@ -11,10 +12,22 @@ import { encodeFunctionData, PublicClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
+import erc20ABI from "../../../../contracts/ERC20";
 import { permitAbi } from "../../../../contracts/PermitAbi";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { analyzeMoneriumPermitPreflight, MoneriumPermitDiagnostics } from "../../ramp/monerium-permit";
 import { BasePhaseHandler } from "../base-phase-handler";
+
+const permitNonceAbi = [
+  {
+    inputs: [{ name: "owner", type: "address" }],
+    name: "nonces",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
 
 /**
  * Handler for the monerium self-transfer phase
@@ -98,24 +111,81 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
         logger.info(`Permit transaction already sent with hash: ${state.state.permitTxHash}. Skipping permit sending.`);
         permitHash = state.state.permitTxHash;
       } else {
-        // Send permit transaction
-        const permitData = encodeFunctionData({
-          abi: permitAbi,
-          args: [
-            moneriumWalletAddress,
-            state.state.evmEphemeralAddress,
-            BigInt(mintedAmountRaw),
-            moneriumOnrampPermit.deadline,
-            moneriumOnrampPermit.v,
-            moneriumOnrampPermit.r,
-            moneriumOnrampPermit.s
-          ],
-          functionName: "permit"
-        });
-        permitHash = await this.evmClientManager.sendTransactionWithBlindRetry(Networks.Polygon, account, {
-          data: permitData,
-          to: ERC20_EURE_POLYGON_V2
-        });
+        const owner = moneriumWalletAddress as `0x${string}`;
+        const spender = evmEphemeralAddress as `0x${string}`;
+        const permitExpectation = {
+          expectedOwner: owner,
+          expectedSpender: spender,
+          expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+          expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+          expectedValueRaw: mintedAmountRaw,
+          network: Networks.Polygon
+        };
+        const permitDiagnostics = await this.getPermitDiagnostics(owner, spender);
+        const signedPermitContext = moneriumOnrampPermit.context;
+        logger.info(
+          `[${state.id}] Monerium permit preflight: ${JSON.stringify({
+            allowanceRaw: permitDiagnostics.allowanceRaw.toString(),
+            balanceRaw: permitDiagnostics.balanceRaw.toString(),
+            deadline: moneriumOnrampPermit.context?.deadline ?? moneriumOnrampPermit.deadline,
+            deadlineIso: new Date(
+              Number(moneriumOnrampPermit.context?.deadline ?? moneriumOnrampPermit.deadline) * 1000
+            ).toISOString(),
+            executor: account.address,
+            expectedValueRaw: mintedAmountRaw,
+            nonce: permitDiagnostics.nonce.toString(),
+            owner,
+            signedChainId: signedPermitContext?.chainId,
+            signedNonce: signedPermitContext?.nonce,
+            signedTokenAddress: signedPermitContext?.tokenAddress,
+            signedTokenName: signedPermitContext?.tokenName,
+            signedTokenVersion: signedPermitContext?.tokenVersion,
+            signedValueRaw: signedPermitContext?.valueRaw,
+            spender,
+            tokenAddress: ERC20_EURE_POLYGON_V2,
+            tokenName: permitDiagnostics.tokenName
+          })}`
+        );
+
+        const permitPreflight = analyzeMoneriumPermitPreflight(moneriumOnrampPermit, permitExpectation, permitDiagnostics);
+        if (!permitPreflight.shouldSendPermit) {
+          logger.info(
+            `[${state.id}] Existing Monerium allowance covers ${mintedAmountRaw}. Skipping permit transaction (${permitPreflight.reason}).`
+          );
+        } else if (permitDiagnostics.balanceRaw < BigInt(mintedAmountRaw)) {
+          logger.warn(
+            `[${state.id}] Monerium wallet balance ${permitDiagnostics.balanceRaw.toString()} is below expected transfer amount ${mintedAmountRaw}. Permit may still succeed, but transferFrom will wait for sufficient balance.`
+          );
+        }
+
+        const permitArgs = [
+          owner,
+          spender,
+          BigInt(mintedAmountRaw),
+          moneriumOnrampPermit.deadline,
+          moneriumOnrampPermit.v,
+          moneriumOnrampPermit.r,
+          moneriumOnrampPermit.s
+        ] as const;
+
+        if (!permitPreflight.shouldSendPermit) {
+          permitHash = "";
+        } else {
+          await this.simulatePermit(state.id, account.address, permitArgs);
+
+          const walletClient = this.evmClientManager.getWalletClient(Networks.Polygon, account);
+          permitHash = await walletClient.sendTransaction({
+            data: encodeFunctionData({
+              abi: permitAbi,
+              args: permitArgs,
+              functionName: "permit"
+            }),
+            to: ERC20_EURE_POLYGON_V2
+          });
+        }
+      }
+
+      if (permitHash) {
         logger.info(`Permit transaction executed with hash: ${permitHash}`);
 
         await this.waitForTransactionConfirmation(permitHash);
@@ -148,6 +218,56 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       logger.error(`Error in self-transfer phase for ramp ${state.id}:`, error);
       throw this.createRecoverableError(
         `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`
+      );
+    }
+  }
+
+  private async getPermitDiagnostics(owner: `0x${string}`, spender: `0x${string}`): Promise<MoneriumPermitDiagnostics> {
+    const [allowanceRaw, balanceRaw, nonce, tokenName] = await Promise.all([
+      this.evmClientManager.readContractWithRetry<bigint>(Networks.Polygon, {
+        abi: erc20ABI,
+        address: ERC20_EURE_POLYGON_V2,
+        args: [owner, spender],
+        functionName: "allowance"
+      }),
+      this.evmClientManager.readContractWithRetry<bigint>(Networks.Polygon, {
+        abi: erc20ABI,
+        address: ERC20_EURE_POLYGON_V2,
+        args: [owner],
+        functionName: "balanceOf"
+      }),
+      this.evmClientManager.readContractWithRetry<bigint>(Networks.Polygon, {
+        abi: permitNonceAbi,
+        address: ERC20_EURE_POLYGON_V2,
+        args: [owner],
+        functionName: "nonces"
+      }),
+      this.evmClientManager.readContractWithRetry<string>(Networks.Polygon, {
+        abi: erc20ABI,
+        address: ERC20_EURE_POLYGON_V2,
+        functionName: "name"
+      })
+    ]);
+
+    return { allowanceRaw, balanceRaw, nonce, tokenName };
+  }
+
+  private async simulatePermit(
+    rampId: string,
+    executorAddress: `0x${string}`,
+    permitArgs: readonly [`0x${string}`, `0x${string}`, bigint, number, number, `0x${string}`, `0x${string}`]
+  ): Promise<void> {
+    try {
+      await this.polygonClient.simulateContract({
+        abi: permitAbi,
+        account: executorAddress,
+        address: ERC20_EURE_POLYGON_V2,
+        args: permitArgs,
+        functionName: "permit"
+      });
+    } catch (error) {
+      throw new Error(
+        `[${rampId}] Monerium permit simulation failed before broadcast: ${error instanceof Error ? error.message : error}`
       );
     }
   }
