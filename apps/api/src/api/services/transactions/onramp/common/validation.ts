@@ -105,6 +105,46 @@ export function validateAveniaOnrampOnBase(
   return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
 }
 
+export function validateMykoboOnramp(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[]
+): {
+  toNetwork: Networks;
+  outputTokenDetails: OnChainTokenDetails;
+  evmEphemeralEntry: AccountMeta;
+  inputTokenDetails: OnChainTokenDetails;
+} {
+  const toNetwork = getNetworkFromDestination(quote.to);
+  if (!toNetwork) {
+    throw new Error(`Invalid network for destination ${quote.to}`);
+  }
+
+  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+  if (!evmEphemeralEntry) {
+    throw new Error("Base ephemeral not found");
+  }
+
+  if (quote.inputCurrency !== FiatToken.EURC) {
+    throw new Error(`Input currency must be EURC for Mykobo onramp, got ${quote.inputCurrency}`);
+  }
+
+  const inputTokenDetails = getEvmTokenConfig().base[EvmToken.EURC];
+  if (!inputTokenDetails) {
+    throw new Error("EURC token details not found for Base");
+  }
+
+  if (!isOnChainToken(quote.outputCurrency)) {
+    throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
+  }
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
+
+  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
+  }
+
+  return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
+}
+
 export function validateMoneriumOnramp(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[]

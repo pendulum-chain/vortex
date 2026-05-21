@@ -207,6 +207,15 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  mykoboMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   assethubToPendulumXcm?: XcmMeta;
 
   evmToEvm?: BridgeMeta;

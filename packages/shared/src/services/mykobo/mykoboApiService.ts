@@ -206,6 +206,10 @@ export class MykoboApiService {
   public defaultWithdrawFee(value: string): Promise<MykoboFeeResponse> {
     return this.lookupFees({ kind: MykoboFeeKind.WITHDRAW, value });
   }
+
+  public defaultDepositFee(value: string): Promise<MykoboFeeResponse> {
+    return this.lookupFees({ kind: MykoboFeeKind.DEPOSIT, value });
+  }
 }
 
 async function safeReadBody(response: Response): Promise<unknown> {
