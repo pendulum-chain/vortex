@@ -5,7 +5,6 @@ import {
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
-  FiatToken,
   getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
@@ -42,7 +41,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSubsidize(state, quote);
     }
 

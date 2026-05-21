@@ -44,11 +44,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (
-      quote.inputCurrency === FiatToken.BRL ||
-      quote.outputCurrency === FiatToken.BRL ||
-      (quote.outputCurrency === FiatToken.EURC && quote.metadata.nablaSwapEvm)
-    ) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSubsidize(state, quote);
     }
 

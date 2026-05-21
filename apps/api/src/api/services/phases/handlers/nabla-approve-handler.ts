@@ -1,14 +1,6 @@
 import { createExecuteMessageExtrinsic, ExecuteMessageResult, submitExtrinsic } from "@pendulum-chain/api-solang";
 import { Abi } from "@polkadot/api-contract";
-import {
-  ApiManager,
-  decodeSubmittableExtrinsic,
-  EvmClientManager,
-  FiatToken,
-  NABLA_ROUTER,
-  Networks,
-  RampPhase
-} from "@vortexfi/shared";
+import { ApiManager, decodeSubmittableExtrinsic, EvmClientManager, NABLA_ROUTER, Networks, RampPhase } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../config/logger";
 import { erc20WrapperAbi } from "../../../../contracts/ERC20Wrapper";
@@ -35,13 +27,15 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    // BRL flows, use evm instance of Nabla.
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    // EVM-ephemeral flows (BRL, Mykobo EUR, ...) use the EVM Nabla instance.
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmApprove(state);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateApprove(state, quote);
     } else {
-      throw new Error("NablaApprovePhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
+      throw new Error(
+        "NablaApprovePhaseHandler: Invalid state. Missing substrate ephemeral address for a non-EVM-ephemeral quote."
+      );
     }
   }
 
