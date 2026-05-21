@@ -1,5 +1,9 @@
 import {
   checkEvmBalanceForToken,
+  ERC20_EURE_POLYGON_DECIMALS,
+  ERC20_EURE_POLYGON_TOKEN_NAME,
+  ERC20_EURE_POLYGON_V1,
+  ERC20_EURE_POLYGON_V2,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
@@ -9,14 +13,18 @@ import {
   getNetworkId,
   isAlfredpayToken,
   Networks,
+  PENDULUM_USDC_AXL,
   RampDirection,
-  RampPhase
+  RampPhase,
+  TokenType
 } from "@vortexfi/shared";
 import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
+
+const MONERIUM_EURE_POLYGON_SOURCE_TOKENS = new Set([ERC20_EURE_POLYGON_V1.toLowerCase(), ERC20_EURE_POLYGON_V2.toLowerCase()]);
 
 /**
  * Handler for the squidRouter phase
@@ -94,9 +102,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     const sourceNetwork = bridgeMeta.fromNetwork as EvmNetworks;
-    const sourceTokenDetails = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
-      token => token.erc20AddressSourceChain.toLowerCase() === bridgeMeta.fromToken.toLowerCase()
-    ) as EvmTokenDetails | undefined;
+    const sourceTokenDetails = this.getSourceTokenDetails(sourceNetwork, bridgeMeta.fromToken);
 
     if (!sourceTokenDetails) {
       throw new Error(
@@ -294,6 +300,29 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.error("Error getting nonce", error);
       throw this.createRecoverableError("Failed to get transaction nonce");
     }
+  }
+
+  private getSourceTokenDetails(sourceNetwork: EvmNetworks, sourceToken: `0x${string}`): EvmTokenDetails | undefined {
+    const configuredToken = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
+      token => token.erc20AddressSourceChain.toLowerCase() === sourceToken.toLowerCase()
+    ) as EvmTokenDetails | undefined;
+    if (configuredToken) {
+      return configuredToken;
+    }
+
+    if (sourceNetwork === Networks.Polygon && MONERIUM_EURE_POLYGON_SOURCE_TOKENS.has(sourceToken.toLowerCase())) {
+      return {
+        assetSymbol: ERC20_EURE_POLYGON_TOKEN_NAME,
+        decimals: ERC20_EURE_POLYGON_DECIMALS,
+        erc20AddressSourceChain: sourceToken,
+        isNative: false,
+        network: Networks.Polygon,
+        pendulumRepresentative: PENDULUM_USDC_AXL,
+        type: TokenType.Evm
+      };
+    }
+
+    return undefined;
   }
 }
 
