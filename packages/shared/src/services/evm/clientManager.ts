@@ -36,6 +36,10 @@ export function redactRpcUrlForLogs(rpcUrl: string): string {
   }
 }
 
+export function sanitizeRpcErrorMessage(message: string): string {
+  return message.replace(/https:\/\/[^\s"]+\/v2\/[^\s")]+/g, match => redactRpcUrlForLogs(match));
+}
+
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
   // Note on defining RPC URLs: '' is equal to viem's default RPC for that chain: http().
   return [
@@ -169,7 +173,7 @@ export class EvmClientManager {
         lastError = error instanceof Error ? error : new Error(String(error));
 
         logger.current.warn(
-          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${lastError.message}`
+          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
         );
 
         if (attempt < maxRetries) {
@@ -183,7 +187,7 @@ export class EvmClientManager {
 
     // TODO should we return the raw rpc error here, instead of just the message?
     throw new Error(
-      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${lastError?.message}`
+      `Failed to ${operationName} on ${networkName} after ${maxRetries + 1} attempts. Last error: ${sanitizeRpcErrorMessage(lastError?.message ?? "unknown")}`
     );
   }
 

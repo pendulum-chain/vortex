@@ -8,7 +8,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, PublicClient } from "viem";
+import { encodeFunctionData, PublicClient, TransactionReceipt } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
@@ -17,6 +17,7 @@ import { permitAbi } from "../../../../contracts/PermitAbi";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { analyzeMoneriumPermitPreflight, MoneriumPermitDiagnostics } from "../../ramp/monerium-permit";
+import { inspectMoneriumSelfTransferTransaction, moneriumTransferFromAbi } from "../../ramp/monerium-self-transfer";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 const permitNonceAbi = [
@@ -201,9 +202,24 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
         throw new Error("Missing presigned transactions for moneriumOnrampSelfTransfer phase. State corrupted.");
       }
 
-      // Execute the transfer transaction
-      const transferHash = await this.executeTransaction(transferTransaction.txData as string);
-      logger.info(`Transfer transaction executed with hash: ${transferHash}`);
+      let transferHash = state.state.moneriumOnrampSelfTransferHash;
+      if (transferHash) {
+        logger.info(`Transfer transaction already sent with hash: ${transferHash}. Waiting for confirmation.`);
+      } else {
+        await this.preflightSignedSelfTransfer(
+          state.id,
+          transferTransaction.txData as string,
+          moneriumWalletAddress as `0x${string}`,
+          evmEphemeralAddress as `0x${string}`,
+          mintedAmountRaw
+        );
+
+        // Execute the transfer transaction
+        transferHash = await this.executeTransaction(transferTransaction.txData as string);
+        state.state.moneriumOnrampSelfTransferHash = transferHash;
+        await state.update({ state: state.state });
+        logger.info(`Transfer transaction executed with hash: ${transferHash}`);
+      }
 
       await this.waitForTransactionConfirmation(transferHash);
       logger.info(`TransferFrom transaction confirmed: ${transferHash}`);
@@ -218,6 +234,93 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
       logger.error(`Error in self-transfer phase for ramp ${state.id}:`, error);
       throw this.createRecoverableError(
         `MoneriumOnrampSelfTransferHandler: Error while sending self-transfer transaction: ${error}`
+      );
+    }
+  }
+
+  private async preflightSignedSelfTransfer(
+    rampId: string,
+    txData: string,
+    expectedOwner: `0x${string}`,
+    expectedSpender: `0x${string}`,
+    expectedAmountRaw: string
+  ): Promise<void> {
+    const transfer = await inspectMoneriumSelfTransferTransaction(txData, {
+      expectedAmountRaw,
+      expectedOwner,
+      expectedRecipient: expectedSpender,
+      expectedSigner: expectedSpender,
+      expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+      rampId
+    });
+    const expectedAmount = BigInt(expectedAmountRaw);
+
+    const transferDiagnostics = await this.getPermitDiagnostics(expectedOwner, expectedSpender);
+    const currentNonce = await this.polygonClient.getTransactionCount({ address: transfer.signer });
+    let estimatedGas: bigint;
+    try {
+      estimatedGas = await this.polygonClient.estimateContractGas({
+        abi: moneriumTransferFromAbi,
+        account: transfer.signer,
+        address: ERC20_EURE_POLYGON_V2,
+        args: [transfer.owner, transfer.recipient, transfer.amountRaw],
+        functionName: "transferFrom"
+      });
+    } catch (error) {
+      throw new Error(
+        `[${rampId}] Self-transfer gas estimate failed before broadcast: ${error instanceof Error ? error.message : error}`
+      );
+    }
+
+    logger.info(
+      `[${rampId}] Monerium self-transfer preflight: ${JSON.stringify({
+        allowanceRaw: transferDiagnostics.allowanceRaw.toString(),
+        amountRaw: expectedAmountRaw,
+        balanceRaw: transferDiagnostics.balanceRaw.toString(),
+        currentNonce,
+        estimatedGas: estimatedGas.toString(),
+        owner: transfer.owner,
+        recipient: transfer.recipient,
+        signedGas: transfer.signedGas.toString(),
+        signedNonce: transfer.signedNonce,
+        signer: transfer.signer,
+        tokenAddress: ERC20_EURE_POLYGON_V2
+      })}`
+    );
+
+    if (currentNonce > transfer.signedNonce) {
+      throw new Error(
+        `[${rampId}] Self-transfer signed nonce ${transfer.signedNonce} has already been consumed by ${transfer.signer} (current nonce ${currentNonce}). Do not resend this raw transaction; regenerate the presigned self-transfer transaction or inspect the previous nonce-${transfer.signedNonce} transaction.`
+      );
+    }
+    if (transferDiagnostics.allowanceRaw < expectedAmount) {
+      throw new Error(
+        `[${rampId}] Self-transfer allowance ${transferDiagnostics.allowanceRaw.toString()} is below expected ${expectedAmountRaw}`
+      );
+    }
+    if (transferDiagnostics.balanceRaw < expectedAmount) {
+      throw new Error(
+        `[${rampId}] Self-transfer balance ${transferDiagnostics.balanceRaw.toString()} is below expected ${expectedAmountRaw}`
+      );
+    }
+    if (transfer.signedGas < estimatedGas) {
+      throw new Error(
+        `[${rampId}] Self-transfer signed gas limit ${transfer.signedGas.toString()} is below estimated gas ${estimatedGas.toString()}`
+      );
+    }
+
+    try {
+      await this.polygonClient.simulateContract({
+        abi: moneriumTransferFromAbi,
+        account: transfer.signer,
+        address: ERC20_EURE_POLYGON_V2,
+        args: [transfer.owner, transfer.recipient, transfer.amountRaw],
+        functionName: "transferFrom",
+        gas: transfer.signedGas
+      });
+    } catch (error) {
+      throw new Error(
+        `[${rampId}] Self-transfer simulation failed before broadcast: ${error instanceof Error ? error.message : error}`
       );
     }
   }
@@ -293,14 +396,17 @@ export class MoneriumOnrampSelfTransferHandler extends BasePhaseHandler {
    * @param txHash The transaction hash
    * @param chainId The chain ID
    */
-  private async waitForTransactionConfirmation(txHash: string): Promise<void> {
+  private async waitForTransactionConfirmation(txHash: string): Promise<TransactionReceipt> {
     try {
       const receipt = await this.polygonClient.waitForTransactionReceipt({
         hash: txHash as `0x${string}`
       });
       if (!receipt || receipt.status !== "success") {
-        throw new Error(`moneriumOnrampSelfTransferHandler: Transaction ${txHash} failed or was not found`);
+        throw new Error(
+          `moneriumOnrampSelfTransferHandler: Transaction ${txHash} failed or was not found (status: ${receipt?.status ?? "missing"}, block: ${receipt?.blockNumber?.toString() ?? "unknown"}, gasUsed: ${receipt?.gasUsed?.toString() ?? "unknown"})`
+        );
       }
+      return receipt;
     } catch (error) {
       throw new Error(`moneriumOnrampSelfTransferHandler: Error waiting for transaction confirmation: ${error}`);
     }
