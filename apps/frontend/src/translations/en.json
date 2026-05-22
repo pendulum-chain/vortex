@@ -553,6 +553,51 @@
       "title": "Identity Verification",
       "zipCode": "ZIP Code"
     },
+    "mykoboKycFlow": {
+      "checkingProfile": "Checking your verification status...",
+      "done": "Your identity has been verified. You can now proceed.",
+      "failure": "Verification failed",
+      "form": {
+        "addressLine1": "Address line 1",
+        "backOfId": "Back of ID",
+        "bankAccountNumber": "IBAN",
+        "city": "City",
+        "documents": "Documents",
+        "emailAddress": "Email address",
+        "errors": {
+          "backRequired": "Back of ID is required for ID cards and driver's licenses.",
+          "requiredFields": "Please fill in all required fields.",
+          "requiredFiles": "Front of ID, selfie, and utility bill are required."
+        },
+        "filePlaceholder": "PNG, JPG or PDF",
+        "firstName": "First name",
+        "frontOfId": "Front of ID",
+        "idCountryCode": "Country (ISO alpha-2)",
+        "idType": "ID type",
+        "idTypeOptions": {
+          "DRIVERS_LICENSE": "Driver's license",
+          "ID_CARD": "ID card",
+          "PASSPORT": "Passport"
+        },
+        "lastName": "Last name",
+        "selfie": "Selfie",
+        "sourceOfFunds": "Source of funds",
+        "sourceOfFundsOptions": {
+          "EMPLOYMENT": "Employment",
+          "INHERITANCE": "Inheritance",
+          "INVESTMENT": "Investment",
+          "LOANS": "Loans",
+          "SAVINGS": "Savings"
+        },
+        "submit": "Submit",
+        "taxCountry": "Tax country (ISO alpha-2)",
+        "title": "KYC verification",
+        "utilityBill": "Utility bill"
+      },
+      "rejected": "Your verification was rejected.",
+      "submitting": "Submitting your verification...",
+      "verifying": "Verifying your identity. This may take a few minutes..."
+    },
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
@@ -1157,6 +1202,7 @@
       "hydrationToAssethubXcm": "Transferring {{assetSymbol}} from Hydration --> AssetHub",
       "initial": "Starting process",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "mykoboOnrampDeposit": "Waiting to receive payment",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
