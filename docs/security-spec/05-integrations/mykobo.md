@@ -1,0 +1,125 @@
+# Mykobo Integration
+
+## What This Does
+
+Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Stellar, Pendulum, or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
+
+Mykobo replaces two earlier EUR rails:
+
+- The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed for EUR. See `stellar-anchors.md` for the deprecation note.
+- The **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. See `monerium.md` for the deprecation note.
+
+**Provider type:** Both (on-ramp and off-ramp)
+**Fiat currency:** EUR (Euro, SEPA)
+**Chain involved:** Base (EURC is an ERC-20 on Base; USDC on Base is the Nabla swap counter-asset)
+**Phase handlers:**
+- `mykobo-onramp-deposit-handler.ts` — On-ramp: After the user's SEPA transfer is received, Mykobo settles EURC on Base to the user's Base ephemeral; the handler polls the Base RPC until the expected balance arrives.
+- `mykobo-payout-handler.ts` — Off-ramp: Sends a presigned ERC-20 EURC transfer from the Base ephemeral to the Mykobo-controlled `receivables` address, then polls Mykobo's transaction status until `COMPLETED`.
+
+**API surface:** Mykobo HTTP API client `MykoboApiService` (`packages/shared/src/services/mykobo/mykoboApiService.ts`). Singleton.
+**API auth method:** Access key + secret key exchanged for a short-lived bearer token via `POST /auth/token`; refresh token via `POST /auth/refresh`. Cached in-process; re-acquired on `401`. Credentials sourced from `MYKOBO_ACCESS_KEY`, `MYKOBO_SECRET_KEY`, `MYKOBO_BASE_URL`, `MYKOBO_CLIENT_DOMAIN` env vars.
+
+### On-ramp flow (EUR SEPA → Base EURC → Nabla swap → user EVM destination)
+
+1. At ramp registration (`prepareMykoboOnrampTransactions` in `ramp.service.ts`), Vortex calls Mykobo `POST /transactions/intent` with `transaction_type=DEPOSIT`, `currency=EURC`, the user's email + IP, and the **Base ephemeral address** as `wallet_address`. Mykobo returns IBAN payment instructions (IBAN, bank account name, transaction reference).
+2. IBAN instructions are returned to the user **only after** presigned-transaction validation passes (see `transaction-validation.md`).
+3. User makes the SEPA bank transfer to Mykobo's IBAN with the returned reference.
+4. `mykoboOnrampDeposit`: handler polls the Base RPC for EURC arrival at `evmEphemeralAddress`.
+   - **Outer timeout** (`PAYMENT_TIMEOUT_MS`): **24 hours**, matching SEPA business-day cutoffs.
+   - **Inner balance-arrival timeout** (`EVM_BALANCE_CHECK_TIMEOUT_MS`): 5 minutes per `checkEvmBalancePeriodically` invocation. Inner timeouts throw `RecoverablePhaseError` and the phase processor re-enters the handler until the outer 24h cap is reached.
+   - **Recovery shortcut**: if the ephemeral already holds ≥ 95% of `quote.metadata.mykoboMint.outputAmountRaw` EURC (`EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95`), the handler skips the wait. The 5% tolerance absorbs fee variance between quote-creation time and SEPA settlement time.
+   - On outer-timeout expiry, the ramp transitions to `failed` (the user did not pay).
+5. `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
+6. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
+7. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's destination EVM chain → optional `backupSquidRouter*` fallback → `destinationTransfer`.
+
+### Off-ramp flow (User EVM → Base USDC → Base EURC → SEPA payout)
+
+1. User signs Squid permit / no-permit fallback / direct transfer → tokens arrive on Base ephemeral as USDC. If the source is already Base USDC, Squid is skipped.
+2. At registration (`prepareEvmToMykoboOfframpTransactions`), Vortex calls Mykobo `POST /transactions/intent` with `transaction_type=WITHDRAW`, `currency=EURC`, and the Base ephemeral as `wallet_address`. Mykobo returns withdraw instructions including the **`receivables` Base address** (the EVM address that Mykobo monitors for incoming EURC). The Mykobo transaction id and reference are stored in `state.state.mykoboTransactionId` / `mykoboTransactionReference`.
+3. `distributeFees` runs **before** Nabla swap so partner/vortex fees are taken in USDC (consistent with the BRLA-on-Base flow; see `fee-integrity.md`).
+4. `subsidizePreSwap` → `nablaApprove` → `nablaSwap`: Nabla DEX on Base swaps USDC → EURC.
+5. `mykoboPayoutOnBase`:
+   1. Sends the presigned ERC-20 EURC transfer of `quote.metadata.nablaSwapEvm.outputAmountRaw` from the ephemeral to the Mykobo `receivables` address. The transfer amount is fixed at registration time and **MUST equal the Nabla swap output**.
+   2. On retry, if `mykoboPayoutTxHash` is already in state, the handler waits for that receipt instead of re-broadcasting. If the prior tx reverted, it re-sends the same presigned tx (EVM nonce uniqueness still prevents double-spend).
+   3. After the on-chain transfer is confirmed, the handler polls Mykobo `GET /transactions/{id}` every **5s for up to 10 minutes**, looking for `MykoboTransactionStatus.COMPLETED`. `FAILED`, `CANCELLED`, or `EXPIRED` raise an **unrecoverable** error. Polling-error timeouts raise an unrecoverable error if the last polling attempt errored, otherwise a recoverable error.
+6. `baseCleanupUsdc` / `baseCleanupEurc` / `baseCleanupAxlUsdc`: sweep dust from the Base ephemeral back to the Base funding account.
+
+### Profile / KYC flow
+
+Mykobo profiles are user records keyed by wallet address (the user's destination EVM address, **not** the ephemeral). They carry KYC fields and are required before Mykobo will accept SEPA deposits / WITHDRAW intents for that user.
+
+- `GET /v1/mykobo/profile?walletAddress=...&memo=...` — Vortex backend proxies `MykoboApiService.getProfileByWalletAddress`. Used by the frontend to detect whether the user already has a profile.
+- `POST /v1/mykobo/profile` — Vortex backend proxies `MykoboApiService.createProfile` with multipart form-data (ID document, source-of-funds document, demographics).
+
+The Mykobo KYC widget on the frontend (`MykoboKycFlow`) drives the user through profile creation. The ramp state machine treats Mykobo KYC as a **pre-ramp gate**: the `Deciding` step in the ramp XState machine checks profile presence and routes to the Mykobo KYC flow before allowing ramp registration.
+
+### Why no `mykoboMint` phase
+
+Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex does **not** call any Mykobo API to trigger minting. Mykobo's SEPA→EURC settlement is initiated by the user's bank transfer and is observed entirely on-chain via the Base EURC balance of the ephemeral. The handler is therefore a pure balance-poller; there is no Vortex-controlled minting step that can fail mid-flight.
+
+## Security Invariants
+
+1. **Mykobo API credentials MUST be stored as environment variables** — `MYKOBO_ACCESS_KEY`, `MYKOBO_SECRET_KEY`, `MYKOBO_BASE_URL`, and `MYKOBO_CLIENT_DOMAIN` are loaded via `packages/shared` config. Never hardcoded, never in the database.
+2. **The Mykobo bearer token MUST never appear in logs or error messages** — `MykoboApiError` captures status + body but not the request headers; review log redaction for any context that includes `Authorization`.
+3. **SEPA payment confirmation MUST come from on-chain EURC arrival, not from user input** — `mykoboOnrampDeposit` polls the Base RPC for the ephemeral's EURC balance; it never accepts a "user claims paid" signal.
+4. **The on-chain EURC transfer amount (off-ramp) MUST equal `quote.metadata.nablaSwapEvm.outputAmountRaw`** — Fixed at registration time in `evm-to-mykobo.ts` via the `mykoboPayoutOnBase` presigned transaction. The full Nabla output is sent to Mykobo; the Mykobo anchor fee was already factored into `quote.outputAmount` at quote-creation time.
+5. **The Mykobo `receivables` address MUST come from the Mykobo intent response, not from any client-supplied field** — `mykoboReceivablesAddress` is read from `intent.instructions.address` server-side and stored in `stateMeta`. The user has no way to redirect the off-ramp transfer.
+6. **The Mykobo `transaction_type` MUST match the ramp direction** — `DEPOSIT` for on-ramp intents, `WITHDRAW` for off-ramp intents. A mismatch is rejected by Mykobo, but Vortex must not allow client-controlled selection of the type.
+7. **The on-ramp intent's `wallet_address` MUST be the Base ephemeral, not the user's destination address** — EURC is settled to the ephemeral so the Nabla swap pipeline can run. Using the user's destination address would bypass the swap and fee distribution.
+8. **The off-ramp intent's `wallet_address` MUST be the Base ephemeral** — Mykobo correlates the incoming EURC transfer by the sender wallet; using any other address breaks the WITHDRAW settlement.
+9. **SEPA payment details (IBAN, reference) MUST be generated server-side** — Returned by Mykobo's intent response, surfaced to the user only after presigned-transaction validation succeeds. Never client-modifiable.
+10. **`mykoboOnrampDeposit` MUST bound its wait** — The 24h `PAYMENT_TIMEOUT_MS` prevents indefinite ramp parking. After 24h with no EURC arrival, the ramp transitions to `failed`.
+11. **The 5% pre-funding tolerance MUST only apply to recovery, not to live settlements** — The recovery shortcut compares against 95% of `mykoboMint.outputAmountRaw` to avoid missing an already-funded ephemeral on a rerun. Live `checkEvmBalancePeriodically` still requires the full `expectedAmountRaw`.
+12. **`mykoboPayoutOnBase` MUST not advance until both the on-chain transfer is confirmed and Mykobo reports `COMPLETED`** — Confirming only the on-chain side would mark the ramp complete while Mykobo could still reject the deposit.
+13. **`MykoboTransactionStatus` of `FAILED` / `CANCELLED` / `EXPIRED` MUST be treated as unrecoverable** — The handler throws via `createUnrecoverableError` so the ramp transitions to a failed state instead of looping.
+14. **Recovery on resumed `mykoboPayoutOnBase` MUST detect existing tx hashes** — If `mykoboPayoutTxHash` is in state, the handler waits for that receipt rather than blindly re-broadcasting. If the prior tx reverted, the same presigned tx is re-broadcast — EVM nonce uniqueness prevents double-spend of the ephemeral's EURC.
+15. **Mykobo KYC profile creation MUST be gated by Vortex auth** — The `/v1/mykobo/profile` endpoints require a Supabase OTP session (see `01-auth/supabase-otp.md`); anonymous profile creation is rejected.
+16. **Mykobo KYC documents MUST NOT be stored by Vortex** — The frontend submits ID and source-of-funds files directly to the backend, which forwards them to Mykobo as multipart form-data without persisting. No Mykobo profile fields are stored in Vortex's database beyond the wallet-address linkage used to look up profile state.
+17. **Mykobo HTTP responses MUST be validated** — `MykoboApiService.request` checks `response.ok`, raises `MykoboApiError` with status + body on failure, and re-acquires the token on `401` exactly once before re-throwing. `MykoboApiError` MUST be caught and translated to `RecoverablePhaseError` (transient) or `UnrecoverablePhaseError` (terminal status) at the handler boundary.
+18. **Mykobo bearer-token refresh MUST be safe under concurrent requests** — `MykoboApiService.tokenPromise` debounces concurrent `acquireToken` calls so multiple in-flight requests share a single token acquisition. Token refresh is single-use per cached token; on refresh failure the service falls back to re-acquiring with the access/secret keys.
+19. **The Mykobo base URL normalization MUST enforce a `/v1` suffix** — `MykoboApiService` trims trailing slashes and appends `/v1` unless the configured `MYKOBO_BASE_URL` already ends in `/v<digits>`. This prevents accidental cross-version calls if an operator sets `MYKOBO_BASE_URL` to a root domain.
+
+## Threat Vectors & Mitigations
+
+| Threat | Attack Scenario | Mitigation |
+|---|---|---|
+| **SEPA payment spoofing (on-ramp)** | User claims to have paid without making the SEPA transfer | `mykoboOnrampDeposit` polls the Base RPC for actual EURC arrival; never trusts user signals. |
+| **Wrong reference on SEPA** | User sends SEPA with wrong reference, causing misattribution at Mykobo | Reference is generated by Mykobo per intent and shown to the user verbatim; Mykobo correlates by reference at its end. If misattributed, Mykobo will not settle and the 24h timeout fails the ramp. |
+| **Off-ramp receivables redirection** | Attacker tries to redirect the EURC payout to a wallet they control | `mykoboReceivablesAddress` is sourced from Mykobo's intent response and baked into the presigned tx at registration time. No client-supplied field reaches the presigned tx target. |
+| **Off-ramp amount manipulation** | Attacker modifies the EURC payout amount between quote and execution | Transfer amount is `quote.metadata.nablaSwapEvm.outputAmountRaw`, fixed in the presigned tx at registration. `quote` is immutable post-creation. |
+| **Mykobo bearer token compromise** | Bearer token captured in transit or from logs | HTTPS enforced; token never logged; cached in-process only; rotated on `401`. Rotate access/secret keys via Mykobo dashboard on suspected leak. |
+| **Mykobo access/secret-key compromise** | Env-var leak exposes long-lived credentials | Keys live in environment only (see `07-operations/secret-management.md`); rotate via Mykobo dashboard; monitor Mykobo dashboard for unauthorized intents. |
+| **Mykobo API unavailability** | Mykobo is down during off-ramp polling or on-ramp settlement | Off-ramp `mykoboPayoutOnBase`: polling errors continue retrying up to the 10-minute window; on poll-timeout the handler throws `RecoverablePhaseError` (or unrecoverable if last attempt errored). On-ramp `mykoboOnrampDeposit`: inner balance-check timeouts are recoverable; only the outer 24h cap fails the ramp. |
+| **Double on-chain EURC transfer (off-ramp)** | Crash between sending the EURC transfer and storing the hash | Handler waits for receipt before persisting `mykoboPayoutTxHash`. On retry, if no hash is stored, the same presigned tx is re-broadcast — EVM nonce uniqueness on the ephemeral prevents double-spend. |
+| **Double Mykobo payout completion** | Bug causes the handler to advance to `complete` before Mykobo `COMPLETED` | Handler awaits `pollMykoboUntilCompleted` before `transitionToNextPhase("complete")`. Any non-`COMPLETED` terminal status raises unrecoverable. |
+| **Mykobo terminal status (FAILED / CANCELLED / EXPIRED) mishandled** | Handler retries indefinitely on a permanently failed Mykobo transaction | `createUnrecoverableError` is thrown for those three statuses; ramp transitions to failed instead of looping. |
+| **Long-lived on-ramp DOS** | Attacker creates many on-ramps to occupy ephemeral accounts for 24h | Per-user concurrent ramp limit (cross-cutting; see `07-operations/api-surface.md` rate limiting). Ephemerals are user-funded so blast radius is bounded. |
+| **TLS downgrade / MITM** | Attacker intercepts Mykobo API calls | HTTPS-only base URL; bearer-token auth depends on TLS; refuse any non-HTTPS `MYKOBO_BASE_URL` configuration at deploy time. |
+| **Profile-doc PII leak** | KYC document or PII surfaces in Vortex storage or logs | Documents are streamed through to Mykobo as multipart form-data without persistence; no PII fields stored locally beyond the wallet→profile-existence linkage. |
+| **Cross-version Mykobo API drift** | Operator misconfigures `MYKOBO_BASE_URL` to a root domain, hitting an unintended version | `MykoboApiService` enforces a `/v<digits>` suffix; misconfiguration fails fast on the first auth call. |
+
+## Audit Checklist
+
+- [ ] Mykobo API credentials loaded from environment variables (not hardcoded, not in database)
+- [ ] `MYKOBO_BASE_URL` is HTTPS and resolves to a `/v<digits>`-suffixed Mykobo endpoint
+- [ ] `mykoboOnrampDeposit` polls Base RPC for EURC arrival before advancing
+- [ ] 24h outer payment timeout enforced; on expiry the ramp transitions to `failed`
+- [ ] 5% recovery tolerance applied only to the pre-funded shortcut, not to live polling
+- [ ] On-ramp intent `wallet_address` is the Base ephemeral (not the user destination address)
+- [ ] Off-ramp intent `wallet_address` is the Base ephemeral
+- [ ] Off-ramp `mykoboReceivablesAddress` comes from `intent.instructions.address` (server-side)
+- [ ] Off-ramp EURC transfer amount equals `quote.metadata.nablaSwapEvm.outputAmountRaw`
+- [ ] `mykoboPayoutOnBase` advances to `complete` only after both on-chain confirmation and Mykobo `COMPLETED`
+- [ ] `FAILED` / `CANCELLED` / `EXPIRED` Mykobo statuses raise unrecoverable errors
+- [ ] Recovery: `mykoboPayoutTxHash` short-circuits on-chain transfer re-broadcast (waits for receipt; re-sends only if prior tx reverted)
+- [ ] Mykobo HTTP responses are validated (`response.ok`, status, body)
+- [ ] `MykoboApiError` is caught at the handler boundary and mapped to recoverable / unrecoverable
+- [ ] Bearer-token refresh is debounced (no thundering-herd on `401`)
+- [ ] Bearer token, access key, and secret key do not appear in logs or error messages
+- [ ] IBAN payment details surfaced to the user only after presigned-transaction validation passes
+- [ ] `/v1/mykobo/profile` endpoints require Supabase OTP auth (anonymous requests rejected)
+- [ ] Mykobo KYC documents are not persisted by Vortex; only the wallet→profile linkage is stored
+- [ ] HTTPS enforced for all Mykobo API calls
+- [ ] Timeout / `AbortController` configured for Mykobo HTTP client (cross-cutting; tracked as F-014 across providers)
+- [ ] No Mykobo API call is invoked from a phase handler without an explicit recoverable/unrecoverable mapping
