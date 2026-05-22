@@ -18,7 +18,6 @@ import {
 } from "@vortexfi/shared";
 import {Keyring} from "@polkadot/api";
 import {mnemonicGenerate} from "@polkadot/util-crypto";
-import {Keypair} from "stellar-sdk";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import {QuoteService} from "../quote";
@@ -70,13 +69,6 @@ export async function createSubstrateEphemeral(): Promise<EphemeralAccount> {
   return { address: ephemeralAccountKeypair.address, secret: seedPhrase };
 }
 
-export function createStellarEphemeral(): EphemeralAccount {
-  const ephemeralKeys = Keypair.random();
-  const address = ephemeralKeys.publicKey();
-
-  return { address, secret: ephemeralKeys.secret() };
-}
-
 // only for onramp....
 export async function createMoonbeamEphemeralSeed() {
   const seedPhrase = mnemonicGenerate();
@@ -90,8 +82,7 @@ export async function createMoonbeamEphemeralSeed() {
 
 const testSigningAccounts = {
   moonbeam: await createMoonbeamEphemeralSeed(),
-  pendulum: await createSubstrateEphemeral(),
-  stellar: createStellarEphemeral()
+  pendulum: await createSubstrateEphemeral()
 };
 
 // convert into AccountMeta
@@ -221,8 +212,7 @@ describe("Onramp PhaseProcessor Integration Test", () => {
         registeredRamp?.unsignedTxs || [],
         {
           evmEphemeral: testSigningAccounts.moonbeam,
-          substrateEphemeral: testSigningAccounts.pendulum,
-          stellarEphemeral: testSigningAccounts.stellar
+          substrateEphemeral: testSigningAccounts.pendulum
         },
         pendulumNode.api,
         moonbeamNode.api,

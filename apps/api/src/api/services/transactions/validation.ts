@@ -18,10 +18,9 @@ import {
   SubstrateApiNetwork,
   substrateAddressEqual
 } from "@vortexfi/shared";
-import { Signature as EvmSignature, verifyTypedData } from "ethers";
+import { Transaction as EthersTransaction, Signature as EvmSignature, verifyTypedData } from "ethers";
 import httpStatus from "http-status";
-import { Networks as StellarNetworks, Transaction as StellarTransaction, TransactionBuilder } from "stellar-sdk";
-import { type Hex, keccak256, parseTransaction, recoverAddress, serializeTransaction, toBytes } from "viem";
+import { type Hex, parseTransaction } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
@@ -85,26 +84,13 @@ async function verifySignedEvmTransaction(
     });
   }
 
-  const unsignedTx = serializeTransaction({
-    accessList: parsed.accessList,
-    chainId: parsed.chainId,
-    data: parsed.data,
-    gas: parsed.gas,
-    gasPrice: parsed.gasPrice,
-    maxFeePerGas: parsed.maxFeePerGas,
-    maxPriorityFeePerGas: parsed.maxPriorityFeePerGas,
-    nonce: parsed.nonce,
-    to: parsed.to,
-    type: parsed.type || "eip1559",
-    value: parsed.value ?? 0n
-  } as any);
-
-  const hash = keccak256(toBytes(unsignedTx));
-
-  const yParity = parsed.yParity !== undefined ? Number(parsed.yParity) : parsed.v !== undefined ? Number(parsed.v) - 27 : 0;
-  const signature = (parsed.r + parsed.s.slice(2) + yParity.toString(16).padStart(2, "0")) as `0x${string}`;
-
-  const recoveredSigner = await recoverAddress({ hash, signature });
+  const recoveredSigner = EthersTransaction.from(signedTxHex).from;
+  if (!recoveredSigner) {
+    throw new APIError({
+      message: "Signed EVM transaction must include a recoverable signer",
+      status: httpStatus.BAD_REQUEST
+    });
+  }
 
   if (recoveredSigner.toLowerCase() !== expectedSigner.toLowerCase()) {
     throw new APIError({
@@ -215,15 +201,10 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "pendulumToMoonbeamXcm":
     case "assethubToPendulum":
     case "hydrationSwap":
-    case "spacewalkRedeem":
     case "pendulumCleanup":
     case "moonbeamCleanup":
     case "hydrationCleanup":
       return EphemeralAccountType.Substrate;
-    case "stellarCreateAccount":
-    case "stellarPayment":
-    case "stellarCleanup":
-      return EphemeralAccountType.Stellar;
     case "squidRouterApprove":
     case "squidRouterSwap":
     case "squidRouterPermitExecute":
@@ -317,8 +298,6 @@ async function validateBackupTransactions(
     } else if (txType === EphemeralAccountType.Substrate) {
       await validateSubstrateTransaction(backupTx, ephemerals.Substrate, ephemerals.EVM);
       await assertSubstrateBackupMatchesPrimary(tx, backup);
-    } else if (txType === EphemeralAccountType.Stellar) {
-      await validateStellarTransaction(backupTx, ephemerals.Stellar);
     }
   }
 }
@@ -402,7 +381,6 @@ export async function validatePresignedTxs(
       await validateEvmTransaction(tx, ephemerals.EVM, matchingUnsigned.txData);
     }
     if (txType === EphemeralAccountType.Substrate) await validateSubstrateTransaction(tx, ephemerals.Substrate, ephemerals.EVM);
-    if (txType === EphemeralAccountType.Stellar) await validateStellarTransaction(tx, ephemerals.Stellar);
 
     await validateBackupTransactions(tx, ephemerals, evmUnsignedTxData);
   }
@@ -656,162 +634,4 @@ async function validateSubstrateTransaction(tx: PresignedTx, expectedSignerSubst
     });
   }
   logger.debug(`Validated Substrate extrinsic for phase ${tx.phase}: ${method.section}.${method.method}`);
-}
-
-async function validateStellarTransaction(tx: PresignedTx, expectedSigner: string) {
-  const { txData, signer, phase } = tx;
-
-  if (!expectedSigner) {
-    throw new APIError({
-      message: "Expected signer for Stellar transaction is not provided",
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  if (signer.toLowerCase() !== expectedSigner.toLowerCase()) {
-    throw new APIError({
-      message: `Stellar transaction signer ${signer} does not match the expected signer ${expectedSigner} for phase ${phase}.`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  let transaction: StellarTransaction;
-  try {
-    transaction = TransactionBuilder.fromXDR(txData as string, StellarNetworks.PUBLIC) as StellarTransaction;
-  } catch (error) {
-    throw new APIError({
-      message: `Invalid Stellar transaction data: ${(error as Error).message}`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  logger.debug("Parsed Stellar transaction source:", transaction.source);
-
-  if (phase === "stellarCreateAccount") {
-    if (transaction.operations.length !== 3) {
-      throw new APIError({
-        message: `Stellar Create Account transaction must have exactly 3 operations, found ${transaction.operations.length}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const createAccountOp = transaction.operations[0];
-    if (createAccountOp.type !== "createAccount") {
-      throw new APIError({
-        message: `First operation in Stellar Create Account transaction must be 'createAccount', found '${createAccountOp.type}'`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (createAccountOp.destination !== signer) {
-      throw new APIError({
-        message: `Stellar Create Account operation destination ${createAccountOp.destination} does not match the signer ${signer}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (!createAccountOp.startingBalance || parseFloat(createAccountOp.startingBalance) <= 0) {
-      throw new APIError({
-        message: "Stellar Create Account operation must have a positive startingBalance",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const setOptionsOp = transaction.operations[1];
-    if (setOptionsOp.type !== "setOptions") {
-      throw new APIError({
-        message: `Second operation in Stellar Create Account transaction must be 'setOptions', found '${setOptionsOp.type}'`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (setOptionsOp.source !== signer) {
-      throw new APIError({
-        message: `Stellar Set Options operation source ${setOptionsOp.source} does not match the signer ${signer}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (setOptionsOp.type === "setOptions" && !setOptionsOp.signer) {
-      throw new APIError({
-        message: "Stellar SetOptions operation must include a signer (cosigner) key",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const changeTrustOp = transaction.operations[2];
-    if (changeTrustOp.type !== "changeTrust") {
-      throw new APIError({
-        message: `Second operation in Stellar Create Account transaction must be 'changeTrust', found '${changeTrustOp.type}'`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (changeTrustOp.source !== signer) {
-      throw new APIError({
-        message: `Stellar Change Trust operation source ${changeTrustOp.source} does not match the signer ${signer}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (changeTrustOp.type === "changeTrust" && !changeTrustOp.line) {
-      throw new APIError({
-        message: "Stellar ChangeTrust operation must specify a trust line asset",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-  }
-
-  if (phase === "stellarPayment") {
-    if (transaction.operations.length !== 1) {
-      throw new APIError({
-        message: `Stellar Payment transaction must have exactly 1 operation, found ${transaction.operations.length}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const paymentOp = transaction.operations[0];
-    if (paymentOp.type !== "payment") {
-      throw new APIError({
-        message: `Stellar Payment transaction must have a 'payment' operation, found '${paymentOp.type}'`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (transaction.source !== signer) {
-      throw new APIError({
-        message: `Stellar Payment transaction source ${transaction.source} does not match the signer ${signer}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (paymentOp.type === "payment") {
-      if (!paymentOp.destination) {
-        throw new APIError({
-          message: "Stellar Payment operation must have a destination address",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      if (!paymentOp.amount || parseFloat(paymentOp.amount) <= 0) {
-        throw new APIError({
-          message: "Stellar Payment operation must have a positive amount",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      if (!paymentOp.asset) {
-        throw new APIError({
-          message: "Stellar Payment operation must specify an asset",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    }
-  }
-
-  if (phase === "stellarCleanup") {
-    if (transaction.source !== signer) {
-      throw new APIError({
-        message: `Stellar Cleanup transaction source ${transaction.source} does not match the signer ${signer}`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    if (transaction.operations.length === 0 || transaction.operations.length > 5) {
-      throw new APIError({
-        message: `Stellar Cleanup transaction has unexpected operation count: ${transaction.operations.length} (expected 1-5)`,
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-  }
 }

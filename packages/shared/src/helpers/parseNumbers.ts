@@ -5,10 +5,6 @@ import Big from "big.js";
 export const ChainDecimals = 12;
 export const USDC_DECIMALS = 6;
 
-// These are the decimals used by the Stellar network
-// We actually up-scale the amounts on Stellar now to match the expected decimals of the other tokens.
-export const StellarDecimals = ChainDecimals;
-
 // These are the decimals used by the FixedU128 type
 export const FixedU128Decimals = 18;
 
@@ -35,17 +31,6 @@ export const decimalToCustom = (value: Big | number | string, decimals: number) 
   return bigIntValue.mul(multiplier);
 };
 
-export const decimalToStellarNative = (value: Big | number | string) => {
-  let bigIntValue;
-  try {
-    bigIntValue = new Big(value);
-  } catch (_error) {
-    bigIntValue = new Big(0);
-  }
-  const multiplier = new Big(10).pow(StellarDecimals);
-  return bigIntValue.mul(multiplier);
-};
-
 export const fixedPointToDecimal = (value: Big | number | string) => {
   const bigIntValue = new Big(value);
   const divisor = new Big(10).pow(FixedU128Decimals);
@@ -66,13 +51,6 @@ export const sanitizeNative = (value: Big | number | string | u128 | UInt) => {
 export const nativeToDecimal = (value: Big | number | string | u128 | UInt, decimals: number = ChainDecimals) => {
   const bigIntValue = sanitizeNative(value);
   const divisor = new Big(10).pow(decimals);
-
-  return bigIntValue.div(divisor);
-};
-
-export const nativeStellarToDecimal = (value: Big | number | string) => {
-  const bigIntValue = new Big(value);
-  const divisor = new Big(10).pow(StellarDecimals);
 
   return bigIntValue.div(divisor);
 };

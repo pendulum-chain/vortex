@@ -17,7 +17,6 @@ export type RampPhase =
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
   | "squidRouterNoPermitSwap"
-  | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
   | "squidRouterPay"
@@ -33,8 +32,6 @@ export type RampPhase =
   | "pendulumToHydrationXcm"
   | "assethubToPendulum"
   | "pendulumToAssethubXcm"
-  | "spacewalkRedeem"
-  | "stellarPayment"
   | "subsidizePreSwap"
   | "subsidizePostSwap"
   | "distributeFees"
@@ -59,7 +56,6 @@ export type RampPhase =
 export type CleanupPhase =
   | "moonbeamCleanup"
   | "pendulumCleanup"
-  | "stellarCleanup"
   | "polygonCleanup"
   | "polygonCleanupAxlUsdc"
   | "hydrationCleanup"
@@ -70,7 +66,6 @@ export type CleanupPhase =
   | "baseCleanupAxlUsdc";
 
 export enum EphemeralAccountType {
-  Stellar = "Stellar",
   Substrate = "Substrate",
   EVM = "EVM"
 }
@@ -134,7 +129,7 @@ export function isSignedTypedData(
 export function isSignedTypedDataArray(
   data: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
 ): data is SignedTypedData[] {
-  return Array.isArray(data) && data.length > 0 && data.every(item => isSignedTypedData(item as any));
+  return Array.isArray(data) && data.length > 0 && data.every(item => isSignedTypedData(item as unknown as SignedTypedData));
 }
 
 export interface UnsignedTx {
@@ -163,7 +158,6 @@ export interface PaymentData {
   amount: string;
   memo: string;
   memoType: "text" | "hash" | "id";
-  anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
 export interface IbanPaymentData {

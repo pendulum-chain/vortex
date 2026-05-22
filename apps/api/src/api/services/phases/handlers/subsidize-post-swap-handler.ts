@@ -99,8 +99,6 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       } else {
         if (quote.metadata.pendulumToMoonbeamXcm) {
           expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
-        } else if (quote.metadata.pendulumToStellar) {
-          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToStellar.inputAmountRaw);
         }
       }
 
@@ -321,7 +319,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     }
 
     if (state.type === RampDirection.SELL) {
-      return "spacewalkRedeem";
+      throw new Error("SubsidizePostSwapPhaseHandler: Unsupported non-BRL offramp route after Stellar deprecation");
     }
 
     throw new Error(

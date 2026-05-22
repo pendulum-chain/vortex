@@ -221,13 +221,6 @@ async function calculateAnchorFee(
     anchorIdentifier = "moonbeam_brla";
   } else if (rampType === RampDirection.SELL && to === "pix") {
     anchorIdentifier = "moonbeam_brla";
-  } else if (rampType === RampDirection.SELL && to === "sepa") {
-    // EVM source uses Mykobo (dynamic fee fetched in fee engine, no anchor row needed)
-    if (from === "assethub") {
-      anchorIdentifier = "stellar_eurc";
-    }
-  } else if (rampType === RampDirection.SELL && to === "cbu") {
-    anchorIdentifier = "stellar_ars";
   }
 
   const anchorFeeConfigs = await Anchor.findAll({

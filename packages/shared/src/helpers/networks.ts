@@ -15,7 +15,6 @@ export enum Networks {
   Polygon = "polygon",
   Moonbeam = "moonbeam",
   Pendulum = "pendulum",
-  Stellar = "stellar",
   PolygonAmoy = "polygonAmoy",
   BaseSepolia = "base-sepolia"
 }
@@ -44,12 +43,11 @@ export function getNetworkFromDestination(destination: DestinationType): Network
   return undefined;
 }
 
-// For the AssetHub/Pendulum/Stellar network, we use a chain ID of -x. This is not a valid chain ID
-// but we just use it to differentiate between the EVM and Polkadot/Stellar accounts.
+// For the AssetHub/Pendulum networks, we use a chain ID of -x. This is not a valid chain ID
+// but we just use it to differentiate between the EVM and Polkadot accounts.
 export const ASSETHUB_CHAIN_ID = -1;
 export const PENDULUM_CHAIN_ID = -2;
 export const HYDRATION_CHAIN_ID = -3;
-export const STELLAR_CHAIN_ID = -99;
 
 interface NetworkMetadata {
   id: number;
@@ -134,12 +132,6 @@ const NETWORK_METADATA: Record<Networks, NetworkMetadata> = {
   [Networks.Pendulum]: {
     displayName: "Pendulum",
     id: PENDULUM_CHAIN_ID,
-    isEVM: false,
-    supportsRamp: false
-  },
-  [Networks.Stellar]: {
-    displayName: "Stellar",
-    id: STELLAR_CHAIN_ID,
     isEVM: false,
     supportsRamp: false
   }

@@ -2,7 +2,6 @@ import { Keyring } from "@polkadot/api";
 import { u8aToHex } from "@polkadot/util";
 import { cryptoWaitReady, hdEthereum, mnemonicGenerate } from "@polkadot/util-crypto";
 import { mnemonicToSeedSync } from "@scure/bip39";
-import { Keypair } from "stellar-sdk";
 import { EphemeralAccount } from "../index";
 
 export function deriveEvmPrivateKeyFromMnemonic(mnemonic: string): Uint8Array {
@@ -31,11 +30,4 @@ export async function createPendulumEphemeral(): Promise<EphemeralAccount> {
   const ephemeralAccountKeypair = keyring.addFromUri(seedPhrase);
 
   return { address: ephemeralAccountKeypair.address, secret: seedPhrase };
-}
-
-export function createStellarEphemeral(): EphemeralAccount {
-  const ephemeralKeys = Keypair.random();
-  const address = ephemeralKeys.publicKey();
-
-  return { address, secret: ephemeralKeys.secret() };
 }

@@ -43,11 +43,9 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { Op, Transaction, WhereOptions } from "sequelize";
-import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
@@ -67,15 +65,15 @@ import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
-const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
+const RAMP_START_EXPIRATION_TIME_SECONDS = 480;
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
   unsignedTxs: UnsignedTx[],
-  ephemerals: { evm?: string; substrate?: string; stellar?: string }
+  ephemerals: { evm?: string; substrate?: string }
 ): { ephemeralTxs: UnsignedTx[]; userWalletTxs: UnsignedTx[] } {
   const ephemeralSigners = new Set(
-    [ephemerals.evm, ephemerals.substrate, ephemerals.stellar].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
+    [ephemerals.evm, ephemerals.substrate].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
   );
 
   const ephemeralTxs: UnsignedTx[] = [];
@@ -99,7 +97,6 @@ function filterUnsignedTxsForResponse(rampState: RampState, ephemeralPresignChec
 
   const { ephemeralTxs } = partitionUnsignedTxs(rampState.unsignedTxs, {
     evm: rampState.state.evmEphemeralAddress,
-    stellar: rampState.state.stellarEphemeralAccountId,
     substrate: rampState.state.substrateEphemeralAddress
   });
   return ephemeralTxs;
@@ -115,12 +112,6 @@ function validateAddressFormat(address: string, type: EphemeralAccountType): voi
   }
 
   switch (type) {
-    case EphemeralAccountType.Stellar:
-      if (!StrKey.isValidEd25519PublicKey(address)) {
-        throw new Error(`Invalid Stellar address format: "${address}". Expected a valid Ed25519 public key.`);
-      }
-      break;
-
     case EphemeralAccountType.Substrate:
       try {
         decodeAddress(address);
@@ -242,7 +233,6 @@ export class RampService extends BaseRampService {
             depositQrCode,
             evmEphemeralAddress: ephemerals.EVM,
             ibanPaymentData,
-            stellarEphemeralAccountId: ephemerals.Stellar,
             substrateEphemeralAddress: ephemerals.Substrate,
             ...request.additionalData,
             ...stateMeta
@@ -316,7 +306,6 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
-        Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
       if (presignedTxs && presignedTxs.length > 0) {
@@ -434,7 +423,6 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
-        Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals, rampState.unsignedTxs);
@@ -1004,7 +992,6 @@ export class RampService extends BaseRampService {
       quote,
       receiverTaxId: additionalData.receiverTaxId,
       signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData.paymentData,
       taxId: additionalData.taxId,
       userAddress: additionalData.walletAddress
     });
@@ -1025,7 +1012,6 @@ export class RampService extends BaseRampService {
       ipAddress: additionalData?.ipAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData?.paymentData,
       userAddress: additionalData?.walletAddress,
       userId
     });
@@ -1190,7 +1176,6 @@ export class RampService extends BaseRampService {
   private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       EVM: rampState.state.evmEphemeralAddress,
-      Stellar: rampState.state.stellarEphemeralAccountId,
       Substrate: rampState.state.substrateEphemeralAddress
     };
 
@@ -1207,7 +1192,6 @@ export class RampService extends BaseRampService {
 
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       EVM: rampState.state.evmEphemeralAddress,
-      Stellar: rampState.state.stellarEphemeralAccountId,
       Substrate: rampState.state.substrateEphemeralAddress
     };
 

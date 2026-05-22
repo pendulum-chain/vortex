@@ -5,8 +5,6 @@
 import { AlfredpayOnChainCurrency } from "../../services/alfredpay/types";
 import { EvmToken } from "../types/evm";
 
-export const HORIZON_URL = "https://horizon.stellar.org";
-export const STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS = "2.5"; // Amount to send to the new stellar ephemeral account created
 export const PENDULUM_WSS = "wss://rpc-pendulum.prd.pendulumchain.tech";
 export const ASSETHUB_WSS = "wss://dot-rpc.stakeworld.io/assethub";
 export const MOONBEAM_WSS = "wss://wss.api.moonbeam.network";

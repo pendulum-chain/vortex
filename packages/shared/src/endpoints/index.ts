@@ -12,7 +12,6 @@ export * from "./ramp.endpoints";
 export * from "./rating.endpoints";
 export * from "./session";
 export * from "./siwe.endpoints";
-export * from "./stellar.endpoints";
 export * from "./storage.endpoints";
 export * from "./subsidize.endpoints";
 export * from "./supported-countries.endpoints";

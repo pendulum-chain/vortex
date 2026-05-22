@@ -18,7 +18,6 @@ import { offrampEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfre
 import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
 import { offrampToSepaEvmStrategy } from "./strategies/offramp-to-sepa-evm.strategy";
-import { offrampToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
@@ -74,10 +73,10 @@ export class RouteResolver {
       case "spei":
         return offrampEvmToAlfredpayStrategy;
       case "sepa":
-        return ctx.from === Networks.AssetHub ? offrampToStellarStrategy : offrampToSepaEvmStrategy;
+        return offrampToSepaEvmStrategy;
       case "cbu":
       default:
-        return offrampToStellarStrategy;
+        throw new Error("ARS offramp temporarily unavailable");
     }
   }
 }

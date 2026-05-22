@@ -9,12 +9,10 @@ import { evmTokenConfig } from "../evm/config";
 import { getEvmTokenConfig } from "../evm/dynamicEvmTokens";
 import { freeTokenConfig } from "../freeTokens/config";
 import { moonbeamTokenConfig } from "../moonbeam/config";
-import { stellarTokenConfig } from "../stellar/config";
 import { AssetHubToken, FiatToken, OnChainToken, OnChainTokenSymbol, RampCurrency, TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
 import { PendulumTokenDetails } from "../types/pendulum";
-import { StellarTokenDetails } from "../types/stellar";
 import { normalizeTokenSymbol } from "./normalization";
 import { FiatTokenDetails, OnChainTokenDetails } from "./typeGuards";
 
@@ -86,18 +84,6 @@ export function getOnChainTokenDetailsOrDefault(
 }
 
 /**
- * Get Stellar token details for a specific fiat token
- */
-export function getTokenDetailsSpacewalk(fiatToken: FiatToken): StellarTokenDetails {
-  const maybeOutputTokenDetails = stellarTokenConfig[fiatToken];
-
-  if (maybeOutputTokenDetails) {
-    return maybeOutputTokenDetails;
-  }
-  throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar.`);
-}
-
-/**
  * Get Moonbeam token details for a specific fiat token
  */
 export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTokenDetails {
@@ -110,12 +96,12 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
 }
 
 /**
- * Get any fiat token details (Stellar or Moonbeam)
+ * Get any fiat token details (Moonbeam or free token)
  */
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
-  const tokenDetails = stellarTokenConfig[fiatToken] || moonbeamTokenConfig[fiatToken] || freeTokenConfig[fiatToken];
+  const tokenDetails = moonbeamTokenConfig[fiatToken] || freeTokenConfig[fiatToken];
   if (!tokenDetails) {
-    throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Stellar or Moonbeam.`);
+    throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Moonbeam.`);
   }
   return tokenDetails;
 }

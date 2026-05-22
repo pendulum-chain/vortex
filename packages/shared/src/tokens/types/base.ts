@@ -3,7 +3,6 @@ import { EvmToken } from "./evm";
 export enum TokenType {
   Evm = "evm",
   AssetHub = "assethub",
-  Stellar = "stellar",
   Moonbeam = "moonbeam",
   Fiat = "fiat"
 }
@@ -31,7 +30,7 @@ export type NablaToken = OnChainToken;
 // Combines fiat currencies with tokens in one type
 export type RampCurrency = FiatToken | OnChainToken;
 
-export type PendulumCurrencyId = { Stellar: { AlphaNum4: { code: string; issuer: string } } } | { XCM: number };
+export type PendulumCurrencyId = { XCM: number };
 
 export interface BaseTokenDetails {
   type: TokenType;

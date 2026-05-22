@@ -1,17 +1,10 @@
-import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, StellarTokenDetails } from "@vortexfi/shared";
+import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
   squidRouterReceiverId: string;
   squidRouterReceiverHash: string;
-  // Only used in offramp - eurc & ars route
-  stellarEphemeralAccountId: string;
-  stellarTarget: {
-    stellarTargetAccountId: string;
-    stellarTokenDetails: StellarTokenDetails;
-  };
-  executeSpacewalkNonce: number;
   distributeFeeHash: string;
   // Only used in onramp - brla
   aveniaTicketId: string;
@@ -66,7 +59,6 @@ export interface StateMetadata {
   alfredpayOfframpTransferTxHash?: string;
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
-  stellarPaymentTxHash?: string;
   nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.

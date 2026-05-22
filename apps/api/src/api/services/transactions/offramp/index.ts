@@ -8,11 +8,9 @@ import {
 } from "@vortexfi/shared";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "./common/types";
 import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-brl";
-import { prepareAssethubToStellarOfframpTransactions } from "./routes/assethub-to-stellar";
 import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
 import { prepareEvmToBRLOfframpBaseTransactions } from "./routes/evm-to-brl-base";
 import { prepareEvmToMykoboOfframpTransactions } from "./routes/evm-to-mykobo";
-import { prepareEvmToStellarOfframpTransactions } from "./routes/evm-to-stellar";
 
 export async function prepareOfframpTransactions(params: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const { quote } = params;
@@ -40,13 +38,7 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
   } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
     // Alfredpay offramp (USD, MXN, COP)
     return prepareEvmToAlfredpayOfframpTransactions(params);
-  } else {
-    // Stellar offramp
-    const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency as OnChainToken);
-    if (inputTokenDetails && isEvmTokenDetails(inputTokenDetails)) {
-      return prepareEvmToStellarOfframpTransactions(params);
-    } else {
-      return prepareAssethubToStellarOfframpTransactions(params);
-    }
   }
+
+  throw new Error(`Unsupported offramp output currency: ${quote.outputCurrency}`);
 }

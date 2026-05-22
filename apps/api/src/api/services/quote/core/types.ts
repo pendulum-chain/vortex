@@ -62,15 +62,6 @@ export interface XcmMeta {
   xcmFees: XcmFees;
 }
 
-export interface StellarMeta {
-  inputAmountDecimal: Big;
-  inputAmountRaw: string;
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-  fee: Big;
-  currency: RampCurrency;
-}
-
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
@@ -226,8 +217,6 @@ export interface QuoteContext {
   pendulumToAssethubXcm?: XcmMeta;
 
   pendulumToMoonbeamXcm?: XcmMeta;
-
-  pendulumToStellar?: StellarMeta;
 
   // Fees in baseline and display currency
   fees?: {

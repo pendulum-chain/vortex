@@ -1,7 +1,6 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
-import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
@@ -21,12 +20,10 @@ import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
 import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
-import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
 import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
-  stellar: unknown;
   pendulum: unknown;
   moonbeam: unknown;
 };
@@ -36,8 +33,7 @@ const router: Router = Router({ mergeParams: true });
 async function sendStatusWithPk(_: Request, res: Response): Promise<void> {
   const chainStatus: ChainStatus = {
     moonbeam: await sendMoonbeamStatusWithPk(),
-    pendulum: await sendPendulumStatusWithPk(),
-    stellar: await sendStellarStatusWithPk()
+    pendulum: await sendPendulumStatusWithPk()
   };
 
   res.json(chainStatus);
@@ -63,11 +59,6 @@ router.use("/prices", priceRoutes);
  * POST v1/quotes
  */
 router.use("/quotes", quoteRoutes);
-
-/**
- * POST v1/stellar
- */
-router.use("/stellar", stellarRoutes);
 
 /**
  * POST v1/storage

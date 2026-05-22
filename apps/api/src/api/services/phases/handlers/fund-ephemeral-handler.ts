@@ -11,7 +11,6 @@ import {
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
-import { NetworkError, Transaction } from "stellar-sdk";
 import { type Hex, parseTransaction } from "viem";
 import logger from "../../../../config/logger";
 import {
@@ -26,29 +25,15 @@ import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
-import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 import { StateMetadata } from "../meta-state-types";
 import {
   DESTINATION_EVM_FUNDING_AMOUNTS,
-  horizonServer,
   isBaseEphemeralFunded,
   isDestinationEvmEphemeralFunded,
   isPendulumEphemeralFunded,
-  isPolygonEphemeralFunded,
-  isStellarEphemeralFunded,
-  NETWORK_PASSPHRASE
+  isPolygonEphemeralFunded
 } from "./helpers";
-
-export function isStellarNetworkError(error: unknown): error is NetworkError {
-  return (
-    error instanceof Error &&
-    "response" in error &&
-    error.response !== null &&
-    typeof error.response === "object" &&
-    "data" in error.response
-  );
-}
 
 function isOnramp(state: RampState): boolean {
   return state.type === RampDirection.BUY;
@@ -196,16 +181,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork)
           : true;
 
-      if (state.state.stellarTarget) {
-        const isFunded = await isStellarEphemeralFunded(
-          state.state.stellarEphemeralAccountId,
-          state.state.stellarTarget.stellarTokenDetails
-        );
-        if (!isFunded) {
-          await this.fundStellarEphemeralAccount(state);
-        }
-      }
-
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${substrateEphemeralAddress}`);
         if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -271,65 +246,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return "distributeFees";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
-    }
-  }
-
-  protected async fundStellarEphemeralAccount(state: RampState): Promise<void> {
-    const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, "stellarCreateAccount");
-    if (typeof stellarCreationTransactionXDR !== "string") {
-      throw new Error(
-        "FundEphemeralHandler: `stellarCreateAccount` transaction is not a string -> not an encoded Stellar transaction."
-      );
-    }
-
-    try {
-      const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
-      logger.info(
-        `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`
-      );
-      await horizonServer.submitTransaction(stellarCreationTransaction);
-
-      logger.info("Validating stellar payment sequence number after account creation");
-      try {
-        await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
-      } catch (validationError) {
-        logger.error(`Stellar payment sequence validation failed after account creation: ${validationError}`);
-        throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation");
-      }
-    } catch (e) {
-      if (e instanceof UnrecoverablePhaseError) {
-        throw e;
-      }
-
-      // when validateStellarPaymentSequenceNumber throws an error, it's not NetworkError
-      if (isStellarNetworkError(e)) {
-        if (e.response.data?.status === 400) {
-          logger.info(
-            `Could not submit the stellar account creation transaction ${JSON.stringify(e.response.data.extras.result_codes)}`
-          );
-
-          // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
-          if (e.response.data.extras.result_codes.transaction === "tx_bad_seq") {
-            logger.info("Recovery mode: Creation already performed.");
-
-            try {
-              logger.info("Validating stellar payment sequence number in recovery mode");
-              await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
-            } catch (validationError) {
-              logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
-              throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation recovery");
-            }
-          }
-          logger.error(`Could not submit the stellar creation transaction: ${e.response.data.extras}`);
-          throw new Error("Could not submit the stellar creation transaction");
-        } else {
-          logger.error(`Could not submit the stellar creation transaction: ${e.response.data}`);
-          throw new Error("Could not submit the stellar creation transaction");
-        }
-      } else {
-        logger.error(`Error in stellar account creation: ${e}`);
-        throw new Error("Could not submit the stellar creation transaction");
-      }
     }
   }
 

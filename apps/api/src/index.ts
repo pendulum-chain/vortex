@@ -26,7 +26,6 @@ setLogger(logger);
 const validateRequiredEnvVars = () => {
   const requiredVars = {
     CLIENT_DOMAIN_SECRET: config.secrets.clientDomainSecret,
-    FUNDING_SECRET: config.secrets.stellarFundingSecret,
     MOONBEAM_EXECUTOR_PRIVATE_KEY: config.secrets.moonbeamExecutorPrivateKey,
     PENDULUM_FUNDING_SEED: config.secrets.pendulumFundingSeed
   };

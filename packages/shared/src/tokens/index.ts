@@ -14,7 +14,6 @@ export * from "./freeTokens/config";
 export * from "./freeTokens/eurcMykobo";
 export * from "./moonbeam/config";
 export * from "./pendulum/config";
-export * from "./stellar/config";
 // TokenConfig
 export * from "./tokenConfig";
 export * from "./types/assethub";
@@ -23,7 +22,6 @@ export * from "./types/base";
 export * from "./types/evm";
 export * from "./types/moonbeam";
 export * from "./types/pendulum";
-export * from "./types/stellar";
 export * from "./utils/helpers";
 export * from "./utils/normalization";
 // Utils

@@ -1,10 +1,9 @@
-import { AccountMeta, PaymentData, UnsignedTx } from "@vortexfi/shared";
+import { AccountMeta, UnsignedTx } from "@vortexfi/shared";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 
 export interface OfframpTransactionParams {
   quote: QuoteTicketAttributes;
   signingAccounts: AccountMeta[];
-  stellarPaymentData?: PaymentData;
   userAddress?: string;
   pixDestination?: string;
   taxId?: string;
