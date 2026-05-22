@@ -659,7 +659,7 @@ Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both
 | # | Check | Result |
 |---|---|---|
 | 1 | Mykobo access/secret keys + base URL from env vars | ✅ PASS — loaded via `packages/shared` config; `MykoboApiService` throws on missing config |
-| 2 | `MYKOBO_BASE_URL` HTTPS and `/v<digits>` enforced | ✅ PASS — `MykoboApiService` constructor normalizes trailing slash and appends `/v1` if missing |
+| 2 | `MYKOBO_BASE_URL` HTTPS and `/v<digits>` enforced | 🔴 FAIL — F-070 (path shape normalized, HTTPS scheme not enforced) |
 | 3 | On-ramp `mykoboOnrampDeposit` polls Base RPC for EURC arrival | ✅ PASS — `checkEvmBalancePeriodically` against `evmEphemeralAddress` until `mykoboMint.outputAmountRaw` arrives |
 | 4 | 24h outer payment timeout; on expiry → `failed` | ✅ PASS — `PAYMENT_TIMEOUT_MS = 24h`, transition to `failed` enforced in handler |
 | 5 | 5% recovery tolerance scoped to pre-funded shortcut only | ✅ PASS — `EPHEMERAL_FUNDED_TOLERANCE_FACTOR=0.95` applies only to `ephemeralAlreadyFunded` pre-check; live polling uses full `expectedAmountRaw` |
@@ -671,12 +671,12 @@ Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both
 | 11 | `FAILED` / `CANCELLED` / `EXPIRED` → unrecoverable error | ✅ PASS — `createUnrecoverableError` for all three terminal statuses |
 | 12 | Recovery: `mykoboPayoutTxHash` short-circuits re-broadcast | ✅ PASS — waits for prior receipt; re-sends only if prior tx reverted |
 | 13 | `MykoboApiError` mapped to recoverable/unrecoverable at handler boundary | ✅ PASS — payout handler wraps send failures in `createRecoverableError`; status terminal → unrecoverable |
-| 14 | Bearer-token refresh debounced (no thundering-herd on 401) | ✅ PASS — `tokenPromise` debouncing in `MykoboApiService.getToken` |
+| 14 | Bearer-token refresh debounced (no thundering-herd on 401) | 🟡 PARTIAL — F-071 (cold-start `getToken` debounced; `handleAuthFailure` 401 path is not) |
 | 15 | Token / access / secret keys absent from logs | ⚠️ PARTIAL — `MykoboApiError.body` may carry raw response bodies into logs; no explicit redaction |
 | 16 | IBAN payment details surfaced only after presigned-tx validation | ✅ PASS — `ibanPaymentData` returned from `prepareRampTransactions` only after `validatePresignedTxs` succeeds upstream |
-| 17 | `/v1/mykobo/profile` endpoints require Supabase OTP auth | ✅ PASS — routes mounted under the same auth middleware as the existing user-scoped endpoints |
+| 17 | `/v1/mykobo/profiles` endpoints require Supabase OTP auth | 🔴 FAIL — F-068 (`mykobo.route.ts` has no `requireAuth`; parent mount also unwrapped) |
 | 18 | Mykobo KYC documents not persisted by Vortex | ✅ PASS — multipart form-data streamed through to Mykobo; no local persistence of files or PII beyond the wallet→profile linkage |
-| 19 | HTTPS enforced for all Mykobo API calls | ✅ PASS — `MykoboApiService` rejects misconfigured base URLs at construction |
+| 19 | HTTPS enforced for all Mykobo API calls | 🔴 FAIL — F-070 (no scheme check on `MYKOBO_BASE_URL`; misconfig sends bearer tokens in cleartext) |
 | 20 | Timeout / AbortController on Mykobo HTTP client | 🔴 FAIL — F-014 (cross-cutting; Mykobo `fetch` calls lack explicit `AbortController`, same gap as BRLA/Monerium/CoinGecko/etc.) |
 | 21 | Phase handlers never call Mykobo API without explicit recoverable/unrecoverable mapping | ✅ PASS — `mykobo-payout-handler.ts` catches `PhaseError` directly and wraps non-PhaseError exceptions |
 
@@ -752,6 +752,10 @@ Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both
 | F-025 | 🔵 Low | `HORIZON_URL` import inconsistency between modules | Stellar |
 | F-026 | 🔵 Low | `@ts-ignore` on `.nonce.toNumber()` hides potential API incompatibility | Stellar |
 | F-027 | 🟡 Medium | `squidRouterPermitExecutionValue` used as `msg.value` without validation | Squid Router |
+| F-068 | 🔴 Critical | Mykobo `/v1/mykobo/profiles` GET/POST have no `requireAuth` — anonymous KYC ingestion | Mykobo |
+| F-069 | 🟠 High | EUR off-ramp `fundEphemeral.nextPhaseSelector` falls through to `moonbeamToPendulum` (latent stuck-phase bug) | Mykobo / Ramp Engine |
+| F-070 | 🟡 Medium | `MYKOBO_BASE_URL` accepts any URL scheme — no HTTPS enforcement | Mykobo |
+| F-071 | 🔵 Low | `MykoboApiService.handleAuthFailure` is not debounced — concurrent-401 thundering herd | Mykobo |
 
 ---
 
@@ -1077,11 +1081,13 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
-| 🔴 Critical | 5 | 0 | 0 | 0 | 5 |
-| 🟠 High | 11 | 3 | 3 | 0 | 17 |
-| 🟡 Medium | 25 | 3 | 6 | 0 | 34 |
-| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 0 | 11 |
-| **Total** | **49** | **9** | **9** | **0** | **67** |
+| 🔴 Critical | 5 | 0 | 0 | 1 | 6 |
+| 🟠 High | 11 | 3 | 3 | 1 | 18 |
+| 🟡 Medium | 25 | 3 | 6 | 1 | 35 |
+| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 1 | 12 |
+| **Total** | **49** | **9** | **9** | **4** | **71** |
+
+Open findings F-068 through F-071 were raised by the Mykobo integration audit (2026-05-22); see `FINDINGS.md` Phase 5 section for full descriptions.
 
 ### Recommended Remediation Order
 
@@ -1106,6 +1112,12 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 12. Unify fee systems (F-002)
 13. Add structured audit logging (F-015)
 14. Implement proper admin auth (F-020)
+
+**Mykobo Integration Audit (2026-05-22) — Open:**
+15. Add `requireAuth` to `/v1/mykobo/profiles` GET/POST and verify wallet ownership (F-068, Critical)
+16. Add explicit EURC branch to `fund-ephemeral-handler.nextPhaseSelector` returning `distributeFees` (F-069, High)
+17. Enforce HTTPS scheme on `MYKOBO_BASE_URL` at `MykoboApiService` construction (F-070, Medium)
+18. Debounce `MykoboApiService.handleAuthFailure` analogous to `getToken` (F-071, Low)
 
 ### Files Reference
 
