@@ -203,6 +203,32 @@ export class MykoboApiService {
     });
   }
 
+  public async createProfile(formData: FormData): Promise<MykoboGetProfileResponse> {
+    const url = this.buildUrl("/profiles");
+    let token = await this.getToken();
+    let response = await fetch(url, {
+      body: formData,
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      method: "POST"
+    });
+
+    if (response.status === 401) {
+      token = await this.handleAuthFailure();
+      response = await fetch(url, {
+        body: formData,
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        method: "POST"
+      });
+    }
+
+    if (!response.ok) {
+      const errorBody = await safeReadBody(response);
+      throw new MykoboApiError(response.status, errorBody, `Mykobo POST /profiles failed: ${response.status}`);
+    }
+
+    return (await response.json()) as MykoboGetProfileResponse;
+  }
+
   public defaultWithdrawFee(value: string): Promise<MykoboFeeResponse> {
     return this.lookupFees({ kind: MykoboFeeKind.WITHDRAW, value });
   }

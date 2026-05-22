@@ -12,6 +12,7 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
+import mykoboRoutes from "./mykobo.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
@@ -141,6 +142,12 @@ router.use("/auth", authRoutes);
  * POST v1/alfredpay
  */
 router.use("/alfredpay", alfredpayRoutes);
+
+/**
+ * GET v1/mykobo/profiles
+ * POST v1/mykobo/profiles
+ */
+router.use("/mykobo", mykoboRoutes);
 
 /**
  * POST v1/webhook
