@@ -1,11 +1,13 @@
 # Stellar Anchors Integration
 
+> **⚠️ EUR REMOVED — ARS ONLY.** The Stellar-anchored EUR off-ramp (EURC on Stellar via Spacewalk) has been migrated to **Mykobo on Base** (see `mykobo.md`). The `spacewalkRedeem` + `stellarPayment` flow is still active for **ARS off-ramps only**. References below to EUR/EURC describe the historical EUR flow and should not be treated as an active corridor.
+
 ## What This Does
 
-Stellar anchors are used for off-ramp flows that terminate on the Stellar network — specifically EUR (EURC) and ARS off-ramps. The flow bridges assets from Pendulum to Stellar via the Spacewalk bridge, then makes a Stellar payment from the ephemeral account to the user's off-ramp destination.
+Stellar anchors are used for off-ramp flows that terminate on the Stellar network. **Active corridor: ARS only.** The historical EUR (EURC) off-ramp via this path is removed; EUR now flows through Mykobo on Base. The active flow bridges assets from Pendulum to Stellar via the Spacewalk bridge, then makes a Stellar payment from the ephemeral account to the user's off-ramp destination.
 
 **Provider type:** Off-ramp  
-**Fiat currencies:** EUR (via EURC on Stellar), ARS  
+**Fiat currencies:** ARS (EUR via EURC on Stellar is removed — see `mykobo.md`)  
 **Chains involved:** Pendulum (Nabla swap output) → Stellar (via Spacewalk bridge) → Stellar anchor  
 **Phase handlers:**
 - `spacewalk-redeem-handler.ts` — Submits a Spacewalk redeem request on Pendulum, then waits up to 10 minutes for tokens to arrive on the ephemeral Stellar account
