@@ -5,6 +5,20 @@
 import { FiatCurrencyDetails, FiatToken, TokenType } from "../types/base";
 
 export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = {
+  [FiatToken.EURC]: {
+    assetSymbol: "EURC",
+    decimals: 6,
+    fiat: {
+      assetIcon: "eur",
+      name: "Euro",
+      symbol: "EUR"
+    },
+    maxBuyAmountRaw: "10000000000",
+    maxSellAmountRaw: "10000000000",
+    minBuyAmountRaw: "1000000",
+    minSellAmountRaw: "25000000",
+    type: TokenType.Fiat
+  },
   [FiatToken.USD]: {
     assetSymbol: "USD",
     decimals: 2,

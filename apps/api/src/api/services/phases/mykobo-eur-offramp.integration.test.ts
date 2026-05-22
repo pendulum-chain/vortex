@@ -49,7 +49,6 @@ import {
   RampDirection,
   RegisterRampRequest
 } from "@vortexfi/shared";
-import { Keypair } from "stellar-sdk";
 import { UpdateOptions } from "sequelize";
 import QuoteTicket, { QuoteTicketAttributes, QuoteTicketCreationAttributes } from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../../../models/rampState.model";
@@ -71,7 +70,6 @@ const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 interface TestSigningAccounts {
   EVM: EphemeralAccount;
   Substrate: EphemeralAccount;
-  Stellar: EphemeralAccount;
 }
 
 async function createSubstrateEphemeral(): Promise<EphemeralAccount> {
@@ -80,11 +78,6 @@ async function createSubstrateEphemeral(): Promise<EphemeralAccount> {
   await new Promise(resolve => setTimeout(resolve, 1000));
   const kp = keyring.addFromUri(seedPhrase);
   return { address: kp.address, secret: seedPhrase };
-}
-
-function createStellarEphemeral(): EphemeralAccount {
-  const keys = Keypair.random();
-  return { address: keys.publicKey(), secret: keys.secret() };
 }
 
 async function createMoonbeamEphemeralSeed(): Promise<EphemeralAccount> {
@@ -96,8 +89,7 @@ async function createMoonbeamEphemeralSeed(): Promise<EphemeralAccount> {
 
 const testSigningAccounts: TestSigningAccounts = {
   EVM: await createMoonbeamEphemeralSeed(),
-  Substrate: await createSubstrateEphemeral(),
-  Stellar: createStellarEphemeral()
+  Substrate: await createSubstrateEphemeral()
 };
 
 const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map(networkKey => ({
