@@ -60,8 +60,6 @@ export interface MykoboKycContext extends RampContext {
 type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
 
 export const kycStateNode = {
-  entry: ({ context }: { context: RampContext }) =>
-    console.log("DEBUG: Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
     GO_BACK: {
@@ -84,10 +82,7 @@ export const kycStateNode = {
             return "aveniaKyc";
           },
           { type: "SummaryConfirm" }
-        ),
-        ({ event }: { event: unknown }) => {
-          console.log("SummaryConfirm event:", event);
-        }
+        )
       ]
     }
   },
@@ -96,7 +91,6 @@ export const kycStateNode = {
       invoke: {
         id: "alfredpayKyc",
         input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
-          console.log("Invoking Alfredpay KYC actor with RampContext input:", context);
           const fiatToken = context.executionInput?.fiatToken;
           const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
@@ -135,7 +129,6 @@ export const kycStateNode = {
       invoke: {
         id: "aveniaKyc",
         input: ({ context }: { context: RampContext }): AveniaKycContext => {
-          console.log("Invoking Avenia KYC actor with RampContext input:", context);
           return {
             ...context,
             kycFormData: context.kycFormData,
@@ -224,13 +217,6 @@ export const kycStateNode = {
     VerificationComplete: {
       always: {
         target: "#ramp.KycComplete"
-      },
-      entry: {
-        actions: [
-          () => {
-            console.log("KYC verification completed successfully");
-          }
-        ]
       }
     }
   }
