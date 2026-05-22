@@ -1,6 +1,7 @@
 import { MykoboApiError, MykoboApiService, MykoboProfile } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { isAddress } from "viem";
 import logger from "../../config/logger";
 
 const PROFILE_TEXT_FIELDS = [
@@ -39,9 +40,18 @@ const toFrontendProfile = (p: MykoboProfile) => ({
   lastName: p.last_name
 });
 
+const emailsMatch = (a: string | undefined, b: string | undefined): boolean =>
+  !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
 export const getProfileController = async (req: Request, res: Response): Promise<void> => {
   const { address, memo } = req.query;
-  if (!address || typeof address !== "string") {
+  const userEmail = req.userEmail;
+
+  if (!userEmail) {
+    res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
+    return;
+  }
+  if (!address || typeof address !== "string" || !isAddress(address)) {
     res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid address parameter" });
     return;
   }
@@ -49,6 +59,10 @@ export const getProfileController = async (req: Request, res: Response): Promise
   try {
     const memoParam = typeof memo === "string" && memo.length > 0 ? memo : undefined;
     const { profile } = await MykoboApiService.getInstance().getProfileByWalletAddress(address, memoParam);
+    if (!emailsMatch(profile.email_address, userEmail)) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "Profile not found" });
+      return;
+    }
     res.json({ profile: toFrontendProfile(profile) });
   } catch (error) {
     if (error instanceof MykoboApiError && error.status === 404) {
@@ -61,15 +75,30 @@ export const getProfileController = async (req: Request, res: Response): Promise
 };
 
 export const createProfileController = async (req: Request, res: Response): Promise<void> => {
+  const userEmail = req.userEmail;
+  if (!userEmail) {
+    res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
+    return;
+  }
+
   try {
-    const formData = new FormData();
     const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const walletAddress = body.wallet_address;
+    if (typeof walletAddress !== "string" || !isAddress(walletAddress)) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid wallet_address" });
+      return;
+    }
+
+    const formData = new FormData();
     for (const field of PROFILE_TEXT_FIELDS) {
+      if (field === "email_address") continue;
       const value = body[field];
       if (typeof value === "string" && value.length > 0) {
         formData.append(field, value);
       }
     }
+    formData.append("email_address", userEmail);
 
     const files = (req as Request & { files?: Record<string, Express.Multer.File[]> }).files;
     if (files && typeof files === "object") {
@@ -84,7 +113,7 @@ export const createProfileController = async (req: Request, res: Response): Prom
     res.status(httpStatus.CREATED).json({ profile: toFrontendProfile(profile) });
   } catch (error) {
     if (error instanceof MykoboApiError) {
-      logger.warn("Mykobo /profiles upstream error:", { body: error.body, status: error.status });
+      logger.warn(`Mykobo /profiles upstream error: status=${error.status}`);
       res.status(error.status).json({ error: "Mykobo profile creation failed" });
       return;
     }
