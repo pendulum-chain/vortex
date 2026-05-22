@@ -1,7 +1,8 @@
-import { useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useMykoboKycActor, useMykoboKycSelector } from "../../contexts/rampState";
 import type { MykoboKycFiles, MykoboKycFormData } from "../../machines/mykoboKyc.machine";
+import type { MykoboKycSnapshot } from "../../machines/types";
 import { Spinner } from "../Spinner";
 import { MykoboKycForm } from "./MykoboKycForm";
 
@@ -33,37 +34,19 @@ export const MykoboKycFlow = () => {
 
   const { stateValue, context } = state;
 
-  if (stateValue === "CheckingProfile") {
-    return <LoadingPanel message={t("components.mykoboKycFlow.checkingProfile")} />;
-  }
-
-  if (stateValue === "Submitting") {
-    return <LoadingPanel message={t("components.mykoboKycFlow.submitting")} />;
-  }
-
-  if (stateValue === "Verifying") {
-    return <LoadingPanel message={t("components.mykoboKycFlow.verifying")} />;
-  }
-
-  if (stateValue === "FormFilling") {
-    return <MykoboKycForm onSubmit={submitForm} />;
-  }
-
-  if (stateValue === "Done") {
-    return (
+  const panels: Record<MykoboKycSnapshot["value"], () => ReactNode> = {
+    CheckingProfile: () => <LoadingPanel message={t("components.mykoboKycFlow.checkingProfile")} />,
+    Done: () => (
       <div className="flex flex-col items-center gap-2 p-6">
         <p className="text-body">{t("components.mykoboKycFlow.done")}</p>
       </div>
-    );
-  }
+    ),
+    Failure: () => <ErrorPanel detail={context.error?.message} message={t("components.mykoboKycFlow.failure")} />,
+    FormFilling: () => <MykoboKycForm onSubmit={submitForm} />,
+    Rejected: () => <ErrorPanel detail={context.error?.message} message={t("components.mykoboKycFlow.rejected")} />,
+    Submitting: () => <LoadingPanel message={t("components.mykoboKycFlow.submitting")} />,
+    Verifying: () => <LoadingPanel message={t("components.mykoboKycFlow.verifying")} />
+  };
 
-  if (stateValue === "Rejected") {
-    return <ErrorPanel detail={context.error?.message} message={t("components.mykoboKycFlow.rejected")} />;
-  }
-
-  if (stateValue === "Failure") {
-    return <ErrorPanel detail={context.error?.message} message={t("components.mykoboKycFlow.failure")} />;
-  }
-
-  return null;
+  return panels[stateValue]();
 };

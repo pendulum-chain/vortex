@@ -30,7 +30,6 @@ export class RegisterRampError extends Error {
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
   const { executionInput, chainId, connectedWalletAddress, paymentData, quote, userId } = input;
 
-  // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
     throw new RegisterRampError("Execution input and quote are required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
@@ -44,7 +43,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const moonbeamApiComponents = await apiManager.getApi(Networks.Moonbeam);
   const hydrationApiComponents = await apiManager.getApi(Networks.Hydration);
 
-  if (!chainId) {
+  if (chainId === undefined) {
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
 
@@ -114,16 +113,11 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
 
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData, userId);
 
-  const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx => {
-    if (!connectedWalletAddress) {
-      return true;
-    }
-
-    return chainId < 0 &&
-      (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub || tx.network === Networks.Hydration)
+  const ephemeralTxs = (rampProcess.unsignedTxs || []).filter(tx =>
+    chainId < 0 && (tx.network === Networks.Pendulum || tx.network === Networks.AssetHub || tx.network === Networks.Hydration)
       ? getAddressForFormat(tx.signer, 0) !== getAddressForFormat(connectedWalletAddress, 0)
-      : tx.signer.toLowerCase() !== connectedWalletAddress.toLowerCase();
-  });
+      : tx.signer.toLowerCase() !== connectedWalletAddress.toLowerCase()
+  );
 
   const signedTransactions = await signUnsignedTransactions(
     ephemeralTxs,

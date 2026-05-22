@@ -13,7 +13,7 @@ import { mykoboKycMachine } from "./mykoboKyc.machine";
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
 export interface RampContext {
-  connectedWalletAddress: string | undefined; // The address of the connected wallet (EVM or Substrate)
+  connectedWalletAddress: string | undefined;
   authToken?: string;
   chainId: number | undefined;
   executionInput: RampExecutionInput | undefined;
@@ -38,12 +38,10 @@ export interface RampContext {
   errorMessage?: string;
   kycFormData?: KYCFormData;
   enteredViaForm?: boolean; // True if user navigated from the Quote form, false if entered via direct URL
-  // Auth-related fields
   userEmail?: string;
   userId?: string;
   isAuthenticated: boolean;
   isAuthLoading?: boolean;
-  alfredpayCustomer?: any;
   postAuthTarget?: "QuoteReady" | "RegisterRamp";
 }
 
@@ -82,6 +80,11 @@ export type RampMachineEvents =
   | { type: "LOGOUT" }
   | { type: "GO_BACK" };
 
+// `ActorRefFrom<typeof rampMachine>` would close the snapshot type properly, but importing
+// rampMachine here creates a value-level circular dependency (types.ts → ramp.machine.ts → types.ts)
+// that resolves to `any` at type-eval time and surfaces dozens of latent send/event errors. Keep
+// the snapshot loose; concrete narrowing happens at use sites via `RampContext`-typed selectors.
+// biome-ignore lint/suspicious/noExplicitAny: see comment above on the rampMachine import cycle.
 export type RampMachineActor = ActorRef<any, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
 
@@ -112,20 +115,8 @@ export type SelectedAveniaData = {
   context: AveniaKycContext;
 };
 
-/**
- * Checks whether an XState v5 machine is currently in a compound (parent) state.
- *
- * In XState v5, `state.value` is a plain string when the machine is in a simple state,
- * but becomes an object when it is in a nested state. For example, a machine in
- * `KYBFlow > CompanyVerification` has `state.value === { KYBFlow: "CompanyVerification" }`.
- *
- * @see https://stately.ai/docs/xstate-v5/state-machine-actors#state-value
- *
- * @example
- * isInCompoundState(state.value, "KYBFlow")
- * // true  when state.value === { KYBFlow: "CompanyVerification" }
- * // false when state.value === "DocumentUpload"
- */
+// XState v5: `state.value` is a string for simple states, an object for nested ones
+// (e.g. `{ KYBFlow: "CompanyVerification" }`). This checks the parent key is present.
 export function isInCompoundState(stateValue: unknown, state: string): boolean {
   return typeof stateValue === "object" && stateValue !== null && state in (stateValue as object);
 }

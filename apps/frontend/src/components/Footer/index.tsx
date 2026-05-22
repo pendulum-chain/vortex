@@ -67,12 +67,14 @@ const FooterLink = ({
   href,
   children,
   external = false,
-  className = ""
+  className = "",
+  preload
 }: {
   href: string;
   children: ReactNode;
   external?: boolean;
   className?: string;
+  preload?: "intent" | "render" | "viewport" | false;
 }) => {
   // Use Link for internal navigation, <a> for external
   if (external || href.startsWith("mailto:") || href === "#") {
@@ -88,7 +90,7 @@ const FooterLink = ({
   }
 
   return (
-    <Link className={`transition-colors hover:text-primary ${className}`} to={href}>
+    <Link className={`transition-colors hover:text-primary ${className}`} preload={preload} to={href}>
       {children}
     </Link>
   );
@@ -183,16 +185,19 @@ export function Footer() {
           <FooterSection title={t("components.footer.buyCrypto.title")}>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDT}`}
+              preload="intent"
             >
               {t("components.footer.buyCrypto.buyUsdt")}
             </FooterLink>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDC}`}
+              preload="intent"
             >
               {t("components.footer.buyCrypto.buyUsdc")}
             </FooterLink>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.BUY}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.ETH}`}
+              preload="intent"
             >
               {t("components.footer.buyCrypto.buyEth")}
             </FooterLink>
@@ -201,16 +206,19 @@ export function Footer() {
           <FooterSection title={t("components.footer.sellCrypto.title")}>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDT}`}
+              preload="intent"
             >
               {t("components.footer.sellCrypto.sellUsdt")}
             </FooterLink>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.USDC}`}
+              preload="intent"
             >
               {t("components.footer.sellCrypto.sellUsdc")}
             </FooterLink>
             <FooterLink
               href={`/${i18n.language}/widget?${RampUrlParamsKeys.RAMP_TYPE}=${RampDirection.SELL}&${RampUrlParamsKeys.CRYPTO_LOCKED}=${EvmToken.ETH}`}
+              preload="intent"
             >
               {t("components.footer.sellCrypto.sellEth")}
             </FooterLink>

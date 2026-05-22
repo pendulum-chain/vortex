@@ -1,8 +1,7 @@
-import { assign, fromPromise, sendParent, setup } from "xstate";
+import { assign, fromPromise, setup } from "xstate";
 
 import { isApiError } from "../services/api/api-client";
 import { MykoboProfilePayload, MykoboService } from "../services/api/mykobo.service";
-import { RampSigningPhase } from "../types/phases";
 import { MykoboKycContext } from "./kyc.states";
 
 export type MykoboKycFormData = Omit<MykoboProfilePayload, "front" | "back" | "face" | "utilityBill" | "walletAddress">;
@@ -84,10 +83,7 @@ export const mykoboKycMachine = setup({
   },
   types: {
     context: {} as MykoboKycContext,
-    events: {} as
-      | { type: "SubmitKycForm"; formData: MykoboKycFormData; files: MykoboKycFiles }
-      | { type: "CANCEL" }
-      | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined },
+    events: {} as { type: "SubmitKycForm"; formData: MykoboKycFormData; files: MykoboKycFiles } | { type: "CANCEL" },
     input: {} as MykoboKycContext,
     output: {} as { profileApproved?: boolean; error?: MykoboKycMachineError }
   }
@@ -95,16 +91,6 @@ export const mykoboKycMachine = setup({
   context: ({ input }) => ({ ...input }),
   id: "mykoboKyc",
   initial: "CheckingProfile",
-  on: {
-    SIGNING_UPDATE: {
-      actions: [
-        sendParent(({ event }) => ({
-          phase: event.phase,
-          type: "SIGNING_UPDATE"
-        }))
-      ]
-    }
-  },
   output: ({ context }) => ({
     error: context.error,
     profileApproved: context.profileApproved
@@ -117,11 +103,11 @@ export const mykoboKycMachine = setup({
         onDone: [
           {
             actions: assign({ profileApproved: true }),
-            guard: ({ event }) => event.output?.kycStatus.reviewStatus === "approved",
+            guard: ({ event }) => event.output !== null && event.output.kycStatus.reviewStatus === "approved",
             target: "Done"
           },
           {
-            guard: ({ event }) => event.output?.kycStatus.reviewStatus === "pending",
+            guard: ({ event }) => event.output !== null && event.output.kycStatus.reviewStatus === "pending",
             target: "Verifying"
           },
           {

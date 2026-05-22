@@ -1,13 +1,16 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { useParams, useRouter } from "@tanstack/react-router";
 import {
+  EPaymentMethod,
   FiatToken,
   FiatTokenDetails,
   getAddressForFormat,
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
+  isFiatToken,
   Networks,
+  OnChainTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
@@ -26,7 +29,7 @@ import { useFiatToken, useOnChainToken } from "../../stores/quote/useQuoteFormSt
 import { Spinner } from "../Spinner";
 
 interface UseButtonContentProps {
-  toToken: FiatTokenDetails;
+  toToken: FiatTokenDetails | OnChainTokenDetails;
   submitButtonDisabled: boolean;
 }
 
@@ -76,7 +79,7 @@ const isLockedToDesignatedWallet = (
   quoteFrom: string | undefined
 ): boolean => {
   if (!walletLocked || !accountAddress) return false;
-  if (!isOfframp && quoteFrom !== "sepa") return false;
+  if (!isOfframp && quoteFrom !== EPaymentMethod.SEPA) return false;
   return getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0);
 };
 
@@ -107,26 +110,30 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
     // BRL (Avenia/moonbeam) and Mykobo EURC (Base) offramps complete inline. Monerium EURC (other chains)
-    // still uses the redirect/auth flow. For EURC onramp (BUY), `quote.from` is "sepa" so
-    // `isMykoboEurc` is false here and the button falls through to the standard onramp/KYC labels;
-    // Mykobo's inline payment instructions are surfaced separately via EUROnrampDetails.
+    // still uses the redirect/auth flow. EURC onramp (BUY) uses `quote.from === EPaymentMethod.SEPA`,
+    // so gating on `isOfframp` here keeps `isMykoboEurc` false for the onramp branch even if
+    // `quote.from` strings ever collide with Networks values. Mykobo's inline payment instructions
+    // are surfaced separately via EUROnrampDetails.
     const isMykoboEurc =
-      quote?.outputCurrency === FiatToken.EURC && (quote?.from === Networks.Base || quote?.from === Networks.BaseSepolia);
+      isOfframp &&
+      quote?.outputCurrency === FiatToken.EURC &&
+      (quote?.from === Networks.Base || quote?.from === Networks.BaseSepolia);
     const isAnchorWithoutRedirect = toToken.type === "moonbeam" || isMykoboEurc;
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
-    if (isLockedToDesignatedWallet(walletLocked, accountAddress, isOfframp, quote?.from)) {
+    if (walletLocked && isLockedToDesignatedWallet(walletLocked, accountAddress, isOfframp, quote?.from)) {
       return {
         icon: null,
-        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked!) })
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
       };
     }
     if (machineState === "QuoteReady") {
-      return quoteReadyLabel(t, {
-        inputCurrency: quote?.inputCurrency as FiatToken | undefined,
-        isAnchorWithoutRedirect,
-        isOnramp
-      });
+      // On onramp `quote.inputCurrency` is the fiat being paid in; on offramp it's an on-chain token.
+      // `quoteReadyLabel` only reads `inputCurrency` when `isOnramp`, so narrow through `isFiatToken`
+      // for that branch instead of casting `RampCurrency` to `FiatToken`.
+      const inputCurrency =
+        isOnramp && quote?.inputCurrency && isFiatToken(quote.inputCurrency) ? quote.inputCurrency : undefined;
+      return quoteReadyLabel(t, { inputCurrency, isAnchorWithoutRedirect, isOnramp });
     }
     if (isQuoteExpired && !hasAchPaymentData) return { icon: null, text: t("components.SummaryPage.quoteExpired") };
     if (machineState === "KycComplete") return { icon: null, text: t("components.SummaryPage.confirm") };
@@ -192,7 +199,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
     if (
       walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
+      (isOfframp || quote?.from === EPaymentMethod.SEPA) &&
       accountAddress &&
       getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
     ) {
@@ -217,7 +224,8 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     if (!executionInput) return true;
 
     if (isOfframp) {
-      if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
+      // On offramp `toToken` is the fiat details; reuse it instead of re-fetching.
+      if (!executionInput.brlaEvmAddress && toToken.type === "moonbeam") return true;
     }
 
     if (machineState === "UpdateRamp") {
@@ -239,6 +247,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     rampState?.ramp?.achPaymentData,
     rampState?.ramp?.ibanPaymentData,
     fiatToken,
+    toToken,
     effectiveSelectedFiatAccountId,
     machineState,
     moneriumKycActor,
@@ -250,7 +259,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
   const buttonContent = useButtonContent({
     submitButtonDisabled,
-    toToken: toToken as FiatTokenDetails
+    toToken
   });
 
   const onSubmit = () => {

@@ -105,7 +105,12 @@ export const MobileMenu = ({ onMenuItemClick }: MobileMenuProps) => {
         </motion.div>
 
         <motion.div className="mt-6 mb-4" variants={buttonVariants}>
-          <Link className="btn btn-vortex-secondary w-full rounded-md" onClick={onMenuItemClick} to="/{-$locale}/widget">
+          <Link
+            className="btn btn-vortex-secondary w-full rounded-md"
+            onClick={onMenuItemClick}
+            preload="intent"
+            to="/{-$locale}/widget"
+          >
             Buy & Sell
           </Link>
         </motion.div>
