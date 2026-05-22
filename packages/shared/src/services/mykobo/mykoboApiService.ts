@@ -1,4 +1,5 @@
 import { MYKOBO_ACCESS_KEY, MYKOBO_BASE_URL, MYKOBO_CLIENT_DOMAIN, MYKOBO_SECRET_KEY } from "../..";
+import { isProduction } from "../../helpers/environment";
 import logger from "../../logger";
 import {
   MykoboAuthTokenResponse,
@@ -40,6 +41,8 @@ export class MykoboApiService {
 
   private tokenPromise: Promise<CachedToken> | undefined;
 
+  private authFailurePromise: Promise<string> | undefined;
+
   private constructor() {
     if (!MYKOBO_ACCESS_KEY || !MYKOBO_SECRET_KEY) {
       throw new Error("MYKOBO_ACCESS_KEY or MYKOBO_SECRET_KEY not defined");
@@ -50,6 +53,7 @@ export class MykoboApiService {
     this.accessKey = MYKOBO_ACCESS_KEY;
     this.secretKey = MYKOBO_SECRET_KEY;
     const trimmedBase = MYKOBO_BASE_URL.replace(/\/$/, "");
+    assertSecureMykoboBaseUrl(trimmedBase);
     this.baseUrl = /\/v\d+$/.test(trimmedBase) ? trimmedBase : `${trimmedBase}/v1`;
     this.clientDomain = MYKOBO_CLIENT_DOMAIN || undefined;
   }
@@ -107,6 +111,15 @@ export class MykoboApiService {
   }
 
   private async handleAuthFailure(): Promise<string> {
+    if (!this.authFailurePromise) {
+      this.authFailurePromise = this.doHandleAuthFailure().finally(() => {
+        this.authFailurePromise = undefined;
+      });
+    }
+    return this.authFailurePromise;
+  }
+
+  private async doHandleAuthFailure(): Promise<string> {
     if (this.cachedToken) {
       try {
         const refreshed = await this.refreshAccessToken(this.cachedToken.refreshToken);
@@ -248,4 +261,18 @@ async function safeReadBody(response: Response): Promise<unknown> {
       return undefined;
     }
   }
+}
+
+function assertSecureMykoboBaseUrl(rawUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error(`MYKOBO_BASE_URL is not a valid URL: ${rawUrl}`);
+  }
+  if (parsed.protocol === "https:") return;
+  if (parsed.protocol === "http:" && !isProduction() && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) {
+    return;
+  }
+  throw new Error(`MYKOBO_BASE_URL must use https:// (got ${parsed.protocol}//${parsed.hostname})`);
 }
