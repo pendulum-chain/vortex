@@ -67,7 +67,7 @@ export class MykoboOnrampDepositHandler extends BasePhaseHandler {
       logger.info(
         `MykoboOnrampDepositHandler: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${expectedAmountRaw} EURC (threshold: ${recoveryThresholdRaw}). Skipping deposit wait.`
       );
-      return this.transitionToNextPhase(state, "subsidizePreSwap");
+      return this.transitionToNextPhase(state, "fundEphemeral");
     }
 
     logger.info(
@@ -103,10 +103,10 @@ export class MykoboOnrampDepositHandler extends BasePhaseHandler {
     }
 
     logger.info(
-      `MykoboOnrampDepositHandler: EURC deposit received on Base ephemeral ${evmEphemeralAddress}. Proceeding to subsidizePreSwap.`
+      `MykoboOnrampDepositHandler: EURC deposit received on Base ephemeral ${evmEphemeralAddress}. Proceeding to fundEphemeral.`
     );
 
-    return this.transitionToNextPhase(state, "subsidizePreSwap");
+    return this.transitionToNextPhase(state, "fundEphemeral");
   }
 
   private async ephemeralAlreadyFunded(

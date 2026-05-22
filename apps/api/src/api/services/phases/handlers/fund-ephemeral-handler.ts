@@ -81,7 +81,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (inputCurrency === FiatToken.BRL || outputCurrency === FiatToken.BRL) {
       return true;
     }
-    if (outputCurrency === FiatToken.EURC) {
+    if (inputCurrency === FiatToken.EURC || outputCurrency === FiatToken.EURC) {
       return true;
     }
     return false;
@@ -232,6 +232,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
       return "subsidizePreSwap";
     }
+    // mykobo (EURC) onramp case
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
+      return "subsidizePreSwap";
+    }
     // alfredpay onramp case
     if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
       return "squidRouterSwap";
@@ -243,6 +247,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     } else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       return "finalSettlementSubsidy";
     } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL) {
+      return "distributeFees";
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.EURC) {
       return "distributeFees";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap

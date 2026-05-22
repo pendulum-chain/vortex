@@ -75,6 +75,7 @@ export const PHASE_FLOWS = {
   onramp_eur_evm: [
     "initial",
     "mykoboOnrampDeposit",
+    "fundEphemeral",
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
