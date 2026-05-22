@@ -20,8 +20,8 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - **Removed:** the previous Stellar-based EUR off-ramp (Pendulum → Spacewalk → Stellar anchor) is no longer active. See `stellar-anchors.md`.
 
 **EUR On-ramp (Mykobo SEPA on Base):** SEPA payment → Mykobo settles EURC on the Base ephemeral → Nabla-on-Base swap (EURC→USDC) → optional Squid → user destination
-- Runtime backend phases: `initial` → `mykoboOnrampDeposit` (poll Base RPC, 24h outer / 5min inner) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
-- Note: unlike BRL on-ramp, `fundEphemeral` is **skipped** for EUR — `mykoboOnrampDeposit` transitions directly to `subsidizePreSwap` (mykobo-onramp-deposit-handler.ts:70,109). The EUR-on-ramp route builder does not include a `fundEphemeral` presigned tx.
+- Runtime backend phases: `initial` → `mykoboOnrampDeposit` (poll Base RPC, 24h outer / 5min inner) → `fundEphemeral` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
+- Note: like BRL on-ramp, `fundEphemeral` provides ETH gas to the Base ephemeral before swap/approve/squid txs. `mykoboOnrampDeposit` transitions to `fundEphemeral` (`mykobo-onramp-deposit-handler.ts`), which selects `subsidizePreSwap` next for the `BUY && inputCurrency === EURC` branch (`fund-ephemeral-handler.ts`).
 - Skip-Squid case (destination = Base USDC): the `squidRouterSwap` handler short-circuits directly to `destinationTransfer`.
 - Cross-chain case (destination ≠ Base USDC): `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` for supported EVM destinations.
 - Base ephemeral cleanup (`baseCleanupUsdc`, `baseCleanupEurc`, `baseCleanupAxlUsdc`) is performed out-of-flow by `BaseChainPostProcessHandler` after `complete`.
@@ -56,7 +56,7 @@ The following diagrams show the phase transitions for all on-ramp and off-ramp c
 
 #### On-Ramp Phase Flow
 
-The BRL (BRLA) and EUR (Mykobo) on-ramp corridors share the entire post-fiat phase chain on Base. Only the initial fiat-watch phase differs. EUR additionally skips `fundEphemeral` (the Mykobo deposit handler transitions directly to `subsidizePreSwap`).
+The BRL (BRLA) and EUR (Mykobo) on-ramp corridors share the entire post-fiat phase chain on Base, including `fundEphemeral`. Only the initial fiat-watch phase differs (`brlaOnrampMint` vs `mykoboOnrampDeposit`).
 
 ```mermaid
 graph TD
@@ -68,12 +68,11 @@ graph TD
     Provider -->|Mykobo EUR on Base| MykMint[mykoboOnrampDeposit - poll Base RPC, 24h/5min]
     Provider -->|Alfredpay| AfMint[alfredpayOnrampMint]
 
-    %% --- BRL funds the ephemeral; EUR skips fundEphemeral entirely ---
+    %% --- Both BRL and EUR fund the Base ephemeral with ETH gas before swap ---
     BrlaMint --> BrlaFund[fundEphemeral]
+    MykMint --> MykFund[fundEphemeral]
     BrlaFund --> SubPreEvm
-
-    %% --- EUR: mykoboOnrampDeposit transitions directly to subsidizePreSwap ---
-    MykMint --> SubPreEvm
+    MykFund --> SubPreEvm
 
     %% --- Shared Base-EVM swap chain (BRL + EUR) ---
     SubPreEvm["subsidizePreSwap (EVM branch)"] --> ApproveEvm["nablaApprove (EVM branch)"]
@@ -103,7 +102,7 @@ graph TD
 ```
 
 > Notes:
-> - **EUR onramp skips `fundEphemeral`.** `mykoboOnrampDeposit` transitions directly to `subsidizePreSwap` (`mykobo-onramp-deposit-handler.ts:70,109`). BRL onramp does fund the ephemeral first.
+> - **EUR onramp funds the ephemeral.** `mykoboOnrampDeposit` transitions to `fundEphemeral` (`mykobo-onramp-deposit-handler.ts`), which then transitions to `subsidizePreSwap` (`fund-ephemeral-handler.ts` `BUY && inputCurrency === EURC` branch). This matches BRL onramp behavior and ensures the Base ephemeral has ETH gas for `nablaApprove`/`nablaSwap`/squid txs.
 > - **Alfredpay onramp short-circuits.** `squid-router-phase-handler.ts:72` detects `isAlfredpayOnramp` and transitions directly to `destinationTransfer`, skipping `squidRouterPay` and `finalSettlementSubsidy`.
 > - The Pendulum-side on-ramp swap chain (`subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `distributeFees` → `pendulumToAssethubXcm` / `pendulumToHydrationXcm` → `hydrationSwap` → `hydrationToAssethubXcm`) was used by the legacy Monerium-EUR-via-Pendulum corridor and by `avenia-to-assethub` BRL→AssetHub. Both corridors are **inactive**: Monerium was replaced by Mykobo-on-Base, and BRL↔AssetHub is temporarily disabled at quote eligibility. The Substrate-branch on-ramp handlers remain registered but are not reached by any active route.
 

@@ -29,7 +29,7 @@ Mykobo replaces two earlier EUR rails:
    - **Inner balance-arrival timeout** (`EVM_BALANCE_CHECK_TIMEOUT_MS`): 5 minutes per `checkEvmBalancePeriodically` invocation. Inner timeouts throw `RecoverablePhaseError` and the phase processor re-enters the handler until the outer 24h cap is reached.
    - **Recovery shortcut**: if the ephemeral already holds ≥ 95% of `quote.metadata.mykoboMint.outputAmountRaw` EURC (`EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95`), the handler skips the wait. The 5% tolerance absorbs fee variance between quote-creation time and SEPA settlement time.
    - On outer-timeout expiry, the ramp transitions to `failed` (the user did not pay).
-5. `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
+5. `fundEphemeral` (Base ETH gas top-up; same as BRL onramp) → `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
 6. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
 7. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's destination EVM chain → optional `backupSquidRouter*` fallback → `destinationTransfer`.
 

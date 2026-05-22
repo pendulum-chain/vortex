@@ -65,7 +65,7 @@ The cleanup worker (`cleanup.worker.ts`) selects ramps where `currentPhase ∈ {
 - [x] PolygonPostProcessHandler broadcasts the user-presigned `approve` and runs `transferFrom(ephemeral, fundingAccount, balance)` from `getEvmFundingAccount(Polygon)` — verified (`polygon-post-process-handler.ts:36-83`)
 - [x] HydrationPostProcessHandler submits `hydrationCleanup` extrinsic from ramp state — verified
 - [ ] **AssetHubPostProcessHandler is a no-op stub** (`shouldProcess` always returns `false`). Either implement an AssetHub cleanup or remove the handler from the registry.
-- [ ] **No Base post-process handler**. Add a `BasePostProcessHandler` (chain) that sweeps residual USDC/BRLA on Base ephemerals to the funding account, mirroring the Polygon `approve + transferFrom` pattern, when custody requirements allow.
+- [x] **Base post-process handler implemented** (`BaseChainPostProcessHandler`). Sweeps residual BRLA/USDC/EURC/AxlUSDC on Base ephemerals to the funding account via presigned `approve` + funding-key `transferFrom`. ETH gas dust is not swept (accepted residual).
 - [x] Cleanup worker runs every 5 minutes via `node-cron` — verified
 - [x] Cleanup worker processes at most 5 ramps per cycle — verified
 - [x] Cleanup worker marks ramps as cleaned (`postProcessDone: true` via `postCompleteState.cleanup.cleanupCompleted`) to prevent re-processing — verified
