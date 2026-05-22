@@ -36,7 +36,8 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal;
+    const deductibleFee = ctx.preNabla?.deductibleFeeAmountInSwapCurrency ?? new Big(0);
+    const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal.minus(deductibleFee);
 
     // Oracle rate FIAT -> USD (e.g., 1 ARS = 0.0002657 USD).
     // This block is required to avoid calling the Alfredpay API twice for a quote.

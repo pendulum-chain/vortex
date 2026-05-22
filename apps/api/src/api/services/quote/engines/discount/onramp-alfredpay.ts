@@ -1,5 +1,4 @@
-import { ALFREDPAY_ERC20_TOKEN } from "@packages/shared";
-import { ALFREDPAY_ERC20_DECIMALS, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_ERC20_DECIMALS, ALFREDPAY_ERC20_TOKEN, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
@@ -33,7 +32,10 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const effectiveRate = alfredpayMint.outputAmountDecimal.div(alfredpayMint.inputAmountDecimal);
 
-    const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal;
+    const usdFees = ctx.fees?.usd;
+    const feesToDeduct = usdFees ? new Big(usdFees.vortex).plus(usdFees.partnerMarkup) : new Big(0);
+
+    const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal.minus(feesToDeduct);
 
     console.log(
       `[OnRampAlfredpayDiscountEngine] input=${inputAmount} ${ctx.request.outputCurrency}, alfredpayMintIn=${alfredpayMint.inputAmountDecimal.toString()} ${alfredpayMint.currency}, alfredpayMintOut=${alfredpayMint.outputAmountDecimal.toString()} ${ctx.request.outputCurrency}, effectiveRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()}`
