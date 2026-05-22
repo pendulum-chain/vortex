@@ -11,9 +11,9 @@ import { defineRouteStrategy } from "../route-definition";
 export const offrampEvmToAlfredpayStrategy = defineRouteStrategy({
   engines: () => ({
     [StageKey.Initialize]: new OffRampFromEvmInitializeEngine(Networks.Polygon),
-    [StageKey.Fee]: new OffRampEvmToAlfredpayFeeEngine(),
-    [StageKey.PartnerOperation]: new OfframpTransactionAlfredpayEngine(),
     [StageKey.Discount]: new OffRampAlfredpayDiscountEngine(),
+    [StageKey.PartnerOperation]: new OfframpTransactionAlfredpayEngine(),
+    [StageKey.Fee]: new OffRampEvmToAlfredpayFeeEngine(),
     [StageKey.Finalize]: new OffRampFinalizeEngine()
   }),
   name: "OfframpEvmToAlfredpay",

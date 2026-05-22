@@ -68,14 +68,6 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
     const toTokenDetails = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to);
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const subsidy = ctx.subsidy!;
-    console.log("Inputs for evm-to-evm computation", {
-      amountRaw: subsidy.targetOutputAmountRaw,
-      fromNetwork: Networks.Polygon,
-      fromToken: ALFREDPAY_ERC20_TOKEN,
-      inputAmountDecimal: subsidy.targetOutputAmountDecimal.toString(),
-      inputAmountRaw: subsidy.targetOutputAmountRaw,
-      outputDecimals: toTokenDetails.decimals
-    });
 
     return {
       data: {

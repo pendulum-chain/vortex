@@ -71,7 +71,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
       return {
         expectedInputAmountForSwapRaw: quote.metadata.evmToEvm.inputAmountRaw,
-        inputAmountDecimals: ALFREDPAY_ERC20_DECIMALS, // TODO no need to keep this constant, let's identify simply by token/chain itself.
+        inputAmountDecimals: ALFREDPAY_ERC20_DECIMALS,
         inputToken: ALFREDPAY_EVM_TOKEN,
         inputTokenDetails,
         logLabel: "Alfredpay",
@@ -230,10 +230,6 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
 
       const requiredAmount = Big(expectedInputAmountForSwapRaw).sub(currentBalance);
       logger.debug(`SubsidizePreSwapHandler (${logLabel}): requiredAmount ${requiredAmount.toString()}`);
-
-      console.log(
-        `[SubsidizePreSwapPhaseHandler] ${logLabel} ephemeral=${evmEphemeralAddress}, expected=${expectedInputAmountForSwapRaw}, currentBalance=${currentBalance.toString()}, required=${requiredAmount.toString()}`
-      );
 
       if (requiredAmount.gt(Big(0))) {
         const subsidyDecimal = nativeToDecimal(requiredAmount, inputAmountDecimals).toString();

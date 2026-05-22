@@ -38,25 +38,20 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal;
 
-    // Oracle rate USD -> fiat.
+    // Oracle rate FIAT -> USD (e.g., 1 ARS = 0.0002657 USD).
     // This block is required to avoid calling the Alfredpay API twice for a quote.
-    // Since the input amount for the Alfredpay operations comes after this, and uses the output of the
+    // Since setting the input amount for the Alfredpay operations comes after this, and uses the output of the
     // discounted rate, we need to know or estimate the rate in advance.
-    const oneUnitInFiat = await priceFeedService.convertCurrency(
+    const effectiveRateStr = await priceFeedService.convertCurrency(
       "1",
-      ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency,
-      outputCurrency as RampCurrency
+      outputCurrency as RampCurrency,
+      ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency
     );
-    // priceFeedService returns USD-FIAT (e.g., 3764.67), but calculateExpectedOutput expects FIAT-USD
-    const effectiveRate = new Big(1).div(oneUnitInFiat);
+    const effectiveRate = new Big(effectiveRateStr);
 
-    // finalOutput uses the non-inverted rate for display/logging
-    const usdToFiatRate = new Big(oneUnitInFiat);
+    // finalOutput uses the inverted rate (USD -> FIAT) for display/logging
+    const usdToFiatRate = new Big(1).div(effectiveRate);
     const finalOutput = usdOnPolygon.mul(usdToFiatRate);
-
-    console.log(
-      `[OffRampAlfredpayDiscountEngine] input=${inputAmount} ${outputCurrency}, usdOnPolygon=${usdOnPolygon.toString()}, oracleRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()} ${outputCurrency}`
-    );
 
     const {
       expectedOutput: expectedOutputDecimal,
@@ -72,10 +67,6 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 
     const subsidyRate = expectedOutputDecimal.gt(0) ? actualSubsidyDecimal.div(expectedOutputDecimal) : new Big(0);
-
-    console.log(
-      `[OffRampAlfredpayDiscountEngine] partner=${partner?.id ?? "none"}, targetDiscount=${targetDiscount}, maxSubsidy=${maxSubsidy}, expectedOutput=${expectedOutputDecimal.toString()}, idealSubsidy=${idealSubsidyDecimal.toString()}, actualSubsidy=${actualSubsidyDecimal.toString()}, targetOutput=${targetOutputDecimal.toString()}, subsidyRate=${subsidyRate.toString()}`
-    );
 
     return {
       actualOutputAmountDecimal: finalOutput,
