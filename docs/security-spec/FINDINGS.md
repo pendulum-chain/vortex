@@ -1466,9 +1466,10 @@ Findings raised during the Mykobo-on-Base EUR rail audit. See `05-integrations/m
 | **Severity** | 🔴 **Critical** |
 | **Location** | `apps/api/src/api/routes/v1/mykobo.route.ts` (lines 14-15); parent mount at `apps/api/src/api/routes/v1/index.ts` (line 150) |
 | **Spec** | `05-integrations/mykobo.md` (Invariant 15), `01-auth/supabase-otp.md` |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |
 | **Impact** | Anonymous callers can enumerate KYC profiles by wallet address and submit arbitrary KYC documents (ID, source-of-funds, demographics) tied to any wallet address. This bypasses the spec's "Supabase OTP required" invariant, enables KYC-document submission floods against the Mykobo upstream, and allows attackers to associate attacker-controlled documents with victim wallet addresses. |
+| **Resolution** | `requireAuth` added to both `/v1/mykobo/profiles` GET and POST routes, mirroring the `alfredpay.route.ts` pattern. No wallet-ownership check needed: per the Mykobo flow, the `wallet_address` always refers to an ephemeral generated for the ramp (not a user-owned wallet), so cross-user spoofing is moot. Supabase OTP gating alone closes the anonymous-flood and oracle vectors. |
 
 **Description:** `mykobo.route.ts` mounts two endpoints with **no authentication middleware**:
 
@@ -1501,9 +1502,10 @@ After adding auth, also verify that `walletAddress` in the request matches the a
 | **Severity** | 🟠 **High** |
 | **Location** | `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts` (`nextPhaseSelector`, lines 230-250) |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md`, `05-integrations/mykobo.md` |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |
 | **Impact** | If a EUR off-ramp ever transitions through `fundEphemeral`, `nextPhaseSelector` returns `"moonbeamToPendulum"` — a phase that has no role in the Base-only EUR off-ramp routing (`evm-to-mykobo.ts`). The phase processor would attempt to execute a handler with no presigned transaction registered for this corridor, putting the ramp into a stuck/failed state mid-flow. |
+| **Resolution** | Explicit `SELL && outputCurrency === EURC → "distributeFees"` branch added to `nextPhaseSelector`. Additionally, while fixing the latent bug, also added the **active** missing branch `BUY && inputCurrency === EURC → "subsidizePreSwap"` to wire `fundEphemeral` into the Mykobo onramp flow (see the EUR onramp `fundEphemeral` companion fix below). |
 
 **Description:** `nextPhaseSelector` enumerates the SELL-direction branches:
 
@@ -1542,9 +1544,10 @@ Also consider replacing the default `else → "moonbeamToPendulum"` with an unre
 | **Severity** | 🟡 **Medium** |
 | **Location** | `packages/shared/src/services/mykobo/mykoboApiService.ts` (constructor, lines 47-53) |
 | **Spec** | `05-integrations/mykobo.md` (Invariant: HTTPS enforced for all Mykobo API calls) |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |
 | **Impact** | A misconfigured `MYKOBO_BASE_URL` (e.g., `http://...` instead of `https://...`) will silently transmit bearer tokens, KYC document references, and IBAN payment instructions over cleartext. There is no startup or runtime check that rejects non-HTTPS base URLs. |
+| **Resolution** | `assertSecureMykoboBaseUrl` helper added; called from constructor. Throws on any non-HTTPS scheme. Exception: when `NODE_ENV !== "production"`, `http://localhost` and `http://127.0.0.1` are permitted for local development. |
 
 **Description:** The `MykoboApiService` constructor performs only path-shape normalization on the base URL:
 
@@ -1578,9 +1581,10 @@ For local development, allow `http://localhost` via an explicit allowlist. Also 
 | **Severity** | 🔵 **Low** |
 | **Location** | `packages/shared/src/services/mykobo/mykoboApiService.ts` (`handleAuthFailure`, lines 109-122; `getToken`, lines 96-107) |
 | **Spec** | `05-integrations/mykobo.md` (Invariant 14: Bearer-token refresh debounced) |
-| **Status** | 🔴 **OPEN** |
+| **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |
 | **Impact** | Under concurrent load, multiple in-flight requests that each receive HTTP 401 will each independently call `handleAuthFailure()`, causing concurrent `refresh` / `acquireToken` calls to Mykobo. This is a "thundering herd" mini-race: it does not corrupt state, but it can produce redundant token rotations, brief windows where `this.cachedToken` is overwritten by a stale value, and unnecessary Mykobo `/auth/refresh` traffic that can itself trip Mykobo-side rate limiting. |
+| **Resolution** | `authFailurePromise` debounce added, mirroring the existing `tokenPromise` pattern in `getToken`. Concurrent 401s now share a single in-flight refresh/re-acquire; the actual logic moved to `doHandleAuthFailure`. |
 
 **Description:** The happy-path token acquisition in `getToken()` is correctly debounced via `this.tokenPromise`:
 
