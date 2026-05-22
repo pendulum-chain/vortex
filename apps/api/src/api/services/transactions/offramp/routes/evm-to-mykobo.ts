@@ -33,7 +33,7 @@ export async function prepareEvmToMykoboOfframpTransactions({
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
 
-  const { fromNetwork, inputTokenDetails } = validateOfframpQuote(quote, signingAccounts);
+  const { fromNetwork, inputTokenDetails } = validateOfframpQuote(quote, signingAccounts, { requireSubstrateEphemeral: false });
 
   const evmEphemeralEntry = signingAccounts.find(account => account.type === "EVM");
   if (!evmEphemeralEntry) {

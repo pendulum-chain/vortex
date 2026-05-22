@@ -14,9 +14,15 @@ import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
  * Validates offramp quote and returns required data
  * @param quote The quote ticket
  * @param signingAccounts The signing accounts
+ * @param options Set `requireSubstrateEphemeral: false` for EVM-only offramp routes (e.g. Mykobo on Base)
  * @returns Validation result with required data
  */
-export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccounts: AccountMeta[]) {
+export function validateOfframpQuote(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[],
+  options: { requireSubstrateEphemeral?: boolean } = {}
+) {
+  const { requireSubstrateEphemeral = true } = options;
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
     throw new Error(`Invalid network for destination ${quote.from}`);
@@ -38,7 +44,7 @@ export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccoun
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
   const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
-  if (!substrateEphemeralEntry) {
+  if (requireSubstrateEphemeral && !substrateEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
   }
 
