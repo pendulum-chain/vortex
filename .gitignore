@@ -43,6 +43,7 @@ dist-ssr
 **/lastRampState.json
 **/lastRampStateOnramp.json
 **/lastRampStateMykoboEur.json
+**/lastRampStateMykoboEurOnramp.json
 
 
 *storybook.log
