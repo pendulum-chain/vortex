@@ -92,10 +92,6 @@ interface Config {
   };
 
   integrations: {
-    monerium: {
-      clientId: string | undefined;
-      clientSecret: string | undefined;
-    };
     alchemy: {
       apiKey: string | undefined;
     };
@@ -135,10 +131,6 @@ export const config: Config = {
   integrations: {
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY
-    },
-    monerium: {
-      clientId: process.env.MONERIUM_CLIENT_ID_APP,
-      clientSecret: process.env.MONERIUM_CLIENT_SECRET
     },
     slack: {
       userId: process.env.SLACK_USER_ID,

@@ -124,7 +124,6 @@ type InitializationErrorMessage =
   | "node_connection_issue"
   | "signer_service_issue"
   | "moonbeam_account_issue"
-  | "stellar_account_issue"
   | "pendulum_account_issue";
 
 export type TrackableEvent =
