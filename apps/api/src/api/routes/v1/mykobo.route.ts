@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import * as mykoboController from "../../controllers/mykobo.controller";
+import { requireAuth } from "../../middlewares/supabaseAuth";
 
 const router: Router = Router({ mergeParams: true });
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 }, storage: multer.memoryStorage() });
@@ -11,7 +12,7 @@ const profileUpload = upload.fields([
   { maxCount: 1, name: "utility_bill" }
 ]);
 
-router.route("/profiles").get(mykoboController.getProfileController);
-router.route("/profiles").post(profileUpload, mykoboController.createProfileController);
+router.route("/profiles").get(requireAuth, mykoboController.getProfileController);
+router.route("/profiles").post(requireAuth, profileUpload, mykoboController.createProfileController);
 
 export default router;
