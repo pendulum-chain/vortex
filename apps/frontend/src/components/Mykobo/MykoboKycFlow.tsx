@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useMykoboKycActor, useMykoboKycSelector } from "../../contexts/rampState";
 import type { MykoboKycFiles, MykoboKycFormData } from "../../machines/mykoboKyc.machine";
+import { DoneScreen } from "../DoneScreen";
 import { Spinner } from "../Spinner";
 import { MykoboKycForm } from "./MykoboKycForm";
 
@@ -28,6 +29,7 @@ export const MykoboKycFlow = () => {
     (formData: MykoboKycFormData, files: MykoboKycFiles) => actor?.send({ files, formData, type: "SubmitKycForm" }),
     [actor]
   );
+  const confirmSuccess = useCallback(() => actor?.send({ type: "CONFIRM_SUCCESS" }), [actor]);
 
   if (!actor || !state) return null;
 
@@ -49,12 +51,8 @@ export const MykoboKycFlow = () => {
     return <MykoboKycForm onSubmit={submitForm} />;
   }
 
-  if (stateValue === "Done") {
-    return (
-      <div className="flex flex-col items-center gap-2 p-6">
-        <p className="text-body">{t("components.mykoboKycFlow.done")}</p>
-      </div>
-    );
+  if (stateValue === "VerificationDone" || stateValue === "Done") {
+    return <DoneScreen kycOrKyb="KYC" onContinue={stateValue === "VerificationDone" ? confirmSuccess : undefined} />;
   }
 
   if (stateValue === "Rejected") {

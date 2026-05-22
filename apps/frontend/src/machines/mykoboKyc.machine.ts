@@ -85,6 +85,7 @@ export const mykoboKycMachine = setup({
     context: {} as MykoboKycContext,
     events: {} as
       | { type: "SubmitKycForm"; formData: MykoboKycFormData; files: MykoboKycFiles }
+      | { type: "CONFIRM_SUCCESS" }
       | { type: "CANCEL" }
       | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined },
     input: {} as MykoboKycContext,
@@ -117,7 +118,7 @@ export const mykoboKycMachine = setup({
           {
             actions: assign({ profileApproved: true }),
             guard: ({ event }) => event.output?.kycStatus.reviewStatus === "approved",
-            target: "Done"
+            target: "VerificationDone"
           },
           {
             guard: ({ event }) => event.output?.kycStatus.reviewStatus === "pending",
@@ -178,6 +179,11 @@ export const mykoboKycMachine = setup({
         src: "submitProfile"
       }
     },
+    VerificationDone: {
+      on: {
+        CONFIRM_SUCCESS: { target: "Done" }
+      }
+    },
     Verifying: {
       invoke: {
         id: "pollProfileStatus",
@@ -186,7 +192,7 @@ export const mykoboKycMachine = setup({
           {
             actions: assign({ profileApproved: true }),
             guard: ({ event }) => event.output.status === "approved",
-            target: "Done"
+            target: "VerificationDone"
           },
           {
             actions: assign({

@@ -12,9 +12,7 @@
       "title": "Special offer until 27 May"
     },
     "alfredpayKycFlow": {
-      "accountVerified": "Your account has been verified. You can now proceed.",
       "cancel": "Cancel",
-      "completed": "{{kycOrKyb}} Completed!",
       "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click 'I have finished the verification'.",
       "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
       "continue": "Continue",
@@ -510,6 +508,12 @@
       "subtitle": "Please upload a photo or scan of the representative's ID document.",
       "title": "Representative ID ({{current}} of {{total}})"
     },
+    "kycDoneScreen": {
+      "accountVerified": "Your account has been verified. You can now proceed.",
+      "completed": "{{kycOrKyb}} Completed!",
+      "continue": "Continue",
+      "documentVerifiedAlt": "Document verified"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },
@@ -555,7 +559,6 @@
     },
     "mykoboKycFlow": {
       "checkingProfile": "Checking your verification status...",
-      "done": "Your identity has been verified. You can now proceed.",
       "failure": "Verification failed",
       "form": {
         "addressLine1": "Address line 1",
