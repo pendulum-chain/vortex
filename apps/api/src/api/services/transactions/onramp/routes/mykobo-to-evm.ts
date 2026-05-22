@@ -236,10 +236,16 @@ export async function prepareMykoboToEvmOnrampTransactions({
 
   // Fallback bridged token: USDC for Ethereum, axlUSDC for all other EVM chains. Mirrors avenia-to-evm-base.
   const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
-  const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+  let bridgedTokenForFallback: `0x${string}`;
+  if (toNetwork === Networks.Ethereum) {
+    const ethereumUsdc = evmTokenConfig.ethereum.USDC;
+    if (!ethereumUsdc) {
+      throw new Error("USDC config missing for Ethereum");
+    }
+    bridgedTokenForFallback = ethereumUsdc.erc20AddressSourceChain as `0x${string}`;
+  } else {
+    bridgedTokenForFallback = destinationAxlUsdcDetails.erc20AddressSourceChain as `0x${string}`;
+  }
 
   const inputAmountRawFinalBridge = quote.metadata.evmToEvm.inputAmountRaw;
 
