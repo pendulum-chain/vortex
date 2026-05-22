@@ -101,8 +101,8 @@ export class MykoboPayoutOnBasePhaseHandler extends BasePhaseHandler {
     }
 
     if (lastError) {
-      throw this.createUnrecoverableError(
-        `MykoboPayoutOnBasePhaseHandler: Polling timed out with error: ${(lastError as Error).message}`
+      throw this.createRecoverableError(
+        `MykoboPayoutOnBasePhaseHandler: Polling timed out with transient error: ${(lastError as Error).message}`
       );
     }
     throw this.createRecoverableError("MykoboPayoutOnBasePhaseHandler: Polling for Mykobo transaction status timed out.");
