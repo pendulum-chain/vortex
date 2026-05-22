@@ -74,10 +74,7 @@ export const MykoboKycForm = ({ onSubmit }: MykoboKycFormProps) => {
   const faceRef = useRef<HTMLInputElement>(null);
   const utilityRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [frontName, setFrontName] = useState<string>();
-  const [backName, setBackName] = useState<string>();
-  const [faceName, setFaceName] = useState<string>();
-  const [utilityName, setUtilityName] = useState<string>();
+  const [fileNames, setFileNames] = useState<{ front?: string; back?: string; face?: string; utility?: string }>({});
 
   const idType = watch("idType");
   const backRequired = idType === "ID_CARD" || idType === "DRIVERS_LICENSE";
@@ -190,36 +187,36 @@ export const MykoboKycForm = ({ onSubmit }: MykoboKycFormProps) => {
         <div className="grid grid-cols-1 gap-4">
           <FileField
             accept="image/*,application/pdf"
-            fileName={frontName}
+            fileName={fileNames.front}
             inputRef={frontRef}
             label={t("components.mykoboKycFlow.form.frontOfId")}
-            onChange={e => setFrontName(e.target.files?.[0]?.name)}
+            onChange={e => setFileNames(prev => ({ ...prev, front: e.target.files?.[0]?.name }))}
             placeholder={filePlaceholder}
           />
           {backRequired && (
             <FileField
               accept="image/*,application/pdf"
-              fileName={backName}
+              fileName={fileNames.back}
               inputRef={backRef}
               label={t("components.mykoboKycFlow.form.backOfId")}
-              onChange={e => setBackName(e.target.files?.[0]?.name)}
+              onChange={e => setFileNames(prev => ({ ...prev, back: e.target.files?.[0]?.name }))}
               placeholder={filePlaceholder}
             />
           )}
           <FileField
             accept="image/*"
-            fileName={faceName}
+            fileName={fileNames.face}
             inputRef={faceRef}
             label={t("components.mykoboKycFlow.form.selfie")}
-            onChange={e => setFaceName(e.target.files?.[0]?.name)}
+            onChange={e => setFileNames(prev => ({ ...prev, face: e.target.files?.[0]?.name }))}
             placeholder={filePlaceholder}
           />
           <FileField
             accept="image/*,application/pdf"
-            fileName={utilityName}
+            fileName={fileNames.utility}
             inputRef={utilityRef}
             label={t("components.mykoboKycFlow.form.utilityBill")}
-            onChange={e => setUtilityName(e.target.files?.[0]?.name)}
+            onChange={e => setFileNames(prev => ({ ...prev, utility: e.target.files?.[0]?.name }))}
             placeholder={filePlaceholder}
           />
         </div>

@@ -108,11 +108,6 @@ export const kycStateNode = {
             target: "#ramp.KycFailure"
           },
           {
-            actions: assign(({ context }: { context: RampContext }) => {
-              return {
-                ...context
-              };
-            }),
             target: "VerificationComplete"
           }
         ],

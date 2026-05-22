@@ -50,22 +50,22 @@ export const SummaryStep: FC = () => {
   }, [setDialogScrollRef]);
 
   useEffect(() => {
-    if (visible && isOnramp && executionInput?.fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode) {
+    if (!visible || !isOnramp) return;
+    const fiatToken = executionInput?.fiatToken;
+    const isBrlReady = fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode;
+    const isEurcReady = fiatToken === FiatToken.EURC && rampState?.ramp?.ibanPaymentData && signingPhase === "finished";
+    if (isBrlReady || isEurcReady) {
       scrollToBottom();
     }
-  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.depositQrCode, scrollToBottom]);
-
-  useEffect(() => {
-    if (
-      visible &&
-      isOnramp &&
-      executionInput?.fiatToken === FiatToken.EURC &&
-      rampState?.ramp?.ibanPaymentData &&
-      signingPhase === "finished"
-    ) {
-      scrollToBottom();
-    }
-  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.ibanPaymentData, signingPhase, scrollToBottom]);
+  }, [
+    visible,
+    isOnramp,
+    executionInput?.fiatToken,
+    rampState?.ramp?.depositQrCode,
+    rampState?.ramp?.ibanPaymentData,
+    signingPhase,
+    scrollToBottom
+  ]);
 
   const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
 

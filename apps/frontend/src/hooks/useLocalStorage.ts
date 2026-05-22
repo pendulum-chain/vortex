@@ -58,7 +58,7 @@ export interface UseLocalStorageResponse<T> {
 
 const hasExpired = (timestamp: number, expiredMillis?: number) => {
   if (expiredMillis === undefined) return false;
-  return Date.now() < timestamp + expiredMillis;
+  return Date.now() > timestamp + expiredMillis;
 };
 
 const getState = <T>(key: string, defaultValue: T, parse: boolean, expire?: number): T => {

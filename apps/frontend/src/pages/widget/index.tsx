@@ -62,25 +62,19 @@ const WidgetContent = () => {
   // Enable session persistence and auto-refresh
   useAuthTokens(rampActor);
 
-  const { rampState, isRedirectCallback, isError } = useSelector(rampActor, state => ({
-    isError: state.matches("Error"),
-    isRedirectCallback: state.matches("RedirectCallback"),
-    rampState: state.value
-  }));
+  const { rampState, isRedirectCallback, isError, isInitialQuoteFailed, isAuthEmail, isLoadingAuthEmail, isAuthOTP } =
+    useSelector(rampActor, state => ({
+      isAuthEmail: state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP"),
+      isAuthOTP: state.matches("EnterOTP") || state.matches("VerifyingOTP"),
+      isError: state.matches("Error"),
+      isInitialQuoteFailed: state.matches("InitialFetchFailed"),
+      isLoadingAuthEmail: state.matches("CheckAuth"),
+      isRedirectCallback: state.matches("RedirectCallback"),
+      rampState: state.value
+    }));
 
   const rampSummaryVisible =
     rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
-
-  const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
-
-  const isAuthEmail = useSelector(
-    rampActor,
-    state => state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP")
-  );
-
-  const isLoadingAuthEmail = useSelector(rampActor, state => state.matches("CheckAuth"));
-
-  const isAuthOTP = useSelector(rampActor, state => state.matches("EnterOTP") || state.matches("VerifyingOTP"));
 
   if (isLoadingAuthEmail) {
     return <LoadingScreen />;

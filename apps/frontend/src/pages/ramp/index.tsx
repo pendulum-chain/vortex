@@ -21,10 +21,10 @@ export const Ramp = () => {
   const { showToast } = useToastMessage();
 
   useEffect(() => {
-    // How to restrict this to only send one notification?
-    rampActor.on("SHOW_ERROR_TOAST", event => {
+    const subscription = rampActor.on("SHOW_ERROR_TOAST", event => {
       showToast(event.message);
     });
+    return () => subscription.unsubscribe();
   }, [rampActor, showToast]);
 
   const { state, quoteFromState } = useSelector(rampActor, state => ({

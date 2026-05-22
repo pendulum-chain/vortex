@@ -122,7 +122,6 @@ export const useRampSubmission = () => {
       setExecutionPreparing(true);
 
       try {
-        console.log("DEBUG: Ramp Submission Data: ", data);
         const executionInput = await prepareExecutionInput(data);
 
         // This callback is generic and used for any ramp type.
@@ -139,7 +138,6 @@ export const useRampSubmission = () => {
         if (chainId === undefined) {
           throw new Error("ChainId must be defined at this stage");
         }
-        console.log("DEBUG: Ramp Execution Input: ", { input: { chainId, executionInput, rampDirection } });
         rampActor.send({ input: { chainId, executionInput, rampDirection }, type: "CONFIRM" });
       } catch (error) {
         handleSubmissionError(error as SubmissionError);

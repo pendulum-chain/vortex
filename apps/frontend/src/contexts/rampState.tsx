@@ -1,4 +1,5 @@
 import { createActorContext, useSelector } from "@xstate/react";
+import { ActorRef, Snapshot } from "xstate";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
@@ -9,7 +10,6 @@ import {
   AveniaKycSnapshot,
   MykoboKycActorRef,
   MykoboKycSnapshot,
-  RampMachineSnapshot,
   SelectedAlfredpayData,
   SelectedAveniaData,
   SelectedMykoboData
@@ -19,7 +19,6 @@ const RAMP_STATE_STORAGE_KEY = "rampState";
 
 const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
 let restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
-// invalidate restored state if the machine is with error status.
 restoredState = restoredState?.status === "error" ? undefined : restoredState;
 
 export const RampStateContext = createActorContext(rampMachine, {
@@ -29,16 +28,35 @@ export const RampStateContext = createActorContext(rampMachine, {
 export const useRampActor = RampStateContext.useActorRef;
 export const useRampStateSelector = RampStateContext.useSelector;
 
+type AnyActorRef = ActorRef<Snapshot<unknown>, never>;
+
+function useKycChildActor<T extends AnyActorRef>(id: "aveniaKyc" | "mykoboKyc" | "alfredpayKyc"): T | undefined {
+  const rampActor = useRampActor();
+  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>)[id]) as T | undefined;
+}
+
+function useKycChildSelector<TActor extends AnyActorRef, TSnapshot extends { value: unknown; context: unknown }, TSelected>(
+  actor: TActor | undefined,
+  build: (snapshot: TSnapshot) => TSelected
+): TSelected | undefined {
+  return useSelector(
+    actor,
+    (snapshot: TSnapshot | undefined) => (snapshot ? build(snapshot) : undefined),
+    (prev, next) => {
+      if (!prev || !next) return prev === next;
+      return (
+        (prev as { stateValue: unknown; context: unknown }).stateValue ===
+          (next as { stateValue: unknown; context: unknown }).stateValue &&
+        (prev as { stateValue: unknown; context: unknown }).context === (next as { stateValue: unknown; context: unknown }).context
+      );
+    }
+  );
+}
+
 const PersistenceEffect = () => {
   const rampActor = useRampActor();
-
-  const aveniaActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
-    | AveniaKycActorRef
-    | undefined;
-
-  const mykoboActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).mykoboKyc) as
-    | MykoboKycActorRef
-    | undefined;
+  const aveniaActor = useKycChildActor<AveniaKycActorRef>("aveniaKyc");
+  const mykoboActor = useKycChildActor<MykoboKycActorRef>("mykoboKyc");
 
   const { rampContext, rampState, isQuoteExpired, quote } = useSelector(rampActor, state => ({
     isQuoteExpired: state?.context.isQuoteExpired,
@@ -47,19 +65,13 @@ const PersistenceEffect = () => {
     rampState: state?.value
   }));
 
-  const { aveniaState } = useSelector(aveniaActor, state => ({
-    aveniaState: state?.value
-  }));
+  const aveniaState = useSelector(aveniaActor, state => state?.value);
+  const mykoboState = useSelector(mykoboActor, state => state?.value);
 
-  const { mykoboState } = useSelector(mykoboActor, state => ({
-    mykoboState: state?.value
-  }));
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run when selected snapshot pieces change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run when selected snapshot pieces change; isQuoteExpired/quote must persist
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
-    localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
-    // It's important to have `isQuoteExpired` and `quote` here in the deps array to persist them when they change
+    localStorage.setItem(RAMP_STATE_STORAGE_KEY, JSON.stringify(persistedSnapshot));
   }, [rampContext, rampState, aveniaState, mykoboState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;
@@ -75,106 +87,37 @@ export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ child
 };
 
 export function useAveniaKycActor(): AveniaKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
-    | AveniaKycActorRef
-    | undefined;
+  return useKycChildActor<AveniaKycActorRef>("aveniaKyc");
 }
 
 export function useAveniaKycSelector(): SelectedAveniaData | undefined {
-  const rampActor = useRampActor();
-
-  const aveniaActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
-    | AveniaKycActorRef
-    | undefined;
-
-  return useSelector(
-    aveniaActor,
-    (snapshot: AveniaKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as AveniaKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
+  const actor = useAveniaKycActor();
+  return useKycChildSelector<AveniaKycActorRef, AveniaKycSnapshot, SelectedAveniaData>(actor, snapshot => ({
+    context: snapshot.context as AveniaKycContext,
+    stateValue: snapshot.value
+  }));
 }
 
 export function useMykoboKycActor(): MykoboKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).mykoboKyc) as
-    | MykoboKycActorRef
-    | undefined;
+  return useKycChildActor<MykoboKycActorRef>("mykoboKyc");
 }
 
 export function useMykoboKycSelector(): SelectedMykoboData | undefined {
-  const rampActor = useRampActor();
-
-  const mykoboActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).mykoboKyc) as
-    | MykoboKycActorRef
-    | undefined;
-
-  return useSelector(
-    mykoboActor,
-    (snapshot: MykoboKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as MykoboKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
+  const actor = useMykoboKycActor();
+  return useKycChildSelector<MykoboKycActorRef, MykoboKycSnapshot, SelectedMykoboData>(actor, snapshot => ({
+    context: snapshot.context as MykoboKycContext,
+    stateValue: snapshot.value
+  }));
 }
 
 export function useAlfredpayKycActor(): AlfredpayKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).alfredpayKyc) as
-    | AlfredpayKycActorRef
-    | undefined;
+  return useKycChildActor<AlfredpayKycActorRef>("alfredpayKyc");
 }
 
 export function useAlfredpayKycSelector(): SelectedAlfredpayData | undefined {
-  const rampActor = useRampActor();
-
-  const alfredpayActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).alfredpayKyc) as
-    | AlfredpayKycActorRef
-    | undefined;
-
-  return useSelector(
-    alfredpayActor,
-    (snapshot: AlfredpayKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as AlfredpayKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
+  const actor = useAlfredpayKycActor();
+  return useKycChildSelector<AlfredpayKycActorRef, AlfredpayKycSnapshot, SelectedAlfredpayData>(actor, snapshot => ({
+    context: snapshot.context as AlfredpayKycContext,
+    stateValue: snapshot.value
+  }));
 }

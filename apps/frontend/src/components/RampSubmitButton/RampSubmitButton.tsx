@@ -102,15 +102,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
       };
     }
 
-    // XSTATE migrate: we can display this on failure, generic failure.
-    // Add check for signing rejection
-    // if (signingRejected) {
-    //   return {
-    //     icon: null,
-    //     text: t("components.SummaryPage.tryAgain")
-    //   };
-    // }
-
     if (submitButtonDisabled) {
       return {
         icon: <Spinner />,
@@ -187,8 +178,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     walletLocked: state.context.walletLocked
   }));
 
-  const anchorUrl = undefined;
-
   const isOnramp = quote?.rampType === RampDirection.BUY;
   const isOfframp = quote?.rampType === RampDirection.SELL;
   const fiatToken = useFiatToken();
@@ -232,7 +221,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     if (!executionInput) return true;
 
     if (isOfframp) {
-      if (!anchorUrl && !isMoonbeamTokenDetails(getAnyFiatTokenDetails(fiatToken))) return true;
+      if (!isMoonbeamTokenDetails(getAnyFiatTokenDetails(fiatToken))) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
@@ -251,7 +240,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOnramp,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.achPaymentData,
-    anchorUrl,
     fiatToken,
     effectiveSelectedFiatAccountId,
     machineState,
@@ -286,27 +274,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
     rampActor.send({ type: "SummaryConfirm" });
 
-    // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
-      //setCanRegisterRamp(true);
+    if (isOnramp && machineState === "UpdateRamp") {
+      rampActor.send({ type: "PAYMENT_CONFIRMED" });
     }
-
-    if (isOnramp) {
-      if (machineState === "UpdateRamp") {
-        rampActor.send({ type: "PAYMENT_CONFIRMED" });
-      }
-    }
-
-    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
-      // If signing was rejected, we do not open the anchor URL again
-      // if (!signingRejected) {
-      //   window.open(anchorUrl, "_blank");
-      // }
-    }
-
-    // if (signingRejected) {
-    //   setSigningRejected(false);
-    // }
   };
 
   return (

@@ -25,12 +25,9 @@ const evmAddressSchema = z.string().regex(/^(0x)?[0-9a-f]{40}$/i);
 
 const isValidPolkadotAddress = (address: string) => {
   try {
-    const result = encodeAddress(isHex(address) ? hexToU8a(address) : decodeAddress(address));
-
-    console.log("Valid address:", address, "->", result);
+    encodeAddress(isHex(address) ? hexToU8a(address) : decodeAddress(address));
     return true;
-  } catch (_error) {
-    console.error("Invalid address:", address, _error);
+  } catch {
     return false;
   }
 };

@@ -21,21 +21,19 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
   }
 
   const { type } = rampState.ramp;
-  const currentPhase = rampState.ramp.currentPhase;
 
   if (type === RampDirection.BUY) {
     if (rampState.quote?.inputCurrency === FiatToken.BRL) {
       return "onramp_brl";
     }
-
     return "onramp_eur_evm";
   }
 
-  if (currentPhase === "brlaPayoutOnBase" || rampState.quote?.outputCurrency === FiatToken.BRL) {
+  if (rampState.quote?.outputCurrency === FiatToken.BRL) {
     return "offramp_brl";
   }
 
-  return "offramp_brl";
+  return null;
 }
 
 const useProgressUpdate = (
@@ -46,7 +44,7 @@ const useProgressUpdate = (
   setDisplayedPercentage: (value: (prev: number) => number) => void,
   setShowCheckmark: (value: boolean) => void
 ) => {
-  const intervalRef = useRef<NodeJS.Timeout>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (intervalRef.current) {

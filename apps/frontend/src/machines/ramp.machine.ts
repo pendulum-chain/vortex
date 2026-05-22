@@ -23,6 +23,7 @@ import { createResetRampContext, initialRampContext } from "./ramp.context";
 import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./types";
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
+const QUOTE_REFRESH_RETRY_DELAY_MS = 30000;
 
 function getActorErrorMessage(event: unknown): string {
   if (typeof event !== "object" || event === null || !("error" in event)) {
@@ -51,7 +52,7 @@ export const rampMachine = setup({
       if (quoteLocked || !quote) {
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      await new Promise(resolve => setTimeout(resolve, QUOTE_REFRESH_RETRY_DELAY_MS));
       await refreshQuoteIfNeeded(quote, apiKey, partnerId, event => self.send(event));
     },
 
@@ -123,36 +124,19 @@ export const rampMachine = setup({
         connectedWalletAddress: ({ event }) => event.address
       })
     },
-    SET_EXTERNAL_ID: [
-      {
-        actions: [
-          assign({
-            ...initialRampContext,
-            externalSessionId: ({ event }) => event.externalSessionId
-          }),
-          () => window.location.reload()
-        ],
-        // Assumed to be a new session, so we reset everything and reload the page.
-        // This will reload the new parameters and fetch a new quote.
-        guard: ({ context, event }) =>
-          event.externalSessionId !== undefined &&
-          context.externalSessionId !== undefined &&
-          event.externalSessionId !== context.externalSessionId,
-        target: ".Idle"
-      },
-      {
-        actions: [
-          assign({
-            ...initialRampContext,
-            externalSessionId: ({ event }) => event.externalSessionId
-          }),
-          () => window.location.reload()
-        ],
-        // If a sessionId is passed yet none is set in the context, we assume it's a new session and reload.
-        guard: ({ context, event }) => event.externalSessionId !== undefined && context.externalSessionId === undefined,
-        target: ".Idle"
-      }
-    ],
+    SET_EXTERNAL_ID: {
+      // New sessionId (different from the one in context, or none was set): reset and reload so the new params drive a fresh quote.
+      actions: [
+        assign({
+          ...initialRampContext,
+          externalSessionId: ({ event }) => event.externalSessionId
+        }),
+        () => window.location.reload()
+      ],
+      guard: ({ context, event }) =>
+        event.externalSessionId !== undefined && event.externalSessionId !== context.externalSessionId,
+      target: ".Idle"
+    },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
         getMessageSignature: ({ event }: { event: Extract<RampMachineEvents, { type: "SET_GET_MESSAGE_SIGNATURE" }> }) =>
