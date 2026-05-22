@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, KycFailureReason } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -12,9 +12,9 @@ import {
   MxnKycFormData
 } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
-import { RampContext, SelectedAveniaData } from "./types";
+import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
+import { RampContext } from "./types";
 
-// Extended context types for child KYC machines
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
   submissionId?: string;
@@ -39,7 +39,7 @@ export interface AveniaKycContext extends RampContext {
   rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
   error?: AveniaKycMachineError;
-  isCompany?: boolean; // Flag to identify if the user is a business (CNPJ) or individual (CPF)
+  isCompany?: boolean;
   kybAttemptId?: string;
   kybUrls?: {
     authorizedRepresentativeUrl: string;
@@ -50,10 +50,15 @@ export interface AveniaKycContext extends RampContext {
   representativeVerificationStarted?: boolean;
 }
 
-// Logic of the KYC node:
-// The node attempts to abstract the generic "Started" -> "Verifying" -> "Done" flow of any KYC process.
-// The "Verifying" state will invoke child actors based on the particula ramp.
-// The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
+export interface MykoboKycContext extends RampContext {
+  formData?: MykoboKycFormData;
+  files?: MykoboKycFiles;
+  profileApproved?: boolean;
+  error?: MykoboKycMachineError;
+}
+
+type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
+
 export const kycStateNode = {
   entry: ({ context }: { context: RampContext }) =>
     console.log("DEBUG: Entering KYC state node. RampContext kycFormData:", context.kycFormData),
@@ -65,11 +70,13 @@ export const kycStateNode = {
     },
     SummaryConfirm: {
       actions: [
-        // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
         sendTo(
           ({ context }) => {
             if (context.executionInput?.fiatToken === FiatToken.BRL) {
               return "aveniaKyc";
+            }
+            if (context.executionInput?.fiatToken === FiatToken.EURC) {
+              return "mykoboKyc";
             }
             if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
               return "alfredpayKyc";
@@ -131,7 +138,7 @@ export const kycStateNode = {
           console.log("Invoking Avenia KYC actor with RampContext input:", context);
           return {
             ...context,
-            kycFormData: context.kycFormData, // Pass kycFormData from parent RampContext to AveniaKycContext
+            kycFormData: context.kycFormData,
             taxId: context.executionInput?.taxId ?? ""
           };
         },
@@ -172,9 +179,47 @@ export const kycStateNode = {
           target: "Avenia"
         },
         {
+          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.EURC,
+          target: "Mykobo"
+        },
+        {
           target: "Avenia"
         }
       ]
+    },
+    Mykobo: {
+      invoke: {
+        id: "mykoboKyc",
+        input: ({ context }: { context: RampContext }): MykoboKycContext => ({
+          ...context
+        }),
+        onDone: [
+          {
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) => !!event.output.profileApproved,
+            target: "VerificationComplete"
+          },
+          {
+            actions: assign({ rampSigningPhase: undefined }),
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+              event.output.error?.type === MykoboKycMachineErrorType.UserRejected,
+            target: "#ramp.QuoteReady"
+          },
+          {
+            actions: assign({
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+                event.output.error?.message || "An unknown error occurred"
+            }),
+            target: "#ramp.KycFailure"
+          }
+        ],
+        onError: {
+          actions: assign({
+            initializeFailedMessage: "Mykobo KYC verification failed. Please retry."
+          }),
+          target: "#ramp.KycFailure"
+        },
+        src: "mykoboKyc"
+      }
     },
     VerificationComplete: {
       always: {

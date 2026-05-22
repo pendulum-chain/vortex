@@ -6,7 +6,8 @@ import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
-import { AlfredpayKycContext, AveniaKycContext } from "./kyc.states";
+import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "./kyc.states";
+import { mykoboKycMachine } from "./mykoboKyc.machine";
 
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
@@ -89,9 +90,17 @@ export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
 export type AlfredpayKycActorRef = ActorRefFrom<typeof alfredpayKycMachine>;
 export type AlfredpayKycSnapshot = SnapshotFrom<typeof alfredpayKycMachine>;
 
+export type MykoboKycActorRef = ActorRefFrom<typeof mykoboKycMachine>;
+export type MykoboKycSnapshot = SnapshotFrom<typeof mykoboKycMachine>;
+
 export type SelectedAveniaData = {
   stateValue: AveniaKycSnapshot["value"];
   context: AveniaKycContext;
+};
+
+export type SelectedMykoboData = {
+  stateValue: MykoboKycSnapshot["value"];
+  context: MykoboKycContext;
 };
 
 /**

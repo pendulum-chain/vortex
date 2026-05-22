@@ -10,6 +10,7 @@ import { validateKycActor } from "./actors/validateKyc.actor";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
+import { mykoboKycMachine } from "./mykoboKyc.machine";
 import {
   checkAndRefreshTokenActor,
   cleanUrlActor,
@@ -69,6 +70,7 @@ export const rampMachine = setup({
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(loadQuoteActor),
+    mykoboKyc: mykoboKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       return createQuoteRefresher(input.context, sendBack);
     }),
