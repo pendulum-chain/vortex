@@ -23,7 +23,7 @@ Several phases are broadcast from the user's wallet, not from an ephemeral key, 
 
 User-wallet phases:
 
-- `moneriumOnrampMint` — User wallet authorizes Monerium mint.
+- `moneriumOnrampMint` — (Deprecated; Monerium is removed — see `05-integrations/monerium.md`. Validation logic retained for any in-flight legacy ramps.) User wallet authorizes Monerium mint.
 - `squidRouterApprove` / `squidRouterSwap` — SELL direction only (BUY direction is ephemeral-signed).
 - `squidRouterNoPermitTransfer` — Direct ERC-20 transfer from user wallet (when source ERC-20 lacks EIP-2612 permit and direction is direct-transfer).
 - `squidRouterNoPermitApprove` — User wallet approves Squid spender.

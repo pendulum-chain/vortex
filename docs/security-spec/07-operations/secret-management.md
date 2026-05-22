@@ -22,6 +22,9 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | `SUPABASE_SERVICE_KEY` | Supabase admin access (bypasses RLS) | Full database read/write — all ramp data, user data, keys |
 | `SUPABASE_ANON_KEY` | Supabase public access (subject to RLS) | Limited by RLS policies — lower blast radius than service key |
 | `DB_PASSWORD` | Direct PostgreSQL access | Full database read/write — bypasses Supabase entirely |
+| `MYKOBO_ACCESS_KEY` / `MYKOBO_SECRET_KEY` | Mykobo API authentication (HMAC-style; exchanged for bearer token) | Forge Mykobo SEPA payout requests on Base — could redirect EUR off-ramp payouts; also enables submission of arbitrary KYC profiles under the Vortex client domain |
+| `MYKOBO_BASE_URL` | Mykobo API endpoint (`/v1` suffix normalized by client) | Not a secret; misconfiguration could route requests to an attacker-controlled host if env is tampered with |
+| `MYKOBO_CLIENT_DOMAIN` | Vortex's registered client identifier with Mykobo | Not a secret on its own; used in KYC profile attribution |
 | `ALCHEMYPAY_APP_ID` / `ALCHEMYPAY_SECRET_KEY` | AlchemyPay price provider | Access to AlchemyPay API — price manipulation, data access |
 | `TRANSAK_API_KEY` | Transak price provider | Access to Transak API |
 | `MOONPAY_API_KEY` | MoonPay price provider | Access to MoonPay API |

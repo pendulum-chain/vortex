@@ -11,11 +11,11 @@ The cleanup process runs as a background worker (`cleanup.worker.ts`) on a 5-min
 Ephemeral accounts may be created on:
 - **Stellar** — For Spacewalk bridge operations and direct Stellar payments
 - **Pendulum** — For Nabla swaps (Substrate-side), Spacewalk redeems, XCM transfers
-- **Moonbeam** — For legacy EVM operations (EUR Monerium → Moonbeam path), SquidRouter swaps, XCM to/from Pendulum
-- **Polygon** — For Monerium EURe operations
+- **Moonbeam** — For legacy EVM operations (historical Monerium EUR → Moonbeam path is removed; still used for ARS-Stellar off-ramp's Moonbeam→Pendulum XCM hop, Alfredpay permit acquisition, and SquidRouter swaps), XCM to/from Pendulum
+- **Polygon** — (Legacy) For Monerium EURe operations; no active corridor uses Polygon anymore but the post-process handler remains for safety on any still-in-flight legacy ramps
 - **AssetHub** — For XCM transfers to/from Pendulum and Hydration
 - **Hydration** — For Hydration DEX swaps and XCM transfers
-- **Base** — Hub for all BRL on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Nabla-on-EVM swap (USDC↔BRLA), and EVM fee distribution via Multicall3.
+- **Base** — Hub for all BRL **and EUR** on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Mykobo EUR settlement (EURC on Base), Nabla-on-EVM swap (USDC↔BRLA, USDC↔EURC), and EVM fee distribution via Multicall3.
 
 ### Cleanup Architecture
 
@@ -24,11 +24,11 @@ Post-process handlers registered in `apps/api/src/api/services/phases/post-proce
 - **StellarPostProcessHandler** — Submits the `stellarCleanup` XDR to merge the Stellar ephemeral account back to the funding account.
 - **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
 - **MoonbeamPostProcessHandler** — Waits 3 hours for SquidRouter refunds to land, then submits `moonbeamCleanup` to sweep Moonbeam ephemeral tokens.
-- **PolygonPostProcessHandler** — On Monerium-onramp BUY ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero.
+- **PolygonPostProcessHandler** — (Legacy Monerium support) On Monerium-onramp BUY ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero. **No active corridor produces new Polygon ephemerals; this handler exists for in-flight legacy ramps and can be retired once Monerium ramps are fully drained.**
 - **HydrationPostProcessHandler** — On BUY ramps with a `hydrationCleanup` presigned extrinsic, submits the cleanup extrinsic.
 - **AssetHubPostProcessHandler** — Registered but inert. `shouldProcess` returns `false` unconditionally; `process` returns `[true, null]`. No on-chain action is performed. Effectively a placeholder for future AssetHub cleanup.
 
-A post-process handler is registered for **Base** (`BaseChainPostProcessHandler`). After a BRL ramp completes, it sweeps any residual BRLA and USDC dust from the Base ephemeral to the funding account via the standard `approve(funding, MAX_UINT256)` + `transferFrom(ephemeral, funding, balance)` pattern (presigned by the ephemeral; `transferFrom` broadcast by the funding key). Per-token balance checks skip the sweep when the balance is zero. ETH gas dust on the ephemeral is not swept (accepted residual; gas is funded just-in-time and rarely accumulates meaningfully).
+A post-process handler is registered for **Base** (`BaseChainPostProcessHandler`). After a Base-routed ramp completes (BRL via BRLA or EUR via Mykobo), it sweeps residual BRLA, EURC, USDC, and AxlUSDC dust from the Base ephemeral to the funding account via the standard `approve(funding, MAX_UINT256)` + `transferFrom(ephemeral, funding, balance)` pattern (presigned by the ephemeral; `transferFrom` broadcast by the funding key). Per-token balance checks skip the sweep when the balance is zero. ETH gas dust on the ephemeral is not swept (accepted residual; gas is funded just-in-time and rarely accumulates meaningfully).
 
 The cleanup worker (`cleanup.worker.ts`) selects ramps where `currentPhase ∈ {"complete", "failed", "timedOut"}` and cleanup is not yet completed, processing up to 5 ramps per cycle on a 5-minute cron. There is no longer a SEPA exclusion (the historical `from: { [Op.ne]: "sepa" }` filter has been removed).
 

@@ -34,9 +34,10 @@ This directory contains the security specification for the Vortex cross-border p
 | Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
-| Monerium | `05-integrations/monerium.md` | Monerium EUR on-ramp |
+| Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (active EUR rail) |
+| Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
-| Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment |
+| Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (ARS-only; EUR migrated to Mykobo) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
@@ -65,7 +66,8 @@ Every spec file uses exactly four sections:
 | **Spacewalk** | Bridge between Pendulum and Stellar |
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
-| **Monerium** | EUR stablecoin issuer (EUR on-ramp via SEPA) |
+| **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base) |
+| **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |

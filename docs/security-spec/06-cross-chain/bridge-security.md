@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Spacewalk is the bridge between the **Pendulum** parachain and the **Stellar** network. It enables off-ramp flows that terminate on Stellar (EUR via EURC, ARS) by converting Pendulum-wrapped Stellar tokens back to native Stellar tokens.
+Spacewalk is the bridge between the **Pendulum** parachain and the **Stellar** network. It enables off-ramp flows that terminate on Stellar (ARS today; EUR was migrated to Mykobo on Base — see `05-integrations/mykobo.md`) by converting Pendulum-wrapped Stellar tokens back to native Stellar tokens.
 
 The bridge operates through a **vault-based model**: independent vault operators lock collateral on Pendulum and process redeem requests. When a user (or ephemeral account) wants to redeem Pendulum-wrapped tokens for their Stellar originals, a vault is selected, the wrapped tokens are burned on Pendulum, and the vault releases the native tokens on Stellar.
 

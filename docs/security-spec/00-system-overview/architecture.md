@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Vortex is a cross-border payment gateway built on the Pendulum blockchain. It converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains (Pendulum, Moonbeam, Stellar, AssetHub, Hydration, Polygon). The system is a Bun monorepo with four main components:
+Vortex is a cross-border payment gateway built on the Pendulum blockchain. It converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains (Pendulum, Moonbeam, Stellar, AssetHub, Hydration, Polygon, Base). The system is a Bun monorepo with four main components:
 
 - **API** (`apps/api`) — Express backend handling ramp orchestration, quote generation, auth, and external service integration
 - **Frontend** (`apps/frontend`) — React SPA for end-user flows
@@ -36,7 +36,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 │  ┌────▼────┐ ┌────▼────┐ ┌───▼──────┐ ┌──▼──────────────┐         │
 │  │Postgres │ │Supabase │ │Chains    │ │External APIs    │         │
 │  │(DB)     │ │(Auth)   │ │(RPC)     │ │(BRLA/Avenia,    │         │
-│  └─────────┘ └─────────┘ │Pendulum  │ │ Monerium,       │         │
+│  └─────────┘ └─────────┘ │Pendulum  │ │ Mykobo,         │         │
 │                           │Moonbeam  │ │ Alfredpay,      │         │
 │                           │Stellar   │ │ Squid, Stellar) │         │
 │                           │AssetHub  │ └─────────────────┘         │
@@ -63,7 +63,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 2. **Trust boundaries MUST be enforced at the middleware layer** — auth checks happen before controller logic, never inside controllers.
 3. **The API server MUST NOT hold user private keys** — ephemeral keys are generated client-side (SDK/frontend). The server only receives addresses, never secrets.
 4. **Server-held secrets (funding keys, executor keys) MUST only be used for platform operations** — funding ephemeral accounts, executing subsidization, signing webhooks. Never for user-initiated transactions on behalf of the user's own assets.
-5. **All external service calls (BRLA, Monerium, Alfredpay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.
+5. **All external service calls (BRLA, Mykobo, Alfredpay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.
 6. **Database state MUST be the single source of truth for ramp progress** — in-memory state is transient and may be lost on restart.
 7. **No single component compromise should grant access to all user funds** — the system should limit blast radius through key separation and least-privilege access.
 8. **All inter-chain transfers MUST be verified on both source and destination** — sending a transfer is not sufficient; the system must confirm receipt before advancing phases.
@@ -75,7 +75,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 | **Unauthorized ramp initiation** | Attacker starts ramps without valid auth, draining liquidity | Auth middleware on all ramp endpoints; quote binding to authenticated session |
 | **Server compromise** | Attacker gains access to API server, extracts env vars | Key separation (different keys per chain), rotation procedures, minimal secrets in memory |
 | **Stale RPC data** | Chain RPC returns outdated balances, causing incorrect subsidization | Verify balances at point of use, not cached; cross-check with on-chain finality |
-| **External API manipulation** | BRLA/Monerium returns manipulated amounts | Validate external responses against quoted amounts; bound acceptable variance |
+| **External API manipulation** | BRLA/Mykobo/Alfredpay returns manipulated amounts | Validate external responses against quoted amounts; bound acceptable variance |
 | **Database tampering** | Attacker with DB access modifies ramp state to skip phases | Phase transition validation in code (not just DB constraints); audit logging of all state changes |
 | **Cross-chain message failure** | XCM transfer succeeds on source but fails on destination | Phase handlers wait for destination confirmation before advancing; timeout + retry logic |
 | **Rebalancer key theft** | Rebalancer's chain keys compromised | Rebalancer uses dedicated keys separate from main API; limited balances; monitoring for unexpected transfers |
@@ -86,7 +86,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 - [FAIL] No controller directly accesses `process.env` for secrets — all go through `config/vars.ts` — **F-016: `PENDULUM_FUNDING_SEED` accessed directly in `pendulum.service.ts`; also `SLACK_WEB_HOOK_TOKEN`, `COINGECKO_API_KEY`**
 - [x] Ephemeral key secrets never appear in API request/response payloads or logs
 - [x] Phase processor always reads fresh state from DB before executing a phase (no stale cache)
-- [FAIL] All external API calls have timeout configuration — **F-014: Most `fetch()` calls lack timeout/AbortController (Monerium, price feeds, Subscan, etc.)**
+- [FAIL] All external API calls have timeout configuration — **F-014: Most `fetch()` calls lack timeout/AbortController (Mykobo, price feeds, Subscan, etc.)**
 - [PARTIAL] Error responses never leak internal state, stack traces, or secret material — **F-015: Stack traces stripped in prod, but raw `err.message` leaks in some paths**
 - [N/A] Database connection uses TLS in production — **F-017: Not configured in Sequelize options; relies on server-side enforcement**
 - [x] Rate limiting is applied at the network edge before auth middleware
