@@ -50,16 +50,6 @@ export interface AveniaKycContext extends RampContext {
   representativeVerificationStarted?: boolean;
 }
 
-export interface StellarKycContext extends RampContext {
-  token?: string;
-  sep10Account?: unknown;
-  redirectUrl?: string;
-  tomlValues?: unknown;
-  id?: string;
-  error?: unknown;
-  sep24IntervalId?: NodeJS.Timeout;
-}
-
 // Logic of the KYC node:
 // The node attempts to abstract the generic "Started" -> "Verifying" -> "Done" flow of any KYC process.
 // The "Verifying" state will invoke child actors based on the particula ramp.
@@ -84,7 +74,7 @@ export const kycStateNode = {
             if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
               return "alfredpayKyc";
             }
-            return "stellarKyc";
+            return "aveniaKyc";
           },
           { type: "SummaryConfirm" }
         ),
@@ -182,51 +172,9 @@ export const kycStateNode = {
           target: "Avenia"
         },
         {
-          target: "Stellar"
+          target: "Avenia"
         }
       ]
-    },
-    Stellar: {
-      invoke: {
-        id: "stellarKyc",
-        input: ({ context }: { context: RampContext }) => context,
-        onDone: [
-          {
-            actions: assign(({ context, event }: { context: RampContext; event: DoneActorEvent<StellarKycContext> }) => {
-              console.log("Stellar KYC completed with response:", event.output);
-              return {
-                ...context,
-                paymentData: event.output.paymentData
-              };
-            }),
-            guard: ({ event }: { event: DoneActorEvent<StellarKycContext> }) => !!event.output.paymentData,
-            target: "VerificationComplete"
-          },
-          {
-            actions: [{ type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: DoneActorEvent<StellarKycContext> }) =>
-              typeof event.output?.error === "string" && event.output.error.includes("User rejected"),
-            target: "#ramp.QuoteReady"
-          },
-          {
-            // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
-            actions: assign({
-              initializeFailedMessage: ({ event }: { event: DoneActorEvent<StellarKycContext> }) =>
-                typeof event.output.error === "string" ? event.output.error : "Stellar KYC verification failed. Please retry."
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        onError: [
-          {
-            actions: assign({
-              initializeFailedMessage: "Stellar KYC verification failed. Please retry."
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        src: "stellarKyc"
-      }
     },
     VerificationComplete: {
       always: {

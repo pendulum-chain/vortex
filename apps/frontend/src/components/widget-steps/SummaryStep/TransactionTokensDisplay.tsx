@@ -8,7 +8,6 @@ import {
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
   isMoonbeamTokenDetails,
-  isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
@@ -74,9 +73,6 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
     if (isAlfredpayToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
-    }
-    if (isStellarOutputTokenDetails(fiatToken)) {
-      return fiatToken.anchorHomepageUrl;
     }
     if (isMoonbeamTokenDetails(fiatToken)) {
       return fiatToken.partnerUrl;

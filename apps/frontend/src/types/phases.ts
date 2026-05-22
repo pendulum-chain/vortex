@@ -28,7 +28,6 @@ export interface RampExecutionInput {
   fiatToken: FiatToken;
   sourceOrDestinationAddress: string; // The source address for offramps, destination address for onramps
   ephemerals: {
-    stellarEphemeral: EphemeralAccount;
     substrateEphemeral: EphemeralAccount;
     evmEphemeral: EphemeralAccount;
   };

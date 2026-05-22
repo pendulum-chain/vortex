@@ -8,13 +8,13 @@ import {
   getEnumKeyByStringValue,
   getNetworkDisplayName,
   isEvmTokenDetails,
+  isMoonbeamTokenDetails,
   isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
   OnChainToken,
   OnChainTokenDetails,
-  RampDirection,
-  stellarTokenConfig
+  RampDirection
 } from "@vortexfi/shared";
 import { useMemo } from "react";
 import { getEvmTokenConfig } from "../../../services/tokens";
@@ -140,21 +140,23 @@ export function invalidateOnChainTokensCache(): void {
 
 function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
   const moonbeamEntries = Object.entries(moonbeamTokenConfig);
-  const freeFiatCurrencyEntries = Object.entries(freeTokenConfig);
-  const stellarEntries = filterEurcOnly
-    ? Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
-    : Object.entries(stellarTokenConfig);
+  const freeFiatCurrencyEntries = Object.entries(freeTokenConfig).filter(([, value]) =>
+    filterEurcOnly ? value.fiat.symbol === FiatToken.EURC : true
+  );
 
-  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => ({
-    assetIcon: value.fiat.assetIcon,
-    assetSymbol: value.fiat.symbol,
-    details: value as FiatTokenDetails,
-    name: value.fiat.name,
-    network: key === FiatToken.BRL ? Networks.Moonbeam : Networks.Stellar,
-    networkDisplayName:
-      key === FiatToken.BRL ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
-    type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
-  }));
+  return [...moonbeamEntries, ...freeFiatCurrencyEntries].map(([, value]) => {
+    const details = value as FiatTokenDetails;
+    const network = isMoonbeamTokenDetails(details) ? Networks.Moonbeam : Networks.Base;
+    return {
+      assetIcon: details.fiat.assetIcon,
+      assetSymbol: details.fiat.symbol,
+      details,
+      name: details.fiat.name,
+      network,
+      networkDisplayName: getNetworkDisplayName(network),
+      type: getEnumKeyByStringValue(FiatToken, details.fiat.symbol) as FiatToken
+    };
+  });
 }
 
 function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {

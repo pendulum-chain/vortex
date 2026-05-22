@@ -51,10 +51,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const quoteId = quote.id;
   const signingAccounts: AccountMeta[] = [
     {
-      address: executionInput.ephemerals.stellarEphemeral.address,
-      type: EphemeralAccountType.Stellar
-    },
-    {
       address: executionInput.ephemerals.evmEphemeral.address,
       type: EphemeralAccountType.EVM
     },

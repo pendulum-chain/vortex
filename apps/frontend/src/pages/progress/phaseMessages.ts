@@ -97,9 +97,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
     }),
-    spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {
-      assetSymbol: outputAssetSymbol
-    }),
     squidRouterApprove: getSquidRouterSwapMessage(),
     squidRouterNoPermitApprove: t("pages.progress.squidRouterNoPermitApprove", {
       assetSymbol: inputAssetSymbol
@@ -115,10 +112,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterPay: getSquidRouterSwapMessage(),
     squidRouterPermitExecute: getSquidRouterPermitMessage(),
     squidRouterSwap: getSquidRouterSwapMessage(),
-    stellarCreateAccount: t("pages.progress.createStellarAccount"),
-    stellarPayment: t("pages.progress.stellarPayment", {
-      assetSymbol: outputAssetSymbol
-    }),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
     timedOut: ""

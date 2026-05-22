@@ -19,7 +19,6 @@ import {
   refreshQuoteIfNeeded
 } from "./ramp.actors";
 import { createResetRampContext, initialRampContext } from "./ramp.context";
-import { stellarKycMachine } from "./stellarKyc.machine";
 import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./types";
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
@@ -77,7 +76,6 @@ export const rampMachine = setup({
     requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
-    stellarKyc: stellarKycMachine,
     urlCleaner: fromPromise(cleanUrlActor),
     validateKyc: fromPromise(validateKycActor),
     verifyOTP: fromPromise(verifyOTPActor)

@@ -20,7 +20,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     return null;
   }
 
-  const { type, from } = rampState.ramp;
+  const { type } = rampState.ramp;
   const currentPhase = rampState.ramp.currentPhase;
 
   if (type === RampDirection.BUY) {
@@ -35,11 +35,7 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     return "offramp_brl";
   }
 
-  if (from === Networks.AssetHub) {
-    return "assethub_offramp_through_stellar";
-  }
-
-  return "evm_offramp_through_stellar";
+  return "offramp_brl";
 }
 
 const useProgressUpdate = (

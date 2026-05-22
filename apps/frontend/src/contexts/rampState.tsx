@@ -1,6 +1,6 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
-import { AlfredpayKycContext, AveniaKycContext, StellarKycContext } from "../machines/kyc.states";
+import { AlfredpayKycContext, AveniaKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
@@ -9,10 +9,7 @@ import {
   AveniaKycSnapshot,
   RampMachineSnapshot,
   SelectedAlfredpayData,
-  SelectedAveniaData,
-  SelectedStellarData,
-  StellarKycActorRef,
-  StellarKycSnapshot
+  SelectedAveniaData
 } from "../machines/types";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
@@ -32,10 +29,6 @@ export const useRampStateSelector = RampStateContext.useSelector;
 const PersistenceEffect = () => {
   const rampActor = useRampActor();
 
-  const stellarActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
-
   const aveniaActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).aveniaKyc) as
     | AveniaKycActorRef
     | undefined;
@@ -47,10 +40,6 @@ const PersistenceEffect = () => {
     rampState: state?.value
   }));
 
-  const { stellarState } = useSelector(stellarActor, state => ({
-    stellarState: state?.value
-  }));
-
   const { aveniaState } = useSelector(aveniaActor, state => ({
     aveniaState: state?.value
   }));
@@ -60,7 +49,7 @@ const PersistenceEffect = () => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem("rampState", JSON.stringify(persistedSnapshot));
     // It's important to have `isQuoteExpired` and `quote` here in the deps array to persist them when they change
-  }, [rampContext, rampState, stellarState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
+  }, [rampContext, rampState, aveniaState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;
 };
@@ -73,41 +62,6 @@ export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ child
     </RampStateContext.Provider>
   );
 };
-
-export function useStellarKycActor(): StellarKycActorRef | undefined {
-  const rampActor = useRampActor();
-
-  return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
-}
-
-export function useStellarKycSelector(): SelectedStellarData | undefined {
-  const rampActor = useRampActor();
-
-  const stellarActor = useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>).stellarKyc) as
-    | StellarKycActorRef
-    | undefined;
-
-  return useSelector(
-    stellarActor,
-    (snapshot: StellarKycSnapshot | undefined) => {
-      if (!snapshot) {
-        return undefined;
-      }
-      return {
-        context: snapshot.context as StellarKycContext,
-        stateValue: snapshot.value
-      };
-    },
-    (prev, next) => {
-      if (!prev || !next) {
-        return prev === next;
-      }
-      return prev.stateValue === next.stateValue && prev.context === next.context;
-    }
-  );
-}
 
 export function useAveniaKycActor(): AveniaKycActorRef | undefined {
   const rampActor = useRampActor();

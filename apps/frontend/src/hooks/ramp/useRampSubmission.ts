@@ -1,11 +1,4 @@
-import {
-  createMoonbeamEphemeral,
-  createPendulumEphemeral,
-  createStellarEphemeral,
-  FiatToken,
-  getNetworkId,
-  Networks
-} from "@vortexfi/shared";
+import { createMoonbeamEphemeral, createPendulumEphemeral, FiatToken, getNetworkId, Networks } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useCallback, useState } from "react";
 import { useEventsContext } from "../../contexts/events";
@@ -24,7 +17,6 @@ interface SubmissionError extends Error {
 const createEphemerals = async () => {
   return {
     evmEphemeral: createMoonbeamEphemeral(),
-    stellarEphemeral: createStellarEphemeral(),
     substrateEphemeral: await createPendulumEphemeral()
   };
 };

@@ -30,7 +30,6 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
-  spacewalkRedeem: 130,
   squidRouterApprove: 10,
   squidRouterNoPermitApprove: 10,
   squidRouterNoPermitSwap: 60,
@@ -38,44 +37,12 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   squidRouterPay: 60,
   squidRouterPermitExecute: 30,
   squidRouterSwap: 10,
-  stellarCreateAccount: 0,
-  stellarPayment: 6,
   subsidizePostSwap: 24,
   subsidizePreSwap: 24,
   timedOut: 0
 };
 
 export const PHASE_FLOWS = {
-  assethub_offramp_through_stellar: [
-    "initial",
-    "fundEphemeral",
-    "assethubToPendulum",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "subsidizePostSwap",
-    "assethubToPendulum",
-    "spacewalkRedeem",
-    "stellarPayment",
-    "distributeFees",
-    "complete"
-  ] as RampPhase[],
-
-  evm_offramp_through_stellar: [
-    "initial",
-    "fundEphemeral",
-    "moonbeamToPendulum", // or "assethubToPendulum",
-    "distributeFees",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "subsidizePostSwap",
-    "assethubToPendulum",
-    "spacewalkRedeem",
-    "stellarPayment",
-    "complete"
-  ] as RampPhase[],
-
   offramp_brl: [
     "initial",
     "fundEphemeral",

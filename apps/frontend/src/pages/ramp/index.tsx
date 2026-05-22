@@ -1,10 +1,9 @@
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
-import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
+import { useRampActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
-import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
@@ -15,10 +14,8 @@ import { Widget } from "../widget";
 export const Ramp = () => {
   const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <Widget />, <Quote />);
   const rampActor = useRampActor();
-  const stellarKycActor = useStellarKycActor();
   const quote = useQuote();
   const { forceSetQuote } = useQuoteActions();
-  useSiweSignature(stellarKycActor);
   useAuthTokens(rampActor);
 
   const { showToast } = useToastMessage();
