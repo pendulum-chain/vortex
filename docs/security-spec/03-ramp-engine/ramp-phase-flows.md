@@ -20,7 +20,8 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - **Removed:** the previous Stellar-based EUR off-ramp (Pendulum → Spacewalk → Stellar anchor) is no longer active. See `stellar-anchors.md`.
 
 **EUR On-ramp (Mykobo SEPA on Base):** SEPA payment → Mykobo settles EURC on the Base ephemeral → Nabla-on-Base swap (EURC→USDC) → optional Squid → user destination
-- Runtime backend phases: `initial` → `mykoboOnrampDeposit` (poll Base RPC, 24h outer / 5min inner) → `fundEphemeral` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
+- Runtime backend phases: `initial` → `mykoboOnrampDeposit` (poll Base RPC, 24h outer / 5min inner) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
+- Note: unlike BRL on-ramp, `fundEphemeral` is **skipped** for EUR — `mykoboOnrampDeposit` transitions directly to `subsidizePreSwap` (mykobo-onramp-deposit-handler.ts:70,109). The EUR-on-ramp route builder does not include a `fundEphemeral` presigned tx.
 - Skip-Squid case (destination = Base USDC): the `squidRouterSwap` handler short-circuits directly to `destinationTransfer`.
 - Cross-chain case (destination ≠ Base USDC): `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` for supported EVM destinations.
 - Base ephemeral cleanup (`baseCleanupUsdc`, `baseCleanupEurc`, `baseCleanupAxlUsdc`) is performed out-of-flow by `BaseChainPostProcessHandler` after `complete`.
@@ -42,7 +43,7 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 **Alfredpay corridors:** Similar structure with `alfredpayOfframpTransfer` / `alfredpayOnrampMint` replacing the fiat provider phases.
 
 **Cross-chain delivery (post-swap):** After the Nabla swap, tokens are routed to their final destination:
-- From Pendulum to Stellar (ARS-only since EUR was migrated to Mykobo): `spacewalkRedeem` → `stellarPayment`
+- ~~From Pendulum to Stellar (ARS-only since EUR was migrated to Mykobo): `spacewalkRedeem` → `stellarPayment`~~ — **REMOVED.** The Stellar/Spacewalk backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered in `register-handlers.ts`. See `stellar-anchors.md`.
 - From Pendulum to Moonbeam: `pendulumToMoonbeamXcm`
 - From Pendulum to AssetHub: `pendulumToAssethubXcm`
 - From Pendulum to Hydration: `pendulumToHydrationXcm` → `hydrationToAssethubXcm` (if needed)
@@ -55,113 +56,87 @@ The following diagrams show the phase transitions for all on-ramp and off-ramp c
 
 #### On-Ramp Phase Flow
 
+The BRL (BRLA) and EUR (Mykobo) on-ramp corridors share the entire post-fiat phase chain on Base. Only the initial fiat-watch phase differs. EUR additionally skips `fundEphemeral` (the Mykobo deposit handler transitions directly to `subsidizePreSwap`).
+
 ```mermaid
 graph TD
     Start([Start On-Ramp]) --> Init[initial]
     Init --> Provider{Fiat provider?}
 
-    %% --- Mykobo EUR on Base ---
-    Provider -->|Mykobo EUR on Base| MykMint[mykoboOnrampDeposit - poll Base RPC]
-    MykMint --> MykFund[fundEphemeral]
-    MykFund --> MykSubPreEvm[subsidizePreSwap]
-    MykSubPreEvm --> MykApproveEvm["nablaApprove (EVM branch)"]
-    MykApproveEvm --> MykSwapEvm["nablaSwap (EVM branch, EURC to USDC)"]
-    MykSwapEvm --> MykDistEvm["distributeFees (EVM branch)"]
-    MykDistEvm --> MykSubPostEvm[subsidizePostSwap]
-    MykSubPostEvm --> MykSquidSwap[squidRouterSwap]
-    MykSquidSwap --> MykDest{Destination = Base USDC?}
-    MykDest -->|Yes - short-circuit| DestTransfer[destinationTransfer]
-    MykDest -->|No - supported EVM| MykSquidPay[squidRouterPay]
-    MykSquidPay --> MykFinalSubsidy[finalSettlementSubsidy]
-    MykFinalSubsidy --> MykBackup{Backup bridge needed?}
-    MykBackup -->|Yes| MykBackupSquid[backupSquidRouter*]
-    MykBackup -->|No| DestTransfer
-    MykBackupSquid --> DestTransfer
-
-    %% --- BRL via Avenia/BRLA on Base ---
-    Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC]
-    BrlaMint --> BrlaFund[fundEphemeral]
-    BrlaFund --> BrlaSubPreEvm[subsidizePreSwap]
-    BrlaSubPreEvm --> BrlaApproveEvm["nablaApprove (EVM branch)"]
-    BrlaApproveEvm --> BrlaSwapEvm["nablaSwap (EVM branch)"]
-    BrlaSwapEvm --> BrlaDistEvm["distributeFees (EVM branch)"]
-    BrlaDistEvm --> BrlaSubPostEvm[subsidizePostSwap]
-    BrlaSubPostEvm --> BrlaSquidSwap[squidRouterSwap]
-    BrlaSquidSwap --> BrlaDest{Destination = Base USDC?}
-    BrlaDest -->|Yes - short-circuit| DestTransfer[destinationTransfer]
-    BrlaDest -->|No - supported EVM only| BrlaSquidPay[squidRouterPay]
-    %% BRL -> AssetHub is temporarily disabled at quote eligibility.
-    BrlaSquidPay --> BrlaFinalSubsidy[finalSettlementSubsidy]
-    BrlaFinalSubsidy --> BrlaBackup{Backup bridge needed?}
-    BrlaBackup -->|Yes| BrlaBackupSquid[backupSquidRouter*]
-    BrlaBackup -->|No| DestTransfer
-    BrlaBackupSquid --> DestTransfer
-
-    %% --- Alfredpay ---
+    %% --- Per-corridor fiat-watch entry phases ---
+    Provider -->|BRLA BRL on Base| BrlaMint[brlaOnrampMint - poll Base RPC, 30min/5min]
+    Provider -->|Mykobo EUR on Base| MykMint[mykoboOnrampDeposit - poll Base RPC, 24h/5min]
     Provider -->|Alfredpay| AfMint[alfredpayOnrampMint]
+
+    %% --- BRL funds the ephemeral; EUR skips fundEphemeral entirely ---
+    BrlaMint --> BrlaFund[fundEphemeral]
+    BrlaFund --> SubPreEvm
+
+    %% --- EUR: mykoboOnrampDeposit transitions directly to subsidizePreSwap ---
+    MykMint --> SubPreEvm
+
+    %% --- Shared Base-EVM swap chain (BRL + EUR) ---
+    SubPreEvm["subsidizePreSwap (EVM branch)"] --> ApproveEvm["nablaApprove (EVM branch)"]
+    ApproveEvm --> SwapEvm["nablaSwap (EVM branch, fiat-stable to USDC)"]
+    SwapEvm --> DistEvm["distributeFees (EVM branch)"]
+    DistEvm --> SubPostEvm["subsidizePostSwap (EVM branch)"]
+    SubPostEvm --> SquidSwap[squidRouterSwap]
+
+    %% --- Destination routing (shared) ---
+    SquidSwap --> Dest{Destination = Base USDC?}
+    Dest -->|Yes - short-circuit| DestTransfer[destinationTransfer]
+    Dest -->|No - supported EVM| SquidPay[squidRouterPay]
+    SquidPay --> FinalSubsidy[finalSettlementSubsidy]
+    FinalSubsidy --> Backup{Backup bridge needed?}
+    Backup -->|Yes| BackupSquid[backupSquidRouter*]
+    Backup -->|No| DestTransfer
+    BackupSquid --> DestTransfer
+
+    %% --- Alfredpay branch: squidRouterSwap handler short-circuits to destinationTransfer ---
+    %% (squid-router-phase-handler.ts:72 detects isAlfredpayOnramp and skips squidRouterPay + finalSettlementSubsidy)
     AfMint --> AfFund[fundEphemeral]
     AfFund --> AfSquidSwap[squidRouterSwap]
-    AfSquidSwap --> AfSquidPay[squidRouterPay]
-    AfSquidPay --> FinalSubsidy[finalSettlementSubsidy]
-
-    %% --- Final settlement (EVM via Squid) ---
-    FinalSubsidy --> DestTransfer
+    AfSquidSwap -.short-circuit.-> DestTransfer
 
     %% --- Terminal ---
     DestTransfer --> Complete([complete])
 ```
 
-> Note: The Pendulum-side on-ramp swap chain (`subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `distributeFees` → `pendulumToAssethubXcm` / `pendulumToHydrationXcm` → `hydrationSwap` → `hydrationToAssethubXcm`) was used by the legacy Monerium-EUR-via-Pendulum corridor and by `avenia-to-assethub` BRL→AssetHub. Both corridors are **inactive**: Monerium was replaced by Mykobo-on-Base, and BRL↔AssetHub is temporarily disabled at quote eligibility. The Substrate-branch on-ramp handlers remain registered but are not reached by any active route.
+> Notes:
+> - **EUR onramp skips `fundEphemeral`.** `mykoboOnrampDeposit` transitions directly to `subsidizePreSwap` (`mykobo-onramp-deposit-handler.ts:70,109`). BRL onramp does fund the ephemeral first.
+> - **Alfredpay onramp short-circuits.** `squid-router-phase-handler.ts:72` detects `isAlfredpayOnramp` and transitions directly to `destinationTransfer`, skipping `squidRouterPay` and `finalSettlementSubsidy`.
+> - The Pendulum-side on-ramp swap chain (`subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `distributeFees` → `pendulumToAssethubXcm` / `pendulumToHydrationXcm` → `hydrationSwap` → `hydrationToAssethubXcm`) was used by the legacy Monerium-EUR-via-Pendulum corridor and by `avenia-to-assethub` BRL→AssetHub. Both corridors are **inactive**: Monerium was replaced by Mykobo-on-Base, and BRL↔AssetHub is temporarily disabled at quote eligibility. The Substrate-branch on-ramp handlers remain registered but are not reached by any active route.
 
 #### Off-Ramp Phase Flow
+
+The BRL (BRLA) and EUR (Mykobo) off-ramp corridors share the entire chain from `fundEphemeral` through `subsidizePostSwap`. Only the terminal payout phase differs (`brlaPayoutOnBase` vs `mykoboPayoutOnBase`).
 
 ```mermaid
 graph TD
     Start([Start Off-Ramp]) --> Init[initial]
     Init --> Corridor{Output fiat?}
 
-    %% --- BRL via Avenia/BRLA on Base ---
+    %% --- Shared Base entry: BRL + EUR ---
     %% The user-signed Squid bridge (source EVM -> Base USDC) is submitted client-side
-    %% before the backend runtime starts; squidRouterPay is a no-op for SELL.
-    %% AssetHub -> BRL is temporarily disabled at quote eligibility.
-    Corridor -->|BRL on Base| BrlFund[fundEphemeral]
-    BrlFund --> BrlDistEvm["distributeFees (EVM branch)"]
-    BrlDistEvm --> BrlSubPreEvm[subsidizePreSwap]
-    BrlSubPreEvm --> BrlApproveEvm["nablaApprove (EVM branch)"]
-    BrlApproveEvm --> BrlSwapEvm["nablaSwap (EVM branch, USDC to BRLA)"]
-    BrlSwapEvm --> BrlSubPostEvm[subsidizePostSwap]
-    BrlSubPostEvm --> BrlPayout[brlaPayoutOnBase]
+    %% before the backend runtime starts. AssetHub -> BRL is temporarily disabled at quote eligibility.
+    Corridor -->|BRL or EUR on Base| BaseFund[fundEphemeral]
+    BaseFund --> BaseDistEvm["distributeFees (EVM branch)"]
+    BaseDistEvm --> BaseSubPreEvm["subsidizePreSwap (EVM branch)"]
+    BaseSubPreEvm --> BaseApproveEvm["nablaApprove (EVM branch)"]
+    BaseApproveEvm --> BaseSwapEvm["nablaSwap (EVM branch, USDC to BRLA or USDC to EURC)"]
+    BaseSwapEvm --> BaseSubPostEvm["subsidizePostSwap (EVM branch)"]
+    BaseSubPostEvm --> Payout{Output fiat?}
+
+    %% --- Per-corridor terminal payout phase ---
+    Payout -->|BRL| BrlPayout[brlaPayoutOnBase]
+    Payout -->|EUR| MykPayout[mykoboPayoutOnBase]
     BrlPayout --> Complete([complete])
-    Complete -.post-process.-> BaseCleanupBrl[BaseChainPostProcessHandler<br/>sweeps BRLA + USDC]
-
-    %% --- EUR via Mykobo on Base ---
-    %% The user-signed Squid bridge (source EVM -> Base USDC) is submitted client-side
-    %% before the backend runtime starts. Replaces the legacy Stellar-anchored EUR off-ramp.
-    Corridor -->|EUR via Mykobo on Base| MykFund[fundEphemeral]
-    MykFund --> MykDistEvm["distributeFees (EVM branch)"]
-    MykDistEvm --> MykSubPreEvm[subsidizePreSwap]
-    MykSubPreEvm --> MykApproveEvm["nablaApprove (EVM branch)"]
-    MykApproveEvm --> MykSwapEvm["nablaSwap (EVM branch, USDC to EURC)"]
-    MykSwapEvm --> MykSubPostEvm[subsidizePostSwap]
-    MykSubPostEvm --> MykPayout[mykoboPayoutOnBase]
     MykPayout --> Complete
-    Complete -.post-process.-> BaseCleanupEur[BaseChainPostProcessHandler<br/>sweeps EURC + USDC + AxlUSDC]
 
-    %% --- ARS via Stellar (EUR was migrated to Mykobo) ---
-    Corridor -->|ARS via Stellar| StellarStart{Source chain?}
-    StellarStart -->|EVM| MoonToPendulum[moonbeamToPendulumXcm]
-    StellarStart -->|AssetHub| AhDist[distributeFees]
-    MoonToPendulum --> EvmDist[distributeFees]
-    EvmDist --> SubPre[subsidizePreSwap]
-    AhDist --> SubPre
-    SubPre --> NablaApprove[nablaApprove]
-    NablaApprove --> NablaSwap[nablaSwap - input to wrapped EURC]
-    NablaSwap --> SubPost[subsidizePostSwap]
-    SubPost --> Spacewalk[spacewalkRedeem]
-    Spacewalk --> StellarPay[stellarPayment]
-    StellarPay --> Complete
+    %% --- Base post-process cleanup (after complete, out-of-flow) ---
+    Complete -.post-process.-> BaseCleanup[BaseChainPostProcessHandler<br/>sweeps BRLA + USDC + EURC + AxlUSDC]
 
-    %% --- Alfredpay ---
+    %% --- Alfredpay (Polygon, different chain) ---
     Corridor -->|Alfredpay| AfPermit[squidRouterPermitExecute]
     AfPermit --> AfFund[fundEphemeral]
     AfFund --> AfFinalSubsidy[finalSettlementSubsidy]
@@ -169,7 +144,10 @@ graph TD
     AfTransfer --> Complete
 ```
 
-> Note: `pendulumCleanup` and any chain-specific post-process handlers (`PolygonPostProcessHandler`, `HydrationPostProcessHandler`, `BaseChainPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
+> Notes:
+> - The ARS-via-Stellar off-ramp is **REMOVED.** Backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered. See `stellar-anchors.md`.
+> - `BaseChainPostProcessHandler` sweeps **all four** Base tokens regardless of corridor (`base-chain-post-process-handler.ts:9`: `BASE_CLEANUP_PHASES = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"]`). Per-corridor route builders only presign the subset they need.
+> - `pendulumCleanup` and other chain-specific post-process handlers (`PolygonPostProcessHandler`, `HydrationPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
 
 ### Phase Handler Categories
 

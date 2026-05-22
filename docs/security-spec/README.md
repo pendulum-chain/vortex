@@ -37,7 +37,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (active EUR rail) |
 | Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
-| Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (ARS-only; EUR migrated to Mykobo) |
+| Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
