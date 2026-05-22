@@ -222,7 +222,7 @@ A malicious client could sign a Stellar payment for 0.0001 XLM to their own addr
 | **Found** | Code audit, iteration 2 |
 | **Impact** | A hanging external service can block the caller indefinitely. For phase handlers, this stalls ramp processing. For price feeds, this stalls quote generation. |
 
-**Description:** Of 16+ `fetch()` calls to external services, only `webhook-delivery.service.ts` uses `AbortController` with a timeout. All others (Monerium, CoinGecko, Moonpay, Transak, AlchemyPay, Subscan, Slack, ramp helpers) make HTTP requests without any timeout or `AbortSignal`.
+**Description:** Of 16+ `fetch()` calls to external services, only `webhook-delivery.service.ts` uses `AbortController` with a timeout. All others (Mykobo, BRLA, CoinGecko, Moonpay, Transak, AlchemyPay, Subscan, Slack, ramp helpers) make HTTP requests without any timeout or `AbortSignal`. The historical Monerium `fetch` calls had the same gap and have been carried forward into the Mykobo client.
 
 **Fix:** Add `AbortController` with appropriate timeouts (e.g., 10-30s) to all external `fetch()` calls. Consider a shared utility function like `fetchWithTimeout(url, options, timeoutMs)`.
 
@@ -654,39 +654,37 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 ---
 
-### F-023: Monerium SEPA Timeout May Be Too Short
+### F-023: Monerium SEPA Timeout May Be Too Short (SUPERSEDED)
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/monerium-onramp-mint-handler.ts` |
-| **Spec** | `05-integrations/monerium.md` |
-| **Status** | 🟡 **DEFERRED** — needs runtime testing to validate |
+| **Location** | `apps/api/src/api/services/phases/handlers/monerium-onramp-mint-handler.ts` (legacy) |
+| **Spec** | `05-integrations/monerium.md` (deprecated) → see `05-integrations/mykobo.md` |
+| **Status** | ⚪ **SUPERSEDED** — Monerium is removed; EUR on-ramp now uses Mykobo on Base with a 24h outer payment timeout |
 | **Found** | Code audit, iteration 2, Module 05 |
-| **Impact** | Legitimate SEPA on-ramp payments could be marked as failed if Monerium takes longer than 30 minutes to mint EURe after SEPA settlement. |
+| **Impact** | (Historical) Legitimate SEPA on-ramp payments could be marked as failed if Monerium took longer than 30 minutes to mint EURe after SEPA settlement. |
 
-**Description:** The `monerium-onramp-mint-handler.ts` uses `PAYMENT_TIMEOUT_MS` (30 minutes) to wait for EURe token arrival on Polygon. SEPA transfers take 1-3 business days to settle. The 30-minute timeout may be too short if Monerium's processing itself takes time after SEPA arrives.
+**Description:** The legacy `monerium-onramp-mint-handler.ts` used `PAYMENT_TIMEOUT_MS` (30 minutes) to wait for EURe token arrival on Polygon. SEPA transfers take 1-3 business days to settle.
 
-**CTO Clarification (2026-04-02):** The timer starts at ramp creation — NOT after Monerium confirms SEPA settlement. The flow works because the ramp isn't created until the SEPA transfer is expected to have already settled and Monerium is expected to mint EURe imminently. However, if Monerium processing is delayed beyond 30 minutes after the ramp is created, the ramp will fail even if the payment was legitimate.
-
-**Fix:** Verify that the 30-minute window is sufficient for the expected Monerium processing time after SEPA settlement. If not, extend the timeout or implement a webhook-based flow where Monerium notifies completion rather than polling.
+**Resolution:** The EUR on-ramp has been migrated to Mykobo (`mykobo-onramp-deposit-handler.ts`) which uses a **24-hour `PAYMENT_TIMEOUT_MS`** with a 5-minute inner balance-check timeout that surfaces as a recoverable error. This matches SEPA business-day cutoffs and removes the original 30-minute tightness. The legacy 30-minute window is no longer reached by any active corridor.
 
 ---
 
-### F-024: No Concurrent SEPA Ramp Limit Per User
+### F-024: No Concurrent SEPA Ramp Limit Per User (CARRIED FORWARD TO MYKOBO)
 
 | Field | Value |
 |---|---|
 | **Location** | Ramp creation flow (no per-user limit enforcement) |
-| **Spec** | `05-integrations/monerium.md` |
-| **Status** | 🟡 **DEFERRED** — requires new DB queries and ramp creation changes |
+| **Spec** | `05-integrations/mykobo.md` (formerly `monerium.md`) |
+| **Status** | 🟡 **DEFERRED — STILL APPLIES** — requires new DB queries and ramp creation changes; same risk now applies to Mykobo SEPA flows |
 | **Found** | Code audit, iteration 2, Module 05 |
-| **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). |
+| **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). With Mykobo's 24h outer timeout the exposure window per pending ramp is **larger** than under the previous 30-minute Monerium window. |
 
-**Description:** No per-user concurrent ramp limit is enforced for Monerium SEPA flows. A user can create unlimited pending SEPA ramps. Each ramp consumes: (1) a database row with state tracking, (2) periodic phase processing cycles (polling for token arrival), (3) a slot in the phase processor queue. The 30-minute timeout per ramp partially mitigates this (each ramp auto-fails after 30 min), but during those 30 minutes the system is actively polling for each ramp.
+**Description:** No per-user concurrent ramp limit is enforced for Mykobo SEPA on-ramp flows (previously: Monerium). A user can create unlimited pending SEPA ramps. Each ramp consumes: (1) a database row with state tracking, (2) periodic phase processing cycles (polling for EURC arrival on Base), (3) a slot in the phase processor queue. With Mykobo's 24h timeout, each unpaid ramp now stays active for up to 24 hours rather than 30 minutes.
 
 **CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
-**Fix:** Add a per-user limit on concurrent pending ramps (e.g., max 3 pending SEPA ramps per user). Enforce at ramp creation time.
+**Fix:** Add a per-user limit on concurrent pending ramps (e.g., max 3 pending SEPA Mykobo ramps per user). Enforce at ramp creation time. The original Monerium-specific recommendation now applies to the Mykobo handler.
 
 ---
 
