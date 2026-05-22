@@ -1222,11 +1222,14 @@ export class RampService extends BaseRampService {
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
-      } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
-        throw new APIError({
-          message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
-          status: httpStatus.BAD_REQUEST
-        });
+      } else if (rampState.from !== Networks.AssetHub) {
+        const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
+        if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
+          throw new APIError({
+            message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
+            status: httpStatus.BAD_REQUEST
+          });
+        }
       }
     }
   }
