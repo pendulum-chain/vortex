@@ -125,17 +125,11 @@ export const rampMachine = setup({
       })
     },
     SET_EXTERNAL_ID: {
-      // New sessionId (different from the one in context, or none was set): reset and reload so the new params drive a fresh quote.
-      actions: [
-        assign({
-          ...initialRampContext,
-          externalSessionId: ({ event }) => event.externalSessionId
-        }),
-        () => window.location.reload()
-      ],
+      // New sessionId (different from the one in context, or none was set): hard-reload so the new params drive a fresh quote.
+      // The reload wipes XState state entirely, so an assign/target here would never execute.
+      actions: [() => window.location.reload()],
       guard: ({ context, event }) =>
-        event.externalSessionId !== undefined && event.externalSessionId !== context.externalSessionId,
-      target: ".Idle"
+        event.externalSessionId !== undefined && event.externalSessionId !== context.externalSessionId
     },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({

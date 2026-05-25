@@ -1,6 +1,6 @@
 import { createActorContext, useSelector } from "@xstate/react";
-import { ActorRef, Snapshot } from "xstate";
 import React, { PropsWithChildren, useEffect } from "react";
+import { ActorRef, Snapshot } from "xstate";
 import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
@@ -17,9 +17,19 @@ import {
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
 
-const restoredStateJSON = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
-let restoredState = restoredStateJSON ? JSON.parse(restoredStateJSON) : undefined;
-restoredState = restoredState?.status === "error" ? undefined : restoredState;
+function readPersistedRampState(): Snapshot<unknown> | undefined {
+  try {
+    const raw = localStorage.getItem(RAMP_STATE_STORAGE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    return parsed?.status === "error" ? undefined : parsed;
+  } catch {
+    localStorage.removeItem(RAMP_STATE_STORAGE_KEY);
+    return undefined;
+  }
+}
+
+const restoredState = readPersistedRampState();
 
 export const RampStateContext = createActorContext(rampMachine, {
   snapshot: restoredState
@@ -47,7 +57,8 @@ function useKycChildSelector<TActor extends AnyActorRef, TSnapshot extends { val
       return (
         (prev as { stateValue: unknown; context: unknown }).stateValue ===
           (next as { stateValue: unknown; context: unknown }).stateValue &&
-        (prev as { stateValue: unknown; context: unknown }).context === (next as { stateValue: unknown; context: unknown }).context
+        (prev as { stateValue: unknown; context: unknown }).context ===
+          (next as { stateValue: unknown; context: unknown }).context
       );
     }
   );

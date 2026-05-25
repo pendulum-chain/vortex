@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
-import { FiatToken } from "@vortexfi/shared";
+import { FiatToken, isFiatToken } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
@@ -53,8 +53,11 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
 
   const walletForm = walletLockedFromState || address || undefined;
 
+  const rawFiatCurrency = quote?.rampType === "BUY" ? quote.inputCurrency : quote?.outputCurrency;
+  const fiatToken = rawFiatCurrency && isFiatToken(rawFiatCurrency) ? rawFiatCurrency : undefined;
+
   const { form } = useRampForm({
-    fiatToken: quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken),
+    fiatToken,
     pixId,
     taxId,
     walletAddress: walletForm
@@ -67,9 +70,10 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
       form.setValue("walletAddress", walletLockedFromState);
     }
 
-    const fiatToken = quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken);
-    form.setValue("fiatToken", fiatToken);
-  }, [form, address, walletLockedFromState, quote]);
+    if (fiatToken) {
+      form.setValue("fiatToken", fiatToken);
+    }
+  }, [form, address, walletLockedFromState, fiatToken]);
 
   const { onRampConfirm } = useRampSubmission();
 
