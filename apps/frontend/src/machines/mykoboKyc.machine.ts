@@ -30,16 +30,19 @@ export class MykoboKycMachineError extends Error {
 const POLLING_INTERVAL_MS = 5000;
 const POLLING_TIMEOUT_MS = 20 * 60 * 1000;
 
+function requireWalletAddress(input: MykoboKycContext): string {
+  const address = input.connectedWalletAddress;
+  if (!address) throw new Error("Wallet address is required");
+  return address;
+}
+
 export const mykoboKycMachine = setup({
   actors: {
     checkExistingProfile: fromPromise(async ({ input }: { input: MykoboKycContext }) => {
-      const address = input.connectedWalletAddress;
-      if (!address) throw new Error("Wallet address is required");
-      return MykoboService.getProfile(address);
+      return MykoboService.getProfile(requireWalletAddress(input));
     }),
     pollProfileStatus: fromPromise(async ({ input, signal }: { input: MykoboKycContext; signal: AbortSignal }) => {
-      const address = input.connectedWalletAddress;
-      if (!address) throw new Error("Wallet address is required");
+      const address = requireWalletAddress(input);
       const deadline = Date.now() + POLLING_TIMEOUT_MS;
       while (Date.now() < deadline) {
         if (signal.aborted) throw new Error("Polling aborted");
@@ -54,6 +57,7 @@ export const mykoboKycMachine = setup({
           if (isApiError(err) && err.status >= 400 && err.status < 500) throw err;
           console.warn("Mykobo profile poll failed, retrying:", err);
         }
+        // Wait POLLING_INTERVAL_MS or until the actor is aborted, whichever comes first.
         await new Promise<void>(resolve => {
           const timer = setTimeout(() => {
             signal.removeEventListener("abort", onAbort);
@@ -72,12 +76,10 @@ export const mykoboKycMachine = setup({
       if (!input.formData || !input.files) {
         throw new Error("Form data and files are required");
       }
-      const address = input.connectedWalletAddress;
-      if (!address) throw new Error("Wallet address is required");
       return MykoboService.createProfile({
         ...input.formData,
         ...input.files,
-        walletAddress: address
+        walletAddress: requireWalletAddress(input)
       });
     })
   },

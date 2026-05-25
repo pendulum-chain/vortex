@@ -58,8 +58,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
-    quoteLocked: state.context.quoteLocked,
-    rampState: state.context.rampState
+    quoteLocked: state.context.quoteLocked
   }));
 
   const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;

@@ -30,6 +30,35 @@ interface UseButtonContentProps {
   submitButtonDisabled: boolean;
 }
 
+interface LockedWalletArgs {
+  walletLocked: string | undefined;
+  accountAddress: string | undefined;
+  isOfframp: boolean;
+  quoteFrom: string | undefined;
+}
+
+function isLockedToAnotherWallet({ walletLocked, accountAddress, isOfframp, quoteFrom }: LockedWalletArgs): boolean {
+  if (!walletLocked || !accountAddress) return false;
+  if (!isOfframp && quoteFrom !== "sepa") return false;
+  return getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0);
+}
+
+function getQuoteReadyContent(args: {
+  isOnramp: boolean;
+  isAnchorWithoutRedirect: boolean;
+  inputCurrency: string | undefined;
+  t: ReturnType<typeof useTranslation>["t"];
+}) {
+  const { isOnramp, isAnchorWithoutRedirect, inputCurrency, t } = args;
+  if (isOnramp && isAnchorWithoutRedirect) {
+    return { icon: null, text: t("components.SummaryPage.confirm") };
+  }
+  if (isOnramp && inputCurrency === FiatToken.BRL) {
+    return { icon: null, text: t("components.SummaryPage.continue") };
+  }
+  return { icon: null, text: t("components.SummaryPage.verifyWallet") };
+}
+
 const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
@@ -53,15 +82,10 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
     const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
-    if (
-      walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
-      accountAddress &&
-      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
-    ) {
+    if (isLockedToAnotherWallet({ accountAddress, isOfframp, quoteFrom: quote?.from, walletLocked })) {
       return {
         icon: null,
-        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked as string) })
       };
     }
 
@@ -70,71 +94,35 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
-      if (isOnramp && isAnchorWithoutRedirect) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.confirm")
-        };
-      } else if (isOnramp && quote?.inputCurrency === FiatToken.BRL) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.continue")
-        };
-      } else {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.verifyWallet")
-        };
-      }
+      return getQuoteReadyContent({ inputCurrency: quote?.inputCurrency, isAnchorWithoutRedirect, isOnramp, t });
     }
 
     if (isQuoteExpired && !hasAchPaymentData) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.quoteExpired")
-      };
+      return { icon: null, text: t("components.SummaryPage.quoteExpired") };
     }
 
     if (machineState === "KycComplete") {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
     if (submitButtonDisabled) {
-      return {
-        icon: <Spinner />,
-        text: t("components.swapSubmitButton.processing")
-      };
+      return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
     }
 
     if (isOfframp && isAnchorWithoutRedirect) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
     if (isOfframp && rampState !== undefined) {
-      return {
-        icon: <Spinner />,
-        text: t("components.SummaryPage.processing")
-      };
+      return { icon: <Spinner />, text: t("components.SummaryPage.processing") };
     }
 
     if (isOnramp && isDepositQrCodeReady && !rampPaymentConfirmed) {
-      return {
-        icon: null,
-        text: t("components.swapSubmitButton.confirmPayment")
-      };
+      return { icon: null, text: t("components.swapSubmitButton.confirmPayment") };
     }
 
     if (isOnramp && !isDepositQrCodeReady) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
     if (isOfframp && isAnchorWithRedirect) {
@@ -143,10 +131,7 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
         text: t("components.SummaryPage.continueWithPartner")
       };
     }
-    return {
-      icon: <Spinner />,
-      text: t("components.swapSubmitButton.processing")
-    };
+    return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
   }, [
     submitButtonDisabled,
     isQuoteExpired,
@@ -194,12 +179,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       return true;
     }
 
-    if (
-      walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
-      accountAddress &&
-      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
-    ) {
+    if (isLockedToAnotherWallet({ accountAddress, isOfframp, quoteFrom: quote?.from, walletLocked })) {
       return true;
     }
     if (machineState === "QuoteReady") {
