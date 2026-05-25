@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, KycFailureReason } from "@vortexfi/shared";
+import { FiatToken, KycFailureReason } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -14,6 +14,17 @@ import {
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
 import { RampContext } from "./types";
+
+type KycChildId = "aveniaKyc" | "alfredpayKyc" | "mykoboKyc";
+
+const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
+  [FiatToken.EURC]: "mykoboKyc",
+  [FiatToken.BRL]: "aveniaKyc",
+  [FiatToken.ARS]: "alfredpayKyc",
+  [FiatToken.USD]: "alfredpayKyc",
+  [FiatToken.MXN]: "alfredpayKyc",
+  [FiatToken.COP]: "alfredpayKyc"
+};
 
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
@@ -69,17 +80,9 @@ export const kycStateNode = {
     SummaryConfirm: {
       actions: [
         sendTo(
-          ({ context }) => {
-            if (context.executionInput?.fiatToken === FiatToken.BRL) {
-              return "aveniaKyc";
-            }
-            if (context.executionInput?.fiatToken === FiatToken.EURC) {
-              return "mykoboKyc";
-            }
-            if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
-              return "alfredpayKyc";
-            }
-            return "aveniaKyc";
+          ({ context }: { context: RampContext }) => {
+            const fiatToken = context.executionInput?.fiatToken;
+            return fiatToken ? KYC_CHILD_BY_FIAT[fiatToken] : "aveniaKyc";
           },
           { type: "SummaryConfirm" }
         )
@@ -102,7 +105,7 @@ export const kycStateNode = {
           {
             actions: assign({
               initializeFailedMessage: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) =>
-                (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
+                event.output.error?.message || "An unknown error occurred"
             }),
             guard: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) => !!event.output.error,
             target: "#ramp.KycFailure"
@@ -141,7 +144,7 @@ export const kycStateNode = {
           {
             actions: assign({
               initializeFailedMessage: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) =>
-                (event.output.error as AveniaKycMachineError).message
+                event.output.error?.message || "An unknown error occurred"
             }),
             target: "#ramp.KycFailure"
           }
@@ -159,15 +162,12 @@ export const kycStateNode = {
       always: [
         {
           guard: ({ context }: { context: RampContext }) =>
-            !!context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken),
+            !!context.executionInput?.fiatToken && KYC_CHILD_BY_FIAT[context.executionInput.fiatToken] === "alfredpayKyc",
           target: "Alfredpay"
         },
         {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
-          target: "Avenia"
-        },
-        {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.EURC,
+          guard: ({ context }: { context: RampContext }) =>
+            !!context.executionInput?.fiatToken && KYC_CHILD_BY_FIAT[context.executionInput.fiatToken] === "mykoboKyc",
           target: "Mykobo"
         },
         {

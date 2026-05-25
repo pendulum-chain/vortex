@@ -138,11 +138,9 @@ export function invalidateOnChainTokensCache(): void {
   cachedEvmConfigRef = null;
 }
 
-function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
+function getFiatTokens(): ExtendedTokenDefinition[] {
   const moonbeamEntries = Object.entries(moonbeamTokenConfig);
-  const freeFiatCurrencyEntries = Object.entries(freeTokenConfig).filter(([, value]) =>
-    filterEurcOnly ? value.fiat.symbol === FiatToken.EURC : true
-  );
+  const freeFiatCurrencyEntries = Object.entries(freeTokenConfig);
 
   return [...moonbeamEntries, ...freeFiatCurrencyEntries].map(([, value]) => {
     const details = value as FiatTokenDetails;
@@ -159,10 +157,6 @@ function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
   });
 }
 
-function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  return direction === RampDirection.BUY && type === "from";
-}
-
 export function useIsFiatDirection() {
   const { tokenSelectModalType } = useTokenSelectionState();
   const rampDirection = useRampDirection();
@@ -176,7 +170,7 @@ function isFiatDirection(type: "from" | "to", direction: RampDirection) {
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
   if (isFiatDirection(type, direction)) {
-    return getFiatTokens(isFilterEurcOnly(type, direction));
+    return getFiatTokens();
   } else {
     return getAllOnChainTokens();
   }

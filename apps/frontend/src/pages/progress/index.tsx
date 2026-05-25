@@ -45,6 +45,8 @@ const useProgressUpdate = (
   setShowCheckmark: (value: boolean) => void
 ) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Capture start-of-phase percentage in a ref so the effect doesn't re-run (and clear the interval) every tick.
+  const startPercentageRef = useRef(displayedPercentage);
 
   useEffect(() => {
     if (intervalRef.current) {
@@ -54,7 +56,7 @@ const useProgressUpdate = (
     const targetPercentage = Math.round((100 / numberOfPhases) * (currentPhaseIndex + 1));
     const duration = PHASE_DURATIONS[currentPhase] * 1000;
     const startTime = Date.now();
-    const startPercentage = displayedPercentage;
+    const startPercentage = startPercentageRef.current;
 
     const calculateProgress = () => {
       const elapsedTime = Date.now() - startTime;
@@ -67,6 +69,7 @@ const useProgressUpdate = (
       const newPercentage = calculateProgress();
 
       setDisplayedPercentage(() => {
+        startPercentageRef.current = newPercentage;
         if (newPercentage >= targetPercentage) {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
@@ -84,7 +87,7 @@ const useProgressUpdate = (
         clearInterval(intervalRef.current);
       }
     };
-  }, [currentPhase, currentPhaseIndex, displayedPercentage, numberOfPhases, setDisplayedPercentage, setShowCheckmark]);
+  }, [currentPhase, currentPhaseIndex, numberOfPhases, setDisplayedPercentage, setShowCheckmark]);
 };
 
 const CIRCLE_RADIUS = 80;
@@ -285,9 +288,16 @@ export const ProgressPage = () => {
   // the next poll lands.
   useEffect(() => {
     const newPhase = rampState?.ramp?.currentPhase ?? "initial";
+    if (newPhase === prevPhaseRef.current) return;
+    const phaseIndex = phaseSequence.indexOf(newPhase);
+    trackEvent({
+      event: "progress",
+      phase_index: phaseIndex >= 0 ? phaseIndex : 0,
+      phase_name: newPhase
+    });
     prevPhaseRef.current = newPhase;
     setCurrentPhase(newPhase);
-  }, [rampState?.ramp?.currentPhase]);
+  }, [rampState?.ramp?.currentPhase, phaseSequence, trackEvent]);
 
   useEffect(() => {
     if (!rampId || !flowType) return;
@@ -315,19 +325,6 @@ export const ProgressPage = () => {
           rampState: { ...latest, ramp: updatedRampProcess },
           type: "SET_RAMP_STATE"
         });
-
-        const maybeNewPhase = updatedRampProcess.currentPhase;
-        if (maybeNewPhase !== prevPhaseRef.current) {
-          const phaseIndex = phaseSequence.indexOf(maybeNewPhase);
-          trackEvent({
-            event: "progress",
-            phase_index: phaseIndex >= 0 ? phaseIndex : 0,
-            phase_name: maybeNewPhase
-          });
-
-          prevPhaseRef.current = maybeNewPhase;
-          setCurrentPhase(maybeNewPhase);
-        }
       } catch (error) {
         if (!cancelled) console.error("Failed to fetch ramp state:", error);
       }
@@ -340,7 +337,7 @@ export const ProgressPage = () => {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [rampId, flowType, phaseSequence, rampActor, trackEvent]);
+  }, [rampId, flowType, rampActor]);
 
   return (
     <main>
