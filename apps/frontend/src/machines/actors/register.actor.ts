@@ -69,8 +69,12 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       taxId: executionInput.taxId
     };
   } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
+    if (!input.userEmail) {
+      throw new RegisterRampError("User email is required for Mykobo EUR onramp.", RegisterRampErrorType.InvalidInput);
+    }
     additionalData = {
       destinationAddress: executionInput.sourceOrDestinationAddress,
+      email: input.userEmail,
       sessionId: input.externalSessionId
     };
   } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {

@@ -181,8 +181,8 @@ export interface RegisterRampRequest {
     receiverTaxId?: string;
     taxId?: string;
     sessionId?: string;
-    email?: string; // Required for Mykobo EUR offramps (binds ramp to anchor profile)
-    ipAddress?: string; // Required for Mykobo EUR offramps (user IP for fraud checks)
+    email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
+    ipAddress?: string; // Required for Mykobo EUR ramps (user IP for fraud checks; auto-filled from req.ip if omitted)
     [key: string]: unknown;
   };
 }
