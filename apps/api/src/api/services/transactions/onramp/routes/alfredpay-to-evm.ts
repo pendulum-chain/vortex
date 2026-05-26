@@ -55,6 +55,10 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error("Missing alfredpay raw mint amount in quote metadata");
   }
 
+  if (!quote.metadata.evmToEvm?.outputAmountRaw) {
+    throw new Error("Missing evmToEvm raw output amount in quote metadata");
+  }
+
   const toNetwork = getNetworkFromDestination(quote.to);
   if (!toNetwork || toNetwork === Networks.AssetHub) {
     throw new Error(`Invalid network for destination ${quote.to}`);
@@ -104,7 +108,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
-      amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+      amountRaw: quote.metadata.evmToEvm?.outputAmountRaw,
       destinationNetwork: toNetwork as EvmNetworks,
       toAddress: destinationAddress,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
