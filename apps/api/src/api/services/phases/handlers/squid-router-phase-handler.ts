@@ -2,10 +2,8 @@ import {
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
-  EvmToken,
-  EvmTokenDetails,
-  evmTokenConfig,
   FiatToken,
+  getEvmTokenDetailsByAddress,
   getNetworkFromDestination,
   getNetworkId,
   isAlfredpayToken,
@@ -65,20 +63,28 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     const isAlfredpayOnramp =
       state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
 
-    // TODO also add check for Avenia onramp USDC on Base
-
     if (isAlfredpayOnramp) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
-    if (quote.to === Networks.Base && quote.outputCurrency === EvmToken.USDC) {
-      return this.transitionToNextPhase(state, "destinationTransfer");
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    if (
+      !bridgeMeta?.inputAmountRaw ||
+      !bridgeMeta.fromNetwork ||
+      !bridgeMeta.fromToken ||
+      !bridgeMeta.toNetwork ||
+      !bridgeMeta.toToken
+    ) {
+      throw new Error("Missing bridge metadata required to validate squidRouter input balance");
     }
 
-    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
-    if (!bridgeMeta?.inputAmountRaw || !bridgeMeta.fromNetwork || !bridgeMeta.fromToken) {
-      throw new Error("Missing bridge metadata required to validate squidRouter input balance");
+    const isSameChainSameTokenPassthrough =
+      bridgeMeta.fromNetwork === bridgeMeta.toNetwork &&
+      bridgeMeta.fromToken.toLowerCase() === bridgeMeta.toToken.toLowerCase();
+    if (isSameChainSameTokenPassthrough) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for same-chain same-token passthrough (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
     const evmEphemeralAddress = state.state.evmEphemeralAddress;
@@ -87,9 +93,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     const sourceNetwork = bridgeMeta.fromNetwork as EvmNetworks;
-    const sourceTokenDetails = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
-      token => token.erc20AddressSourceChain.toLowerCase() === bridgeMeta.fromToken.toLowerCase()
-    ) as EvmTokenDetails | undefined;
+    const sourceTokenDetails = getEvmTokenDetailsByAddress(sourceNetwork, bridgeMeta.fromToken);
 
     if (!sourceTokenDetails) {
       throw new Error(
@@ -107,7 +111,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
           timeoutMs: 15000,
           tokenDetails: sourceTokenDetails
         });
-      } catch (error) {
+      } catch (_error) {
         throw this.createRecoverableError(
           `Unable to verify squidRouter input balance for ${evmEphemeralAddress} on ${sourceNetwork}; balance may not be settled yet`
         );

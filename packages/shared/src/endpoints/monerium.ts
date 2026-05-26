@@ -30,6 +30,7 @@ export interface IbanData {
   profile: string;
   address: string;
   chain: string;
+  name: string;
 }
 
 export interface IbanDataResponse {
@@ -79,4 +80,16 @@ export enum MoneriumErrors {
 // TODO: Move these types to a more generic file if they are used outside of Monerium endpoints
 export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
 
-export type PermitSignature = Signature;
+export interface PermitSignatureContext {
+  owner: `0x${string}`;
+  spender: `0x${string}`;
+  valueRaw: string;
+  nonce: string;
+  deadline: string;
+  tokenAddress: `0x${string}`;
+  tokenName: string;
+  tokenVersion: string;
+  chainId: number;
+}
+
+export type PermitSignature = Signature & { context?: PermitSignatureContext };
