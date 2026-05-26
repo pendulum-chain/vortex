@@ -1,8 +1,15 @@
-import { ALFREDPAY_EVM_TOKEN, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, EvmToken, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
+
+// The Squid bridge target depends on the destination network's downstream path:
+// - Base: routes through Nabla AMM, which only has a USDC pool (see OffRampSwapEngineEvm).
+// - Polygon: pays out directly via Alfredpay, which settles in USDT.
+function getBridgeTargetToken(network: Networks): EvmToken {
+  return network === Networks.Base ? EvmToken.USDC : ALFREDPAY_EVM_TOKEN;
+}
 
 export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
   private readonly network: Networks;
@@ -26,7 +33,7 @@ export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
       amountDecimal: req.inputAmount,
       fromNetwork: req.from as Networks,
       inputCurrency: req.inputCurrency as OnChainToken,
-      outputCurrency: ALFREDPAY_EVM_TOKEN,
+      outputCurrency: getBridgeTargetToken(this.network),
       rampType: req.rampType,
       toNetwork: this.network
     };
