@@ -213,10 +213,13 @@ export async function signUnsignedTransactions(
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
   const destinationNetworkTxs = unsignedTxs.filter(
     tx =>
-      tx.phase === "destinationTransfer" ||
-      tx.phase === "backupSquidRouterApprove" ||
-      tx.phase === "backupSquidRouterSwap" ||
-      tx.phase === "backupApprove"
+      (tx.phase === "destinationTransfer" ||
+        tx.phase === "backupSquidRouterApprove" ||
+        tx.phase === "backupSquidRouterSwap" ||
+        tx.phase === "backupApprove") &&
+      tx.network !== Networks.Polygon &&
+      tx.network !== Networks.PolygonAmoy &&
+      tx.network !== Networks.Base
   );
 
   try {

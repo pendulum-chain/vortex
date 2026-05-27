@@ -123,7 +123,9 @@ async function verifySignedEvmTransaction(
       });
     }
 
-    if (parsed.data?.toLowerCase() !== unsignedTxData.data.toLowerCase()) {
+    const normalizedActual = (parsed.data ?? "0x").toLowerCase();
+    const normalizedExpected = (unsignedTxData.data || "0x").toLowerCase();
+    if (normalizedActual !== normalizedExpected) {
       throw new APIError({
         message: "Signed EVM transaction data does not match expected data",
         status: httpStatus.BAD_REQUEST
