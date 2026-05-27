@@ -1,9 +1,6 @@
-import { FiatToken } from "../../tokens/types/base";
+import { AlfredpayCustomerType, FiatToken, RampCurrency } from "../../tokens/types/base";
 
-export enum AlfredpayCustomerType {
-  INDIVIDUAL = "INDIVIDUAL",
-  BUSINESS = "BUSINESS"
-}
+export { AlfredpayCustomerType };
 
 export type AlfredPayType = AlfredpayCustomerType;
 export const AlfredPayType = AlfredpayCustomerType;
@@ -356,9 +353,32 @@ export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
 
 export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 
-const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP, FiatToken.ARS]);
+const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
+  FiatToken.USD,
+  FiatToken.MXN,
+  FiatToken.COP,
+  FiatToken.ARS
+]);
 
-export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+
+/** Raw shape returned by `GET …/configurations`. `typeCustomer: null` means the pair applies to both customer types. */
+export interface AlfredpayConfigPair {
+  id: string;
+  fromCurrency: string;
+  toCurrency: string;
+  businessId: string | null;
+  maxQuantity: string;
+  minQuantity: string;
+  decimals: string;
+  typeCustomer: AlfredpayCustomerType | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetAllConfigsResponse {
+  supportedPairs: AlfredpayConfigPair[];
+}
 
 export class AlfredpayTradeLimitError extends Error {
   readonly minQuantity: string;

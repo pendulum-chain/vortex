@@ -38,7 +38,23 @@ export class AlfredpayController {
         return AlfredPayStatus.UpdateRequired;
       case AlfredpayKycStatus.CREATED:
       default:
-        return null; // Do nothing
+        return null;
+    }
+  }
+
+  private static mapKybStatus(status: AlfredpayKybStatus): AlfredPayStatus | null {
+    switch (status) {
+      case AlfredpayKybStatus.IN_REVIEW:
+        return AlfredPayStatus.Verifying;
+      case AlfredpayKybStatus.FAILED:
+        return AlfredPayStatus.Failed;
+      case AlfredpayKybStatus.COMPLETED:
+        return AlfredPayStatus.Success;
+      case AlfredpayKybStatus.UPDATE_REQUIRED:
+        return AlfredPayStatus.UpdateRequired;
+      case AlfredpayKybStatus.CREATED:
+      default:
+        return null;
     }
   }
 
@@ -57,17 +73,21 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
+      const isBusiness = alfredPayCustomer.type === AlfredpayCustomerType.BUSINESS;
 
       try {
-        const lastSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+        const lastSubmission = isBusiness
+          ? await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId)
+          : await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
 
         if (lastSubmission && lastSubmission.submissionId) {
-          const statusResponse = await alfredpayService.getKycStatus(
-            alfredPayCustomer.alfredPayId,
-            lastSubmission.submissionId
-          );
+          const statusResponse = isBusiness
+            ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId)
+            : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
 
-          const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
+          const newStatus = isBusiness
+            ? AlfredpayController.mapKybStatus(statusResponse.status)
+            : AlfredpayController.mapKycStatus(statusResponse.status);
           const updateData: Partial<AlfredPayCustomer> = {};
 
           if (newStatus && newStatus !== alfredPayCustomer.status) {

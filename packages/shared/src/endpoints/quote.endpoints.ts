@@ -1,4 +1,5 @@
 import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection } from "../index";
+import { AmountLimits } from "../tokens/types/base";
 
 // Fee structure
 export interface QuoteFeeStructure {
@@ -73,6 +74,9 @@ export interface QuoteResponse {
   expiresAt: Date;
   createdAt: Date;
   sessionId?: string;
+
+  /** Resolved AlfredPay input-side amount limits in human units of `inputCurrency`. Populated for USD/MXN/COP quotes. */
+  alfredpayInputLimits?: AmountLimits;
 }
 
 // GET /quotes/:id

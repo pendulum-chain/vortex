@@ -2,29 +2,33 @@
 
 ## What This Does
 
-Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations across multiple currencies and countries. It is used for ramps where BRLA and Monerium do not cover the target market.
+Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations across multiple currencies and countries. It is used for ramps where BRLA and Monerium do not cover the target market (e.g. ARS, MXN, COP, USD via ACH).
 
-**Provider type:** Both (on-ramp and off-ramp)  
-**Fiat currencies:** Multiple (varies by country, validated via `AlfredPayCountry` enum)  
-**Chains involved:** Polygon (primary), EVM chains via SquidRouter  
+**Provider type:** Both (on-ramp and off-ramp)
+**Fiat currencies:** Multiple (varies by country, validated via `AlfredPayCountry` enum)
+**Chains involved:** Polygon (Alfredpay-side, USDC), EVM destinations via SquidRouter (Polygon → Base/other)
+**Customer types:** Individual (KYC) and Business (KYB) — selected via `AlfredpayCustomerType`. The controller maps Alfredpay's KYB status to the platform's `AlfredPayStatus` via `mapKybStatus`; KYC is handled by `mapKycStatus`. Branch in `alfredpay.controller.ts` on `AlfredpayCustomerType.BUSINESS`.
+
 **Phase handlers:**
-- `alfredpay-onramp-mint-handler.ts` — On-ramp: Initiates Alfredpay on-ramp, receives tokens after fiat payment
-- `alfredpay-offramp-transfer-handler.ts` — Off-ramp: Sends tokens to Alfredpay for fiat payout
-- `squidRouter-permit-execution-handler.ts` — Off-ramp: Executes SquidRouter permit for the off-ramp swap
+- `alfredpay-onramp-mint-handler.ts` — On-ramp: waits for Alfredpay payment confirmation and credits USDC to the ephemeral on Polygon.
+- `alfredpay-offramp-transfer-handler.ts` — Off-ramp: transfers USDC to Alfredpay's settlement address for fiat payout. Recovers from expired upstream quotes by re-quoting at execute time (see [Quote Lifecycle — AlfredPay Provider Quote TTL](../03-ramp-engine/quote-lifecycle.md)).
+- `subsidize-pre-swap-handler.ts` — Subsidy: tops up the ephemeral's USDC balance on Polygon to the discount-engine's `targetOutputAmountRaw` before the next stage. Uses `getEvmSubsidyConfig` to pick the Alfredpay-specific funding account and token (`ALFREDPAY_EVM_TOKEN`).
+- `squid-router-phase-handler.ts` — Cross-chain bridge for non-Polygon EVM destinations. Same-chain same-token routes short-circuit via `isSameChainSameTokenPassthrough` (no SquidRouter call when source and destination are both Polygon USDC).
 
 **On-ramp flow:**
-1. User initiates on-ramp → receives fiat payment instructions from Alfredpay
-2. User makes fiat payment
-3. `alfredpayOnrampMint` phase: Alfredpay confirms payment and mints tokens on Polygon
-4. `fundEphemeral` phase: Fund ephemeral with POL for gas
-5. `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` → `complete`
+1. Quote stage emits `ctx.alfredpayOnramp` with provider `quoteId` (30s upstream TTL) and `ctx.subsidy` with the discount-engine target.
+2. User initiates on-ramp → receives Alfredpay payment instructions.
+3. User makes fiat payment.
+4. `alfredpayOnrampMint` phase: confirms Alfredpay payment, credits USDC to the ephemeral on Polygon. If the provider quote is degraded or expired and the discount engine's `expectedOutput` exceeds the provider's, the phase emits `alfredOnrampMintFallback` to record the substitution.
+5. `subsidizePreSwap` phase: tops up ephemeral USDC balance to the subsidy target (Polygon, `ALFREDPAY_EVM_TOKEN`).
+6. `squidRouterSwap` phase: bridges USDC to the destination EVM chain. For same-chain same-token (Polygon USDC → Polygon USDC), the passthrough shortcut sends the funds directly without invoking SquidRouter.
+7. `destinationTransfer` → `polygonCleanup` → `complete`.
 
 **Off-ramp flow:**
-1. `squidRouterPermitExecute` phase: Execute SquidRouter permit (authorized swap + transfer)
-2. `fundEphemeral` phase: Fund ephemeral with POL
-3. `finalSettlementSubsidy` phase: Top up if needed
-4. `alfredpayOfframpTransfer` phase: Transfer tokens to Alfredpay for fiat payout
-5. `complete`
+1. Quote stage emits `ctx.alfredpayOfframp` with provider `quoteId` and the AlfredPay fiat order is created during `prepareOfframpEvmToAlfredpay...` (see `transactions/offramp/routes/evm-to-alfredpay.ts:229`). The order is authoritative from prep time; `processAlfredpayOfframpStart` only re-validates state before phase execution.
+2. `squidRouterPermitExecute` or `squidRouterNoPermitTransfer/Approve/Swap` phase: executes the user-signed permit (or the no-permit equivalent) and lands USDC on Polygon.
+3. `alfredpayOfframpTransfer` phase: transfers USDC to Alfredpay's settlement address for fiat payout. If Alfredpay rejects the stored `quoteId` as expired, the handler requests a fresh provider quote at execute time and re-attempts (`alfredpayOfframpTransferFallback` phase records the re-attempt).
+4. `polygonCleanupAxlUsdc` → `complete`.
 
 **Request validation:** Alfredpay middleware (`alfredpay.middleware.ts`) validates the `country` parameter against the `AlfredPayCountry` enum for all Alfredpay-related requests.
 
@@ -32,33 +36,46 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 
 1. **Alfredpay API credentials MUST be stored as environment variables** — Never hardcoded or in database.
 2. **Country validation MUST use the `AlfredPayCountry` enum** — The middleware validates that the country parameter is a valid enum value before processing.
-3. **Amounts MUST match the quoted values** — On-ramp mint amounts and off-ramp payout amounts must derive from the stored quote.
-4. **Off-ramp permit execution MUST verify the signed permit data** — The SquidRouter permit is a user-signed authorization. The execute handler must verify the permit is valid before executing.
-5. **Final settlement subsidy MUST ensure the correct amount before Alfredpay transfer** — The subsidy step tops up to the exact amount needed; the transfer step sends that exact amount.
+3. **Amounts MUST match the quoted values, or be bounded by the discount engine's `expectedOutput`** — On-ramp mint amounts must derive from the stored quote; if the upstream provider quote degrades, the `alfredOnrampMintFallback` path MUST use the discount engine's `expectedOutput` and the subsidy MUST remain bounded by `maxSubsidy × expectedOutput`.
+4. **Off-ramp permit execution MUST verify the signed permit data** — The SquidRouter permit is a user-signed authorization; the execute handler MUST verify the permit is valid before executing.
+5. **Subsidy MUST run before the Alfredpay-bound transfer** — `subsidizePreSwap` (onramp) and the Squid-side stages plus `alfredpayOfframpTransfer` (offramp) MUST be ordered so the ephemeral holds the exact subsidized amount before the final transfer step.
 6. **Alfredpay API responses MUST be validated** — Status codes, transaction IDs, and amounts confirmed before phase advancement.
 7. **Alfredpay interactions MUST be retryable** — Transient failures should use `RecoverablePhaseError`.
+8. **Provider quote refresh MUST be strict** — `refreshAlfredpayOnrampQuoteIfMatching` re-binds the provider `quoteId` only when the new provider response is byte-identical on `toAmount` and `fee`. Any drift forces the route into the bounded fallback path.
+9. **Off-ramp expired-quote recovery MUST re-create the AlfredPay order, not the Vortex quote** — `alfredpay-offramp-transfer-handler.ts` re-quotes against the provider and re-issues `createOfframp` against the same Vortex quote; it MUST NOT mutate the Vortex `QuoteTicket`.
+10. **KYB and KYC status mapping MUST be branched by `AlfredpayCustomerType`** — Business customers use `mapKybStatus`; individuals use `mapKycStatus`. Treating one as the other would allow incomplete due-diligence states to pass as `Success`.
+11. **Polygon passthrough MUST preserve amount integrity** — The same-chain same-token shortcut in `squid-router-phase-handler.ts` MUST round down (`toFixed(0, 0)`) and MUST use `evmToEvm.inputAmountRaw` as the source-of-truth amount (matching the subsidy target).
 
 ## Threat Vectors & Mitigations
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Invalid country injection** | Attacker sends unsupported country code to bypass validation | `validateResultCountry` middleware checks against `AlfredPayCountry` enum; rejects invalid values with 400 |
-| **Fiat payment spoofing (on-ramp)** | User claims payment without paying | Wait for Alfredpay payment confirmation; no token minting without confirmation |
+| **Fiat payment spoofing (on-ramp)** | User claims payment without paying | Wait for Alfredpay payment confirmation; no token crediting without confirmation |
 | **Permit replay (off-ramp)** | Attacker replays a previously-used SquidRouter permit | SquidRouter permits include nonces; the permit contract rejects replayed nonces |
 | **Amount manipulation between subsidy and transfer** | Race condition modifies the balance between subsidy top-up and Alfredpay transfer | Both steps happen sequentially in the phase processor under a single ramp lock |
 | **Alfredpay API compromise** | Attacker manipulates Alfredpay API responses | Validate response amounts against quote; HTTPS enforcement; monitor for discrepancies |
-| **Multi-country regulatory complexity** | Different countries have different KYC/AML requirements | Country-specific validation at Alfredpay level; Vortex passes through validated user data |
+| **Multi-country regulatory complexity** | Different countries have different KYC/AML requirements | Country-specific validation at Alfredpay level; KYB vs KYC mapping branched by `AlfredpayCustomerType` |
+| **Provider quote-quote-fall fallback abuse** | Attacker times provider quote drift between Vortex quote and ramp start to maximise the discount-engine fallback subsidy | Provider quote TTL is ~30s; `refreshAlfredpayOnrampQuoteIfMatching` only re-binds on byte-identical `toAmount`/`fee`; otherwise the fallback path is bounded by `maxSubsidy × expectedOutput` and only fires when `targetDiscount > 0` |
+| **Expired provider quote on offramp transfer** | Provider rejects the stored `quoteId` at transfer time, blocking settlement | `alfredpay-offramp-transfer-handler.ts` re-quotes at execute time and emits `alfredpayOfframpTransferFallback`; the Vortex `QuoteTicket` is untouched |
+| **Polygon passthrough rounding** | Same-chain same-token shortcut rounds the bridge output incorrectly, leaking dust or under-funding the destination | `toFixed(0, 0)` round-down in the squid-router finalize; downstream subsidy ensures the destination receives the quoted amount |
 
 ## Audit Checklist
 
 - [x] Alfredpay API credentials loaded from environment variables. **PASS** — verified: credentials from env vars.
 - [x] `validateResultCountry` middleware applied to all Alfredpay-related endpoints. **PASS** — middleware applied in route definitions.
 - [x] Country validation uses `Object.values(AlfredPayCountry).includes()` — not string matching. **PASS** — enum-based validation confirmed.
-- [x] `alfredpayOnrampMint` handler verifies Alfredpay payment confirmation before minting. **PASS** — handler waits for Alfredpay confirmation.
-- [x] `alfredpayOfframpTransfer` handler sends the correct amount (from stored quote, post-subsidy). **PASS** — amount derived from ramp state.
+- [x] `alfredpayOnrampMint` handler verifies Alfredpay payment confirmation before crediting. **PASS** — handler waits for Alfredpay confirmation.
+- [x] `alfredpayOfframpTransfer` handler sends the correct amount (from stored quote, post-subsidy) and recovers expired provider quotes via re-quote + `createOfframp`. **PASS** — `alfredpay-offramp-transfer-handler.ts:127-136`.
 - [x] SquidRouter permit execution validates the permit data before executing. **PASS** — permit data validated via `isSignedTypedDataArray`.
 - [x] All Alfredpay phase handlers use `RecoverablePhaseError` for transient failures. **PASS** — verified in all handlers.
 - [x] HTTPS enforced for Alfredpay API calls. **PASS** — base URL uses `https://`.
 - [x] No Alfredpay credentials or user payment details in logs. **PASS** — no credential leakage observed in log statements.
 - [FAIL] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
-- [x] `finalSettlementSubsidy` runs before `alfredpayOfframpTransfer` in the off-ramp flow. **PASS** — phase ordering confirmed in flow definition.
+- [x] `subsidizePreSwap` runs before `squidRouterSwap` on the onramp flow and before `alfredpayOfframpTransfer` on the offramp flow. **PASS** — phase ordering confirmed in `fund-ephemeral-handler.ts` transition and offramp route definition.
+- [x] Onramp fallback emits `alfredOnrampMintFallback` when the discount engine's `expectedOutput` supersedes the provider's `finalOutput`. **PASS** — `transactions/onramp/routes/alfredpay-to-evm.ts:269`. Phase is registered as an EVM phase in `transactions/validation.ts:249`.
+- [x] Offramp fallback emits `alfredpayOfframpTransferFallback` for expired-quote recovery; phase is registered as an EVM phase in `transactions/validation.ts:250`. **PASS**.
+- [x] KYB vs KYC status mapping is branched by `AlfredpayCustomerType.BUSINESS` in `alfredpay.controller.ts`. **PASS** — `mapKybStatus` for business, `mapKycStatus` for individual.
+- [x] Polygon same-chain same-token passthrough uses `isSameChainSameTokenPassthrough` shortcut, rounds down (`toFixed(0, 0)`), and uses `evmToEvm.inputAmountRaw` as the source amount. **PASS** — `squid-router-phase-handler.ts` + `squidrouter/index.ts` finalize.
+- [x] `refreshAlfredpayOnrampQuoteIfMatching` only re-binds the provider `quoteId` when `toAmount` and `fee` match byte-identically. **PASS** — `ramp.service.ts:1480-1491`.
+- [x] AlfredPay offramp order is created at prep time (`evm-to-alfredpay.ts:229`); `processAlfredpayOfframpStart` is a defensive validation-only no-op. **PASS** — verified.
