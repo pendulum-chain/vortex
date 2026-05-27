@@ -9,6 +9,7 @@ import { config } from "./config/vars";
 
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
+import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
@@ -67,6 +68,9 @@ const initializeApp = async () => {
     new CleanupWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
+
+    // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
+    AlfredpayLimitsService.getInstance().start();
 
     // Register phase handlers
     registerPhaseHandlers();
