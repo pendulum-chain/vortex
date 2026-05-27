@@ -1,7 +1,11 @@
-import { NumoraInput } from "numora-react";
-import { ChangeEvent } from "react";
+import { FormatOn } from "numora";
+import { NumoraInput, type NumoraInputChangeEvent } from "numora-react";
+import { ChangeEvent, useState } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
+import { TextMorph } from "torph/react";
 import { cn } from "../../helpers/cn";
+
+type NumoraTarget = NumoraInputChangeEvent["target"] & { rawValue?: string };
 
 interface NumericInputProps {
   register: UseFormRegisterReturn;
@@ -27,30 +31,50 @@ export const NumericInput = ({
   const { setValue } = useFormContext();
   const { name: fieldName, ref, onBlur } = register;
   const inputValue = useWatch({ name: fieldName });
+  const [formatted, setFormatted] = useState("");
 
-  function handleChange(e: ChangeEvent<HTMLInputElement>): void {
-    setValue(fieldName, e.target.value, { shouldDirty: true, shouldValidate: true });
-    if (onChange) onChange(e);
+  function handleChange(e: NumoraInputChangeEvent): void {
+    const target = e.target as NumoraTarget;
+    const raw = target.rawValue ?? target.value;
+    console.log("target.value: ", target.value);
+    console.log("target.formattedValue: ", target.formattedValue);
+    console.log("target.rawValue: ", target.rawValue);
+    setFormatted(target.value);
+    setValue(fieldName, raw, { shouldDirty: true, shouldValidate: true });
+    if (onChange) onChange(e as unknown as ChangeEvent);
   }
+
+  const inputClasses = cn(
+    "h-full w-full border-0 bg-transparent px-4 shadow-none outline-none focus:shadow-none focus:outline-none",
+    additionalStyle
+  );
+
+  console.log(formatted);
 
   return (
     <div className="relative flex-grow">
+      <div
+        aria-hidden
+        className={cn(
+          "pointer-events-none absolute inset-0 flex items-center justify-end px-4 text-base-content",
+          additionalStyle
+        )}
+      >
+        <TextMorph ease={{ damping: 30, stiffness: 400 }}>{formatted || (inputValue ? String(inputValue) : "0.0")}</TextMorph>
+      </div>
       <NumoraInput
         autoCapitalize="none"
         autoComplete="off"
         autoCorrect="off"
         autoFocus={autoFocus}
-        className={cn(
-          "input h-full w-full border-0 bg-transparent px-4 focus:shadow-none focus:outline-none",
-          additionalStyle,
-          disabled && "opacity-0"
-        )}
+        className={cn(inputClasses, "relative text-transparent caret-base-content", disabled && "opacity-0")}
         disabled={disabled}
+        formatOn={FormatOn.Change}
         maxDecimals={maxDecimals}
         name={fieldName}
         onBlur={onBlur}
         onChange={handleChange}
-        placeholder="0.0"
+        placeholder=""
         readOnly={readOnly}
         ref={ref}
         spellCheck={false}
