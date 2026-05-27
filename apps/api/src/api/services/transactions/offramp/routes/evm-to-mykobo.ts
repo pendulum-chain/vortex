@@ -18,23 +18,11 @@ import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
+import { transferAbi } from "../../common/abis";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateOfframpQuote } from "../common/validation";
-
-const transferAbi = [
-  {
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "value", type: "uint256" }
-    ],
-    name: "transfer",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function"
-  }
-] as const;
 
 export async function prepareEvmToMykoboOfframpTransactions({
   quote,
@@ -84,60 +72,17 @@ export async function prepareEvmToMykoboOfframpTransactions({
     throw new Error("Invalid EURC configuration for Base in evmTokenConfig");
   }
 
-  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
-
-  if (!(fromNetwork === Networks.Base && inputTokenDetails.erc20AddressSourceChain === baseUsdcAddress)) {
-    const { approveData, swapData } = await createOfframpSquidrouterTransactionsToEvm({
-      destinationAddress: evmEphemeralEntry.address,
-      fromAddress: userAddress,
-      fromNetwork,
-      fromToken: inputTokenDetails.erc20AddressSourceChain,
-      rawAmount: inputAmountRaw,
-      toNetwork: Networks.Base,
-      toToken: baseUsdcAddress
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 0,
-      phase: "squidRouterApprove",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 1,
-      phase: "squidRouterSwap",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-    });
-  } else {
-    // User already holds USDC on Base — they sign a single ERC-20 transfer to the ephemeral.
-    // Mirrors the isDirectPolygonTransfer branch in evm-to-alfredpay.ts.
-    const transferData = encodeFunctionData({
-      abi: transferAbi,
-      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
-      functionName: "transfer"
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 0,
-      phase: "squidRouterNoPermitTransfer",
-      signer: userAddress,
-      txData: {
-        data: transferData,
-        gas: "0",
-        to: inputTokenDetails.erc20AddressSourceChain,
-        value: "0"
-      }
-    });
+  const baseAxlUsdcAddress = evmTokenConfig[Networks.Base][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
+  if (!baseAxlUsdcAddress) {
+    throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
   }
 
+  const inputAmountRaw = multiplyByPowerOfTen(new Big(quote.inputAmount), inputTokenDetails.decimals).toFixed(0, 0);
+  const inputTokenAddress = inputTokenDetails.erc20AddressSourceChain;
+  const isDirectBaseTransfer =
+    fromNetwork === Networks.Base && inputTokenAddress.toLowerCase() === baseUsdcAddress.toLowerCase();
+
+  // Resolve the Mykobo intent before building any user-signed transactions so that an API failure aborts early.
   const mykoboIntentValue = quote.metadata.nablaSwapEvm?.outputAmountDecimal;
   if (!mykoboIntentValue) {
     throw new Error("Missing nablaSwapEvm.outputAmountDecimal in quote metadata for Mykobo intent value");
@@ -160,8 +105,59 @@ export async function prepareEvmToMykoboOfframpTransactions({
   const mykoboTransactionId = intent.transaction.id;
   const mykoboTransactionReference = intent.transaction.reference;
 
-  let baseNonce = 0;
-  baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
+  if (isDirectBaseTransfer) {
+    // User already holds USDC on Base — they sign a single ERC-20 transfer to the ephemeral.
+    // Mirrors the isDirectPolygonTransfer branch in evm-to-alfredpay.ts.
+    const transferData = encodeFunctionData({
+      abi: transferAbi,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterNoPermitTransfer",
+      signer: userAddress,
+      txData: {
+        data: transferData,
+        gas: "0",
+        to: inputTokenAddress,
+        value: "0"
+      }
+    });
+  } else {
+    const { approveData, swapData } = await createOfframpSquidrouterTransactionsToEvm({
+      destinationAddress: evmEphemeralEntry.address,
+      fromAddress: userAddress,
+      fromNetwork,
+      fromToken: inputTokenAddress,
+      rawAmount: inputAmountRaw,
+      toNetwork: Networks.Base,
+      toToken: baseUsdcAddress
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterApprove",
+      signer: userAddress,
+      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 1,
+      phase: "squidRouterSwap",
+      signer: userAddress,
+      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+    });
+  }
+
+  let baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, 0);
 
   const { nextNonce: nonceAfterNabla, stateMeta: nablaStateMeta } = await addNablaSwapTransactionsOnBase(
     {
@@ -173,7 +169,7 @@ export async function prepareEvmToMykoboOfframpTransactions({
     unsignedTxs,
     baseNonce
   );
-  stateMeta = { ...stateMeta, ...nablaStateMeta };
+  stateMeta = nablaStateMeta;
   baseNonce = nonceAfterNabla;
 
   const eurcTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
@@ -201,51 +197,23 @@ export async function prepareEvmToMykoboOfframpTransactions({
 
   const baseFundingAccount = getEvmFundingAccount(Networks.Base);
 
-  const usdcCleanupApproval = await prepareBaseCleanupApproval(
-    baseUsdcAddress as `0x${string}`,
-    baseFundingAccount.address,
-    Networks.Base
-  );
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Base,
-    nonce: baseNonce++,
-    phase: "baseCleanupUsdc",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
-  });
+  const cleanupTokens = [
+    { address: baseUsdcAddress, phase: "baseCleanupUsdc" as const },
+    { address: baseEurcAddress, phase: "baseCleanupEurc" as const },
+    { address: baseAxlUsdcAddress, phase: "baseCleanupAxlUsdc" as const }
+  ];
 
-  const eurcCleanupApproval = await prepareBaseCleanupApproval(
-    baseEurcAddress as `0x${string}`,
-    baseFundingAccount.address,
-    Networks.Base
-  );
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Base,
-    nonce: baseNonce++,
-    phase: "baseCleanupEurc",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(eurcCleanupApproval) as EvmTransactionData
-  });
-
-  const baseAxlUsdcAddress = evmTokenConfig[Networks.Base][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
-  if (!baseAxlUsdcAddress) {
-    throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
+  for (const { address, phase } of cleanupTokens) {
+    const approval = await prepareBaseCleanupApproval(address as `0x${string}`, baseFundingAccount.address, Networks.Base);
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase,
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(approval) as EvmTransactionData
+    });
   }
-  const axlUsdcCleanupApproval = await prepareBaseCleanupApproval(
-    baseAxlUsdcAddress as `0x${string}`,
-    baseFundingAccount.address,
-    Networks.Base
-  );
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Base,
-    nonce: baseNonce++,
-    phase: "baseCleanupAxlUsdc",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(axlUsdcCleanupApproval) as EvmTransactionData
-  });
 
   stateMeta = {
     ...stateMeta,

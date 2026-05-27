@@ -40,6 +40,7 @@ import { config } from "../../../../../config/vars";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { transferAbi } from "../../common/abis";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -137,19 +138,6 @@ const erc20Abi = [
   },
   { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" }
 ];
-
-const transferAbi = [
-  {
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "value", type: "uint256" }
-    ],
-    name: "transfer",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function"
-  }
-] as const;
 
 /**
  * Prepares all transactions for an EVM to Alfredpay (USD) offramp.
