@@ -1,6 +1,5 @@
 import { ALFREDPAY_ERC20_DECIMALS, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import logger from "../../../../../config/logger";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
 import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
