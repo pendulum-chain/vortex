@@ -74,7 +74,7 @@ export const kycStateNode = {
   initial: "Deciding",
   on: {
     GO_BACK: {
-      actions: [assign({ rampSigningPhase: undefined })],
+      actions: [assign({ rampSigningPhase: undefined, rampSigningPhaseCurrent: undefined, rampSigningPhaseMax: undefined })],
       target: "#ramp.QuoteReady"
     },
     SummaryConfirm: {
@@ -187,7 +187,11 @@ export const kycStateNode = {
             target: "VerificationComplete"
           },
           {
-            actions: assign({ rampSigningPhase: undefined }),
+            actions: assign({
+              rampSigningPhase: undefined,
+              rampSigningPhaseCurrent: undefined,
+              rampSigningPhaseMax: undefined
+            }),
             guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
               event.output.error?.type === MykoboKycMachineErrorType.UserRejected,
             target: "#ramp.QuoteReady"

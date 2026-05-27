@@ -78,10 +78,15 @@ export const signTransactionsActor = async ({
 
   const signedTxs: PresignedTx[] = rampState.signedTransactions;
 
+  const total = sortedTxs.length;
+
   try {
-    for (const tx of sortedTxs) {
+    for (let idx = 0; idx < sortedTxs.length; idx++) {
+      const tx = sortedTxs[idx];
+      const current = idx + 1;
+
       if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
-        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         if (isSignedTypedData(tx.txData)) {
           const signedArray = await signMultipleTypedData([tx.txData]);
           tx.txData = signedArray[0];
@@ -91,36 +96,36 @@ export const signTransactionsActor = async ({
 
         signedTxs.push(tx);
 
-        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "signed", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "squidRouterApprove") {
         if (isNativeTokenTransfer) {
-          input.parent.send({ phase: "login", type: "SIGNING_UPDATE" });
+          input.parent.send({ current, max: total, phase: "login", type: "SIGNING_UPDATE" });
           continue;
         }
-        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         squidRouterApproveHash = await signAndSubmitEvmTransaction(tx);
-        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "signed", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "squidRouterSwap") {
         squidRouterSwapHash = await signAndSubmitEvmTransaction(tx);
-        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "squidRouterNoPermitTransfer") {
-        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         squidRouterNoPermitTransferHash = await signAndSubmitEvmTransaction(tx);
-        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "squidRouterNoPermitApprove") {
-        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         squidRouterNoPermitApproveHash = await signAndSubmitEvmTransaction(tx);
-        input.parent.send({ phase: "signed", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "signed", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "squidRouterNoPermitSwap") {
         squidRouterNoPermitSwapHash = await signAndSubmitEvmTransaction(tx);
-        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "finished", type: "SIGNING_UPDATE" });
       } else if (tx.phase === "assethubToPendulum") {
         if (!substrateWalletAccount) {
           throw new Error("Missing substrateWalletAccount, user needs to be connected to a wallet account. ");
         }
-        input.parent.send({ phase: "started", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         assethubToPendulumHash = await signAndSubmitSubstrateTransaction(tx, substrateWalletAccount);
-        input.parent.send({ phase: "finished", type: "SIGNING_UPDATE" });
+        input.parent.send({ current, max: total, phase: "finished", type: "SIGNING_UPDATE" });
       } else {
         throw new Error(`Unknown transaction received to be signed by user: ${tx.phase}`);
       }

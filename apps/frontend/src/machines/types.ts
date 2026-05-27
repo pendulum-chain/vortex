@@ -28,6 +28,8 @@ export interface RampContext {
   rampDirection: RampDirection | undefined;
   rampPaymentConfirmed: boolean;
   rampSigningPhase: RampSigningPhase | undefined;
+  rampSigningPhaseCurrent: number | undefined;
+  rampSigningPhaseMax: number | undefined;
   rampState: RampState | undefined;
   substrateWalletAccount: WalletAccount | undefined;
   walletLocked?: string;
@@ -54,7 +56,7 @@ export type RampMachineEvents =
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
-  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
+  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined; current?: number; max?: number }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }

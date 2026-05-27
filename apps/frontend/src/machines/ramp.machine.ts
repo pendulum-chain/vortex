@@ -148,7 +148,14 @@ export const rampMachine = setup({
       })
     },
     SIGNING_UPDATE: {
-      actions: [assign({ rampSigningPhase: ({ event }) => event.phase })]
+      actions: [
+        assign({
+          rampSigningPhase: ({ event }) => event.phase,
+          rampSigningPhaseCurrent: ({ context, event }) =>
+            event.current !== undefined ? event.current : context.rampSigningPhaseCurrent,
+          rampSigningPhaseMax: ({ context, event }) => (event.max !== undefined ? event.max : context.rampSigningPhaseMax)
+        })
+      ]
     }
   },
   states: {
@@ -333,7 +340,9 @@ export const rampMachine = setup({
     Error: {
       entry: assign(({ context }) => ({
         ...context,
-        rampSigningPhase: undefined
+        rampSigningPhase: undefined,
+        rampSigningPhaseCurrent: undefined,
+        rampSigningPhaseMax: undefined
       })),
       on: {
         RESET_RAMP: {
@@ -488,7 +497,11 @@ export const rampMachine = setup({
           target: "LoadingQuote"
         }
       ],
-      entry: assign({ rampSigningPhase: undefined }),
+      entry: assign({
+        rampSigningPhase: undefined,
+        rampSigningPhaseCurrent: undefined,
+        rampSigningPhaseMax: undefined
+      }),
       on: {
         // This is the main confirm button.
         CONFIRM: {
@@ -697,7 +710,9 @@ export const rampMachine = setup({
             enteredViaForm: undefined,
             errorMessage: undefined,
             rampPaymentConfirmed: false,
-            rampSigningPhase: undefined
+            rampSigningPhase: undefined,
+            rampSigningPhaseCurrent: undefined,
+            rampSigningPhaseMax: undefined
           }),
           target: "QuoteReady"
         },

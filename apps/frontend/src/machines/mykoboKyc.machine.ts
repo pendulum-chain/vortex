@@ -95,7 +95,7 @@ export const mykoboKycMachine = setup({
       | { type: "SubmitKycForm"; formData: MykoboKycFormData; files: MykoboKycFiles }
       | { type: "CONFIRM_SUCCESS" }
       | { type: "CANCEL" }
-      | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined },
+      | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined; current?: number; max?: number },
     input: {} as MykoboKycContext,
     output: {} as { profileApproved?: boolean; error?: MykoboKycMachineError }
   }
@@ -107,6 +107,8 @@ export const mykoboKycMachine = setup({
     SIGNING_UPDATE: {
       actions: [
         sendParent(({ event }) => ({
+          current: event.current,
+          max: event.max,
           phase: event.phase,
           type: "SIGNING_UPDATE"
         }))
