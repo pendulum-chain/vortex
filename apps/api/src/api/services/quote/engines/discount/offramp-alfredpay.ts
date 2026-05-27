@@ -36,8 +36,7 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const deductibleFee = ctx.preNabla?.deductibleFeeAmountInSwapCurrency ?? new Big(0);
-    const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal.minus(deductibleFee);
+    const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal;
 
     // Oracle rate FIAT -> USD (e.g., 1 ARS = 0.0002657 USD).
     // This block is required to avoid calling the Alfredpay API twice for a quote.
@@ -49,6 +48,12 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
       ALFREDPAY_ONCHAIN_CURRENCY as unknown as RampCurrency
     );
     const effectiveRate = new Big(effectiveRateStr);
+
+    if (!effectiveRate.gt(0)) {
+      throw new Error(
+        `OffRampAlfredpayDiscountEngine: oracle returned non-positive rate (${effectiveRateStr}) for ${outputCurrency} -> ${ALFREDPAY_ONCHAIN_CURRENCY}`
+      );
+    }
 
     // finalOutput uses the inverted rate (USD -> FIAT) for display/logging
     const usdToFiatRate = new Big(1).div(effectiveRate);

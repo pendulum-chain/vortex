@@ -108,7 +108,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
-      amountRaw: quote.metadata.evmToEvm?.outputAmountRaw,
+      amountRaw: quote.metadata.evmToEvm.outputAmountRaw,
       destinationNetwork: toNetwork as EvmNetworks,
       toAddress: destinationAddress,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain

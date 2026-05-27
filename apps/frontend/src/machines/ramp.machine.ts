@@ -576,7 +576,7 @@ export const rampMachine = setup({
         },
         SET_RAMP_STATE: {
           actions: assign({
-            rampState: ({ event }) => event.rampState
+            rampState: ({ event, context }) => mergeRampStatePreservingPaymentInfo(context.rampState, event.rampState)
           })
         }
       }
