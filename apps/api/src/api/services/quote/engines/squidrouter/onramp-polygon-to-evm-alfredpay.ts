@@ -42,11 +42,11 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
       const subsidy = ctx.subsidy!;
       return {
         data: {
-          amountRaw: subsidy.actualOutputAmountRaw,
+          amountRaw: subsidy.targetOutputAmountRaw,
           fromNetwork: Networks.Polygon,
           fromToken: ALFREDPAY_ERC20_TOKEN,
-          inputAmountDecimal: subsidy.actualOutputAmountDecimal,
-          inputAmountRaw: subsidy.actualOutputAmountRaw,
+          inputAmountDecimal: subsidy.targetOutputAmountDecimal,
+          inputAmountRaw: subsidy.targetOutputAmountRaw
           outputDecimals: 6,
           skipRouteCalculation: true,
           toNetwork: Networks.Polygon,
