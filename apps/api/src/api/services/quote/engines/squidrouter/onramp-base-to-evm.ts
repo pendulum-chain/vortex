@@ -13,7 +13,7 @@ import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
-export class OnRampSquidRouterBrlToEvmEngineBase extends BaseSquidRouterEngine {
+export class OnRampSquidRouterToBaseEngine extends BaseSquidRouterEngine {
   readonly config: SquidRouterConfig = {
     direction: RampDirection.BUY,
     skipNote: "OnRampSquidRouterBrlToEvmEngine: Skipped because rampType is SELL, this engine handles BUY operations only"

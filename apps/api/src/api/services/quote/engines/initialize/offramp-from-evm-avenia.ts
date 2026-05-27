@@ -1,14 +1,13 @@
-import { ALFREDPAY_EVM_TOKEN, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
+import { EvmToken, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
-export class OffRampFromEvmInitializeAlfredpayEngine extends BaseInitializeEngine {
+export class OffRampFromEvmInitializeAveniaEngine extends BaseInitializeEngine {
   readonly config = {
     direction: RampDirection.SELL,
-    skipNote:
-      "OffRampFromEvmInitializeAlfredpayEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
+    skipNote: "OffRampFromEvmInitializeAveniaEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
   };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
@@ -20,9 +19,9 @@ export class OffRampFromEvmInitializeAlfredpayEngine extends BaseInitializeEngin
       amountDecimal: req.inputAmount,
       fromNetwork: req.from as Networks,
       inputCurrency: req.inputCurrency as OnChainToken,
-      outputCurrency: ALFREDPAY_EVM_TOKEN,
+      outputCurrency: EvmToken.USDC,
       rampType: req.rampType,
-      toNetwork: Networks.Polygon
+      toNetwork: Networks.Base
     };
 
     const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
