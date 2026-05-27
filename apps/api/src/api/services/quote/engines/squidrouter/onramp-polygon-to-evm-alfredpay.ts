@@ -46,7 +46,7 @@ export class OnRampSquidRouterUsdToEvmEngine extends BaseSquidRouterEngine {
           fromNetwork: Networks.Polygon,
           fromToken: ALFREDPAY_ERC20_TOKEN,
           inputAmountDecimal: subsidy.targetOutputAmountDecimal,
-          inputAmountRaw: subsidy.targetOutputAmountRaw
+          inputAmountRaw: subsidy.targetOutputAmountRaw,
           outputDecimals: 6,
           skipRouteCalculation: true,
           toNetwork: Networks.Polygon,

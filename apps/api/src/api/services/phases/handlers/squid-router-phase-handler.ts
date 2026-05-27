@@ -58,6 +58,16 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       return state;
     }
 
+    // Alfredpay onramps mint directly to Polygon in the alfredpay token (e.g. USDT),
+    // so no squidRouter swap is needed — skip straight to destination transfer.
+    const isAlfredpayOnramp =
+      state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
+
+    if (isAlfredpayOnramp && quote.metadata.to === Networks.Polygon) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
+
     const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
     if (
       !bridgeMeta?.inputAmountRaw ||
