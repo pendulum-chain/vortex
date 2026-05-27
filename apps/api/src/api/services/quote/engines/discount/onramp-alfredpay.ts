@@ -43,10 +43,6 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal.minus(feesToDeduct);
 
-    logger.debug(
-      `[OnRampAlfredpayDiscountEngine] input=${inputAmount} ${ctx.request.outputCurrency}, alfredpayMintIn=${alfredpayMint.inputAmountDecimal.toString()} ${alfredpayMint.currency}, alfredpayMintOut=${alfredpayMint.outputAmountDecimal.toString()} ${ctx.request.outputCurrency}, effectiveRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()}`
-    );
-
     const {
       expectedOutput: expectedOutputDecimal,
       adjustedDifference,
