@@ -45,13 +45,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
-    // Pendulum ephemeral address is required for all cases except when doing a Mykobo (EUR) onramp to EVM,
-    // an Alfredpay onramp to EVM, or an Alfredpay offramp.
-    if (
-      isOnramp(state) &&
-      (inputCurrency === FiatToken.EURC || isAlfredpayToken(inputCurrency as FiatToken)) &&
-      state.to !== Networks.AssetHub
-    ) {
+    if (inputCurrency === FiatToken.EURC || outputCurrency === FiatToken.EURC) {
+      return false;
+    }
+
+    if (isOnramp(state) && isAlfredpayToken(inputCurrency as FiatToken) && state.to !== Networks.AssetHub) {
       return false;
     }
 
