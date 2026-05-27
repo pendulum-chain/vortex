@@ -56,10 +56,10 @@ export const MykoboService = {
     const data = await apiClient.post<{ profile: MykoboProfile }>("/mykobo/profiles", form);
     return data.profile;
   },
-  async getProfile(walletAddress: string): Promise<MykoboProfile | null> {
+  async getProfile(email: string): Promise<MykoboProfile | null> {
     try {
       const data = await apiClient.get<{ profile: MykoboProfile }>("/mykobo/profiles", {
-        params: { address: walletAddress }
+        params: { email }
       });
       return data.profile;
     } catch (error: unknown) {

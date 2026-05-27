@@ -675,7 +675,7 @@ Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both
 | 15 | Token / access / secret keys absent from logs | ⚠️ PARTIAL — `MykoboApiError.body` may carry raw response bodies into logs; no explicit redaction |
 | 16 | IBAN payment details surfaced only after presigned-tx validation | ✅ PASS — `ibanPaymentData` returned from `prepareRampTransactions` only after `validatePresignedTxs` succeeds upstream |
 | 17 | `/v1/mykobo/profiles` endpoints require Supabase OTP auth | ✅ PASS — F-068 fixed: `requireAuth` added to both GET and POST routes |
-| 18 | Mykobo KYC documents not persisted by Vortex | ✅ PASS — multipart form-data streamed through to Mykobo; no local persistence of files or PII beyond the wallet→profile linkage |
+| 18 | Mykobo KYC documents not persisted by Vortex | ✅ PASS — multipart form-data streamed through to Mykobo; no local persistence of files or PII beyond the email→profile linkage |
 | 19 | HTTPS enforced for all Mykobo API calls | ✅ PASS — F-070 fixed: `assertSecureMykoboBaseUrl` rejects non-HTTPS schemes at construction (localhost permitted in non-production) |
 | 20 | Timeout / AbortController on Mykobo HTTP client | 🔴 FAIL — F-014 (cross-cutting; Mykobo `fetch` calls lack explicit `AbortController`, same gap as BRLA/Monerium/CoinGecko/etc.) |
 | 21 | Phase handlers never call Mykobo API without explicit recoverable/unrecoverable mapping | ✅ PASS — `mykobo-payout-handler.ts` catches `PhaseError` directly and wraps non-PhaseError exceptions |
@@ -1114,7 +1114,7 @@ Findings F-068 through F-071 from the Mykobo integration audit (2026-05-22) were
 14. Implement proper admin auth (F-020)
 
 **Mykobo Integration Audit (2026-05-22) — Open:**
-15. ✅ Done — Added `requireAuth` to `/v1/mykobo/profiles` GET/POST (F-068, Critical). Per Mykobo flow design, the `wallet_address` is always an ephemeral (not a user-owned wallet), so no separate wallet-ownership check is required.
+15. ✅ Done — Added `requireAuth` to `/v1/mykobo/profiles` GET/POST (F-068, Critical). The GET endpoint now identifies profiles by the authenticated user's email (`req.userEmail`) via `MykoboApiService.getProfileByEmail`, and rejects requests whose `email` query parameter does not match the authenticated user. POST profile creation continues to bind `wallet_address` to the user's ephemeral, so no separate wallet-ownership check is required there.
 16. ✅ Done — Added explicit EURC SELL branch to `fund-ephemeral-handler.nextPhaseSelector` returning `distributeFees`; also added the missing EURC BUY branch returning `subsidizePreSwap` and wired `fundEphemeral` into the Mykobo onramp flow via `mykobo-onramp-deposit-handler` and `getRequiresBaseEphemeralAddress` (F-069, High)
 17. ✅ Done — Enforced HTTPS scheme on `MYKOBO_BASE_URL` at `MykoboApiService` construction via `assertSecureMykoboBaseUrl` (F-070, Medium)
 18. ✅ Done — Debounced `MykoboApiService.handleAuthFailure` with `authFailurePromise` mirroring `getToken`'s `tokenPromise` (F-071, Low)

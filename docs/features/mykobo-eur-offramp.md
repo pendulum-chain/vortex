@@ -46,7 +46,7 @@ Bearer token. Acquire via `POST /v1/auth/token` with `{access_key, secret_key}` 
 
 ### Endpoints used in later session (KYC)
 - `POST /v1/profiles` (multipart, KYC docs)
-- `GET /v1/profiles?address=` (lookup profile by wallet)
+- `GET /v1/profiles?email=` (lookup profile by email)
 
 ### Critical Mykobo semantics
 
@@ -68,7 +68,7 @@ Bearer token. Acquire via `POST /v1/auth/token` with `{access_key, secret_key}` 
 | USDC → EURC swap venue | Nabla on Base (`NABLA_ROUTER_BASE`) | Pool exists (user confirmed); reuses existing Nabla EVM infra |
 | `wallet_address` on Mykobo intent | Ephemeral 0x | Mykobo auto-binds email→ephemeral; identity is email-based |
 | When to create intent | At ramp **registration** (`prepareEvmToMykoboOfframpTransactions`) | Lets us presign the final EURC transfer to Mykobo's receivables address (BRL-EVM style) |
-| Email source | Frontend passes `email` field on `POST /v1/ramp/register`; backend validates Mykobo profile exists via `GET /v1/profiles?address=` (later — for now we trust the email) | Aligns with Supabase-auth profile model |
+| Email source | Frontend reads the Supabase-authenticated user's email and passes it as the `email` query param to `GET /v1/mykobo/profiles`; backend cross-checks the param against `req.userEmail` and queries Mykobo by email via `MykoboApiService.getProfileByEmail` | Aligns with Supabase-auth profile model; avoids leaking wallet→profile linkage |
 | Identity persistence | JSONB only on `RampState.state` (no new `MykoboCustomer` table yet) | "No over-engineering" rule; KYC session can normalize later |
 | Mykobo client style | Singleton class mirroring `BrlaApiService` | Repo convention; easy mocking |
 | Token strategy | Single shared bearer with all 3 scopes, lazy init, 401→refresh→re-acquire | Simplest robust model; matches docs |

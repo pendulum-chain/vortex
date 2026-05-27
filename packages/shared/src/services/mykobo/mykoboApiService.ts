@@ -216,6 +216,12 @@ export class MykoboApiService {
     });
   }
 
+  public async getProfileByEmail(email: string, memo?: string): Promise<MykoboGetProfileResponse> {
+    return this.request<MykoboGetProfileResponse>("GET", "/profiles", {
+      query: { email, memo }
+    });
+  }
+
   public async createProfile(formData: FormData): Promise<MykoboGetProfileResponse> {
     const url = this.buildUrl("/profiles");
     let token = await this.getToken();

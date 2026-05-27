@@ -36,18 +36,24 @@ function requireWalletAddress(input: MykoboKycContext): string {
   return address;
 }
 
+function requireUserEmail(input: MykoboKycContext): string {
+  const email = input.userEmail;
+  if (!email) throw new Error("Authenticated user email is required");
+  return email;
+}
+
 export const mykoboKycMachine = setup({
   actors: {
     checkExistingProfile: fromPromise(async ({ input }: { input: MykoboKycContext }) => {
-      return MykoboService.getProfile(requireWalletAddress(input));
+      return MykoboService.getProfile(requireUserEmail(input));
     }),
     pollProfileStatus: fromPromise(async ({ input, signal }: { input: MykoboKycContext; signal: AbortSignal }) => {
-      const address = requireWalletAddress(input);
+      const email = requireUserEmail(input);
       const deadline = Date.now() + POLLING_TIMEOUT_MS;
       while (Date.now() < deadline) {
         if (signal.aborted) throw new Error("Polling aborted");
         try {
-          const profile = await MykoboService.getProfile(address);
+          const profile = await MykoboService.getProfile(email);
           const status = profile?.kycStatus.reviewStatus;
           if (status === "approved") return { status: "approved" as const };
           if (status === "rejected") return { status: "rejected" as const };

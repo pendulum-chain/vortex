@@ -47,9 +47,9 @@ Mykobo replaces two earlier EUR rails:
 
 ### Profile / KYC flow
 
-Mykobo profiles are user records keyed by wallet address (the user's destination EVM address, **not** the ephemeral). They carry KYC fields and are required before Mykobo will accept SEPA deposits / WITHDRAW intents for that user.
+Mykobo profiles are user records keyed by the user's email address. They carry KYC fields and are required before Mykobo will accept SEPA deposits / WITHDRAW intents for that user.
 
-- `GET /v1/mykobo/profiles?walletAddress=...&memo=...` — Vortex backend proxies `MykoboApiService.getProfileByWalletAddress`. Used by the frontend to detect whether the user already has a profile.
+- `GET /v1/mykobo/profiles?email=...&memo=...` — Vortex backend proxies `MykoboApiService.getProfileByEmail`. Used by the frontend to detect whether the authenticated user already has a profile. The `email` query parameter MUST match the Supabase-authenticated user's email (`req.userEmail`); mismatched values are rejected at the controller boundary.
 - `POST /v1/mykobo/profiles` — Vortex backend proxies `MykoboApiService.createProfile` with multipart form-data (ID document, source-of-funds document, demographics).
 
 The Mykobo KYC widget on the frontend (`MykoboKycFlow`) drives the user through profile creation. The ramp state machine treats Mykobo KYC as a **pre-ramp gate**: the `Deciding` step in the ramp XState machine checks profile presence and routes to the Mykobo KYC flow before allowing ramp registration.
@@ -75,7 +75,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 13. **`MykoboTransactionStatus` of `FAILED` / `CANCELLED` / `EXPIRED` MUST be treated as unrecoverable** — The handler throws via `createUnrecoverableError` so the ramp transitions to a failed state instead of looping.
 14. **Recovery on resumed `mykoboPayoutOnBase` MUST detect existing tx hashes** — If `mykoboPayoutTxHash` is in state, the handler waits for that receipt rather than blindly re-broadcasting. If the prior tx reverted, the same presigned tx is re-broadcast — EVM nonce uniqueness prevents double-spend of the ephemeral's EURC.
 15. **Mykobo KYC profile creation MUST be gated by Vortex auth** — The `/v1/mykobo/profiles` endpoints require a Supabase OTP session (see `01-auth/supabase-otp.md`); anonymous profile creation is rejected.
-16. **Mykobo KYC documents MUST NOT be stored by Vortex** — The frontend submits ID and source-of-funds files directly to the backend, which forwards them to Mykobo as multipart form-data without persisting. No Mykobo profile fields are stored in Vortex's database beyond the wallet-address linkage used to look up profile state.
+16. **Mykobo KYC documents MUST NOT be stored by Vortex** — The frontend submits ID and source-of-funds files directly to the backend, which forwards them to Mykobo as multipart form-data without persisting. No Mykobo profile fields are stored in Vortex's database beyond the email→profile linkage used to look up profile state.
 17. **Mykobo HTTP responses MUST be validated** — `MykoboApiService.request` checks `response.ok`, raises `MykoboApiError` with status + body on failure, and re-acquires the token on `401` exactly once before re-throwing. `MykoboApiError` MUST be caught and translated to `RecoverablePhaseError` (transient) or `UnrecoverablePhaseError` (terminal status) at the handler boundary.
 18. **Mykobo bearer-token refresh MUST be safe under concurrent requests** — `MykoboApiService.tokenPromise` debounces concurrent `acquireToken` calls so multiple in-flight requests share a single token acquisition. Token refresh is single-use per cached token; on refresh failure the service falls back to re-acquiring with the access/secret keys.
 19. **The Mykobo base URL normalization MUST enforce a `/v1` suffix** — `MykoboApiService` trims trailing slashes and appends `/v1` unless the configured `MYKOBO_BASE_URL` already ends in `/v<digits>`. This prevents accidental cross-version calls if an operator sets `MYKOBO_BASE_URL` to a root domain.
@@ -96,7 +96,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 | **Mykobo terminal status (FAILED / CANCELLED / EXPIRED) mishandled** | Handler retries indefinitely on a permanently failed Mykobo transaction | `createUnrecoverableError` is thrown for those three statuses; ramp transitions to failed instead of looping. |
 | **Long-lived on-ramp DOS** | Attacker creates many on-ramps to occupy ephemeral accounts for 24h | Per-user concurrent ramp limit (cross-cutting; see `07-operations/api-surface.md` rate limiting). Ephemerals are user-funded so blast radius is bounded. |
 | **TLS downgrade / MITM** | Attacker intercepts Mykobo API calls | HTTPS-only base URL; bearer-token auth depends on TLS; refuse any non-HTTPS `MYKOBO_BASE_URL` configuration at deploy time. |
-| **Profile-doc PII leak** | KYC document or PII surfaces in Vortex storage or logs | Documents are streamed through to Mykobo as multipart form-data without persistence; no PII fields stored locally beyond the wallet→profile-existence linkage. |
+| **Profile-doc PII leak** | KYC document or PII surfaces in Vortex storage or logs | Documents are streamed through to Mykobo as multipart form-data without persistence; no PII fields stored locally beyond the email→profile-existence linkage. |
 | **Cross-version Mykobo API drift** | Operator misconfigures `MYKOBO_BASE_URL` to a root domain, hitting an unintended version | `MykoboApiService` enforces a `/v<digits>` suffix; misconfiguration fails fast on the first auth call. |
 
 ## Audit Checklist
@@ -119,7 +119,8 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 - [ ] Bearer token, access key, and secret key do not appear in logs or error messages
 - [ ] IBAN payment details surfaced to the user only after presigned-transaction validation passes
 - [ ] `/v1/mykobo/profiles` endpoints require Supabase OTP auth (anonymous requests rejected)
-- [ ] Mykobo KYC documents are not persisted by Vortex; only the wallet→profile linkage is stored
+- [ ] Mykobo KYC documents are not persisted by Vortex; only the email→profile linkage is stored
+- [ ] `GET /v1/mykobo/profiles` rejects requests whose `email` query parameter does not match `req.userEmail` (case-insensitive)
 - [ ] HTTPS enforced for all Mykobo API calls
 - [ ] Timeout / `AbortController` configured for Mykobo HTTP client (cross-cutting; tracked as F-014 across providers)
 - [ ] No Mykobo API call is invoked from a phase handler without an explicit recoverable/unrecoverable mapping

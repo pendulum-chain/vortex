@@ -1468,8 +1468,8 @@ Findings raised during the Mykobo-on-Base EUR rail audit. See `05-integrations/m
 | **Spec** | `05-integrations/mykobo.md` (Invariant 15), `01-auth/supabase-otp.md` |
 | **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |
-| **Impact** | Anonymous callers can enumerate KYC profiles by wallet address and submit arbitrary KYC documents (ID, source-of-funds, demographics) tied to any wallet address. This bypasses the spec's "Supabase OTP required" invariant, enables KYC-document submission floods against the Mykobo upstream, and allows attackers to associate attacker-controlled documents with victim wallet addresses. |
-| **Resolution** | `requireAuth` added to both `/v1/mykobo/profiles` GET and POST routes, mirroring the `alfredpay.route.ts` pattern. No wallet-ownership check needed: per the Mykobo flow, the `wallet_address` always refers to an ephemeral generated for the ramp (not a user-owned wallet), so cross-user spoofing is moot. Supabase OTP gating alone closes the anonymous-flood and oracle vectors. |
+| **Impact** | Anonymous callers can enumerate KYC profiles and submit arbitrary KYC documents (ID, source-of-funds, demographics) tied to any wallet address. This bypasses the spec's "Supabase OTP required" invariant, enables KYC-document submission floods against the Mykobo upstream, and allows attackers to associate attacker-controlled documents with arbitrary identities. |
+| **Resolution** | `requireAuth` added to both `/v1/mykobo/profiles` GET and POST routes, mirroring the `alfredpay.route.ts` pattern. The GET endpoint now identifies profiles by the authenticated user's email (`req.userEmail`) via `MykoboApiService.getProfileByEmail`, and rejects requests whose `email` query parameter does not match the authenticated user's email. POST profile creation still ties `wallet_address` to the user's ephemeral, so no separate wallet-ownership check is needed there. Supabase OTP gating plus the email/`req.userEmail` match closes the anonymous-flood and oracle vectors. |
 
 **Description:** `mykobo.route.ts` mounts two endpoints with **no authentication middleware**:
 
@@ -1482,7 +1482,7 @@ The parent mount in `routes/v1/index.ts:150` (`router.use("/mykobo", mykoboRoute
 
 Spec `mykobo.md` invariant 15 requires: *"Mykobo KYC profile creation MUST be gated by Vortex auth — The `/v1/mykobo/profiles` endpoints require a Supabase OTP session; anonymous profile creation is rejected."* The code violates this invariant.
 
-The `GET /profiles?walletAddress=...&memo=...` endpoint is a wallet-address oracle for KYC profile existence. The `POST /profiles` endpoint accepts multipart form-data (ID document, utility bill, selfie) and forwards it to Mykobo — anonymous callers can submit forged KYC documents linked to arbitrary wallet addresses.
+The `GET /profiles?email=...&memo=...` endpoint is an email-keyed KYC profile-existence oracle. The `POST /profiles` endpoint accepts multipart form-data (ID document, utility bill, selfie) and forwards it to Mykobo — anonymous callers can submit forged KYC documents linked to arbitrary identities.
 
 **Fix:** Add `requireAuth` middleware to both routes (mirroring `alfredpay.route.ts`):
 
@@ -1491,7 +1491,7 @@ router.route("/profiles").get(requireAuth, mykoboController.getProfileController
 router.route("/profiles").post(requireAuth, profileUpload, mykoboController.createProfileController);
 ```
 
-After adding auth, also verify that `walletAddress` in the request matches the authenticated user's bound wallet, to prevent an authenticated user from creating profiles linked to other users' wallets.
+After adding auth, also verify that the `email` query parameter on GET matches the authenticated user's email (`req.userEmail`), to prevent an authenticated user from enumerating other users' KYC profile existence.
 
 ---
 

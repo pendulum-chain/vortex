@@ -44,21 +44,21 @@ const emailsMatch = (a: string | undefined, b: string | undefined): boolean =>
   !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export const getProfileController = async (req: Request, res: Response): Promise<void> => {
-  const { address, memo } = req.query;
+  const { email, memo } = req.query;
   const userEmail = req.userEmail;
 
   if (!userEmail) {
     res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
     return;
   }
-  if (!address || typeof address !== "string" || !isAddress(address)) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid address parameter" });
+  if (!email || typeof email !== "string" || !emailsMatch(email, userEmail)) {
+    res.status(httpStatus.BAD_REQUEST).json({ error: "Invalid email parameter" });
     return;
   }
 
   try {
     const memoParam = typeof memo === "string" && memo.length > 0 ? memo : undefined;
-    const { profile } = await MykoboApiService.getInstance().getProfileByWalletAddress(address, memoParam);
+    const { profile } = await MykoboApiService.getInstance().getProfileByEmail(userEmail, memoParam);
     if (!emailsMatch(profile.email_address, userEmail)) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Profile not found" });
       return;
