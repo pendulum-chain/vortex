@@ -1,5 +1,6 @@
-import { ALFREDPAY_ERC20_DECIMALS, ALFREDPAY_ERC20_TOKEN, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
+import { ALFREDPAY_ERC20_DECIMALS, multiplyByPowerOfTen, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
 import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
@@ -19,6 +20,10 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     if (!ctx.request.inputAmount) {
       throw new Error("OnRampAlfredpayDiscountEngine requires request.inputAmount to be defined");
     }
+
+    if (!ctx.fees?.usd) {
+      throw new Error("OnRampAlfredpayDiscountEngine requires fees.usd to be defined");
+    }
   }
 
   protected async compute(ctx: QuoteContext): Promise<DiscountComputation> {
@@ -32,12 +37,13 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const effectiveRate = alfredpayMint.outputAmountDecimal.div(alfredpayMint.inputAmountDecimal);
 
-    const usdFees = ctx.fees?.usd;
-    const feesToDeduct = usdFees ? new Big(usdFees.vortex).plus(usdFees.partnerMarkup) : new Big(0);
+    // biome-ignore lint/style/noNonNullAssertion: validated in validate()
+    const usdFees = ctx.fees!.usd!;
+    const feesToDeduct = new Big(usdFees.vortex).plus(usdFees.partnerMarkup);
 
     const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal.minus(feesToDeduct);
 
-    console.log(
+    logger.debug(
       `[OnRampAlfredpayDiscountEngine] input=${inputAmount} ${ctx.request.outputCurrency}, alfredpayMintIn=${alfredpayMint.inputAmountDecimal.toString()} ${alfredpayMint.currency}, alfredpayMintOut=${alfredpayMint.outputAmountDecimal.toString()} ${ctx.request.outputCurrency}, effectiveRate=${effectiveRate.toString()}, finalOutput=${finalOutput.toString()}`
     );
 
