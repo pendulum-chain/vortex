@@ -79,7 +79,10 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+    const isDepositQrCodeReady =
+      Boolean(rampState?.ramp?.depositQrCode) ||
+      Boolean(rampState?.ramp?.achPaymentData) ||
+      Boolean(rampState?.ramp?.ibanPaymentData);
     const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
     if (isLockedToAnotherWallet({ accountAddress, isOfframp, quoteFrom: quote?.from, walletLocked })) {
@@ -207,7 +210,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
     if (machineState === "UpdateRamp") {
       const isDepositQrCodeReady =
-        Boolean(isOnramp && rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+        Boolean(isOnramp && rampState?.ramp?.depositQrCode) ||
+        Boolean(rampState?.ramp?.achPaymentData) ||
+        Boolean(isOnramp && rampState?.ramp?.ibanPaymentData);
       if (isOnramp && !isDepositQrCodeReady) return true;
     }
 
@@ -220,6 +225,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOnramp,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.achPaymentData,
+    rampState?.ramp?.ibanPaymentData,
     fiatToken,
     effectiveSelectedFiatAccountId,
     machineState,
