@@ -247,6 +247,7 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "baseCleanupUsdc":
     case "baseCleanupAxlUsdc":
     case "alfredOnrampMintFallback":
+    case "alfredpayOfframpTransferFallback":
       return EphemeralAccountType.EVM;
     default:
       throw new APIError({

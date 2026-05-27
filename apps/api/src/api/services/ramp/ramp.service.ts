@@ -1530,29 +1530,6 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-
-    const orderRequest: CreateAlfredpayOfframpRequest = {
-      amount: quote.inputAmount,
-      chain: AlfredpayChain.MATIC,
-      customerId: rampState.state.alfredpayUserId,
-      fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      originAddress: rampState.state.walletAddress,
-      quoteId: alfredpayQuoteId,
-      toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
-    };
-
-    const order = await alfredpayService.createOfframp(orderRequest);
-
-    await rampState.update(
-      {
-        state: {
-          ...rampState.state,
-          alfredpayTransactionId: order.transactionId
-        }
-      },
-      { transaction }
-    );
   }
 }
 
