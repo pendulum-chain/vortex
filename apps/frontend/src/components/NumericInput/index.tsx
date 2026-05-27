@@ -1,6 +1,6 @@
 import { FormatOn } from "numora";
 import { NumoraInput, type NumoraInputChangeEvent } from "numora-react";
-import { ChangeEvent, useState } from "react";
+import { useState } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
 import { TextMorph } from "torph/react";
 import { cn } from "../../helpers/cn";
@@ -15,7 +15,7 @@ interface NumericInputProps {
   autoFocus?: boolean;
   disabled?: boolean;
   loading?: boolean;
-  onChange?: (e: ChangeEvent) => void;
+  onChange?: (e: NumoraInputChangeEvent) => void;
 }
 
 export const NumericInput = ({
@@ -36,20 +36,15 @@ export const NumericInput = ({
   function handleChange(e: NumoraInputChangeEvent): void {
     const target = e.target as NumoraTarget;
     const raw = target.rawValue ?? target.value;
-    console.log("target.value: ", target.value);
-    console.log("target.formattedValue: ", target.formattedValue);
-    console.log("target.rawValue: ", target.rawValue);
     setFormatted(target.value);
     setValue(fieldName, raw, { shouldDirty: true, shouldValidate: true });
-    if (onChange) onChange(e as unknown as ChangeEvent);
+    if (onChange) onChange(e);
   }
 
   const inputClasses = cn(
     "h-full w-full border-0 bg-transparent px-4 shadow-none outline-none focus:shadow-none focus:outline-none",
     additionalStyle
   );
-
-  console.log(formatted);
 
   return (
     <div className="relative flex-grow">
@@ -67,7 +62,11 @@ export const NumericInput = ({
         autoComplete="off"
         autoCorrect="off"
         autoFocus={autoFocus}
-        className={cn(inputClasses, "relative text-transparent caret-base-content", disabled && "opacity-0")}
+        className={cn(
+          inputClasses,
+          "relative text-transparent caret-base-content placeholder:text-transparent",
+          disabled && "opacity-0"
+        )}
         disabled={disabled}
         formatOn={FormatOn.Change}
         maxDecimals={maxDecimals}
