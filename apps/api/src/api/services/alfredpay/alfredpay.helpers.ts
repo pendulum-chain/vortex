@@ -39,7 +39,7 @@ export async function lookupAlfredpayCustomerType(userId: string | undefined, fi
   if (!userId) return AlfredpayCustomerType.INDIVIDUAL;
   const country = alfredpayCountryForFiat(fiat);
   if (!country) return AlfredpayCustomerType.INDIVIDUAL;
-  const customer = await AlfredPayCustomer.findOne({ where: { country, userId } });
+  const customer = await AlfredPayCustomer.findOne({ order: [["type", "ASC"]], where: { country, userId } });
   return customer?.type === AlfredpayCustomerType.BUSINESS ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL;
 }
 
@@ -102,12 +102,18 @@ function startOfCurrentUtcMonth(): Date {
 }
 
 /** Returned in input-currency human units: fiat on onramp, stablecoin on offramp. */
-export async function getAlfredpayMonthlyUsage(userId: string, direction: RampDirection, fiat: FiatToken): Promise<Big> {
+export async function getAlfredpayMonthlyUsage(
+  userId: string,
+  direction: RampDirection,
+  fiat: FiatToken,
+  stablecoin: AlfredpayStablecoinKey
+): Promise<Big> {
   const isOnramp = direction === RampDirection.BUY;
   const fiatSide = isOnramp ? { inputCurrency: fiat } : { outputCurrency: fiat };
+  const stablecoinSide = isOnramp ? { outputCurrency: stablecoin } : { inputCurrency: stablecoin };
 
   const completedRamps = (await RampState.findAll({
-    include: [{ as: "quote", model: QuoteTicket, required: true, where: fiatSide }],
+    include: [{ as: "quote", model: QuoteTicket, required: true, where: { ...fiatSide, ...stablecoinSide } }],
     where: {
       createdAt: { [Op.gte]: startOfCurrentUtcMonth() },
       currentPhase: "complete",

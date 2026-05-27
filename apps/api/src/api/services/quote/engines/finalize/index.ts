@@ -116,8 +116,8 @@ export abstract class BaseFinalizeEngine implements Stage {
         createdAt: new Date(),
         expiresAt,
         feeCurrency: fiatFees.currency,
-        from: request.from, // Temporary ID for comparison
-        id: "temp-" + Date.now(),
+        from: request.from,
+        id: "temp-" + Date.now(), // Temporary ID for comparison
         inputAmount: trimTrailingZeros(request.inputAmount),
         inputCurrency: request.inputCurrency,
         network: request.network,

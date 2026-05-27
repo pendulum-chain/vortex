@@ -98,7 +98,12 @@ export async function applyAlfredpayLimits(ctx: QuoteContext, amount: Big.BigSou
   const { userId } = ctx.request;
   if (!userId) return true;
 
-  const used = await getAlfredpayMonthlyUsage(userId, alfredpayLimits.direction, alfredpayLimits.fiat);
+  const used = await getAlfredpayMonthlyUsage(
+    userId,
+    alfredpayLimits.direction,
+    alfredpayLimits.fiat,
+    alfredpayLimits.stablecoin
+  );
   const max = new Big(alfredpayLimits.max);
   if (used.plus(new Big(amount)).lte(max)) return true;
 

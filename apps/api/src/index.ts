@@ -74,7 +74,7 @@ const initializeApp = async () => {
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
 
-    // Start AlfredPay limits refresh loop (10 min TTL; falls back to hardcoded if stale)
+    // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
 
     // Register phase handlers
