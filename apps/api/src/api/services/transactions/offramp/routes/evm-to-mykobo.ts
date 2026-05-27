@@ -13,6 +13,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeFunctionData } from "viem";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
@@ -21,6 +22,19 @@ import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateOfframpQuote } from "../common/validation";
+
+const transferAbi = [
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "value", type: "uint256" }
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  }
+] as const;
 
 export async function prepareEvmToMykoboOfframpTransactions({
   quote,
@@ -99,6 +113,28 @@ export async function prepareEvmToMykoboOfframpTransactions({
       phase: "squidRouterSwap",
       signer: userAddress,
       txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+    });
+  } else {
+    // User already holds USDC on Base — they sign a single ERC-20 transfer to the ephemeral.
+    // Mirrors the isDirectPolygonTransfer branch in evm-to-alfredpay.ts.
+    const transferData = encodeFunctionData({
+      abi: transferAbi,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterNoPermitTransfer",
+      signer: userAddress,
+      txData: {
+        data: transferData,
+        gas: "0",
+        to: inputTokenDetails.erc20AddressSourceChain,
+        value: "0"
+      }
     });
   }
 
