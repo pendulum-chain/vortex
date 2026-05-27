@@ -61,7 +61,13 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
           status: httpStatus.INTERNAL_SERVER_ERROR
         });
       }
-      finalOutputAmountDecimal = new Big(output);
+      let amount = new Big(output);
+      if (!ctx.evmToEvm && ctx.alfredpayMint) {
+        const usdFees = ctx.fees?.usd;
+        const feesToDeduct = usdFees ? new Big(usdFees.vortex).plus(usdFees.partnerMarkup) : new Big(0);
+        amount = amount.minus(feesToDeduct);
+      }
+      finalOutputAmountDecimal = amount;
     } else {
       const output = ctx.moonbeamToEvm?.outputAmountDecimal;
       if (!output) {

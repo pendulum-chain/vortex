@@ -63,9 +63,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     const isAlfredpayOnramp =
       state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
 
-    if (isAlfredpayOnramp) {
+    if (isAlfredpayOnramp && quote.metadata.to === Networks.Polygon) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, "finalSettlementSubsidy");
     }
 
     const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
@@ -84,7 +84,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       bridgeMeta.fromToken.toLowerCase() === bridgeMeta.toToken.toLowerCase();
     if (isSameChainSameTokenPassthrough) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for same-chain same-token passthrough (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, "finalSettlementSubsidy");
     }
 
     const evmEphemeralAddress = state.state.evmEphemeralAddress;
@@ -195,7 +195,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         throw new Error(`Quote not found for ramp ${state.id}`);
       }
 
-      if (quote.inputCurrency === FiatToken.EURC || quote.inputCurrency === FiatToken.USD) {
+      if (quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)) {
         return this.polygonClient;
       } else if (quote.inputCurrency === FiatToken.BRL) {
         return this.baseClient;

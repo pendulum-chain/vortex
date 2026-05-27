@@ -1356,9 +1356,10 @@ export class RampService extends BaseRampService {
     }
 
     const alfredpayService = AlfredpayApiService.getInstance();
-    const alfredpayQuoteId = quote.metadata.alfredpayMint?.quoteId;
+    const originalAlfredpayMint = quote.metadata.alfredpayMint;
+    const originalQuoteId = originalAlfredpayMint?.quoteId;
 
-    if (!alfredpayQuoteId) {
+    if (!originalQuoteId || !originalAlfredpayMint) {
       throw new APIError({
         message: "Missing Alfredpay quote ID in metadata",
         status: httpStatus.BAD_REQUEST
@@ -1386,14 +1387,24 @@ export class RampService extends BaseRampService {
       });
     }
 
+    // Alfredpay quotes expire ~30s after creation, which is often shorter than the time the
+    // user needs to sign ephemeral txs in the UI. Try refreshing the Alfredpay quote
+    const fromCurrency = quote.inputCurrency as unknown as AlfredpayFiatCurrency;
+    const effectiveQuoteId = await this.refreshAlfredpayOnrampQuoteIfMatching(
+      quote,
+      originalAlfredpayMint,
+      fromCurrency,
+      transaction
+    );
+
     const orderRequest: CreateAlfredpayOnrampRequest = {
       amount: quote.inputAmount,
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
+      fromCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      quoteId: alfredpayQuoteId,
+      quoteId: effectiveQuoteId,
       toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
@@ -1411,6 +1422,73 @@ export class RampService extends BaseRampService {
     );
 
     return order.fiatPaymentInstructions;
+  }
+
+  private async refreshAlfredpayOnrampQuoteIfMatching(
+    quote: QuoteTicket,
+    originalAlfredpayMint: NonNullable<QuoteTicket["metadata"]["alfredpayMint"]>,
+    fromCurrency: AlfredpayFiatCurrency,
+    transaction: Transaction
+  ): Promise<string> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const originalQuoteId = originalAlfredpayMint.quoteId;
+
+    try {
+      const freshQuote = await alfredpayService.createOnrampQuote({
+        chain: AlfredpayChain.MATIC,
+        fromAmount: new Big(quote.inputAmount).toString(),
+        fromCurrency,
+        metadata: {
+          businessId: "vortex",
+          customerId: quote.userId || "unknown"
+        },
+        paymentMethodType: AlfredpayPaymentMethodType.BANK,
+        toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
+      });
+
+      // outputAmountDecimal arrives as a serialized Big after JSONB roundtrip; normalize via Big().
+      const originalToAmount = new Big(originalAlfredpayMint.outputAmountDecimal as unknown as string);
+      const freshToAmount = new Big(freshQuote.toAmount);
+
+      const originalFee = new Big(originalAlfredpayMint.fee as unknown as string);
+      const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, fromCurrency);
+
+      if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+        logger.warn(
+          `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refreshed Alfredpay quote drifted. ` +
+            `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
+            `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
+            `Falling back to original quoteId ${originalQuoteId}.`
+        );
+        return originalQuoteId;
+      }
+
+      await quote.update(
+        {
+          metadata: {
+            ...quote.metadata,
+            alfredpayMint: {
+              ...originalAlfredpayMint,
+              expirationDate: new Date(freshQuote.expiration),
+              quoteId: freshQuote.quoteId
+            }
+          }
+        },
+        { transaction }
+      );
+
+      logger.info(
+        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: swapped Alfredpay quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
+      );
+      return freshQuote.quoteId;
+    } catch (error) {
+      logger.warn(
+        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refresh failed (${
+          error instanceof Error ? error.message : String(error)
+        }). Falling back to original quoteId ${originalQuoteId}.`
+      );
+      return originalQuoteId;
+    }
   }
 
   private async processAlfredpayOfframpStart(
@@ -1452,29 +1530,6 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-
-    const orderRequest: CreateAlfredpayOfframpRequest = {
-      amount: quote.inputAmount,
-      chain: AlfredpayChain.MATIC,
-      customerId: rampState.state.alfredpayUserId,
-      fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      originAddress: rampState.state.walletAddress,
-      quoteId: alfredpayQuoteId,
-      toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
-    };
-
-    const order = await alfredpayService.createOfframp(orderRequest);
-
-    await rampState.update(
-      {
-        state: {
-          ...rampState.state,
-          alfredpayTransactionId: order.transactionId
-        }
-      },
-      { transaction }
-    );
   }
 }
 
