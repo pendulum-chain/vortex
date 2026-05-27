@@ -37,7 +37,7 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     await assertQuoteOwnership(req, quoteId);
 
-    const enrichedAdditionalData = enrichAdditionalDataWithClientIp(additionalData, req);
+    const enrichedAdditionalData = await enrichAdditionalDataWithClientIp(additionalData, req);
 
     const ramp = await rampService.registerRamp({
       additionalData: enrichedAdditionalData,
