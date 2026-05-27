@@ -13,8 +13,10 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import httpStatus from "http-status";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../../../contracts/ERC20";
+import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
@@ -43,15 +45,27 @@ export async function prepareEvmToMykoboOfframpTransactions({
   }
 
   if (!email) {
-    throw new Error("email must be provided for Mykobo (EUR) offramp");
+    throw new APIError({
+      isPublic: true,
+      message: "email must be provided for Mykobo (EUR) offramp",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (!ipAddress) {
-    throw new Error("ipAddress must be provided for Mykobo (EUR) offramp");
+    throw new APIError({
+      isPublic: true,
+      message: "ipAddress must be provided for Mykobo (EUR) offramp",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (!destinationAddress) {
-    throw new Error("destinationAddress (user receiving wallet) must be provided for Mykobo offramp");
+    throw new APIError({
+      isPublic: true,
+      message: "destinationAddress (user receiving wallet) must be provided for Mykobo offramp",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (!userAddress) {
