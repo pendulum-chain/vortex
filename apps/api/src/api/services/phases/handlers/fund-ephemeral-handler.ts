@@ -111,6 +111,20 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     const fromNetwork = state.from as EvmNetworks;
     if (!isNetworkEVM(fromNetwork)) return;
 
+    // Base+USDC direct path: the user broadcasts a single ERC20 transfer instead of squid
+    // approve+swap. Verify that hash before we fund the ephemeral and spend gas on Nabla.
+    const hasNoPermitTransferBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer");
+    if (hasNoPermitTransferBlueprint) {
+      await verifyUserSubmittedTxByHash({
+        fromNetwork,
+        hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
+        label: "User direct USDC transfer to ephemeral",
+        presignedPhase: "squidRouterNoPermitTransfer",
+        state
+      });
+      return;
+    }
+
     const hasSquidApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterApprove");
     if (!hasSquidApproveBlueprint) return;
 
