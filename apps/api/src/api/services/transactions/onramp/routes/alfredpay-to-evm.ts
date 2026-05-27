@@ -185,6 +185,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   });
 
   let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce++ : 0; // If the destination is Polygon, we need to use the same nonce sequence. Otherwise, we start fresh on the new chain.
+  const destinationStartingNonce = destinationNonce;
 
   unsignedTxs.push({
     meta: {},
@@ -240,8 +241,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     tokenAddress: bridgedTokenForFallback
   });
 
-  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
-  const backupApproveNonce = 0;
+  // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = destinationStartingNonce;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,

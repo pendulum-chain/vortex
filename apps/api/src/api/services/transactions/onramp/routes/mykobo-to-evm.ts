@@ -215,7 +215,9 @@ export async function prepareMykoboToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
-  let destinationNonce = 0;
+  const destinationSharesSourceChain = toNetwork === Networks.Base;
+  let destinationNonce = destinationSharesSourceChain ? baseNonce : 0;
+  const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
@@ -294,7 +296,9 @@ export async function prepareMykoboToEvmOnrampTransactions({
   });
 
   // Nonce 0 on purpose: ensures the approval can land even if other destination-chain txs are missed.
-  const backupApproveNonce = 0;
+  // When source chain == destination chain, the ephemeral has already consumed nonces 0..N-1, so we
+  // reuse destinationTransfer's nonce (the first destination-chain nonce) for the same effect.
+  const backupApproveNonce = destinationStartingNonce;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,
