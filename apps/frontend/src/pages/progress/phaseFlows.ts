@@ -55,6 +55,18 @@ export const PHASE_FLOWS = {
     "complete"
   ] as RampPhase[],
 
+  offramp_eur_evm: [
+    "initial",
+    "fundEphemeral",
+    "distributeFees",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "mykoboPayoutOnBase",
+    "complete"
+  ] as RampPhase[],
+
   onramp_brl: [
     "initial",
     "brlaOnrampMint",
