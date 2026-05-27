@@ -598,6 +598,7 @@
         "utilityBill": "Utility bill"
       },
       "rejected": "Your verification was rejected.",
+      "startOver": "Start over",
       "submitting": "Submitting your verification...",
       "verifying": "Verifying your identity. This may take a few minutes..."
     },

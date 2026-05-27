@@ -112,15 +112,19 @@ export const mykoboKycMachine = setup({
     profileApproved: context.profileApproved
   }),
   states: {
+    Cancelled: {
+      type: "final"
+    },
     CheckingProfile: {
       invoke: {
         id: "checkExistingProfile",
         input: ({ context }) => context,
         onDone: [
           {
+            // Already-approved profile: skip the Success screen and let the parent advance to Payment Summary directly.
             actions: assign({ profileApproved: true }),
             guard: ({ event }) => event.output?.kycStatus.reviewStatus === "approved",
-            target: "VerificationDone"
+            target: "Done"
           },
           {
             guard: ({ event }) => event.output?.kycStatus.reviewStatus === "pending",
@@ -143,7 +147,7 @@ export const mykoboKycMachine = setup({
       type: "final"
     },
     Failure: {
-      type: "final"
+      // Non-final: keep the actor alive so the failure screen stays rendered. The user dismisses via RESET_RAMP on the parent.
     },
     FormFilling: {
       on: {
@@ -151,7 +155,7 @@ export const mykoboKycMachine = setup({
           actions: assign({
             error: () => new MykoboKycMachineError("Cancelled by the user", MykoboKycMachineErrorType.UserRejected)
           }),
-          target: "Failure"
+          target: "Cancelled"
         },
         SubmitKycForm: {
           actions: assign(({ event }) => ({
@@ -163,7 +167,7 @@ export const mykoboKycMachine = setup({
       }
     },
     Rejected: {
-      type: "final"
+      // Non-final: keep the actor alive so the rejection screen stays rendered. The user dismisses via RESET_RAMP on the parent.
     },
     Submitting: {
       invoke: {

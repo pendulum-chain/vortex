@@ -602,6 +602,7 @@
         "utilityBill": "Comprovante de residência"
       },
       "rejected": "Sua verificação foi rejeitada.",
+      "startOver": "Começar de novo",
       "submitting": "Enviando sua verificação...",
       "verifying": "Verificando sua identidade. Isso pode levar alguns minutos..."
     },
