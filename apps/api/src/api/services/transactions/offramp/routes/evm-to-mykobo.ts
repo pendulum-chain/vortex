@@ -14,11 +14,11 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
+import erc20ABI from "../../../../../contracts/ERC20";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
-import { transferAbi } from "../../common/abis";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
@@ -109,7 +109,7 @@ export async function prepareEvmToMykoboOfframpTransactions({
     // User already holds USDC on Base — they sign a single ERC-20 transfer to the ephemeral.
     // Mirrors the isDirectPolygonTransfer branch in evm-to-alfredpay.ts.
     const transferData = encodeFunctionData({
-      abi: transferAbi,
+      abi: erc20ABI,
       args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
       functionName: "transfer"
     });

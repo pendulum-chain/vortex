@@ -37,10 +37,10 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config/vars";
+import erc20ABI from "../../../../../contracts/ERC20";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { transferAbi } from "../../common/abis";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -397,7 +397,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     // No permit available, but user already holds USDT on Polygon: user signs a single
     // transfer(ephemeral, amount) in their wallet. Funds land directly on the ephemeral.
     const transferData = encodeFunctionData({
-      abi: transferAbi,
+      abi: erc20ABI,
       args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
       functionName: "transfer"
     });
