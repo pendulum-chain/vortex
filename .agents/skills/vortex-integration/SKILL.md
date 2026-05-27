@@ -1,8 +1,13 @@
-# Vortex SKILLS.md
+---
+name: vortex-integration
+description: Use when integrating Vortex or @vortexfi/sdk, including quotes, BRL PIX onramps/offramps, ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
+---
 
-A machine-loadable capability catalog for AI coding agents integrating Vortex into third-party applications. Each skill below is a self-contained unit with YAML frontmatter (`name`, `description`, `triggers`) plus a minimal recipe in both SDK and REST form.
+# Vortex Integration Skill
 
-> **Companion document**: [`docs/api/pages/12-ai-agent-integration.md`](https://api-docs.vortexfinance.co/ai-agent-integration) covers the raw-API contract, mandatory client responsibilities, and language-agnostic guidance. SKILLS.md focuses on **task-shaped recipes** an agent can match against user intent.
+A machine-loadable capability catalog for AI coding agents integrating Vortex into third-party applications. Start by reading **Global Context**, then match the user's task to the closest recipe below before implementing. Each recipe includes trigger phrases plus a minimal SDK and/or REST form.
+
+> **Companion document**: [AI Agent Integration](https://api-docs.vortexfinance.co/ai-agent-integration) covers the raw-API contract, mandatory client responsibilities, and language-agnostic guidance. This skill focuses on **task-shaped recipes** an agent can match against user intent.
 
 ---
 

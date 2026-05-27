@@ -13,6 +13,8 @@ import {
   CreateAlfredpayOfframpRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
+  ERC20_EURE_POLYGON_TOKEN_NAME,
+  ERC20_EURE_POLYGON_V2,
   EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
@@ -45,7 +47,6 @@ import { Op, Transaction, WhereOptions } from "sequelize";
 import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
-import { config } from "../../../config/vars";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -53,7 +54,7 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { createEpcQrCodeData, getIbanForAddress, getMoneriumUserProfile } from "../monerium";
+import { createEpcQrCodeData, getIbanForAddress } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -64,6 +65,7 @@ import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { getFinalTransactionHashForRamp } from "./helpers";
+import { validateMoneriumOnrampPermit } from "./monerium-permit";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
@@ -1120,13 +1122,6 @@ export class RampService extends BaseRampService {
         quote.to as EvmNetworks // Fixme: assethub network type issue.
       );
 
-      const userProfile = config.sandboxEnabled
-        ? null
-        : await getMoneriumUserProfile({
-            authToken: additionalData.moneriumAuthToken,
-            profileId: ibanData.profile
-          });
-
       const params: MoneriumOnrampTransactionParams = {
         destinationAddress: additionalData.destinationAddress,
         moneriumWalletAddress: additionalData.moneriumWalletAddress,
@@ -1136,18 +1131,17 @@ export class RampService extends BaseRampService {
 
       const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
 
-      const receiverName = config.sandboxEnabled ? "Sandbox User" : userProfile?.name || "User";
       const ibanPaymentData = {
         bic: ibanData.bic,
         iban: ibanData.iban,
-        receiverName
+        receiverName: ibanData.name
       };
 
       const ibanCode = createEpcQrCodeData({
         amount: quote.inputAmount,
         bic: ibanData.bic,
         iban: ibanData.iban,
-        name: receiverName
+        name: ibanData.name
       });
       return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
     } catch (error) {
@@ -1281,6 +1275,27 @@ export class RampService extends BaseRampService {
           status: httpStatus.BAD_REQUEST
         });
       }
+      if (!quote.metadata.moneriumMint?.outputAmountRaw) {
+        throw new APIError({
+          message: "Missing moneriumMint.outputAmountRaw in quote metadata. Cannot validate Monerium onramp permit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!rampState.state.moneriumWalletAddress || !rampState.state.evmEphemeralAddress) {
+        throw new APIError({
+          message: "Missing Monerium wallet or EVM ephemeral address in state. Cannot validate Monerium onramp permit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      validateMoneriumOnrampPermit(rampState.state.moneriumOnrampPermit, {
+        expectedOwner: rampState.state.moneriumWalletAddress,
+        expectedSpender: rampState.state.evmEphemeralAddress,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: quote.metadata.moneriumMint.outputAmountRaw,
+        network: Networks.Polygon
+      });
     }
   }
 

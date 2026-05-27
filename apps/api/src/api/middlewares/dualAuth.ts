@@ -1,11 +1,9 @@
 import { NextFunction, Request, Response } from "express";
-import httpStatus from "http-status";
 import logger from "../../config/logger";
-import QuoteTicket from "../../models/quoteTicket.model";
-import RampState from "../../models/rampState.model";
-import { APIError } from "../errors/api-error";
 import { SupabaseAuthService } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
+
+export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
 /**
  * Dual-track authentication: accepts either a partner secret API key
@@ -13,6 +11,22 @@ import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiK
  * Exactly one of req.authenticatedPartner or req.userId is populated on success.
  */
 export function requirePartnerOrUserAuth() {
+  return dualAuthHandler({ requireCredentials: true });
+}
+
+/**
+ * Dual-track authentication that does not reject anonymous callers.
+ * If credentials are provided, they MUST be valid (same checks as
+ * `requirePartnerOrUserAuth`). If no credentials are provided, the request
+ * proceeds and downstream ownership checks decide whether the resource is
+ * accessible. Use only on endpoints where anonymous access is intentionally
+ * allowed for fully-anonymous resources (no userId, no partnerId).
+ */
+export function optionalPartnerOrUserAuth() {
+  return dualAuthHandler({ requireCredentials: false });
+}
+
+function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const apiKey = req.headers["x-api-key"] as string | undefined;
@@ -63,6 +77,10 @@ export function requirePartnerOrUserAuth() {
         return next();
       }
 
+      if (!requireCredentials) {
+        return next();
+      }
+
       return res.status(401).json({
         error: {
           code: "AUTHENTICATION_REQUIRED",
@@ -75,86 +93,4 @@ export function requirePartnerOrUserAuth() {
       next(error);
     }
   };
-}
-
-/**
- * Verify the authenticated principal owns the ramp identified by req.params.id
- * or req.body.rampId. Partner principals must match the quote's partnerId;
- * user principals must match the ramp state's userId.
- */
-export async function assertRampOwnership(
-  req: Pick<Request, "authenticatedPartner" | "userId">,
-  rampId: string
-): Promise<void> {
-  const ramp = await RampState.findByPk(rampId);
-  if (!ramp) {
-    throw new APIError({ message: "Ramp not found", status: httpStatus.NOT_FOUND });
-  }
-
-  if (req.authenticatedPartner) {
-    const quote = await QuoteTicket.findByPk(ramp.quoteId);
-    if (!quote) {
-      throw new APIError({ message: "Associated quote not found", status: httpStatus.NOT_FOUND });
-    }
-    if (quote.partnerId !== req.authenticatedPartner.id) {
-      throw new APIError({
-        message: "Authenticated partner does not own this ramp",
-        status: httpStatus.FORBIDDEN
-      });
-    }
-    return;
-  }
-
-  if (req.userId) {
-    if (ramp.userId !== req.userId) {
-      throw new APIError({
-        message: "Authenticated user does not own this ramp",
-        status: httpStatus.FORBIDDEN
-      });
-    }
-    return;
-  }
-
-  throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
-}
-
-/**
- * Ownership check for the register flow, which references a quote (not yet a ramp).
- */
-export async function assertQuoteOwnership(
-  req: Pick<Request, "authenticatedPartner" | "userId">,
-  quoteId: string
-): Promise<void> {
-  const quote = await QuoteTicket.findByPk(quoteId);
-  if (!quote) {
-    throw new APIError({ message: "Quote not found", status: httpStatus.NOT_FOUND });
-  }
-
-  if (req.authenticatedPartner) {
-    if (quote.partnerId !== req.authenticatedPartner.id) {
-      throw new APIError({
-        message: "Authenticated partner does not own this quote",
-        status: httpStatus.FORBIDDEN
-      });
-    }
-    return;
-  }
-
-  if (req.userId) {
-    if (quote.partnerId !== null) {
-      throw new APIError({
-        message: "This quote belongs to a partner; user authentication is not sufficient",
-        status: httpStatus.FORBIDDEN
-      });
-    }
-    if (quote.userId !== null && quote.userId !== req.userId) {
-      throw new APIError({
-        message: "Authenticated user does not own this quote",
-        status: httpStatus.FORBIDDEN
-      });
-    }
-    return;
-  }
-
-  throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
 }

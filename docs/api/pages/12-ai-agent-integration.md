@@ -7,6 +7,7 @@ This page is written so that an AI coding agent (or a human engineer using one) 
 When you point an AI coding agent at Vortex:
 
 - **Anchor the agent on this section first.** Pages 1–11 describe the protocol and contracts; this page describes what a correct client must do.
+- **Load the Vortex integration skill if available.** This repository ships a Codex/Agent Skills skill at [`vortex-integration`](https://github.com/pendulum-chain/vortex/tree/main/.agents/skills/vortex-integration). If this repository is open in Codex, the skill is discovered automatically from `$REPO_ROOT/.agents/skills/vortex-integration/SKILL.md`; if you are integrating Vortex from another repository, install the public skill directory URL (`https://github.com/pendulum-chain/vortex/tree/main/.agents/skills/vortex-integration`) first, then match the user's task to the relevant recipe before implementing.
 - **Treat the OpenAPI file as the source of truth for shapes**, and these Markdown pages as the source of truth for *behavior, ordering, custody, signing, and timing*. Both are required; neither is sufficient alone.
 - **Pin versions.** Record the commit hash of these docs and the version of `@vortexfi/sdk` you are mirroring. The SDK's behavior is the reference implementation; if your integration disagrees with it, the SDK wins.
 - **Never let the agent invent endpoints, fields, status values, or fee categories.** If something is not in the OpenAPI file or these pages, the agent should stop and ask.
