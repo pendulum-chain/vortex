@@ -22,21 +22,14 @@ export const SummaryStep: FC = () => {
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
-  const { visible, executionInput, rampDirection, rampState, signingPhase, rampRegistrationError } = useSelector(
-    rampActor,
-    state => ({
-      executionInput: state.context.executionInput,
-      rampDirection: state.context.rampDirection,
-      rampRegistrationError: state.context.initializeFailedMessage,
-      rampState: state.context.rampState,
-      signingPhase: state.context.rampSigningPhase,
-      visible:
-        state.matches("KycComplete") ||
-        state.matches("RegisterRamp") ||
-        state.matches("UpdateRamp") ||
-        state.matches("StartRamp")
-    })
-  );
+  const { visible, executionInput, rampDirection, rampState, rampRegistrationError } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
+    rampDirection: state.context.rampDirection,
+    rampRegistrationError: state.context.initializeFailedMessage,
+    rampState: state.context.rampState,
+    visible:
+      state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
+  }));
   const rampType = rampDirection || RampDirection.BUY;
   const isOnramp = rampType === RampDirection.BUY;
 
@@ -53,7 +46,7 @@ export const SummaryStep: FC = () => {
     if (!visible || !isOnramp) return;
     const fiatToken = executionInput?.fiatToken;
     const isBrlReady = fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode;
-    const isEurcReady = fiatToken === FiatToken.EURC && rampState?.ramp?.ibanPaymentData && signingPhase === "finished";
+    const isEurcReady = fiatToken === FiatToken.EURC && rampState?.ramp?.ibanPaymentData;
     if (isBrlReady || isEurcReady) {
       scrollToBottom();
     }
@@ -63,7 +56,6 @@ export const SummaryStep: FC = () => {
     executionInput?.fiatToken,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.ibanPaymentData,
-    signingPhase,
     scrollToBottom
   ]);
 

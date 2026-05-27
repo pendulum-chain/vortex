@@ -12,20 +12,21 @@ import { InfoBox } from "../../InfoBox";
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { isQuoteExpired, rampState, signingPhase } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, rampState } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
-    rampState: state.context.rampState,
-    signingPhase: state.context.rampSigningPhase
+    rampState: state.context.rampState
   }));
 
-  if (!rampState?.ramp?.depositQrCode) return null;
-
   if (!rampState?.ramp?.ibanPaymentData) return null;
-  if (signingPhase !== "finished") return null; // Only show details if the ramp is finished
   if (isQuoteExpired) return null;
 
-  const { iban, bic, receiverName } = rampState.ramp.ibanPaymentData;
+  const { iban, bic, receiverName, reference } = rampState.ramp.ibanPaymentData;
   const amount = rampState.quote.inputAmount;
+
+  // EPC QR (Girocode / SEPA QR) — version 002 allows empty BIC, scanned by most EU banking apps to autofill the transfer
+  const epcQrPayload = ["BCD", "002", "1", "SCT", bic ?? "", receiverName, iban, `EUR${amount}`, "", "", reference ?? ""].join(
+    "\n"
+  );
 
   return (
     <section>
@@ -48,12 +49,14 @@ export const EUROnrampDetails: FC = () => {
             <CopyButton text={iban} />
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between">
-          <span>{t("components.SummaryPage.EUROnrampDetails.bic")}</span>
-          <div className="flex items-center">
-            <CopyButton text={bic} />
+        {bic && (
+          <div className="mt-2 flex items-center justify-between">
+            <span>{t("components.SummaryPage.EUROnrampDetails.bic")}</span>
+            <div className="flex items-center">
+              <CopyButton text={bic} />
+            </div>
           </div>
-        </div>
+        )}
       </InfoBox>
       {rampState.quote.outputCurrency === EvmToken.ETH && (
         <AlertBanner
@@ -62,13 +65,11 @@ export const EUROnrampDetails: FC = () => {
           title="When buying a non-stablecoin asset, you have to use instant SEPA. Otherwise your ramp might fail due to the delay."
         />
       )}
-      {rampState.ramp?.depositQrCode && (
-        <div className="my-6 flex justify-center">
-          <InfoBox>
-            <QRCodeSVG value={rampState.ramp?.depositQrCode} />
-          </InfoBox>
-        </div>
-      )}
+      <div className="my-6 flex justify-center">
+        <InfoBox>
+          <QRCodeSVG value={epcQrPayload} />
+        </InfoBox>
+      </div>
       <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.hint")}</p>
       <p className="text-center">{t("components.SummaryPage.EUROnrampDetails.footer")}</p>
     </section>
