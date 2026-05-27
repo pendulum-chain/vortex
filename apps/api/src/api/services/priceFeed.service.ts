@@ -116,7 +116,7 @@ export class PriceFeedService {
     logger.debug(`Cache miss for ${cacheKey}. Fetching from CoinGecko API.`);
 
     try {
-      logger.info(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
+      logger.debug(`Fetching price for ${tokenId} in ${vsCurrency} from CoinGecko`);
 
       // Construct the API URL
       const url = new URL(`${this.coingeckoApiBaseUrl}/simple/price`);

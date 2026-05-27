@@ -539,12 +539,7 @@ export class AlfredpayController {
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
-      console.log("Received request to submit KYC file with data:", {
-        country,
-        fileName: req.file.originalname,
-        fileType,
-        submissionId
-      });
+
       const fileBlob = new File([new Uint8Array(req.file.buffer)], req.file.originalname, { type: req.file.mimetype });
       const alfredpayService = AlfredpayApiService.getInstance();
       await alfredpayService.submitKycFile(

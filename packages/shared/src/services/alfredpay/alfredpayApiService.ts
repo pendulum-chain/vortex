@@ -269,8 +269,6 @@ export class AlfredpayApiService {
     if (!data.cuit) delete kycSubmission.cuit;
     if (data.pep !== false && !data.pep) delete kycSubmission.pep;
     if (!data.countryCode) delete kycSubmission.countryCode;
-    console.log("Submitting KYC information with payload:", kycSubmission);
-    throw new Error("KYC submission is currently disabled for testing purposes.");
     return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 
