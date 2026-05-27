@@ -65,7 +65,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     if (isAlfredpayOnramp && quote.metadata.to === Networks.Polygon) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, "finalSettlementSubsidy");
     }
 
     const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
