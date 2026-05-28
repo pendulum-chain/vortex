@@ -7,6 +7,12 @@ import { cn } from "../../helpers/cn";
 
 type NumoraTarget = NumoraInputChangeEvent["target"] & { rawValue?: string };
 
+const FORMATTING_OPTIONS = {
+  formatOn: FormatOn.Change,
+  thousandStyle: ThousandStyle.Thousand,
+  ...applyLocale(true, {})
+};
+
 interface NumericInputProps {
   register: UseFormRegisterReturn;
   readOnly?: boolean;
@@ -32,14 +38,7 @@ export const NumericInput = ({
   const { name: fieldName, ref, onBlur } = register;
   const inputValue = useWatch({ name: fieldName });
   const formatted = useMemo(
-    () =>
-      inputValue
-        ? formatValueForDisplay(String(inputValue), maxDecimals, {
-            formatOn: FormatOn.Change,
-            thousandStyle: ThousandStyle.Thousand,
-            ...applyLocale(true, {})
-          }).formatted
-        : "",
+    () => (inputValue ? formatValueForDisplay(String(inputValue), maxDecimals, FORMATTING_OPTIONS).formatted : ""),
     [inputValue, maxDecimals]
   );
 
