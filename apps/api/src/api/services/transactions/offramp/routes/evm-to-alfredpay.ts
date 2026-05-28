@@ -343,7 +343,13 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         toToken: ALFREDPAY_ERC20_TOKEN
       });
 
-      const relayerAddress = getRelayerAddress(fromNetwork);
+      const relayerAddress = RELAYER_ADDRESSES[fromNetwork];
+
+      if (!relayerAddress) {
+        throw new Error(
+          `Alfredpay offramp permit flow is not supported on ${fromNetwork}: no relayer deployment configured`
+        );
+      }
 
       const permitTypedData: SignedTypedData = {
         domain: resolvedDomain,
