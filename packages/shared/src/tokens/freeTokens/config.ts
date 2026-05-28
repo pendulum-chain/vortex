@@ -81,6 +81,29 @@ const COP_LIMITS: AlfredpayLimitsTable = {
   }
 };
 
+const ARS_LIMITS: AlfredpayLimitsTable = {
+  offramp: {
+    USDC: {
+      BUSINESS: { maxRaw: "300000000000", minRaw: "1000000" },
+      INDIVIDUAL: { maxRaw: "300000000000", minRaw: "1000000" }
+    },
+    USDT: {
+      BUSINESS: { maxRaw: "300000000000", minRaw: "1000000" },
+      INDIVIDUAL: { maxRaw: "100000000000", minRaw: "1000000" }
+    }
+  },
+  onramp: {
+    USDC: {
+      BUSINESS: { maxRaw: "110596799945", minRaw: "110000" },
+      INDIVIDUAL: { maxRaw: "110596799945", minRaw: "110000" }
+    },
+    USDT: {
+      BUSINESS: { maxRaw: "110596799945", minRaw: "110000" },
+      INDIVIDUAL: { maxRaw: "110596799945", minRaw: "110000" }
+    }
+  }
+};
+
 export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = {
   [FiatToken.USD]: {
     alfredpayLimits: USD_LIMITS,
@@ -130,6 +153,7 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     type: TokenType.Fiat
   },
   [FiatToken.ARS]: {
+    alfredpayLimits: ARS_LIMITS,
     assetSymbol: "ARS",
     decimals: 2,
     fiat: {
