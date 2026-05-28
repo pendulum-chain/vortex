@@ -5,8 +5,6 @@ import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form
 import { TextMorph } from "torph/react";
 import { cn } from "../../helpers/cn";
 
-type NumoraTarget = NumoraInputChangeEvent["target"] & { rawValue?: string };
-
 const FORMATTING_OPTIONS = {
   formatOn: FormatOn.Change,
   thousandStyle: ThousandStyle.Thousand,
@@ -43,9 +41,7 @@ export const NumericInput = ({
   );
 
   function handleChange(e: NumoraInputChangeEvent): void {
-    const target = e.target as NumoraTarget;
-    const raw = target.rawValue ?? target.value;
-    setValue(fieldName, raw, { shouldDirty: true, shouldValidate: true });
+    setValue(fieldName, e.target.value, { shouldDirty: true, shouldValidate: true });
     if (onChange) onChange(e);
   }
 
