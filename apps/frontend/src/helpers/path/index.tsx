@@ -1,5 +1,4 @@
 import { RampDirection } from "@vortexfi/shared";
-import { getLanguageFromPath, Language } from "../../translations/helpers";
 
 const DEFAULT_RAMP_DIRECTION = RampDirection.BUY;
 
@@ -17,9 +16,7 @@ const getRampDirectionFromPath = (): RampDirection => {
     return normalizedRampParam;
   }
 
-  // If the language is Portuguese, we default to BUY, otherwise we default to SELL
-  const isLanguagePortuguese = getLanguageFromPath()?.toUpperCase() === Language.Portuguese_Brazil.toUpperCase();
-  return isLanguagePortuguese ? RampDirection.BUY : RampDirection.SELL;
+  return DEFAULT_RAMP_DIRECTION;
 };
 
 export { getRampDirectionFromPath, DEFAULT_RAMP_DIRECTION };
