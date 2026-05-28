@@ -51,6 +51,60 @@ console.log("Please do the pix transfer using the following code: ", depositQrCo
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
+### Alfredpay (USD / MXN / COP) onramp
+
+```typescript
+import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
+
+const sdk = new VortexSdk({ apiBaseUrl: "http://localhost:3000" });
+
+const quote = await sdk.createQuote({
+  inputAmount: "100",
+  inputCurrency: FiatToken.COP,
+  outputCurrency: EvmToken.USDC,
+  rampType: RampDirection.BUY,
+  to: Networks.Polygon
+});
+
+const { rampProcess } = await sdk.registerRamp(quote, {
+  destinationAddress: "0x1234567890123456789012345678901234567890",
+  fiatAccountId: "<the user's Alfredpay fiat account id>",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+});
+
+// Inspect off-chain fiat payment instructions before starting.
+const startedRamp = await sdk.startRamp(rampProcess.id);
+console.log("Pay via:", startedRamp.achPaymentData);
+```
+
+### Alfredpay (USD / MXN / COP) offramp
+
+```typescript
+const quote = await sdk.createQuote({
+  from: Networks.Polygon,
+  inputAmount: "10",
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.MXN,
+  rampType: RampDirection.SELL
+});
+
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  fiatAccountId: "<the user's Alfredpay fiat account id>",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+});
+
+// Sign and submit the user-side EVM transactions (squidRouter approve/swap, etc.)
+// then push the resulting hashes back to Vortex:
+const updated = await sdk.updateRamp(quote, rampProcess.id, {
+  squidRouterApproveHash: "0x...",
+  squidRouterSwapHash: "0x..."
+});
+
+const startedRamp = await sdk.startRamp(updated.id);
+```
+
+> `fiatAccountId` is opaque to the SDK. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
+
 ## Core Features
 - **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
