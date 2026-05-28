@@ -1,6 +1,6 @@
-import { FormatOn } from "numora";
+import { applyLocale, FormatOn, formatValueForDisplay, ThousandStyle } from "numora";
 import { NumoraInput, type NumoraInputChangeEvent } from "numora-react";
-import { useState } from "react";
+import { useMemo } from "react";
 import { UseFormRegisterReturn, useFormContext, useWatch } from "react-hook-form";
 import { TextMorph } from "torph/react";
 import { cn } from "../../helpers/cn";
@@ -31,12 +31,21 @@ export const NumericInput = ({
   const { setValue } = useFormContext();
   const { name: fieldName, ref, onBlur } = register;
   const inputValue = useWatch({ name: fieldName });
-  const [formatted, setFormatted] = useState("");
+  const formatted = useMemo(
+    () =>
+      inputValue
+        ? formatValueForDisplay(String(inputValue), maxDecimals, {
+            formatOn: FormatOn.Change,
+            thousandStyle: ThousandStyle.Thousand,
+            ...applyLocale(true, {})
+          }).formatted
+        : "",
+    [inputValue, maxDecimals]
+  );
 
   function handleChange(e: NumoraInputChangeEvent): void {
     const target = e.target as NumoraTarget;
     const raw = target.rawValue ?? target.value;
-    setFormatted(target.value);
     setValue(fieldName, raw, { shouldDirty: true, shouldValidate: true });
     if (onChange) onChange(e);
   }
@@ -55,7 +64,7 @@ export const NumericInput = ({
           additionalStyle
         )}
       >
-        <TextMorph ease={{ damping: 30, stiffness: 400 }}>{formatted || (inputValue ? String(inputValue) : "0.0")}</TextMorph>
+        <TextMorph ease={{ damping: 30, stiffness: 400 }}>{formatted || "0.0"}</TextMorph>
       </div>
       <NumoraInput
         autoCapitalize="none"
@@ -69,6 +78,7 @@ export const NumericInput = ({
         )}
         disabled={disabled}
         formatOn={FormatOn.Change}
+        locale={true}
         maxDecimals={maxDecimals}
         name={fieldName}
         onBlur={onBlur}
