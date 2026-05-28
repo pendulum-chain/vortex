@@ -102,13 +102,22 @@ export async function prepareEvmToMykoboOfframpTransactions({
     throw new Error("Missing nablaSwapEvm.outputAmountDecimal in quote metadata for Mykobo intent value");
   }
 
+  // Mykobo silently truncates the intent value to 2 decimals. We floor here so the on-chain
+  // EURC transfer below matches the amount Mykobo actually credits to the withdraw intent.
+  const mykoboFlooredValue = new Big(mykoboIntentValue).toFixed(2, 0);
+  const eurcDecimals = evmTokenConfig[Networks.Base][EvmToken.EURC]?.decimals;
+  if (eurcDecimals === undefined) {
+    throw new Error("Invalid EURC decimals configuration for Base in evmTokenConfig");
+  }
+  const eurcTransferAmountRaw = multiplyByPowerOfTen(new Big(mykoboFlooredValue), eurcDecimals).toFixed(0, 0);
+
   const mykobo = MykoboApiService.getInstance();
   const intent = await mykobo.createTransactionIntent({
     currency: MykoboCurrency.EURC,
     email_address: email,
     ip_address: ipAddress,
     transaction_type: MykoboTransactionType.WITHDRAW,
-    value: new Big(mykoboIntentValue).toFixed(6, 0),
+    value: mykoboFlooredValue,
     wallet_address: evmEphemeralEntry.address
   });
 
@@ -185,11 +194,6 @@ export async function prepareEvmToMykoboOfframpTransactions({
   );
   stateMeta = nablaStateMeta;
   baseNonce = nonceAfterNabla;
-
-  const eurcTransferAmountRaw = quote.metadata.nablaSwapEvm?.outputAmountRaw;
-  if (!eurcTransferAmountRaw) {
-    throw new Error("Missing outputAmountRaw in nablaSwapEvm metadata");
-  }
 
   const payoutTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: eurcTransferAmountRaw,
