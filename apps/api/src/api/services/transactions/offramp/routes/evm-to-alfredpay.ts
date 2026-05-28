@@ -49,7 +49,11 @@ import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common
 export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
   [Networks.Arbitrum]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
   [Networks.Base]: "0xDbece5cE27984FC64688bcC57f75b96a28e8c68c",
-  [Networks.Polygon]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785"
+  [Networks.Polygon]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
+  [Networks.Avalanche]: "0x11871C77Aa0170ae13864E4E82cFa471720e045e",
+  [Networks.Ethereum]: "0x522A51f9c5B1683F0F15910075487c4D162A8b83",
+  [Networks.BSC]: "0x2d657ac14088fED401b58FEd377988ed3F875220"
+
 };
 
 export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
