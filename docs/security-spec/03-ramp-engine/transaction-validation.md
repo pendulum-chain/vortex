@@ -75,7 +75,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] **F-047**: `getTransactionTypeForPhase` throws on unknown phases instead of defaulting to EVM.
 - [x] **F-048**: Stellar payment validation requires exactly one operation.
 - [x] **F-049**: `stellarCleanup` no longer falls through with only parse/signature checks; it validates transaction source and an expected cleanup operation count range.
-- [x] **F-050**: EVM validation checks raw transaction `to`, `data`, `value`, `nonce`, signer, chain ID, gas limit, and fee caps against the server-issued unsigned transaction; contract creation is rejected.
+- [x] **F-050**: EVM validation checks raw transaction `to`, `data`, `value`, `nonce`, signer, chain ID, gas limit, and fee caps against the server-issued unsigned transaction; contract creation is rejected. Native-token destination transfers (where viem's `parseTransaction` returns `data: undefined`) are normalized: both sides of the calldata equality check coerce empty/undefined calldata to `"0x"` so legitimate native transfers are not rejected (`apps/api/src/api/services/transactions/validation.ts:126`).
 - [x] `validatePresignedTxs` is called in both `updateRamp` and `startRamp` — dual validation confirmed
 - [x] `validateAllPresignedTransactionsSigned` checks every expected transaction has a corresponding signed entry
 - [x] EVM raw transaction validation (`validateEvmTransaction`) checks `from`, `chainId`, `nonce`, `to`, `data`, `value`, gas limit, and fee caps against expected signer, chain, and server-issued unsigned payload

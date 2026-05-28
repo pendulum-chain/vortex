@@ -10,7 +10,7 @@ The cleanup process runs as a background worker (`cleanup.worker.ts`) on a 5-min
 
 Ephemeral accounts may be created on:
 - **Stellar** — For Spacewalk bridge operations and direct Stellar payments
-- **Pendulum** — For Nabla swaps (Substrate-side), Spacewalk redeems, XCM transfers
+- **Pendulum** — For Nabla swaps (Substrate-side), Spacewalk redeems, XCM transfers. **Not created** for BRL (BRLA) or EUR (Mykobo) Base-EVM corridors: `getRequiresPendulumEphemeralAddress` returns `false` when the input or output token is BRL or EURC, and registration skips Pendulum ephemeral creation + funding for those corridors. Only the Pendulum-routed corridors (Stellar/ARS, AssetHub, Hydration) still allocate a Pendulum ephemeral.
 - **Moonbeam** — For legacy EVM operations (historical Monerium EUR → Moonbeam path is removed; still used for ARS-Stellar off-ramp's Moonbeam→Pendulum XCM hop, Alfredpay permit acquisition, and SquidRouter swaps), XCM to/from Pendulum
 - **Polygon** — (Legacy) For Monerium EURe operations; no active corridor uses Polygon anymore but the post-process handler remains for safety on any still-in-flight legacy ramps
 - **AssetHub** — For XCM transfers to/from Pendulum and Hydration
