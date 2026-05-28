@@ -1,4 +1,5 @@
 import {
+  CreateBestQuoteRequest,
   CreateQuoteRequest,
   GetQuoteRequest,
   getNetworkFromDestination,
@@ -64,12 +65,13 @@ export const createQuote = async (
  * @public
  */
 export const createBestQuote = async (
-  req: Request<unknown, unknown, Omit<CreateQuoteRequest, "network">>,
+  req: Request<unknown, unknown, CreateBestQuoteRequest>,
   res: Response<QuoteResponse>,
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey, countryCode } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey, countryCode, networks } =
+      req.body;
 
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
@@ -82,6 +84,7 @@ export const createBestQuote = async (
       from,
       inputAmount,
       inputCurrency,
+      networks,
       outputCurrency,
       partnerId,
       partnerName: publicKeyPartnerName,
