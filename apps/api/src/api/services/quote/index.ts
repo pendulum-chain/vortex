@@ -49,14 +49,22 @@ export class QuoteService extends BaseRampService {
   public async createBestQuote(
     request: CreateBestQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string }
   ): Promise<QuoteResponse> {
-    const { rampType, from, to } = request;
+    const { rampType, from, to, networks } = request;
 
     // Determine eligible networks based on the corridor
-    const eligibleNetworks = this.getEligibleNetworks(rampType, from, to);
+    const allEligibleNetworks = this.getEligibleNetworks(rampType, from, to);
+
+    // Apply optional client-provided whitelist (empty array is treated as "no whitelist")
+    const eligibleNetworks =
+      networks && networks.length > 0 ? allEligibleNetworks.filter(network => networks.includes(network)) : allEligibleNetworks;
 
     if (eligibleNetworks.length === 0) {
+      const message =
+        networks && networks.length > 0
+          ? `No eligible networks found for ${rampType} from ${from} to ${to} within the requested networks: ${networks.join(", ")}`
+          : `No eligible networks found for ${rampType} from ${from} to ${to}`;
       throw new APIError({
-        message: `No eligible networks found for ${rampType} from ${from} to ${to}`,
+        message,
         status: httpStatus.BAD_REQUEST
       });
     }
