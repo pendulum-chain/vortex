@@ -1247,6 +1247,7 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
         "invalidInputAmount": "Valor de entrada inválido",
+        "invalidNetworks": "Redes inválidas. Por favor, forneça uma lista válida de redes suportadas.",
         "invalidRampType": "Tipo de rampa inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
