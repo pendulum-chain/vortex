@@ -254,7 +254,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     }
     // alfredpay onramp case
     if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-      return "squidRouterSwap";
+      return "subsidizePreSwap";
     }
     // monerium onramp case
     if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {

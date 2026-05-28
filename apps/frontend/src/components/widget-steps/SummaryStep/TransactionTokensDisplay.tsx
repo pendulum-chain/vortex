@@ -55,7 +55,10 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   }));
 
   const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;
-  const { minutes, seconds } = useCountdown(targetTimestampMs, () => rampActor.send({ type: "EXPIRE_QUOTE" }));
+
+  const isAlfredpayFlow = isAlfredpayToken(executionInput.fiatToken);
+  const countdownTarget = isAlfredpayFlow ? null : targetTimestampMs;
+  const { minutes, seconds } = useCountdown(countdownTarget, () => rampActor.send({ type: "EXPIRE_QUOTE" }));
 
   const formattedTime = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
@@ -135,7 +138,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.MXN && <MXNOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.COP && <COPOnrampDetails />}
-      {quoteLocked && targetTimestampMs !== null && !isQuoteExpired && (
+      {quoteLocked && !isAlfredpayFlow && targetTimestampMs !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>
         </div>

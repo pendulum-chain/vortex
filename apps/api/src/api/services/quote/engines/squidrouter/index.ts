@@ -96,7 +96,6 @@ export abstract class BaseSquidRouterEngine implements Stage {
   private async calculateBridge(bridgeRequest: EvmBridgeRequest): Promise<EvmBridgeResult> {
     return calculateEvmBridgeAndNetworkFee(bridgeRequest);
   }
-
   private assignContext(
     type: SquidRouterComputation["type"],
     ctx: QuoteContext,
@@ -113,7 +112,7 @@ export abstract class BaseSquidRouterEngine implements Stage {
       outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
       outputAmountRaw: new Big(bridgeResult.finalGrossOutputAmountDecimal)
         .times(new Big(10).pow(data.outputDecimals))
-        .toFixed(0),
+        .toFixed(0, 0),
       toNetwork: data.toNetwork,
       toToken: data.toToken
     };
