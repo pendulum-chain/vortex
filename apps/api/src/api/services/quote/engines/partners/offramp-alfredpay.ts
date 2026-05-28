@@ -42,8 +42,8 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
 
     const deductibleFee = ctx.preNabla?.deductibleFeeAmountInSwapCurrency ?? new Big(0);
     const inputAmountDecimal = effectiveRate.gt(0)
-      ? ctx.subsidy.targetOutputAmountDecimal.div(effectiveRate)
-      : ctx.evmToEvm.outputAmountDecimal.minus(deductibleFee);
+      ? ctx.subsidy.targetOutputAmountDecimal.div(effectiveRate).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown)
+      : ctx.evmToEvm.outputAmountDecimal.minus(deductibleFee).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
 
     const alfredpayService = AlfredpayApiService.getInstance();
     const quoteRequest: CreateAlfredpayOfframpQuoteRequest = {
