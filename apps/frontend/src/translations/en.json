@@ -46,6 +46,7 @@
       "title": "Upload ID Documents"
     },
     "arKycForm": {
+      "continue": "Continue",
       "cuit": "CUIT",
       "cuitPlaceholder": "CUIT",
       "dni": "DNI Number",
@@ -258,6 +259,7 @@
       }
     },
     "colKycForm": {
+      "continue": "Continue",
       "dni": "Document Number",
       "dniPlaceholderCc": "10-digit CC number",
       "dniPlaceholderCe": "6–10 digit CE number",

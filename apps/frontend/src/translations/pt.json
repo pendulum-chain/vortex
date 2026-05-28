@@ -46,6 +46,7 @@
       "title": "Enviar Documentos de Identidade"
     },
     "arKycForm": {
+      "continue": "Continuar",
       "cuit": "CUIT",
       "cuitPlaceholder": "CUIT",
       "dni": "Número do DNI",
@@ -261,6 +262,7 @@
       }
     },
     "colKycForm": {
+      "continue": "Continuar",
       "dni": "Número de Documento",
       "dniPlaceholderCc": "Número CC de 10 dígitos",
       "dniPlaceholderCe": "Número CE de 6 a 10 dígitos",

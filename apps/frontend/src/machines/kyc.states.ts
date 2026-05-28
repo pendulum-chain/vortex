@@ -4,12 +4,12 @@ import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import {
+  AlfredpayKycFormData,
   AlfredpayKycMachineError,
   KybBusinessFiles,
   KybFormData,
   KybPersonFiles,
-  MxnKycFiles,
-  MxnKycFormData
+  MxnKycFiles
 } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
@@ -22,7 +22,7 @@ export interface AlfredpayKycContext extends RampContext {
   country: string;
   error?: AlfredpayKycMachineError;
   business?: boolean;
-  mxnFormData?: MxnKycFormData;
+  mxnFormData?: AlfredpayKycFormData;
   mxnFiles?: MxnKycFiles;
   kybFormData?: KybFormData;
   kybBusinessFiles?: KybBusinessFiles;

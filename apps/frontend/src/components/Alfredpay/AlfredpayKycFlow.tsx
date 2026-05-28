@@ -31,7 +31,7 @@ export const AlfredpayKycFlow = () => {
   const retryProcess = useCallback(() => actor?.send({ type: "RETRY_PROCESS" }), [actor]);
   const cancelProcess = useCallback(() => actor?.send({ type: "CANCEL_PROCESS" }), [actor]);
   const submitForm = useCallback(
-    (data: import("../../machines/alfredpayKyc.machine").MxnKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }),
+    (data: import("../../machines/alfredpayKyc.machine").AlfredpayKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }),
     [actor]
   );
   const submitFiles = useCallback(
