@@ -13,7 +13,7 @@ import { config } from "../../../../config/vars";
 import { tokenRelayerAbi } from "../../../../contracts/TokenRelayer";
 import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
-import { RELAYER_ADDRESS } from "../../transactions/offramp/routes/evm-to-alfredpay";
+import { getRelayerAddress } from "../../transactions/offramp/routes/evm-to-alfredpay";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 
@@ -221,7 +221,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
     const hash = await walletClient.writeContract({
       abi: tokenRelayerAbi,
-      address: RELAYER_ADDRESS as `0x${string}`,
+      address: getRelayerAddress(fromNetwork),
       args: [
         {
           deadline,

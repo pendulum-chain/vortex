@@ -45,7 +45,20 @@ import { addOnrampDestinationChainTransactions } from "../../onramp/common/trans
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0xC9ECD03c89349B3EAe4613c7091c6c3029413785" as const;
+// TokenRelayer deployments. Address may differ per chain 
+export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
+  [Networks.Arbitrum]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
+  [Networks.Base]: "0xDbece5cE27984FC64688bcC57f75b96a28e8c68c",
+  [Networks.Polygon]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785"
+};
+
+export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
+  const address = RELAYER_ADDRESSES[network];
+  if (!address) {
+    throw new Error(`No TokenRelayer deployed on ${network}`);
+  }
+  return address;
+}
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.
@@ -330,13 +343,15 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         toToken: ALFREDPAY_ERC20_TOKEN
       });
 
+      const relayerAddress = getRelayerAddress(fromNetwork);
+
       const permitTypedData: SignedTypedData = {
         domain: resolvedDomain,
         message: {
           deadline: permitDeadline.toString(),
           nonce: userNonce.toString(),
           owner: userAddress,
-          spender: RELAYER_ADDRESS,
+          spender: relayerAddress,
           value: inputAmountRaw.toString()
         },
         primaryType: "Permit",
@@ -358,7 +373,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         domain: {
           chainId: getNetworkId(fromNetwork)!,
           name: "TokenRelayer",
-          verifyingContract: RELAYER_ADDRESS,
+          verifyingContract: relayerAddress,
           version: "1"
         },
         message: {
