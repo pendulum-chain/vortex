@@ -2,14 +2,13 @@ import bodyParser from "body-parser";
 import compress from "compression";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import methodOverride from "method-override";
 import morgan from "morgan";
 
 import { converter, handler, notFound } from "../api/middlewares/error";
-import routes from "../api/routes/v1";
 
 import { config } from "./vars";
 
@@ -21,6 +20,9 @@ const REQUEST_BODY_LIMIT = "20mb";
  * @public
  */
 const app = express();
+app.locals.ready = false;
+app.locals.routesMounted = false;
+app.locals.startupStatus = "initializing";
 
 // enable CORS - Cross Origin Resource Sharing
 app.use(
@@ -72,16 +74,62 @@ app.use(methodOverride());
 // secure apps by setting various HTTP headers
 app.use(helmet());
 
-// mount api token routes
-app.use("/v1", routes);
+// Liveness/readiness endpoints stay available while dependencies bootstrap.
+app.get("/health", (_: Request, res: Response) => {
+  res.json({
+    ready: Boolean(app.locals.ready),
+    status: app.locals.startupStatus
+  });
+});
 
-// if error is not an instanceOf APIError, convert it.
-app.use(converter);
+app.get("/ready", (_: Request, res: Response) => {
+  res.status(app.locals.ready ? 200 : 503).json({
+    ready: Boolean(app.locals.ready),
+    status: app.locals.startupStatus
+  });
+});
 
-// catch 404 and forward to error handler
-app.use(notFound);
+app.use((_: Request, res: Response, next: NextFunction) => {
+  if (!app.locals.ready) {
+    res.status(503).json({
+      ready: false,
+      status: app.locals.startupStatus
+    });
+    return;
+  }
 
-// error handler, send stacktrace only during development
-app.use(handler);
+  next();
+});
+
+export async function mountRoutes(): Promise<void> {
+  if (app.locals.routesMounted) {
+    return;
+  }
+
+  const { default: routes } = await import("../api/routes/v1");
+
+  app.use("/v1", routes);
+
+  // if error is not an instanceOf APIError, convert it.
+  app.use(converter);
+
+  // catch 404 and forward to error handler
+  app.use(notFound);
+
+  // error handler, send stacktrace only during development
+  app.use(handler);
+
+  app.locals.routesMounted = true;
+}
+
+export function markReady(): void {
+  app.locals.ready = true;
+  app.locals.startupStatus = "ready";
+}
+
+export function markStartupFailed(): void {
+  app.locals.ready = false;
+  app.locals.startupStatus = "failed";
+}
 
 export default app;

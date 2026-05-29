@@ -1,19 +1,15 @@
-import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
+import { setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
+import { Server } from "http";
 import path from "path";
 import cryptoService from "./config/crypto";
 import { testDatabaseConnection } from "./config/database";
-import app from "./config/express";
+import app, { markReady, markStartupFailed, mountRoutes } from "./config/express";
 import logger from "./config/logger";
 import { config } from "./config/vars";
 
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
-import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
-import registerPhaseHandlers from "./api/services/phases/register-handlers";
-import CleanupWorker from "./api/workers/cleanup.worker";
-import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
-import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
 dotenv.config({
   path: [path.resolve(process.cwd(), ".env"), path.resolve(process.cwd(), "../.env")]
@@ -22,6 +18,26 @@ dotenv.config({
 const { port, env } = config;
 
 setLogger(logger);
+
+function formatStartupError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.message}${error.stack ? `\n${error.stack}` : ""}`;
+  }
+
+  return String(error);
+}
+
+function startHttpServer(): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, () => {
+      server.off("error", reject);
+      logger.info(`server started on port ${port} (${env}); bootstrapping dependencies`);
+      resolve(server);
+    });
+
+    server.once("error", reject);
+  });
+}
 
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {
@@ -42,12 +58,27 @@ const validateRequiredEnvVars = () => {
 
 // Initialize the application
 const initializeApp = async () => {
+  let server: Server | undefined;
+
   try {
     // Validate environment variables before starting the server
     validateRequiredEnvVars();
 
     // Initialize RSA keys for webhook signing
     cryptoService.initializeKeys();
+
+    // Bind the HTTP port before long-running network/database warmup so Render can detect the service.
+    server = await startHttpServer();
+
+    const [
+      { ApiManager, EvmClientManager, initializeEvmTokens },
+      { AlfredpayLimitsService },
+      { default: registerPhaseHandlers }
+    ] = await Promise.all([
+      import("@vortexfi/shared"),
+      import("./api/services/alfredpay/alfredpay-limits.service"),
+      import("./api/services/phases/register-handlers")
+    ]);
 
     // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
     await initializeEvmTokens();
@@ -64,6 +95,13 @@ const initializeApp = async () => {
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
 
+    const [{ default: CleanupWorker }, { default: RampRecoveryWorker }, { default: UnhandledPaymentWorker }] =
+      await Promise.all([
+        import("./api/workers/cleanup.worker"),
+        import("./api/workers/ramp-recovery.worker"),
+        import("./api/workers/unhandled-payment.worker")
+      ]);
+
     // Start background workers
     new CleanupWorker().start();
     new RampRecoveryWorker().start();
@@ -75,11 +113,20 @@ const initializeApp = async () => {
     // Register phase handlers
     registerPhaseHandlers();
 
-    // Start the server
-    app.listen(port, () => logger.info(`server started on port ${port} (${env})`));
+    // Mount API routes only after startup tasks are complete.
+    await mountRoutes();
+    markReady();
+    logger.info(`application ready on port ${port} (${env})`);
   } catch (error) {
-    logger.error("Failed to initialize application:", error);
-    process.exit(1);
+    markStartupFailed();
+    logger.error(`Failed to initialize application: ${formatStartupError(error)}`);
+
+    if (!server) {
+      process.exit(1);
+    }
+
+    server.close(() => process.exit(1));
+    setTimeout(() => process.exit(1), 5000).unref();
   }
 };
 
