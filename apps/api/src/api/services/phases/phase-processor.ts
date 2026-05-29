@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { runWithRampContext } from "../../../config/ramp-context";
+import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
@@ -38,6 +39,13 @@ export class PhaseProcessor {
           message: `Ramp with ID ${rampId} not found`,
           status: httpStatus.NOT_FOUND
         });
+      }
+
+      if (state.flowVariant !== config.flowVariant) {
+        logger.warn(
+          `Refusing to process ramp ${rampId}: belongs to flow ${state.flowVariant}, this backend is ${config.flowVariant}`
+        );
+        return;
       }
 
       // Try to acquire the lock
