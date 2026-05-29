@@ -17,6 +17,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import { APIError } from "../../errors/api-error";
 import { loadAccountWithRetry } from "../stellar/loadAccount";
@@ -28,6 +29,7 @@ export interface EphemeralNetworks {
 }
 
 const USDC = "usdc";
+const POLYGON_NETWORK: EvmNetworks = config.sandboxEnabled ? Networks.PolygonAmoy : Networks.Polygon;
 
 // SECURITY: mirrors the dispatcher logic in apps/api/src/api/services/transactions/{offramp,onramp}/index.ts.
 // If you add a new route variant or change a sub-builder's network assignments, you MUST update this function too.
@@ -71,7 +73,7 @@ function getOfframpNetworks(
   }
 
   if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-    result.evm.push(Networks.Polygon);
+    result.evm.push(POLYGON_NETWORK);
     return result;
   }
 
@@ -105,14 +107,14 @@ function getOnrampNetworks(quote: QuoteTicket, result: EphemeralNetworks): Ephem
 
   if (quote.inputCurrency === FiatToken.EURC) {
     if (toNetwork === Networks.AssetHub) {
-      pushEvmDedup(result, Networks.Polygon);
+      pushEvmDedup(result, POLYGON_NETWORK);
       pushEvmDedup(result, Networks.Moonbeam);
       result.substrate.push("pendulum");
       if (!outputIsUsdc) {
         result.substrate.push("hydration");
       }
     } else {
-      pushEvmDedup(result, Networks.Polygon);
+      pushEvmDedup(result, POLYGON_NETWORK);
       if (isNetworkEVM(toNetwork)) {
         pushEvmDedup(result, toNetwork);
       }
@@ -121,7 +123,7 @@ function getOnrampNetworks(quote: QuoteTicket, result: EphemeralNetworks): Ephem
   }
 
   if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-    pushEvmDedup(result, Networks.Polygon);
+    pushEvmDedup(result, POLYGON_NETWORK);
     if (isNetworkEVM(toNetwork)) {
       pushEvmDedup(result, toNetwork);
     }
@@ -210,9 +212,13 @@ async function assertSubstrateAccountFresh(address: string, network: SubstrateAp
 
 async function assertEvmAccountFresh(address: string, network: EvmNetworks): Promise<void> {
   let nonce: number;
+  let balance: bigint;
   try {
     const client = EvmClientManager.getInstance().getClient(network);
-    nonce = await client.getTransactionCount({ address: address as `0x${string}` });
+    [nonce, balance] = await Promise.all([
+      client.getTransactionCount({ address: address as `0x${string}` }),
+      client.getBalance({ address: address as `0x${string}` })
+    ]);
   } catch (error) {
     throw new APIError({
       message: `Could not verify freshness of EVM ephemeral ${address} on ${network}: ${(error as Error).message}`,
@@ -220,9 +226,9 @@ async function assertEvmAccountFresh(address: string, network: EvmNetworks): Pro
     });
   }
 
-  if (nonce !== 0) {
+  if (nonce !== 0 || balance !== 0n) {
     throw new APIError({
-      message: `EVM ephemeral ${address} is not fresh on ${network} (nonce=${nonce}). A new, unused ephemeral account must be provided.`,
+      message: `EVM ephemeral ${address} is not fresh on ${network} (nonce=${nonce}, balance=${balance}). A new, unused ephemeral account must be provided.`,
       status: httpStatus.BAD_REQUEST
     });
   }

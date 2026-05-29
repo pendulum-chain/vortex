@@ -10,6 +10,7 @@ const EVM_ADDR = "0x1111111111111111111111111111111111111111";
 let substrateNonce = 0;
 let substrateFree = "0";
 let evmNonce = 0;
+let evmBalance = 0n;
 let stellarAccount: { sequence: string } | null = null;
 let evmGetClientShouldThrow = false;
 
@@ -38,6 +39,7 @@ mock.module("@vortexfi/shared", () => {
         getClient: (_network: string) => {
           if (evmGetClientShouldThrow) throw new Error("RPC down");
           return {
+            getBalance: async (_args: { address: string }) => evmBalance,
             getTransactionCount: async (_args: { address: string }) => evmNonce
           };
         }
@@ -111,6 +113,7 @@ describe("validateEphemeralAccountsFresh", () => {
     substrateNonce = 0;
     substrateFree = "0";
     evmNonce = 0;
+    evmBalance = 0n;
     stellarAccount = null;
     evmGetClientShouldThrow = false;
   });
@@ -154,6 +157,20 @@ describe("validateEphemeralAccountsFresh", () => {
 
   it("rejects non-fresh EVM (non-zero nonce)", async () => {
     evmNonce = 5;
+    try {
+      await validateEphemeralAccountsFresh(
+        { [EphemeralAccountType.EVM]: EVM_ADDR },
+        { evm: [Networks.Base], stellar: false, substrate: [] }
+      );
+      throw new Error("expected rejection");
+    } catch (err) {
+      expect((err as APIError).status).toBe(400);
+      expect((err as APIError).message).toContain("not fresh");
+    }
+  });
+
+  it("rejects non-fresh EVM (non-zero balance)", async () => {
+    evmBalance = 1000000000000000n;
     try {
       await validateEphemeralAccountsFresh(
         { [EphemeralAccountType.EVM]: EVM_ADDR },
