@@ -32,7 +32,11 @@ const handler = (err: APIError | Error, _req: Request, res: Response, _next: Nex
   if (env !== "development") {
     delete response.stack;
     if (statusCode >= 500) {
-      response.message = "Internal server error";
+      // Preserve messages for intentional 5xx codes (e.g. 503 SERVICE_UNAVAILABLE used by
+      // ephemeral freshness checks). Only mask unexpected internal server errors (500).
+      if (statusCode === httpStatus.INTERNAL_SERVER_ERROR) {
+        response.message = "Internal server error";
+      }
     }
   }
 

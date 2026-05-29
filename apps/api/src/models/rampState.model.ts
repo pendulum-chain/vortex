@@ -11,6 +11,7 @@ import {
 import { DataTypes, Model, Optional } from "sequelize";
 import { StateMetadata } from "../api/services/phases/meta-state-types";
 import sequelize from "../config/database";
+import { FlowVariant } from "../config/vars";
 
 export interface PhaseHistoryEntry {
   phase: RampPhase;
@@ -53,6 +54,7 @@ export interface RampStateAttributes {
   errorLogs: RampErrorLog[]; // JSONB array
   processingLock: ProcessingLock;
   postCompleteState: PostCompleteState;
+  flowVariant: FlowVariant;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -92,6 +94,8 @@ class RampState extends Model<RampStateAttributes, RampStateCreationAttributes> 
 
   declare postCompleteState: PostCompleteState;
 
+  declare flowVariant: FlowVariant;
+
   declare createdAt: Date;
 
   declare updatedAt: Date;
@@ -117,6 +121,11 @@ RampState.init(
       defaultValue: [],
       field: "error_logs",
       type: DataTypes.JSONB
+    },
+    flowVariant: {
+      allowNull: false,
+      field: "flow_variant",
+      type: DataTypes.STRING(16)
     },
     from: {
       allowNull: false,
@@ -229,6 +238,10 @@ RampState.init(
         fields: ["quoteId"],
         name: "uq_ramp_states_quote_id",
         unique: true
+      },
+      {
+        fields: ["flow_variant"],
+        name: "idx_ramp_states_flow_variant"
       }
     ],
     modelName: "RampState",

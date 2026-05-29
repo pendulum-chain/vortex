@@ -15,6 +15,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import pLimit from "p-limit";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
@@ -35,6 +36,10 @@ export class QuoteService extends BaseRampService {
     const quote = await this.getQuoteTicket(id);
 
     if (!quote) {
+      return null;
+    }
+
+    if (quote.flowVariant !== config.flowVariant) {
       return null;
     }
 
