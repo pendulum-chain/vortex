@@ -644,6 +644,15 @@
       "title": "Sua opinião é importante!"
     },
     "SummaryPage": {
+      "ARSOnrampDetails": {
+        "aliasLabel": "Alias",
+        "cvuLabel": "CBU/CVU",
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos para a conta bancária abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar via Transferência Bancária"
+      },
       "BRLOnrampDetails": {
         "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
         "pixCode": "Código PIX",

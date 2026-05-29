@@ -24,6 +24,7 @@ import { useCountdown } from "../../../hooks/useCountdown";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { RampExecutionInput } from "../../../types/phases";
+import { ARSOnrampDetails } from "./ARSOnrampDetails";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { COPOnrampDetails } from "./COPOnrampDetails";
@@ -133,6 +134,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
       />
+      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.ARS && <ARSOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
       {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}

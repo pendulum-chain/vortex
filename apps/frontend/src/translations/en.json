@@ -640,6 +640,15 @@
       "title": "Your opinion matters!"
     },
     "SummaryPage": {
+      "ARSOnrampDetails": {
+        "aliasLabel": "Alias",
+        "cvuLabel": "CBU/CVU",
+        "expiresAt": "Expires",
+        "instruction": "Transfer funds to the bank account below",
+        "qrCodeDescription": "Once done, please click on <strong>\"I have made the payment\"</strong>",
+        "reference": "Reference",
+        "title": "Pay via Bank Transfer"
+      },
       "BRLOnrampDetails": {
         "copyCode": "or copy the PIX code below and paste it in your bank app",
         "pixCode": "Pix code",
