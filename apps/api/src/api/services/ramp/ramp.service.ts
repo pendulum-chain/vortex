@@ -12,9 +12,6 @@ import {
   BrlaCurrency,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
-  ERC20_EURE_POLYGON_TOKEN_NAME,
-  ERC20_EURE_POLYGON_V2,
-  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -54,7 +51,6 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { createEpcQrCodeData, getIbanForAddress } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -67,7 +63,6 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRamp } from "./helpers";
-import { validateMoneriumOnrampPermit } from "./monerium-permit";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 480;
@@ -1266,27 +1261,6 @@ export class RampService extends BaseRampService {
           });
         }
       }
-      if (!quote.metadata.moneriumMint?.outputAmountRaw) {
-        throw new APIError({
-          message: "Missing moneriumMint.outputAmountRaw in quote metadata. Cannot validate Monerium onramp permit.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      if (!rampState.state.moneriumWalletAddress || !rampState.state.evmEphemeralAddress) {
-        throw new APIError({
-          message: "Missing Monerium wallet or EVM ephemeral address in state. Cannot validate Monerium onramp permit.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      validateMoneriumOnrampPermit(rampState.state.moneriumOnrampPermit, {
-        expectedOwner: rampState.state.moneriumWalletAddress,
-        expectedSpender: rampState.state.evmEphemeralAddress,
-        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
-        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
-        expectedValueRaw: quote.metadata.moneriumMint.outputAmountRaw,
-        network: Networks.Polygon
-      });
     }
   }
 

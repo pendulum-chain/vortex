@@ -1,8 +1,8 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-05-22 | **Status:** F-001 through F-067: 49 fixed, 9 accepted risk, 9 deferred, 0 open. F-068 through F-071 raised by the Mykobo integration audit: 4 open. Additional discount-mechanism findings F-DISC-01 through F-DISC-05 remain open in `03-ramp-engine/discount-mechanism.md` and are not included in the counts below.
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-05-22 | **Status:** F-001 through F-067: 49 fixed, 9 accepted risk, 9 deferred, 0 open. F-068 through F-071 raised by the Mykobo integration audit: 4 open. F-072 raised by the ephemeral-account lifecycle review: 1 fixed. Additional discount-mechanism findings F-DISC-01 through F-DISC-05 remain open in `03-ramp-engine/discount-mechanism.md` and are not included in the counts below.
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across five phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), fresh security audit pass (F-059 through F-067), and Mykobo integration audit (F-068 through F-071).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across six phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), fresh security audit pass (F-059 through F-067), Mykobo integration audit (F-068 through F-071), and ephemeral-account lifecycle review (F-072).
 
 ## Summary
 
@@ -1639,7 +1639,7 @@ Move the existing body of `handleAuthFailure` into `doHandleAuthFailure`.
 
 ---
 
-### F-068: Ephemeral Account Freshness Not Validated at Ramp Registration
+### F-072: Ephemeral Account Freshness Not Validated at Ramp Registration
 
 | Field | Value |
 |---|---|

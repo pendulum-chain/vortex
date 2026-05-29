@@ -2,10 +2,9 @@ import {
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
+  EvmTokenDetails,
+  evmTokenConfig,
   FiatToken,
-  getEvmTokenDetailsByAddress,
-  getNetworkFromDestination,
-  getNetworkId,
   isAlfredpayToken,
   Networks,
   RampDirection,
@@ -85,7 +84,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     const sourceNetwork = bridgeMeta.fromNetwork as EvmNetworks;
-    const sourceTokenDetails = getEvmTokenDetailsByAddress(sourceNetwork, bridgeMeta.fromToken);
+    const sourceTokenDetails = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
+      token => token.erc20AddressSourceChain.toLowerCase() === bridgeMeta.fromToken.toLowerCase()
+    ) as EvmTokenDetails | undefined;
 
     if (!sourceTokenDetails) {
       throw new Error(

@@ -8,6 +8,7 @@ import {
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
+  FiatToken,
   getOnChainTokenDetails,
   isAlfredpayToken,
   Networks,

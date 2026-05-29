@@ -2,14 +2,12 @@ import {beforeEach, describe, expect, it, mock} from "bun:test";
 import {EphemeralAccountType} from "@vortexfi/shared";
 import {APIError} from "../../errors/api-error";
 
-const STELLAR_ADDR = "GABCD";
 const SUBSTRATE_ADDR = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
 const EVM_ADDR = "0x1111111111111111111111111111111111111111";
 
 let substrateNonce = 0;
 let substrateFree = "0";
 let evmNonce = 0;
-let stellarAccount: { sequence: string } | null = null;
 let evmGetClientShouldThrow = false;
 
 mock.module("@vortexfi/shared", () => {
@@ -45,10 +43,6 @@ mock.module("@vortexfi/shared", () => {
   };
 });
 
-mock.module("../stellar/loadAccount", () => ({
-  loadAccountWithRetry: async (_address: string) => stellarAccount
-}));
-
 // Import AFTER mocks are registered so the module picks up the mocked deps.
 const { validateEphemeralAccountsFresh } = await import("./ephemeral-freshness");
 
@@ -57,7 +51,6 @@ describe("validateEphemeralAccountsFresh", () => {
     substrateNonce = 0;
     substrateFree = "0";
     evmNonce = 0;
-    stellarAccount = null;
     evmGetClientShouldThrow = false;
   });
 
@@ -65,7 +58,6 @@ describe("validateEphemeralAccountsFresh", () => {
     await expect(
       validateEphemeralAccountsFresh({
         [EphemeralAccountType.EVM]: EVM_ADDR,
-        [EphemeralAccountType.Stellar]: STELLAR_ADDR,
         [EphemeralAccountType.Substrate]: SUBSTRATE_ADDR
       })
     ).resolves.toBeUndefined();
@@ -105,17 +97,6 @@ describe("validateEphemeralAccountsFresh", () => {
     } catch (err) {
       expect((err as APIError).status).toBe(400);
       expect((err as APIError).message).toContain("not fresh");
-    }
-  });
-
-  it("rejects when Stellar account already exists on-chain", async () => {
-    stellarAccount = { sequence: "12345" };
-    try {
-      await validateEphemeralAccountsFresh({ [EphemeralAccountType.Stellar]: STELLAR_ADDR });
-      throw new Error("expected rejection");
-    } catch (err) {
-      expect((err as APIError).status).toBe(400);
-      expect((err as APIError).message).toContain("already exists");
     }
   });
 

@@ -9,7 +9,6 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../errors/api-error";
-import { loadAccountWithRetry } from "../stellar/loadAccount";
 
 const SUPPORTED_SUBSTRATE_NETWORKS: SubstrateApiNetwork[] = ["pendulum", "hydration", "assethub"];
 
@@ -47,11 +46,6 @@ export async function validateEphemeralAccountsFresh(
     for (const network of SUPPORTED_EVM_NETWORKS) {
       checks.push(assertEvmAccountFresh(evmAddress, network));
     }
-  }
-
-  const stellarAddress = ephemerals[EphemeralAccountType.Stellar];
-  if (stellarAddress) {
-    checks.push(assertStellarAccountFresh(stellarAddress));
   }
 
   await Promise.all(checks);
@@ -96,25 +90,6 @@ async function assertEvmAccountFresh(address: string, network: EvmNetworks): Pro
   if (nonce !== 0) {
     throw new APIError({
       message: `EVM ephemeral ${address} is not fresh on ${network} (nonce=${nonce}). A new, unused ephemeral account must be provided.`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-}
-
-async function assertStellarAccountFresh(address: string): Promise<void> {
-  let account: Awaited<ReturnType<typeof loadAccountWithRetry>>;
-  try {
-    account = await loadAccountWithRetry(address);
-  } catch (error) {
-    throw new APIError({
-      message: `Could not verify freshness of Stellar ephemeral ${address}: ${(error as Error).message}`,
-      status: httpStatus.SERVICE_UNAVAILABLE
-    });
-  }
-
-  if (account !== null) {
-    throw new APIError({
-      message: `Stellar ephemeral ${address} already exists on-chain (sequence=${account.sequence}). The server creates and funds this account during the ramp; the provided address must not exist yet.`,
       status: httpStatus.BAD_REQUEST
     });
   }
