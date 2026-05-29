@@ -103,17 +103,12 @@ interface Config {
 
   secrets: {
     pendulumFundingSeed: string | undefined;
-    stellarFundingSecret: string | undefined;
     moonbeamExecutorPrivateKey: string | undefined;
     clientDomainSecret: string | undefined;
     webhookPrivateKey: string | undefined;
   };
 
   integrations: {
-    monerium: {
-      clientId: string | undefined;
-      clientSecret: string | undefined;
-    };
     alchemy: {
       apiKey: string | undefined;
     };
@@ -154,10 +149,6 @@ export const config: Config = {
   integrations: {
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY
-    },
-    monerium: {
-      clientId: process.env.MONERIUM_CLIENT_ID_APP,
-      clientSecret: process.env.MONERIUM_CLIENT_SECRET
     },
     slack: {
       userId: process.env.SLACK_USER_ID,
@@ -203,7 +194,6 @@ export const config: Config = {
     clientDomainSecret: process.env.CLIENT_DOMAIN_SECRET,
     moonbeamExecutorPrivateKey: process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY,
     pendulumFundingSeed: process.env.PENDULUM_FUNDING_SEED,
-    stellarFundingSecret: process.env.FUNDING_SECRET,
     webhookPrivateKey: process.env.WEBHOOK_PRIVATE_KEY
   },
   spreadsheet: {
@@ -228,8 +218,6 @@ export const config: Config = {
   vortexFeePenPercentage: parseFloat(process.env.VORTEX_FEE_PEN_PERCENTAGE || "0.0")
 };
 
-// Derived values — aliases kept for semantic clarity in consuming code
-export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
 if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {

@@ -65,7 +65,11 @@ export function useTokenIcon(currencyOrDetails: string | TokenDetails, network?:
     if (typeof currencyOrDetails === "string") {
       return currencyOrDetails.toLowerCase();
     }
-    // For token details, use assetSymbol
+    // Fiat token details carry the canonical icon key in fiat.assetIcon
+    // (assetSymbol can diverge — e.g. EURC's assetSymbol is "EURC" but its icon is "eur").
+    if (isFiatTokenDetails(currencyOrDetails)) {
+      return currencyOrDetails.fiat.assetIcon.toLowerCase();
+    }
     return currencyOrDetails.assetSymbol.toLowerCase();
   }, [currencyOrDetails]);
 

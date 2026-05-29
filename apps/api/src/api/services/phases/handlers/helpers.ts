@@ -1,16 +1,6 @@
-import {
-  API,
-  EvmClientManager,
-  EvmNetworks,
-  HORIZON_URL,
-  StellarTokenDetails,
-  Networks as VortexNetworks
-} from "@vortexfi/shared";
+import { API, EvmClientManager, EvmNetworks, Networks as VortexNetworks } from "@vortexfi/shared";
 import Big from "big.js";
-import { Horizon, Networks } from "stellar-sdk";
 import { base, polygon } from "viem/chains";
-import logger from "../../../../config/logger";
-import { config } from "../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
@@ -18,32 +8,6 @@ import {
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../constants/constants";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
-
-export const horizonServer = new Horizon.Server(HORIZON_URL);
-export const NETWORK_PASSPHRASE = config.sandboxEnabled ? Networks.TESTNET : Networks.PUBLIC;
-
-export async function isStellarEphemeralFunded(accountId: string, stellarTokenDetails: StellarTokenDetails): Promise<boolean> {
-  try {
-    // We check if the Stellar target account exists and has the respective trustline.
-    const account = await horizonServer.loadAccount(accountId);
-
-    const trustlineExists = account.balances.some(
-      balance =>
-        balance.asset_type === "credit_alphanum4" &&
-        balance.asset_code === stellarTokenDetails.stellarAsset.code.string &&
-        balance.asset_issuer === stellarTokenDetails.stellarAsset.issuer.stellarEncoding
-    );
-    return trustlineExists;
-  } catch (error) {
-    if (error?.toString().includes("NotFoundError")) {
-      logger.info(`Stellar target account ${accountId} does not exist.`);
-      return false;
-    } else {
-      // We return an error here to ensure that the phase fails and can be retried.
-      throw new Error(`${error?.toString()} while checking Stellar target account.`);
-    }
-  }
-}
 
 export async function isPendulumEphemeralFunded(pendulumEphemeralAddress: string, pendulumNode: API): Promise<boolean> {
   const fundingAmountUnits = Big(PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS);

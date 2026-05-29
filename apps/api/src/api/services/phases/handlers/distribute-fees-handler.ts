@@ -78,8 +78,8 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
 
-    // For BRL flows, distribution happens on EVM (Base).
-    const isEvmTransaction = quote.inputCurrency === "BRL" || quote.outputCurrency === "BRL";
+    // For EVM-ephemeral flows (BRL, Mykobo EUR, ...), distribution happens on EVM (Base).
+    const isEvmTransaction = !!quote.metadata.nablaSwapEvm;
     const evmNetwork = isEvmTransaction ? (Networks.Base as EvmNetworks) : undefined;
 
     if (existingHash) {

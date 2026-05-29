@@ -29,6 +29,9 @@ export async function prepareAssethubToBRLOfframpTransactions({
     quote,
     signingAccounts
   );
+  if (!substrateEphemeralEntry) {
+    throw new Error("Pendulum ephemeral not found");
+  }
 
   const {
     brlaEvmAddress: validatedBrlaEvmAddress,

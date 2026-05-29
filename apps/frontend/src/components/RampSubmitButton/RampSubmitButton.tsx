@@ -7,15 +7,15 @@ import {
   getAnyFiatTokenDetails,
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
-  RampDirection,
-  TokenType
+  isMoonbeamTokenDetails,
+  RampDirection
 } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import { useNetwork } from "../../contexts/network";
-import { useMoneriumKycActor, useRampActor, useStellarKycSelector } from "../../contexts/rampState";
+import { useRampActor } from "../../contexts/rampState";
 import { trimAddress } from "../../helpers/addressFormatter";
 import { cn } from "../../helpers/cn";
 import { useAlfredpayFiatAccounts } from "../../hooks/alfredpay/useFiatAccounts";
@@ -30,10 +30,38 @@ interface UseButtonContentProps {
   submitButtonDisabled: boolean;
 }
 
+interface LockedWalletArgs {
+  walletLocked: string | undefined;
+  accountAddress: string | undefined;
+  isOfframp: boolean;
+  quoteFrom: string | undefined;
+}
+
+function isLockedToAnotherWallet({ walletLocked, accountAddress, isOfframp, quoteFrom }: LockedWalletArgs): boolean {
+  if (!walletLocked || !accountAddress) return false;
+  if (!isOfframp && quoteFrom !== "sepa") return false;
+  return getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0);
+}
+
+function getQuoteReadyContent(args: {
+  isOnramp: boolean;
+  isAnchorWithoutRedirect: boolean;
+  inputCurrency: string | undefined;
+  t: ReturnType<typeof useTranslation>["t"];
+}) {
+  const { isOnramp, isAnchorWithoutRedirect, inputCurrency, t } = args;
+  if (isOnramp && isAnchorWithoutRedirect) {
+    return { icon: null, text: t("components.SummaryPage.confirm") };
+  }
+  if (isOnramp && inputCurrency === FiatToken.BRL) {
+    return { icon: null, text: t("components.SummaryPage.continue") };
+  }
+  return { icon: null, text: t("components.SummaryPage.verifyWallet") };
+}
+
 const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const stellarData = useStellarKycSelector();
   const { address: accountAddress } = useVortexAccount();
 
   const { isQuoteExpired, rampState, rampPaymentConfirmed, machineState, walletLocked, quote } = useSelector(
@@ -51,18 +79,16 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
   return useMemo(() => {
     const isOnramp = quote?.rampType === RampDirection.BUY;
     const isOfframp = quote?.rampType === RampDirection.SELL;
-    const isDepositQrCodeReady = Boolean(rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+    const isDepositQrCodeReady =
+      Boolean(rampState?.ramp?.depositQrCode) ||
+      Boolean(rampState?.ramp?.achPaymentData) ||
+      Boolean(rampState?.ramp?.ibanPaymentData);
     const hasAchPaymentData = Boolean(rampState?.ramp?.achPaymentData);
 
-    if (
-      walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
-      accountAddress &&
-      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
-    ) {
+    if (isLockedToAnotherWallet({ accountAddress, isOfframp, quoteFrom: quote?.from, walletLocked })) {
       return {
         icon: null,
-        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked) })
+        text: t("components.RampSubmitButton.connectDesignatedWallet", { address: trimAddress(walletLocked as string) })
       };
     }
 
@@ -71,99 +97,44 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     const isAnchorWithRedirect = !isAnchorWithoutRedirect;
 
     if (machineState === "QuoteReady") {
-      if (isOnramp && isAnchorWithoutRedirect) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.confirm")
-        };
-      } else if (isOnramp && quote?.inputCurrency === FiatToken.BRL) {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.continue")
-        };
-      } else {
-        return {
-          icon: null,
-          text: t("components.SummaryPage.verifyWallet")
-        };
-      }
+      return getQuoteReadyContent({ inputCurrency: quote?.inputCurrency, isAnchorWithoutRedirect, isOnramp, t });
     }
 
     if (isQuoteExpired && !hasAchPaymentData) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.quoteExpired")
-      };
+      return { icon: null, text: t("components.SummaryPage.quoteExpired") };
     }
 
     if (machineState === "KycComplete") {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
-    // XSTATE migrate: we can display this on failure, generic failure.
-    // Add check for signing rejection
-    // if (signingRejected) {
-    //   return {
-    //     icon: null,
-    //     text: t("components.SummaryPage.tryAgain")
-    //   };
-    // }
-
     if (submitButtonDisabled) {
-      return {
-        icon: <Spinner />,
-        text: t("components.swapSubmitButton.processing")
-      };
+      return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
     }
 
     if (isOfframp && isAnchorWithoutRedirect) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
     if (isOfframp && rampState !== undefined) {
-      return {
-        icon: <Spinner />,
-        text: t("components.SummaryPage.processing")
-      };
+      return { icon: <Spinner />, text: t("components.SummaryPage.processing") };
     }
 
     if (isOnramp && isDepositQrCodeReady && !rampPaymentConfirmed) {
-      return {
-        icon: null,
-        text: t("components.swapSubmitButton.confirmPayment")
-      };
+      return { icon: null, text: t("components.swapSubmitButton.confirmPayment") };
     }
 
     if (isOnramp && !isDepositQrCodeReady) {
-      return {
-        icon: null,
-        text: t("components.SummaryPage.confirm")
-      };
+      return { icon: null, text: t("components.SummaryPage.confirm") };
     }
 
     if (isOfframp && isAnchorWithRedirect) {
-      if (stellarData?.stateValue === "Sep24Second") {
-        return {
-          icon: <Spinner />,
-          text: t("components.SummaryPage.continueOnPartnersPage")
-        };
-      } else {
-        return {
-          icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
-          text: t("components.SummaryPage.continueWithPartner")
-        };
-      }
+      return {
+        icon: <ArrowTopRightOnSquareIcon className="h-4 w-4" />,
+        text: t("components.SummaryPage.continueWithPartner")
+      };
     }
-    return {
-      icon: <Spinner />,
-      text: t("components.swapSubmitButton.processing")
-    };
+    return { icon: <Spinner />, text: t("components.swapSubmitButton.processing") };
   }, [
     submitButtonDisabled,
     isQuoteExpired,
@@ -171,7 +142,6 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
     machineState,
     t,
     toToken,
-    stellarData,
     rampPaymentConfirmed,
     quote,
     accountAddress,
@@ -182,11 +152,9 @@ const useButtonContent = ({ toToken, submitButtonDisabled }: UseButtonContentPro
 export const RampSubmitButton = ({ className, hasValidationErrors }: { className?: string; hasValidationErrors?: boolean }) => {
   const rampActor = useRampActor();
   const { onRampConfirm } = useRampSubmission();
-  const stellarData = useStellarKycSelector();
   const router = useRouter();
   const params = useParams({ strict: false });
 
-  const moneriumKycActor = useMoneriumKycActor();
   const { address: accountAddress } = useVortexAccount();
 
   const { rampState, quote, executionInput, isQuoteExpired, machineState, walletLocked } = useSelector(rampActor, state => ({
@@ -197,9 +165,6 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     rampState: state.context.rampState,
     walletLocked: state.context.walletLocked
   }));
-
-  const stellarContext = stellarData?.context;
-  const anchorUrl = stellarContext?.redirectUrl;
 
   const isOnramp = quote?.rampType === RampDirection.BUY;
   const isOfframp = quote?.rampType === RampDirection.SELL;
@@ -217,12 +182,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       return true;
     }
 
-    if (
-      walletLocked &&
-      (isOfframp || quote?.from === "sepa") &&
-      accountAddress &&
-      getAddressForFormat(accountAddress, 0) !== getAddressForFormat(walletLocked, 0)
-    ) {
+    if (isLockedToAnotherWallet({ accountAddress, isOfframp, quoteFrom: quote?.from, walletLocked })) {
       return true;
     }
     if (machineState === "QuoteReady") {
@@ -234,7 +194,7 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
       return false;
     }
 
-    if (machineState === "RegisterRamp" || moneriumKycActor) {
+    if (machineState === "RegisterRamp") {
       return true;
     }
 
@@ -244,14 +204,15 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     if (!executionInput) return true;
 
     if (isOfframp) {
-      if (!anchorUrl && getAnyFiatTokenDetails(fiatToken).type === TokenType.Stellar) return true;
-      if (stellarData?.stateValue !== "StartSep24") return true;
+      if (!isMoonbeamTokenDetails(getAnyFiatTokenDetails(fiatToken))) return true;
       if (!executionInput.brlaEvmAddress && getAnyFiatTokenDetails(fiatToken).type === "moonbeam") return true;
     }
 
     if (machineState === "UpdateRamp") {
       const isDepositQrCodeReady =
-        Boolean(isOnramp && rampState?.ramp?.depositQrCode) || Boolean(rampState?.ramp?.achPaymentData);
+        Boolean(isOnramp && rampState?.ramp?.depositQrCode) ||
+        Boolean(rampState?.ramp?.achPaymentData) ||
+        Boolean(isOnramp && rampState?.ramp?.ibanPaymentData);
       if (isOnramp && !isDepositQrCodeReady) return true;
     }
 
@@ -264,12 +225,10 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
     isOnramp,
     rampState?.ramp?.depositQrCode,
     rampState?.ramp?.achPaymentData,
-    anchorUrl,
+    rampState?.ramp?.ibanPaymentData,
     fiatToken,
     effectiveSelectedFiatAccountId,
-    stellarData,
     machineState,
-    moneriumKycActor,
     walletLocked,
     accountAddress,
     quote?.from
@@ -301,27 +260,9 @@ export const RampSubmitButton = ({ className, hasValidationErrors }: { className
 
     rampActor.send({ type: "SummaryConfirm" });
 
-    // For BRL offramps, set canRegisterRamp to true
-    if (isOfframp && fiatToken === FiatToken.BRL && executionInput?.quote.rampType === RampDirection.SELL) {
-      //setCanRegisterRamp(true);
+    if (isOnramp && machineState === "UpdateRamp") {
+      rampActor.send({ type: "PAYMENT_CONFIRMED" });
     }
-
-    if (isOnramp) {
-      if (machineState === "UpdateRamp") {
-        rampActor.send({ type: "PAYMENT_CONFIRMED" });
-      }
-    }
-
-    if (!isOnramp && (toToken as FiatTokenDetails).type !== "moonbeam" && anchorUrl) {
-      // If signing was rejected, we do not open the anchor URL again
-      // if (!signingRejected) {
-      //   window.open(anchorUrl, "_blank");
-      // }
-    }
-
-    // if (signingRejected) {
-    //   setSigningRejected(false);
-    // }
   };
 
   return (

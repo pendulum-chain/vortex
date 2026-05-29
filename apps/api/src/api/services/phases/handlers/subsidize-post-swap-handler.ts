@@ -44,7 +44,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSubsidize(state, quote);
     }
 
@@ -99,8 +99,6 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       } else {
         if (quote.metadata.pendulumToMoonbeamXcm) {
           expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToMoonbeamXcm.inputAmountRaw);
-        } else if (quote.metadata.pendulumToStellar) {
-          expectedSwapOutputAmountRaw = Big(quote.metadata.pendulumToStellar.inputAmountRaw);
         }
       }
 
@@ -290,7 +288,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         }
       }
 
-      return this.transitionToNextPhase(state, this.evmNextPhaseSelector(state));
+      return this.transitionToNextPhase(state, this.evmNextPhaseSelector(state, quote));
     } catch (e) {
       logger.error("Error in subsidizePostSwap (EVM):", e);
       if (e instanceof PhaseError) {
@@ -321,7 +319,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     }
 
     if (state.type === RampDirection.SELL) {
-      return "spacewalkRedeem";
+      throw new Error("SubsidizePostSwapPhaseHandler: Unsupported non-BRL offramp route after Stellar deprecation");
     }
 
     throw new Error(
@@ -329,12 +327,14 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
     );
   }
 
-  protected evmNextPhaseSelector(state: RampState): RampPhase {
+  protected evmNextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
     if (state.type === RampDirection.BUY) {
       return "squidRouterSwap";
-    } else {
-      return "brlaPayoutOnBase";
     }
+    if (quote.outputCurrency === FiatToken.EURC) {
+      return "mykoboPayoutOnBase";
+    }
+    return "brlaPayoutOnBase";
   }
 }
 

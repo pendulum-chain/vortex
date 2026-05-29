@@ -5,8 +5,11 @@
 Squid Router is a cross-chain swap/routing protocol built on Axelar's General Message Passing (GMP). Vortex uses it for:
 - **BRL on-ramp**: Base USDC → user's destination EVM chain (any token).
 - **BRL off-ramp**: User's source EVM chain → Base USDC.
-- **EUR on-ramp (Monerium)**: Polygon EURe → Moonbeam.
+- **EUR on-ramp (Mykobo on Base)**: Base USDC → user's destination EVM chain (after EURC→USDC Nabla swap).
+- **EUR off-ramp (Mykobo on Base)**: User's source EVM chain → Base USDC (client-side user-signed).
 - **Off-ramp permit acquisition (Alfredpay)**: User EVM → Moonbeam via `TokenRelayer.execute()` with EIP-2612 permit.
+
+> **Removed:** the previous Monerium-EUR Squid usage (Polygon EURe → Moonbeam) is no longer active; Monerium is deprecated (see `monerium.md`).
 
 It handles cross-chain swap execution, Axelar bridge status monitoring, and gas subsidization on the destination chain.
 

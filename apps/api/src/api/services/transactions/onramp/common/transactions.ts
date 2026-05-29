@@ -9,6 +9,7 @@ import {
   EvmNetworks,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
+  getNablaBasePool,
   getNetworkId,
   Networks,
   PendulumTokenDetails,
@@ -271,7 +272,8 @@ export async function addNablaSwapTransactionsOnBase(
     inputTokenAddress,
     outputTokenAddress,
     nablaHardMinimumOutputRaw,
-    config.swap.deadlineMinutes
+    config.swap.deadlineMinutes,
+    getNablaBasePool(inputTokenAddress, outputTokenAddress).router
   );
 
   unsignedTxs.push({

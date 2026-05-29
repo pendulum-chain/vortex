@@ -8,7 +8,6 @@ import {
   EvmClientManager,
   EvmTokenDetails,
   evmTokenConfig,
-  FiatToken,
   NABLA_ROUTER,
   Networks,
   RampDirection,
@@ -36,12 +35,14 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSwap(state, quote);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateSwap(state, quote);
     } else {
-      throw new Error("NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
+      throw new Error(
+        "NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-EVM-ephemeral quote."
+      );
     }
   }
 

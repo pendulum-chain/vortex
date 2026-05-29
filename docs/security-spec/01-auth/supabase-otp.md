@@ -39,7 +39,7 @@ Two middleware variants exist:
 
 ## Audit Checklist
 
-- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
+- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) uses `requireAuth` (F-068 resolved); admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
 - [x] `SupabaseAuthService.verifyToken()` uses the service role key, not the anon key — **FAIL: Uses anon-key client (F-018). Functionally correct but deviates from spec.**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**

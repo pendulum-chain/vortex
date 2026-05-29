@@ -10,7 +10,7 @@ import { validateKycActor } from "./actors/validateKyc.actor";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
-import { moneriumKycMachine } from "./moneriumKyc.machine";
+import { mykoboKycMachine } from "./mykoboKyc.machine";
 import {
   checkAndRefreshTokenActor,
   cleanUrlActor,
@@ -20,10 +20,10 @@ import {
   refreshQuoteIfNeeded
 } from "./ramp.actors";
 import { createResetRampContext, initialRampContext } from "./ramp.context";
-import { stellarKycMachine } from "./stellarKyc.machine";
 import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./types";
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
+const QUOTE_REFRESH_RETRY_DELAY_MS = 30000;
 
 function mergeRampStatePreservingPaymentInfo(prev: RampState | undefined, next: RampState): RampState {
   if (!prev?.ramp) return next;
@@ -68,7 +68,7 @@ export const rampMachine = setup({
       if (quoteLocked || !quote) {
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      await new Promise(resolve => setTimeout(resolve, QUOTE_REFRESH_RETRY_DELAY_MS));
       await refreshQuoteIfNeeded(quote, apiKey, partnerId, event => self.send(event));
     },
 
@@ -87,7 +87,7 @@ export const rampMachine = setup({
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(loadQuoteActor),
-    moneriumKyc: moneriumKycMachine,
+    mykoboKyc: mykoboKycMachine,
     quoteRefresher: fromCallback<RampMachineEvents, { context: RampContext }>(({ sendBack, input }) => {
       return createQuoteRefresher(input.context, sendBack);
     }),
@@ -95,7 +95,6 @@ export const rampMachine = setup({
     requestOTP: fromPromise(requestOTPActor),
     signTransactions: fromPromise(signTransactionsActor),
     startRamp: fromPromise(startRampActor),
-    stellarKyc: stellarKycMachine,
     urlCleaner: fromPromise(cleanUrlActor),
     validateKyc: fromPromise(validateKycActor),
     verifyOTP: fromPromise(verifyOTPActor)
@@ -141,36 +140,13 @@ export const rampMachine = setup({
         connectedWalletAddress: ({ event }) => event.address
       })
     },
-    SET_EXTERNAL_ID: [
-      {
-        actions: [
-          assign({
-            ...initialRampContext,
-            externalSessionId: ({ event }) => event.externalSessionId
-          }),
-          () => window.location.reload()
-        ],
-        // Assumed to be a new session, so we reset everything and reload the page.
-        // This will reload the new parameters and fetch a new quote.
-        guard: ({ context, event }) =>
-          event.externalSessionId !== undefined &&
-          context.externalSessionId !== undefined &&
-          event.externalSessionId !== context.externalSessionId,
-        target: ".Idle"
-      },
-      {
-        actions: [
-          assign({
-            ...initialRampContext,
-            externalSessionId: ({ event }) => event.externalSessionId
-          }),
-          () => window.location.reload()
-        ],
-        // If a sessionId is passed yet none is set in the context, we assume it's a new session and reload.
-        guard: ({ context, event }) => event.externalSessionId !== undefined && context.externalSessionId === undefined,
-        target: ".Idle"
-      }
-    ],
+    SET_EXTERNAL_ID: {
+      // New sessionId (different from the one in context, or none was set): hard-reload so the new params drive a fresh quote.
+      // The reload wipes XState state entirely, so an assign/target here would never execute.
+      actions: [() => window.location.reload()],
+      guard: ({ context, event }) =>
+        event.externalSessionId !== undefined && event.externalSessionId !== context.externalSessionId
+    },
     SET_GET_MESSAGE_SIGNATURE: {
       actions: assign({
         getMessageSignature: ({ event }: { event: Extract<RampMachineEvents, { type: "SET_GET_MESSAGE_SIGNATURE" }> }) =>
@@ -188,7 +164,14 @@ export const rampMachine = setup({
       })
     },
     SIGNING_UPDATE: {
-      actions: [assign({ rampSigningPhase: ({ event }) => event.phase })]
+      actions: [
+        assign({
+          rampSigningPhase: ({ event }) => event.phase,
+          rampSigningPhaseCurrent: ({ context, event }) =>
+            event.current !== undefined ? event.current : context.rampSigningPhaseCurrent,
+          rampSigningPhaseMax: ({ context, event }) => (event.max !== undefined ? event.max : context.rampSigningPhaseMax)
+        })
+      ]
     }
   },
   states: {
@@ -373,7 +356,9 @@ export const rampMachine = setup({
     Error: {
       entry: assign(({ context }) => ({
         ...context,
-        rampSigningPhase: undefined
+        rampSigningPhase: undefined,
+        rampSigningPhaseCurrent: undefined,
+        rampSigningPhaseMax: undefined
       })),
       on: {
         RESET_RAMP: {
@@ -528,7 +513,11 @@ export const rampMachine = setup({
           target: "LoadingQuote"
         }
       ],
-      entry: assign({ rampSigningPhase: undefined }),
+      entry: assign({
+        rampSigningPhase: undefined,
+        rampSigningPhaseCurrent: undefined,
+        rampSigningPhaseMax: undefined
+      }),
       on: {
         // This is the main confirm button.
         CONFIRM: {
@@ -740,7 +729,9 @@ export const rampMachine = setup({
             enteredViaForm: undefined,
             errorMessage: undefined,
             rampPaymentConfirmed: false,
-            rampSigningPhase: undefined
+            rampSigningPhase: undefined,
+            rampSigningPhaseCurrent: undefined,
+            rampSigningPhaseMax: undefined
           }),
           target: "QuoteReady"
         },

@@ -9,6 +9,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeFunctionData } from "viem";
+import erc20ABI from "../../../../../contracts/ERC20";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
@@ -69,8 +71,30 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     throw new Error("Invalid BRLA configuration for Base in evmTokenConfig");
   }
 
-  // Special case: if user is already on Base with USDC, skip squidrouter transactions
-  if (!(fromNetwork === Networks.Base && inputTokenDetails.erc20AddressSourceChain === baseUsdcAddress)) {
+  // Special case: if user already holds USDC on Base, skip squidrouter and have the user sign a
+  // direct ERC20 transfer to the ephemeral. Without this leg the ephemeral never receives USDC and
+  // downstream phases (distributeFees, nablaSwap) would revert from insufficient balance.
+  if (fromNetwork === Networks.Base && inputTokenDetails.erc20AddressSourceChain === baseUsdcAddress) {
+    const transferData = encodeFunctionData({
+      abi: erc20ABI,
+      args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
+      functionName: "transfer"
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: fromNetwork,
+      nonce: 0,
+      phase: "squidRouterNoPermitTransfer",
+      signer: userAddress,
+      txData: {
+        data: transferData,
+        gas: "0",
+        to: inputTokenDetails.erc20AddressSourceChain,
+        value: "0"
+      }
+    });
+  } else {
     // TODO Maybe, move to contract-base squid swap.
     // Otherwise use the same approach as previously
     const { approveData, swapData } = await createOfframpSquidrouterTransactionsToEvm({
@@ -101,8 +125,6 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
       txData: encodeEvmTransactionData(swapData) as EvmTransactionData
     });
   }
-
-  // TODO isn't this missing the rest of the edge case handling?
 
   let baseNonce = 0;
 

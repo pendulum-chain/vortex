@@ -8,13 +8,13 @@ import {
   getEnumKeyByStringValue,
   getNetworkDisplayName,
   isEvmTokenDetails,
+  isMoonbeamTokenDetails,
   isNetworkEVM,
   moonbeamTokenConfig,
   Networks,
   OnChainToken,
   OnChainTokenDetails,
-  RampDirection,
-  stellarTokenConfig
+  RampDirection
 } from "@vortexfi/shared";
 import { useMemo } from "react";
 import { getEvmTokenConfig } from "../../../services/tokens";
@@ -138,27 +138,23 @@ export function invalidateOnChainTokensCache(): void {
   cachedEvmConfigRef = null;
 }
 
-function getFiatTokens(filterEurcOnly = false): ExtendedTokenDefinition[] {
+function getFiatTokens(): ExtendedTokenDefinition[] {
   const moonbeamEntries = Object.entries(moonbeamTokenConfig);
   const freeFiatCurrencyEntries = Object.entries(freeTokenConfig);
-  const stellarEntries = filterEurcOnly
-    ? Object.entries(stellarTokenConfig).filter(([key]) => key === FiatToken.EURC)
-    : Object.entries(stellarTokenConfig);
 
-  return [...moonbeamEntries, ...freeFiatCurrencyEntries, ...stellarEntries].map(([key, value]) => ({
-    assetIcon: value.fiat.assetIcon,
-    assetSymbol: value.fiat.symbol,
-    details: value as FiatTokenDetails,
-    name: value.fiat.name,
-    network: key === FiatToken.BRL ? Networks.Moonbeam : Networks.Stellar,
-    networkDisplayName:
-      key === FiatToken.BRL ? getNetworkDisplayName(Networks.Moonbeam) : getNetworkDisplayName(Networks.Stellar),
-    type: getEnumKeyByStringValue(FiatToken, key) as FiatToken
-  }));
-}
-
-function isFilterEurcOnly(type: "from" | "to", direction: RampDirection) {
-  return direction === RampDirection.BUY && type === "from";
+  return [...moonbeamEntries, ...freeFiatCurrencyEntries].map(([, value]) => {
+    const details = value as FiatTokenDetails;
+    const network = isMoonbeamTokenDetails(details) ? Networks.Moonbeam : Networks.Base;
+    return {
+      assetIcon: details.fiat.assetIcon,
+      assetSymbol: details.fiat.symbol,
+      details,
+      name: details.fiat.name,
+      network,
+      networkDisplayName: getNetworkDisplayName(network),
+      type: getEnumKeyByStringValue(FiatToken, details.fiat.symbol) as FiatToken
+    };
+  });
 }
 
 export function useIsFiatDirection() {
@@ -174,7 +170,7 @@ function isFiatDirection(type: "from" | "to", direction: RampDirection) {
 
 function getAllSupportedTokenDefinitions(type: "from" | "to", direction: RampDirection): ExtendedTokenDefinition[] {
   if (isFiatDirection(type, direction)) {
-    return getFiatTokens(isFilterEurcOnly(type, direction));
+    return getFiatTokens();
   } else {
     return getAllOnChainTokens();
   }
