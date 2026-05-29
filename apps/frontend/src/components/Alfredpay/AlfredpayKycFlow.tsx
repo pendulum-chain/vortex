@@ -94,7 +94,7 @@ export const AlfredpayKycFlow = () => {
 
   if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
     const includeSelfie = isAr;
-    return <MxnDocumentUploadScreen includeSelfie={includeSelfie} onSubmit={submitFiles} />;
+    return <MxnDocumentUploadScreen error={context.error?.message} includeSelfie={includeSelfie} onSubmit={submitFiles} />;
   }
 
   if (stateValue === "FillingKybForm") {

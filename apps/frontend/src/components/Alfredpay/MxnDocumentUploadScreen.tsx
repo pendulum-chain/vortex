@@ -7,6 +7,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 interface MxnDocumentUploadScreenProps {
+  error?: string;
   includeSelfie?: boolean;
   onSubmit: (files: MxnKycFiles) => void;
 }
@@ -60,7 +61,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
   );
 }
 
-export function MxnDocumentUploadScreen({ onSubmit, includeSelfie = false }: MxnDocumentUploadScreenProps) {
+export function MxnDocumentUploadScreen({ error, onSubmit, includeSelfie = false }: MxnDocumentUploadScreenProps) {
   const { t } = useTranslation();
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -88,6 +89,8 @@ export function MxnDocumentUploadScreen({ onSubmit, includeSelfie = false }: Mxn
         )}
 
         <p className="text-center text-gray-400 text-xs">{t("components.mxnDocumentUpload.fileHint")}</p>
+
+        {error && <p className="text-center text-error text-xs">{error}</p>}
 
         <button className="btn btn-vortex-primary w-full" disabled={!isValid} onClick={handleSubmit} type="button">
           {t("components.mxnDocumentUpload.submit")}

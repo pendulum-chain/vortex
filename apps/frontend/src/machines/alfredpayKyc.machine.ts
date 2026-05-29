@@ -732,6 +732,15 @@ export const alfredpayKycMachine = setup({
           target: "SendingSubmission"
         },
         onError: {
+          actions: assign({
+            error: ({ event }) => {
+              const err = event.error;
+              const msg = err instanceof Error ? err.message : "";
+              return msg
+                ? new AlfredpayKycMachineError(msg, AlfredpayKycMachineErrorType.UnknownError)
+                : new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError);
+            }
+          }),
           target: "UploadingDocuments"
         },
         src: "submitFiles"
