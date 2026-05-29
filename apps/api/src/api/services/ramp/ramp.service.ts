@@ -64,6 +64,7 @@ import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
+import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRamp } from "./helpers";
 import { validateMoneriumOnrampPermit } from "./monerium-permit";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
@@ -214,6 +215,8 @@ export class RampService extends BaseRampService {
       }
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
+
+      await validateEphemeralAccountsFresh(ephemerals);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
