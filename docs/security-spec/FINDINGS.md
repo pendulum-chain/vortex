@@ -1470,15 +1470,14 @@ If a database partner record has `markupValue = -0.01` and `markupType = "relati
 
 **Fix:** Added `validateEphemeralAccountsFresh()` (`apps/api/src/api/services/ramp/ephemeral-freshness.ts`), invoked in `registerRamp` immediately after `normalizeAndValidateSigningAccounts`. The validator:
 
-1. **Computes the route-relevant network set** via `getEphemeralNetworksForQuote(quote, additionalData)`, which mirrors the offramp/onramp transaction-builder dispatcher logic in `apps/api/src/api/services/transactions/{offramp,onramp}/index.ts`. Only chains an ephemeral will actually sign on are checked (e.g. SELL/BRL with EVM input → EVM:[Base]; BUY/EURC → AssetHub → EVM:[Polygon, Moonbeam] + Substrate:[pendulum, hydration-if-non-USDC]).
-2. **Substrate**: queries `system.account(address)` on each required chain; requires `nonce === 0` AND `free === 0`.
-3. **EVM**: queries `getTransactionCount(address)` on each required chain; requires `nonce === 0`.
+1. **Checks every supported chain of each submitted ephemeral type unconditionally** — rather than deriving a route-relevant subset from the quote. Supported sets: Substrate = `[pendulum, hydration, assethub]`; EVM = all configured EVM networks including Moonbeam (`SUPPORTED_EVM_NETWORKS`); Stellar = single Horizon check. This is intentionally wider than strictly required so that a future phase-handler addition cannot silently reopen the freshness gap by routing through a chain not covered by a route-derived mapping.
+2. **Substrate**: queries `system.account(address)` on each supported chain; requires `nonce === 0` AND `free === 0`.
+3. **EVM**: queries `getTransactionCount(address)` on each supported chain; requires `nonce === 0`.
 4. **Stellar**: calls `loadAccountWithRetry(address)` against Horizon; requires the account to **not exist** (the server creates and funds it during the ramp).
 5. **Fail-closed**: any RPC error rejects the registration with `SERVICE_UNAVAILABLE` rather than allowing freshness to be presumed.
-6. **Required-but-missing ephemerals** for a route are rejected with `BAD_REQUEST` before any RPC call.
-7. Scope: `registerRamp` only. `updateRamp` does not re-check, since the ephemeral identity is bound to ramp state at registration time.
+6. Scope: `registerRamp` only. `updateRamp` does not re-check, since the ephemeral identity is bound to ramp state at registration time.
 
-If a chain is added to a phase handler that an ephemeral signs on, `getEphemeralNetworksForQuote` MUST be updated to include it, otherwise the freshness gap reopens for that route.
+If the platform adds a new chain an ephemeral can ever sign on, `SUPPORTED_SUBSTRATE_NETWORKS` / `SUPPORTED_EVM_NETWORKS` MUST be updated, otherwise the freshness check leaves that chain unverified.
 
 ---
 
