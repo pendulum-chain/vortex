@@ -94,7 +94,15 @@ export const AlfredpayKycFlow = () => {
 
   if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
     const includeSelfie = isAr;
-    return <MxnDocumentUploadScreen error={context.error?.message} includeSelfie={includeSelfie} onSubmit={submitFiles} />;
+    const i18nNamespace = isAr ? "components.arDocumentUpload" : undefined;
+    return (
+      <MxnDocumentUploadScreen
+        error={context.error?.message}
+        i18nNamespace={i18nNamespace}
+        includeSelfie={includeSelfie}
+        onSubmit={submitFiles}
+      />
+    );
   }
 
   if (stateValue === "FillingKybForm") {

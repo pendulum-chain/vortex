@@ -8,11 +8,22 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 interface MxnDocumentUploadScreenProps {
   error?: string;
+  i18nNamespace?: string;
   includeSelfie?: boolean;
   onSubmit: (files: MxnKycFiles) => void;
 }
 
-function FileDropZone({ label, file, onChange }: { label: string; file: File | null; onChange: (file: File) => void }) {
+function FileDropZone({
+  i18nNamespace,
+  label,
+  file,
+  onChange
+}: {
+  i18nNamespace: string;
+  label: string;
+  file: File | null;
+  onChange: (file: File) => void;
+}) {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -20,11 +31,11 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
   const handleFile = (f: File) => {
     setError(null);
     if (!ACCEPTED_TYPES.includes(f.type)) {
-      setError(t("components.mxnDocumentUpload.invalidType"));
+      setError(t(`${i18nNamespace}.invalidType`));
       return;
     }
     if (f.size > MAX_FILE_SIZE) {
-      setError(t("components.mxnDocumentUpload.fileTooLarge"));
+      setError(t(`${i18nNamespace}.fileTooLarge`));
       return;
     }
     onChange(f);
@@ -43,7 +54,7 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
         {file ? (
           <span className="max-w-full truncate text-primary text-sm">{file.name}</span>
         ) : (
-          <span className="text-gray-400 text-sm">{t("components.mxnDocumentUpload.tapToSelect")}</span>
+          <span className="text-gray-400 text-sm">{t(`${i18nNamespace}.tapToSelect`)}</span>
         )}
         <input
           accept={ACCEPTED_TYPES.join(",")}
@@ -61,7 +72,12 @@ function FileDropZone({ label, file, onChange }: { label: string; file: File | n
   );
 }
 
-export function MxnDocumentUploadScreen({ error, onSubmit, includeSelfie = false }: MxnDocumentUploadScreenProps) {
+export function MxnDocumentUploadScreen({
+  error,
+  i18nNamespace = "components.mxnDocumentUpload",
+  onSubmit,
+  includeSelfie = false
+}: MxnDocumentUploadScreenProps) {
   const { t } = useTranslation();
   const [front, setFront] = useState<File | null>(null);
   const [back, setBack] = useState<File | null>(null);
@@ -78,22 +94,27 @@ export function MxnDocumentUploadScreen({ error, onSubmit, includeSelfie = false
   return (
     <div className="flex grow-1 flex-col">
       <MenuButtons />
-      <h1 className="mt-4 mb-2 text-center font-bold text-2xl text-primary">{t("components.mxnDocumentUpload.title")}</h1>
-      <p className="mb-6 text-center text-gray-500 text-sm">{t("components.mxnDocumentUpload.subtitle")}</p>
+      <h1 className="mt-4 mb-2 text-center font-bold text-2xl text-primary">{t(`${i18nNamespace}.title`)}</h1>
+      <p className="mb-6 text-center text-gray-500 text-sm">{t(`${i18nNamespace}.subtitle`)}</p>
 
       <div className="flex grow-1 flex-col space-y-4 px-1 pb-4">
-        <FileDropZone file={front} label={t("components.mxnDocumentUpload.frontLabel")} onChange={setFront} />
-        <FileDropZone file={back} label={t("components.mxnDocumentUpload.backLabel")} onChange={setBack} />
+        <FileDropZone file={front} i18nNamespace={i18nNamespace} label={t(`${i18nNamespace}.frontLabel`)} onChange={setFront} />
+        <FileDropZone file={back} i18nNamespace={i18nNamespace} label={t(`${i18nNamespace}.backLabel`)} onChange={setBack} />
         {includeSelfie && (
-          <FileDropZone file={selfie} label={t("components.mxnDocumentUpload.selfieLabel")} onChange={setSelfie} />
+          <FileDropZone
+            file={selfie}
+            i18nNamespace={i18nNamespace}
+            label={t(`${i18nNamespace}.selfieLabel`)}
+            onChange={setSelfie}
+          />
         )}
 
-        <p className="text-center text-gray-400 text-xs">{t("components.mxnDocumentUpload.fileHint")}</p>
+        <p className="text-center text-gray-400 text-xs">{t(`${i18nNamespace}.fileHint`)}</p>
 
         {error && <p className="text-center text-error text-xs">{error}</p>}
 
         <button className="btn btn-vortex-primary w-full" disabled={!isValid} onClick={handleSubmit} type="button">
-          {t("components.mxnDocumentUpload.submit")}
+          {t(`${i18nNamespace}.submit`)}
         </button>
       </div>
     </div>
