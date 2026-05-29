@@ -11,7 +11,6 @@ export * from "./evm/config";
 // Dynamic tokens - must be exported AFTER all dependencies (config, pendulum/config, etc.)
 export * from "./evm/dynamicEvmTokens";
 export * from "./freeTokens/config";
-export * from "./freeTokens/eurcMykobo";
 export * from "./moonbeam/config";
 export * from "./pendulum/config";
 // TokenConfig

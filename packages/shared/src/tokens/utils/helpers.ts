@@ -101,7 +101,7 @@ export function getAnyFiatTokenDetailsMoonbeam(fiatToken: FiatToken): MoonbeamTo
 export function getAnyFiatTokenDetails(fiatToken: FiatToken): FiatTokenDetails {
   const tokenDetails = moonbeamTokenConfig[fiatToken] || freeTokenConfig[fiatToken];
   if (!tokenDetails) {
-    throw new Error(`Invalid fiat token type: ${fiatToken}. Token type is not Moonbeam.`);
+    throw new Error(`Invalid fiat token type: ${fiatToken}. Token is not found in Moonbeam or free token configs.`);
   }
   return tokenDetails;
 }

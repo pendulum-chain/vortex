@@ -5,7 +5,7 @@ export type XcmSentEvent = ReturnType<typeof parseEventXcmSent>;
 export type XTokensEvent = ReturnType<typeof parseEventXTokens>;
 
 export function parseEventXcmSent({ event }: { event: Event }) {
-  const rawEventData = JSON.parse(event.data.toString());
+  const rawEventData = event.data.toJSON() as any[];
   const mappedData = {
     originAddress: encodeAddress(rawEventData[0].interior.x1[0].accountId32.id.toString())
   };
@@ -13,7 +13,7 @@ export function parseEventXcmSent({ event }: { event: Event }) {
 }
 
 export function parseEventMoonbeamXcmSent({ event }: { event: Event }) {
-  const rawEventData = JSON.parse(event.data.toString());
+  const rawEventData = event.data.toJSON() as any[];
 
   const mappedData = {
     originAddress: rawEventData[0].interior.x1[0].accountKey20.key
@@ -22,7 +22,7 @@ export function parseEventMoonbeamXcmSent({ event }: { event: Event }) {
 }
 
 export function parseEventXTokens({ event }: { event: Event }) {
-  const rawEventData = JSON.parse(event.data.toString());
+  const rawEventData = event.data.toJSON() as any[];
   const mappedData = {
     sender: rawEventData[0].toString()
   };

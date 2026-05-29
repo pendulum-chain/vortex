@@ -76,7 +76,7 @@ export class RouteResolver {
         return offrampToSepaEvmStrategy;
       case "cbu":
       default:
-        throw new Error("ARS offramp temporarily unavailable");
+        throw new APIError({ message: "ARS offramp temporarily unavailable", status: httpStatus.BAD_REQUEST });
     }
   }
 }
