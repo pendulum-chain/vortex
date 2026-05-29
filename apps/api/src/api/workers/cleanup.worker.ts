@@ -2,6 +2,7 @@ import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { runWithRampContext } from "../../config/ramp-context";
+import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import { postProcessHandlers } from "../services/phases/post-process";
 import { BaseRampService } from "../services/ramp/base.service";
@@ -152,6 +153,7 @@ class CleanupWorker {
         order: [["updatedAt", "DESC"]],
         where: {
           currentPhase: { [Op.in]: ["complete", "failed", "timedOut"] },
+          flowVariant: config.flowVariant,
           postCompleteState: {
             cleanup: {
               [Op.or]: [{ cleanupCompleted: false }, { cleanupCompleted: { [Op.is]: null } }]

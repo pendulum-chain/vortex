@@ -10,7 +10,6 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  CreateAlfredpayOfframpRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   ERC20_EURE_POLYGON_TOKEN_NAME,
@@ -47,6 +46,7 @@ import { Op, Transaction, WhereOptions } from "sequelize";
 import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -168,6 +168,16 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
 }
 
 export class RampService extends BaseRampService {
+  // Two backends share one database; each must only touch ramps/quotes for its own flow.
+  // We return 404 on mismatch so the wrong backend looks indistinguishable from "not found".
+  private static assertOwnedByThisFlow(entity: { flowVariant: string; id: string }, kind: "Ramp" | "Quote"): void {
+    if (entity.flowVariant !== config.flowVariant) {
+      throw new APIError({
+        message: `${kind} not found`,
+        status: httpStatus.NOT_FOUND
+      });
+    }
+  }
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -184,6 +194,8 @@ export class RampService extends BaseRampService {
           status: httpStatus.NOT_FOUND
         });
       }
+
+      RampService.assertOwnedByThisFlow(quote, "Quote");
 
       if (quote.status !== "pending") {
         throw new APIError({
@@ -230,6 +242,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState(
         {
           currentPhase: "initial" as RampPhase,
+          flowVariant: quote.flowVariant,
           from: quote.from,
           paymentMethod: quote.paymentMethod,
           postCompleteState: {
@@ -296,6 +309,8 @@ export class RampService extends BaseRampService {
           status: httpStatus.NOT_FOUND
         });
       }
+
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
@@ -413,6 +428,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
       if (!quote) {
@@ -505,6 +522,10 @@ export class RampService extends BaseRampService {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
+      return null;
+    }
+
+    if (rampState.flowVariant !== config.flowVariant) {
       return null;
     }
 
@@ -619,6 +640,10 @@ export class RampService extends BaseRampService {
       return null;
     }
 
+    if (rampState.flowVariant !== config.flowVariant) {
+      return null;
+    }
+
     return rampState.errorLogs;
   }
 
@@ -635,7 +660,8 @@ export class RampService extends BaseRampService {
       [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
       currentPhase: {
         [Op.ne]: "initial"
-      }
+      },
+      flowVariant: config.flowVariant
     };
 
     let where: WhereOptions<RampStateAttributes>;
@@ -749,6 +775,8 @@ export class RampService extends BaseRampService {
         status: httpStatus.NOT_FOUND
       });
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     // Limit the number of error logs to 100
     const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
@@ -1312,6 +1340,8 @@ export class RampService extends BaseRampService {
       throw new Error("Ramp not found.");
     }
 
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
     await this.updateRampState(id, {
       currentPhase: "timedOut"
     });
@@ -1336,6 +1366,8 @@ export class RampService extends BaseRampService {
     if (!rampState) {
       throw new Error(`RampState with id ${id} not found`);
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     const oldPhase = rampState.currentPhase;
 

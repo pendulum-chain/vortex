@@ -2,6 +2,7 @@ import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection }
 import { DataTypes, Model, Optional } from "sequelize";
 import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";
+import { FlowVariant } from "../config/vars";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -22,6 +23,7 @@ export interface QuoteTicketAttributes {
   paymentMethod: PaymentMethod;
   countryCode: string | null;
   network: Networks;
+  flowVariant: FlowVariant;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +67,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare network: Networks;
 
+  declare flowVariant: FlowVariant;
+
   declare createdAt: Date;
 
   declare updatedAt: Date;
@@ -94,6 +98,11 @@ QuoteTicket.init(
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       field: "expires_at",
       type: DataTypes.DATE
+    },
+    flowVariant: {
+      allowNull: false,
+      field: "flow_variant",
+      type: DataTypes.STRING(16)
     },
     from: {
       allowNull: false,
@@ -192,6 +201,10 @@ QuoteTicket.init(
       {
         fields: ["partner_id"],
         name: "idx_quote_tickets_partner"
+      },
+      {
+        fields: ["flow_variant"],
+        name: "idx_quote_tickets_flow_variant"
       }
     ],
     modelName: "QuoteTicket",

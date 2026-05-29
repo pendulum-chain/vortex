@@ -2,6 +2,7 @@ import { BrlaApiService, generateReferenceLabel, normalizeTaxId } from "@vortexf
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import TaxId from "../../models/taxId.model";
 import { SlackNotifier } from "../services/slack.service";
@@ -79,6 +80,7 @@ class UnhandledPaymentWorker {
             [Op.gt]: threeDaysAgo
           },
           currentPhase: "initial",
+          flowVariant: config.flowVariant,
           id: {
             [Op.notIn]: Array.from(this.processedStateIds)
           }
@@ -105,6 +107,7 @@ class UnhandledPaymentWorker {
             [Op.gt]: threeDaysAgo
           },
           currentPhase: "failed",
+          flowVariant: config.flowVariant,
           id: {
             [Op.notIn]: Array.from(this.processedStateIds)
           }
