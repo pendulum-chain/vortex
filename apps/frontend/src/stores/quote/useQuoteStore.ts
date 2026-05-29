@@ -54,6 +54,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.MissingToField]: "pages.swap.error.missingToField",
   [QuoteError.MissingFromField]: "pages.swap.error.missingFromField",
   [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
+  [QuoteError.InvalidNetworks]: "pages.swap.error.invalidNetworks",
   [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
   [QuoteError.AssetHubNotSupportedForAlfredPay]: "pages.swap.error.assetHubNotSupportedForAlfredPay",
 

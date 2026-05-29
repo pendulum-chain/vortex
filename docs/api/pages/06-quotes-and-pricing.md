@@ -70,6 +70,19 @@ POST /v1/quotes/best
 
 Same request body as `POST /v1/quotes`, except `to` (for buys) or `from` (for sells) may be omitted; Vortex evaluates eligible routes and returns a single quote optimized for the input amount. The response shape matches `POST /v1/quotes`.
 
+To restrict the search to a subset of chains (for example when you only support a fixed set of destination networks), pass an optional `networks` array of network identifiers. When omitted or empty, Vortex evaluates all eligible networks for the corridor; when provided, the search is intersected with the whitelist and a `400` is returned if the intersection is empty or if any entry is not a known network identifier.
+
+```json
+{
+  "rampType": "BUY",
+  "from": "pix",
+  "inputAmount": "100",
+  "inputCurrency": "BRL",
+  "outputCurrency": "USDC",
+  "networks": ["base", "polygon"]
+}
+```
+
 ## Quote Expiry
 
 Quotes are immutable and short-lived. If the user takes too long to confirm, or if you delay before calling `POST /v1/ramp/register`, the quote expires and the register call rejects it. Catch the expiry error, create a fresh quote, and re-prompt the user before registering.

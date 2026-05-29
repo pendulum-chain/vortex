@@ -24,8 +24,14 @@ interface SpreadsheetConfig {
 
 type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
 
+// Identifies which onramp flow this backend instance serves. Two backends
+// share one database; each ignores ramps/quotes belonging to the other flow.
+// "monerium" is the legacy grace-period backend; "mykobo" is the new replacement.
+export type FlowVariant = "monerium" | "mykobo";
+
 const nodeEnv = process.env.NODE_ENV || "production";
 const deploymentEnvValues: DeploymentEnv[] = ["development", "production", "sandbox", "staging", "test"];
+const flowVariantValues: FlowVariant[] = ["monerium", "mykobo"];
 
 function readDeploymentEnv(): DeploymentEnv {
   const rawDeploymentEnv = process.env.DEPLOYMENT_ENV || (nodeEnv === "production" ? "production" : nodeEnv);
@@ -37,9 +43,20 @@ function readDeploymentEnv(): DeploymentEnv {
   return rawDeploymentEnv as DeploymentEnv;
 }
 
+function readFlowVariant(): FlowVariant {
+  const rawFlowVariant = process.env.FLOW_VARIANT || "monerium";
+
+  if (!flowVariantValues.includes(rawFlowVariant as FlowVariant)) {
+    throw new Error(`FLOW_VARIANT must be one of: ${flowVariantValues.join(", ")} (got '${rawFlowVariant}')`);
+  }
+
+  return rawFlowVariant as FlowVariant;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
+  flowVariant: FlowVariant;
   port: string | number;
   amplitudeWss: string;
   pendulumWss: string;
@@ -132,6 +149,7 @@ export const config: Config = {
   },
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
+  flowVariant: readFlowVariant(),
 
   integrations: {
     alchemy: {
@@ -230,6 +248,7 @@ if (config.env === "production") {
   if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
   if (!config.secrets.webhookPrivateKey) missing.push("WEBHOOK_PRIVATE_KEY");
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
+  if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

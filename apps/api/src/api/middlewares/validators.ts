@@ -1,16 +1,19 @@
 import {
   AveniaKYCDataUploadRequest,
   CreateAveniaSubaccountRequest,
+  CreateBestQuoteRequest,
   CreateQuoteRequest,
   Currency,
   GetWidgetUrlLocked,
   GetWidgetUrlRefresh,
+  getCaseSensitiveNetwork,
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
+  Networks,
   PriceProvider,
   QuoteError,
   RampDirection,
@@ -420,17 +423,13 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   next();
 };
 
-export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (
-  req,
-  res,
-  next
-) => {
+export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, CreateBestQuoteRequest> = (req, res, next) => {
   if (req.body) {
-    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
-    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateBestQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateBestQuoteRequest["outputCurrency"];
   }
 
-  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, networks } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
@@ -450,6 +449,27 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   if (rampType === RampDirection.SELL && !to) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
     return;
+  }
+
+  if (networks !== undefined) {
+    if (!Array.isArray(networks)) {
+      res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+      return;
+    }
+    const normalized: Networks[] = [];
+    for (const entry of networks) {
+      if (typeof entry !== "string") {
+        res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+        return;
+      }
+      const canonical = getCaseSensitiveNetwork(entry);
+      if (!canonical) {
+        res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+        return;
+      }
+      normalized.push(canonical);
+    }
+    req.body.networks = normalized;
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
