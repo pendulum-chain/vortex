@@ -41,6 +41,7 @@ export interface StateMetadata {
   payOutTicketId: string | undefined;
   brlaPayoutTxHash?: `0x${string}`;
   permitTxHash?: string;
+  moneriumOnrampSelfTransferHash?: string;
   ibanPaymentData: IbanPaymentData;
   // Used for webhook notifications
   sessionId?: string;

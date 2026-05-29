@@ -1,4 +1,5 @@
 import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection } from "../index";
+import { AmountLimits } from "../tokens/types/base";
 
 // Fee structure
 export interface QuoteFeeStructure {
@@ -39,6 +40,7 @@ export interface CreateBestQuoteRequest {
   api?: boolean; // Optional flag to indicate API usage
   paymentMethod?: PaymentMethod;
   countryCode?: string;
+  networks?: Networks[]; // Optional whitelist of networks to evaluate; if omitted, all eligible networks are tried
 }
 
 export interface QuoteResponse {
@@ -73,6 +75,9 @@ export interface QuoteResponse {
   expiresAt: Date;
   createdAt: Date;
   sessionId?: string;
+
+  /** Resolved AlfredPay input-side amount limits in human units of `inputCurrency`. Populated for USD/MXN/COP quotes. */
+  alfredpayInputLimits?: AmountLimits;
 }
 
 // GET /quotes/:id
@@ -87,6 +92,7 @@ export enum QuoteError {
 
   MissingToField = "SELL rampType requires 'to' parameter",
   MissingFromField = "BUY rampType requires 'from' parameter",
+  InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers",
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",

@@ -1639,6 +1639,32 @@ Move the existing body of `handleAuthFailure` into `doHandleAuthFailure`.
 
 ---
 
+### F-068: Ephemeral Account Freshness Not Validated at Ramp Registration
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/services/ramp/ramp.service.ts` (`registerRamp` → `normalizeAndValidateSigningAccounts`, lines 141-216) |
+| **Spec** | `02-signing-keys/ephemeral-accounts.md`, `03-ramp-engine/transaction-validation.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, ephemeral lifecycle review |
+| **Impact** | An API client could submit an ephemeral address that has already been used on one or more route-relevant chains (non-zero nonce, existing balance, or pre-existing Stellar account). The backend would build presigned transactions assuming nonce 0 / fresh account; mid-ramp execution would then halt with nonce mismatches, "account already exists" errors, or unexpected leftover balances, leaving subsidies/funding spent and ramps stuck. |
+
+**Description:** `normalizeAndValidateSigningAccounts` only validated the *format* of each provided ephemeral address (StrKey, SS58, EVM `isAddress`). It did not verify that the addresses were actually fresh on the chains the ramp would touch. Because the SDK generates ephemerals client-side and the API trusts whatever address is submitted, a buggy or malicious client could replay an old ephemeral address. Stellar is especially sensitive: the server's first action is to *create* the Stellar account on-chain with a 2-of-2 multisig and starting balance — if the account already exists, that creation operation fails and the ramp cannot proceed.
+
+**Fix:** Added `validateEphemeralAccountsFresh()` (`apps/api/src/api/services/ramp/ephemeral-freshness.ts`), invoked in `registerRamp` immediately after `normalizeAndValidateSigningAccounts`. The validator:
+
+1. **Checks every supported chain of each submitted ephemeral type unconditionally** — rather than deriving a route-relevant subset from the quote. Supported sets: Substrate = `[pendulum, hydration, assethub]`; EVM = all configured EVM networks including Moonbeam (`SUPPORTED_EVM_NETWORKS`); Stellar = single Horizon check. This is intentionally wider than strictly required so that a future phase-handler addition cannot silently reopen the freshness gap by routing through a chain not covered by a route-derived mapping.
+2. **Substrate**: queries `system.account(address)` on each supported chain; requires `nonce === 0` AND `free === 0`.
+3. **EVM**: queries `getTransactionCount(address)` on each supported chain; requires `nonce === 0`.
+4. **Stellar**: calls `loadAccountWithRetry(address)` against Horizon; requires the account to **not exist** (the server creates and funds it during the ramp).
+5. **Fail-closed**: any RPC error rejects the registration with `SERVICE_UNAVAILABLE` rather than allowing freshness to be presumed.
+6. Scope: `registerRamp` only. `updateRamp` does not re-check, since the ephemeral identity is bound to ramp state at registration time.
+
+If the platform adds a new chain an ephemeral can ever sign on, `SUPPORTED_SUBSTRATE_NETWORKS` / `SUPPORTED_EVM_NETWORKS` MUST be updated, otherwise the freshness check leaves that chain unverified.
+
+---
+
 ## Additional Observations (Not Findings)
 
 These are design observations noted during spec writing that may warrant review but aren't direct vulnerabilities:

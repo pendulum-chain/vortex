@@ -25,6 +25,22 @@ import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./t
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 const QUOTE_REFRESH_RETRY_DELAY_MS = 30000;
 
+function mergeRampStatePreservingPaymentInfo(prev: RampState | undefined, next: RampState): RampState {
+  if (!prev?.ramp) return next;
+  const prevRamp = prev.ramp;
+  const nextRamp = next.ramp;
+  if (!nextRamp) return next;
+  return {
+    ...next,
+    ramp: {
+      ...nextRamp,
+      achPaymentData: nextRamp.achPaymentData ?? prevRamp.achPaymentData,
+      depositQrCode: nextRamp.depositQrCode ?? prevRamp.depositQrCode,
+      ibanPaymentData: nextRamp.ibanPaymentData ?? prevRamp.ibanPaymentData
+    }
+  };
+}
+
 function getActorErrorMessage(event: unknown): string {
   if (typeof event !== "object" || event === null || !("error" in event)) {
     return "An unexpected error occurred.";
@@ -102,7 +118,7 @@ export const rampMachine = setup({
     },
     EXPIRE_QUOTE: {
       actions: assign({
-        isQuoteExpired: true
+        isQuoteExpired: ({ context }) => (context.quoteLocked ? context.isQuoteExpired : true)
       })
     },
     LOGOUT: {
@@ -549,7 +565,7 @@ export const rampMachine = setup({
         },
         SET_RAMP_STATE: {
           actions: assign({
-            rampState: ({ event }) => event.rampState
+            rampState: ({ event, context }) => mergeRampStatePreservingPaymentInfo(context.rampState, event.rampState)
           })
         }
       }
@@ -591,11 +607,12 @@ export const rampMachine = setup({
       }
     },
     RegisterRamp: {
+      entry: assign({ quoteLocked: true }),
       invoke: {
         input: ({ context }) => context,
         onDone: {
           actions: assign({
-            rampState: ({ event }) => event.output
+            rampState: ({ event, context }) => mergeRampStatePreservingPaymentInfo(context.rampState, event.output)
           }),
           target: "UpdateRamp"
         },
@@ -678,13 +695,15 @@ export const rampMachine = setup({
         onDone: [
           {
             actions: assign({
-              rampState: ({ event }) => event.output as RampState
+              rampState: ({ event, context }) =>
+                mergeRampStatePreservingPaymentInfo(context.rampState, event.output as RampState)
             }),
             guard: ({ context }) => context.rampDirection === RampDirection.BUY
           },
           {
             actions: assign({
-              rampState: ({ event }) => event.output as RampState
+              rampState: ({ event, context }) =>
+                mergeRampStatePreservingPaymentInfo(context.rampState, event.output as RampState)
             }),
             guard: ({ context }) => context.rampDirection === RampDirection.SELL,
             target: "StartRamp"

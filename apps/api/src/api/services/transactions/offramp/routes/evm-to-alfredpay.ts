@@ -46,7 +46,24 @@ import { addOnrampDestinationChainTransactions } from "../../onramp/common/trans
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-export const RELAYER_ADDRESS = "0xC9ECD03c89349B3EAe4613c7091c6c3029413785" as const;
+// TokenRelayer deployments. Address may differ per chain 
+export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
+  [Networks.Arbitrum]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
+  [Networks.Base]: "0xDbece5cE27984FC64688bcC57f75b96a28e8c68c",
+  [Networks.Polygon]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
+  [Networks.Avalanche]: "0x11871C77Aa0170ae13864E4E82cFa471720e045e",
+  [Networks.Ethereum]: "0x522A51f9c5B1683F0F15910075487c4D162A8b83",
+  [Networks.BSC]: "0x2d657ac14088fED401b58FEd377988ed3F875220"
+
+};
+
+export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
+  const address = RELAYER_ADDRESSES[network];
+  if (!address) {
+    throw new Error(`No TokenRelayer deployed on ${network}`);
+  }
+  return address;
+}
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.
@@ -318,13 +335,21 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         toToken: ALFREDPAY_ERC20_TOKEN
       });
 
+      const relayerAddress = RELAYER_ADDRESSES[fromNetwork];
+
+      if (!relayerAddress) {
+        throw new Error(
+          `Alfredpay offramp permit flow is not supported on ${fromNetwork}: no relayer deployment configured`
+        );
+      }
+
       const permitTypedData: SignedTypedData = {
         domain: resolvedDomain,
         message: {
           deadline: permitDeadline.toString(),
           nonce: userNonce.toString(),
           owner: userAddress,
-          spender: RELAYER_ADDRESS,
+          spender: relayerAddress,
           value: inputAmountRaw.toString()
         },
         primaryType: "Permit",
@@ -346,7 +371,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         domain: {
           chainId: getNetworkId(fromNetwork)!,
           name: "TokenRelayer",
-          verifyingContract: RELAYER_ADDRESS,
+          verifyingContract: relayerAddress,
           version: "1"
         },
         message: {

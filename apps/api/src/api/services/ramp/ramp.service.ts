@@ -10,9 +10,11 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  CreateAlfredpayOfframpRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
+  ERC20_EURE_POLYGON_TOKEN_NAME,
+  ERC20_EURE_POLYGON_V2,
+  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -52,6 +54,7 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import { createEpcQrCodeData, getIbanForAddress } from "../monerium";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -62,7 +65,9 @@ import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/rou
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
+import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRamp } from "./helpers";
+import { validateMoneriumOnrampPermit } from "./monerium-permit";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 480;
@@ -158,6 +163,16 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
 }
 
 export class RampService extends BaseRampService {
+  // Two backends share one database; each must only touch ramps/quotes for its own flow.
+  // We return 404 on mismatch so the wrong backend looks indistinguishable from "not found".
+  private static assertOwnedByThisFlow(entity: { flowVariant: string; id: string }, kind: "Ramp" | "Quote"): void {
+    if (entity.flowVariant !== config.flowVariant) {
+      throw new APIError({
+        message: `${kind} not found`,
+        status: httpStatus.NOT_FOUND
+      });
+    }
+  }
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -174,6 +189,8 @@ export class RampService extends BaseRampService {
           status: httpStatus.NOT_FOUND
         });
       }
+
+      RampService.assertOwnedByThisFlow(quote, "Quote");
 
       if (quote.status !== "pending") {
         throw new APIError({
@@ -192,6 +209,8 @@ export class RampService extends BaseRampService {
       }
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
+
+      await validateEphemeralAccountsFresh(ephemerals);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
@@ -220,6 +239,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState(
         {
           currentPhase: "initial" as RampPhase,
+          flowVariant: quote.flowVariant,
           from: quote.from,
           paymentMethod: quote.paymentMethod,
           postCompleteState: {
@@ -285,6 +305,8 @@ export class RampService extends BaseRampService {
           status: httpStatus.NOT_FOUND
         });
       }
+
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
@@ -401,6 +423,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
       if (!quote) {
@@ -492,6 +516,10 @@ export class RampService extends BaseRampService {
     const rampState = await this.getRampState(id);
 
     if (!rampState) {
+      return null;
+    }
+
+    if (rampState.flowVariant !== config.flowVariant) {
       return null;
     }
 
@@ -606,6 +634,10 @@ export class RampService extends BaseRampService {
       return null;
     }
 
+    if (rampState.flowVariant !== config.flowVariant) {
+      return null;
+    }
+
     return rampState.errorLogs;
   }
 
@@ -622,7 +654,8 @@ export class RampService extends BaseRampService {
       [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
       currentPhase: {
         [Op.ne]: "initial"
-      }
+      },
+      flowVariant: config.flowVariant
     };
 
     let where: WhereOptions<RampStateAttributes>;
@@ -736,6 +769,8 @@ export class RampService extends BaseRampService {
         status: httpStatus.NOT_FOUND
       });
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     // Limit the number of error logs to 100
     const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
@@ -1231,6 +1266,27 @@ export class RampService extends BaseRampService {
           });
         }
       }
+      if (!quote.metadata.moneriumMint?.outputAmountRaw) {
+        throw new APIError({
+          message: "Missing moneriumMint.outputAmountRaw in quote metadata. Cannot validate Monerium onramp permit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+      if (!rampState.state.moneriumWalletAddress || !rampState.state.evmEphemeralAddress) {
+        throw new APIError({
+          message: "Missing Monerium wallet or EVM ephemeral address in state. Cannot validate Monerium onramp permit.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      validateMoneriumOnrampPermit(rampState.state.moneriumOnrampPermit, {
+        expectedOwner: rampState.state.moneriumWalletAddress,
+        expectedSpender: rampState.state.evmEphemeralAddress,
+        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
+        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
+        expectedValueRaw: quote.metadata.moneriumMint.outputAmountRaw,
+        network: Networks.Polygon
+      });
     }
   }
 
@@ -1246,6 +1302,8 @@ export class RampService extends BaseRampService {
     if (!rampState) {
       throw new Error("Ramp not found.");
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     await this.updateRampState(id, {
       currentPhase: "timedOut"
@@ -1272,6 +1330,8 @@ export class RampService extends BaseRampService {
       throw new Error(`RampState with id ${id} not found`);
     }
 
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
     const oldPhase = rampState.currentPhase;
 
     await super.logPhaseTransition(id, newPhase, metadata);
@@ -1291,9 +1351,10 @@ export class RampService extends BaseRampService {
     }
 
     const alfredpayService = AlfredpayApiService.getInstance();
-    const alfredpayQuoteId = quote.metadata.alfredpayMint?.quoteId;
+    const originalAlfredpayMint = quote.metadata.alfredpayMint;
+    const originalQuoteId = originalAlfredpayMint?.quoteId;
 
-    if (!alfredpayQuoteId) {
+    if (!originalQuoteId || !originalAlfredpayMint) {
       throw new APIError({
         message: "Missing Alfredpay quote ID in metadata",
         status: httpStatus.BAD_REQUEST
@@ -1321,14 +1382,24 @@ export class RampService extends BaseRampService {
       });
     }
 
+    // Alfredpay quotes expire ~30s after creation, which is often shorter than the time the
+    // user needs to sign ephemeral txs in the UI. Try refreshing the Alfredpay quote
+    const fromCurrency = quote.inputCurrency as unknown as AlfredpayFiatCurrency;
+    const effectiveQuoteId = await this.refreshAlfredpayOnrampQuoteIfMatching(
+      quote,
+      originalAlfredpayMint,
+      fromCurrency,
+      transaction
+    );
+
     const orderRequest: CreateAlfredpayOnrampRequest = {
       amount: quote.inputAmount,
       chain: AlfredpayChain.MATIC,
       customerId: rampState.state.alfredpayUserId,
       depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency: quote.inputCurrency as unknown as AlfredpayFiatCurrency,
+      fromCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      quoteId: alfredpayQuoteId,
+      quoteId: effectiveQuoteId,
       toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
     };
 
@@ -1346,6 +1417,73 @@ export class RampService extends BaseRampService {
     );
 
     return order.fiatPaymentInstructions;
+  }
+
+  private async refreshAlfredpayOnrampQuoteIfMatching(
+    quote: QuoteTicket,
+    originalAlfredpayMint: NonNullable<QuoteTicket["metadata"]["alfredpayMint"]>,
+    fromCurrency: AlfredpayFiatCurrency,
+    transaction: Transaction
+  ): Promise<string> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const originalQuoteId = originalAlfredpayMint.quoteId;
+
+    try {
+      const freshQuote = await alfredpayService.createOnrampQuote({
+        chain: AlfredpayChain.MATIC,
+        fromAmount: new Big(quote.inputAmount).toString(),
+        fromCurrency,
+        metadata: {
+          businessId: "vortex",
+          customerId: quote.userId || "unknown"
+        },
+        paymentMethodType: AlfredpayPaymentMethodType.BANK,
+        toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
+      });
+
+      // outputAmountDecimal arrives as a serialized Big after JSONB roundtrip; normalize via Big().
+      const originalToAmount = new Big(originalAlfredpayMint.outputAmountDecimal as unknown as string);
+      const freshToAmount = new Big(freshQuote.toAmount);
+
+      const originalFee = new Big(originalAlfredpayMint.fee as unknown as string);
+      const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, fromCurrency);
+
+      if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+        logger.warn(
+          `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refreshed Alfredpay quote drifted. ` +
+            `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
+            `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
+            `Falling back to original quoteId ${originalQuoteId}.`
+        );
+        return originalQuoteId;
+      }
+
+      await quote.update(
+        {
+          metadata: {
+            ...quote.metadata,
+            alfredpayMint: {
+              ...originalAlfredpayMint,
+              expirationDate: new Date(freshQuote.expiration),
+              quoteId: freshQuote.quoteId
+            }
+          }
+        },
+        { transaction }
+      );
+
+      logger.info(
+        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: swapped Alfredpay quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
+      );
+      return freshQuote.quoteId;
+    } catch (error) {
+      logger.warn(
+        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refresh failed (${
+          error instanceof Error ? error.message : String(error)
+        }). Falling back to original quoteId ${originalQuoteId}.`
+      );
+      return originalQuoteId;
+    }
   }
 
   private async processAlfredpayOfframpStart(
@@ -1387,29 +1525,6 @@ export class RampService extends BaseRampService {
         status: httpStatus.BAD_REQUEST
       });
     }
-
-    const orderRequest: CreateAlfredpayOfframpRequest = {
-      amount: quote.inputAmount,
-      chain: AlfredpayChain.MATIC,
-      customerId: rampState.state.alfredpayUserId,
-      fiatAccountId: rampState.state.fiatAccountId,
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      originAddress: rampState.state.walletAddress,
-      quoteId: alfredpayQuoteId,
-      toCurrency: quote.outputCurrency as unknown as AlfredpayFiatCurrency
-    };
-
-    const order = await alfredpayService.createOfframp(orderRequest);
-
-    await rampState.update(
-      {
-        state: {
-          ...rampState.state,
-          alfredpayTransactionId: order.transactionId
-        }
-      },
-      { transaction }
-    );
   }
 }
 
