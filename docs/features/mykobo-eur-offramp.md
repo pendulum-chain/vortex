@@ -65,7 +65,7 @@ Bearer token. Acquire via `POST /v1/auth/token` with `{access_key, secret_key}` 
 | Decision | Choice | Reason |
 |---|---|---|
 | Source chains | All EVM chains with `supportsRamp: true` | Matches AlfredPay model |
-| USDC → EURC swap venue | Nabla on Base (`NABLA_ROUTER_BASE`) | Pool exists (user confirmed); reuses existing Nabla EVM infra |
+| USDC → EURC swap venue | Nabla EURC pool on Base (`NABLA_ROUTER_BASE_EURC` / `NABLA_QUOTER_BASE_EURC`, selected via `getNablaBasePool()`) | Dedicated EURC<>USDC pool, separate from the BRLA<>USDC pool used by BRL flows |
 | `wallet_address` on Mykobo intent | Ephemeral 0x | Mykobo auto-binds email→ephemeral; identity is email-based |
 | When to create intent | At ramp **registration** (`prepareEvmToMykoboOfframpTransactions`) | Lets us presign the final EURC transfer to Mykobo's receivables address (BRL-EVM style) |
 | Email source | Frontend reads the Supabase-authenticated user's email and passes it as the `email` query param to `GET /v1/mykobo/profiles`; backend cross-checks the param against `req.userEmail` and queries Mykobo by email via `MykoboApiService.getProfileByEmail` | Aligns with Supabase-auth profile model; avoids leaking wallet→profile linkage |
@@ -214,7 +214,7 @@ Insert into `Anchor` table:
 ## Existing infrastructure reused (no changes needed)
 
 - ✅ `Networks.Base` configured with `supportsRamp: true`
-- ✅ `NABLA_ROUTER_BASE` + `NABLA_QUOTER_BASE` constants
+- ✅ `NABLA_ROUTER_BASE_EURC` + `NABLA_QUOTER_BASE_EURC` constants (EURC pool) and `getNablaBasePool()` selector
 - ✅ `calculateNablaSwapOutputEvm()` quote-time helper
 - ✅ `addNablaSwapTransactionsOnBase()` tx builder
 - ✅ `getEvmFundingAccount(Networks.Base)` for ephemeral derivation

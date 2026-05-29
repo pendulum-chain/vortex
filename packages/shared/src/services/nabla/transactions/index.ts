@@ -9,7 +9,6 @@ import {
   Networks,
   PendulumTokenDetails
 } from "../../../index";
-import { NABLA_ROUTER_BASE } from "../../../tokens/constants/misc";
 import { prepareNablaApproveTransaction } from "./approve";
 import { prepareNablaSwapTransaction } from "./swap";
 
@@ -66,7 +65,8 @@ export async function createNablaTransactionsForOnrampOnEVM(
   inputTokenAddress: `0x${string}`,
   outputTokenAddress: `0x${string}`,
   nablaHardMinimumOutputRaw: string,
-  deadlineMinutes: number
+  deadlineMinutes: number,
+  routerAddress: `0x${string}`
 ) {
   if (ephemeral.type !== "EVM") {
     throw new Error(`Can't create Nabla EVM transactions for ${ephemeral.type}`);
@@ -91,7 +91,7 @@ export async function createNablaTransactionsForOnrampOnEVM(
         type: "function"
       }
     ],
-    args: [NABLA_ROUTER_BASE, BigInt(amountRaw)],
+    args: [routerAddress, BigInt(amountRaw)],
     functionName: "approve"
   });
 
@@ -145,7 +145,7 @@ export async function createNablaTransactionsForOnrampOnEVM(
     gas: "500000", // Higher gas limit for swap
     maxFeePerGas: swapMaxFee.toString(),
     maxPriorityFeePerGas: swapMaxPriority.toString(),
-    to: NABLA_ROUTER_BASE,
+    to: routerAddress,
     value: "0"
   };
 
