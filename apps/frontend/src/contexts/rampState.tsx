@@ -1,15 +1,12 @@
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
-import { ActorRef, Snapshot } from "xstate";
+import { AnyActorRef, Snapshot } from "xstate";
 import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
-  AlfredpayKycSnapshot,
   AveniaKycActorRef,
-  AveniaKycSnapshot,
   MykoboKycActorRef,
-  MykoboKycSnapshot,
   SelectedAlfredpayData,
   SelectedAveniaData,
   SelectedMykoboData
@@ -38,30 +35,25 @@ export const RampStateContext = createActorContext(rampMachine, {
 export const useRampActor = RampStateContext.useActorRef;
 export const useRampStateSelector = RampStateContext.useSelector;
 
-type AnyActorRef = ActorRef<Snapshot<unknown>, never>;
+type SelectableActorRef = Pick<AnyActorRef, "getSnapshot" | "subscribe">;
+type ActorSnapshot<TActor extends SelectableActorRef> = TActor extends { getSnapshot(): infer TSnapshot } ? TSnapshot : never;
+type SelectedKycData = { stateValue: unknown; context: unknown };
 
-function useKycChildActor<T extends AnyActorRef>(id: "aveniaKyc" | "mykoboKyc" | "alfredpayKyc"): T | undefined {
+function useKycChildActor<T extends SelectableActorRef>(id: "aveniaKyc" | "mykoboKyc" | "alfredpayKyc"): T | undefined {
   const rampActor = useRampActor();
   return useSelector(rampActor, snapshot => (snapshot.children as Record<string, unknown>)[id]) as T | undefined;
 }
 
-function useKycChildSelector<TActor extends AnyActorRef, TSnapshot extends { value: unknown; context: unknown }, TSelected>(
+function selectedKycDataEqual(prev: SelectedKycData | undefined, next: SelectedKycData | undefined) {
+  if (!prev || !next) return prev === next;
+  return prev.stateValue === next.stateValue && prev.context === next.context;
+}
+
+function useKycChildSelector<TActor extends SelectableActorRef, TSelected extends SelectedKycData>(
   actor: TActor | undefined,
-  build: (snapshot: TSnapshot) => TSelected
+  build: (snapshot: ActorSnapshot<TActor>) => TSelected
 ): TSelected | undefined {
-  return useSelector(
-    actor,
-    (snapshot: TSnapshot | undefined) => (snapshot ? build(snapshot) : undefined),
-    (prev, next) => {
-      if (!prev || !next) return prev === next;
-      return (
-        (prev as { stateValue: unknown; context: unknown }).stateValue ===
-          (next as { stateValue: unknown; context: unknown }).stateValue &&
-        (prev as { stateValue: unknown; context: unknown }).context ===
-          (next as { stateValue: unknown; context: unknown }).context
-      );
-    }
-  );
+  return useSelector(actor, snapshot => (snapshot === undefined ? undefined : build(snapshot)), selectedKycDataEqual);
 }
 
 const PersistenceEffect = () => {
@@ -103,7 +95,7 @@ export function useAveniaKycActor(): AveniaKycActorRef | undefined {
 
 export function useAveniaKycSelector(): SelectedAveniaData | undefined {
   const actor = useAveniaKycActor();
-  return useKycChildSelector<AveniaKycActorRef, AveniaKycSnapshot, SelectedAveniaData>(actor, snapshot => ({
+  return useKycChildSelector<AveniaKycActorRef, SelectedAveniaData>(actor, snapshot => ({
     context: snapshot.context as AveniaKycContext,
     stateValue: snapshot.value
   }));
@@ -115,7 +107,7 @@ export function useMykoboKycActor(): MykoboKycActorRef | undefined {
 
 export function useMykoboKycSelector(): SelectedMykoboData | undefined {
   const actor = useMykoboKycActor();
-  return useKycChildSelector<MykoboKycActorRef, MykoboKycSnapshot, SelectedMykoboData>(actor, snapshot => ({
+  return useKycChildSelector<MykoboKycActorRef, SelectedMykoboData>(actor, snapshot => ({
     context: snapshot.context as MykoboKycContext,
     stateValue: snapshot.value
   }));
@@ -127,7 +119,7 @@ export function useAlfredpayKycActor(): AlfredpayKycActorRef | undefined {
 
 export function useAlfredpayKycSelector(): SelectedAlfredpayData | undefined {
   const actor = useAlfredpayKycActor();
-  return useKycChildSelector<AlfredpayKycActorRef, AlfredpayKycSnapshot, SelectedAlfredpayData>(actor, snapshot => ({
+  return useKycChildSelector<AlfredpayKycActorRef, SelectedAlfredpayData>(actor, snapshot => ({
     context: snapshot.context as AlfredpayKycContext,
     stateValue: snapshot.value
   }));
