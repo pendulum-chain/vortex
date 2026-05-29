@@ -70,6 +70,10 @@ import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } 
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
 
+function isStellarRamp(state: StateMetadata): boolean {
+  return !!state.stellarTarget;
+}
+
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
   unsignedTxs: UnsignedTx[],
@@ -462,7 +466,7 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       // We leave 20% of the time window for to reach the stellar creation operation.
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+      if (isStellarRamp(rampState.state) && timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
         this.cancelRamp(rampState.id);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
