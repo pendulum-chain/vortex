@@ -28,7 +28,7 @@ import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constant
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
-import { isEurToEurcBaseDirect } from "../../quote/utils";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 
@@ -80,8 +80,11 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Quote found. inputCurrency=${quote.inputCurrency}, outputCurrency=${quote.outputCurrency}, network=${quote.network}`
     );
 
-    if (isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
-      logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for EUR→EURC Base direct route (ramp ${state.id})`);
+    if (
+      isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
+      isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)
+    ) {
+      logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for Base direct-transfer route (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 

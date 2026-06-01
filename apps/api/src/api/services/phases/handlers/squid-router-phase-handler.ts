@@ -17,7 +17,7 @@ import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { isEurToEurcBaseDirect } from "../../quote/utils";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -53,8 +53,11 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
-      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for EUR→EURC Base direct route (ramp ${state.id})`);
+    if (
+      isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
+      isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)
+    ) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Base direct-transfer route (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
 

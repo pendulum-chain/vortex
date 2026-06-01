@@ -18,6 +18,7 @@ import { isAddress } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { isBrlToBrlaBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -53,14 +54,44 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     signingAccounts
   );
   logger.debug(`Starting prepareAveniaToEvmOnrampTransactionsOnBase with destinationAddress: ${destinationAddress}`);
+  const isDirectTransfer = isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network);
   // Setup state metadata
   stateMeta = {
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    isDirectTransfer,
     taxId
   };
 
   let baseNonce = 0;
+
+  if (!isEvmTokenDetails(outputTokenDetails)) {
+    throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
+  }
+
+  // BRL→BRLA on Base: Avenia already minted the requested BRLA, so no Nabla swap, fee-token
+  // conversion, or SquidRouter step is needed — transfer the minted BRLA straight to the user.
+  if (isDirectTransfer) {
+    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+    const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
+      amountRaw: finalAmountRaw.toString(),
+      destinationNetwork: Networks.Base,
+      isNativeToken: isNativeEvmToken(outputTokenDetails),
+      toAddress: destinationAddress,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: finalDestinationTransfer
+    });
+
+    return { stateMeta, unsignedTxs };
+  }
 
   if (!quote.metadata.aveniaTransfer?.outputAmountRaw) {
     throw new Error("Missing aveniaTransfer amountOutRaw in quote metadata");
@@ -68,10 +99,6 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
 
   if (!quote.metadata.evmToEvm?.inputAmountRaw) {
     throw new Error("Missing evmToEvm inputAmountRaw in quote metadata");
-  }
-
-  if (!isEvmTokenDetails(outputTokenDetails)) {
-    throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
 
   // Output for BRLA onramp will always go through USDC.
