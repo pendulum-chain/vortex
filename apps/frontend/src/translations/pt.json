@@ -674,6 +674,7 @@
         "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
+        "reference": "Referência",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
       },
       "headerText": {

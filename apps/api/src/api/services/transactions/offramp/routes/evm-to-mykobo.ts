@@ -17,6 +17,7 @@ import httpStatus from "http-status";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { APIError } from "../../../../errors/api-error";
+import { syncMykoboCustomerKyc } from "../../../mykobo/mykobo-customer.service";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../..";
@@ -32,7 +33,8 @@ export async function prepareEvmToMykoboOfframpTransactions({
   userAddress,
   email,
   destinationAddress,
-  ipAddress
+  ipAddress,
+  userId
 }: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const unsignedTxs: UnsignedTx[] = [];
   let stateMeta: Partial<StateMetadata> = {};
@@ -243,6 +245,10 @@ export async function prepareEvmToMykoboOfframpTransactions({
     mykoboTransactionReference,
     walletAddress: userAddress
   };
+
+  if (userId) {
+    await syncMykoboCustomerKyc(userId, email);
+  }
 
   return { stateMeta, unsignedTxs };
 }
