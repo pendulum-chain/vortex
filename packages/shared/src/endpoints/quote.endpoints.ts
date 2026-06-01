@@ -105,6 +105,8 @@ export enum QuoteError {
   LowLiquidity = "Low liquidity for this route. Please try a smaller amount.",
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
+  AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of",
+  AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of",
 
   // Availability errors
   UnsupportedCurrency = "Currency not supported",
