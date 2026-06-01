@@ -23,7 +23,6 @@ import { useCountdown } from "../../../hooks/useCountdown";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { RampExecutionInput } from "../../../types/phases";
-import { ARSOnrampDetails } from "./ARSOnrampDetails";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { COPOnrampDetails } from "./COPOnrampDetails";
