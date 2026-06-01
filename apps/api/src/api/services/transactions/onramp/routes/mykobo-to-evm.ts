@@ -18,6 +18,7 @@ import { isAddress } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { isEurToEurcBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -63,17 +64,20 @@ export async function prepareMykoboToEvmOnrampTransactions({
     throw new Error(`Output token must be an EVM token for onramp to any EVM chain, got ${outputTokenDetails.assetSymbol}`);
   }
 
-  if (!quote.metadata.nablaSwapEvm?.outputAmountRaw) {
+  const isDirectTransfer = isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network);
+  if (!isDirectTransfer && !quote.metadata.nablaSwapEvm?.outputAmountRaw) {
     throw new Error("Missing nablaSwapEvm.outputAmountRaw in quote metadata for Mykobo onramp");
   }
 
-  if (!quote.metadata.evmToEvm?.inputAmountRaw) {
+  if (!isDirectTransfer && !quote.metadata.evmToEvm?.inputAmountRaw) {
     throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Mykobo onramp");
   }
+  const bridgeInputAmountRaw = quote.metadata.evmToEvm?.inputAmountRaw;
 
   stateMeta = {
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    isDirectTransfer,
     mykoboEmail,
     mykoboTransactionId,
     mykoboTransactionReference,
@@ -81,6 +85,28 @@ export async function prepareMykoboToEvmOnrampTransactions({
   };
 
   let baseNonce = 0;
+
+  if (isDirectTransfer) {
+    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+    const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
+      amountRaw: finalAmountRaw.toString(),
+      destinationNetwork: Networks.Base,
+      isNativeToken: isNativeEvmToken(outputTokenDetails),
+      toAddress: destinationAddress,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
+
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: finalDestinationTransfer
+    });
+
+    return { stateMeta, unsignedTxs };
+  }
 
   const nablaSwapOutputTokenAddress = evmTokenConfig[Networks.Base][EvmToken.USDC]?.erc20AddressSourceChain;
   if (!nablaSwapOutputTokenAddress) {
@@ -162,7 +188,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: nablaSwapOutputTokenAddress,
-      rawAmount: quote.metadata.evmToEvm.inputAmountRaw,
+      rawAmount: bridgeInputAmountRaw as string,
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
     });
@@ -184,6 +210,66 @@ export async function prepareMykoboToEvmOnrampTransactions({
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
+
+  // Same-chain Base: destinationTransfer must be the next executable nonce after the swap. Cleanups run
+  // post-complete, so they follow the transfer. Backup re-swap txs are omitted here (no handler executes
+  // them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
+  if (toNetwork === Networks.Base) {
+    const sameChainDestinationTransfer = await addOnrampDestinationChainTransactions({
+      amountRaw: finalAmountRaw.toString(),
+      destinationNetwork: Networks.Base,
+      isNativeToken: isNativeEvmToken(outputTokenDetails),
+      toAddress: destinationAddress,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: sameChainDestinationTransfer
+    });
+
+    const sameChainFundingAddress = getEvmFundingAccount(Networks.Base).address;
+
+    const eurcCleanup = await prepareBaseCleanupApproval(
+      eurcInputTokenAddress as `0x${string}`,
+      sameChainFundingAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupEurc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(eurcCleanup) as EvmTransactionData
+    });
+
+    const usdcCleanup = await prepareBaseCleanupApproval(
+      nablaSwapOutputTokenAddress as `0x${string}`,
+      sameChainFundingAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupUsdc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(usdcCleanup) as EvmTransactionData
+    });
+
+    stateMeta = {
+      ...stateMeta,
+      squidRouterQuoteId,
+      squidRouterReceiverHash,
+      squidRouterReceiverId
+    };
+
+    return { stateMeta, unsignedTxs };
+  }
 
   const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
 
@@ -215,8 +301,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
-  const destinationSharesSourceChain = toNetwork === Networks.Base;
-  let destinationNonce = destinationSharesSourceChain ? baseNonce : 0;
+  let destinationNonce = 0;
   const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
@@ -249,7 +334,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
     bridgedTokenForFallback = destinationAxlUsdcDetails.erc20AddressSourceChain as `0x${string}`;
   }
 
-  const inputAmountRawFinalBridge = quote.metadata.evmToEvm.inputAmountRaw;
+  const inputAmountRawFinalBridge = bridgeInputAmountRaw as string;
 
   const { approveData: finalApproveData, swapData: finalSwapData } =
     await createOnrampSquidrouterTransactionsOnDestinationChain({

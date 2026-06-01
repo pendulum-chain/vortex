@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
 import logger from "../../config/logger";
+import { upsertMykoboCustomerFromProfile } from "../services/mykobo/mykobo-customer.service";
 
 const PROFILE_TEXT_FIELDS = [
   "first_name",
@@ -62,6 +63,13 @@ export const getProfileController = async (req: Request, res: Response): Promise
     if (!emailsMatch(profile.email_address, userEmail)) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Profile not found" });
       return;
+    }
+    if (req.userId) {
+      try {
+        await upsertMykoboCustomerFromProfile(req.userId, userEmail, profile);
+      } catch (mirrorError) {
+        logger.error("Failed to update Mykobo customer mirror in getProfileController:", mirrorError);
+      }
     }
     res.json({ profile: toFrontendProfile(profile) });
   } catch (error) {

@@ -23,6 +23,7 @@ import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
@@ -240,6 +241,15 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
+    if (
+      state.state.isDirectTransfer === true ||
+      (isOnramp(state) &&
+        (isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
+          isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)))
+    ) {
+      return "destinationTransfer";
+    }
+
     // brla onramp case
     if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
       return "subsidizePreSwap";

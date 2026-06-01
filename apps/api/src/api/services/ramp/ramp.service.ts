@@ -51,6 +51,7 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import { syncMykoboCustomerKyc } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -1113,7 +1114,8 @@ export class RampService extends BaseRampService {
   private async prepareMykoboOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1169,6 +1171,10 @@ export class RampService extends BaseRampService {
       reference: intent.transaction.reference
     };
 
+    if (userId) {
+      await syncMykoboCustomerKyc(userId, additionalData.email);
+    }
+
     return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
@@ -1193,7 +1199,7 @@ export class RampService extends BaseRampService {
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampMykobo:
-        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);

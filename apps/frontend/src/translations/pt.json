@@ -674,12 +674,14 @@
         "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
+        "reference": "Referência",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
       },
       "headerText": {
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expira",
         "instruction": "Transfira os fundos via SPEI para o CLABE abaixo",

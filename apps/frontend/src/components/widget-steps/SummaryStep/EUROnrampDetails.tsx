@@ -57,6 +57,14 @@ export const EUROnrampDetails: FC = () => {
             </div>
           </div>
         )}
+        {reference && (
+          <div className="mt-2 flex items-center justify-between">
+            <span>{t("components.SummaryPage.EUROnrampDetails.reference")}</span>
+            <div className="flex items-center">
+              <CopyButton text={reference} />
+            </div>
+          </div>
+        )}
       </InfoBox>
       {rampState.quote.outputCurrency === EvmToken.ETH && (
         <AlertBanner

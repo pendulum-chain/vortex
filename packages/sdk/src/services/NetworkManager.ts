@@ -18,7 +18,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "hydration",
-    wsUrl: "wss://rpc.hydradx.cloud"
+    wsUrl: "wss://hydration.ibp.network"
   }
 ];
 

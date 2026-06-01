@@ -670,12 +670,14 @@
         "hint": "Scan this QR code in your banking app to start the payment instantly.",
         "iban": "IBAN",
         "receiver": "Recipient",
+        "reference": "Reference",
         "title": "Do an instant bank transfer with the following details"
       },
       "headerText": {
         "buy": "Payment Summary",
         "sell": "Payment Summary"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expires",
         "instruction": "Transfer funds via SPEI to the CLABE below",

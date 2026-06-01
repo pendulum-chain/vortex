@@ -10,6 +10,7 @@ import Big from "big.js";
 import logger from "../../../../../config/logger";
 import { getEvmBridgeQuote } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../utils";
 import { BaseDiscountEngine, DiscountComputation } from ".";
 import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
 
@@ -24,6 +25,12 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     // Handle both Base USDC flows and Moonbeam axlUSDC flows
     if (!ctx.nablaSwap && !ctx.nablaSwapEvm) {
       throw new Error("OnRampDiscountEngine requires either nablaSwap or nablaSwapEvm to be defined");
+    }
+
+    // Direct fiat->own-stablecoin passthrough (EUR->EURC, BRL->BRLA on Base) is 1:1: the nabla
+    // engine intentionally skips the oracle, so don't require oraclePrice here.
+    if (isFiatToOwnStablecoinDirect(ctx)) {
+      return;
     }
 
     const nablaSwap = ctx.nablaSwap || ctx.nablaSwapEvm;
@@ -154,6 +161,10 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
   }
 
   protected async compute(ctx: QuoteContext): Promise<DiscountComputation> {
+    if (isFiatToOwnStablecoinDirect(ctx)) {
+      return buildPassthroughDiscountComputation(ctx);
+    }
+
     // Determine which nabla swap we're using (Base EVM or Pendulum)
     const isBaseFlow = !!ctx.nablaSwapEvm;
     const nablaSwap = ctx.nablaSwapEvm || ctx.nablaSwap!;
@@ -236,4 +247,34 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
       targetOutputAmountRaw
     };
   }
+}
+
+function isFiatToOwnStablecoinDirect(ctx: QuoteContext): boolean {
+  const { inputCurrency, outputCurrency, to } = ctx.request;
+  return isEurToEurcBaseDirect(inputCurrency, outputCurrency, to) || isBrlToBrlaBaseDirect(inputCurrency, outputCurrency, to);
+}
+
+function buildPassthroughDiscountComputation(ctx: QuoteContext): DiscountComputation {
+  // biome-ignore lint/style/noNonNullAssertion: validate() guarantees one nabla swap is set
+  const nablaSwap = ctx.nablaSwapEvm || ctx.nablaSwap!;
+  const outputAmountDecimal = nablaSwap.outputAmountDecimal;
+  const outputAmountRaw = multiplyByPowerOfTen(outputAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
+  const zero = new Big(0);
+
+  return {
+    actualOutputAmountDecimal: outputAmountDecimal,
+    actualOutputAmountRaw: outputAmountRaw,
+    adjustedDifference: zero,
+    adjustedTargetDiscount: zero,
+    expectedOutputAmountDecimal: outputAmountDecimal,
+    expectedOutputAmountRaw: outputAmountRaw,
+    idealSubsidyAmountInOutputTokenDecimal: zero,
+    idealSubsidyAmountInOutputTokenRaw: "0",
+    partnerId: null,
+    subsidyAmountInOutputTokenDecimal: zero,
+    subsidyAmountInOutputTokenRaw: "0",
+    subsidyRate: zero,
+    targetOutputAmountDecimal: outputAmountDecimal,
+    targetOutputAmountRaw: outputAmountRaw
+  };
 }
