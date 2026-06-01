@@ -96,6 +96,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     if (isAlfredpayToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
     }
+    if (executionInput.fiatToken === FiatToken.EURC) {
+      return "https://mykobo.co";
+    }
     if (isMoonbeamTokenDetails(fiatToken)) {
       return fiatToken.partnerUrl;
     }
