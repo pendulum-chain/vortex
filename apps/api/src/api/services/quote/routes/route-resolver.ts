@@ -17,12 +17,11 @@ import { IRouteStrategy } from "../core/types";
 import { offrampEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfredpay.strategy";
 import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
-import { offrampToStellarStrategy } from "./strategies/offramp-to-stellar.strategy";
+import { offrampToSepaEvmStrategy } from "./strategies/offramp-to-sepa-evm.strategy";
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
-import { onrampMoneriumToAssethubStrategy } from "./strategies/onramp-monerium-to-assethub.strategy";
-import { onrampMoneriumToEvmStrategy } from "./strategies/onramp-monerium-to-evm.strategy";
+import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
 const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
 
@@ -34,14 +33,16 @@ export class RouteResolver {
         if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           throw new APIError({ message: QuoteError.AssetHubNotSupportedForAlfredPay, status: httpStatus.BAD_REQUEST });
         }
-        if (ctx.from === "pix") {
-          return onrampAveniaToAssethubStrategy;
-        } else {
-          return onrampMoneriumToAssethubStrategy;
+        if (ctx.request.inputCurrency === FiatToken.EURC) {
+          throw new APIError({
+            message: "EUR onramp to AssetHub is not supported; please choose an EVM destination chain",
+            status: httpStatus.BAD_REQUEST
+          });
         }
+        return onrampAveniaToAssethubStrategy;
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
-          return onrampMoneriumToEvmStrategy;
+          return onrampMykoboToEvmStrategy;
         } else if (isAlfredpayToken(ctx.request.inputCurrency as FiatToken)) {
           return onrampAlfredpayToEvmStrategy;
         } else {
@@ -73,9 +74,9 @@ export class RouteResolver {
       case "cbu":
         return offrampEvmToAlfredpayStrategy;
       case "sepa":
-
+        return offrampToSepaEvmStrategy;
       default:
-        return offrampToStellarStrategy;
+        throw new APIError({ message: "ARS offramp temporarily unavailable", status: httpStatus.BAD_REQUEST });
     }
   }
 }

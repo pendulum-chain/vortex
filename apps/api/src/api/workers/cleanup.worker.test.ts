@@ -31,14 +31,8 @@ const mockPendulumHandler = {
   shouldProcess: mock((_state: RampState) => true)
 };
 
-const mockStellarHandler = {
-  getCleanupName: () => "stellarCleanup" as CleanupPhase,
-  process: mock(async (): Promise<ProcessResult> => [true, null]),
-  shouldProcess: mock((_state: RampState) => true)
-};
-
 mock.module("../services/phases/post-process", () => ({
-  postProcessHandlers: [mockPendulumHandler, mockStellarHandler]
+  postProcessHandlers: [mockPendulumHandler]
 }));
 
 const updateMock = mock((_values: Partial<RampStateAttributes>, _options: { where: { id: string } }) => {
@@ -69,24 +63,19 @@ describe("CleanupWorker - processCleanup", () => {
 
     mockPendulumHandler.shouldProcess.mockClear();
     mockPendulumHandler.process.mockClear();
-    mockStellarHandler.shouldProcess.mockClear();
-    mockStellarHandler.process.mockClear();
     updateMock.mockClear();
   });
 
   it("should process all applicable handlers successfully", async () => {
     mockPendulumHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
-    mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
     await cleanupWorker.testProcessCleanup(testState);
 
-    // Verify both handlers were checked
+    // Verify handler was checked
     expect(mockPendulumHandler.shouldProcess).toHaveBeenCalledTimes(1);
-    expect(mockStellarHandler.shouldProcess).toHaveBeenCalledTimes(1);
 
-    // Verify both handlers were processed
+    // Verify handler was processed
     expect(mockPendulumHandler.process).toHaveBeenCalledTimes(1);
-    expect(mockStellarHandler.process).toHaveBeenCalledTimes(1);
 
     // Verify state was updated correctly
     expect(updateMock).toHaveBeenCalledTimes(1);
@@ -104,12 +93,10 @@ describe("CleanupWorker - processCleanup", () => {
     // Setup one handler to fail
     const testError = new Error("Test failure");
     mockPendulumHandler.process.mockImplementation(async () => [false, testError] as ProcessResult);
-    mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
     await cleanupWorker.testProcessCleanup(testState);
 
     expect(mockPendulumHandler.process).toHaveBeenCalledTimes(1);
-    expect(mockStellarHandler.process).toHaveBeenCalledTimes(1);
 
     expect(updateMock).toHaveBeenCalledTimes(1);
 
@@ -123,17 +110,13 @@ describe("CleanupWorker - processCleanup", () => {
   it("should only retry failed handlers on subsequent attempts", async () => {
     testState.postCompleteState.cleanup.errors = [{ error: "Previous failure", name: "pendulumCleanup" }];
 
-    // Setup both handlers to succeed this time
+    // Setup handler to succeed this time
     mockPendulumHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
-    mockStellarHandler.process.mockImplementation(async () => [true, null] as ProcessResult);
 
     await cleanupWorker.testProcessCleanup(testState);
 
     // The pendulum handler should be processed again (because it failed before)
     expect(mockPendulumHandler.process).toHaveBeenCalledTimes(1);
-
-    // The stellar handler should NOT be processed again (since it didn't fail before)
-    expect(mockStellarHandler.process).toHaveBeenCalledTimes(0);
 
     // Verify errors are cleared when handler succeeds
     expect(updateMock).toHaveBeenCalledTimes(1);
@@ -145,9 +128,8 @@ describe("CleanupWorker - processCleanup", () => {
     expect(values.postCompleteState?.cleanup.errors).toBe(null);
   });
 
-  it("should properly track errors for multiple failed handlers", async () => {
+  it("should properly track errors for failed handler", async () => {
     mockPendulumHandler.process.mockImplementation(async () => [false, new Error("Pendulum failure")] as ProcessResult);
-    mockStellarHandler.process.mockImplementation(async () => [false, new Error("Stellar failure")] as ProcessResult);
 
     await cleanupWorker.testProcessCleanup(testState);
 
@@ -158,8 +140,7 @@ describe("CleanupWorker - processCleanup", () => {
     expect(values.postCompleteState?.cleanup.cleanupCompleted).toBe(false);
 
     const errors = values.postCompleteState?.cleanup.errors;
-    expect(errors).toHaveLength(2);
+    expect(errors).toHaveLength(1);
     expect(errors?.some(e => e.name === "pendulumCleanup" && e.error === "Pendulum failure")).toBe(true);
-    expect(errors?.some(e => e.name === "stellarCleanup" && e.error === "Stellar failure")).toBe(true);
   });
 });

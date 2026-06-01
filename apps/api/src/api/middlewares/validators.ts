@@ -58,12 +58,6 @@ interface SwapBody {
   token?: keyof TokenConfig;
 }
 
-interface Sep10Body {
-  challengeXDR: string;
-  outToken: string;
-  clientPublicKey: string;
-}
-
 interface SiweCreateBody {
   walletAddress: string;
 }
@@ -317,26 +311,6 @@ export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, nex
     return;
   }
 
-  next();
-};
-
-export const validateSep10Input: RequestHandler = (req, res, next) => {
-  const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
-
-  if (!challengeXDR) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing Anchor challenge: challengeXDR" });
-    return;
-  }
-
-  if (!outToken) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing offramp token identifier: outToken" });
-    return;
-  }
-
-  if (!clientPublicKey) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing Stellar ephemeral public key: clientPublicKey" });
-    return;
-  }
   next();
 };
 

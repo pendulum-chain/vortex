@@ -24,6 +24,8 @@ export const initialRampContext: RampContext = {
   rampDirection: undefined,
   rampPaymentConfirmed: false,
   rampSigningPhase: undefined,
+  rampSigningPhaseCurrent: undefined,
+  rampSigningPhaseMax: undefined,
   rampState: undefined,
   substrateWalletAccount: undefined,
   userEmail: undefined,

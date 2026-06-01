@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations across multiple currencies and countries. It is used for ramps where BRLA and Monerium do not cover the target market (e.g. ARS, MXN, COP, USD via ACH).
+Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations across multiple currencies and countries. It is used for ramps where BRLA and Mykobo do not cover the target market (e.g. ARS, MXN, COP, USD via ACH).
 
 **Provider type:** Both (on-ramp and off-ramp)
 **Fiat currencies:** Multiple (varies by country, validated via `AlfredPayCountry` enum)

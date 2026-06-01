@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { DoneScreen } from "../DoneScreen";
 import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
 import { CustomerDefinitionScreen } from "./CustomerDefinitionScreen";
-import { DoneScreen } from "./DoneScreen";
 import { FailureKycScreen } from "./FailureKycScreen";
 import { FailureScreen } from "./FailureScreen";
 import { FillingScreen } from "./FillingScreen";

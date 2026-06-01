@@ -3,7 +3,6 @@ import {
   CreateQuoteRequest,
   createMoonbeamEphemeral,
   createPendulumEphemeral,
-  createStellarEphemeral,
   EphemeralAccount,
   EphemeralAccountType,
   QuoteResponse,
@@ -173,15 +172,8 @@ export class VortexSdk {
     const ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount } = {};
     const accountMetas: AccountMeta[] = [];
 
-    const stellarEphemeral = createStellarEphemeral();
     const substrateEphemeral = await createPendulumEphemeral();
     const evmEphemeral = createMoonbeamEphemeral();
-
-    accountMetas.push({
-      address: stellarEphemeral.address,
-      type: EphemeralAccountType.Stellar
-    });
-    ephemerals[EphemeralAccountType.Stellar] = stellarEphemeral;
 
     accountMetas.push({
       address: substrateEphemeral.address,
@@ -201,7 +193,6 @@ export class VortexSdk {
   private async signTransactions(
     unsignedTxs: UnsignedTx[],
     ephemerals: {
-      stellarEphemeral?: EphemeralAccount;
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }

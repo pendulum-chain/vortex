@@ -19,22 +19,6 @@ export const DUMP_SHEET_COMMON_HEADERS = [
   "outputTokenType"
 ];
 
-export const DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR = [
-  ...DUMP_SHEET_COMMON_HEADERS,
-  "offramperAddress",
-  "stellarEphemeralPublicKey",
-  "spacewalkRedeemTx",
-  "stellarOfframpTx",
-  "stellarCleanupTx"
-];
-
-export const DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR = [
-  ...DUMP_SHEET_COMMON_HEADERS,
-  "offramperAddress",
-  "squidRouterReceiverId",
-  "squidRouterReceiverHash"
-];
-
 export const DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_BRLA = [
   ...DUMP_SHEET_COMMON_HEADERS,
   "offramperAddress",
@@ -65,11 +49,9 @@ export const DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB = [
 
 export const FLOW_HEADERS: Record<FlowType, FlowHeaders> = {
   "assethub-to-brla": DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_BRLA,
-  "assethub-to-stellar": DUMP_SHEET_HEADER_VALUES_ASSETHUB_TO_STELLAR,
   "brla-to-assethub": DUMP_SHEET_HEADER_VALUES_BRLA_TO_ASSETHUB,
   "brla-to-evm": DUMP_SHEET_HEADER_VALUES_BRLA_TO_EVM,
-  "evm-to-brla": DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA,
-  "evm-to-stellar": DUMP_SHEET_HEADER_VALUES_EVM_TO_STELLAR
+  "evm-to-brla": DUMP_SHEET_HEADER_VALUES_EVM_TO_BRLA
 };
 export const storeData = async (req: Request, res: Response<StoreDataResponse | StoreDataErrorResponse>): Promise<void> => {
   if (!spreadsheet.storageSheetId) {

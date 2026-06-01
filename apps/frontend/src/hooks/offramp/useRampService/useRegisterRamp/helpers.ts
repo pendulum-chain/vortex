@@ -1,4 +1,4 @@
-import { MoneriumErrors, QuoteError } from "@vortexfi/shared";
+import { QuoteError } from "@vortexfi/shared";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,7 +27,6 @@ export const useSignatureTrace = (traceKey: string) => {
 };
 
 const RampRegistrationErrorMessages = {
-  [MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND]: "hooks.useGetRampRegistrationErrorMessage.userMintAddressNotFound",
   [QuoteError.QuoteNotFound]: "hooks.useGetRampRegistrationErrorMessage.quoteNotFound"
 };
 
@@ -37,12 +36,6 @@ export const useGetRampRegistrationErrorMessage = () => {
   return useCallback(
     (error: unknown): string | undefined => {
       if (error instanceof Error) {
-        if (error.message?.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
-          return t(
-            RampRegistrationErrorMessages[MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND] ||
-              "hooks.useGetRampRegistrationErrorMessage.default"
-          );
-        }
         if (error.message?.includes(QuoteError.QuoteNotFound)) {
           return t(
             RampRegistrationErrorMessages[QuoteError.QuoteNotFound] || "hooks.useGetRampRegistrationErrorMessage.default"

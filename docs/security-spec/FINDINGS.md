@@ -1,18 +1,18 @@
 # Audit Findings Tracker
 
-> **Generated:** 2026-04-02 | **Last Updated:** 2026-05-12 | **Status:** F-001 through F-067: 49 fixed, 9 accepted risk, 9 deferred, 0 open. Additional discount-mechanism findings F-DISC-01 through F-DISC-05 remain open in `03-ramp-engine/discount-mechanism.md` and are not included in the counts below.
+> **Generated:** 2026-04-02 | **Last Updated:** 2026-05-22 | **Status:** F-001 through F-067: 49 fixed, 9 accepted risk, 9 deferred, 0 open. F-068 through F-071 raised by the Mykobo integration audit: 4 open. F-072 raised by the ephemeral-account lifecycle review: 1 fixed. Additional discount-mechanism findings F-DISC-01 through F-DISC-05 remain open in `03-ramp-engine/discount-mechanism.md` and are not included in the counts below.
 
-This file consolidates all security findings from the Vortex platform audit. Findings were discovered across four phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), and fresh security audit pass (F-059 through F-067).
+This file consolidates all security findings from the Vortex platform audit. Findings were discovered across six phases: specification writing (F-001 through F-012), code-vs-spec audit across all 8 modules (F-013 through F-037), transaction validation / ephemeral account / phase flow audit (F-038 through F-058), fresh security audit pass (F-059 through F-067), Mykobo integration audit (F-068 through F-071), and ephemeral-account lifecycle review (F-072).
 
 ## Summary
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
-| 🔴 Critical | 5 | 0 | 0 | 0 | 5 |
-| 🟠 High | 11 | 3 | 3 | 0 | 17 |
-| 🟡 Medium | 25 | 3 | 6 | 0 | 34 |
-| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 0 | 11 |
-| **Total** | **49** | **9** | **9** | **0** | **67** |
+| 🔴 Critical | 5 | 0 | 0 | 1 | 6 |
+| 🟠 High | 11 | 3 | 3 | 1 | 18 |
+| 🟡 Medium | 25 | 3 | 6 | 1 | 35 |
+| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 1 | 12 |
+| **Total** | **49** | **9** | **9** | **4** | **71** |
 
 > **Fixed** = code change implemented and verified. **Accepted** = CTO reviewed and accepted risk, no code change. **Deferred** = requires architectural work, separate app changes, or future investigation. **Open** = newly identified, awaiting fix or CTO decision.
 
@@ -222,7 +222,7 @@ A malicious client could sign a Stellar payment for 0.0001 XLM to their own addr
 | **Found** | Code audit, iteration 2 |
 | **Impact** | A hanging external service can block the caller indefinitely. For phase handlers, this stalls ramp processing. For price feeds, this stalls quote generation. |
 
-**Description:** Of 16+ `fetch()` calls to external services, only `webhook-delivery.service.ts` uses `AbortController` with a timeout. All others (Monerium, CoinGecko, Moonpay, Transak, AlchemyPay, Subscan, Slack, ramp helpers) make HTTP requests without any timeout or `AbortSignal`.
+**Description:** Of 16+ `fetch()` calls to external services, only `webhook-delivery.service.ts` uses `AbortController` with a timeout. All others (Mykobo, BRLA, CoinGecko, Moonpay, Transak, AlchemyPay, Subscan, Slack, ramp helpers) make HTTP requests without any timeout or `AbortSignal`. The historical Monerium `fetch` calls had the same gap and have been carried forward into the Mykobo client.
 
 **Fix:** Add `AbortController` with appropriate timeouts (e.g., 10-30s) to all external `fetch()` calls. Consider a shared utility function like `fetchWithTimeout(url, options, timeoutMs)`.
 
@@ -654,39 +654,37 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 ---
 
-### F-023: Monerium SEPA Timeout May Be Too Short
+### F-023: Monerium SEPA Timeout May Be Too Short (SUPERSEDED)
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/monerium-onramp-mint-handler.ts` |
-| **Spec** | `05-integrations/monerium.md` |
-| **Status** | 🟡 **DEFERRED** — needs runtime testing to validate |
+| **Location** | `apps/api/src/api/services/phases/handlers/monerium-onramp-mint-handler.ts` (legacy) |
+| **Spec** | `05-integrations/monerium.md` (deprecated) → see `05-integrations/mykobo.md` |
+| **Status** | ⚪ **SUPERSEDED** — Monerium is removed; EUR on-ramp now uses Mykobo on Base with a 24h outer payment timeout |
 | **Found** | Code audit, iteration 2, Module 05 |
-| **Impact** | Legitimate SEPA on-ramp payments could be marked as failed if Monerium takes longer than 30 minutes to mint EURe after SEPA settlement. |
+| **Impact** | (Historical) Legitimate SEPA on-ramp payments could be marked as failed if Monerium took longer than 30 minutes to mint EURe after SEPA settlement. |
 
-**Description:** The `monerium-onramp-mint-handler.ts` uses `PAYMENT_TIMEOUT_MS` (30 minutes) to wait for EURe token arrival on Polygon. SEPA transfers take 1-3 business days to settle. The 30-minute timeout may be too short if Monerium's processing itself takes time after SEPA arrives.
+**Description:** The legacy `monerium-onramp-mint-handler.ts` used `PAYMENT_TIMEOUT_MS` (30 minutes) to wait for EURe token arrival on Polygon. SEPA transfers take 1-3 business days to settle.
 
-**CTO Clarification (2026-04-02):** The timer starts at ramp creation — NOT after Monerium confirms SEPA settlement. The flow works because the ramp isn't created until the SEPA transfer is expected to have already settled and Monerium is expected to mint EURe imminently. However, if Monerium processing is delayed beyond 30 minutes after the ramp is created, the ramp will fail even if the payment was legitimate.
-
-**Fix:** Verify that the 30-minute window is sufficient for the expected Monerium processing time after SEPA settlement. If not, extend the timeout or implement a webhook-based flow where Monerium notifies completion rather than polling.
+**Resolution:** The EUR on-ramp has been migrated to Mykobo (`mykobo-onramp-deposit-handler.ts`) which uses a **24-hour `PAYMENT_TIMEOUT_MS`** with a 5-minute inner balance-check timeout that surfaces as a recoverable error. This matches SEPA business-day cutoffs and removes the original 30-minute tightness. The legacy 30-minute window is no longer reached by any active corridor.
 
 ---
 
-### F-024: No Concurrent SEPA Ramp Limit Per User
+### F-024: No Concurrent SEPA Ramp Limit Per User (CARRIED FORWARD TO MYKOBO)
 
 | Field | Value |
 |---|---|
 | **Location** | Ramp creation flow (no per-user limit enforcement) |
-| **Spec** | `05-integrations/monerium.md` |
-| **Status** | 🟡 **DEFERRED** — requires new DB queries and ramp creation changes |
+| **Spec** | `05-integrations/mykobo.md` (formerly `monerium.md`) |
+| **Status** | 🟡 **DEFERRED — STILL APPLIES** — requires new DB queries and ramp creation changes; same risk now applies to Mykobo SEPA flows |
 | **Found** | Code audit, iteration 2, Module 05 |
-| **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). |
+| **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). With Mykobo's 24h outer timeout the exposure window per pending ramp is **larger** than under the previous 30-minute Monerium window. |
 
-**Description:** No per-user concurrent ramp limit is enforced for Monerium SEPA flows. A user can create unlimited pending SEPA ramps. Each ramp consumes: (1) a database row with state tracking, (2) periodic phase processing cycles (polling for token arrival), (3) a slot in the phase processor queue. The 30-minute timeout per ramp partially mitigates this (each ramp auto-fails after 30 min), but during those 30 minutes the system is actively polling for each ramp.
+**Description:** No per-user concurrent ramp limit is enforced for Mykobo SEPA on-ramp flows (previously: Monerium). A user can create unlimited pending SEPA ramps. Each ramp consumes: (1) a database row with state tracking, (2) periodic phase processing cycles (polling for EURC arrival on Base), (3) a slot in the phase processor queue. With Mykobo's 24h timeout, each unpaid ramp now stays active for up to 24 hours rather than 30 minutes.
 
 **CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
-**Fix:** Add a per-user limit on concurrent pending ramps (e.g., max 3 pending SEPA ramps per user). Enforce at ramp creation time.
+**Fix:** Add a per-user limit on concurrent pending ramps (e.g., max 3 pending SEPA Mykobo ramps per user). Enforce at ramp creation time. The original Monerium-specific recommendation now applies to the Mykobo handler.
 
 ---
 
@@ -1452,6 +1450,218 @@ If a database partner record has `markupValue = -0.01` and `markupType = "relati
 **Mitigating factor:** Partner records are managed by admins. This isn't directly exploitable by end users — it requires a misconfigured or compromised database entry.
 
 **Resolution:** Added a floor check at the end of `calculateFeeComponent()`: if the computed fee is negative, it is clamped to zero.
+
+---
+
+## Phase 5: Mykobo Integration Audit (F-068 — F-071)
+
+Findings raised during the Mykobo-on-Base EUR rail audit. See `05-integrations/mykobo.md` and `03-ramp-engine/ramp-phase-flows.md`.
+
+---
+
+### F-068: Mykobo KYC Profile Endpoints Have No Authentication
+
+| Field | Value |
+|---|---|
+| **Severity** | 🔴 **Critical** |
+| **Location** | `apps/api/src/api/routes/v1/mykobo.route.ts` (lines 14-15); parent mount at `apps/api/src/api/routes/v1/index.ts` (line 150) |
+| **Spec** | `05-integrations/mykobo.md` (Invariant 15), `01-auth/supabase-otp.md` |
+| **Status** | ✅ **FIXED** (2026-05-22) |
+| **Found** | Mykobo integration audit, 2026-05-22 |
+| **Impact** | Anonymous callers can enumerate KYC profiles and submit arbitrary KYC documents (ID, source-of-funds, demographics) tied to any wallet address. This bypasses the spec's "Supabase OTP required" invariant, enables KYC-document submission floods against the Mykobo upstream, and allows attackers to associate attacker-controlled documents with arbitrary identities. |
+| **Resolution** | `requireAuth` added to both `/v1/mykobo/profiles` GET and POST routes, mirroring the `alfredpay.route.ts` pattern. The GET endpoint now identifies profiles by the authenticated user's email (`req.userEmail`) via `MykoboApiService.getProfileByEmail`, and rejects requests whose `email` query parameter does not match the authenticated user's email. POST profile creation still ties `wallet_address` to the user's ephemeral, so no separate wallet-ownership check is needed there. Supabase OTP gating plus the email/`req.userEmail` match closes the anonymous-flood and oracle vectors. |
+
+**Description:** `mykobo.route.ts` mounts two endpoints with **no authentication middleware**:
+
+```typescript
+router.route("/profiles").get(mykoboController.getProfileController);
+router.route("/profiles").post(profileUpload, mykoboController.createProfileController);
+```
+
+The parent mount in `routes/v1/index.ts:150` (`router.use("/mykobo", mykoboRoute)`) does not wrap with `requireAuth` either. Compare against the sibling `alfredpay.route.ts`, which applies `requireAuth` on every user-facing endpoint.
+
+Spec `mykobo.md` invariant 15 requires: *"Mykobo KYC profile creation MUST be gated by Vortex auth — The `/v1/mykobo/profiles` endpoints require a Supabase OTP session; anonymous profile creation is rejected."* The code violates this invariant.
+
+The `GET /profiles?email=...&memo=...` endpoint is an email-keyed KYC profile-existence oracle. The `POST /profiles` endpoint accepts multipart form-data (ID document, utility bill, selfie) and forwards it to Mykobo — anonymous callers can submit forged KYC documents linked to arbitrary identities.
+
+**Fix:** Add `requireAuth` middleware to both routes (mirroring `alfredpay.route.ts`):
+
+```typescript
+router.route("/profiles").get(requireAuth, mykoboController.getProfileController);
+router.route("/profiles").post(requireAuth, profileUpload, mykoboController.createProfileController);
+```
+
+After adding auth, also verify that the `email` query parameter on GET matches the authenticated user's email (`req.userEmail`), to prevent an authenticated user from enumerating other users' KYC profile existence.
+
+---
+
+### F-069: EUR Off-Ramp `fundEphemeral` Falls Through to Non-Existent Next Phase
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟠 **High** |
+| **Location** | `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts` (`nextPhaseSelector`, lines 230-250) |
+| **Spec** | `03-ramp-engine/ramp-phase-flows.md`, `05-integrations/mykobo.md` |
+| **Status** | ✅ **FIXED** (2026-05-22) |
+| **Found** | Mykobo integration audit, 2026-05-22 |
+| **Impact** | If a EUR off-ramp ever transitions through `fundEphemeral`, `nextPhaseSelector` returns `"moonbeamToPendulum"` — a phase that has no role in the Base-only EUR off-ramp routing (`evm-to-mykobo.ts`). The phase processor would attempt to execute a handler with no presigned transaction registered for this corridor, putting the ramp into a stuck/failed state mid-flow. |
+| **Resolution** | Explicit `SELL && outputCurrency === EURC → "distributeFees"` branch added to `nextPhaseSelector`. Additionally, while fixing the latent bug, also added the **active** missing branch `BUY && inputCurrency === EURC → "subsidizePreSwap"` to wire `fundEphemeral` into the Mykobo onramp flow (see the EUR onramp `fundEphemeral` companion fix below). |
+
+**Description:** `nextPhaseSelector` enumerates the SELL-direction branches:
+
+```typescript
+if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
+  return "distributeFees";
+} else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+  return "finalSettlementSubsidy";
+} else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL) {
+  return "distributeFees";
+} else {
+  return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
+}
+```
+
+There is no branch for `outputCurrency === FiatToken.EURC`. The BRL off-ramp uses `distributeFees` as the next phase after `fundEphemeral`; EUR off-ramps need the same routing (the Mykobo Base off-ramp presigned-tx order in `evm-to-mykobo.ts` is `distributeFees(0) → nablaApprove(1) → nablaSwap(2) → mykoboPayoutOnBase(3) → cleanup(4-6)`), but instead they fall through to the `else` branch and target `moonbeamToPendulum`.
+
+**Why this isn't currently surfaced:** The active EUR off-ramp dispatch path (`initial-phase-handler.ts`) does not currently route EUR through `fundEphemeral`. The bug is latent. However, any future routing change, recovery flow, or replay that reaches `fundEphemeral` with `outputCurrency === FiatToken.EURC` will hit the stuck-phase scenario. The integration tests don't catch it because they only exercise `registerRamp`, not `startRamp` through this path.
+
+**Fix:** Add an explicit EURC branch mirroring the BRL behavior:
+
+```typescript
+} else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.EURC) {
+  return "distributeFees";
+}
+```
+
+Also consider replacing the default `else → "moonbeamToPendulum"` with an unrecoverable error for unrecognized SELL combinations, so future corridor additions fail loudly instead of silently falling through.
+
+---
+
+### F-070: `MYKOBO_BASE_URL` Accepts Any Scheme — No HTTPS Enforcement
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `packages/shared/src/services/mykobo/mykoboApiService.ts` (constructor, lines 47-53) |
+| **Spec** | `05-integrations/mykobo.md` (Invariant: HTTPS enforced for all Mykobo API calls) |
+| **Status** | ✅ **FIXED** (2026-05-22) |
+| **Found** | Mykobo integration audit, 2026-05-22 |
+| **Impact** | A misconfigured `MYKOBO_BASE_URL` (e.g., `http://...` instead of `https://...`) will silently transmit bearer tokens, KYC document references, and IBAN payment instructions over cleartext. There is no startup or runtime check that rejects non-HTTPS base URLs. |
+| **Resolution** | `assertSecureMykoboBaseUrl` helper added; called from constructor. Throws on any non-HTTPS scheme. Exception: when `NODE_ENV !== "production"`, `http://localhost` and `http://127.0.0.1` are permitted for local development. |
+
+**Description:** The `MykoboApiService` constructor performs only path-shape normalization on the base URL:
+
+```typescript
+if (!MYKOBO_BASE_URL) {
+  throw new Error("MYKOBO_BASE_URL not defined");
+}
+const trimmedBase = MYKOBO_BASE_URL.replace(/\/$/, "");
+this.baseUrl = /\/v\d+$/.test(trimmedBase) ? trimmedBase : `${trimmedBase}/v1`;
+```
+
+No `new URL(...).protocol === "https:"` check. An operator with shell access to env vars (or a misconfigured deployment) could set `MYKOBO_BASE_URL=http://mykobo.example` and the service would silently use cleartext for all `/auth/token`, `/auth/refresh`, intent creation, and payout polling calls. This contradicts the audit-results PASS for "HTTPS enforced" (currently marked PASS for Mykobo on the strength of constructor normalization alone, which does not in fact enforce HTTPS).
+
+**Fix:** Add an explicit scheme check at construction time:
+
+```typescript
+const parsed = new URL(trimmedBase);
+if (parsed.protocol !== "https:" && process.env.NODE_ENV === "production") {
+  throw new Error("MYKOBO_BASE_URL must use HTTPS in production");
+}
+```
+
+For local development, allow `http://localhost` via an explicit allowlist. Also document the requirement in `.env.example`.
+
+---
+
+### F-071: Concurrent-401 Race in `MykoboApiService.handleAuthFailure`
+
+| Field | Value |
+|---|---|
+| **Severity** | 🔵 **Low** |
+| **Location** | `packages/shared/src/services/mykobo/mykoboApiService.ts` (`handleAuthFailure`, lines 109-122; `getToken`, lines 96-107) |
+| **Spec** | `05-integrations/mykobo.md` (Invariant 14: Bearer-token refresh debounced) |
+| **Status** | ✅ **FIXED** (2026-05-22) |
+| **Found** | Mykobo integration audit, 2026-05-22 |
+| **Impact** | Under concurrent load, multiple in-flight requests that each receive HTTP 401 will each independently call `handleAuthFailure()`, causing concurrent `refresh` / `acquireToken` calls to Mykobo. This is a "thundering herd" mini-race: it does not corrupt state, but it can produce redundant token rotations, brief windows where `this.cachedToken` is overwritten by a stale value, and unnecessary Mykobo `/auth/refresh` traffic that can itself trip Mykobo-side rate limiting. |
+| **Resolution** | `authFailurePromise` debounce added, mirroring the existing `tokenPromise` pattern in `getToken`. Concurrent 401s now share a single in-flight refresh/re-acquire; the actual logic moved to `doHandleAuthFailure`. |
+
+**Description:** The happy-path token acquisition in `getToken()` is correctly debounced via `this.tokenPromise`:
+
+```typescript
+if (!this.tokenPromise) {
+  this.tokenPromise = this.acquireToken().finally(() => {
+    this.tokenPromise = undefined;
+  });
+}
+this.cachedToken = await this.tokenPromise;
+```
+
+But the 401-recovery path in `handleAuthFailure()` has no equivalent guard:
+
+```typescript
+private async handleAuthFailure(): Promise<string> {
+  if (this.cachedToken) {
+    try {
+      const refreshed = await this.refreshAccessToken(this.cachedToken.refreshToken);
+      this.cachedToken = refreshed;
+      return refreshed.token;
+    } catch (error) {
+      logger.current.warn("Mykobo refresh failed; re-acquiring token", error);
+    }
+  }
+  const reAcquired = await this.acquireToken();
+  this.cachedToken = reAcquired;
+  return reAcquired.token;
+}
+```
+
+If two requests race and both receive 401, they both enter `handleAuthFailure()` and both fire `refreshAccessToken` (or `acquireToken`) concurrently. Each then independently assigns to `this.cachedToken`, so the second write clobbers the first. The first caller may receive a token that is immediately replaced.
+
+**Mitigating factor:** The Mykobo handlers run inside the phase processor, which is single-threaded per ramp; the practical concurrency surface today is small (e.g., poll loops overlapping with `getProfile` calls from the HTTP layer). But the spec invariant ("Bearer-token refresh debounced — no thundering-herd on 401") is currently held only on the cold-start path.
+
+**Fix:** Apply the same `tokenPromise` debounce pattern to `handleAuthFailure`:
+
+```typescript
+private authFailurePromise: Promise<string> | undefined;
+
+private async handleAuthFailure(): Promise<string> {
+  if (!this.authFailurePromise) {
+    this.authFailurePromise = this.doHandleAuthFailure().finally(() => {
+      this.authFailurePromise = undefined;
+    });
+  }
+  return this.authFailurePromise;
+}
+```
+
+Move the existing body of `handleAuthFailure` into `doHandleAuthFailure`.
+
+---
+
+### F-072: Ephemeral Account Freshness Not Validated at Ramp Registration
+
+| Field | Value |
+|---|---|
+| **Severity** | 🟡 **Medium** |
+| **Location** | `apps/api/src/api/services/ramp/ramp.service.ts` (`registerRamp` → `normalizeAndValidateSigningAccounts`, lines 141-216) |
+| **Spec** | `02-signing-keys/ephemeral-accounts.md`, `03-ramp-engine/transaction-validation.md` |
+| **Status** | ✅ **FIXED** |
+| **Found** | Fresh audit pass, ephemeral lifecycle review |
+| **Impact** | An API client could submit an ephemeral address that has already been used on one or more route-relevant chains (non-zero nonce, existing balance, or pre-existing Stellar account). The backend would build presigned transactions assuming nonce 0 / fresh account; mid-ramp execution would then halt with nonce mismatches, "account already exists" errors, or unexpected leftover balances, leaving subsidies/funding spent and ramps stuck. |
+
+**Description:** `normalizeAndValidateSigningAccounts` only validated the *format* of each provided ephemeral address (StrKey, SS58, EVM `isAddress`). It did not verify that the addresses were actually fresh on the chains the ramp would touch. Because the SDK generates ephemerals client-side and the API trusts whatever address is submitted, a buggy or malicious client could replay an old ephemeral address. Stellar is especially sensitive: the server's first action is to *create* the Stellar account on-chain with a 2-of-2 multisig and starting balance — if the account already exists, that creation operation fails and the ramp cannot proceed.
+
+**Fix:** Added `validateEphemeralAccountsFresh()` (`apps/api/src/api/services/ramp/ephemeral-freshness.ts`), invoked in `registerRamp` immediately after `normalizeAndValidateSigningAccounts`. The validator:
+
+1. **Checks every supported chain of each submitted ephemeral type unconditionally** — rather than deriving a route-relevant subset from the quote. Supported sets: Substrate = `[pendulum, hydration, assethub]`; EVM = all configured EVM networks including Moonbeam (`SUPPORTED_EVM_NETWORKS`); Stellar = single Horizon check. This is intentionally wider than strictly required so that a future phase-handler addition cannot silently reopen the freshness gap by routing through a chain not covered by a route-derived mapping.
+2. **Substrate**: queries `system.account(address)` on each supported chain; requires `nonce === 0` AND `free === 0`.
+3. **EVM**: queries `getTransactionCount(address)` on each supported chain; requires `nonce === 0`.
+4. **Stellar**: calls `loadAccountWithRetry(address)` against Horizon; requires the account to **not exist** (the server creates and funds it during the ramp).
+5. **Fail-closed**: any RPC error rejects the registration with `SERVICE_UNAVAILABLE` rather than allowing freshness to be presumed.
+6. Scope: `registerRamp` only. `updateRamp` does not re-check, since the ephemeral identity is bound to ramp state at registration time.
+
+If the platform adds a new chain an ephemeral can ever sign on, `SUPPORTED_SUBSTRATE_NETWORKS` / `SUPPORTED_EVM_NETWORKS` MUST be updated, otherwise the freshness check leaves that chain unverified.
 
 ---
 

@@ -1,17 +1,19 @@
 # Stellar Anchors Integration
 
+> **⚠️ FULLY DEPRECATED.** The Stellar-anchored off-ramp path (Spacewalk + Stellar payment) is no longer an active corridor. EUR has migrated to **Mykobo on Base** (see `mykobo.md`) and ARS has been removed entirely. The `spacewalkRedeem` and `stellarPayment` phase handlers are **not registered** in `register-handlers.ts`; presigned-transaction builders for these flows have been removed. This document is retained for historical reference and to document the security model of the prior implementation. **Do not treat any flow below as currently reachable.**
+
 ## What This Does
 
-Stellar anchors are used for off-ramp flows that terminate on the Stellar network — specifically EUR (EURC) and ARS off-ramps. The flow bridges assets from Pendulum to Stellar via the Spacewalk bridge, then makes a Stellar payment from the ephemeral account to the user's off-ramp destination.
+Stellar anchors were historically used for off-ramp flows that terminated on the Stellar network (EUR via wrapped EURC; ARS via the Anclap anchor). Both corridors are now removed. The historical flow bridged assets from Pendulum to Stellar via the Spacewalk bridge, then made a Stellar payment from the ephemeral account to the user's off-ramp destination.
 
-**Provider type:** Off-ramp  
-**Fiat currencies:** EUR (via EURC on Stellar), ARS  
+**Provider type:** Off-ramp (deprecated)  
+**Fiat currencies:** None active. EUR migrated to Mykobo on Base; ARS removed.  
 **Chains involved:** Pendulum (Nabla swap output) → Stellar (via Spacewalk bridge) → Stellar anchor  
-**Phase handlers:**
-- `spacewalk-redeem-handler.ts` — Submits a Spacewalk redeem request on Pendulum, then waits up to 10 minutes for tokens to arrive on the ephemeral Stellar account
-- `stellar-payment-handler.ts` — Submits the presigned Stellar payment transaction to Horizon, sending tokens from the ephemeral to the user's destination
+**Phase handlers (no longer registered):**
+- `spacewalk-redeem-handler.ts` — Submitted a Spacewalk redeem request on Pendulum, then waited up to 10 minutes for tokens to arrive on the ephemeral Stellar account
+- `stellar-payment-handler.ts` — Submitted the presigned Stellar payment transaction to Horizon, sending tokens from the ephemeral to the user's destination
 
-**Flow (off-ramp):**
+**Flow (off-ramp, historical):**
 1. After Nabla swap on Pendulum, the output token (e.g., wrapped EURC) is held by the substrate ephemeral account
 2. `spacewalkRedeem` phase: Calls a Spacewalk vault to redeem Pendulum-wrapped tokens for native Stellar tokens. The redeem extrinsic is presigned and submitted from the substrate ephemeral. The handler polls the Stellar ephemeral account balance until tokens arrive (1s polling, 10min timeout).
 3. `stellarPayment` phase: Submits the presigned XDR transaction to Horizon. This transaction moves tokens from the Stellar ephemeral account to the user's Stellar address (the anchor's deposit address).

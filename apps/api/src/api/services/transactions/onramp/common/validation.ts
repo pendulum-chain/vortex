@@ -105,45 +105,42 @@ export function validateAveniaOnrampOnBase(
   return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
 }
 
-export function validateMoneriumOnramp(
+export function validateMykoboOnramp(
   quote: QuoteTicketAttributes,
   signingAccounts: AccountMeta[]
 ): {
   toNetwork: Networks;
   outputTokenDetails: OnChainTokenDetails;
-  substrateEphemeralEntry: AccountMeta;
   evmEphemeralEntry: AccountMeta;
+  inputTokenDetails: OnChainTokenDetails;
 } {
   const toNetwork = getNetworkFromDestination(quote.to);
   if (!toNetwork) {
     throw new Error(`Invalid network for destination ${quote.to}`);
   }
 
+  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
+  if (!evmEphemeralEntry) {
+    throw new Error("Base ephemeral not found");
+  }
+
   if (quote.inputCurrency !== FiatToken.EURC) {
-    throw new Error(`Input currency must be EURC for onramp, got ${quote.inputCurrency}`);
+    throw new Error(`Input currency must be EURC for Mykobo onramp, got ${quote.inputCurrency}`);
+  }
+
+  const inputTokenDetails = getEvmTokenConfig().base[EvmToken.EURC];
+  if (!inputTokenDetails) {
+    throw new Error("EURC token details not found for Base");
   }
 
   if (!isOnChainToken(quote.outputCurrency)) {
     throw new Error(`Output currency cannot be fiat token ${quote.outputCurrency} for onramp.`);
   }
   const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency);
-  if (!outputTokenDetails) {
-    throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
-  }
 
-  if (!isOnChainTokenDetails(outputTokenDetails)) {
+  if (!outputTokenDetails || !isOnChainTokenDetails(outputTokenDetails)) {
     throw new Error(`Output token must be on-chain token for onramp, got ${quote.outputCurrency}`);
   }
 
-  const evmEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "EVM");
-  if (!evmEphemeralEntry) {
-    throw new Error("Polygon ephemeral not found");
-  }
-
-  const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
-  if (!substrateEphemeralEntry) {
-    throw new Error("Pendulum ephemeral not found");
-  }
-
-  return { evmEphemeralEntry, outputTokenDetails, substrateEphemeralEntry, toNetwork };
+  return { evmEphemeralEntry, inputTokenDetails, outputTokenDetails, toNetwork };
 }

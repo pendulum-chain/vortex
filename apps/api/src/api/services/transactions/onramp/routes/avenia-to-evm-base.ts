@@ -201,7 +201,9 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
-  let destinationNonce = 0;
+  const destinationSharesSourceChain = toNetwork === Networks.Base;
+  let destinationNonce = destinationSharesSourceChain ? baseNonce : 0;
+  const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
     amountRaw: finalAmountRaw.toString(),
@@ -277,8 +279,8 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
     tokenAddress: bridgedTokenForFallback
   });
 
-  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
-  const backupApproveNonce = 0;
+  // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = destinationStartingNonce;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,

@@ -1,6 +1,6 @@
 import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
-import { QuoteContext, Stage, StageKey, StellarMeta, XcmMeta } from "../../core/types";
+import { QuoteContext, Stage, StageKey, XcmMeta } from "../../core/types";
 
 export interface PendulumTransferConfig {
   direction: RampDirection;
@@ -8,8 +8,8 @@ export interface PendulumTransferConfig {
 }
 
 export interface PendulumTransferComputation {
-  type: "xcm" | "stellar";
-  data: XcmMeta | StellarMeta;
+  type: "xcm";
+  data: XcmMeta;
 }
 
 export abstract class BasePendulumTransferEngine implements Stage {
@@ -71,16 +71,9 @@ export abstract class BasePendulumTransferEngine implements Stage {
   }
 
   private addNote(ctx: QuoteContext, computation: PendulumTransferComputation): void {
-    if (computation.type === "xcm") {
-      const xcmData = computation.data as XcmMeta;
-      ctx.addNote?.(
-        `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
-      );
-    } else {
-      const stellarData = computation.data as StellarMeta;
-      ctx.addNote?.(
-        `Calculated Stellar transfer with amount ${stellarData.inputAmountDecimal.toString()} ${stellarData.currency}`
-      );
-    }
+    const xcmData = computation.data;
+    ctx.addNote?.(
+      `Calculated XCM transfer with ${xcmData.xcmFees.origin.amount} ${xcmData.xcmFees.origin.currency} origin fee and ${xcmData.xcmFees.destination.amount} ${xcmData.xcmFees.destination.currency} destination fee`
+    );
   }
 }

@@ -23,12 +23,6 @@ const MOCK_TX_DATA_SUBSTRATE_SIGNER_1 = "0x71038400ac1767af9bf4282c0f268b5ce1797
 
 const MOCK_TX_DATA_SUBSTRATE_SIGNER_2 = "0x71038400b61dacc574163a9e8da2aca2b29090c610e61b21de9adbafb699156b6b6d9465019c7a2a23097caa54fcdd14432c731bd7c7c82a5648ee6d9a12378af3e241b435f2675ee515c50edfdf9098318c8a31abcc511d52a76133ad9e6b35cf5209bb8d000000003806005c1026460683b902672db0bbf65df0c021f5c9f844663e4dd1fcb13935ac6ba600072a494093029e820200001101095ea7b3e0a5f34199e165cbd3f9b0eba1f5e15d5018a7ffe8b76a3693ba5b317efb09d8e0ccb60000000000000000000000000000000000000000000000000000000000";
 
-// Stellar mock payloads — each phase has different operation-count requirements
-const MOCK_TX_DATA_STELLAR_CREATE_ACCOUNT = "AAAAAgAAAADkOCw1GPsc4U0bNLBfqRtbB05ZcogqYJfDKZYB95sHRAAtxsADWqM3AAAArQAAAAIAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAABb98/OGp4OrOMF58ADgwMHgBEvumr4FGRDfL2ZggooKAAAAAABfXhAAAAAAQAAAABb98/OGp4OrOMF58ADgwMHgBEvumr4FGRDfL2ZggooKAAAAAUAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAIAAAABAAAAAgAAAAEAAAACAAAAAAAAAAEAAAAA5DgsNRj7HOFNGzSwX6kbWwdOWXKIKmCXwymWAfebB0QAAAABAAAAAQAAAABb98/OGp4OrOMF58ADgwMHgBEvumr4FGRDfL2ZggooKAAAAAYAAAABRVVSQwAAAADPT1om4gkLs63PAsep1z2/5mWcxpBGFHW4ZDf6SccRNn//////////AAAAAAAAAAL3mwdEAAAAQCsExvxklazpsIDVJtyQU8Ou969v8j1NeM/MDMATo0UlUifWtbb218kd+ql6i21PQbD7ibxm6M4Zp1zflDIRMwOCCigoAAAAQF1MLyxdcdQ9lMYiR8iHye4TIKoP9zOimi4AKCL87rgDeXbEazuVR0GS0ILjnsc3NLFySKtAWcUFX20XXp7v5Aw=";
-
-const MOCK_TX_DATA_STELLAR_PAYMENT = "AAAAAgAAAABb98/OGp4OrOMF58ADgwMHgBEvumr4FGRDfL2ZggooKAAPQkADjNQFAAAAAQAAAAIAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAA1NWUsxNzYxNDkyNzc2AAAAAAAAAQAAAAAAAAABAAAAAMwmH81TyAdqCkge7nLAJdasnz/JchoiBMyDM9Io97NEAAAAAUVVUkMAAAAAz09aJuIJC7OtzwLHqdc9v+ZlnMaQRhR1uGQ3+knHETYAAAAABh8T4AAAAAAAAAAC95sHRAAAAEB4aZkEhfZ98f+FbQSEj0wFNirD7fe2HiWLM9jIuvkoQ9ruzSxycCK+NMiIgppZnNSNnibw10BseXsG9kjK1u0KggooKAAAAED8tHWEfIKPzeuHVBnMy9x+ireQ6kepvWCLq/ZRyXWN8m+lcE0r60HwjD25xJovaY9hyVh9X50o/xm0dM6DlIsF";
-
-const MOCK_TX_DATA_STELLAR_CLEANUP = "AAAAAgAAAABb98/OGp4OrOMF58ADgwMHgBEvumr4FGRDfL2ZggooKAAehIADjNQFAAAAAgAAAAIAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAABgAAAAFFVVJDAAAAAM9PWibiCQuzrc8Cx6nXPb/mZZzGkEYUdbhkN/pJxxE2AAAAAAAAAAAAAAAAAAAACAAAAADkOCw1GPsc4U0bNLBfqRtbB05ZcogqYJfDKZYB95sHRAAAAAAAAAAC95sHRAAAAEB8+udS9KiWj8JjxxPB3HSMC0EkRvggU2hOP9IoHF8+T7VzqZiPzzwuothCSKwaOgaVvG/SSPUIKJQkpVYhjqwJggooKAAAAECSKoTeRu3ttJ9G3Cj6a79Yv6ZQTguCIlGo2klJltKvQex7SQys69T93BeoG+XALB8I8MvSiQoEXE7unZYpmL0A=";
 
 async function makeSignedEvmTx(overrides: {
   nonce: number;
@@ -142,13 +136,13 @@ function withBackups(tx: PresignedTx): PresignedTx {
 }
 
 const VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP: PresignedTx[] = await Promise.all([
-  makeSignedEvmTxWithBackups({ nonce: 0, phase: "moneriumOnrampSelfTransfer", network: Networks.Polygon }),
+  makeSignedEvmTxWithBackups({ nonce: 0, phase: "nablaApprove", network: Networks.Polygon }),
   makeSignedEvmTxWithBackups({ nonce: 1, phase: "squidRouterApprove", network: Networks.Polygon }),
   makeSignedEvmTxWithBackups({ nonce: 2, phase: "squidRouterSwap", network: Networks.Polygon }),
 ]);
 
 const VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP: PresignedTx[] = [
-  { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampSelfTransfer", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
+  { meta: {}, network: Networks.Polygon, nonce: 0, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
   { meta: {}, network: Networks.Polygon, nonce: 1, phase: "squidRouterApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
   { meta: {}, network: Networks.Polygon, nonce: 2, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
 ];
@@ -212,74 +206,6 @@ const VALID_EXAMPLE_UNSIGNED_TX_BRL_ONRAMP: PresignedTx[] = [
   { meta: {}, network: Networks.Moonbeam, nonce: 3, phase: "squidRouterSwap", signer: EVM_SIGNER_2, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
 ];
 
-const VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP: PresignedTx[] = [
-  withBackups({
-    meta: {},
-    nonce: 0,
-    phase: "stellarCreateAccount",
-    signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ",
-    txData: MOCK_TX_DATA_STELLAR_CREATE_ACCOUNT,
-    network: Networks.Stellar
-  }),
-  withBackups({
-    meta: {},
-    nonce: 1,
-    phase: "stellarPayment",
-    signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ",
-    txData: MOCK_TX_DATA_STELLAR_PAYMENT,
-    network: Networks.Stellar
-  }),
-  withBackups({
-    meta: {},
-    nonce: 2,
-    phase: "stellarCleanup",
-    signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ",
-    txData: MOCK_TX_DATA_STELLAR_CLEANUP,
-    network: Networks.Stellar
-  }),
-  withBackups({
-    meta: {},
-    nonce: 0,
-    phase: "nablaApprove",
-    signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-    txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2,
-    network: Networks.Pendulum
-  }),
-  withBackups({
-    meta: {},
-    nonce: 1,
-    phase: "nablaSwap",
-    signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-    txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2,
-    network: Networks.Pendulum
-  }),
-  withBackups({
-    meta: {},
-    nonce: 2,
-    phase: "spacewalkRedeem",
-    signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-    txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2,
-    network: Networks.Pendulum,
-  }),
-  withBackups({
-    meta: {},
-    nonce: 3,
-    phase: "pendulumCleanup",
-    signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-    txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2,
-    network: Networks.Pendulum
-  })
-];
-
-const VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP: PresignedTx[] = [
-  { meta: {}, network: Networks.Stellar, nonce: 0, phase: "stellarCreateAccount", signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ", txData: MOCK_TX_DATA_STELLAR_CREATE_ACCOUNT },
-  { meta: {}, network: Networks.Stellar, nonce: 1, phase: "stellarPayment", signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ", txData: MOCK_TX_DATA_STELLAR_PAYMENT },
-  { meta: {}, network: Networks.Stellar, nonce: 2, phase: "stellarCleanup", signer: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ", txData: MOCK_TX_DATA_STELLAR_CLEANUP },
-  { meta: {}, network: Networks.Pendulum, nonce: 0, phase: "nablaApprove", signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov", txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2 },
-  { meta: {}, network: Networks.Pendulum, nonce: 1, phase: "nablaSwap", signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov", txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2 },
-  { meta: {}, network: Networks.Pendulum, nonce: 2, phase: "spacewalkRedeem", signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov", txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2 },
-  { meta: {}, network: Networks.Pendulum, nonce: 3, phase: "pendulumCleanup", signer: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov", txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_2 },
-];
 
 describe("Presigned Transaction validation", () => {
   it("matches a signed EVM transaction to the unsigned server-built transaction", async () => {
@@ -410,7 +336,6 @@ describe("Presigned Transaction validation", () => {
     await expect(
       validatePresignedTxs(RampDirection.SELL, [presignedTx], {
         EVM: "0x0000000000000000000000000000000000000004",
-        Stellar: "",
         Substrate: ""
       }, [unsignedTx])
     ).resolves.toBeUndefined();
@@ -451,7 +376,6 @@ describe("Presigned Transaction validation", () => {
           ],
           {
             EVM: expectedEvmSigner,
-            Stellar: "",
             Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz"
           },
           [unsignedTx]
@@ -461,11 +385,7 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("should pass validation for valid presigned EVM transactions", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).resolves.toBeUndefined();
   });
@@ -474,34 +394,16 @@ describe("Presigned Transaction validation", () => {
     const singleTx: PresignedTx[] = [VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]];
     const singleUnsigned: PresignedTx[] = [VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP[0]];
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, singleTx, ephemerals, singleUnsigned)).resolves.toBeUndefined();
   });
-
-  it("should pass validation for valid presigned mixed transactions", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
-
-    await expect(validatePresignedTxs(RampDirection.SELL, VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).resolves.toBeUndefined();
-  }, 30000);
 
   it("should throw for transaction with mismatch of expected signer for Substrate tx", async () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP));
     const invalidSigner = "5CoKLhtjijsxVneDXeV3QhcdD4byxDK7cSmNCuWEfQ8NjebM";
     invalidTxs[0].signer = invalidSigner;
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz", EVM: EVM_SIGNER_2 };
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BRL_ONRAMP)).rejects.toThrow(
       `Substrate transaction signer ${invalidSigner} does not match the expected signer 5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz for phase nablaApprove`
     );
@@ -524,48 +426,22 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       `EVM transaction signer ${wrongSigner} does not match the expected signer ${EVM_SIGNER}`
     );
   });
 
-  it("should throw for transaction with mismatch of expected signer for Stellar tx", async () => {
-    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
-    const invalidSigner = "GCFX5YV7Y5LF2XK3S5Y4L5XW4D5Z6A7B8C9D0E1F2G3H4I5J6K7L8M9N0O1P2Q3R4S5T6U7V8W9X0Y1Z2";
-    invalidTxs[0].signer = invalidSigner;
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
-    await expect(validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).rejects.toThrow(
-      `Stellar transaction signer ${invalidSigner} does not match the expected signer GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ for phase stellarCreateAccount.`
-    );
-  });
-
   it("should throw error for invalid presigned transactions array", async () => {
     const invalidTxs: any = "invalid data";
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz", EVM: EVM_SIGNER_2 };
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, [])).rejects.toThrow("presignedTxs must be an array with 1-100 elements");
   });
 
   it("should throw error for too many transactions", async () => {
     const invalidTxs: PresignedTx[] = new Array(101).fill(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]);
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz", EVM: EVM_SIGNER_2 };
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, [])).rejects.toThrow("presignedTxs must be an array with 1-100 elements");
   });
 
@@ -573,11 +449,7 @@ describe("Presigned Transaction validation", () => {
     const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP));
     invalidTxs[2].meta = {};
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).rejects.toThrow(
       "Transaction for phase squidRouterSwap must include at least 4 backup transactions in meta.additionalTxs"
@@ -592,11 +464,7 @@ describe("Presigned Transaction validation", () => {
     }
     backupTx.nonce = 9;
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).rejects.toThrow(
       "Transaction for phase squidRouterSwap has invalid backup nonce sequence. Expected 4, got 5"
@@ -618,11 +486,7 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
   });
@@ -644,11 +508,7 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: wrongSigner,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: wrongSigner };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Recovered signer"
@@ -671,11 +531,7 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTxWithWrongNonce], ephemerals, [unsignedTx])).rejects.toThrow(
       "does not match expected nonce"
@@ -697,11 +553,7 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTxWithWrongNonce], ephemerals, [unsignedTx])).rejects.toThrow(
       "does not match expected nonce"
@@ -725,11 +577,7 @@ describe("Presigned Transaction validation", () => {
       txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" }
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "does not match expected network ID"
@@ -771,11 +619,7 @@ describe("Presigned Transaction validation", () => {
       txData: signedRawTx
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Signed EVM transaction value"
@@ -817,11 +661,7 @@ describe("Presigned Transaction validation", () => {
       txData: signedRawTx
     };
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Signed EVM transaction data"
@@ -859,7 +699,7 @@ describe("Presigned Transaction validation", () => {
     const presignedTx: PresignedTx = { ...unsignedTx, txData: signedRawTx };
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("Signed EVM transaction 'to'");
   });
 
@@ -893,7 +733,7 @@ describe("Presigned Transaction validation", () => {
     const presignedTx: PresignedTx = { ...unsignedTx, txData: signedRawTx };
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("contract creation not allowed");
   });
 
@@ -922,7 +762,7 @@ describe("Presigned Transaction validation", () => {
     });
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("gas limit");
   });
 
@@ -952,7 +792,7 @@ describe("Presigned Transaction validation", () => {
     });
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("maxFeePerGas");
   });
 
@@ -982,7 +822,7 @@ describe("Presigned Transaction validation", () => {
     });
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("maxPriorityFeePerGas");
   });
 
@@ -1011,7 +851,7 @@ describe("Presigned Transaction validation", () => {
     });
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).resolves.toBeUndefined();
   });
 
@@ -1042,28 +882,19 @@ describe("Presigned Transaction validation", () => {
     });
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).resolves.toBeUndefined();
   });
 
   it("should throw error when transaction is missing required properties", async () => {
     const invalidTx: any = { network: Networks.Polygon, nonce: 0, signer: EVM_SIGNER, txData: "0x" }; // missing phase
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     await expect(validatePresignedTxs(RampDirection.BUY, [invalidTx], ephemerals, [])).rejects.toThrow("Each transaction must have txData, phase, network, nonce and signer properties");
-  });
-
-  it("rejects presignedTx submitted for moneriumOnrampMint (user-wallet phase)", async () => {
-    const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "moneriumOnrampMint", signer: EVM_SIGNER, txData: "invalid data" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
-    const unsignedTx = { ...tx };
-    await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
-      "Phase moneriumOnrampMint is broadcast by the user wallet"
-    );
   });
 
   it("rejects presignedTx submitted for squidRouterNoPermitTransfer (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterNoPermitTransfer", signer: EVM_SIGNER, txData: "invalid data" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     const unsignedTx = { ...tx };
     await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Phase squidRouterNoPermitTransfer is broadcast by the user wallet"
@@ -1071,7 +902,7 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("rejects presignedTx for squidRouterNoPermitApprove and squidRouterNoPermitSwap (user-wallet phases)", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     const approveTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterNoPermitApprove", signer: EVM_SIGNER, txData: "data" };
     await expect(validatePresignedTxs(RampDirection.BUY, [approveTx], ephemerals, [approveTx])).rejects.toThrow(
       "Phase squidRouterNoPermitApprove is broadcast by the user wallet"
@@ -1084,7 +915,7 @@ describe("Presigned Transaction validation", () => {
 
   it("rejects presignedTx submitted for squidRouterSwap when direction is SELL (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: "invalid data" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     const unsignedTx = { ...tx };
     await expect(validatePresignedTxs(RampDirection.SELL, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Phase squidRouterSwap is broadcast by the user wallet"
@@ -1093,7 +924,7 @@ describe("Presigned Transaction validation", () => {
 
   it("rejects presignedTx submitted for squidRouterApprove when direction is SELL (user-wallet phase)", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterApprove", signer: EVM_SIGNER, txData: "invalid data" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     const unsignedTx = { ...tx };
     await expect(validatePresignedTxs(RampDirection.SELL, [tx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Phase squidRouterApprove is broadcast by the user wallet"
@@ -1102,13 +933,13 @@ describe("Presigned Transaction validation", () => {
 
   it("still validates squidRouterSwap on BUY direction (signed by EVM ephemeral, not user wallet)", async () => {
     const tx = await makeSignedEvmTxWithBackups({ nonce: 0, phase: "squidRouterSwap", network: Networks.Polygon });
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
     await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [unsignedTx])).resolves.toBeUndefined();
   });
 
   it("should throw when an ephemeral transaction is missing from presignedTxs", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const unsignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "fundEphemeral", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
     const ephemeralTx: PresignedTx = await makeSignedEvmTxWithBackups({ nonce: 0, phase: "fundEphemeral", network: Networks.Polygon });
     const unsignedExtra: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 1, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } };
@@ -1116,14 +947,14 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("should throw when there is an extra presigned transaction not in unsignedTxs", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const tx: PresignedTx = await makeSignedEvmTxWithBackups({ nonce: 0, phase: "fundEphemeral", network: Networks.Polygon });
     await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [])).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
   });
 
   it("should throw for an unknown phase", async () => {
     const tx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "unknownPhase" as any, signer: EVM_SIGNER, txData: "0x" };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     await expect(validatePresignedTxs(RampDirection.BUY, [tx], ephemerals, [tx])).rejects.toThrow('Unknown phase "unknownPhase" — cannot determine transaction type');
   });
 
@@ -1136,7 +967,7 @@ describe("Presigned Transaction validation", () => {
       signature: [] as any // Array signature
     };
     const presignedTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterPermitExecute", signer: EVM_WALLET.address, txData: [typedData] };
-    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2, Stellar: "" };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     await expect(validatePresignedTxs(RampDirection.SELL, [presignedTx], ephemerals, [presignedTx])).rejects.toThrow("must include exactly one signature");
   });
 
@@ -1181,11 +1012,7 @@ describe("Presigned Transaction validation", () => {
 
     presignedTx.meta!.additionalTxs!.backup2.txData = maliciousBackup;
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "Signed EVM transaction data does not match expected data"
@@ -1223,55 +1050,15 @@ describe("Presigned Transaction validation", () => {
       data: "0x99999999"
     });
 
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
     await expect(validatePresignedTxs(RampDirection.BUY, [presignedTx], ephemerals, [unsignedTx])).rejects.toThrow(
       "must include exactly 4 backup transactions"
     );
   });
 
-  it("rejects when a Substrate backup encodes a different call than the primary", async () => {
-    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
-    const substrateTx = invalidTxs.find(tx => tx.phase === "nablaApprove" && tx.network === Networks.Pendulum)!;
-    substrateTx.meta!.additionalTxs!.backup2.txData = MOCK_TX_DATA_SUBSTRATE_SIGNER_1;
-
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
-
-    await expect(validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).rejects.toThrow(
-      /does not (match|encode)/
-    );
-  }, 30000);
-
-  it("rejects when a Stellar backup has the wrong shape for its phase", async () => {
-    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_OFFRAMP));
-    const stellarPayment = invalidTxs.find(tx => tx.phase === "stellarPayment")!;
-    stellarPayment.meta!.additionalTxs!.backup2.txData = MOCK_TX_DATA_STELLAR_CREATE_ACCOUNT;
-
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "5GBVPRfgZYjDMqQSACxzfrPeKxnsKGyinwwGRFpcacaAzDov",
-      EVM: EVM_SIGNER_2,
-      Stellar: "GBN7PT6ODKPA5LHDAXT4AA4DAMDYAEJPXJVPQFDEIN6L3GMCBIUCQSAJ"
-    };
-
-    await expect(validatePresignedTxs(RampDirection.SELL, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_OFFRAMP)).rejects.toThrow(
-      /Stellar Payment transaction must have exactly 1 operation/
-    );
-  }, 30000);
-
   it("accepts a subset of presigned txs when requireComplete is false (updateRamp partial submission)", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
     await expect(
       validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
@@ -1279,11 +1066,7 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("still rejects subset submissions by default (requireComplete defaults to true)", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
     await expect(
       validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)
@@ -1291,11 +1074,7 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("still rejects extra/unknown txs when requireComplete is false", async () => {
-    const ephemerals: { [key in EphemeralAccountType]: string } = {
-      Substrate: "",
-      EVM: EVM_SIGNER,
-      Stellar: ""
-    };
+    const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const extra = await makeSignedEvmTxWithBackups({ nonce: 99, phase: "fundEphemeral", network: Networks.Polygon });
     await expect(
       validatePresignedTxs(RampDirection.BUY, [extra], ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
@@ -1322,7 +1101,7 @@ describe("Presigned Transaction validation", () => {
     };
 
     await expect(
-      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Substrate: "" }, [unsignedTx])
     ).rejects.toThrow("does not match the server-issued unsigned typed data");
   });
 
@@ -1346,7 +1125,7 @@ describe("Presigned Transaction validation", () => {
     };
 
     await expect(
-      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Substrate: "" }, [unsignedTx])
     ).rejects.toThrow("does not match the server-issued unsigned typed data");
   });
 
@@ -1372,7 +1151,7 @@ describe("Presigned Transaction validation", () => {
     };
 
     await expect(
-      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Stellar: "", Substrate: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.SELL, [presignedTx], { EVM: "0x0000000000000000000000000000000000000004", Substrate: "" }, [unsignedTx])
     ).rejects.toThrow("does not match the server-issued unsigned typed data");
   });
 
@@ -1395,7 +1174,7 @@ describe("Presigned Transaction validation", () => {
     };
 
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [unsignedTx])
+      validatePresignedTxs(RampDirection.BUY, [presignedTx], { Substrate: "", EVM: EVM_SIGNER }, [unsignedTx])
     ).rejects.toThrow("does not match expected network ID");
   });
 
@@ -1406,7 +1185,7 @@ describe("Presigned Transaction validation", () => {
     };
     const presignedAtWrongNonce = await makeSignedEvmTxWithBackups({ nonce: 7, phase: "fundEphemeral", network: Networks.Polygon });
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [presignedAtWrongNonce], { Substrate: "", EVM: EVM_SIGNER, Stellar: "" }, [fundEphemeralAt0])
+      validatePresignedTxs(RampDirection.BUY, [presignedAtWrongNonce], { Substrate: "", EVM: EVM_SIGNER }, [fundEphemeralAt0])
     ).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
   });
 });
