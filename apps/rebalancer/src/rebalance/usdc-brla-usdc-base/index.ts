@@ -59,10 +59,8 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.NablaApprove]) {
     if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 2");
 
-    const result = await nablaApproveAndSwapOnBase(state.usdcAmountRaw, baseNonce);
+    const result = await nablaApproveAndSwapOnBase(state.usdcAmountRaw, baseNonce, state, stateManager);
 
-    state.nablaApproveHash = result.approveHash;
-    state.nablaSwapHash = result.swapHash;
     state.brlaAmountRaw = result.brlaAmountRaw;
     state.brlaAmountDecimal = result.brlaAmountDecimal.toString();
 
@@ -74,7 +72,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.TransferBrlaToAvenia]) {
     if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for step 3");
 
-    state.brlaTransferHash = await transferBrlaToAveniaOnBase(state.brlaAmountRaw, baseNonce);
+    state.brlaTransferHash = await transferBrlaToAveniaOnBase(state.brlaAmountRaw, baseNonce, state, stateManager);
 
     console.log(`BRLA transferred to Avenia on Base. Tx: ${state.brlaTransferHash}`);
     state.currentPhase = UsdcBaseRebalancePhase.WaitForBrlaOnAvenia;
@@ -146,6 +144,10 @@ export async function rebalanceUsdcBrlaUsdcBase(
         state.currentPhase = UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia;
         await stateManager.saveState(state);
       }
+    }
+
+    if (!state.winningRoute) {
+      throw new Error(`State corrupted: winningRoute is null at phase ${state.currentPhase}. Cannot proceed.`);
     }
 
     if (state.winningRoute === "avenia") {
