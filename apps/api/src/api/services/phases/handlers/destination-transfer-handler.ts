@@ -115,7 +115,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
           try {
             const liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
               address: state.state.evmEphemeralAddress as `0x${string}`,
-              blockTag: "latest"
+              blockTag: "pending"
             });
             if (presignedNonce > liveNonce) {
               throw this.createUnrecoverableError(
