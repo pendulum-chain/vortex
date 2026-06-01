@@ -211,6 +211,66 @@ export async function prepareMykoboToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
+  // Same-chain Base: destinationTransfer must be the next executable nonce after the swap. Cleanups run
+  // post-complete, so they follow the transfer. Backup re-swap txs are omitted here (no handler executes
+  // them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
+  if (toNetwork === Networks.Base) {
+    const sameChainDestinationTransfer = await addOnrampDestinationChainTransactions({
+      amountRaw: finalAmountRaw.toString(),
+      destinationNetwork: Networks.Base,
+      isNativeToken: isNativeEvmToken(outputTokenDetails),
+      toAddress: destinationAddress,
+      toToken: outputTokenDetails.erc20AddressSourceChain
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: sameChainDestinationTransfer
+    });
+
+    const sameChainFundingAddress = getEvmFundingAccount(Networks.Base).address;
+
+    const eurcCleanup = await prepareBaseCleanupApproval(
+      eurcInputTokenAddress as `0x${string}`,
+      sameChainFundingAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupEurc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(eurcCleanup) as EvmTransactionData
+    });
+
+    const usdcCleanup = await prepareBaseCleanupApproval(
+      nablaSwapOutputTokenAddress as `0x${string}`,
+      sameChainFundingAddress,
+      Networks.Base
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "baseCleanupUsdc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(usdcCleanup) as EvmTransactionData
+    });
+
+    stateMeta = {
+      ...stateMeta,
+      squidRouterQuoteId,
+      squidRouterReceiverHash,
+      squidRouterReceiverId
+    };
+
+    return { stateMeta, unsignedTxs };
+  }
+
   const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
 
   const eurcCleanupApproval = await prepareBaseCleanupApproval(
@@ -241,8 +301,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
-  const destinationSharesSourceChain = toNetwork === Networks.Base;
-  let destinationNonce = destinationSharesSourceChain ? baseNonce : 0;
+  let destinationNonce = 0;
   const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
