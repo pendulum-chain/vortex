@@ -677,6 +677,7 @@
         "buy": "Payment Summary",
         "sell": "Payment Summary"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expires",
         "instruction": "Transfer funds via SPEI to the CLABE below",
