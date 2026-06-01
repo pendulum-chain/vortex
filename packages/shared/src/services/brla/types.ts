@@ -98,6 +98,7 @@ export interface OnchainSwapQuoteParams {
   inputCurrency: BrlaCurrency;
   inputAmount: string;
   outputCurrency: BrlaCurrency;
+  outputPaymentMethod?: AveniaPaymentMethod;
 }
 
 export enum AveniaTicketStatus {

@@ -1,5 +1,71 @@
+import { ERC20_BRLA_BASE, EvmClientManager, NABLA_ROUTER_BASE_BRLA, Networks } from "@vortexfi/shared";
 import { getConfig } from "../../utils/config.ts";
 import { fetchLatestBlockFromIndexer, fetchNablaInstance } from "./graphql.ts";
+
+const SWAP_POOL_ABI = [
+  {
+    inputs: [],
+    name: "reserve",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "totalLiabilities",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
+const ROUTER_ABI = [
+  {
+    inputs: [{ name: "asset", type: "address" }],
+    name: "poolByAsset",
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
+export async function getBaseNablaCoverageRatio(): Promise<
+  { brlaCoverageRatio: number; usdcCoverageRatio: number } | undefined
+> {
+  try {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+
+    const brlaPoolAddress = (await baseClient.readContract({
+      abi: ROUTER_ABI,
+      address: NABLA_ROUTER_BASE_BRLA,
+      args: [ERC20_BRLA_BASE],
+      functionName: "poolByAsset"
+    })) as `0x${string}`;
+
+    const [brlaReserve, brlaLiabilities] = await Promise.all([
+      baseClient.readContract({
+        abi: SWAP_POOL_ABI,
+        address: brlaPoolAddress,
+        functionName: "reserve"
+      }) as Promise<bigint>,
+      baseClient.readContract({
+        abi: SWAP_POOL_ABI,
+        address: brlaPoolAddress,
+        functionName: "totalLiabilities"
+      }) as Promise<bigint>
+    ]);
+
+    const brlaCoverageRatio = brlaLiabilities > 0n ? Number(brlaReserve) / Number(brlaLiabilities) : 0;
+
+    console.log(`Base Nabla BRLA pool coverage ratio: ${brlaCoverageRatio}`);
+
+    return { brlaCoverageRatio, usdcCoverageRatio: 0 };
+  } catch (error) {
+    console.error("Failed to fetch Base Nabla coverage ratio:", error);
+    return undefined;
+  }
+}
 
 /// This function retrieves all swap pools from the Nabla instance and checks their coverage ratios.
 /// If the coverage ratio of a pool is below the specified threshold, it adds that pool to the list of non-sufficient pools.

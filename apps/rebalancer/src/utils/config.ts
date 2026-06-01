@@ -1,11 +1,9 @@
 import { Keyring } from "@polkadot/api";
 import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
-import { mnemonicToAccount } from "viem/accounts";
+import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
 
 export function getConfig() {
-  if (!process.env.PENDULUM_ACCOUNT_SECRET) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");
-  if (!process.env.MOONBEAM_ACCOUNT_SECRET) throw new Error("Missing MOONBEAM_ACCOUNT_SECRET environment variable");
-  if (!process.env.POLYGON_ACCOUNT_SECRET) throw new Error("Missing POLYGON_ACCOUNT_SECRET environment variable");
+  if (!process.env.EVM_ACCOUNT_SECRET) throw new Error("Missing EVM_ACCOUNT_SECRET environment variable");
 
   return {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
@@ -13,13 +11,13 @@ export function getConfig() {
 
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
 
+    evmAccountSecret: process.env.EVM_ACCOUNT_SECRET,
+
     indexerFreshnessThresholdMinutes: process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES
       ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
       : 5,
 
-    moonbeamAccountSecret: process.env.MOONBEAM_ACCOUNT_SECRET,
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
-    polygonAccountSecret: process.env.POLYGON_ACCOUNT_SECRET,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25,
@@ -34,6 +32,7 @@ export function getConfig() {
 
 export function getPendulumAccount() {
   const config = getConfig();
+  if (!config.pendulumAccountSecret) throw new Error("Missing PENDULUM_ACCOUNT_SECRET environment variable");
 
   const keyring = new Keyring({ type: "sr25519" });
   return keyring.addFromUri(config.pendulumAccountSecret);
@@ -42,21 +41,32 @@ export function getPendulumAccount() {
 export function getMoonbeamEvmClients() {
   const config = getConfig();
 
-  const moonbeamExecutorAccount = mnemonicToAccount(config.moonbeamAccountSecret as `0x${string}`);
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
   const evmClientManager = EvmClientManager.getInstance();
   return {
     publicClient: evmClientManager.getClient(Networks.Moonbeam),
-    walletClient: evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount)
+    walletClient: evmClientManager.getWalletClient(Networks.Moonbeam, evmExecutorAccount)
   };
 }
 
 export function getPolygonEvmClients() {
   const config = getConfig();
 
-  const polygonExecutorAccount = mnemonicToAccount(config.polygonAccountSecret as `0x${string}`);
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
   const evmClientManager = EvmClientManager.getInstance();
   return {
     publicClient: evmClientManager.getClient(Networks.Polygon),
-    walletClient: evmClientManager.getWalletClient(Networks.Polygon, polygonExecutorAccount)
+    walletClient: evmClientManager.getWalletClient(Networks.Polygon, evmExecutorAccount)
+  };
+}
+
+export function getBaseEvmClients() {
+  const config = getConfig();
+
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
+  const evmClientManager = EvmClientManager.getInstance();
+  return {
+    publicClient: evmClientManager.getClient(Networks.Base),
+    walletClient: evmClientManager.getWalletClient(Networks.Base, evmExecutorAccount)
   };
 }
