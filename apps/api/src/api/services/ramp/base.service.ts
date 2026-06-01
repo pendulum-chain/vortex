@@ -27,14 +27,14 @@ export class BaseRampService {
       }
     );
 
-    // Delete quotes that have been expired for more than 60 days
-    const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+    // Delete quotes that have been expired for more than 90 days
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     count += await QuoteTicket.destroy({
       where: {
         expiresAt: {
-          [Op.lt]: sixtyDaysAgo
+          [Op.lt]: ninetyDaysAgo
         },
-        status: "pending"
+        status: "expired"
       }
     });
 

@@ -15,6 +15,7 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
+import { enrichAdditionalDataWithClientIp } from "../helpers/clientIp";
 import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
 import rampService from "../services/ramp/ramp.service";
 
@@ -36,9 +37,10 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     await assertQuoteOwnership(req, quoteId);
 
-    // Start ramping process
+    const enrichedAdditionalData = await enrichAdditionalDataWithClientIp(additionalData, req);
+
     const ramp = await rampService.registerRamp({
-      additionalData,
+      additionalData: enrichedAdditionalData,
       quoteId,
       signingAccounts,
       userId: req.userId

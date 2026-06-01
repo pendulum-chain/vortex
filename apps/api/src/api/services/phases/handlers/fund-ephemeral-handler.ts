@@ -11,7 +11,6 @@ import {
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
-import { NetworkError, Transaction } from "stellar-sdk";
 import { type Hex, parseTransaction } from "viem";
 import logger from "../../../../config/logger";
 import {
@@ -24,31 +23,18 @@ import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
-import { validateStellarPaymentSequenceNumber } from "../helpers/stellar-sequence-validator";
 import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
 import { StateMetadata } from "../meta-state-types";
 import {
   DESTINATION_EVM_FUNDING_AMOUNTS,
-  horizonServer,
   isBaseEphemeralFunded,
   isDestinationEvmEphemeralFunded,
   isPendulumEphemeralFunded,
-  isPolygonEphemeralFunded,
-  isStellarEphemeralFunded,
-  NETWORK_PASSPHRASE
+  isPolygonEphemeralFunded
 } from "./helpers";
-
-export function isStellarNetworkError(error: unknown): error is NetworkError {
-  return (
-    error instanceof Error &&
-    "response" in error &&
-    error.response !== null &&
-    typeof error.response === "object" &&
-    "data" in error.response
-  );
-}
 
 function isOnramp(state: RampState): boolean {
   return state.type === RampDirection.BUY;
@@ -60,13 +46,11 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresPendulumEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
-    // Pendulum ephemeral address is required for all cases except when doing a Monerium/Alfredpay to EVM onramp,
-    // or alfredpay offramp
-    if (
-      isOnramp(state) &&
-      (inputCurrency === FiatToken.EURC || isAlfredpayToken(inputCurrency as FiatToken)) &&
-      state.to !== Networks.AssetHub
-    ) {
+    if (inputCurrency === FiatToken.EURC || outputCurrency === FiatToken.EURC) {
+      return false;
+    }
+
+    if (isOnramp(state) && isAlfredpayToken(inputCurrency as FiatToken) && state.to !== Networks.AssetHub) {
       return false;
     }
 
@@ -81,8 +65,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresPolygonEphemeralAddress(state: RampState, inputCurrency?: string, outputCurrency?: string): boolean {
-    // Only required for Monerium and Alfredpay onramps and offramps.
-    if (isOnramp(state) && (inputCurrency === FiatToken.EURC || isAlfredpayToken(inputCurrency as FiatToken))) {
+    // Only required for Alfredpay onramps and offramps. Mykobo (EUR) runs on Base, not Polygon.
+    if (isOnramp(state) && isAlfredpayToken(inputCurrency as FiatToken)) {
       return true;
     }
     if (!isOnramp(state) && isAlfredpayToken(outputCurrency as FiatToken)) {
@@ -93,8 +77,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected getRequiresBaseEphemeralAddress(inputCurrency?: string, outputCurrency?: string): boolean {
-    // Only required for BRLA onramps.
     if (inputCurrency === FiatToken.BRL || outputCurrency === FiatToken.BRL) {
+      return true;
+    }
+    if (inputCurrency === FiatToken.EURC || outputCurrency === FiatToken.EURC) {
       return true;
     }
     return false;
@@ -123,6 +109,23 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
     const fromNetwork = state.from as EvmNetworks;
     if (!isNetworkEVM(fromNetwork)) return;
+
+    // Base+USDC direct path: the user broadcasts a single ERC20 transfer instead of squid
+    // approve+swap. Verify that hash before we fund the ephemeral and spend gas on Nabla.
+    const hasNoPermitTransferBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer");
+    if (hasNoPermitTransferBlueprint) {
+      await verifyUserSubmittedTxByHash({
+        fromNetwork,
+        hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
+        label: "User direct USDC transfer to ephemeral",
+        presignedPhase: "squidRouterNoPermitTransfer",
+        state
+      });
+      return;
+    }
+
+    const hasSquidApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterApprove");
+    if (!hasSquidApproveBlueprint) return;
 
     await verifyUserSubmittedTxByHash({
       fromNetwork,
@@ -191,16 +194,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork)
           : true;
 
-      if (state.state.stellarTarget) {
-        const isFunded = await isStellarEphemeralFunded(
-          state.state.stellarEphemeralAccountId,
-          state.state.stellarTarget.stellarTokenDetails
-        );
-        if (!isFunded) {
-          await this.fundStellarEphemeralAccount(state);
-        }
-      }
-
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${substrateEphemeralAddress}`);
         if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -248,17 +241,26 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
+    if (
+      state.state.isDirectTransfer === true ||
+      (isOnramp(state) &&
+        (isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
+          isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)))
+    ) {
+      return "destinationTransfer";
+    }
+
     // brla onramp case
     if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
+      return "subsidizePreSwap";
+    }
+    // mykobo (EURC) onramp case
+    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
       return "subsidizePreSwap";
     }
     // alfredpay onramp case
     if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
       return "subsidizePreSwap";
-    }
-    // monerium onramp case
-    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
-      return "moneriumOnrampSelfTransfer";
     }
 
     // off ramp cases
@@ -268,67 +270,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return "finalSettlementSubsidy";
     } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL) {
       return "distributeFees";
+    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.EURC) {
+      return "distributeFees";
     } else {
       return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
-    }
-  }
-
-  protected async fundStellarEphemeralAccount(state: RampState): Promise<void> {
-    const { txData: stellarCreationTransactionXDR } = this.getPresignedTransaction(state, "stellarCreateAccount");
-    if (typeof stellarCreationTransactionXDR !== "string") {
-      throw new Error(
-        "FundEphemeralHandler: `stellarCreateAccount` transaction is not a string -> not an encoded Stellar transaction."
-      );
-    }
-
-    try {
-      const stellarCreationTransaction = new Transaction(stellarCreationTransactionXDR, NETWORK_PASSPHRASE);
-      logger.info(
-        `Submitting stellar account creation transaction to create ephemeral account: ${state.state.stellarEphemeralAccountId}`
-      );
-      await horizonServer.submitTransaction(stellarCreationTransaction);
-
-      logger.info("Validating stellar payment sequence number after account creation");
-      try {
-        await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
-      } catch (validationError) {
-        logger.error(`Stellar payment sequence validation failed after account creation: ${validationError}`);
-        throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation");
-      }
-    } catch (e) {
-      if (e instanceof UnrecoverablePhaseError) {
-        throw e;
-      }
-
-      // when validateStellarPaymentSequenceNumber throws an error, it's not NetworkError
-      if (isStellarNetworkError(e)) {
-        if (e.response.data?.status === 400) {
-          logger.info(
-            `Could not submit the stellar account creation transaction ${JSON.stringify(e.response.data.extras.result_codes)}`
-          );
-
-          // TODO this error may need adjustment, as the `tx_bad_seq` may be due to parallel ramps and ephemeral creations.
-          if (e.response.data.extras.result_codes.transaction === "tx_bad_seq") {
-            logger.info("Recovery mode: Creation already performed.");
-
-            try {
-              logger.info("Validating stellar payment sequence number in recovery mode");
-              await validateStellarPaymentSequenceNumber(state, state.state.stellarEphemeralAccountId);
-            } catch (validationError) {
-              logger.error(`Sequence number validation failed in recovery mode: ${validationError}`);
-              throw this.createUnrecoverableError("Stellar payment sequence validation failed after account creation recovery");
-            }
-          }
-          logger.error(`Could not submit the stellar creation transaction: ${e.response.data.extras}`);
-          throw new Error("Could not submit the stellar creation transaction");
-        } else {
-          logger.error(`Could not submit the stellar creation transaction: ${e.response.data}`);
-          throw new Error("Could not submit the stellar creation transaction");
-        }
-      } else {
-        logger.error(`Error in stellar account creation: ${e}`);
-        throw new Error("Could not submit the stellar creation transaction");
-      }
     }
   }
 

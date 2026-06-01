@@ -3,9 +3,7 @@ import { decodeAddress } from "@polkadot/util-crypto";
 import {
   AXL_USDC_MOONBEAM,
   createRandomString,
-  createRouteParamsWithMoonbeamPostHook,
   createSquidRouterHash,
-  ERC20_EURE_POLYGON_V1,
   EvmClientManager,
   EvmNetworks,
   EvmTransactionData,
@@ -179,52 +177,6 @@ export async function createOnrampSquidrouterTransactionsFromBaseToEvm(
 }
 
 // Onramp from Polygon directly to any token on any EVM chain.
-export async function createOnrampSquidrouterTransactionsFromPolygonToMoonbeamWithPendulumPosthook(
-  params: Omit<OnrampSquidrouterParamsFromEvm, "toNetwork">
-): Promise<OnrampTransactionData> {
-  const evmClientManager = EvmClientManager.getInstance();
-  const polygonClient = evmClientManager.getClient(Networks.Polygon);
-  const fromNetwork = Networks.Polygon;
-
-  const squidRouterReceiverId = createRandomString(32);
-  const pendulumEphemeralAccountHex = u8aToHex(decodeAddress(params.destinationAddress));
-  const squidRouterPayload = encodePayload(pendulumEphemeralAccountHex);
-  const squidRouterReceiverHash = createSquidRouterHash(squidRouterReceiverId, squidRouterPayload);
-  const { receivingContractAddress } = getSquidRouterConfig(fromNetwork);
-
-  const routeParams = createRouteParamsWithMoonbeamPostHook({
-    ...params,
-    amount: params.rawAmount,
-    fromNetwork,
-    receivingContractAddress,
-    squidRouterReceiverHash
-  });
-
-  try {
-    const routeResult = await getRoute(routeParams);
-    const { route } = routeResult.data;
-
-    const { approveData, swapData, squidRouterQuoteId } = await createTransactionDataFromRoute({
-      inputTokenErc20Address: ERC20_EURE_POLYGON_V1,
-      publicClient: polygonClient,
-      rawAmount: params.rawAmount,
-      route,
-      swapValue: computeSwapValueWithSafetyMargin(route.transactionRequest.value)
-    });
-
-    return {
-      approveData,
-      route,
-      squidRouterQuoteId,
-      squidRouterReceiverHash,
-      squidRouterReceiverId,
-      swapData
-    };
-  } catch (e) {
-    throw new Error(`Error getting route: ${JSON.stringify(routeParams)}. Error: ${e}`);
-  }
-}
-
 export async function createOnrampSquidrouterTransactionsOnDestinationChain(
   params: OnrampSquidrouterParamsOnDestinationChain
 ): Promise<OnrampTransactionData> {

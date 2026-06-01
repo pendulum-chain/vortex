@@ -6,16 +6,10 @@ import { AssetHubTokenDetails } from "../types/assethub";
 import { AssetHubToken, FiatCurrencyDetails, FiatToken, OnChainToken, TokenType } from "../types/base";
 import { EvmToken, EvmTokenDetails } from "../types/evm";
 import { MoonbeamTokenDetails } from "../types/moonbeam";
-import { StellarTokenDetails } from "../types/stellar";
 import { normalizeTokenSymbol } from "./normalization";
-export type TokenDetails =
-  | EvmTokenDetails
-  | AssetHubTokenDetails
-  | StellarTokenDetails
-  | MoonbeamTokenDetails
-  | FiatCurrencyDetails;
+export type TokenDetails = EvmTokenDetails | AssetHubTokenDetails | MoonbeamTokenDetails | FiatCurrencyDetails;
 export type OnChainTokenDetails = EvmTokenDetails | AssetHubTokenDetails;
-export type FiatTokenDetails = StellarTokenDetails | MoonbeamTokenDetails | FiatCurrencyDetails;
+export type FiatTokenDetails = MoonbeamTokenDetails | FiatCurrencyDetails;
 
 export type OnChainTokenDetailsWithBalance = OnChainTokenDetails & {
   balance: string;
@@ -34,13 +28,6 @@ export function isEvmTokenDetails(token: TokenDetails): token is EvmTokenDetails
  */
 export function isAssetHubTokenDetails(token: TokenDetails): token is AssetHubTokenDetails {
   return token.type === TokenType.AssetHub;
-}
-
-/**
- * Type guard for Stellar tokens
- */
-export function isStellarTokenDetails(token: TokenDetails): token is StellarTokenDetails {
-  return token.type === TokenType.Stellar;
 }
 
 /**
@@ -65,21 +52,14 @@ export function isOnChainTokenDetails(token: TokenDetails): token is OnChainToke
  * Type guard for fiat tokens
  */
 export function isFiatTokenDetails(token: TokenDetails): token is FiatTokenDetails {
-  return isStellarTokenDetails(token) || isMoonbeamTokenDetails(token) || isFiatCurrencyDetails(token);
-}
-
-/**
- * Type guard for Stellar output token details
- */
-export function isStellarOutputTokenDetails(tokenDetails: Partial<FiatTokenDetails>): tokenDetails is StellarTokenDetails {
-  return tokenDetails.type === TokenType.Stellar;
+  return isMoonbeamTokenDetails(token) || isFiatCurrencyDetails(token);
 }
 
 /**
  * Type guard for Moonbeam output token details
  */
 export function isMoonbeamOutputTokenDetails(
-  outputTokenDetails: StellarTokenDetails | MoonbeamTokenDetails
+  outputTokenDetails: MoonbeamTokenDetails
 ): outputTokenDetails is MoonbeamTokenDetails {
   return outputTokenDetails.type === TokenType.Moonbeam;
 }

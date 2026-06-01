@@ -1,4 +1,5 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
+import { useQuery } from "@tanstack/react-query";
 import {
   BaseFiatTokenDetails,
   FiatToken,
@@ -8,7 +9,6 @@ import {
   getOnChainTokenDetailsOrDefault,
   isAlfredpayToken,
   isMoonbeamTokenDetails,
-  isStellarOutputTokenDetails,
   OnChainTokenDetails,
   RampDirection
 } from "@vortexfi/shared";
@@ -23,6 +23,7 @@ import { trimAddress } from "../../../helpers/addressFormatter";
 import { useCountdown } from "../../../hooks/useCountdown";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { MykoboService } from "../../../services/api/mykobo.service";
 import { RampExecutionInput } from "../../../types/phases";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
@@ -31,6 +32,15 @@ import { EUROnrampDetails } from "./EUROnrampDetails";
 import { FeeDetails } from "./FeeDetails";
 import { MXNOnrampDetails } from "./MXNOnrampDetails";
 import { USOnrampDetails } from "./USOnrampDetails";
+
+const ONRAMP_DETAILS_BY_FIAT: Record<FiatToken, FC | null> = {
+  [FiatToken.ARS]: null,
+  [FiatToken.BRL]: BRLOnrampDetails,
+  [FiatToken.COP]: COPOnrampDetails,
+  [FiatToken.EURC]: EUROnrampDetails,
+  [FiatToken.MXN]: MXNOnrampDetails,
+  [FiatToken.USD]: USOnrampDetails
+};
 
 interface TransactionTokensDisplayProps {
   executionInput: RampExecutionInput;
@@ -46,15 +56,23 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const { apiComponents } = useAssetHubNode();
   const { chainId } = useVortexAccount();
 
-  const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
+  const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked, userEmail } = useSelector(rampActor, state => ({
     connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
     quoteLocked: state.context.quoteLocked,
-    rampState: state.context.rampState
+    userEmail: state.context.userEmail
   }));
 
   const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;
+
+  const isEurOfframp = !isOnramp && executionInput.fiatToken === FiatToken.EURC;
+
+  const { data: mykoboProfile } = useQuery({
+    enabled: isEurOfframp && !!userEmail,
+    queryFn: () => MykoboService.getProfile(userEmail as string),
+    queryKey: ["mykoboProfile", userEmail]
+  });
 
   const isAlfredpayFlow = isAlfredpayToken(executionInput.fiatToken);
   const countdownTarget = isAlfredpayFlow ? null : targetTimestampMs;
@@ -75,14 +93,11 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
 
   const getPartnerUrl = (): string => {
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
-    if (fromToken.assetSymbol === "EURC") {
-      return "https://monerium.com";
-    }
     if (isAlfredpayToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
     }
-    if (isStellarOutputTokenDetails(fiatToken)) {
-      return fiatToken.anchorHomepageUrl;
+    if (executionInput.fiatToken === FiatToken.EURC) {
+      return "https://mykobo.co";
     }
     if (isMoonbeamTokenDetails(fiatToken)) {
       return fiatToken.partnerUrl;
@@ -130,14 +145,15 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
           vortex: quote.vortexFeeFiat
         }}
         fromToken={fromToken}
+        iban={isEurOfframp ? mykoboProfile?.bankAccountNumber : undefined}
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
       />
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL && <BRLOnrampDetails />}
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC && <EUROnrampDetails />}
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.USD && <USOnrampDetails />}
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.MXN && <MXNOnrampDetails />}
-      {rampDirection === RampDirection.BUY && executionInput.fiatToken === FiatToken.COP && <COPOnrampDetails />}
+      {rampDirection === RampDirection.BUY &&
+        (() => {
+          const Details = ONRAMP_DETAILS_BY_FIAT[executionInput.fiatToken];
+          return Details ? <Details /> : null;
+        })()}
       {quoteLocked && !isAlfredpayFlow && targetTimestampMs !== null && !isQuoteExpired && (
         <div className="my-4 text-center font-semibold text-gray-600">
           {t("components.SummaryPage.BRLOnrampDetails.timerLabel")} <span>{formattedTime}</span>

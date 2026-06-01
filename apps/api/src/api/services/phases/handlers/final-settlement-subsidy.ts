@@ -28,6 +28,7 @@ import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constant
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 
@@ -62,6 +63,12 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
+
+    if (state.state.isDirectTransfer === true) {
+      logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for direct-transfer ramp ${state.id}`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
+
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
@@ -72,6 +79,14 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     logger.debug(
       `FinalSettlementSubsidyHandler: Quote found. inputCurrency=${quote.inputCurrency}, outputCurrency=${quote.outputCurrency}, network=${quote.network}`
     );
+
+    if (
+      isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
+      isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)
+    ) {
+      logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for Base direct-transfer route (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
 
     const isAlfredpaySell = state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken);
 
@@ -138,7 +153,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Polling ephemeral balance for ${ephemeralAddress} on ${destinationNetwork} (timeout=${EVM_BALANCE_CHECK_TIMEOUT_MS}ms, interval=${BALANCE_POLLING_TIME_MS}ms)`
     );
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: "1", // If we passed expectedAmountRaw, we might timeout if the bridge slipped and delivered slightly less.
+      amountDesiredRaw: expectedAmountRaw.mul(0.9).toFixed(0, 0), // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
@@ -146,6 +161,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       tokenDetails: outTokenDetails
     });
     logger.debug(`FinalSettlementSubsidyHandler: Ephemeral balance=${actualBalance.toString()}`);
+
+    const preBalance = new Big(state.state.preSettlementBalance ?? "0");
+    const deliveredRaw = actualBalance.minus(preBalance);
+    const delivered = deliveredRaw.gte(0) ? deliveredRaw : new Big(0);
 
     // 3. Check funding account balance (handles both native and ERC-20 automatically)
     logger.debug(`FinalSettlementSubsidyHandler: Checking funding account balance at ${fundingAccount.address}`);
@@ -156,14 +175,14 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     });
     logger.debug(`FinalSettlementSubsidyHandler: Funding account balance=${actualBalanceFundingAccount.toString()}`);
 
-    const subsidyAmountRaw = expectedAmountRaw.minus(actualBalance);
+    const subsidyAmountRaw = expectedAmountRaw.minus(delivered);
     logger.debug(
-      `FinalSettlementSubsidyHandler: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - actual=${actualBalance.toString()})`
+      `FinalSettlementSubsidyHandler: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - delivered=${delivered.toString()}, actualBalance=${actualBalance.toString()}, preSettlementBalance=${preBalance.toString()})`
     );
 
     if (subsidyAmountRaw.lte(0)) {
       logger.info(
-        `FinalSettlementSubsidyHandler: Actual balance (${actualBalance.toString()}) meets expected amount. No subsidy needed.`
+        `FinalSettlementSubsidyHandler: Delivered amount (${delivered.toString()}) meets expected amount with actualBalance=${actualBalance.toString()} and preSettlementBalance=${preBalance.toString()}. No subsidy needed.`
       );
       return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }

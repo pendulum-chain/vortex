@@ -63,15 +63,6 @@ export interface XcmMeta {
   xcmFees: XcmFees;
 }
 
-export interface StellarMeta {
-  inputAmountDecimal: Big;
-  inputAmountRaw: string;
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-  fee: Big;
-  currency: RampCurrency;
-}
-
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
@@ -159,15 +150,6 @@ export interface QuoteContext {
     slippagePercent: number;
   };
 
-  moneriumMint?: {
-    inputAmountDecimal: Big;
-    inputAmountRaw: string;
-    outputAmountDecimal: Big;
-    outputAmountRaw: string;
-    fee: Big;
-    currency: RampCurrency;
-  };
-
   alfredpayMint?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;
@@ -208,6 +190,15 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  mykoboMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   assethubToPendulumXcm?: XcmMeta;
 
   evmToEvm?: BridgeMeta;
@@ -227,8 +218,6 @@ export interface QuoteContext {
   pendulumToAssethubXcm?: XcmMeta;
 
   pendulumToMoonbeamXcm?: XcmMeta;
-
-  pendulumToStellar?: StellarMeta;
 
   // Fees in baseline and display currency
   fees?: {

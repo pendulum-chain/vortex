@@ -1,5 +1,5 @@
-import { ExclamationCircleIcon, UserIcon } from "@heroicons/react/24/solid";
-import { FiatToken, isAlfredpayToken, MoneriumErrors, RampDirection } from "@vortexfi/shared";
+import { ExclamationCircleIcon } from "@heroicons/react/24/solid";
+import { FiatToken, isAlfredpayToken, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { FC, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,21 +22,14 @@ export const SummaryStep: FC = () => {
 
   const { shouldDisplay: signingBoxVisible, progress, signatureState, confirmations } = useSigningBoxState();
 
-  const { visible, executionInput, rampDirection, rampState, signingPhase, rampRegistrationError } = useSelector(
-    rampActor,
-    state => ({
-      executionInput: state.context.executionInput,
-      rampDirection: state.context.rampDirection,
-      rampRegistrationError: state.context.initializeFailedMessage,
-      rampState: state.context.rampState,
-      signingPhase: state.context.rampSigningPhase,
-      visible:
-        state.matches("KycComplete") ||
-        state.matches("RegisterRamp") ||
-        state.matches("UpdateRamp") ||
-        state.matches("StartRamp")
-    })
-  );
+  const { visible, executionInput, rampDirection, rampState, rampRegistrationError } = useSelector(rampActor, state => ({
+    executionInput: state.context.executionInput,
+    rampDirection: state.context.rampDirection,
+    rampRegistrationError: state.context.initializeFailedMessage,
+    rampState: state.context.rampState,
+    visible:
+      state.matches("KycComplete") || state.matches("RegisterRamp") || state.matches("UpdateRamp") || state.matches("StartRamp")
+  }));
   const rampType = rampDirection || RampDirection.BUY;
   const isOnramp = rampType === RampDirection.BUY;
 
@@ -50,30 +43,26 @@ export const SummaryStep: FC = () => {
   }, [setDialogScrollRef]);
 
   useEffect(() => {
-    if (visible && isOnramp && executionInput?.fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode) {
+    if (!visible || !isOnramp) return;
+    const fiatToken = executionInput?.fiatToken;
+    const isBrlReady = fiatToken === FiatToken.BRL && rampState?.ramp?.depositQrCode;
+    const isEurcReady = fiatToken === FiatToken.EURC && rampState?.ramp?.ibanPaymentData;
+    if (isBrlReady || isEurcReady) {
       scrollToBottom();
     }
-  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.depositQrCode, scrollToBottom]);
-
-  useEffect(() => {
-    if (
-      visible &&
-      isOnramp &&
-      executionInput?.fiatToken === FiatToken.EURC &&
-      rampState?.ramp?.ibanPaymentData &&
-      signingPhase === "finished"
-    ) {
-      scrollToBottom();
-    }
-  }, [visible, isOnramp, executionInput?.fiatToken, rampState?.ramp?.ibanPaymentData, signingPhase, scrollToBottom]);
+  }, [
+    visible,
+    isOnramp,
+    executionInput?.fiatToken,
+    rampState?.ramp?.depositQrCode,
+    rampState?.ramp?.ibanPaymentData,
+    scrollToBottom
+  ]);
 
   const getRampRegistrationErrorMessage = useGetRampRegistrationErrorMessage();
 
   if (!visible) return null;
   if (!executionInput) return null;
-
-  const isUserMintAddressNotFound =
-    rampRegistrationError && rampRegistrationError === MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND;
 
   const rampRegistrationErrorMessage = getRampRegistrationErrorMessage(rampRegistrationError);
 
@@ -96,17 +85,7 @@ export const SummaryStep: FC = () => {
         </div>
       )}
 
-      {isUserMintAddressNotFound && (
-        <AlertBanner
-          className="mt-4 mb-4"
-          icon={<UserIcon className="w-5 text-warning" />}
-          title={rampRegistrationErrorMessage ?? ""}
-        >
-          <progress className="progress progress-warning mt-4 w-56" />
-        </AlertBanner>
-      )}
-
-      {!isUserMintAddressNotFound && rampRegistrationErrorMessage && (
+      {rampRegistrationErrorMessage && (
         <AlertBanner
           className="mt-4 mb-4"
           icon={<ExclamationCircleIcon className="w-5 text-warning" />}

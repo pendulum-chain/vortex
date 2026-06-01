@@ -4,17 +4,11 @@ import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter
 import { QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
-export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
-  private readonly network: Networks;
-
-  constructor(network: Networks) {
-    super();
-    this.network = network;
-  }
-
+export class OffRampFromEvmInitializeAlfredpayEngine extends BaseInitializeEngine {
   readonly config = {
     direction: RampDirection.SELL,
-    skipNote: "OffRampFromEvmInitializeEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
+    skipNote:
+      "OffRampFromEvmInitializeAlfredpayEngine: Skipped because rampType is BUY, this engine handles SELL operations only"
   };
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
@@ -28,7 +22,7 @@ export class OffRampFromEvmInitializeEngine extends BaseInitializeEngine {
       inputCurrency: req.inputCurrency as OnChainToken,
       outputCurrency: ALFREDPAY_EVM_TOKEN,
       rampType: req.rampType,
-      toNetwork: this.network
+      toNetwork: Networks.Polygon
     };
 
     const bridgeQuote = await getEvmBridgeQuote(quoteRequest);

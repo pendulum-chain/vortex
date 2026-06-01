@@ -28,7 +28,6 @@ export class BrlHandler implements RampHandler {
   private signTransactions: (
     unsignedTxs: UnsignedTx[],
     ephemerals: {
-      stellarEphemeral?: EphemeralAccount;
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
@@ -44,7 +43,6 @@ export class BrlHandler implements RampHandler {
     signTransactions: (
       unsignedTxs: UnsignedTx[],
       ephemerals: {
-        stellarEphemeral?: EphemeralAccount;
         substrateEphemeral?: EphemeralAccount;
         evmEphemeral?: EphemeralAccount;
       }
@@ -81,7 +79,6 @@ export class BrlHandler implements RampHandler {
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
-      stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate
     });
 
@@ -124,7 +121,6 @@ export class BrlHandler implements RampHandler {
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
-      stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate
     });
 

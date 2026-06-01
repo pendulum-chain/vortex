@@ -11,6 +11,7 @@ interface FeeDetailsProps {
   partnerUrl: string;
   direction: RampDirection;
   destinationAddress?: string;
+  iban?: string;
 }
 
 export const FeeDetails: FC<FeeDetailsProps> = ({
@@ -20,7 +21,8 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   exchangeRate,
   partnerUrl,
   direction,
-  destinationAddress
+  destinationAddress,
+  iban
 }) => {
   const { t } = useTranslation();
 
@@ -58,6 +60,12 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         <div className="mb-2 flex justify-between">
           <p>{isOfframp ? t("components.SummaryPage.source") : t("components.SummaryPage.destination")}</p>
           {destinationAddress}
+        </div>
+      )}
+      {iban && (
+        <div className="mb-2 flex justify-between">
+          <p>{t("components.SummaryPage.iban")}</p>
+          <p className="font-medium">{iban}</p>
         </div>
       )}
       <div className="flex justify-between">

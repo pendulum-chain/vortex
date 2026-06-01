@@ -37,6 +37,7 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config/vars";
+import erc20ABI from "../../../../../contracts/ERC20";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
@@ -154,19 +155,6 @@ const erc20Abi = [
   },
   { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" }
 ];
-
-const transferAbi = [
-  {
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "value", type: "uint256" }
-    ],
-    name: "transfer",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function"
-  }
-] as const;
 
 /**
  * Prepares all transactions for an EVM to Alfredpay (USD) offramp.
@@ -434,7 +422,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     // No permit available, but user already holds USDT on Polygon: user signs a single
     // transfer(ephemeral, amount) in their wallet. Funds land directly on the ephemeral.
     const transferData = encodeFunctionData({
-      abi: transferAbi,
+      abi: erc20ABI,
       args: [evmEphemeralEntry.address as `0x${string}`, BigInt(inputAmountRaw)],
       functionName: "transfer"
     });

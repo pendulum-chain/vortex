@@ -3,7 +3,6 @@ import {
   PendulumFundEphemeralErrorResponse,
   PendulumFundEphemeralRequest,
   PendulumFundEphemeralResponse,
-  StellarTokenConfig,
   TOKEN_CONFIG,
   XCMTokenConfig
 } from "@vortexfi/shared";
@@ -66,7 +65,7 @@ export const sendStatusWithPk = async (): Promise<StatusResponse> => {
 
   // Wait for all required token balances check.
   await Promise.all(
-    Object.entries(TOKEN_CONFIG).map(async ([token, tokenConfig]: [string, StellarTokenConfig | XCMTokenConfig]) => {
+    Object.entries(TOKEN_CONFIG).map(async ([token, tokenConfig]: [string, XCMTokenConfig]) => {
       logger.info(`Checking token ${token} balance...`);
       if (!tokenConfig.pendulumCurrencyId) {
         throw new Error(`Token ${token} does not have a currency id.`);

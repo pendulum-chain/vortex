@@ -17,20 +17,21 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
     const offrampAmount =
       ctx.request.to === "pix"
         ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
-        : ctx.alfredpayOfframp
-          ? ctx.alfredpayOfframp.outputAmountDecimal
-          : ctx.pendulumToStellar?.outputAmountDecimal;
+        : ctx.request.to === "sepa"
+          ? ctx.nablaSwapEvm?.outputAmountDecimal
+          : ctx.alfredpayOfframp
+            ? ctx.alfredpayOfframp.outputAmountDecimal
+            : undefined;
 
     if (!offrampAmount) {
       throw new APIError({
-        message:
-          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
+        message: "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm or alfredpayOfframp output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
     // AlfredPay's toAmount is already net-of-fees, so no fee subtraction needed.
-    // For other providers (Stellar, BRLA), the anchor fee must still be subtracted.
+    // For other providers (e.g. BRLA), the anchor fee must still be subtracted.
     const isAlfredpay = !!ctx.alfredpayOfframp;
     let amount: Big;
 

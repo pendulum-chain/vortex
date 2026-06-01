@@ -124,7 +124,6 @@ type InitializationErrorMessage =
   | "node_connection_issue"
   | "signer_service_issue"
   | "moonbeam_account_issue"
-  | "stellar_account_issue"
   | "pendulum_account_issue";
 
 export type TrackableEvent =
@@ -188,15 +187,12 @@ const useEvents = () => {
       }
     }
 
-    // Check if form error message has already been fired as we only want to fire each error message once
     if (event.event === "form_error") {
       const { error_message } = event;
       if (firedFormErrors.current.has(error_message)) {
         return;
-      } else {
-        // Add error message to fired form errors
-        firedFormErrors.current.add(error_message);
       }
+      firedFormErrors.current.add(error_message);
     }
 
     window.dataLayer.push(event);
@@ -206,8 +202,8 @@ const useEvents = () => {
     trackedEventTypes.current = new Set();
   }, []);
 
-  /// This function is used to schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
-  /// Calling this function with a quote of '-1' will make the function emit the quote as undefined.
+  // Schedule a quote returned by a quote service. Once all quotes are ready, it emits a compare_quote event.
+  // A quote of '-1' is emitted as undefined.
   const schedulePrice = useCallback(
     (service: PriceProvider | "vortex", price: string, parameters: RampParameters, enableEventTracking: boolean) => {
       if (!enableEventTracking) return;
