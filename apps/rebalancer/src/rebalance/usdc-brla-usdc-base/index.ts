@@ -240,7 +240,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
   console.log(`Route taken: ${state.winningRoute}`);
   console.log(`Cost: absolute: ${cost.toFixed(6)} USDC | relative: ${costRelative}`);
 
-  const slackNotifier = new SlackNotifier();
+  const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
     text:
       "USDC->BRLA->USDC rebalance on Base completed!\n" +

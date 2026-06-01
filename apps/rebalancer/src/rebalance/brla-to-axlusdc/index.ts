@@ -155,7 +155,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart
     `Rebalancing cost: absolute: ${rebalancingCost.toFixed(6)} | relative: ${Big(1).sub(finalBalance.div(state.initialBalance)).toFixed(4, 0)}`
   );
 
-  const slackNotifier = new SlackNotifier();
+  const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
     text:
       `Rebalance from BRLA to USDC.axl completed successfully! Initial balance: ${state.initialBalance.toFixed(4, 0)}, final balance: ${finalBalance.toFixed(4, 0)}\n` +
