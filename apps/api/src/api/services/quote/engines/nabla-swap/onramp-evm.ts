@@ -36,7 +36,7 @@ export class OnRampSwapEngineEvm extends BaseNablaSwapEngineEvm {
         throw new Error("OnRampSwapEngineEvm: BRLA token details not found for Base");
       }
 
-      const inputAmountForSwapRaw = inputAmountPreFees.times(new Big(10).pow(brlaTokenDetails.decimals)).toFixed(0);
+      const inputAmountForSwapRaw = inputAmountPreFees.times(new Big(10).pow(brlaTokenDetails.decimals)).toFixed(0, 0);
       ctx.nablaSwapEvm = {
         effectiveExchangeRate: "1",
         inputAmountForSwapDecimal: inputAmountPreFees.toString(),

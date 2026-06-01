@@ -9,6 +9,7 @@ import {
   getEvmBalance,
   getOnChainTokenDetails,
   isAlfredpayToken,
+  isEvmTokenDetails,
   Networks,
   RampDirection,
   RampPhase
@@ -72,7 +73,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     const isAlfredpayOnramp =
       state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
 
-    if (isAlfredpayOnramp && quote.metadata.to === Networks.Polygon && quote.outputCurrency === ALFREDPAY_EVM_TOKEN) {
+    if (isAlfredpayOnramp && quote.metadata.request.to === Networks.Polygon && quote.outputCurrency === ALFREDPAY_EVM_TOKEN) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay direct-token onramp (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "finalSettlementSubsidy");
     }
@@ -182,9 +183,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       let preSettlementBalance = "0";
       try {
         const destinationNetwork = quote.network as EvmNetworks;
-        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency);
 
-        if (!outTokenDetails) {
+        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
           throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
         }
 

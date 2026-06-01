@@ -37,7 +37,7 @@ export class OnRampSwapEngineMykoboEvm extends BaseNablaSwapEngineEvm {
         throw new Error("OnRampSwapEngineMykoboEvm: EURC token details not found for Base");
       }
 
-      const inputAmountForSwapRaw = inputAmountPreFees.times(new Big(10).pow(eurcTokenDetails.decimals)).toFixed(0);
+      const inputAmountForSwapRaw = inputAmountPreFees.times(new Big(10).pow(eurcTokenDetails.decimals)).toFixed(0, 0);
       ctx.nablaSwapEvm = {
         effectiveExchangeRate: "1",
         inputAmountForSwapDecimal: inputAmountPreFees.toString(),

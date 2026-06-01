@@ -153,7 +153,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Polling ephemeral balance for ${ephemeralAddress} on ${destinationNetwork} (timeout=${EVM_BALANCE_CHECK_TIMEOUT_MS}ms, interval=${BALANCE_POLLING_TIME_MS}ms)`
     );
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: expectedAmountRaw.mul(0.9).toFixed(0), // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
+      amountDesiredRaw: expectedAmountRaw.mul(0.9).toFixed(0, 0), // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
