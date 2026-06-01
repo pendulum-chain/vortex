@@ -5,6 +5,8 @@ import {
   EvmTokenDetails,
   evmTokenConfig,
   FiatToken,
+  getEvmBalance,
+  getOnChainTokenDetails,
   isAlfredpayToken,
   Networks,
   RampDirection,
@@ -14,6 +16,7 @@ import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { isEurToEurcBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -39,9 +42,19 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
+    if (state.state.isDirectTransfer === true) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
+
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
+    }
+
+    if (isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for EUR→EURC Base direct route (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
     if (state.type === RampDirection.SELL) {
@@ -150,7 +163,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Update the state with the transaction hashes
-      const updatedState = await state.update({
+      let updatedState = await state.update({
         state: {
           ...state.state,
           squidRouterSwapHash: swapHash
@@ -160,6 +173,35 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       // Wait for the swap transaction to be confirmed
       await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
+
+      let preSettlementBalance = "0";
+      try {
+        const destinationNetwork = quote.network as EvmNetworks;
+        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails;
+
+        if (!outTokenDetails) {
+          throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
+        }
+
+        preSettlementBalance = (
+          await getEvmBalance({
+            chain: destinationNetwork,
+            ownerAddress: state.state.evmEphemeralAddress as `0x${string}`,
+            tokenDetails: outTokenDetails
+          })
+        ).toString();
+      } catch (error) {
+        logger.warn(
+          `SquidRouterPhaseHandler: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
+        );
+      }
+
+      updatedState = await updatedState.update({
+        state: {
+          ...updatedState.state,
+          preSettlementBalance
+        }
+      });
 
       // Transition to the next phase
       return this.transitionToNextPhase(updatedState, "squidRouterPay");

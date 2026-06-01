@@ -62,6 +62,8 @@ export interface StateMetadata {
   squidRouterPermitExecutionValue?: string;
   nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
+  // Snapshot of destination-token raw balance on the ephemeral, recorded immediately before squidRouterPay so finalSettlementSubsidy can compute actual bridge delivery rather than total balance (which may include leftover dust from prior phases).
+  preSettlementBalance?: string;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and
   // reports back the resulting tx hashes via UpdateRampRequest.additionalData.
