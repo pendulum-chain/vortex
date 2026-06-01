@@ -35,6 +35,10 @@ Mykobo replaces two earlier EUR rails:
 6. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
 7. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's destination EVM chain → optional `backupSquidRouter*` fallback → `destinationTransfer`.
 
+#### Degenerate EUR→EURC-on-Base route (direct bypass)
+
+When the user on-ramps EUR and asks for **EURC delivered on Base** (input EURC, output EURC, network Base), the generic pipeline would pointlessly swap EURC→USDC on Nabla and then bridge/swap USDC→EURC back to itself — burning two swaps of slippage and fees, and inviting the over-subsidy race documented in `06-cross-chain/fund-routing.md`. Mykobo already settles EURC directly on the Base ephemeral, so the route builder detects this case via `isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)` (`api/services/quote/utils.ts`) and emits a **single** `destinationTransfer` of the quoted output amount straight from the ephemeral to the user — no `nablaApprove`/`nablaSwap`, no `squidRouter*`, no `finalSettlementSubsidy`, no Base cleanup. `stateMeta.isDirectTransfer = true` is set so the downstream `finalSettlementSubsidy` handler also short-circuits defensively if ever reached (`mykobo-to-evm.ts`). The quote engine produces the matching single-phase plan, and the destination-transfer nonce is `0` (the ephemeral has signed nothing else on this corridor).
+
 ### Off-ramp flow (User EVM → Base USDC → Base EURC → SEPA payout)
 
 1. User signs Squid permit / no-permit fallback / direct transfer → tokens arrive on Base ephemeral as USDC. If the source is already Base USDC, Squid is skipped.
@@ -83,6 +87,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 19. **The Mykobo base URL normalization MUST enforce a `/v1` suffix** — `MykoboApiService` trims trailing slashes and appends `/v1` unless the configured `MYKOBO_BASE_URL` already ends in `/v<digits>`. This prevents accidental cross-version calls if an operator sets `MYKOBO_BASE_URL` to a root domain.
 20. **`MYKOBO_CLIENT_DOMAIN` MUST be set in every deployment** — The constant is sent as `client_domain` on every Mykobo API call and selects the negotiated fee tier. Because it is loaded via `getEnvVar` with no default, a missing value silently falls back to Mykobo's default tier (worse fees, observed ~5x higher). Deploy-time checks MUST treat an unset `MYKOBO_CLIENT_DOMAIN` as a hard failure.
 21. **Mykobo intent `value` MUST be floored to 2 decimal places** — Mykobo silently truncates anything beyond 2 dp, which would otherwise cause the on-chain transfer amount and the Mykobo-credited amount to diverge. Both the on-ramp `DEPOSIT` intent and the off-ramp `WITHDRAW` intent MUST send a 2dp-floored `value`, and the off-ramp on-chain transfer MUST be derived from that same floored value (not from the unrounded Nabla output). The sub-cent EURC remainder on the ephemeral MUST be swept by `baseCleanupEurc`.
+22. **The EUR→EURC-on-Base on-ramp MUST take the direct-transfer bypass** — When `inputCurrency === EURC`, `outputCurrency === EURC`, and `network === Base`, `isEurToEurcBaseDirect` MUST short-circuit the route to a single `destinationTransfer` from the ephemeral to the user, with `stateMeta.isDirectTransfer = true`. The Nabla swap, SquidRouter, `finalSettlementSubsidy`, and Base cleanup phases MUST NOT run — routing EURC through USDC and back would burn double-swap slippage/fees against the user and expose the over-subsidy race (`06-cross-chain/fund-routing.md`). The `finalSettlementSubsidy` handler MUST also honor `isDirectTransfer`/`isEurToEurcBaseDirect` defensively and skip to `destinationTransfer` if reached.
 
 ## Threat Vectors & Mitigations
 
@@ -104,6 +109,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 | **Cross-version Mykobo API drift** | Operator misconfigures `MYKOBO_BASE_URL` to a root domain, hitting an unintended version | `MykoboApiService` enforces a `/v<digits>` suffix; misconfiguration fails fast on the first auth call. |
 | **`MYKOBO_CLIENT_DOMAIN` unset → wrong fee tier** | Operator forgets to set `MYKOBO_CLIENT_DOMAIN`; Mykobo silently applies its default tier (~5x worse fees) and quotes/distributions drift from reality | Deploy-time check fails fast if the env var is missing; alarms on observed Mykobo fees exceeding `defaultDepositFee` / `defaultWithdrawFee` (see `07-operations/secret-management.md`). |
 | **Intent-value precision drift** | EURC payout amount carries >2 dp; Mykobo silently truncates and credits less than the on-chain transfer, leaving the user short | Both `DEPOSIT` and `WITHDRAW` intents send `Big.toFixed(2, 0)`-floored `value`; the off-ramp on-chain EURC transfer is derived from the same floored value; sub-cent dust is swept by `baseCleanupEurc`. |
+| **EUR→EURC-Base self-swap drain** | The generic pipeline swaps the user's already-settled EURC to USDC and back, charging two swaps of slippage/fees and triggering `finalSettlementSubsidy` against bridge-less dust (over-subsidy + strand) | `isEurToEurcBaseDirect` collapses the corridor to a single `destinationTransfer` with `isDirectTransfer = true`; Nabla/Squid/finalSettlementSubsidy/cleanup are skipped at both route-build and handler level. |
 
 ## Audit Checklist
 
@@ -132,3 +138,5 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 - [ ] HTTPS enforced for all Mykobo API calls
 - [ ] Timeout / `AbortController` configured for Mykobo HTTP client (cross-cutting; tracked as F-014 across providers)
 - [ ] No Mykobo API call is invoked from a phase handler without an explicit recoverable/unrecoverable mapping
+- [ ] EUR→EURC-on-Base on-ramps (`isEurToEurcBaseDirect`) emit a single `destinationTransfer` with `isDirectTransfer = true` — no Nabla swap, SquidRouter, `finalSettlementSubsidy`, or Base cleanup phases
+- [ ] `finalSettlementSubsidy` honors `isDirectTransfer` / `isEurToEurcBaseDirect` and short-circuits to `destinationTransfer` if ever reached on a direct route
