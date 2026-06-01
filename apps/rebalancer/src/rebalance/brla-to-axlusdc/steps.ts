@@ -23,6 +23,7 @@ import {
   getStatusAxelarScan,
   getTokenOutAmount,
   MOONBEAM_RECEIVER_CONTRACT_ADDRESS,
+  multiplyByPowerOfTen,
   Networks,
   OnchainSwapQuoteParams,
   PendulumTokenDetails,

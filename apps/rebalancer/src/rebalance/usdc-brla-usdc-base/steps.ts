@@ -20,6 +20,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { base, polygon } from "viem/chains";
+import { UsdcBaseRebalanceState, UsdcBaseStateManager } from "../../services/stateManager.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
@@ -359,7 +360,6 @@ export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promi
     outputCurrency: BrlaCurrency.BRLA,
     outputPaymentMethod: AveniaPaymentMethod.POLYGON
   });
-  console.log("Avenia BRLA->BRLA (Polygon) quote:", quote);
 
   const { walletClient: polygonWalletClient } = getPolygonEvmClients();
   const polygonAddress = polygonWalletClient.account.address;
@@ -389,67 +389,80 @@ export async function waitBrlaOnPolygon(brlaAmountRaw: string): Promise<void> {
 export async function squidRouterApproveAndSwap(
   brlaAmountRaw: string,
   baseReceiverAddress: `0x${string}`,
-  polygonNonce: NonceManager
+  polygonNonce: NonceManager,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
 ): Promise<{ swapHash: string; toAmountUsd: string }> {
-  console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
+  let swapHash = state.squidRouterSwapHash;
+  let toAmountUsd = "0";
 
-  const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
-  const polygonAddress = polygonWalletClient.account.address;
+  if (!swapHash) {
+    console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
 
-  const routeResult = await getRoute({
-    bypassGuardrails: true,
-    enableExpress: true,
-    fromAddress: polygonAddress,
-    fromAmount: brlaAmountRaw,
-    fromChain: getNetworkId(Networks.Polygon).toString(),
-    fromToken: BRLA_POLYGON,
-    slippage: 4,
-    toAddress: baseReceiverAddress,
-    toChain: getNetworkId(Networks.Base).toString(),
-    toToken: USDC_BASE
-  });
+    const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
+    const polygonAddress = polygonWalletClient.account.address;
 
-  const route = routeResult.data.route;
-  console.log(`SquidRouter route obtained. Expected output: ${route.estimate.toAmount} USDC (raw)`);
+    const routeResult = await getRoute({
+      bypassGuardrails: true,
+      enableExpress: true,
+      fromAddress: polygonAddress,
+      fromAmount: brlaAmountRaw,
+      fromChain: getNetworkId(Networks.Polygon).toString(),
+      fromToken: BRLA_POLYGON,
+      slippage: 4,
+      toAddress: baseReceiverAddress,
+      toChain: getNetworkId(Networks.Base).toString(),
+      toToken: USDC_BASE
+    });
 
-  const { approveData, swapData } = await createTransactionDataFromRoute({
-    inputTokenErc20Address: BRLA_POLYGON,
-    publicClient: polygonPublicClient,
-    rawAmount: brlaAmountRaw,
-    route
-  });
+    const route = routeResult.data.route;
+    toAmountUsd = route.estimate.toAmountUSD;
+    console.log(`SquidRouter route obtained. Expected output: ${route.estimate.toAmount} USDC (raw)`);
 
-  console.log("Sending SquidRouter approve transaction on Polygon...");
-  const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await polygonPublicClient.estimateFeesPerGas();
-  const approveHash = await polygonWalletClient.sendTransaction({
-    account: polygonWalletClient.account,
-    chain: polygon,
-    data: approveData.data,
-    gas: BigInt(approveData.gas),
-    maxFeePerGas: approveFee * 5n,
-    maxPriorityFeePerGas: approveTip * 5n,
-    nonce: polygonNonce.next(),
-    to: approveData.to,
-    value: BigInt(approveData.value)
-  });
-  console.log(`Approve tx: ${approveHash}`);
-  await waitForTransactionConfirmation(approveHash, polygonPublicClient);
+    const { approveData, swapData } = await createTransactionDataFromRoute({
+      inputTokenErc20Address: BRLA_POLYGON,
+      publicClient: polygonPublicClient,
+      rawAmount: brlaAmountRaw,
+      route
+    });
 
-  console.log("Sending SquidRouter swap transaction on Polygon...");
-  const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await polygonPublicClient.estimateFeesPerGas();
-  const swapHash = await polygonWalletClient.sendTransaction({
-    account: polygonWalletClient.account,
-    chain: polygon,
-    data: swapData.data,
-    gas: BigInt(swapData.gas),
-    maxFeePerGas: swapFee * 5n,
-    maxPriorityFeePerGas: swapTip * 5n,
-    nonce: polygonNonce.next(),
-    to: swapData.to,
-    value: BigInt(swapData.value)
-  });
-  console.log(`Swap tx: ${swapHash}`);
-  await waitForTransactionConfirmation(swapHash, polygonPublicClient);
+    console.log("Sending SquidRouter approve transaction on Polygon...");
+    const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await polygonPublicClient.estimateFeesPerGas();
+    const approveHash = await polygonWalletClient.sendTransaction({
+      account: polygonWalletClient.account,
+      chain: polygon,
+      data: approveData.data,
+      gas: BigInt(approveData.gas),
+      maxFeePerGas: approveFee * 5n,
+      maxPriorityFeePerGas: approveTip * 5n,
+      nonce: polygonNonce.next(),
+      to: approveData.to,
+      value: BigInt(approveData.value)
+    });
+    console.log(`Approve tx: ${approveHash}`);
+    await waitForTransactionConfirmation(approveHash, polygonPublicClient);
+
+    console.log("Sending SquidRouter swap transaction on Polygon...");
+    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await polygonPublicClient.estimateFeesPerGas();
+    swapHash = await polygonWalletClient.sendTransaction({
+      account: polygonWalletClient.account,
+      chain: polygon,
+      data: swapData.data,
+      gas: BigInt(swapData.gas),
+      maxFeePerGas: swapFee * 5n,
+      maxPriorityFeePerGas: swapTip * 5n,
+      nonce: polygonNonce.next(),
+      to: swapData.to,
+      value: BigInt(swapData.value)
+    });
+    console.log(`Swap tx: ${swapHash}`);
+    await waitForTransactionConfirmation(swapHash, polygonPublicClient);
+
+    state.squidRouterSwapHash = swapHash;
+    await stateManager.saveState(state);
+  } else {
+    console.log(`Resuming SquidRouter swap with existing swap tx: ${swapHash}`);
+  }
 
   console.log("Waiting for Axelar to execute the cross-chain swap...");
   let isExecuted = false;
@@ -471,7 +484,7 @@ export async function squidRouterApproveAndSwap(
     throw new Error("Axelar execution timed out after 30 minutes");
   }
 
-  return { swapHash, toAmountUsd: route.estimate.toAmountUSD };
+  return { swapHash, toAmountUsd };
 }
 
 export async function waitUsdcOnBase(expectedUsdcRaw: string): Promise<void> {
@@ -502,7 +515,6 @@ export async function aveniaCreateSwapToUsdcBaseTicket(
     outputCurrency: BrlaCurrency.USDC,
     outputPaymentMethod: AveniaPaymentMethod.BASE
   });
-  console.log("Avenia BRLA->USDC (Base) quote:", quote);
 
   const ticket = await brlaApiService.createOnchainSwapTicket({
     quoteToken: quote.quoteToken,

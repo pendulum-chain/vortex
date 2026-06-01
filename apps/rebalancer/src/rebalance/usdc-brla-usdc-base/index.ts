@@ -196,7 +196,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]) {
       if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for squid step 3");
 
-      const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce);
+      const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce, state, stateManager);
 
       state.squidRouterSwapHash = result.swapHash;
       console.log(`SquidRouter swap completed. Tx: ${result.swapHash}`);
