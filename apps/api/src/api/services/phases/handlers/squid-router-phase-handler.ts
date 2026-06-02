@@ -44,8 +44,6 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    // Two direct-transfer gates: the stateMeta flag is the cheap pre-quote early-out (set by the EUR/BRL
-    // Base routes); the quote-derived check below is the safety net for any direct route that didn't set it.
     if (state.state.isDirectTransfer === true) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
       return this.transitionToNextPhase(state, "destinationTransfer");

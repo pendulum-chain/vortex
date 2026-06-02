@@ -241,8 +241,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
   }
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    // stateMeta flag is the cheap early-out (set by the EUR/BRL Base routes); the quote-derived check is
-    // the safety net for any direct onramp route that didn't set it.
     if (
       state.state.isDirectTransfer === true ||
       (isOnramp(state) && isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network))
