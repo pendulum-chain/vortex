@@ -1,4 +1,5 @@
 import { ERC20_BRLA_BASE, EvmClientManager, NABLA_ROUTER_BASE_BRLA, Networks } from "@vortexfi/shared";
+import Big from "big.js";
 import { getConfig } from "../../utils/config.ts";
 import { fetchLatestBlockFromIndexer, fetchNablaInstance } from "./graphql.ts";
 
@@ -56,7 +57,8 @@ export async function getBaseNablaCoverageRatio(): Promise<
       }) as Promise<bigint>
     ]);
 
-    const brlaCoverageRatio = brlaLiabilities > 0n ? Number(brlaReserve) / Number(brlaLiabilities) : 0;
+    const brlaCoverageRatio =
+      brlaLiabilities > 0n ? new Big(brlaReserve.toString()).div(new Big(brlaLiabilities.toString())).toNumber() : 0;
 
     console.log(`Base Nabla BRLA pool coverage ratio: ${brlaCoverageRatio}`);
 

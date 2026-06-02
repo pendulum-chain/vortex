@@ -16,19 +16,21 @@ export class StateManager<T> {
   }
 
   async getState(): Promise<T | undefined> {
-    try {
-      if (error) {
-        const statusCode = (error as any).statusCode;
-        if (statusCode === 404 || statusCode === "404" || error.message?.includes("not found")) {
-          return undefined;
-        }
-        throw error;
-      }
+    const { data, error } = await this.supabase.storage.from("rebalancer_state").download(this.filename);
 
-      const stateText = await data.text();
+    if (error) {
+      const statusCode = (error as any).statusCode;
+      if (statusCode === 404 || statusCode === "404" || error.message?.includes("not found")) {
+        return undefined;
+      }
+      throw error;
+    }
+
+    const stateText = await data.text();
+    try {
       return JSON.parse(stateText) as T;
-    } catch (error) {
-      console.error("Error getting rebalance state:", error);
+    } catch {
+      console.warn("Rebalancer state is not valid JSON, treating as missing.");
       return undefined;
     }
   }
@@ -216,6 +218,28 @@ export interface UsdcBaseRebalanceContainer {
   history: RebalanceHistoryEntry[];
 }
 
+function createFreshState(): UsdcBaseRebalanceState {
+  return {
+    aveniaQuoteToken: null,
+    aveniaQuoteUsdc: null,
+    aveniaTicketId: null,
+    brlaAmountDecimal: null,
+    brlaAmountRaw: null,
+    brlaTransferHash: null,
+    currentPhase: UsdcBaseRebalancePhase.Idle,
+    finalUsdcBalance: null,
+    initialUsdcBalance: null,
+    nablaApproveHash: null,
+    nablaSwapHash: null,
+    squidRouterQuoteUsdc: null,
+    squidRouterSwapHash: null,
+    startingTime: new Date().toISOString(),
+    updatedTime: new Date().toISOString(),
+    usdcAmountRaw: null,
+    winningRoute: null
+  };
+}
+
 export class UsdcBaseStateManager {
   private inner: StateManager<UsdcBaseRebalanceContainer>;
 
@@ -255,7 +279,9 @@ export class UsdcBaseStateManager {
   async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
     const existing = await this.getContainer();
     if (!existing?.state) {
-      throw new Error("Cannot add history entry: no existing state found.");
+      console.warn("No existing state found for addHistoryEntry. Writing entry to fresh history.");
+      await this.inner.saveState({ history: [entry], state: createFreshState() });
+      return;
     }
     existing.history.push(entry);
     existing.state.updatedTime = new Date().toISOString();

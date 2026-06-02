@@ -24,8 +24,8 @@ import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
 
-const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const BRLA_POLYGON: `0x${string}` = "0xe6a537a407488807f0bbeb0038b79004f19dddfb";
+export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+export const BRLA_POLYGON: `0x${string}` = "0xe6a537a407488807f0bbeb0038b79004f19dddfb";
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
@@ -297,6 +297,50 @@ export async function waitForBrlaOnAvenia(brlaAmountDecimal: Big): Promise<strin
   throw new Error(`Avenia BRLA balance check timed out after 10 minutes. Needed ~${brlaAmountDecimal.toFixed(4)} BRLA.`);
 }
 
+export async function fetchSquidRouterQuote(brlaAmountDecimal: Big): Promise<string> {
+  const { walletClient: baseWalletClient } = getBaseEvmClients();
+  const baseAddress = baseWalletClient.account.address;
+  const { walletClient: polygonWalletClient } = getPolygonEvmClients();
+  const polygonAddress = polygonWalletClient.account.address;
+  const brlaAmountRaw = multiplyByPowerOfTen(brlaAmountDecimal, 18).toFixed(0, 0);
+
+  const routeResult = await getRoute(
+    {
+      bypassGuardrails: true,
+      enableExpress: true,
+      fromAddress: polygonAddress,
+      fromAmount: brlaAmountRaw,
+      fromChain: getNetworkId(Networks.Polygon).toString(),
+      fromToken: BRLA_POLYGON,
+      slippage: 4,
+      toAddress: baseAddress,
+      toChain: getNetworkId(Networks.Base).toString(),
+      toToken: USDC_BASE
+    },
+    { useCache: true }
+  );
+
+  const quoteUsdc = routeResult.data.route.estimate.toAmount;
+  console.log(`SquidRouter quote: ${quoteUsdc} USDC (raw, 6 decimals)`);
+  return quoteUsdc;
+}
+
+export async function fetchAveniaQuote(brlaAmountDecimal: Big): Promise<string> {
+  const brlaApiService = BrlaApiService.getInstance();
+  const aveniaQuote = await brlaApiService.createOnchainSwapQuote(
+    {
+      inputAmount: brlaAmountDecimal.toFixed(12, 0),
+      inputCurrency: BrlaCurrency.BRLA,
+      outputCurrency: BrlaCurrency.USDC,
+      outputPaymentMethod: AveniaPaymentMethod.BASE
+    },
+    { useCache: true }
+  );
+
+  console.log(`Avenia quote: ${aveniaQuote.outputAmount} USDC`);
+  return aveniaQuote.outputAmount;
+}
+
 export async function compareRates(brlaAmountDecimal: Big): Promise<{
   winningRoute: "squidrouter" | "avenia";
   squidRouterQuoteUsdc: string | null;
@@ -304,53 +348,17 @@ export async function compareRates(brlaAmountDecimal: Big): Promise<{
 }> {
   console.log("Comparing SquidRouter vs Avenia rates for BRLA -> USDC...");
 
-  const { walletClient: baseWalletClient } = getBaseEvmClients();
-  const baseAddress = baseWalletClient.account.address;
-  const brlaAmountRaw = multiplyByPowerOfTen(brlaAmountDecimal, 18).toFixed(0, 0);
-
   let squidRouterQuoteUsdc: string | null = null;
   let aveniaQuoteUsdc: string | null = null;
 
   try {
-    const { walletClient: polygonWalletClient } = getPolygonEvmClients();
-    const polygonAddress = polygonWalletClient.account.address;
-
-    const routeResult = await getRoute(
-      {
-        bypassGuardrails: true,
-        enableExpress: true,
-        fromAddress: polygonAddress,
-        fromAmount: brlaAmountRaw,
-        fromChain: getNetworkId(Networks.Polygon).toString(),
-        fromToken: BRLA_POLYGON,
-        slippage: 4,
-        toAddress: baseAddress,
-        toChain: getNetworkId(Networks.Base).toString(),
-        toToken: USDC_BASE
-      },
-      { useCache: true }
-    );
-
-    squidRouterQuoteUsdc = routeResult.data.route.estimate.toAmount;
-    console.log(`SquidRouter quote: ${squidRouterQuoteUsdc} USDC (raw, 6 decimals)`);
+    squidRouterQuoteUsdc = await fetchSquidRouterQuote(brlaAmountDecimal);
   } catch (error) {
     console.warn("SquidRouter quote failed:", error);
   }
 
   try {
-    const brlaApiService = BrlaApiService.getInstance();
-    const aveniaQuote = await brlaApiService.createOnchainSwapQuote(
-      {
-        inputAmount: brlaAmountDecimal.toFixed(12, 0),
-        inputCurrency: BrlaCurrency.BRLA,
-        outputCurrency: BrlaCurrency.USDC,
-        outputPaymentMethod: AveniaPaymentMethod.BASE
-      },
-      { useCache: true }
-    );
-
-    aveniaQuoteUsdc = aveniaQuote.outputAmount;
-    console.log(`Avenia quote: ${aveniaQuoteUsdc} USDC`);
+    aveniaQuoteUsdc = await fetchAveniaQuote(brlaAmountDecimal);
   } catch (error) {
     console.warn("Avenia quote failed:", error);
   }
@@ -500,7 +508,7 @@ export async function squidRouterApproveAndSwap(
   const axelarTimeout = 30 * 60 * 1000;
   const axelarStartTime = Date.now();
 
-  while (!isExecuted && Date.now() - axelarStartTime < axelarTimeout) {
+  while (Date.now() - axelarStartTime < axelarTimeout) {
     const axelarScanStatus = await getStatusAxelarScan(swapHash);
     if (axelarScanStatus && (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed")) {
       isExecuted = true;

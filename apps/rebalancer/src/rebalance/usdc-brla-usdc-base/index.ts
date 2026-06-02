@@ -9,6 +9,8 @@ import {
   checkInitialUsdcBalanceOnBase,
   checkTicketStatusPaid,
   compareRates,
+  fetchAveniaQuote,
+  fetchSquidRouterQuote,
   nablaApproveAndSwapOnBase,
   squidRouterApproveAndSwap,
   transferBrlaToAveniaOnBase,
@@ -96,14 +98,20 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for step 5");
 
     if (forcedRoute) {
-      console.log(`Forced route: ${forcedRoute}. Running quotes without comparison.`);
+      console.log(`Forced route: ${forcedRoute}. Fetching quote for forced route only.`);
+
+      state.winningRoute = forcedRoute;
+      if (forcedRoute === "squidrouter") {
+        state.squidRouterQuoteUsdc = await fetchSquidRouterQuote(Big(state.brlaAmountDecimal));
+      } else {
+        state.aveniaQuoteUsdc = await fetchAveniaQuote(Big(state.brlaAmountDecimal));
+      }
+    } else {
+      const rateComparison = await compareRates(Big(state.brlaAmountDecimal));
+      state.winningRoute = rateComparison.winningRoute;
+      state.squidRouterQuoteUsdc = rateComparison.squidRouterQuoteUsdc;
+      state.aveniaQuoteUsdc = rateComparison.aveniaQuoteUsdc;
     }
-
-    const rateComparison = await compareRates(Big(state.brlaAmountDecimal));
-
-    state.winningRoute = forcedRoute ?? rateComparison.winningRoute;
-    state.squidRouterQuoteUsdc = rateComparison.squidRouterQuoteUsdc;
-    state.aveniaQuoteUsdc = rateComparison.aveniaQuoteUsdc;
 
     console.log(`Rate comparison complete. Winner: ${state.winningRoute}`);
 

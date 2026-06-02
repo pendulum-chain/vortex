@@ -42,7 +42,7 @@ export function getPendulumAccount() {
 export function getMoonbeamEvmClients() {
   const config = getConfig();
 
-  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret);
   const evmClientManager = EvmClientManager.getInstance();
   return {
     publicClient: evmClientManager.getClient(Networks.Moonbeam),
@@ -53,7 +53,7 @@ export function getMoonbeamEvmClients() {
 export function getPolygonEvmClients() {
   const config = getConfig();
 
-  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret);
   const evmClientManager = EvmClientManager.getInstance();
   return {
     publicClient: evmClientManager.getClient(Networks.Polygon),
@@ -64,7 +64,7 @@ export function getPolygonEvmClients() {
 export function getBaseEvmClients() {
   const config = getConfig();
 
-  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret as `0x${string}`);
+  const evmExecutorAccount = mnemonicToAccount(config.evmAccountSecret);
   const evmClientManager = EvmClientManager.getInstance();
   return {
     publicClient: evmClientManager.getClient(Networks.Base),
