@@ -1,6 +1,6 @@
 import { Keyring } from "@polkadot/api";
 import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
-import { mnemonicToAccount, privateKeyToAccount } from "viem/accounts";
+import { mnemonicToAccount } from "viem/accounts";
 
 export function getConfig() {
   if (!process.env.EVM_ACCOUNT_SECRET) throw new Error("Missing EVM_ACCOUNT_SECRET environment variable");
