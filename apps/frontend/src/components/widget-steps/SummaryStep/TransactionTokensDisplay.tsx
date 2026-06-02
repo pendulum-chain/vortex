@@ -1,5 +1,5 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import {
   BaseFiatTokenDetails,
   FiatToken,
@@ -69,8 +69,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const isEurOfframp = !isOnramp && executionInput.fiatToken === FiatToken.EURC;
 
   const { data: mykoboProfile } = useQuery({
-    enabled: isEurOfframp && !!userEmail,
-    queryFn: () => MykoboService.getProfile(userEmail as string),
+    queryFn: isEurOfframp && userEmail ? () => MykoboService.getProfile(userEmail) : skipToken,
     queryKey: ["mykoboProfile", userEmail]
   });
 
