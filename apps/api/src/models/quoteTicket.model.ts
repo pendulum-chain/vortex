@@ -212,6 +212,10 @@ QuoteTicket.init(
         where: {
           status: "expired"
         }
+      },
+      {
+        fields: [{ name: "created_at", order: "DESC" }],
+        name: "idx_quote_tickets_created_at"
       }
     ],
     modelName: "QuoteTicket",
