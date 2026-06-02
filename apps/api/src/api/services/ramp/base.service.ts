@@ -7,7 +7,7 @@ import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import { StateMetadata } from "../phases/meta-state-types";
 
-const EXPIRED_QUOTE_DELETE_BATCH_SIZE = 1000;
+const EXPIRED_QUOTE_DELETE_BATCH_SIZE = 5000;
 const QUOTE_CLEANUP_ADVISORY_LOCK_NAMESPACE = 918521;
 const QUOTE_CLEANUP_ADVISORY_LOCK_KEY = 1;
 
