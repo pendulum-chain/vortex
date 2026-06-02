@@ -28,12 +28,14 @@ import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constant
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
-import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
+import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+// Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
+const MIN_BRIDGE_DELIVERY_RATIO = 0.9;
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -64,6 +66,8 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
 
+    // Two direct-transfer gates: the stateMeta flag is the cheap pre-quote early-out (set by the EUR/BRL
+    // Base routes); the quote-derived check below is the safety net for any direct route that didn't set it.
     if (state.state.isDirectTransfer === true) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for direct-transfer ramp ${state.id}`);
       return this.transitionToNextPhase(state, "destinationTransfer");
@@ -80,10 +84,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Quote found. inputCurrency=${quote.inputCurrency}, outputCurrency=${quote.outputCurrency}, network=${quote.network}`
     );
 
-    if (
-      isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
-      isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)
-    ) {
+    if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for Base direct-transfer route (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
@@ -153,7 +154,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       `FinalSettlementSubsidyHandler: Polling ephemeral balance for ${ephemeralAddress} on ${destinationNetwork} (timeout=${EVM_BALANCE_CHECK_TIMEOUT_MS}ms, interval=${BALANCE_POLLING_TIME_MS}ms)`
     );
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: expectedAmountRaw.mul(0.9).toFixed(0, 0), // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
+      amountDesiredRaw: expectedAmountRaw.mul(MIN_BRIDGE_DELIVERY_RATIO).toFixed(0, 0),
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,

@@ -18,7 +18,7 @@ import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../quote/utils";
+import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
@@ -44,6 +44,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
+    // Two direct-transfer gates: the stateMeta flag is the cheap pre-quote early-out (set by the EUR/BRL
+    // Base routes); the quote-derived check below is the safety net for any direct route that didn't set it.
     if (state.state.isDirectTransfer === true) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
       return this.transitionToNextPhase(state, "destinationTransfer");
@@ -54,10 +56,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (
-      isEurToEurcBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network) ||
-      isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)
-    ) {
+    if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Base direct-transfer route (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "destinationTransfer");
     }
