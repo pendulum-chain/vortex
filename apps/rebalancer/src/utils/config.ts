@@ -18,6 +18,7 @@ export function getConfig() {
       : 5,
 
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
+    rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25,

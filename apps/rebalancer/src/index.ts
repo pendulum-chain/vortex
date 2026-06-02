@@ -99,6 +99,25 @@ async function checkForRebalancing() {
   const isResuming = !forceRestart && state && state.currentPhase !== UsdcBaseRebalancePhase.Idle;
 
   if (!isResuming) {
+    const history = await stateManager.getHistory();
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const bridgedToday = history
+      .filter(e => new Date(e.startingTime) >= todayStart)
+      .reduce((sum, e) => sum.plus(Big(e.initialAmount)), Big(0));
+
+    const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
+    console.log(
+      `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
+    );
+    if (bridgedToday.gte(dailyLimitRaw)) {
+      console.log(
+        `Daily bridge limit reached: bridged $${bridgedToday.div(1e6).toFixed(2)} today, limit is $${config.rebalancingDailyBridgeLimitUsd}. Skipping.`
+      );
+      return;
+    }
+
     await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
   }
 

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import Big from "big.js";
 import { getConfig } from "../utils/config";
 
-export class StateManager<T extends { currentPhase: string; updatedTime: string }> {
+export class StateManager<T> {
   private supabase;
   private filename: string;
 
@@ -35,7 +35,9 @@ export class StateManager<T extends { currentPhase: string; updatedTime: string 
   }
 
   async saveState(state: T): Promise<void> {
-    state.updatedTime = new Date().toISOString();
+    if (state && typeof state === "object" && "updatedTime" in state) {
+      (state as { updatedTime: string }).updatedTime = new Date().toISOString();
+    }
     const stateString = JSON.stringify(state);
 
     const { error } = await this.supabase.storage.from("rebalancer_state").upload(this.filename, stateString, {
@@ -202,22 +204,69 @@ export interface UsdcBaseRebalanceState {
   updatedTime: string;
 }
 
+export interface RebalanceHistoryEntry {
+  initialAmount: string;
+  startingTime: string;
+  endingTime: string;
+  cost: string;
+  costRelative: string;
+}
+
+export interface UsdcBaseRebalanceContainer {
+  state: UsdcBaseRebalanceState;
+  history: RebalanceHistoryEntry[];
+}
+
 export class UsdcBaseStateManager {
-  private inner: StateManager<UsdcBaseRebalanceState>;
+  private inner: StateManager<UsdcBaseRebalanceContainer>;
 
   constructor() {
-    this.inner = new StateManager<UsdcBaseRebalanceState>("rebalancer_state_usdc_base.json");
+    this.inner = new StateManager<UsdcBaseRebalanceContainer>("rebalancer_state_usdc_base.json");
+  }
+
+  // Handles migration from old flat UsdcBaseRebalanceState to new UsdcBaseRebalanceContainer.
+  private async getContainer(): Promise<UsdcBaseRebalanceContainer | undefined> {
+    const raw = await this.inner.getState();
+    if (!raw) return undefined;
+
+    if ("currentPhase" in raw && !("state" in raw)) {
+      return { history: [], state: raw as unknown as UsdcBaseRebalanceState };
+    }
+
+    return raw;
   }
 
   async getState(): Promise<UsdcBaseRebalanceState | undefined> {
-    return this.inner.getState();
+    const container = await this.getContainer();
+    return container?.state;
+  }
+
+  async getHistory(): Promise<RebalanceHistoryEntry[]> {
+    const container = await this.getContainer();
+    return container?.history ?? [];
   }
 
   async saveState(state: UsdcBaseRebalanceState): Promise<void> {
-    await this.inner.saveState(state);
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+    state.updatedTime = new Date().toISOString();
+    await this.inner.saveState({ history, state });
+  }
+
+  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
+    const existing = await this.getContainer();
+    if (!existing?.state) {
+      throw new Error("Cannot add history entry: no existing state found.");
+    }
+    existing.history.push(entry);
+    existing.state.updatedTime = new Date().toISOString();
+    await this.inner.saveState(existing);
   }
 
   async startNewRebalance(usdcAmountRaw: string): Promise<UsdcBaseRebalanceState> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+
     const state: UsdcBaseRebalanceState = {
       aveniaQuoteToken: null,
       aveniaQuoteUsdc: null,
@@ -237,7 +286,7 @@ export class UsdcBaseStateManager {
       usdcAmountRaw,
       winningRoute: null
     };
-    await this.saveState(state);
+    await this.inner.saveState({ history, state });
     return state;
   }
 }

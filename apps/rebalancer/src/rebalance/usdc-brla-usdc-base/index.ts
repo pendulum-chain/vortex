@@ -242,12 +242,24 @@ export async function rebalanceUsdcBrlaUsdcBase(
   console.log(`Route taken: ${state.winningRoute}`);
   console.log(`Cost: absolute: ${cost.toFixed(6)} USDC | relative: ${costRelative}`);
 
+  await stateManager.addHistoryEntry({
+    cost: cost.toFixed(6),
+    costRelative,
+    endingTime: new Date().toISOString(),
+    initialAmount: state.usdcAmountRaw,
+    startingTime: state.startingTime
+  });
+
   const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
     text:
+      "--------------------------------------------------" +
+      "\n" +
       "✅ USDC->BRLA->USDC rebalance on Base completed!\n" +
       `🛤️ Route: ${state.winningRoute}\n` +
       `💰 USDC rebalanced: ${usdcRebalanced.toFixed(6)}\n` +
-      `📉 Cost - Absolute: ${cost.toFixed(6)} USDC | Relative: ${costRelative}`
+      `📉 Cost - Absolute: ${cost.toFixed(6)} USDC | Relative: ${costRelative}` +
+      "\n" +
+      "--------------------------------------------------"
   });
 }
