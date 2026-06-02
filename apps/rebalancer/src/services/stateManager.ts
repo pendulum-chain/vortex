@@ -17,10 +17,9 @@ export class StateManager<T> {
 
   async getState(): Promise<T | undefined> {
     try {
-      const { data, error } = await this.supabase.storage.from("rebalancer_state").download(this.filename);
-
       if (error) {
-        if (error.statusCode === "404" || error.message?.includes("not found")) {
+        const statusCode = (error as any).statusCode;
+        if (statusCode === 404 || statusCode === "404" || error.message?.includes("not found")) {
           return undefined;
         }
         throw error;
