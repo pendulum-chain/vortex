@@ -4,7 +4,7 @@
 
 Quotes are the entry point for every ramp. A quote calculates the expected output amount for a given input, factoring in exchange rates, fees, and dynamic pricing adjustments. The lifecycle:
 
-1. **Creation** — Client requests a quote via `POST /v1/quotes` with input currency, output currency, amount, and ramp direction (on/off). The API calculates fees, fetches live exchange rates (Nabla DEX, price providers), applies the dynamic pricing adjustment, and returns a `QuoteResponse` including the expected output amount, fee breakdown, and a quote ID.
+1. **Creation** — Client requests a quote via `POST /v1/quotes` with input currency, output currency, amount, and ramp direction (on/off). The API calculates fees, fetches live exchange rates (fiat forex from fastforex.io, swap rates from Nabla DEX and SquidRouter), applies the dynamic pricing adjustment, and returns a `QuoteResponse` including the expected output amount, fee breakdown, and a quote ID.
 2. **Expiry** — Quotes expire **10 minutes** after creation (hardcoded in `QuoteTicket.create()` and the model default: `new Date(Date.now() + 10 * 60 * 1000)`). After expiry, the quote cannot be used to start a ramp. Note: this is a separate timeout from `discountStateTimeoutMinutes` (see Dynamic Pricing below).
 3. **Binding** — When a ramp is registered (`POST /v1/ramp/register`), it binds to a specific quote ID. The quote's amounts become the committed values for the ramp.
 4. **Consumption** — A quote can only be bound to one ramp. Once consumed, it cannot be reused.
@@ -62,7 +62,7 @@ The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` 
 6. **Quote validation MUST occur at ramp registration time** — When binding a quote to a ramp, the API MUST verify: quote exists, quote is not expired, quote is not already consumed, and the requesting user/partner is authorized to use it.
 7. **Dynamic pricing `difference` MUST be clamped to partner bounds** — The `difference` value must never exceed `maxDynamicDifference` or fall below `minDynamicDifference`. Both bounds are enforced in `getAdjustedDifference` and `handleQuoteConsumptionForDiscountState`.
 8. **Dynamic pricing state MUST NOT be externally modifiable** — The `partnerDiscountState` Map is in-memory and module-private. No API endpoint should expose or allow modification of discount state.
-9. **Exchange rates MUST be sourced from authoritative on-chain data** — Swap rates should come from the actual DEX (Nabla) or routing protocol (Squid), not from stale caches or third-party price feeds that could be manipulated.
+9. **Exchange rates MUST be sourced from authoritative sources** — Swap rates must come from the actual DEX (Nabla) or routing protocol (Squid). Fiat forex rates are sourced from fastforex.io with CoinGecko as fallback. Neither swap rates nor forex rates should use stale caches or unverified third-party price feeds.
 10. **Subsidy MUST only be applied when `targetDiscount > 0`** — If a partner has no target discount configured, the subsidy amount is always `0`, regardless of the shortfall.
 
 ## Threat Vectors & Mitigations
@@ -91,7 +91,7 @@ The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` 
 - [EXISTING FINDING] **FINDING F-012**: Dynamic pricing state is in-memory only (`partnerDiscountState` Map) — lost on server restart. Verify this is acceptable or if persistence is needed. **EXISTING FINDING** — documented as F-012.
 - [N/A] Verify `minDynamicDifference` cannot be set to a dangerously negative value in the partners table — no DB CHECK constraint exists. **N/A** — requires database schema review, not a code audit item.
 - [N/A] Verify `maxDynamicDifference` cannot be set to an unreasonably high value that would cause excessive subsidization. **N/A** — requires database schema review, not a code audit item.
-- [x] Exchange rates used in quote calculation come from live on-chain sources (Nabla, Squid), not stale caches. **PASS** — verified: rates fetched from Nabla DEX and SquidRouter API at quote time.
+- [x] Exchange rates used in quote calculation come from live sources: fiat forex from fastforex.io (with CoinGecko fallback), swap rates from Nabla DEX and SquidRouter API. **PASS** — verified: forex rates fetched from fastforex at quote time; swap rates from Nabla/Squid.
 - [x] Quote response does not include internal implementation details (e.g., the `adjustedDifference` or `adjustedTargetDiscount` values). **PASS** — verified: response includes only user-facing fields (amounts, fees, expiry).
 - [x] Quote amounts (input, output, fees) are immutable once stored — no UPDATE endpoint modifies them. **PASS** — no quote mutation endpoints exist.
 - [PARTIAL] Authentication is enforced on quote creation (verify which auth mechanisms protect `POST /v1/ramp/quotes`). **PARTIAL** — quote creation is accessible via API key auth or Supabase auth; the endpoint is optional-auth by design (public quotes allowed for some partners).
