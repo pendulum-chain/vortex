@@ -1,5 +1,4 @@
 import {
-  AveniaFeeType,
   AveniaPaymentMethod,
   AveniaTicketStatus,
   BrlaApiService,
