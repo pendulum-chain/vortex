@@ -1,5 +1,5 @@
 import { RampPhase } from "@vortexfi/shared";
-import { Op, Transaction } from "sequelize";
+import { Op, QueryTypes, Transaction } from "sequelize";
 import { v4 as uuidv4 } from "uuid";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
@@ -7,17 +7,45 @@ import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import { StateMetadata } from "../phases/meta-state-types";
 
+const EXPIRED_QUOTE_DELETE_BATCH_SIZE = 1000;
+const QUOTE_CLEANUP_ADVISORY_LOCK_NAMESPACE = 918521;
+const QUOTE_CLEANUP_ADVISORY_LOCK_KEY = 1;
+
 export class BaseRampService {
   /**
    * Clean up expired quotes by expiring them or deleting them from the database
    */
   public async cleanupExpiredQuotes(): Promise<number> {
+    return sequelize.transaction(async transaction => {
+      const [lock] = await sequelize.query<{ acquired: boolean }>(
+        "SELECT pg_try_advisory_xact_lock(:namespace, :key) AS acquired",
+        {
+          replacements: {
+            key: QUOTE_CLEANUP_ADVISORY_LOCK_KEY,
+            namespace: QUOTE_CLEANUP_ADVISORY_LOCK_NAMESPACE
+          },
+          transaction,
+          type: QueryTypes.SELECT
+        }
+      );
+
+      if (!lock?.acquired) {
+        logger.info("Skipping expired quote cleanup because another worker holds the cleanup lock");
+        return 0;
+      }
+
+      return this.cleanupExpiredQuotesWithLock(transaction);
+    });
+  }
+
+  private async cleanupExpiredQuotesWithLock(transaction: Transaction): Promise<number> {
     // Make quotes older than 10 minutes expire
-    let [count] = await QuoteTicket.update(
+    const [expiredPendingCount] = await QuoteTicket.update(
       {
         status: "expired"
       },
       {
+        transaction,
         where: {
           expiresAt: {
             [Op.lt]: new Date()
@@ -27,9 +55,12 @@ export class BaseRampService {
       }
     );
 
-    // Delete quotes that have been expired for more than 90 days
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    count += await QuoteTicket.destroy({
+    const expiredQuoteBatch = await QuoteTicket.findAll({
+      attributes: ["id"],
+      limit: EXPIRED_QUOTE_DELETE_BATCH_SIZE,
+      order: [["expiresAt", "ASC"]],
+      transaction,
       where: {
         expiresAt: {
           [Op.lt]: ninetyDaysAgo
@@ -38,7 +69,25 @@ export class BaseRampService {
       }
     });
 
-    return count;
+    const expiredQuoteIds = expiredQuoteBatch.map(quote => quote.id);
+    if (expiredQuoteIds.length === 0) {
+      return expiredPendingCount;
+    }
+
+    const deletedExpiredCount = await QuoteTicket.destroy({
+      transaction,
+      where: {
+        expiresAt: {
+          [Op.lt]: ninetyDaysAgo
+        },
+        id: {
+          [Op.in]: expiredQuoteIds
+        },
+        status: "expired"
+      }
+    });
+
+    return expiredPendingCount + deletedExpiredCount;
   }
 
   /**

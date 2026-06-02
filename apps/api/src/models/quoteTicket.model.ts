@@ -205,6 +205,17 @@ QuoteTicket.init(
       {
         fields: ["flow_variant"],
         name: "idx_quote_tickets_flow_variant"
+      },
+      {
+        fields: ["expires_at"],
+        name: "idx_quote_tickets_expired_expires_at",
+        where: {
+          status: "expired"
+        }
+      },
+      {
+        fields: [{ name: "created_at", order: "DESC" }],
+        name: "idx_quote_tickets_created_at"
       }
     ],
     modelName: "QuoteTicket",
