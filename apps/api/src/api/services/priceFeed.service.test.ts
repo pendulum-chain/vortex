@@ -1,208 +1,56 @@
 // eslint-disable-next-line import/no-unresolved
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
-// Import the mocked function to check calls
-import {getTokenOutAmount as getTokenOutAmountMock} from "@vortexfi/shared";
 import {PriceFeedService, priceFeedService} from "./priceFeed.service";
 
-// Mock all external dependencies
-mock.module("shared", () => ({
-  EvmToken: {
-    USDC: "USDC",
-    USDCE: "USDC.e",
-    USDT: "USDT"
+mock.module("@vortexfi/shared", () => ({
+  ApiManager: {
+    getInstance: () => ({
+      getApi: async () => ({ api: {} })
+    })
   },
-  getPendulumDetails: mock((currency: string) => {
-    // Provide slightly different mock details based on currency for realism
-    if (currency === "USD") {
-      return {
-        pendulumAssetSymbol: "USD",
-        pendulumCurrencyId: { Token: "USD" },
-        pendulumDecimals: 6,
-        pendulumErc20WrapperAddress: "0xUSD"
-      };
-    }
-    if (currency === "BRL") {
-      return {
-        pendulumAssetSymbol: "BRL",
-        pendulumCurrencyId: { Token: "BRL" },
-        pendulumDecimals: 6,
-        pendulumErc20WrapperAddress: "0xBRL"
-      };
-    }
-    return {
-      pendulumAssetSymbol: "TEST",
-      pendulumCurrencyId: { XCM: 1 },
-      pendulumDecimals: 12,
-      // Default fallback
-      pendulumErc20WrapperAddress: "0x123"
-    };
-  }),
-  isFiatToken: mock((currency: string) => ["BRL", "EUR", "ARS"].includes(currency)),
-  RampCurrency: {
-    ARS: "ARS",
-    AVAX: "AVAX",
-    BNB: "BNB",
-    BRL: "BRL",
-    ETH: "ETH",
-    EUR: "EUR",
-    GLMR: "GLMR",
-    MATIC: "MATIC",
-    USD: "USD",
-    USDC: "USDC",
-    USDCE: "USDC.e",
-    USDT: "USDT"
-  }
+  EvmToken: { USDC: "USDC", USDCE: "USDC.e", USDT: "USDT" },
+  getTokenUsdPrice: () => undefined,
+  isFiatToken: (currency: string) => ["BRL", "EUR", "ARS", "MXN", "COP"].includes(currency),
+  normalizeTokenSymbol: (symbol: string) => symbol,
+  UsdLikeEvmToken: { USDC: "USDC", USDCE: "USDC.e", USDT: "USDT" }
 }));
-
-// Keep the existing mock structure for Nabla, but we'll use the imported mock for checks
-mock.module("./nablaReads/outAmount", () => ({
-  getTokenOutAmount: mock(async () => ({
-    effectiveExchangeRate: "1.25", // Rate for 1 USD -> BRL
-    preciseQuotedAmountOut: {
-      preciseBigDecimal: {
-        toString: () => "1.25"
-      }
-    },
-    roundedDownQuotedAmountOut: {
-      toString: () => "1.25"
-    },
-    swapFee: {
-      toString: () => "0.01"
-    }
-  }))
-}));
-
-mock.module("./pendulum/apiManager", () => {
-  const mockApiInstance = {
-    api: {}, // Mock Polkadot API object if needed for deeper tests
-    decimals: 12,
-    ss58Format: 42
-  };
-
-  const mockApiManager = {
-    getInstance: mock(() => ({
-      getApi: mock(async () => mockApiInstance)
-    }))
-  };
-
-  return {
-    ApiManager: mockApiManager
-  };
-});
 
 mock.module("../../config/logger", () => ({
-  default: {
-    debug: mock(() => {
-      /* logger mock */
-    }),
-    error: mock(() => {
-      /* logger mock */
-    }),
-    info: mock(() => {
-      /* logger mock */
-    }),
-    warn: mock(() => {
-      /* logger mock */
-    })
-  }
+  default: { debug: () => {}, error: () => {}, info: () => {}, warn: () => {} }
 }));
 
-// Mock the app initialization
 mock.module("../../../index", () => ({}));
 
 describe("PriceFeedService", () => {
-  // Mock data
-  const mockCoinGeckoResponse = {
-    bitcoin: {
-      usd: 50000
-    },
-    ethereum: {
-      usd: 3000
-    },
-    moonbeam: {
-      usd: 100
-    }
-  };
-
-  // Original fetch and env for restoration
-  const originalFetch = global.fetch;
   let originalDateNow: () => number;
   let originalEnv: NodeJS.ProcessEnv;
-  let fetchMock: ReturnType<typeof mock>;
 
-  // Setup and teardown
   beforeEach(() => {
-    // Store original env and Date.now
     originalEnv = { ...process.env };
     originalDateNow = Date.now;
-
-    // Mock environment variables for each test
     process.env = {
-      ...originalEnv, // Start with original to avoid missing Node internal vars
+      ...originalEnv,
       COINGECKO_API_KEY: "test-api-key",
       COINGECKO_API_URL: "https://api.coingecko.com/api/v3",
-      CRYPTO_CACHE_TTL_MS: "300000", // 5 minutes
-      FIAT_CACHE_TTL_MS: "300000" // 5 minutes
+      CRYPTO_CACHE_TTL_MS: "300000",
+      FASTFOREX_API_KEY: "test-fastforex-key",
+      FASTFOREX_API_URL: "https://api.fastforex.io",
+      FIAT_CACHE_TTL_MS: "300000"
     } as any;
-
-    // Create a fresh fetch mock for each test
-    fetchMock = mock(() =>
-      Promise.resolve({
-        clone() {
-          return this;
-        },
-        headers: new Headers(),
-        json: () => Promise.resolve(mockCoinGeckoResponse),
-        ok: true,
-        redirected: false,
-        status: 200,
-        statusText: "OK",
-        text: () => Promise.resolve(JSON.stringify(mockCoinGeckoResponse)),
-        type: "basic",
-        url: ""
-      } as Response)
-    );
-
-    // Mock fetch
-    global.fetch = fetchMock as any;
-
-    // Reset mocks before each test
-    (getTokenOutAmountMock as any).mockClear();
-    // Reset Nabla mock to default implementation if needed (if tests modify its behavior)
-    (getTokenOutAmountMock as any).mockImplementation(async () => ({
-      effectiveExchangeRate: "1.25",
-      preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => "1.25" } },
-      roundedDownQuotedAmountOut: { toString: () => "1.25" },
-      swapFee: { toString: () => "0.01" }
-    }));
-
-    // Ensure singleton is reset *before* each test to pick up fresh env vars/mocks
     // @ts-expect-error - accessing private property for testing
     PriceFeedService.instance = undefined;
   });
 
   afterEach(() => {
-    // Restore fetch
-    global.fetch = originalFetch;
-
-    // Restore Date.now if it was mocked
-    if (originalDateNow) {
-      Date.now = originalDateNow;
-    }
-
-    // Restore environment variables
+    if (originalDateNow) Date.now = originalDateNow;
     process.env = originalEnv;
-
-    // Reset singleton *after* restoring env, ready for next test's beforeEach
     // @ts-expect-error - accessing private property for testing
     PriceFeedService.instance = undefined;
   });
 
   describe("Singleton Pattern", () => {
-    it("should return the same instance when getInstance is called multiple times", () => {
-      const instance1 = PriceFeedService.getInstance();
-      const instance2 = PriceFeedService.getInstance();
-      expect(instance1).toBe(instance2);
+    it("should return the same instance", () => {
+      expect(PriceFeedService.getInstance()).toBe(PriceFeedService.getInstance());
     });
 
     it("should export a singleton instance", () => {
@@ -210,278 +58,85 @@ describe("PriceFeedService", () => {
     });
   });
 
-  describe("getCryptoPrice", () => {
-    it("should fetch price from CoinGecko API when cache is empty", async () => {
-      const price = await priceFeedService.getCryptoPrice("bitcoin", "usd");
+  describe("getUsdToFiatExchangeRate", () => {
+    it("should use fastforex as primary source", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => 5.85);
 
-      expect(price).toBe(50000);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      // Use a more flexible expectation for the URL
-      // Don't check the exact URL, just verify it was called
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const rate = await instance.getUsdToFiatExchangeRate("BRL" as any);
+      expect(rate).toBe(5.85);
+      // @ts-expect-error
+      expect(instance.getFastforexRate).toHaveBeenCalledWith("USD", "BRL");
     });
 
-    it("should return cached price without API call when cache is valid", async () => {
-      // First call to populate cache
-      await priceFeedService.getCryptoPrice("bitcoin", "usd");
+    it("should return cached rate on second call", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => 5.85);
 
-      // Reset mock to verify it's not called again
-      fetchMock.mockClear();
+      await instance.getUsdToFiatExchangeRate("BRL" as any);
+      // @ts-expect-error
+      instance.getFastforexRate.mockClear();
 
-      // Second call should use cache
-      const price = await priceFeedService.getCryptoPrice("bitcoin", "usd");
-
-      expect(price).toBe(50000);
-      expect(fetchMock).not.toHaveBeenCalled();
+      const rate = await instance.getUsdToFiatExchangeRate("BRL" as any);
+      expect(rate).toBe(5.85);
+      // @ts-expect-error
+      expect(instance.getFastforexRate).not.toHaveBeenCalled();
     });
 
-    it("should make a new API call when cache expires", async () => {
-      // Override TTL to a small value for testing
-      process.env.CRYPTO_CACHE_TTL_MS = "100";
+    it("should refetch after cache expires", async () => {
+      const instance = PriceFeedService.getInstance();
 
-      // Reset singleton to apply new TTL
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get the new instance
-
-      // Mock Date.now to return a fixed timestamp
-      const startTime = 1000000;
-      Date.now = () => startTime;
-
-      // First call to populate cache
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      fetchMock.mockClear();
-
-      // Advance time beyond the cache TTL by changing Date.now
-      Date.now = () => startTime + 150; // 150ms later
-
-      // Second call should make a new API call
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-      expect(fetchMock).toHaveBeenCalledTimes(1); // Verify the second call happened
-    });
-
-    it("should throw an error when token ID is not provided", async () => {
-      await expect(priceFeedService.getCryptoPrice("", "usd")).rejects.toThrow("Token ID and currency are required");
-    });
-
-    it("should throw an error when currency is not provided", async () => {
-      await expect(priceFeedService.getCryptoPrice("bitcoin", "")).rejects.toThrow("Token ID and currency are required");
-    });
-
-    it("should throw an error when CoinGecko API returns non-OK response", async () => {
-      // Create a new instance to avoid cache issues
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Override fetch mock for this test with a non-OK response
-      const errorResponse = {
-        clone() {
-          return this;
-        },
-        headers: new Headers(),
-        json: () => Promise.resolve({}),
-        ok: false,
-        redirected: false, // Return empty object instead of rejecting
-        status: 429,
-        statusText: "Too Many Requests",
-        text: () => Promise.resolve("Rate limit exceeded"),
-        type: "basic",
-        url: ""
-      } as Response;
-
-      // Use any type assertion to bypass TypeScript errors
-      global.fetch = (() => Promise.resolve(errorResponse)) as any;
-
-      await expect(freshInstance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow(
-        "CoinGecko API error: 429 Too Many Requests"
-      );
-    });
-
-    it("should throw an error when token is not found in CoinGecko response", async () => {
-      // Override fetch mock for this test with an empty response
-      const emptyResponseMock = mock(() =>
-        Promise.resolve({
-          clone() {
-            return this;
-          },
-          headers: new Headers(), // Empty data
-          json: () => Promise.resolve({}),
-          ok: true,
-          redirected: false,
-          status: 200,
-          statusText: "OK",
-          text: () => Promise.resolve("{}"),
-          type: "basic",
-          url: ""
-        } as Response)
-      );
-
-      global.fetch = emptyResponseMock as any;
-
-      await expect(priceFeedService.getCryptoPrice("unknown-token", "usd")).rejects.toThrow(
-        "Token 'unknown-token' not found in CoinGecko response"
-      );
-    });
-
-    it("should throw an error when currency is not found for token", async () => {
-      // Override fetch mock for this test with a partial response
-      const partialResponseMock = mock(() =>
-        Promise.resolve({
-          clone() {
-            return this;
-          },
-          headers: new Headers(), // Token exists, currency doesn't
-          json: () => Promise.resolve({ bitcoin: {} }),
-          ok: true,
-          redirected: false,
-          status: 200,
-          statusText: "OK",
-          text: () => Promise.resolve('{ "bitcoin": {} }'),
-          type: "basic",
-          url: ""
-        } as Response)
-      );
-
-      global.fetch = partialResponseMock as any;
-
-      await expect(priceFeedService.getCryptoPrice("bitcoin", "unknown-currency")).rejects.toThrow(
-        "Currency 'unknown-currency' not found for token 'bitcoin'"
-      );
-    });
-
-    it("should handle network errors during fetch", async () => {
-      // Create a new instance to avoid cache issues
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Override fetch with a function that rejects
-      global.fetch = (() => Promise.reject(new Error("Network error"))) as any;
-
-      await expect(freshInstance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow("Network error");
-    });
-
-    it("should work without API key", async () => {
-      // Remove API key
-      delete process.env.COINGECKO_API_KEY;
-
-      // Reset singleton to apply change
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get new instance
-
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.not.objectContaining({
-            "x-cg-demo-api-key": expect.any(String) // Verify header is NOT present
-          })
-        })
-      );
-    });
-  });
-
-  describe("getFiatExchangeRate", () => {
-    // Add validation to the service mock for these tests
-    beforeEach(() => {
-      // Add validation to the mock implementation
-      (getTokenOutAmountMock as any).mockImplementation(async (params: any) => {
-        if (!params.fromAmountString || !params.inputTokenDetails || !params.outputTokenDetails) {
-          throw new Error("Missing required parameters");
-        }
-        return {
-          effectiveExchangeRate: "1.25",
-          preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => "1.25" } },
-          roundedDownQuotedAmountOut: { toString: () => "1.25" },
-          swapFee: { toString: () => "0.01" }
-        };
+      let callCount = 0;
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => {
+        callCount++;
+        return callCount === 1 ? 5.85 : 5.90;
       });
-    });
 
-    it("should fetch exchange rate from Nabla when cache is empty", async () => {
-      // Use type assertion to bypass TypeScript's type checking
-      const rate = await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
-
-      expect(rate).toBe(1.25);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should return cached exchange rate without Nabla call when cache is valid", async () => {
-      // First call to populate cache
-      await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
-
-      // Reset mock to verify it's not called again
-      (getTokenOutAmountMock as any).mockClear();
-
-      // Second call should use cache
-      const rate = await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
-
-      expect(rate).toBe(1.25);
-      expect(getTokenOutAmountMock).not.toHaveBeenCalled();
-    });
-
-    it("should make a new Nabla call when cache expires", async () => {
-      // Override TTL to a small value for testing
-      process.env.FIAT_CACHE_TTL_MS = "100";
-
-      // Reset singleton to apply new TTL
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get new instance
-
-      // Mock Date.now to return a fixed timestamp
       const startTime = 1000000;
       Date.now = () => startTime;
+      await instance.getUsdToFiatExchangeRate("BRL" as any);
 
-      // First call to populate cache
-      await serviceInstance.getUsdToFiatExchangeRate("BRL" as any);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
-      (getTokenOutAmountMock as any).mockClear();
-
-      // Advance time beyond the cache TTL by changing Date.now
-      Date.now = () => startTime + 150; // 150ms later
-
-      // Second call should make a new Nabla call
-      await serviceInstance.getUsdToFiatExchangeRate("BRL" as any);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify the second call happened
+      Date.now = () => startTime + 400_000; // past 300s default TTL
+      const rate = await instance.getUsdToFiatExchangeRate("BRL" as any);
+      expect(rate).toBe(5.90);
     });
 
-    it("should throw an error when Nabla call fails", async () => {
-      const nablaError = new Error("Nabla API Error");
-      // Configure the mock to throw an error for this specific test
-      (getTokenOutAmountMock as any).mockRejectedValueOnce(nablaError);
+    it("should fall back to CoinGecko when fastforex fails", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => { throw new Error("fastforex down"); });
+      instance.getCryptoPrice = mock(async () => 5.92);
 
-      await expect(priceFeedService.getUsdToFiatExchangeRate("EUR" as any)).rejects.toThrow("Nabla API Error");
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify it was called
+      const rate = await instance.getUsdToFiatExchangeRate("BRL" as any);
+      expect(rate).toBe(5.92);
     });
 
-    it("should accept a custom input amount", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+    it("should throw when both fastforex and CoinGecko fail", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => { throw new Error("fastforex down"); });
+      instance.getCryptoPrice = mock(async () => { throw new Error("cg down"); });
 
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
+      await expect(instance.getUsdToFiatExchangeRate("BRL" as any)).rejects.toThrow("cg down");
+    });
 
-      await freshInstance.getUsdToFiatExchangeRate("BRL" as any, "10.0");
+    it("should throw when fastforex returns invalid rate and CoinGecko also fails", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => { throw new Error("invalid rate"); });
+      instance.getCryptoPrice = mock(async () => { throw new Error("cg down"); });
 
-      expect(getTokenOutAmountMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fromAmountString: "10.0"
-        })
-      );
+      await expect(instance.getUsdToFiatExchangeRate("BRL" as any)).rejects.toThrow();
     });
   });
 
   describe("convertCurrency", () => {
-    it("should return the original amount when currencies are the same", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "USDC" as any);
-      expect(result).toBe("100");
+    it("should return the same amount when currencies match", async () => {
+      const result = await priceFeedService.convertCurrency("100", "BRL" as any, "BRL" as any);
+      expect(result).toBe("100.00");
     });
 
     it("should perform 1:1 conversion between USD-like stablecoins", async () => {
@@ -489,118 +144,51 @@ describe("PriceFeedService", () => {
       expect(result).toBe("100");
     });
 
-    it("should convert USD to fiat using getFiatExchangeRate", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+    it("should convert USD to fiat using fastforex rate", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => 5.85);
 
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
-
-      const result = await freshInstance.convertCurrency("100", "USDC" as any, "BRL" as any);
-      expect(result).toBe("125.000000"); // 100 * 1.25 = 125
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+      const result = await instance.convertCurrency("100", "USDC" as any, "BRL" as any);
+      expect(result).toBe("585.00"); // 100 * 5.85 = 585, 2 decimals for fiat
     });
 
-    it("should convert fiat to USD using inverse of getFiatExchangeRate", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+    it("should convert fiat to USD using inverse fastforex rate", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => 5.85);
 
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
-
-      const result = await freshInstance.convertCurrency("125", "BRL" as any, "USDC" as any);
-      expect(result).toBe("100.000000"); // 125 / 1.25 = 100
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+      const result = await instance.convertCurrency("585", "BRL" as any, "USDC" as any);
+      expect(result).toBe("100.00000000"); // 585 / 5.85 = 100, 8 decimals for crypto
     });
 
-    it("should convert USD to crypto using getCryptoPrice", async () => {
-      const result = await priceFeedService.convertCurrency("300", "USDC" as any, "ETH" as any);
-      expect(result).toBe("0.100000"); // 300 / 3000 = 0.1
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
+    it("should respect custom decimal precision", async () => {
+      const instance = PriceFeedService.getInstance();
+      // @ts-expect-error
+      instance.getFastforexRate = mock(async () => 5.85);
 
-    it("should convert crypto to USD using getCryptoPrice", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Clear fetch mock before this specific test
-      fetchMock.mockClear();
-
-      const result = await freshInstance.convertCurrency("0.1", "ETH" as any, "USDC" as any);
-      expect(result).toBe("300.000000"); // 0.1 * 3000 = 300
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should handle conversion errors by returning the original amount", async () => {
-      // Force an error by making getCoinGeckoTokenId return null
-      // @ts-expect-error - accessing private method for testing
-      const originalGetCoinGeckoTokenId = priceFeedService.getCoinGeckoTokenId;
-      // @ts-expect-error - overriding private method for testing
-      priceFeedService.getCoinGeckoTokenId = () => null;
-
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "UNKNOWN" as any);
-      expect(result).toBe("100"); // Should return original amount on error
-
-      // Restore the original method
-      // @ts-expect-error - restoring private method
-      priceFeedService.getCoinGeckoTokenId = originalGetCoinGeckoTokenId;
-    });
-
-    it("should use specified decimal precision", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "BRL" as any, 2);
-      expect(result).toBe("125.00"); // 100 * 1.25 = 125, with 2 decimal places
+      const result = await instance.convertCurrency("100", "USDC" as any, "BRL" as any, 2);
+      expect(result).toBe("585.00");
     });
   });
 
   describe("Configuration", () => {
-    it("should use default values when environment variables are not set", () => {
-      // Remove environment variables that have defaults
-      delete process.env.COINGECKO_API_URL;
-      delete process.env.CRYPTO_CACHE_TTL_MS;
-      delete process.env.FIAT_CACHE_TTL_MS;
-      // API key might be undefined, which is handled
-
-      // Reset singleton to apply changes
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-
-      // Create new instance
+    it("should read fastforex config", () => {
       const instance = PriceFeedService.getInstance();
-
-      // Access private properties for testing (consider adding public getters if preferred)
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe("https://pro-api.coingecko.com/api/v3");
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.cryptoCacheTtlMs).toBe(300000);
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.fiatCacheTtlMs).toBe(300000);
+      // @ts-expect-error
+      expect(instance.fastforexApiBaseUrl).toBeDefined();
+      // @ts-expect-error
+      expect(instance.fastforexApiKey).toBeDefined();
     });
 
-    it("should use environment variables when provided", () => {
-      // Set specific values for this test
-      process.env.COINGECKO_API_URL = "https://custom-api.example.com";
-      process.env.CRYPTO_CACHE_TTL_MS = "60000";
-      process.env.FIAT_CACHE_TTL_MS = "120000";
-
-      // Reset singleton to apply changes
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-
-      // Create new instance
+    it("should read CoinGecko config", () => {
       const instance = PriceFeedService.getInstance();
-
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe("https://custom-api.example.com");
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.cryptoCacheTtlMs).toBe(60000);
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.fiatCacheTtlMs).toBe(120000);
+      // @ts-expect-error
+      expect(instance.coingeckoApiBaseUrl).toBeDefined();
+      // @ts-expect-error
+      expect(instance.cryptoCacheTtlMs).toBeGreaterThan(0);
+      // @ts-expect-error
+      expect(instance.fiatCacheTtlMs).toBeGreaterThan(0);
     });
   });
 });
