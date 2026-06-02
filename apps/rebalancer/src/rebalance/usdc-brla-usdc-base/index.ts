@@ -232,9 +232,9 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
   const initialUsdcDecimal = Big(state.initialUsdcBalance);
   const finalUsdcDecimal = Big(state.finalUsdcBalance);
-  const brlaDecimal = Big(state.brlaAmountDecimal);
+  const usdcRebalanced = Big(state.usdcAmountRaw).div(10 ** 6);
   const cost = initialUsdcDecimal.minus(finalUsdcDecimal);
-  const costRelative = initialUsdcDecimal.gt(0) ? cost.div(initialUsdcDecimal).toFixed(4, 0) : "N/A";
+  const costRelative = usdcRebalanced.gt(0) ? cost.div(usdcRebalanced).toFixed(4, 0) : "N/A";
 
   console.log(
     `Rebalance completed! Initial: ${initialUsdcDecimal.toFixed(6)} USDC, Final: ${finalUsdcDecimal.toFixed(6)} USDC`
@@ -245,10 +245,9 @@ export async function rebalanceUsdcBrlaUsdcBase(
   const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
     text:
-      "USDC->BRLA->USDC rebalance on Base completed!\n" +
-      `Route: ${state.winningRoute}\n` +
-      `Initial: ${initialUsdcDecimal.toFixed(6)} USDC, Final: ${finalUsdcDecimal.toFixed(6)} USDC\n` +
-      `BRLA swapped: ${brlaDecimal.toFixed(4)}\n` +
-      `Cost: ${cost.toFixed(6)} USDC (${costRelative})`
+      "✅ USDC->BRLA->USDC rebalance on Base completed!\n" +
+      `🛤️ Route: ${state.winningRoute}\n` +
+      `💰 USDC rebalanced: ${usdcRebalanced.toFixed(6)}\n` +
+      `📉 Cost - Absolute: ${cost.toFixed(6)} USDC | Relative: ${costRelative}`
   });
 }
