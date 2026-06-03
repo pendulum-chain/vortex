@@ -145,7 +145,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
           const { inputAmount, partnerId, apiKey } = params;
 
           if (!inputAmount || inputAmount.eq(0)) {
-            set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
+            set({ error: null, loading: false, outputAmount: Big(0), quote: undefined });
             return;
           }
 
