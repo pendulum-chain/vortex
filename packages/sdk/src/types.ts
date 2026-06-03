@@ -162,22 +162,16 @@ export interface EurOnrampUpdateAdditionalData {
   moneriumOfframpSignature: string;
 }
 
-export interface BrlOfframpUpdateAdditionalData {
-  squidRouterApproveHash?: string;
-  squidRouterSwapHash?: string;
-  assethubToPendulumHash?: string;
-}
-export interface EurOfframpUpdateAdditionalData {
+export interface OfframpUpdateAdditionalData {
   squidRouterApproveHash?: string;
   squidRouterSwapHash?: string;
   assethubToPendulumHash?: string;
 }
 
-export interface AlfredpayOfframpUpdateAdditionalData {
-  squidRouterApproveHash?: string;
-  squidRouterSwapHash?: string;
-  assethubToPendulumHash?: string;
-}
+// BRL, EUR, and Alfredpay offramps all push back the same on-chain tx hashes.
+export type BrlOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
+export type EurOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
+export type AlfredpayOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
 
 export interface BrlKycResponse {
   evmAddress: string;
