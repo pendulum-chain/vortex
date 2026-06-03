@@ -22,11 +22,51 @@ import { UsdcBaseRebalanceState, UsdcBaseStateManager } from "../../services/sta
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
+import { calculateMinimumDelta, calculateTargetBalanceRaw, DEFAULT_ARRIVAL_TOLERANCE } from "./guards.ts";
 
 export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 export const BRLA_POLYGON: `0x${string}` = "0xe6a537a407488807f0bbeb0038b79004f19dddfb";
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
+
+export async function getUsdcBalanceOnBaseRaw(): Promise<string> {
+  const { publicClient, walletClient } = getBaseEvmClients();
+  const balance = await publicClient.readContract({
+    abi: erc20Abi,
+    address: USDC_BASE,
+    args: [walletClient.account.address],
+    functionName: "balanceOf"
+  });
+  return balance.toString();
+}
+
+export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
+  const { publicClient, walletClient } = getBaseEvmClients();
+  const balance = await publicClient.readContract({
+    abi: erc20Abi,
+    address: ERC20_BRLA_BASE,
+    args: [walletClient.account.address],
+    functionName: "balanceOf"
+  });
+  return balance.toString();
+}
+
+export async function getBrlaBalanceOnPolygonRaw(): Promise<string> {
+  const { publicClient, walletClient } = getPolygonEvmClients();
+  const balance = await publicClient.readContract({
+    abi: erc20Abi,
+    address: BRLA_POLYGON,
+    args: [walletClient.account.address],
+    functionName: "balanceOf"
+  });
+  return balance.toString();
+}
+
+export async function getAveniaBrlaBalanceDecimal(): Promise<string> {
+  const brlaApiService = BrlaApiService.getInstance();
+  const balanceResponse = await brlaApiService.getMainAccountBalance();
+  return String(balanceResponse?.balances?.BRLA ?? "0");
+}
 
 export async function checkInitialUsdcBalanceOnBase(usdcAmountRaw: string): Promise<Big> {
   const { publicClient, walletClient } = getBaseEvmClients();
@@ -68,18 +108,31 @@ export async function nablaApproveAndSwapOnBase(
 
   const { router } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
 
-  // Snapshot pre-swap BRLA balance — account may have leftovers from prior runs
-  const brlaBalanceBefore = await publicClient.readContract({
-    abi: erc20Abi,
-    address: ERC20_BRLA_BASE,
-    args: [executorAddress],
-    functionName: "balanceOf"
-  });
+  if (state.nablaApproveHash && state.nablaSwapHash && state.brlaAmountRaw && state.brlaAmountDecimal) {
+    console.log(`Resuming Nabla swap with previously recorded BRLA output: ${state.brlaAmountDecimal}`);
+    return {
+      approveHash: state.nablaApproveHash,
+      brlaAmountDecimal: Big(state.brlaAmountDecimal),
+      brlaAmountRaw: state.brlaAmountRaw,
+      swapHash: state.nablaSwapHash
+    };
+  }
 
-  let approveHash: string;
-  let swapHash: string;
+  if (state.nablaSwapHash && !state.brlaBalanceBeforeNablaRaw) {
+    throw new Error("State corrupted: missing pre-Nabla BRLA balance baseline for completed swap.");
+  }
 
-  if (!state.nablaApproveHash || !state.nablaSwapHash) {
+  if (!state.brlaBalanceBeforeNablaRaw) {
+    state.brlaBalanceBeforeNablaRaw = await getBrlaBalanceOnBaseRaw();
+    await stateManager.saveState(state);
+  }
+
+  const brlaBalanceBefore = BigInt(state.brlaBalanceBeforeNablaRaw);
+
+  let approveHash = state.nablaApproveHash;
+  let swapHash = state.nablaSwapHash;
+
+  if (!swapHash) {
     const evmClientManager = EvmClientManager.getInstance();
     const quoteAbi = [
       {
@@ -120,25 +173,29 @@ export async function nablaApproveAndSwapOnBase(
       router
     );
 
-    console.log("Sending Nabla approve transaction on Base...");
-    const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
-    approveHash = await walletClient.sendTransaction({
-      account: walletClient.account,
-      chain: base,
-      data: approve.data,
-      gas: BigInt(approve.gas),
-      maxFeePerGas: approveFee,
-      maxPriorityFeePerGas: approveTip,
-      nonce: baseNonce.next(),
-      to: approve.to,
-      value: BigInt(approve.value)
-    });
-    console.log(`Approve tx sent: ${approveHash}`);
+    if (!approveHash) {
+      console.log("Sending Nabla approve transaction on Base...");
+      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
+      approveHash = await walletClient.sendTransaction({
+        account: walletClient.account,
+        chain: base,
+        data: approve.data,
+        gas: BigInt(approve.gas),
+        maxFeePerGas: approveFee,
+        maxPriorityFeePerGas: approveTip,
+        nonce: baseNonce.next(),
+        to: approve.to,
+        value: BigInt(approve.value)
+      });
+      state.nablaApproveHash = approveHash;
+      await stateManager.saveState(state);
+      console.log(`Approve tx sent: ${approveHash}`);
+    } else {
+      console.log(`Resuming Nabla approval with existing tx: ${approveHash}`);
+    }
+
     await waitForTransactionConfirmation(approveHash, publicClient);
     console.log("Nabla approval confirmed.");
-
-    state.nablaApproveHash = approveHash;
-    await stateManager.saveState(state);
 
     console.log("Sending Nabla swap transaction on Base...");
     const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
@@ -153,17 +210,19 @@ export async function nablaApproveAndSwapOnBase(
       to: swap.to,
       value: BigInt(swap.value)
     });
-    console.log(`Swap tx sent: ${swapHash}`);
-    await waitForTransactionConfirmation(swapHash, publicClient);
-    console.log("Nabla swap confirmed.");
-
     state.nablaSwapHash = swapHash;
     await stateManager.saveState(state);
+    console.log(`Swap tx sent: ${swapHash}`);
   } else {
-    approveHash = state.nablaApproveHash;
-    swapHash = state.nablaSwapHash;
     console.log(`Resuming Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
   }
+
+  if (!approveHash || !swapHash) {
+    throw new Error("State corrupted: Nabla transaction hash missing after swap step.");
+  }
+
+  await waitForTransactionConfirmation(swapHash, publicClient);
+  console.log("Nabla swap confirmed.");
 
   // Delay to let the RPC sync the post-swap state before reading the balance
   await new Promise(resolve => setTimeout(resolve, 5_000));
@@ -180,6 +239,9 @@ export async function nablaApproveAndSwapOnBase(
     throw new Error(
       `BRLA balance decreased after swap (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter}). Possible external interference.`
     );
+  }
+  if (brlaReceivedRaw === 0n) {
+    throw new Error(`No BRLA balance delta detected after Nabla swap (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter}).`);
   }
   const brlaAmountRaw = brlaReceivedRaw.toString();
   const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
@@ -230,6 +292,8 @@ export async function transferBrlaToAveniaOnBase(
     value: 0n
   });
 
+  state.brlaTransferHash = txHash;
+  await stateManager.saveState(state);
   console.log(`BRLA transfer tx sent: ${txHash}`);
   await waitForTransactionConfirmation(txHash, publicClient);
   console.log("BRLA transfer to Avenia confirmed on Base.");
@@ -237,25 +301,27 @@ export async function transferBrlaToAveniaOnBase(
   return txHash;
 }
 
-export async function waitForBrlaOnAvenia(brlaAmountDecimal: Big): Promise<string> {
+export async function waitForBrlaOnAvenia(brlaAmountDecimal: Big, startingBrlaBalanceDecimal: Big): Promise<string> {
   const pollInterval = 5000;
   const timeout = 10 * 60 * 1000;
   const startTime = Date.now();
   const brlaApiService = BrlaApiService.getInstance();
+  const minimumReceived = calculateMinimumDelta(brlaAmountDecimal);
 
-  console.log(`Waiting for ~${brlaAmountDecimal.toFixed(4)} BRLA to appear on Avenia main account balance...`);
+  console.log(`Waiting for ~${brlaAmountDecimal.toFixed(4)} BRLA delta to appear on Avenia main account balance...`);
 
   while (Date.now() - startTime < timeout) {
     try {
       const balanceResponse = await brlaApiService.getMainAccountBalance();
       if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
         const balanceDecimal = Big(balanceResponse.balances.BRLA);
-        if (balanceDecimal.div(brlaAmountDecimal).gte(0.998)) {
-          console.log(`Sufficient BRLA balance found on Avenia: ${balanceResponse.balances.BRLA}`);
-          return String(balanceResponse.balances.BRLA);
+        const receivedDelta = balanceDecimal.minus(startingBrlaBalanceDecimal);
+        if (receivedDelta.gte(minimumReceived)) {
+          console.log(`Sufficient BRLA delta found on Avenia: ${receivedDelta.toString()}`);
+          return receivedDelta.toString();
         }
         console.log(
-          `Insufficient BRLA balance. Needed: ${brlaAmountDecimal.toFixed(12)}, have: ${balanceDecimal.toFixed(12)}. Retrying...`
+          `Insufficient BRLA delta. Needed: ${minimumReceived.toFixed(12)}, received: ${receivedDelta.toFixed(12)}. Retrying...`
         );
       }
     } catch (error) {
@@ -384,13 +450,14 @@ export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promi
   return ticket.id;
 }
 
-export async function waitBrlaOnPolygon(brlaAmountRaw: string): Promise<void> {
+export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalanceRaw: string): Promise<void> {
   const { walletClient: polygonWalletClient } = getPolygonEvmClients();
   const polygonAddress = polygonWalletClient.account.address;
+  const targetBalanceRaw = calculateTargetBalanceRaw(startingBrlaBalanceRaw, brlaAmountRaw, DEFAULT_ARRIVAL_TOLERANCE);
 
-  console.log(`Waiting for BRLA to arrive on Polygon (${polygonAddress})...`);
+  console.log(`Waiting for BRLA delta to arrive on Polygon (${polygonAddress})...`);
 
-  await checkEvmBalancePeriodically(BRLA_POLYGON, polygonAddress, brlaAmountRaw, 1_000, 10 * 60 * 1_000, Networks.Polygon);
+  await checkEvmBalancePeriodically(BRLA_POLYGON, polygonAddress, targetBalanceRaw, 1_000, 10 * 60 * 1_000, Networks.Polygon);
 
   console.log("BRLA arrived on Polygon.");
 }
@@ -464,11 +531,10 @@ export async function squidRouterApproveAndSwap(
       to: swapData.to,
       value: BigInt(swapData.value)
     });
-    console.log(`Swap tx: ${swapHash}`);
-    await waitForTransactionConfirmation(swapHash, polygonPublicClient);
-
     state.squidRouterSwapHash = swapHash;
     await stateManager.saveState(state);
+    console.log(`Swap tx: ${swapHash}`);
+    await waitForTransactionConfirmation(swapHash, polygonPublicClient);
   } else {
     console.log(`Resuming SquidRouter swap with existing swap tx: ${swapHash}`);
   }
@@ -496,13 +562,14 @@ export async function squidRouterApproveAndSwap(
   return { swapHash, toAmountUsd };
 }
 
-export async function waitUsdcOnBase(expectedUsdcRaw: string): Promise<void> {
+export async function waitUsdcOnBase(expectedUsdcRaw: string, startingUsdcBalanceRaw: string): Promise<void> {
   const { walletClient } = getBaseEvmClients();
   const baseAddress = walletClient.account.address;
+  const targetBalanceRaw = calculateTargetBalanceRaw(startingUsdcBalanceRaw, expectedUsdcRaw);
 
-  console.log(`Waiting for USDC to arrive on Base (${baseAddress})...`);
+  console.log(`Waiting for USDC delta to arrive on Base (${baseAddress})...`);
 
-  await checkEvmBalancePeriodically(USDC_BASE, baseAddress, expectedUsdcRaw, 1_000, 30 * 60 * 1_000, Networks.Base);
+  await checkEvmBalancePeriodically(USDC_BASE, baseAddress, targetBalanceRaw, 1_000, 30 * 60 * 1_000, Networks.Base);
 
   console.log("USDC arrived on Base.");
 }

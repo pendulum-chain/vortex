@@ -11,6 +11,9 @@ import {
   compareRates,
   fetchAveniaQuote,
   fetchSquidRouterQuote,
+  getAveniaBrlaBalanceDecimal,
+  getBrlaBalanceOnPolygonRaw,
+  getUsdcBalanceOnBaseRaw,
   nablaApproveAndSwapOnBase,
   squidRouterApproveAndSwap,
   transferBrlaToAveniaOnBase,
@@ -74,6 +77,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.TransferBrlaToAvenia]) {
     if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for step 3");
 
+    if (!state.aveniaBrlaBalanceBeforeTransfer) {
+      state.aveniaBrlaBalanceBeforeTransfer = await getAveniaBrlaBalanceDecimal();
+      await stateManager.saveState(state);
+    }
+
     state.brlaTransferHash = await transferBrlaToAveniaOnBase(state.brlaAmountRaw, baseNonce, state, stateManager);
 
     console.log(`BRLA transferred to Avenia on Base. Tx: ${state.brlaTransferHash}`);
@@ -83,8 +91,14 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]) {
     if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for step 4");
+    if (!state.aveniaBrlaBalanceBeforeTransfer) {
+      throw new Error("State corrupted: aveniaBrlaBalanceBeforeTransfer missing for step 4");
+    }
 
-    const actualBrlaBalance = await waitForBrlaOnAvenia(Big(state.brlaAmountDecimal));
+    const actualBrlaBalance = await waitForBrlaOnAvenia(
+      Big(state.brlaAmountDecimal),
+      Big(state.aveniaBrlaBalanceBeforeTransfer)
+    );
 
     state.brlaAmountDecimal = actualBrlaBalance;
     state.brlaAmountRaw = multiplyByPowerOfTen(Big(actualBrlaBalance), 18).toFixed(0, 0);
@@ -131,6 +145,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
       if (!state.aveniaTicketId) {
         try {
+          if (!state.baseUsdcBalanceBeforeAveniaSwapRaw) {
+            state.baseUsdcBalanceBeforeAveniaSwapRaw = await getUsdcBalanceOnBaseRaw();
+            await stateManager.saveState(state);
+          }
+
           const result = await aveniaCreateSwapToUsdcBaseTicket(Big(state.brlaAmountDecimal), baseAddress);
           state.aveniaTicketId = result.ticketId;
           state.aveniaQuoteUsdc = result.outputAmount;
@@ -161,9 +180,12 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (state.winningRoute === "avenia") {
       if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia]) {
         if (!state.aveniaQuoteUsdc) throw new Error("State corrupted: aveniaQuoteUsdc missing for avenia step 2");
+        if (!state.baseUsdcBalanceBeforeAveniaSwapRaw) {
+          throw new Error("State corrupted: baseUsdcBalanceBeforeAveniaSwapRaw missing for avenia step 2");
+        }
 
         const aveniaUsdcRaw = multiplyByPowerOfTen(Big(state.aveniaQuoteUsdc), 6).toFixed(0, 0);
-        await waitUsdcOnBase(aveniaUsdcRaw);
+        await waitUsdcOnBase(aveniaUsdcRaw, state.baseUsdcBalanceBeforeAveniaSwapRaw);
 
         console.log("USDC from Avenia confirmed on Base.");
         state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;
@@ -180,6 +202,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
       if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for squid step 1");
 
       if (!state.aveniaTicketId) {
+        if (!state.polygonBrlaBalanceBeforeTransferRaw) {
+          state.polygonBrlaBalanceBeforeTransferRaw = await getBrlaBalanceOnPolygonRaw();
+          await stateManager.saveState(state);
+        }
+
         const ticketId = await aveniaTransferBrlaToPolygon(Big(state.brlaAmountDecimal));
         state.aveniaTicketId = ticketId;
         await stateManager.saveState(state);
@@ -195,8 +222,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
     if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitBrlaOnPolygon]) {
       if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for squid step 2");
+      if (!state.polygonBrlaBalanceBeforeTransferRaw) {
+        throw new Error("State corrupted: polygonBrlaBalanceBeforeTransferRaw missing for squid step 2");
+      }
 
-      await waitBrlaOnPolygon(state.brlaAmountRaw);
+      await waitBrlaOnPolygon(state.brlaAmountRaw, state.polygonBrlaBalanceBeforeTransferRaw);
 
       console.log("BRLA confirmed on Polygon.");
       state.currentPhase = UsdcBaseRebalancePhase.SquidRouterApproveAndSwap;
@@ -205,6 +235,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
     if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]) {
       if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for squid step 3");
+
+      if (!state.baseUsdcBalanceBeforeSquidSwapRaw) {
+        state.baseUsdcBalanceBeforeSquidSwapRaw = await getUsdcBalanceOnBaseRaw();
+        await stateManager.saveState(state);
+      }
 
       const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce, state, stateManager);
 
@@ -216,8 +251,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
     if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid]) {
       if (!state.squidRouterQuoteUsdc) throw new Error("State corrupted: squidRouterQuoteUsdc missing for squid step 4");
+      if (!state.baseUsdcBalanceBeforeSquidSwapRaw) {
+        throw new Error("State corrupted: baseUsdcBalanceBeforeSquidSwapRaw missing for squid step 4");
+      }
 
-      await waitUsdcOnBase(state.squidRouterQuoteUsdc);
+      await waitUsdcOnBase(state.squidRouterQuoteUsdc, state.baseUsdcBalanceBeforeSquidSwapRaw);
 
       console.log("USDC from SquidRouter confirmed on Base.");
       state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;

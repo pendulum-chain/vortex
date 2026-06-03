@@ -19,8 +19,9 @@ export class StateManager<T> {
     const { data, error } = await this.supabase.storage.from("rebalancer_state").download(this.filename);
 
     if (error) {
-      const statusCode = (error as any).statusCode;
-      if (statusCode === 404 || statusCode === "404" || error.message?.includes("not found")) {
+      const storageError = error as { statusCode?: number | string; message?: string };
+      const statusCode = storageError.statusCode;
+      if (statusCode === 404 || statusCode === "404" || storageError.message?.includes("not found")) {
         return undefined;
       }
       throw error;
@@ -189,13 +190,18 @@ export interface UsdcBaseRebalanceState {
   usdcAmountRaw: string | null;
   brlaAmountRaw: string | null;
   brlaAmountDecimal: string | null;
+  brlaBalanceBeforeNablaRaw: string | null;
   nablaApproveHash: string | null;
   nablaSwapHash: string | null;
+  aveniaBrlaBalanceBeforeTransfer: string | null;
   brlaTransferHash: string | null;
   winningRoute: WinningRoute;
   squidRouterQuoteUsdc: string | null;
   aveniaQuoteUsdc: string | null;
+  polygonBrlaBalanceBeforeTransferRaw: string | null;
   squidRouterSwapHash: string | null;
+  baseUsdcBalanceBeforeAveniaSwapRaw: string | null;
+  baseUsdcBalanceBeforeSquidSwapRaw: string | null;
   aveniaTicketId: string | null;
   finalUsdcBalance: string | null;
   startingTime: string;
@@ -217,16 +223,21 @@ export interface UsdcBaseRebalanceContainer {
 
 function createFreshState(): UsdcBaseRebalanceState {
   return {
+    aveniaBrlaBalanceBeforeTransfer: null,
     aveniaQuoteUsdc: null,
     aveniaTicketId: null,
+    baseUsdcBalanceBeforeAveniaSwapRaw: null,
+    baseUsdcBalanceBeforeSquidSwapRaw: null,
     brlaAmountDecimal: null,
     brlaAmountRaw: null,
+    brlaBalanceBeforeNablaRaw: null,
     brlaTransferHash: null,
     currentPhase: UsdcBaseRebalancePhase.Idle,
     finalUsdcBalance: null,
     initialUsdcBalance: null,
     nablaApproveHash: null,
     nablaSwapHash: null,
+    polygonBrlaBalanceBeforeTransferRaw: null,
     squidRouterQuoteUsdc: null,
     squidRouterSwapHash: null,
     startingTime: new Date().toISOString(),
@@ -289,16 +300,21 @@ export class UsdcBaseStateManager {
     const history = existing?.history ?? [];
 
     const state: UsdcBaseRebalanceState = {
+      aveniaBrlaBalanceBeforeTransfer: null,
       aveniaQuoteUsdc: null,
       aveniaTicketId: null,
+      baseUsdcBalanceBeforeAveniaSwapRaw: null,
+      baseUsdcBalanceBeforeSquidSwapRaw: null,
       brlaAmountDecimal: null,
       brlaAmountRaw: null,
+      brlaBalanceBeforeNablaRaw: null,
       brlaTransferHash: null,
       currentPhase: UsdcBaseRebalancePhase.CheckInitialUsdcBalance,
       finalUsdcBalance: null,
       initialUsdcBalance: null,
       nablaApproveHash: null,
       nablaSwapHash: null,
+      polygonBrlaBalanceBeforeTransferRaw: null,
       squidRouterQuoteUsdc: null,
       squidRouterSwapHash: null,
       startingTime: new Date().toISOString(),

@@ -4,6 +4,7 @@ import Big from "big.js";
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
+import { wouldExceedDailyBridgeLimit } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import { checkInitialUsdcBalanceOnBase } from "./rebalance/usdc-brla-usdc-base/steps.ts";
 import { getBaseNablaCoverageRatio, getSwapPoolsWithCoverageRatio } from "./services/indexer";
 import {
@@ -111,9 +112,10 @@ async function checkForRebalancing() {
     console.log(
       `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
     );
-    if (bridgedToday.gte(dailyLimitRaw)) {
+    if (wouldExceedDailyBridgeLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw)) {
+      const projectedTotal = bridgedToday.plus(amountUsdcRaw);
       console.log(
-        `Daily bridge limit reached: bridged $${bridgedToday.div(1e6).toFixed(2)} today, limit is $${config.rebalancingDailyBridgeLimitUsd}. Skipping.`
+        `Daily bridge limit reached: projected $${projectedTotal.div(1e6).toFixed(2)} today, limit is $${config.rebalancingDailyBridgeLimitUsd}. Skipping.`
       );
       return;
     }

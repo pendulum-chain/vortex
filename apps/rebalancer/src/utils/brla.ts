@@ -1,26 +1,31 @@
 import { AveniaSwapTicket, AveniaTicketStatus, BrlaApiService } from "@vortexfi/shared";
 
-export async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string): Promise<AveniaSwapTicket> {
+type AveniaTicketReader = Pick<BrlaApiService, "getAveniaSwapTicket">;
+
+export async function checkTicketStatusPaid(brlaApiService: AveniaTicketReader, ticketId: string): Promise<AveniaSwapTicket> {
   const pollInterval = 5000;
   const timeout = 5 * 60 * 1000;
   const startTime = Date.now();
   let lastError: Error | undefined;
 
   while (Date.now() - startTime < timeout) {
+    let ticket: AveniaSwapTicket;
     try {
-      const ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
-      if (ticket && ticket.status) {
-        if (ticket.status === AveniaTicketStatus.PAID) {
-          return ticket;
-        }
-        if (ticket.status === AveniaTicketStatus.FAILED) {
-          throw new Error("Ticket status is FAILED");
-        }
-      }
+      ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
+      continue;
     }
+
+    if (ticket?.status === AveniaTicketStatus.PAID) {
+      return ticket;
+    }
+    if (ticket?.status === AveniaTicketStatus.FAILED) {
+      throw new Error(`Ticket ${ticketId} status is FAILED`);
+    }
+
     await new Promise(resolve => setTimeout(resolve, pollInterval));
   }
 
