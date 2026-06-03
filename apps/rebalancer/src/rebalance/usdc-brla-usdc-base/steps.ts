@@ -18,6 +18,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { base, polygon } from "viem/chains";
+import { brlaMoonbeamTokenDetails } from "../../constants.ts";
 import { UsdcBaseRebalanceState, UsdcBaseStateManager } from "../../services/stateManager.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
@@ -25,7 +26,7 @@ import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
 import { calculateMinimumDelta, calculateTargetBalanceRaw, DEFAULT_ARRIVAL_TOLERANCE } from "./guards.ts";
 
 export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-export const BRLA_POLYGON: `0x${string}` = "0xe6a537a407488807f0bbeb0038b79004f19dddfb";
+export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address;
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
