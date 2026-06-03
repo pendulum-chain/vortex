@@ -5,7 +5,7 @@ import QuoteTicket from "../../../models/quoteTicket.model";
 import {BaseRampService} from "./base.service";
 
 const transaction = { id: "cleanup-test-transaction" };
-const expectedDeleteBatchSize = 500;
+const expectedDeleteBatchSize = 5000;
 
 type QuoteCleanupWhere = {
   expiresAt?: {

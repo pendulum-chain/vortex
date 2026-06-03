@@ -21,7 +21,7 @@ const MAX_RAMP_EPHEMERALS = 50;
 type RampEphemeralEntry = {
   substrateEphemeral: EphemeralAccount;
   evmEphemeral: EphemeralAccount;
-  timestamp: number;
+  timestamp?: number;
 };
 type RampEphemeralsMap = Record<string, RampEphemeralEntry>;
 
@@ -32,7 +32,7 @@ export function updateRampEphemeral(rampId: string, ephemerals: RampExecutionInp
 
     const keys = Object.keys(existing);
     if (keys.length > MAX_RAMP_EPHEMERALS) {
-      const sorted = keys.sort((a, b) => (existing[a].timestamp ?? 0) - (existing[b].timestamp ?? 0));
+      const sorted = keys.sort((a, b) => (existing[a]?.timestamp ?? 0) - (existing[b]?.timestamp ?? 0));
       const toRemove = sorted.slice(0, sorted.length - MAX_RAMP_EPHEMERALS);
       for (const key of toRemove) {
         delete existing[key];
