@@ -49,7 +49,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 2. **Secrets MUST NOT appear in logs** — Error handlers, debug logging, and request/response logging must not include secret values, private keys, or seeds.
 3. **`WEBHOOK_PRIVATE_KEY` MUST be set in production** — If missing, `CryptoService` generates an ephemeral RSA keypair at startup. This key is non-persistent: webhook signatures generated before a restart cannot be verified after a restart, and vice versa. Consumers would see signature validation failures.
 4. **`ADMIN_SECRET` MUST be a high-entropy value** — Used as a bearer token for admin endpoints. Compared via `safeCompare()` which has a known timing leak on length (see `01-auth/admin-auth.md`).
-5. **Rebalancer keys MUST be isolated from API service keys** — The three rebalancer chain keys operate separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
+5. **Rebalancer keys MUST be isolated from API service keys** — The rebalancer's `EVM_ACCOUNT_SECRET` mnemonic and legacy `PENDULUM_ACCOUNT_SECRET` operate separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
 6. **`SUPABASE_SERVICE_KEY` MUST NOT be exposed to clients** — This key bypasses Row Level Security. It must only be used server-side.
 7. **Database credentials (`DB_*`) MUST NOT be accessible from the public internet** — Direct PostgreSQL access should be restricted to the application server's network.
 8. **No secret MUST be passed as a URL query parameter** — Query parameters are logged by proxies, CDNs, and web servers. Secrets must only travel in headers or request bodies.
