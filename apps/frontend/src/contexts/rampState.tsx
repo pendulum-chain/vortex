@@ -16,13 +16,29 @@ import { RampExecutionInput } from "../types/phases";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
 const RAMP_EPHEMERALS_STORAGE_KEY = "rampEphemerals";
+const MAX_RAMP_EPHEMERALS = 50;
 
-type RampEphemeralsMap = Record<string, { substrateEphemeral: EphemeralAccount; evmEphemeral: EphemeralAccount }>;
+type RampEphemeralEntry = {
+  substrateEphemeral: EphemeralAccount;
+  evmEphemeral: EphemeralAccount;
+  timestamp: number;
+};
+type RampEphemeralsMap = Record<string, RampEphemeralEntry>;
 
 export function updateRampEphemeral(rampId: string, ephemerals: RampExecutionInput["ephemerals"]): void {
   try {
     const existing = readRampEphemerals();
-    existing[rampId] = ephemerals;
+    existing[rampId] = { ...ephemerals, timestamp: Date.now() };
+
+    const keys = Object.keys(existing);
+    if (keys.length > MAX_RAMP_EPHEMERALS) {
+      const sorted = keys.sort((a, b) => (existing[a].timestamp ?? 0) - (existing[b].timestamp ?? 0));
+      const toRemove = sorted.slice(0, sorted.length - MAX_RAMP_EPHEMERALS);
+      for (const key of toRemove) {
+        delete existing[key];
+      }
+    }
+
     localStorage.setItem(RAMP_EPHEMERALS_STORAGE_KEY, JSON.stringify(existing));
   } catch {
     // localStorage may be full or unavailable — non-critical backup
