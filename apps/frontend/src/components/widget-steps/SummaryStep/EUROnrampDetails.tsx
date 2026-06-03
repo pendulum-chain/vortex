@@ -12,8 +12,9 @@ import { InfoBox } from "../../InfoBox";
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { isQuoteExpired, rampState, signingPhase } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, quote, rampState, signingPhase } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
+    quote: state.context.quote,
     rampState: state.context.rampState,
     signingPhase: state.context.rampSigningPhase
   }));
@@ -21,6 +22,7 @@ export const EUROnrampDetails: FC = () => {
   if (!rampState?.ramp?.depositQrCode) return null;
 
   if (!rampState?.ramp?.ibanPaymentData) return null;
+  if (rampState.quote.id !== quote?.id) return null;
   if (signingPhase !== "finished") return null; // Only show details if the ramp is finished
   if (isQuoteExpired) return null;
 
