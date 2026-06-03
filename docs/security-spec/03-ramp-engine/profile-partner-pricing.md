@@ -1,0 +1,59 @@
+# Profile Partner Pricing
+
+## What This Does
+
+Profile partner pricing lets an authenticated first-party user receive the custom quote behavior of a partner without exposing partner API credentials in the frontend. An administrator assigns a Supabase profile to a partner name. When that user creates a quote with a valid Supabase Bearer token, the backend resolves the active assignment and applies the matching partner row for the requested ramp type.
+
+This feature is intentionally different from partner API-key authentication:
+
+1. Partner API clients remain authenticated by `X-API-Key: sk_*` and may create partner-owned quotes.
+2. Frontend users remain authenticated by `Authorization: Bearer <Supabase JWT>` and may create user-owned quotes.
+3. A profile assignment grants pricing eligibility only. It does not grant partner ownership, API access, webhook permissions, or the ability to act as the partner.
+
+The intended data model separates two concepts that were historically collapsed into `quote_tickets.partner_id`:
+
+- `partner_id` remains the partner owner of a quote for API-key integrations.
+- `pricing_partner_id` records which partner rate configuration was used for quote pricing, fee calculation, subsidy calculation, fee distribution, and dynamic discount state.
+
+For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the authenticated profile, `quote_tickets.partner_id` stays `NULL`, and `quote_tickets.pricing_partner_id` is set to the resolved partner row. This lets the user consume their own quote through the existing Supabase ownership path while still preserving which partner pricing was applied.
+
+## Security Invariants
+
+1. **Profile assignments MUST be server-side only** - The client MUST NOT be able to choose its assigned partner by passing a request body field, URL parameter, or local storage value. The backend resolves assignments only from the authenticated `req.userId`.
+2. **Profile assignments MUST NOT authenticate partner ownership** - A Supabase profile assigned to a partner MUST NOT populate `req.authenticatedPartner`, MUST NOT satisfy `enforcePartnerAuth()`, and MUST NOT access partner-owned quotes or ramps.
+3. **Explicit partner API-key integrations MUST keep their existing behavior** - Requests that include `partnerId` still require a matching partner secret key. Existing SDK/API clients using partner keys must continue to create partner-owned quotes.
+4. **Partner pricing source precedence MUST be deterministic** - Explicit `partnerId` has highest precedence, then validated public API key partner name, then profile assignment, then default `"vortex"` pricing.
+5. **Profile-assigned quotes MUST be user-owned** - A quote priced through a profile assignment MUST persist `user_id = req.userId` and `partner_id = NULL`. Register/update/start/status access for the resulting ramp is authorized through the Supabase user path.
+6. **The pricing partner MUST be persisted separately** - Any quote that applies non-default partner pricing MUST persist `pricing_partner_id` so downstream fee distribution and dynamic discount state use the same partner row that quote calculation used.
+7. **Inactive or expired assignments MUST be ignored** - The assignment resolver must require `is_active = true` and either `expires_at IS NULL` or `expires_at > now()`.
+8. **Invalid assignments MUST fail closed to default pricing** - If an assignment points to a partner name with no active row for the requested ramp type, quote creation proceeds without that partner's pricing instead of accepting untrusted client input or fabricating a partner.
+9. **Fee distribution MUST use the pricing partner, not only the owner partner** - Partner markup payout uses `pricing_partner_id` when present, with `partner_id` as a backward-compatible fallback for older quotes.
+10. **Dynamic discount state MUST use the pricing partner** - Quote consumption adjusts the dynamic discount state for the partner whose pricing was used, not for the quote owner.
+11. **Assignment administration MUST require admin auth** - Create, list, and revoke assignment endpoints MUST be protected by `adminAuth`; partner API keys and Supabase user tokens MUST NOT manage assignments.
+
+## Threat Vectors & Mitigations
+
+| Threat | Attack Scenario | Mitigation |
+|---|---|---|
+| **User spoofs partner discount** | A frontend user passes another partner's `partnerId` in the quote request body to claim better rates. | Existing `enforcePartnerAuth()` rejects `partnerId` unless a matching `sk_*` is present. Profile assignment resolution ignores client-supplied partner fields. |
+| **Assigned user becomes partner principal** | A profile assigned to a partner tries to read or mutate partner-owned quotes, ramps, webhooks, or history. | Assignment affects quote pricing only. It does not set `req.authenticatedPartner`; ownership guards still separate user-owned and partner-owned resources. |
+| **Broken API-client compatibility** | Splitting pricing and owner fields accidentally makes SDK quotes user-owned or anonymous. | Existing partner-key and public-key request paths continue to populate `partner_id` as before. The new user-owned behavior is only used for server-resolved profile assignments. |
+| **Dropped partner markup payout** | A profile-assigned quote computes a partner markup but downstream fee distribution looks only at `quote.partnerId`, sees `NULL`, and skips partner payout. | Fee distribution resolves payout from `pricing_partner_id ?? partner_id`. |
+| **Dynamic state drift for the wrong principal** | A profile-assigned quote is consumed but dynamic discount state is decremented for no partner or the wrong partner. | Ramp registration resolves the partner from `pricing_partner_id ?? partner_id` before calling `handleQuoteConsumptionForDiscountState`. |
+| **Stale assignment remains usable** | A profile's temporary partner entitlement expires but quote creation still applies custom rates. | Resolver filters out assignments with `expires_at <= now()`. |
+| **Assignment to missing ramp-type config** | A profile is assigned to partner `Acme`, but `partners` has only a BUY row and the user requests SELL. | Resolver requires active partner row with matching `rampType`; otherwise it logs and falls back to default pricing. |
+| **Unauthorized assignment management** | A partner or normal frontend user assigns themselves or another profile to a discounted partner. | Assignment management routes live under `/v1/admin/profile-partner-assignments` and require `adminAuth`. |
+
+## Audit Checklist
+
+- [ ] `profile_partner_assignments` exists with `user_id`, `partner_name`, `is_active`, optional `expires_at`, timestamps, and indexes for active user lookups.
+- [ ] Admin assignment endpoints are protected by `adminAuth` and reject non-admin credentials.
+- [ ] Quote creation resolves profile assignments only from `req.userId`; unauthenticated quotes never use profile assignment pricing.
+- [ ] `POST /v1/quotes` and `POST /v1/quotes/best` still reject explicit `partnerId` without matching secret-key authentication.
+- [ ] Profile-assigned quotes persist `user_id` and `pricing_partner_id`, while leaving `partner_id` `NULL`.
+- [ ] Existing partner API-key and public-key quote paths preserve their previous `partner_id` behavior.
+- [ ] Fee distribution uses `pricing_partner_id ?? partner_id` for partner markup payout.
+- [ ] Ramp registration updates discount state using `pricing_partner_id ?? partner_id`.
+- [ ] User ownership checks continue to authorize profile-assigned quotes through `user_id`.
+- [ ] Partner ownership checks continue to authorize API-client quotes through `partner_id`.
+- [ ] Tests cover assigned user quote ownership and the non-regression path for partner-owned quotes.

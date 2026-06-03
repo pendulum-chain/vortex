@@ -28,6 +28,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Quote Lifecycle | `03-ramp-engine/quote-lifecycle.md` | Creation, expiry, binding to ramp |
 | Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
+| Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to partner pricing |
 | Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
 | Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |

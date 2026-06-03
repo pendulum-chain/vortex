@@ -218,9 +218,10 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const pricingPartnerId = quote.pricingPartnerId ?? quote.partnerId;
       let partner: ActivePartner = null;
-      if (quote.partnerId) {
-        partner = await Partner.findByPk(quote.partnerId);
+      if (pricingPartnerId) {
+        partner = await Partner.findByPk(pricingPartnerId);
       }
 
       handleQuoteConsumptionForDiscountState(partner);
