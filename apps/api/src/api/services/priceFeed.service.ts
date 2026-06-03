@@ -65,6 +65,10 @@ export class PriceFeedService {
       logger.warn("COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.");
     }
 
+    if (!this.fastforexApiKey) {
+      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko.");
+    }
+
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`PriceFeedService initialized with fastforex API URL: ${this.fastforexApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
@@ -189,10 +193,9 @@ export class PriceFeedService {
    * Get the exchange rate from USD to another fiat currency. The source currency is always USD.
    *
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
-   * @param inputAmount - The amount to convert (default is '1.0')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency, inputAmount = "1.0"): Promise<number> {
+  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency): Promise<number> {
     const fromCurrency = "USD";
 
     const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
@@ -204,16 +207,20 @@ export class PriceFeedService {
       return cachedEntry.value;
     }
 
-    logger.debug(`Cache miss for ${cacheKey}. Fetching from fastforex.`);
+    if (this.fastforexApiKey) {
+      logger.debug(`Cache miss for ${cacheKey}. Fetching from fastforex.`);
 
-    try {
-      const rate = await this.getFastforexRate(fromCurrency, toCurrency);
-      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
-      return rate;
-    } catch (ffError) {
-      logger.warn(
-        `fastforex failed for ${fromCurrency}-${toCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
-      );
+      try {
+        const rate = await this.getFastforexRate(fromCurrency, toCurrency);
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
+        return rate;
+      } catch (ffError) {
+        logger.warn(
+          `fastforex failed for ${fromCurrency}-${toCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
+        );
+      }
+    } else {
+      logger.debug(`Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, fetching from CoinGecko fallback.`);
     }
 
     logger.debug(`Fetching ${fromCurrency}-${toCurrency} rate from CoinGecko as fallback.`);
