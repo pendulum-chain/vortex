@@ -30,6 +30,7 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 9. **Fee distribution MUST use the pricing partner, not only the owner partner** - Partner markup payout uses `pricing_partner_id` when present, with `partner_id` as a backward-compatible fallback for older quotes.
 10. **Dynamic discount state MUST use the pricing partner** - Quote consumption adjusts the dynamic discount state for the partner whose pricing was used, not for the quote owner.
 11. **Assignment administration MUST require admin auth** - Create, list, and revoke assignment endpoints MUST be protected by `adminAuth`; partner API keys and Supabase user tokens MUST NOT manage assignments.
+12. **Assignment replacement MUST be atomic per profile** - Creating a new active assignment MUST deactivate the previous active row and insert the replacement in one database transaction. The transaction MUST lock the profile row so concurrent admin writes for the same user serialize, and any residual active-assignment unique-index conflict MUST fail with a retryable `409`.
 
 ## Threat Vectors & Mitigations
 
@@ -43,11 +44,14 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 | **Stale assignment remains usable** | A profile's temporary partner entitlement expires but quote creation still applies custom rates. | Resolver filters out assignments with `expires_at <= now()`. |
 | **Assignment to missing ramp-type config** | A profile is assigned to partner `Acme`, but `partners` has only a BUY row and the user requests SELL. | Resolver requires active partner row with matching `rampType`; otherwise it logs and falls back to default pricing. |
 | **Unauthorized assignment management** | A partner or normal frontend user assigns themselves or another profile to a discounted partner. | Assignment management routes live under `/v1/admin/profile-partner-assignments` and require `adminAuth`. |
+| **Partial assignment replacement** | Admin assignment creation deactivates the current row and then fails before inserting the replacement, leaving the profile with no active pricing assignment. Concurrent creates can also race against the active-user partial unique index. | Replacement runs in one transaction after locking the profile row. Rollback preserves the prior active assignment, and residual unique-index conflicts return `409 ASSIGNMENT_CONFLICT` so the admin can retry. |
 
 ## Audit Checklist
 
 - [ ] `profile_partner_assignments` exists with `user_id`, `partner_name`, `is_active`, optional `expires_at`, timestamps, and indexes for active user lookups.
 - [ ] Admin assignment endpoints are protected by `adminAuth` and reject non-admin credentials.
+- [ ] Admin assignment replacement deactivates the old active row and creates the new row in one transaction after taking a row lock for the target profile.
+- [ ] Active-assignment unique-index collisions return `409 ASSIGNMENT_CONFLICT` instead of a generic server error.
 - [ ] Quote creation resolves profile assignments only from `req.userId`; unauthenticated quotes never use profile assignment pricing.
 - [ ] `POST /v1/quotes` and `POST /v1/quotes/best` still reject explicit `partnerId` without matching secret-key authentication.
 - [ ] Profile-assigned quotes persist `user_id` and `pricing_partner_id`, while leaving `partner_id` `NULL`.

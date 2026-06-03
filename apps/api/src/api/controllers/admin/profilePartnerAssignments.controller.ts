@@ -1,10 +1,13 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { WhereOptions } from "sequelize";
+import { Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import ProfilePartnerAssignment, { ProfilePartnerAssignmentAttributes } from "../../../models/profilePartnerAssignment.model";
 import User from "../../../models/user.model";
+
+const PROFILE_NOT_FOUND_AFTER_LOCK = "PROFILE_NOT_FOUND_AFTER_LOCK";
 
 function parseExpiration(expiresAt: unknown): Date | null {
   if (!expiresAt) {
@@ -82,21 +85,36 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
 
     const expirationDate = parseExpiration(expiresAt);
 
-    await ProfilePartnerAssignment.update(
-      { isActive: false },
-      {
-        where: {
-          isActive: true,
-          userId
-        }
-      }
-    );
+    const assignment = await sequelize.transaction(async transaction => {
+      const lockedUser = await User.findByPk(userId, {
+        lock: Transaction.LOCK.UPDATE,
+        transaction
+      });
 
-    const assignment = await ProfilePartnerAssignment.create({
-      expiresAt: expirationDate,
-      isActive: true,
-      partnerName,
-      userId
+      if (!lockedUser) {
+        throw new Error(PROFILE_NOT_FOUND_AFTER_LOCK);
+      }
+
+      await ProfilePartnerAssignment.update(
+        { isActive: false },
+        {
+          transaction,
+          where: {
+            isActive: true,
+            userId
+          }
+        }
+      );
+
+      return ProfilePartnerAssignment.create(
+        {
+          expiresAt: expirationDate,
+          isActive: true,
+          partnerName,
+          userId
+        },
+        { transaction }
+      );
     });
 
     res.status(httpStatus.CREATED).json({
@@ -110,6 +128,28 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
           code: "INVALID_EXPIRES_AT",
           message: error.message,
           status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    if (error instanceof Error && error.message === PROFILE_NOT_FOUND_AFTER_LOCK) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: {
+          code: "USER_NOT_FOUND",
+          message: "Profile was not found",
+          status: httpStatus.NOT_FOUND
+        }
+      });
+      return;
+    }
+
+    if (error instanceof UniqueConstraintError) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "ASSIGNMENT_CONFLICT",
+          message: "An active assignment already exists for this profile. Please retry the request.",
+          status: httpStatus.CONFLICT
         }
       });
       return;
