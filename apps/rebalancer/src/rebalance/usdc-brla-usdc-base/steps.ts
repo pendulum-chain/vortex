@@ -1,6 +1,5 @@
 import {
   AveniaPaymentMethod,
-  AveniaTicketStatus,
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
@@ -28,36 +27,6 @@ export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02
 export const BRLA_POLYGON: `0x${string}` = "0xe6a537a407488807f0bbeb0038b79004f19dddfb";
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
-
-export async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string) {
-  const pollInterval = 5000;
-  const timeout = 5 * 60 * 1000;
-  const startTime = Date.now();
-  let lastError: Error | undefined;
-
-  while (Date.now() - startTime < timeout) {
-    try {
-      const ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
-      if (ticket && ticket.status) {
-        if (ticket.status === AveniaTicketStatus.PAID) {
-          return ticket;
-        }
-        if (ticket.status === AveniaTicketStatus.FAILED) {
-          throw new Error("Ticket status is FAILED");
-        }
-      }
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
-    }
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-  }
-
-  if (lastError) {
-    throw new Error(`Polling for ticket status timed out with an error: ${lastError.message}`);
-  }
-  throw new Error("Polling for ticket status timed out.");
-}
 
 export async function checkInitialUsdcBalanceOnBase(usdcAmountRaw: string): Promise<Big> {
   const { publicClient, walletClient } = getBaseEvmClients();
@@ -234,7 +203,8 @@ export async function transferBrlaToAveniaOnBase(
   const { walletClient, publicClient } = getBaseEvmClients();
 
   if (state.brlaTransferHash) {
-    console.log(`Resuming BRLA transfer with existing tx: ${state.brlaTransferHash}`);
+    console.log(`Resuming BRLA transfer with existing tx: ${state.brlaTransferHash}. Verifying on-chain...`);
+    await waitForTransactionConfirmation(state.brlaTransferHash, publicClient);
     return state.brlaTransferHash;
   }
 

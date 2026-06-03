@@ -153,7 +153,6 @@ export enum UsdcBaseRebalancePhase {
   Idle = "idle",
   CheckInitialUsdcBalance = "checkInitialUsdcBalance",
   NablaApprove = "nablaApprove",
-  NablaSwap = "nablaSwap",
   TransferBrlaToAvenia = "transferBrlaToAvenia",
   WaitForBrlaOnAvenia = "waitForBrlaOnAvenia",
   CompareRates = "compareRates",
@@ -170,17 +169,16 @@ export const usdcBasePhaseOrder: Record<UsdcBaseRebalancePhase, number> = {
   [UsdcBaseRebalancePhase.Idle]: 0,
   [UsdcBaseRebalancePhase.CheckInitialUsdcBalance]: 1,
   [UsdcBaseRebalancePhase.NablaApprove]: 2,
-  [UsdcBaseRebalancePhase.NablaSwap]: 3,
-  [UsdcBaseRebalancePhase.TransferBrlaToAvenia]: 4,
-  [UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]: 5,
-  [UsdcBaseRebalancePhase.CompareRates]: 6,
-  [UsdcBaseRebalancePhase.AveniaTransferToPolygon]: 7,
-  [UsdcBaseRebalancePhase.WaitBrlaOnPolygon]: 8,
-  [UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]: 9,
-  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid]: 10,
-  [UsdcBaseRebalancePhase.AveniaSwapToUsdcBase]: 7,
-  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia]: 8,
-  [UsdcBaseRebalancePhase.VerifyFinalBalance]: 11
+  [UsdcBaseRebalancePhase.TransferBrlaToAvenia]: 3,
+  [UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]: 4,
+  [UsdcBaseRebalancePhase.CompareRates]: 5,
+  [UsdcBaseRebalancePhase.AveniaTransferToPolygon]: 6,
+  [UsdcBaseRebalancePhase.WaitBrlaOnPolygon]: 7,
+  [UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]: 8,
+  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid]: 9,
+  [UsdcBaseRebalancePhase.AveniaSwapToUsdcBase]: 6,
+  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia]: 7,
+  [UsdcBaseRebalancePhase.VerifyFinalBalance]: 10
 };
 
 export type WinningRoute = "squidrouter" | "avenia" | null;
@@ -199,7 +197,6 @@ export interface UsdcBaseRebalanceState {
   aveniaQuoteUsdc: string | null;
   squidRouterSwapHash: string | null;
   aveniaTicketId: string | null;
-  aveniaQuoteToken: string | null;
   finalUsdcBalance: string | null;
   startingTime: string;
   updatedTime: string;
@@ -220,7 +217,6 @@ export interface UsdcBaseRebalanceContainer {
 
 function createFreshState(): UsdcBaseRebalanceState {
   return {
-    aveniaQuoteToken: null,
     aveniaQuoteUsdc: null,
     aveniaTicketId: null,
     brlaAmountDecimal: null,
@@ -293,7 +289,6 @@ export class UsdcBaseStateManager {
     const history = existing?.history ?? [];
 
     const state: UsdcBaseRebalanceState = {
-      aveniaQuoteToken: null,
       aveniaQuoteUsdc: null,
       aveniaTicketId: null,
       brlaAmountDecimal: null,

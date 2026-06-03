@@ -1,13 +1,13 @@
 import { BrlaApiService, multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
 import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from "../../services/stateManager.ts";
+import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getBaseEvmClients, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
   aveniaTransferBrlaToPolygon,
   checkInitialUsdcBalanceOnBase,
-  checkTicketStatusPaid,
   compareRates,
   fetchAveniaQuote,
   fetchSquidRouterQuote,
