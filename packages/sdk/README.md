@@ -54,13 +54,15 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 ### Alfredpay (USD / MXN / COP) onramp
 
 ```typescript
-import { VortexSdk, FiatToken, EvmToken, Networks, RampDirection } from "@vortexfi/sdk";
+import { VortexSdk, FiatToken, EvmToken, EPaymentMethod, Networks, RampDirection } from "@vortexfi/sdk";
 
 const sdk = new VortexSdk({ apiBaseUrl: "http://localhost:3000" });
 
 const quote = await sdk.createQuote({
+  from: EPaymentMethod.ACH, // USD and COP settle via ACH; MXN uses EPaymentMethod.SPEI
   inputAmount: "100",
   inputCurrency: FiatToken.COP,
+  network: Networks.Polygon,
   outputCurrency: EvmToken.USDC,
   rampType: RampDirection.BUY,
   to: Networks.Polygon
@@ -84,8 +86,10 @@ const quote = await sdk.createQuote({
   from: Networks.Polygon,
   inputAmount: "10",
   inputCurrency: EvmToken.USDC,
+  network: Networks.Polygon,
   outputCurrency: FiatToken.MXN,
-  rampType: RampDirection.SELL
+  rampType: RampDirection.SELL,
+  to: EPaymentMethod.SPEI // USD and COP settle via EPaymentMethod.ACH
 });
 
 const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {

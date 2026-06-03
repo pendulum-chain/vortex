@@ -395,6 +395,9 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
         return new MissingAlfredpayOnrampParametersError();
       }
+      if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
+        return new MissingAlfredpayOfframpParametersError();
+      }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();
       }
