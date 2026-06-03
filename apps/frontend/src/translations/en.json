@@ -1392,13 +1392,17 @@
       "title": "Buy & Sell <1>Stablecoins</1> - <br class='hidden sm:block' /> directly with your Bank Account"
     },
     "popularTokens": {
+      "countries": {
+        "description": "On and off-ramp in these popular fiat currencies",
+        "title": "Supported Countries"
+      },
+      "cryptocurrencies": {
+        "description": "supported cryptocurrencies",
+        "title": "Supported Cryptocurrencies"
+      },
       "networks": {
         "description": "Trade across multiple blockchain networks",
         "title": "Supported Networks"
-      },
-      "tokens": {
-        "description": "Trade these popular crypto and fiat currencies",
-        "title": "Supported Tokens"
       }
     },
     "popularTokensPartners": {
