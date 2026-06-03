@@ -48,16 +48,16 @@ For profile-assigned frontend quotes, `quote_tickets.user_id` is set to the auth
 
 ## Audit Checklist
 
-- [ ] `profile_partner_assignments` exists with `user_id`, `partner_name`, `is_active`, optional `expires_at`, timestamps, and indexes for active user lookups.
-- [ ] Admin assignment endpoints are protected by `adminAuth` and reject non-admin credentials.
-- [ ] Admin assignment replacement deactivates the old active row and creates the new row in one transaction after taking a row lock for the target profile.
-- [ ] Active-assignment unique-index collisions return `409 ASSIGNMENT_CONFLICT` instead of a generic server error.
-- [ ] Quote creation resolves profile assignments only from `req.userId`; unauthenticated quotes never use profile assignment pricing.
-- [ ] `POST /v1/quotes` and `POST /v1/quotes/best` still reject explicit `partnerId` without matching secret-key authentication.
-- [ ] Profile-assigned quotes persist `user_id` and `pricing_partner_id`, while leaving `partner_id` `NULL`.
-- [ ] Existing partner API-key and public-key quote paths preserve their previous `partner_id` behavior.
-- [ ] Fee distribution uses `pricing_partner_id ?? partner_id` for partner markup payout.
-- [ ] Ramp registration updates discount state using `pricing_partner_id ?? partner_id`.
-- [ ] User ownership checks continue to authorize profile-assigned quotes through `user_id`.
-- [ ] Partner ownership checks continue to authorize API-client quotes through `partner_id`.
-- [ ] Tests cover assigned user quote ownership and the non-regression path for partner-owned quotes.
+- [x] `profile_partner_assignments` exists with `user_id`, `partner_name`, `is_active`, optional `expires_at`, timestamps, and indexes for active user lookups.
+- [x] Admin assignment endpoints are protected by `adminAuth` and reject non-admin credentials.
+- [x] Admin assignment replacement deactivates the old active row and creates the new row in one transaction after taking a row lock for the target profile.
+- [x] Active-assignment unique-index collisions return `409 ASSIGNMENT_CONFLICT` instead of a generic server error.
+- [x] Quote creation resolves profile assignments only from `req.userId`; unauthenticated quotes never use profile assignment pricing.
+- [x] `POST /v1/quotes` and `POST /v1/quotes/best` still reject explicit `partnerId` without matching secret-key authentication.
+- [x] Profile-assigned quotes persist `user_id` and `pricing_partner_id`, while leaving `partner_id` `NULL`.
+- [x] Existing partner API-key and public-key quote paths preserve their previous `partner_id` behavior.
+- [x] Fee distribution uses `pricing_partner_id ?? partner_id` for partner markup payout.
+- [x] Ramp registration updates discount state using `pricing_partner_id ?? partner_id`.
+- [x] User ownership checks continue to authorize profile-assigned quotes through `user_id`.
+- [x] Partner ownership checks continue to authorize API-client quotes through `partner_id`.
+- [x] Tests cover assigned user quote ownership and the non-regression path for partner-owned quotes.
