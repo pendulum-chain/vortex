@@ -432,13 +432,13 @@ export class PriceFeedService {
   }
 
   private async getFastforexRate(fromCurrency: string, toCurrency: string): Promise<number> {
-    const url = new URL(`${this.fastforexApiBaseUrl}/fetch-one`);
+    const url = new URL("/fetch-one", this.fastforexApiBaseUrl);
     url.searchParams.append("from", fromCurrency);
     url.searchParams.append("to", toCurrency);
 
-    const headers: HeadersInit = { Accept: "application/json" };
+    const headers = new Headers({ Accept: "application/json" });
     if (this.fastforexApiKey) {
-      headers["X-API-Key"] = this.fastforexApiKey;
+      headers.set("X-API-Key", this.fastforexApiKey);
     }
 
     const response = await fetchWithTimeout(url.toString(), { headers });

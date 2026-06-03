@@ -3,6 +3,7 @@ import {afterAll, afterEach, beforeEach, describe, expect, it, mock} from "bun:t
 
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
+const originalSetInterval = global.setInterval;
 
 process.env = {
   ...originalEnv,
@@ -74,6 +75,7 @@ describe("PriceFeedService", () => {
     originalDateNow = Date.now;
     fetchMock = mock(async () => mockFastforexResponse(5.85));
     global.fetch = fetchMock as unknown as typeof fetch;
+    global.setInterval = mock(() => 0) as unknown as typeof setInterval;
     getApiMock.mockClear();
     Object.values(loggerMock).forEach(logger => logger.mockClear());
     // @ts-expect-error - accessing private property for testing
@@ -83,6 +85,7 @@ describe("PriceFeedService", () => {
   afterEach(() => {
     Date.now = originalDateNow;
     global.fetch = originalFetch;
+    global.setInterval = originalSetInterval;
     // @ts-expect-error - accessing private property for testing
     PriceFeedService.instance = undefined;
   });
@@ -176,13 +179,11 @@ describe("PriceFeedService", () => {
       expect(rate).toBe(5.85);
       expect(fetchMock).toHaveBeenCalledWith(
         "https://api.fastforex.io/fetch-one?from=USD&to=BRL",
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Accept: "application/json",
-            "X-API-Key": "test-fastforex-key"
-          })
-        })
+        expect.anything()
       );
+      const [, options] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
+      expect(options.headers.get("Accept")).toBe("application/json");
+      expect(options.headers.get("X-API-Key")).toBe("test-fastforex-key");
     });
 
     it("should return cached rate on second call", async () => {
@@ -268,12 +269,12 @@ describe("PriceFeedService", () => {
 
   describe("convertCurrency", () => {
     it("should return the same amount when currencies match", async () => {
-      const result = await priceFeedService.convertCurrency("100", "BRL" as any, "BRL" as any);
+      const result = await PriceFeedService.getInstance().convertCurrency("100", "BRL" as any, "BRL" as any);
       expect(result).toBe("100.00");
     });
 
     it("should perform 1:1 conversion between USD-like stablecoins", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "USDT" as any);
+      const result = await PriceFeedService.getInstance().convertCurrency("100", "USDC" as any, "USDT" as any);
       expect(result).toBe("100");
     });
 
