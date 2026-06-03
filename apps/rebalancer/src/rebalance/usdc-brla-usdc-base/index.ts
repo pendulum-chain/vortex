@@ -4,6 +4,7 @@ import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from
 import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getBaseEvmClients, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
+import { formatBaseRebalanceCompletionMessage } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
   aveniaTransferBrlaToPolygon,
@@ -298,14 +299,13 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
   const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
-    text:
-      "--------------------------------------------------" +
-      "\n" +
-      "✅ USDC->BRLA->USDC rebalance on Base completed!\n" +
-      `🛤️ Route: ${state.winningRoute}\n` +
-      `💰 USDC rebalanced: ${usdcRebalanced.toFixed(6)}\n` +
-      `📉 Cost - Absolute: ${cost.toFixed(6)} USDC | Relative: ${costRelative}` +
-      "\n" +
-      "--------------------------------------------------"
+    text: formatBaseRebalanceCompletionMessage({
+      brlaReceived: Big(state.brlaAmountDecimal),
+      cost,
+      finalUsdcBalance: finalUsdcDecimal,
+      initialUsdcBalance: initialUsdcDecimal,
+      requestedUsdc: usdcRebalanced,
+      route: state.winningRoute
+    })
   });
 }
