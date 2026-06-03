@@ -83,8 +83,7 @@ async function checkForRebalancing() {
   } else {
     const coverage = await getBaseNablaCoverageRatio();
     if (!coverage) {
-      console.log("Failed to fetch Base Nabla coverage ratio.");
-      return;
+      throw new Error("Failed to fetch Base Nabla coverage ratio.");
     }
 
     if (coverage.brlaCoverageRatio >= 1 + config.rebalancingThreshold) {
