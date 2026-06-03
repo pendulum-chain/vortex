@@ -163,6 +163,36 @@ export class InvalidPixKeyError extends BrlOfframpError {
   }
 }
 
+// Alfredpay Onramp specific errors
+export class AlfredpayOnrampError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOnrampError";
+  }
+}
+
+export class MissingAlfredpayOnrampParametersError extends AlfredpayOnrampError {
+  constructor() {
+    super("Parameters destinationAddress and fiatAccountId are required for Alfredpay onramp", 400);
+    this.name = "MissingAlfredpayOnrampParametersError";
+  }
+}
+
+// Alfredpay Offramp specific errors
+export class AlfredpayOfframpError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOfframpError";
+  }
+}
+
+export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpError {
+  constructor() {
+    super("Parameters fiatAccountId and walletAddress are required for Alfredpay offramp", 400);
+    this.name = "MissingAlfredpayOfframpParametersError";
+  }
+}
+
 // Monerium specific errors
 export class MoneriumError extends RegisterRampError {
   constructor(message: string, status = 400) {
@@ -400,6 +430,12 @@ export function parseAPIError(response: any): VortexSdkError {
       }
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
         return new InvalidPixKeyError();
+      }
+      if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
+        return new MissingAlfredpayOnrampParametersError();
+      }
+      if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
+        return new MissingAlfredpayOfframpParametersError();
       }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();

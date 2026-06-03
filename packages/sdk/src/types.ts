@@ -26,7 +26,15 @@ export {
   EvmTransactionData
 };
 
-export type AnyQuote = BrlOnrampQuote | EurOnrampQuote | BrlOfframpQuote | EurOfframpQuote;
+export type AnyQuote =
+  | BrlOnrampQuote
+  | EurOnrampQuote
+  | AlfredpayOnrampQuote
+  | BrlOfframpQuote
+  | EurOfframpQuote
+  | AlfredpayOfframpQuote;
+
+export type AlfredpayCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP;
 
 export type BrlOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
@@ -36,6 +44,11 @@ export type BrlOnrampQuote = QuoteResponse & {
 export type EurOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
   from: "sepa";
+};
+
+export type AlfredpayOnrampQuote = QuoteResponse & {
+  rampType: RampDirection.BUY;
+  inputCurrency: AlfredpayCurrency;
 };
 
 export type BrlOfframpQuote = QuoteResponse & {
@@ -48,31 +61,46 @@ export type EurOfframpQuote = QuoteResponse & {
   to: "sepa";
 };
 
+export type AlfredpayOfframpQuote = QuoteResponse & {
+  rampType: RampDirection.SELL;
+  outputCurrency: AlfredpayCurrency;
+};
+
 export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: RampDirection.BUY; from: "pix" }
   ? BrlOnrampQuote
   : T extends { rampType: RampDirection.BUY; from: "sepa" }
     ? EurOnrampQuote
-    : T extends { rampType: RampDirection.SELL; to: "pix" }
-      ? BrlOfframpQuote
-      : T extends { rampType: RampDirection.SELL; to: "sepa" }
-        ? EurOfframpQuote
-        : AnyQuote;
+    : T extends { rampType: RampDirection.BUY; inputCurrency: AlfredpayCurrency }
+      ? AlfredpayOnrampQuote
+      : T extends { rampType: RampDirection.SELL; to: "pix" }
+        ? BrlOfframpQuote
+        : T extends { rampType: RampDirection.SELL; to: "sepa" }
+          ? EurOfframpQuote
+          : T extends { rampType: RampDirection.SELL; outputCurrency: AlfredpayCurrency }
+            ? AlfredpayOfframpQuote
+            : AnyQuote;
 
 export type AnyAdditionalData =
   | BrlOfframpAdditionalData
   | EurOfframpAdditionalData
+  | AlfredpayOfframpAdditionalData
   | BrlOnrampAdditionalData
-  | EurOnrampAdditionalData;
+  | EurOnrampAdditionalData
+  | AlfredpayOnrampAdditionalData;
 
 export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? BrlOnrampAdditionalData
   : Q extends EurOnrampQuote
     ? EurOnrampAdditionalData
-    : Q extends BrlOfframpQuote
-      ? BrlOfframpAdditionalData
-      : Q extends EurOfframpQuote
-        ? EurOfframpAdditionalData
-        : AnyAdditionalData;
+    : Q extends AlfredpayOnrampQuote
+      ? AlfredpayOnrampAdditionalData
+      : Q extends BrlOfframpQuote
+        ? BrlOfframpAdditionalData
+        : Q extends EurOfframpQuote
+          ? EurOfframpAdditionalData
+          : Q extends AlfredpayOfframpQuote
+            ? AlfredpayOfframpAdditionalData
+            : AnyAdditionalData;
 
 export interface BrlOnrampAdditionalData {
   destinationAddress: string;
@@ -81,6 +109,13 @@ export interface BrlOnrampAdditionalData {
 
 export interface EurOnrampAdditionalData {
   moneriumAuthToken: string;
+}
+
+export interface AlfredpayOnrampAdditionalData {
+  destinationAddress: string;
+  fiatAccountId: string;
+  walletAddress?: string;
+  sessionId?: string;
 }
 
 export interface BrlOfframpAdditionalData {
@@ -95,20 +130,31 @@ export interface EurOfframpAdditionalData {
   walletAddress: string;
 }
 
+export interface AlfredpayOfframpAdditionalData {
+  fiatAccountId: string;
+  walletAddress: string;
+  sessionId?: string;
+}
+
 export type AnyUpdateAdditionalData =
   | EurOnrampUpdateAdditionalData
   | BrlOfframpUpdateAdditionalData
-  | EurOfframpUpdateAdditionalData;
+  | EurOfframpUpdateAdditionalData
+  | AlfredpayOfframpUpdateAdditionalData;
 
 export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
   ? never // No additional data required from the user for this type of ramp.
   : Q extends EurOnrampQuote
     ? EurOnrampUpdateAdditionalData
-    : Q extends BrlOfframpQuote
-      ? BrlOfframpUpdateAdditionalData
-      : Q extends EurOfframpQuote
-        ? EurOfframpUpdateAdditionalData
-        : AnyUpdateAdditionalData;
+    : Q extends AlfredpayOnrampQuote
+      ? never // Alfredpay onramp settles fiat off-chain; no user transactions to update.
+      : Q extends BrlOfframpQuote
+        ? BrlOfframpUpdateAdditionalData
+        : Q extends EurOfframpQuote
+          ? EurOfframpUpdateAdditionalData
+          : Q extends AlfredpayOfframpQuote
+            ? AlfredpayOfframpUpdateAdditionalData
+            : AnyUpdateAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
   squidRouterApproveHash: string;
@@ -116,16 +162,16 @@ export interface EurOnrampUpdateAdditionalData {
   moneriumOfframpSignature: string;
 }
 
-export interface BrlOfframpUpdateAdditionalData {
+export interface OfframpUpdateAdditionalData {
   squidRouterApproveHash?: string;
   squidRouterSwapHash?: string;
   assethubToPendulumHash?: string;
 }
-export interface EurOfframpUpdateAdditionalData {
-  squidRouterApproveHash?: string;
-  squidRouterSwapHash?: string;
-  assethubToPendulumHash?: string;
-}
+
+// BRL, EUR, and Alfredpay offramps all push back the same on-chain tx hashes.
+export type BrlOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
+export type EurOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
+export type AlfredpayOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
 
 export interface BrlKycResponse {
   evmAddress: string;

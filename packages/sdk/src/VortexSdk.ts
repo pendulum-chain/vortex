@@ -5,6 +5,7 @@ import {
   createPendulumEphemeral,
   EphemeralAccount,
   EphemeralAccountType,
+  isAlfredpayToken,
   QuoteResponse,
   RampDirection,
   RampProcess,
@@ -12,11 +13,15 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { TransactionSigningError } from "./errors";
+import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import { storeEphemeralKeys } from "./storage";
 import type {
+  AlfredpayOfframpAdditionalData,
+  AlfredpayOfframpUpdateAdditionalData,
+  AlfredpayOnrampAdditionalData,
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
@@ -31,6 +36,7 @@ export class VortexSdk {
   private publicKey: string | undefined;
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
+  private alfredpayHandler: AlfredpayHandler;
   private initializationPromise: Promise<void>;
   private storeEphemeralKeys: boolean;
 
@@ -41,6 +47,13 @@ export class VortexSdk {
     this.publicKey = config.publicKey;
 
     this.brlHandler = new BrlHandler(
+      this.apiService,
+      this,
+      this.generateEphemerals.bind(this),
+      this.signTransactions.bind(this)
+    );
+
+    this.alfredpayHandler = new AlfredpayHandler(
       this.apiService,
       this,
       this.generateEphemerals.bind(this),
@@ -85,7 +98,13 @@ export class VortexSdk {
     let unsignedTransactions: UnsignedTx[] = [];
 
     if (quote.rampType === RampDirection.BUY) {
-      if (quote.from === "pix") {
+      if (isAlfredpayToken(quote.inputCurrency)) {
+        rampProcess = await this.alfredpayHandler.registerAlfredpayOnramp(
+          quote.id,
+          additionalData as AlfredpayOnrampAdditionalData
+        );
+        unsignedTransactions = [];
+      } else if (quote.from === "pix") {
         rampProcess = await this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
         unsignedTransactions = [];
       } else if (quote.from === "sepa") {
@@ -94,7 +113,11 @@ export class VortexSdk {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
     } else if (quote.rampType === RampDirection.SELL) {
-      if (quote.to === "pix") {
+      if (isAlfredpayToken(quote.outputCurrency)) {
+        const offrampData = additionalData as AlfredpayOfframpAdditionalData;
+        rampProcess = await this.alfredpayHandler.registerAlfredpayOfframp(quote.id, offrampData);
+        unsignedTransactions = await this.getUserTransactions(rampProcess, offrampData.walletAddress);
+      } else if (quote.to === "pix") {
         rampProcess = await this.brlHandler.registerBrlOfframp(quote.id, additionalData as BrlOfframpAdditionalData);
         const userAddress = (additionalData as BrlOfframpAdditionalData).walletAddress;
         unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
@@ -116,13 +139,20 @@ export class VortexSdk {
     additionalUpdateData: UpdateRampAdditionalData<Q>
   ): Promise<RampProcess> {
     if (quote.rampType === RampDirection.BUY) {
-      if (quote.from === "pix") {
+      if (isAlfredpayToken(quote.inputCurrency)) {
+        throw new Error("Alfredpay onramp does not require any further data");
+      } else if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
         throw new Error("Euro onramp handler not implemented yet");
       }
     } else if (quote.rampType === RampDirection.SELL) {
-      if (quote.to === "pix") {
+      if (isAlfredpayToken(quote.outputCurrency)) {
+        return this.alfredpayHandler.updateAlfredpayOfframp(
+          rampId,
+          additionalUpdateData as AlfredpayOfframpUpdateAdditionalData
+        );
+      } else if (quote.to === "pix") {
         return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
         throw new Error("Euro offramp handler not implemented yet");
