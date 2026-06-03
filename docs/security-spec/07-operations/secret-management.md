@@ -34,9 +34,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Secret | Purpose | Blast Radius |
 |---|---|---|
-| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account | Drain of rebalancer Pendulum funds |
-| `MOONBEAM_ACCOUNT_SECRET` | Rebalancer's Moonbeam account | Drain of rebalancer Moonbeam funds |
-| `POLYGON_ACCOUNT_SECRET` | Rebalancer's Polygon account | Drain of rebalancer Polygon funds |
+| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for all EVM chains (Base, Polygon, Moonbeam). Used by both Base and legacy flows. | Drain of rebalancer funds on ALL EVM chains — Base, Polygon, and Moonbeam. Single point of failure for all EVM-based rebalancing. |
+| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account (sr25519 seed). Only required for legacy flow (`--legacy` flag). | Drain of rebalancer Pendulum funds. Not needed for the default Base flow. |
 
 ### Shared
 
