@@ -242,7 +242,8 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
   protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
     if (
-      (isOnramp(state) && state.state.isDirectTransfer === true) ||
+      (state.state.isDirectTransfer === true &&
+        !(state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken))) ||
       (isOnramp(state) && isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network))
     ) {
       return "destinationTransfer";
