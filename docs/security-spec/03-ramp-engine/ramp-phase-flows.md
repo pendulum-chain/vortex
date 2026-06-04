@@ -44,6 +44,8 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 
 **Alfredpay corridors:** Similar structure with `alfredpayOfframpTransfer` / `alfredpayOnrampMint` replacing the fiat provider phases.
 - **Degenerate Polygon same-token onramp case:** Alfredpay mints `ALFREDPAY_EVM_TOKEN` (USDT) on Polygon. When the user requests that same token on Polygon (`quote.metadata.request.to === Networks.Polygon` **and** `quote.outputCurrency === ALFREDPAY_EVM_TOKEN`), the `squidRouterSwap` handler short-circuits to `finalSettlementSubsidy` with no swap. Any **other** Polygon output (e.g. USDC) still runs the real USDT→output swap — `quote.metadata.request.to` is the destination network, not the output token, so the short-circuit MUST also check `outputCurrency`. See `05-integrations/alfredpay.md`.
+- **Alfredpay offramp always runs `finalSettlementSubsidy`:** The `FinalSettlementSubsidyHandler` direct-transfer skip explicitly excludes `SELL && isAlfredpayToken(outputCurrency)`. This ensures the Polygon ephemeral is always subsidized to the expected amount before `alfredpayOfframpTransfer`, regardless of the `isDirectTransfer` flag.
+- **`fund-ephemeral-handler` direct-transfer skip is onramp-only:** The `nextPhaseSelector` in `fund-ephemeral-handler.ts` only skips to `destinationTransfer` for direct-transfer onramps (`isOnramp(state) && state.state.isDirectTransfer`). Alfredpay offramps with `isDirectTransfer === true` still proceed through the normal `finalSettlementSubsidy` → `alfredpayOfframpTransfer` chain.
 
 **Cross-chain delivery (post-swap):** After the Nabla swap, tokens are routed to their final destination:
 - ~~From Pendulum to Stellar (ARS-only since EUR was migrated to Mykobo): `spacewalkRedeem` → `stellarPayment`~~ — **REMOVED.** The Stellar/Spacewalk backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered in `register-handlers.ts`. See `stellar-anchors.md`.
@@ -152,6 +154,8 @@ graph TD
 > - The ARS-via-Stellar off-ramp is **REMOVED.** Backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered. See `stellar-anchors.md`.
 > - `BaseChainPostProcessHandler` sweeps **all four** Base tokens regardless of corridor (`base-chain-post-process-handler.ts:9`: `BASE_CLEANUP_PHASES = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"]`). Per-corridor route builders only presign the subset they need.
 > - `pendulumCleanup` and other chain-specific post-process handlers (`PolygonPostProcessHandler`, `HydrationPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
+> - **Alfredpay offramp `finalSettlementSubsidy` is mandatory.** The direct-transfer short-circuit in `FinalSettlementSubsidyHandler` explicitly excludes Alfredpay SELL ramps, so the subsidy always runs regardless of `isDirectTransfer`.
+> - **`fund-ephemeral-handler` direct-transfer skip is onramp-only.** The `nextPhaseSelector` gates the skip on `isOnramp(state)`, so Alfredpay offramps with `isDirectTransfer === true` still flow through `finalSettlementSubsidy` → `alfredpayOfframpTransfer`.
 
 ### Phase Handler Categories
 
