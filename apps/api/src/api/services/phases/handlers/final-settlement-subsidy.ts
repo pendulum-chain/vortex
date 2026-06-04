@@ -66,25 +66,26 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
 
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
+    }
+
     if (state.state.isDirectTransfer === true) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for direct-transfer ramp ${state.id}`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
-    const quote = await QuoteTicket.findByPk(state.quoteId);
-    if (!quote) {
-      throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
-    }
     logger.debug(
       `FinalSettlementSubsidyHandler: Quote found. inputCurrency=${quote.inputCurrency}, outputCurrency=${quote.outputCurrency}, network=${quote.network}`
     );
 
     if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for Base direct-transfer route (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
     const isAlfredpaySell = state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken);

@@ -36,6 +36,12 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     return "squidRouterSwap";
   }
 
+  private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
+    return state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)
+      ? "alfredpayOfframpTransfer"
+      : "destinationTransfer";
+  }
+
   /**
    * Execute the phase
    * @param state The current ramp state
@@ -44,19 +50,19 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
-    if (state.state.isDirectTransfer === true) {
-      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
-    }
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
 
+    if (state.state.isDirectTransfer === true) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+    }
+
     if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
       logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Base direct-transfer route (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, "destinationTransfer");
+      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
 
     if (state.type === RampDirection.SELL) {
