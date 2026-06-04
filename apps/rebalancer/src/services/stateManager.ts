@@ -153,10 +153,13 @@ export class BrlaToAxlUsdcStateManager {
 export enum UsdcBaseRebalancePhase {
   Idle = "idle",
   CheckInitialUsdcBalance = "checkInitialUsdcBalance",
+  CompareRates = "compareRates",
   NablaApprove = "nablaApprove",
+  // nabla-main route: swap BRL->USDC on main Nabla (ends here)
+  MainNablaApproveAndSwap = "mainNablaApproveAndSwap",
+  // avenia/squid routes continue below
   TransferBrlaToAvenia = "transferBrlaToAvenia",
   WaitForBrlaOnAvenia = "waitForBrlaOnAvenia",
-  CompareRates = "compareRates",
   AveniaTransferToPolygon = "aveniaTransferToPolygon",
   WaitBrlaOnPolygon = "waitBrlaOnPolygon",
   SquidRouterApproveAndSwap = "squidRouterApproveAndSwap",
@@ -169,20 +172,21 @@ export enum UsdcBaseRebalancePhase {
 export const usdcBasePhaseOrder: Record<UsdcBaseRebalancePhase, number> = {
   [UsdcBaseRebalancePhase.Idle]: 0,
   [UsdcBaseRebalancePhase.CheckInitialUsdcBalance]: 1,
-  [UsdcBaseRebalancePhase.NablaApprove]: 2,
-  [UsdcBaseRebalancePhase.TransferBrlaToAvenia]: 3,
-  [UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]: 4,
-  [UsdcBaseRebalancePhase.CompareRates]: 5,
-  [UsdcBaseRebalancePhase.AveniaTransferToPolygon]: 6,
-  [UsdcBaseRebalancePhase.WaitBrlaOnPolygon]: 7,
-  [UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]: 8,
-  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid]: 9,
-  [UsdcBaseRebalancePhase.AveniaSwapToUsdcBase]: 6,
-  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia]: 7,
-  [UsdcBaseRebalancePhase.VerifyFinalBalance]: 10
+  [UsdcBaseRebalancePhase.CompareRates]: 2,
+  [UsdcBaseRebalancePhase.NablaApprove]: 3,
+  [UsdcBaseRebalancePhase.MainNablaApproveAndSwap]: 4,
+  [UsdcBaseRebalancePhase.TransferBrlaToAvenia]: 5,
+  [UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]: 6,
+  [UsdcBaseRebalancePhase.AveniaTransferToPolygon]: 7,
+  [UsdcBaseRebalancePhase.WaitBrlaOnPolygon]: 8,
+  [UsdcBaseRebalancePhase.SquidRouterApproveAndSwap]: 9,
+  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid]: 10,
+  [UsdcBaseRebalancePhase.AveniaSwapToUsdcBase]: 7,
+  [UsdcBaseRebalancePhase.WaitUsdcOnBaseFromAvenia]: 8,
+  [UsdcBaseRebalancePhase.VerifyFinalBalance]: 11
 };
 
-export type WinningRoute = "squidrouter" | "avenia" | null;
+export type WinningRoute = "squidrouter" | "avenia" | "nabla-main" | null;
 
 export interface UsdcBaseRebalanceState {
   currentPhase: UsdcBaseRebalancePhase;
@@ -198,6 +202,10 @@ export interface UsdcBaseRebalanceState {
   winningRoute: WinningRoute;
   squidRouterQuoteUsdc: string | null;
   aveniaQuoteUsdc: string | null;
+  mainNablaQuoteUsdc: string | null;
+  mainNablaApproveHash: string | null;
+  mainNablaSwapHash: string | null;
+  mainNablaUsdcBalanceBeforeRaw: string | null;
   polygonBrlaBalanceBeforeTransferRaw: string | null;
   squidRouterSwapHash: string | null;
   baseUsdcBalanceBeforeAveniaSwapRaw: string | null;
@@ -235,6 +243,10 @@ function createFreshState(): UsdcBaseRebalanceState {
     currentPhase: UsdcBaseRebalancePhase.Idle,
     finalUsdcBalance: null,
     initialUsdcBalance: null,
+    mainNablaApproveHash: null,
+    mainNablaQuoteUsdc: null,
+    mainNablaSwapHash: null,
+    mainNablaUsdcBalanceBeforeRaw: null,
     nablaApproveHash: null,
     nablaSwapHash: null,
     polygonBrlaBalanceBeforeTransferRaw: null,
@@ -312,6 +324,10 @@ export class UsdcBaseStateManager {
       currentPhase: UsdcBaseRebalancePhase.CheckInitialUsdcBalance,
       finalUsdcBalance: null,
       initialUsdcBalance: null,
+      mainNablaApproveHash: null,
+      mainNablaQuoteUsdc: null,
+      mainNablaSwapHash: null,
+      mainNablaUsdcBalanceBeforeRaw: null,
       nablaApproveHash: null,
       nablaSwapHash: null,
       polygonBrlaBalanceBeforeTransferRaw: null,

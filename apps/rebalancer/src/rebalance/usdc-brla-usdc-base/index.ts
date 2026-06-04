@@ -9,12 +9,14 @@ import {
   aveniaCreateSwapToUsdcBaseTicket,
   aveniaTransferBrlaToPolygon,
   checkInitialUsdcBalanceOnBase,
-  compareRates,
+  compareRoutesUpfront,
   fetchAveniaQuote,
+  fetchMainNablaQuote,
   fetchSquidRouterQuote,
   getAveniaBrlaBalanceDecimal,
   getBrlaBalanceOnPolygonRaw,
   getUsdcBalanceOnBaseRaw,
+  mainNablaApproveAndSwap,
   nablaApproveAndSwapOnBase,
   squidRouterApproveAndSwap,
   transferBrlaToAveniaOnBase,
@@ -27,7 +29,7 @@ import {
 export async function rebalanceUsdcBrlaUsdcBase(
   usdcAmountRaw: string,
   forceRestart = false,
-  forcedRoute?: "squidrouter" | "avenia"
+  forcedRoute?: "squidrouter" | "avenia" | "nabla-main"
 ) {
   console.log(`Starting USDC->BRLA->USDC rebalance on Base with amount: ${usdcAmountRaw} (raw USDC)`);
 
@@ -53,17 +55,39 @@ export async function rebalanceUsdcBrlaUsdcBase(
   const currentOrder = usdcBasePhaseOrder[state.currentPhase];
   console.log(`Current phase order: ${currentOrder}`);
 
+  // ── Step 1: Check initial USDC balance ──────────────────────────────────────
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.CheckInitialUsdcBalance]) {
     if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 1");
 
     const initialBalance = await checkInitialUsdcBalanceOnBase(state.usdcAmountRaw);
     state.initialUsdcBalance = initialBalance.toString();
+    state.currentPhase = UsdcBaseRebalancePhase.CompareRates;
+    await stateManager.saveState(state);
+  }
+
+  // ── Step 2: Compare all 3 routes upfront (before any swap) ──────────────────
+  if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.CompareRates]) {
+    if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 2");
+
+    if (forcedRoute) {
+      console.log(`Forced route: ${forcedRoute}. Skipping full comparison.`);
+      state.winningRoute = forcedRoute;
+    } else {
+      const comparison = await compareRoutesUpfront(state.usdcAmountRaw);
+      state.winningRoute = comparison.winningRoute;
+      state.squidRouterQuoteUsdc = comparison.squidRouterQuoteUsdc;
+      state.aveniaQuoteUsdc = comparison.aveniaQuoteUsdc;
+      state.mainNablaQuoteUsdc = comparison.mainNablaQuoteUsdc;
+    }
+
+    console.log(`Route selected: ${state.winningRoute}`);
     state.currentPhase = UsdcBaseRebalancePhase.NablaApprove;
     await stateManager.saveState(state);
   }
 
+  // ── Step 3: Nabla swap USDC → BRLA on Base (common to all routes) ───────────
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.NablaApprove]) {
-    if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 2");
+    if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 3");
 
     const result = await nablaApproveAndSwapOnBase(state.usdcAmountRaw, baseNonce, state, stateManager);
 
@@ -71,73 +95,71 @@ export async function rebalanceUsdcBrlaUsdcBase(
     state.brlaAmountDecimal = result.brlaAmountDecimal.toString();
 
     console.log(`Nabla swap completed. BRLA received: ${result.brlaAmountDecimal.toFixed(4)}`);
-    state.currentPhase = UsdcBaseRebalancePhase.TransferBrlaToAvenia;
+
+    if (state.winningRoute === "nabla-main") {
+      state.currentPhase = UsdcBaseRebalancePhase.MainNablaApproveAndSwap;
+    } else {
+      state.currentPhase = UsdcBaseRebalancePhase.TransferBrlaToAvenia;
+    }
     await stateManager.saveState(state);
   }
 
-  if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.TransferBrlaToAvenia]) {
-    if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for step 3");
+  // ── nabla-main route: swap BRL → USDC on main Nabla (terminal) ──────────────
+  if (state.winningRoute === "nabla-main") {
+    if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.MainNablaApproveAndSwap]) {
+      if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for nabla-main step");
 
-    if (!state.aveniaBrlaBalanceBeforeTransfer) {
-      state.aveniaBrlaBalanceBeforeTransfer = await getAveniaBrlaBalanceDecimal();
+      await mainNablaApproveAndSwap(state.brlaAmountRaw, baseNonce, state, stateManager);
+
+      console.log("Main Nabla swap completed. Proceeding to verify final balance.");
+      state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;
+      await stateManager.saveState(state);
+    }
+  }
+
+  // ── avenia/squid routes: transfer BRLA to Avenia, then diverge ──────────────
+  if (state.winningRoute === "avenia" || state.winningRoute === "squidrouter") {
+    if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.TransferBrlaToAvenia]) {
+      if (!state.brlaAmountRaw) throw new Error("State corrupted: brlaAmountRaw missing for step 4");
+
+      if (!state.aveniaBrlaBalanceBeforeTransfer) {
+        state.aveniaBrlaBalanceBeforeTransfer = await getAveniaBrlaBalanceDecimal();
+        await stateManager.saveState(state);
+      }
+
+      state.brlaTransferHash = await transferBrlaToAveniaOnBase(state.brlaAmountRaw, baseNonce, state, stateManager);
+
+      console.log(`BRLA transferred to Avenia on Base. Tx: ${state.brlaTransferHash}`);
+      state.currentPhase = UsdcBaseRebalancePhase.WaitForBrlaOnAvenia;
       await stateManager.saveState(state);
     }
 
-    state.brlaTransferHash = await transferBrlaToAveniaOnBase(state.brlaAmountRaw, baseNonce, state, stateManager);
-
-    console.log(`BRLA transferred to Avenia on Base. Tx: ${state.brlaTransferHash}`);
-    state.currentPhase = UsdcBaseRebalancePhase.WaitForBrlaOnAvenia;
-    await stateManager.saveState(state);
-  }
-
-  if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]) {
-    if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for step 4");
-    if (!state.aveniaBrlaBalanceBeforeTransfer) {
-      throw new Error("State corrupted: aveniaBrlaBalanceBeforeTransfer missing for step 4");
-    }
-
-    const actualBrlaBalance = await waitForBrlaOnAvenia(
-      Big(state.brlaAmountDecimal),
-      Big(state.aveniaBrlaBalanceBeforeTransfer)
-    );
-
-    state.brlaAmountDecimal = actualBrlaBalance;
-    state.brlaAmountRaw = multiplyByPowerOfTen(Big(actualBrlaBalance), 18).toFixed(0, 0);
-
-    console.log("BRLA confirmed on Avenia internal balance.");
-    state.currentPhase = UsdcBaseRebalancePhase.CompareRates;
-    await stateManager.saveState(state);
-  }
-
-  if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.CompareRates]) {
-    if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for step 5");
-
-    if (forcedRoute) {
-      console.log(`Forced route: ${forcedRoute}. Fetching quote for forced route only.`);
-
-      state.winningRoute = forcedRoute;
-      if (forcedRoute === "squidrouter") {
-        state.squidRouterQuoteUsdc = await fetchSquidRouterQuote(Big(state.brlaAmountDecimal));
-      } else {
-        state.aveniaQuoteUsdc = await fetchAveniaQuote(Big(state.brlaAmountDecimal));
+    if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.WaitForBrlaOnAvenia]) {
+      if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for step 5");
+      if (!state.aveniaBrlaBalanceBeforeTransfer) {
+        throw new Error("State corrupted: aveniaBrlaBalanceBeforeTransfer missing for step 5");
       }
-    } else {
-      const rateComparison = await compareRates(Big(state.brlaAmountDecimal));
-      state.winningRoute = rateComparison.winningRoute;
-      state.squidRouterQuoteUsdc = rateComparison.squidRouterQuoteUsdc;
-      state.aveniaQuoteUsdc = rateComparison.aveniaQuoteUsdc;
-    }
 
-    console.log(`Rate comparison complete. Winner: ${state.winningRoute}`);
+      const actualBrlaBalance = await waitForBrlaOnAvenia(
+        Big(state.brlaAmountDecimal),
+        Big(state.aveniaBrlaBalanceBeforeTransfer)
+      );
 
-    if (state.winningRoute === "squidrouter") {
-      state.currentPhase = UsdcBaseRebalancePhase.AveniaTransferToPolygon;
-    } else {
-      state.currentPhase = UsdcBaseRebalancePhase.AveniaSwapToUsdcBase;
+      state.brlaAmountDecimal = actualBrlaBalance;
+      state.brlaAmountRaw = multiplyByPowerOfTen(Big(actualBrlaBalance), 18).toFixed(0, 0);
+
+      console.log("BRLA confirmed on Avenia internal balance.");
+
+      if (state.winningRoute === "squidrouter") {
+        state.currentPhase = UsdcBaseRebalancePhase.AveniaTransferToPolygon;
+      } else {
+        state.currentPhase = UsdcBaseRebalancePhase.AveniaSwapToUsdcBase;
+      }
+      await stateManager.saveState(state);
     }
-    await stateManager.saveState(state);
   }
 
+  // ── Avenia route: BRLA → USDC swap via Avenia on Base ───────────────────────
   if (state.winningRoute === "avenia") {
     if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.AveniaSwapToUsdcBase]) {
       if (!state.brlaAmountDecimal) throw new Error("State corrupted: brlaAmountDecimal missing for avenia step 1");
@@ -195,6 +217,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
     }
   }
 
+  // ── SquidRouter route: transfer BRLA to Polygon, then swap ──────────────────
   if (state.winningRoute === "squidrouter") {
     const { publicClient: polygonPublicClient, walletClient: polygonWalletClient } = getPolygonEvmClients();
     const polygonNonce = await NonceManager.create(polygonPublicClient, polygonWalletClient.account.address as `0x${string}`);
@@ -264,6 +287,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
     }
   }
 
+  // ── Final: verify balance and report ────────────────────────────────────────
   if (currentOrder <= usdcBasePhaseOrder[UsdcBaseRebalancePhase.VerifyFinalBalance]) {
     const finalBalance = await verifyFinalUsdcBalanceOnBase();
     state.finalUsdcBalance = finalBalance.toString();

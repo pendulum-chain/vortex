@@ -17,11 +17,15 @@ export function getConfig() {
       ? Number(process.env.INDEXER_FRESHNESS_THRESHOLD_MINUTES)
       : 5,
 
+    // Main Nabla instance on Base
+    mainNablaQuoter: process.env.MAIN_NABLA_QUOTER as `0x${string}` | undefined,
+    mainNablaRouter: process.env.MAIN_NABLA_ROUTER as `0x${string}` | undefined,
+
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
     rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
-    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.25,
+    rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
     /// The amount in USD to rebalance from the USD pool to the BRL pool on Pendulum during each execution.
     rebalancingUsdToBrlAmount: process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
     /// The minimum balance in USD that the rebalancer account on Pendulum must have to allow rebalancing to occur.

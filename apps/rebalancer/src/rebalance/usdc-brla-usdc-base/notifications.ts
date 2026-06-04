@@ -32,5 +32,6 @@ export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceComple
 function formatRoute(route: WinningRoute): string {
   if (route === "avenia") return "Avenia";
   if (route === "squidrouter") return "SquidRouter";
+  if (route === "nabla-main") return "Main Nabla";
   return "Unknown";
 }

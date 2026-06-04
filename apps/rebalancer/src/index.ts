@@ -20,9 +20,9 @@ const forceRestart = args.includes("--restart");
 const useLegacy = args.includes("--legacy");
 const manualAmount = args.find(arg => !arg.startsWith("--")) || null;
 const routeArg = args.find(arg => arg.startsWith("--route="));
-const forcedRoute = routeArg ? (routeArg.split("=")[1] as "squidrouter" | "avenia") : undefined;
-if (forcedRoute && !["squidrouter", "avenia"].includes(forcedRoute)) {
-  console.error("Invalid --route value. Must be 'squidrouter' or 'avenia'.");
+const forcedRoute = routeArg ? (routeArg.split("=")[1] as "squidrouter" | "avenia" | "nabla-main") : undefined;
+if (forcedRoute && !["squidrouter", "avenia", "nabla-main"].includes(forcedRoute)) {
+  console.error("Invalid --route value. Must be 'squidrouter', 'avenia', or 'nabla-main'.");
   process.exit(1);
 }
 
@@ -86,7 +86,7 @@ async function checkForRebalancing() {
       throw new Error("Failed to fetch Base Nabla coverage ratio.");
     }
 
-    if (coverage.brlaCoverageRatio >= 1 + config.rebalancingThreshold) {
+    if (coverage.brlaCoverageRatio >= 0 + config.rebalancingThreshold) {
       console.log(`Base Nabla BRLA coverage ratio ${coverage.brlaCoverageRatio} requires rebalancing.`);
     } else {
       console.log(`Base Nabla BRLA coverage ratio ${coverage.brlaCoverageRatio} does not require rebalancing.`);

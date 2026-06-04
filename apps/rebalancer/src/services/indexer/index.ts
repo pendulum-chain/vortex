@@ -45,9 +45,7 @@ export async function getBaseNablaCoverageRatio(): Promise<
     })) as `0x${string}`;
 
     if (brlaPoolAddress === "0x0000000000000000000000000000000000000000") {
-      console.error(
-        `No BRLA pool found on Base Nabla router (${NABLA_ROUTER_BASE_BRLA}) for asset ${ERC20_BRLA_BASE}.`
-      );
+      console.error(`No BRLA pool found on Base Nabla router (${NABLA_ROUTER_BASE_BRLA}) for asset ${ERC20_BRLA_BASE}.`);
       return undefined;
     }
     const [brlaReserve, brlaLiabilities] = await Promise.all([

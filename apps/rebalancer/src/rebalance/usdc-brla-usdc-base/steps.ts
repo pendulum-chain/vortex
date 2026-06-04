@@ -19,14 +19,14 @@ import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import { base, polygon } from "viem/chains";
 import { brlaMoonbeamTokenDetails } from "../../constants.ts";
-import { UsdcBaseRebalanceState, UsdcBaseStateManager } from "../../services/stateManager.ts";
+import { UsdcBaseRebalanceState, UsdcBaseStateManager, type WinningRoute } from "../../services/stateManager.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
 import { calculateMinimumDelta, calculateTargetBalanceRaw, DEFAULT_ARRIVAL_TOLERANCE } from "./guards.ts";
 
 export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address;
+export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`;
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
@@ -620,4 +620,279 @@ export async function verifyFinalUsdcBalanceOnBase(): Promise<Big> {
   console.log(`Final USDC balance on Base (${address}): ${balanceDecimal.toFixed(6)} USDC`);
 
   return balanceDecimal;
+}
+
+// ── Main Nabla route (BRL → USDC on a second Nabla instance on Base) ─────────
+
+const MAIN_NABLA_QUOTE_ABI = [
+  {
+    inputs: [
+      { name: "_amountIn", type: "uint256" },
+      { name: "_tokenPath", type: "address[]" },
+      { name: "_routerPath", type: "address[]" }
+    ],
+    name: "quoteSwapExactTokensForTokens",
+    outputs: [{ name: "amountOut_", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
+function getMainNablaConfig() {
+  const config = getConfig();
+  if (!config.mainNablaRouter || !config.mainNablaQuoter) {
+    throw new Error("Main Nabla route requires MAIN_NABLA_ROUTER and MAIN_NABLA_QUOTER env vars.");
+  }
+  return {
+    brlaToken: ERC20_BRLA_BASE,
+    quoter: config.mainNablaQuoter,
+    router: config.mainNablaRouter,
+    usdcToken: USDC_BASE
+  };
+}
+
+/**
+ * Fetches a quote from the main Nabla instance for BRL→USDC.
+ * Returns the expected USDC output in raw units (6 decimals assumed for USDC).
+ */
+export async function fetchMainNablaQuote(brlaAmountRaw: string): Promise<string> {
+  const { router, quoter, brlaToken, usdcToken } = getMainNablaConfig();
+  const evmClientManager = EvmClientManager.getInstance();
+
+  const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+    abi: MAIN_NABLA_QUOTE_ABI,
+    address: quoter,
+    args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
+    functionName: "quoteSwapExactTokensForTokens"
+  });
+
+  const expectedOutputDecimal = multiplyByPowerOfTen(Big(expectedOutputRaw.toString()), -6);
+  console.log(`Main Nabla quote: ${expectedOutputDecimal.toFixed(6)} USDC`);
+  return expectedOutputRaw.toString();
+}
+
+/**
+ * Quotes the first Nabla swap (USDC→BRLA) to estimate how much BRLA we'd get,
+ * then quotes all 3 return routes to compare them upfront.
+ */
+export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
+  winningRoute: WinningRoute;
+  estimatedBrlaRaw: string;
+  squidRouterQuoteUsdc: string | null;
+  aveniaQuoteUsdc: string | null;
+  mainNablaQuoteUsdc: string | null;
+}> {
+  console.log("Quoting first Nabla (USDC→BRLA) to estimate BRLA output for route comparison...");
+
+  const evmClientManager = EvmClientManager.getInstance();
+  const quoteAbi = [
+    {
+      inputs: [
+        { name: "_amountIn", type: "uint256" },
+        { name: "_tokenPath", type: "address[]" },
+        { name: "_routerPath", type: "address[]" }
+      ],
+      name: "quoteSwapExactTokensForTokens",
+      outputs: [{ name: "amountOut_", type: "uint256" }],
+      stateMutability: "view",
+      type: "function"
+    }
+  ] as const;
+
+  const { router, quoter } = getNablaBasePool(USDC_BASE, ERC20_BRLA_BASE);
+  const estimatedBrlaRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+    abi: quoteAbi,
+    address: quoter,
+    args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
+    functionName: "quoteSwapExactTokensForTokens"
+  });
+
+  const estimatedBrlaDecimal = multiplyByPowerOfTen(Big(estimatedBrlaRaw.toString()), -18);
+  console.log(`Estimated BRLA from first Nabla: ${estimatedBrlaDecimal.toFixed(6)}`);
+
+  // Quote all 3 return routes in parallel
+  let squidRouterQuoteUsdc: string | null = null;
+  let aveniaQuoteUsdc: string | null = null;
+  let mainNablaQuoteUsdc: string | null = null;
+
+  const config = getConfig();
+  const mainNablaAvailable = !!(config.mainNablaRouter && config.mainNablaQuoter);
+
+  const results = await Promise.allSettled([
+    fetchSquidRouterQuote(estimatedBrlaDecimal),
+    fetchAveniaQuote(estimatedBrlaDecimal),
+    mainNablaAvailable ? fetchMainNablaQuote(estimatedBrlaRaw.toString()) : Promise.reject("not configured")
+  ]);
+
+  if (results[0].status === "fulfilled") {
+    squidRouterQuoteUsdc = results[0].value;
+  } else {
+    console.warn("SquidRouter quote failed:", results[0].reason);
+  }
+
+  if (results[1].status === "fulfilled") {
+    aveniaQuoteUsdc = results[1].value;
+  } else {
+    console.warn("Avenia quote failed:", results[1].reason);
+  }
+
+  if (results[2].status === "fulfilled") {
+    mainNablaQuoteUsdc = results[2].value;
+  } else if (mainNablaAvailable) {
+    console.warn("Main Nabla quote failed:", results[2].reason);
+  }
+
+  // Normalize all quotes to decimal USDC for comparison
+  const candidates: { route: WinningRoute; usdcDecimal: Big }[] = [];
+
+  if (squidRouterQuoteUsdc) {
+    candidates.push({ route: "squidrouter", usdcDecimal: multiplyByPowerOfTen(Big(squidRouterQuoteUsdc), -6) });
+  }
+  if (aveniaQuoteUsdc) {
+    candidates.push({ route: "avenia", usdcDecimal: Big(aveniaQuoteUsdc) });
+  }
+  if (mainNablaQuoteUsdc) {
+    candidates.push({ route: "nabla-main", usdcDecimal: multiplyByPowerOfTen(Big(mainNablaQuoteUsdc), -6) });
+  }
+
+  if (candidates.length === 0) {
+    throw new Error("All route quotes failed. Cannot proceed.");
+  }
+
+  candidates.sort((a, b) => (b.usdcDecimal.gt(a.usdcDecimal) ? 1 : -1));
+  const winner = candidates[0] as (typeof candidates)[number];
+
+  console.log("Route comparison results:");
+  for (const c of candidates) {
+    console.log(`  ${c.route}: ${c.usdcDecimal.toFixed(6)} USDC ${c.route === winner.route ? "(WINNER)" : ""}`);
+  }
+
+  return {
+    aveniaQuoteUsdc,
+    estimatedBrlaRaw: estimatedBrlaRaw.toString(),
+    mainNablaQuoteUsdc,
+    squidRouterQuoteUsdc,
+    winningRoute: winner.route
+  };
+}
+
+/**
+ * Approve and swap BRL→USDC on the main Nabla instance on Base.
+ * This is the terminal step for the nabla-main route.
+ */
+export async function mainNablaApproveAndSwap(
+  brlaAmountRaw: string,
+  baseNonce: NonceManager,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
+): Promise<{ approveHash: string; swapHash: string; usdcReceivedRaw: string }> {
+  const { router, brlaToken, usdcToken } = getMainNablaConfig();
+  const { walletClient, publicClient } = getBaseEvmClients();
+  const executorAddress = walletClient.account.address;
+
+  console.log(`Starting Main Nabla swap of ${brlaAmountRaw} BRLA (raw) to USDC on Base...`);
+
+  if (state.mainNablaApproveHash && state.mainNablaSwapHash) {
+    console.log("Resuming Main Nabla swap with previously recorded hashes.");
+  }
+
+  if (!state.mainNablaUsdcBalanceBeforeRaw) {
+    state.mainNablaUsdcBalanceBeforeRaw = await getUsdcBalanceOnBaseRaw();
+    await stateManager.saveState(state);
+  }
+  const usdcBalanceBefore = BigInt(state.mainNablaUsdcBalanceBeforeRaw);
+
+  let approveHash = state.mainNablaApproveHash;
+  let swapHash = state.mainNablaSwapHash;
+
+  if (!swapHash) {
+    const evmClientManager = EvmClientManager.getInstance();
+    const { quoter } = getMainNablaConfig();
+    const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+      abi: MAIN_NABLA_QUOTE_ABI,
+      address: quoter,
+      args: [BigInt(brlaAmountRaw), [brlaToken, usdcToken], [router]],
+      functionName: "quoteSwapExactTokensForTokens"
+    });
+
+    const nablaHardMinimumOutputRaw = Big(expectedOutputRaw.toString())
+      .mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN)
+      .toFixed(0, 0);
+
+    const { approve, swap } = await createNablaTransactionsForOnrampOnEVM(
+      brlaAmountRaw,
+      { address: executorAddress, type: EphemeralAccountType.EVM },
+      brlaToken,
+      usdcToken,
+      nablaHardMinimumOutputRaw,
+      NABLA_SWAP_DEADLINE_MINUTES,
+      router
+    );
+
+    if (!approveHash) {
+      console.log("Sending Main Nabla approve transaction on Base...");
+      const { maxFeePerGas: approveFee, maxPriorityFeePerGas: approveTip } = await publicClient.estimateFeesPerGas();
+      approveHash = await walletClient.sendTransaction({
+        account: walletClient.account,
+        chain: base,
+        data: approve.data,
+        gas: BigInt(approve.gas),
+        maxFeePerGas: approveFee,
+        maxPriorityFeePerGas: approveTip,
+        nonce: baseNonce.next(),
+        to: approve.to,
+        value: BigInt(approve.value)
+      });
+      state.mainNablaApproveHash = approveHash;
+      await stateManager.saveState(state);
+      console.log(`Main Nabla approve tx sent: ${approveHash}`);
+    } else {
+      console.log(`Resuming Main Nabla approval with existing tx: ${approveHash}`);
+    }
+
+    await waitForTransactionConfirmation(approveHash, publicClient);
+    console.log("Main Nabla approval confirmed.");
+
+    console.log("Sending Main Nabla swap transaction on Base...");
+    const { maxFeePerGas: swapFee, maxPriorityFeePerGas: swapTip } = await publicClient.estimateFeesPerGas();
+    swapHash = await walletClient.sendTransaction({
+      account: walletClient.account,
+      chain: base,
+      data: swap.data,
+      gas: BigInt(swap.gas),
+      maxFeePerGas: swapFee,
+      maxPriorityFeePerGas: swapTip,
+      nonce: baseNonce.next(),
+      to: swap.to,
+      value: BigInt(swap.value)
+    });
+    state.mainNablaSwapHash = swapHash;
+    await stateManager.saveState(state);
+    console.log(`Main Nabla swap tx sent: ${swapHash}`);
+  } else {
+    console.log(`Resuming Main Nabla swap with existing approve tx: ${approveHash}, swap tx: ${swapHash}`);
+  }
+
+  if (!approveHash || !swapHash) {
+    throw new Error("State corrupted: Main Nabla transaction hash missing after swap step.");
+  }
+
+  await waitForTransactionConfirmation(swapHash, publicClient);
+  console.log("Main Nabla swap confirmed.");
+
+  // Delay to let the RPC sync post-swap state
+  await new Promise(resolve => setTimeout(resolve, 5_000));
+
+  const usdcBalanceAfter = await publicClient.readContract({
+    abi: erc20Abi,
+    address: USDC_BASE,
+    args: [executorAddress],
+    functionName: "balanceOf"
+  });
+
+  const usdcReceivedRaw = (usdcBalanceAfter - usdcBalanceBefore).toString();
+  const usdcReceivedDecimal = multiplyByPowerOfTen(Big(usdcReceivedRaw), -6);
+  console.log(`Received ${usdcReceivedDecimal.toFixed(6)} USDC from Main Nabla swap.`);
+
+  return { approveHash, swapHash, usdcReceivedRaw };
 }
