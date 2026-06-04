@@ -7,7 +7,8 @@ function normalizeNetwork(network: Networks | string | undefined): Networks | un
     return undefined;
   }
 
-  return Object.values(Networks).find(candidate => candidate === network.toLowerCase());
+  const normalized = network.toLowerCase();
+  return Object.values(Networks).find(candidate => candidate.toLowerCase() === normalized);
 }
 
 export function isFrontendNetworkEnabled(network: Networks | string | undefined): boolean {
