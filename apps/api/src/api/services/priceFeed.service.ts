@@ -197,8 +197,13 @@ export class PriceFeedService {
    */
   public async getUsdToFiatExchangeRate(toCurrency: RampCurrency): Promise<number> {
     const fromCurrency = "USD";
+    const targetCurrency = toCurrency.toUpperCase() as RampCurrency;
 
-    const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
+    if (!isFiatToken(targetCurrency)) {
+      throw new Error(`USD-to-fiat exchange rate requires a fiat currency, got ${toCurrency}`);
+    }
+
+    const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
 
@@ -211,26 +216,26 @@ export class PriceFeedService {
       logger.debug(`Cache miss for ${cacheKey}. Fetching from fastforex.`);
 
       try {
-        const rate = await this.getFastforexRate(fromCurrency, toCurrency);
+        const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
         this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
         return rate;
       } catch (ffError) {
         logger.warn(
-          `fastforex failed for ${fromCurrency}-${toCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
+          `fastforex failed for ${fromCurrency}-${targetCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
         );
       }
     } else {
       logger.debug(`Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, fetching from CoinGecko fallback.`);
     }
 
-    logger.debug(`Fetching ${fromCurrency}-${toCurrency} rate from CoinGecko as fallback.`);
+    logger.debug(`Fetching ${fromCurrency}-${targetCurrency} rate from CoinGecko as fallback.`);
     try {
-      const rate = await this.getCryptoPrice("usd-coin", toCurrency.toLowerCase());
+      const rate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
       this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
       return rate;
     } catch (cgError) {
       if (cgError instanceof Error) {
-        logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${cgError.message}`);
+        logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${targetCurrency}: ${cgError.message}`);
       }
       throw cgError;
     }

@@ -5,6 +5,8 @@ const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 const originalSetInterval = global.setInterval;
 
+global.setInterval = mock(() => 0) as unknown as typeof setInterval;
+
 process.env = {
   ...originalEnv,
   COINGECKO_API_KEY: "test-api-key",
@@ -93,6 +95,7 @@ describe("PriceFeedService", () => {
   afterAll(() => {
     process.env = originalEnv;
     global.fetch = originalFetch;
+    global.setInterval = originalSetInterval;
     // @ts-expect-error - accessing private property for testing
     PriceFeedService.instance = undefined;
   });
@@ -264,6 +267,15 @@ describe("PriceFeedService", () => {
       });
 
       await expect(instance.getUsdToFiatExchangeRate("BRL" as any)).rejects.toThrow("cg down");
+    });
+
+    it("should reject non-fiat target currencies before fetching", async () => {
+      const instance = PriceFeedService.getInstance();
+
+      await expect(instance.getUsdToFiatExchangeRate("ETH" as any)).rejects.toThrow(
+        "USD-to-fiat exchange rate requires a fiat currency, got ETH"
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
