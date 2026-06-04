@@ -2,33 +2,18 @@ import {
   AccountMeta,
   ApiManager,
   EphemeralAccountType,
-  FiatToken,
   getAddressForFormat,
-  isAlfredpayToken,
   Networks,
-  RampDirection,
-  RegisterRampRequest,
   signUnsignedTransactions
 } from "@vortexfi/shared";
 import { config } from "../../config";
 import { RampService } from "../../services/api";
 import { RampState } from "../../types/phases";
 import { RampContext } from "../types";
-
-export enum RegisterRampErrorType {
-  InvalidInput = "INVALID_INPUT"
-}
-
-export class RegisterRampError extends Error {
-  type: RegisterRampErrorType;
-  constructor(message: string, type: RegisterRampErrorType) {
-    super(message);
-    this.type = type;
-  }
-}
+import { buildRegisterRampAdditionalData, RegisterRampError, RegisterRampErrorType } from "./registerAdditionalData";
 
 export const registerRampActor = async ({ input }: { input: RampContext }): Promise<RampState> => {
-  const { executionInput, chainId, connectedWalletAddress, authToken, paymentData, quote, userId } = input;
+  const { executionInput, chainId, connectedWalletAddress, quote, userId } = input;
 
   // TODO there should be a way to assert types in states, given transitions should ensure the type.
   if (!executionInput || !quote) {
@@ -51,10 +36,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   const quoteId = quote.id;
   const signingAccounts: AccountMeta[] = [
     {
-      address: executionInput.ephemerals.stellarEphemeral.address,
-      type: EphemeralAccountType.Stellar
-    },
-    {
       address: executionInput.ephemerals.evmEphemeral.address,
       type: EphemeralAccountType.EVM
     },
@@ -64,52 +45,7 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     }
   ];
 
-  let additionalData: RegisterRampRequest["additionalData"] = {};
-
-  if (quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.BRL) {
-    additionalData = {
-      destinationAddress: executionInput.sourceOrDestinationAddress,
-      sessionId: input.externalSessionId,
-      taxId: executionInput.taxId
-    };
-  } else if (executionInput.quote.rampType === RampDirection.BUY && executionInput.fiatToken === FiatToken.EURC) {
-    additionalData = {
-      destinationAddress: executionInput.sourceOrDestinationAddress,
-      moneriumAuthToken: authToken,
-      moneriumWalletAddress: executionInput.moneriumWalletAddress,
-      sessionId: input.externalSessionId
-    };
-  } else if (executionInput.quote.rampType === RampDirection.SELL && executionInput.fiatToken === FiatToken.BRL) {
-    additionalData = {
-      pixDestination: executionInput.pixId,
-      receiverTaxId: executionInput.taxId,
-      sessionId: input.externalSessionId,
-      taxId: executionInput.taxId,
-      walletAddress: connectedWalletAddress
-    };
-  } else if (executionInput.quote.rampType === RampDirection.BUY && isAlfredpayToken(executionInput.fiatToken)) {
-    additionalData = {
-      destinationAddress: executionInput.sourceOrDestinationAddress,
-      fiatAccountId: executionInput.selectedFiatAccountId,
-      sessionId: input.externalSessionId,
-      walletAddress: connectedWalletAddress
-    };
-  } else if (executionInput.quote.rampType === RampDirection.SELL && isAlfredpayToken(executionInput.fiatToken)) {
-    additionalData = {
-      fiatAccountId: executionInput.selectedFiatAccountId,
-      sessionId: input.externalSessionId,
-      walletAddress: connectedWalletAddress
-    };
-  } else {
-    additionalData = {
-      // moneriumAuthToken is only relevant after enabling Monerium offramps.
-      // moneriumAuthToken: authToken,
-      // moneriumWalletAddress: executionInput.moneriumWalletAddress,
-      paymentData,
-      sessionId: input.externalSessionId,
-      walletAddress: connectedWalletAddress
-    };
-  }
+  const additionalData = buildRegisterRampAdditionalData(input, connectedWalletAddress);
 
   const rampProcess = await RampService.registerRamp(quoteId, signingAccounts, additionalData, userId);
 
@@ -142,7 +78,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
     signedTransactions,
     userSigningMeta: {
       assethubToPendulumHash: undefined,
-      moneriumOnrampApproveHash: undefined,
       squidRouterApproveHash: undefined,
       squidRouterSwapHash: undefined
     }

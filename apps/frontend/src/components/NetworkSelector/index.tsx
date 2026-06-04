@@ -16,7 +16,7 @@ interface NetworkButtonProps {
 }
 
 const supportedNetworks = Object.values(Networks).filter(
-  network => network !== Networks.Pendulum && network !== Networks.Stellar && network !== Networks.Moonbeam
+  network => network !== Networks.Pendulum && network !== Networks.Moonbeam
 );
 
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (

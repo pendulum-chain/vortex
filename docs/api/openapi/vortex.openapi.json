@@ -196,6 +196,13 @@
             "$ref": "#/components/schemas/RampCurrency",
             "description": "The currency type for the input amount."
           },
+          "networks": {
+            "description": "Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered.",
+            "items": {
+              "$ref": "#/components/schemas/Networks"
+            },
+            "type": "array"
+          },
           "outputCurrency": {
             "$ref": "#/components/schemas/RampCurrency",
             "description": "The desired currency type for the output amount."

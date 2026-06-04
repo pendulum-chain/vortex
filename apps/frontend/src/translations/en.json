@@ -12,9 +12,7 @@
       "title": "Special offer until 27 May"
     },
     "alfredpayKycFlow": {
-      "accountVerified": "Your account has been verified. You can now proceed.",
       "cancel": "Cancel",
-      "completed": "{{kycOrKyb}} Completed!",
       "completeInNewWindow": "Please complete the {{kycOrKyb}} process in the new window. Once you are done, click 'I have finished the verification'.",
       "completeProcess": "To continue, please complete the {{kycOrKyb}} process with our partner AlfredPay.",
       "continue": "Continue",
@@ -455,7 +453,6 @@
         "avenia": "Avenia",
         "careers": "Careers",
         "licences": "Licences",
-        "monerium": "Monerium EMI ehf.",
         "mykobo": "MyKobo sp. z.o.o.",
         "privacyPolicy": "Privacy Policy",
         "termsAndConditions": "Terms and Conditions",
@@ -511,6 +508,12 @@
       "subtitle": "Please upload a photo or scan of the representative's ID document.",
       "title": "Representative ID ({{current}} of {{total}})"
     },
+    "kycDoneScreen": {
+      "accountVerified": "Your account has been verified. You can now proceed.",
+      "completed": "{{kycOrKyb}} Completed!",
+      "continue": "Continue",
+      "documentVerifiedAlt": "Document verified"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporarily disabled"
     },
@@ -521,20 +524,6 @@
         "started": "Started"
       },
       "button": "Maintenance Mode"
-    },
-    "moneriumFormStep": {
-      "description": {
-        "1": "Please enter the address where you want to receive the assets on AssetHub.",
-        "2": "Then, authenticate with our stablecoin partner <a>Monerium</a> by connecting your EVM wallet."
-      },
-      "field": {
-        "label": "AssetHub Wallet Address"
-      }
-    },
-    "moneriumRedirect": {
-      "cancel": "Cancel",
-      "description": "You have been redirected to our partner...",
-      "goToPartner": "Go to partner"
     },
     "mxnDocumentUpload": {
       "backLabel": "Back of Document",
@@ -567,6 +556,51 @@
       "subtitle": "Please provide your personal information to complete KYC.",
       "title": "Identity Verification",
       "zipCode": "ZIP Code"
+    },
+    "mykoboKycFlow": {
+      "checkingProfile": "Checking your verification status...",
+      "failure": "Verification failed",
+      "form": {
+        "addressLine1": "Address line 1",
+        "backOfId": "Back of ID",
+        "bankAccountNumber": "IBAN",
+        "city": "City",
+        "documents": "Documents",
+        "emailAddress": "Email address",
+        "errors": {
+          "backRequired": "Back of ID is required for ID cards and driver's licenses.",
+          "requiredFields": "Please fill in all required fields.",
+          "requiredFiles": "Front of ID, selfie, and utility bill are required."
+        },
+        "filePlaceholder": "PNG, JPG or PDF",
+        "firstName": "First name",
+        "frontOfId": "Front of ID",
+        "idCountryCode": "Country (ISO alpha-2)",
+        "idType": "ID type",
+        "idTypeOptions": {
+          "DRIVERS_LICENSE": "Driver's license",
+          "ID_CARD": "ID card",
+          "PASSPORT": "Passport"
+        },
+        "lastName": "Last name",
+        "selfie": "Selfie",
+        "sourceOfFunds": "Source of funds",
+        "sourceOfFundsOptions": {
+          "EMPLOYMENT": "Employment",
+          "INHERITANCE": "Inheritance",
+          "INVESTMENT": "Investment",
+          "LOANS": "Loans",
+          "SAVINGS": "Savings"
+        },
+        "submit": "Submit",
+        "taxCountry": "Tax country (ISO alpha-2)",
+        "title": "KYC verification",
+        "utilityBill": "Utility bill"
+      },
+      "rejected": "Your verification was rejected.",
+      "startOver": "Start over",
+      "submitting": "Submitting your verification...",
+      "verifying": "Verifying your identity. This may take a few minutes..."
     },
     "navbar": {
       "api": "API",
@@ -636,12 +670,14 @@
         "hint": "Scan this QR code in your banking app to start the payment instantly.",
         "iban": "IBAN",
         "receiver": "Recipient",
+        "reference": "Reference",
         "title": "Do an instant bank transfer with the following details"
       },
       "headerText": {
         "buy": "Payment Summary",
         "sell": "Payment Summary"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expires",
         "instruction": "Transfer funds via SPEI to the CLABE below",
@@ -751,8 +787,7 @@
   "hooks": {
     "useGetRampRegistrationErrorMessage": {
       "default": "Something went wrong",
-      "quoteNotFound": "The quote is expired. Please try again.",
-      "userMintAddressNotFound": "Account creation in progress... Please try again shortly."
+      "quoteNotFound": "The quote is expired. Please try again."
     },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Please contact our support team at support@vortexfinance.co to get onboarded as a business user.",
@@ -1072,15 +1107,6 @@
                 "label": "Website:"
               }
             },
-            "monerium": {
-              "name": "Monerium EMI ehf. (EEA/Iceland)",
-              "privacyTos": {
-                "label": "Privacy/ToS:"
-              },
-              "website": {
-                "label": "Website:"
-              }
-            },
             "mykobo": {
               "name": "MYKOBO UAB (EU/Lithuania)",
               "privacy": {
@@ -1181,9 +1207,8 @@
       "hydrationSwap": "Swapping {{inputAssetSymbol}} to {{outputAssetSymbol}} on Hydration DEX",
       "hydrationToAssethubXcm": "Transferring {{assetSymbol}} from Hydration --> AssetHub",
       "initial": "Starting process",
-      "moneriumOnrampMint": "Waiting to receive payment",
-      "moneriumOnrampSelfTransfer": "Transferring EUR.e to the ephemeral account",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "mykoboOnrampDeposit": "Waiting to receive payment",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
@@ -1242,6 +1267,7 @@
         "insufficientFunds": "Exceeds balance. Your balance is {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "The amount is temporarily not available. Please, try with a smaller amount.",
         "invalidInputAmount": "Invalid input amount",
+        "invalidNetworks": "Invalid networks. Please provide a valid list of supported networks.",
         "invalidRampType": "Invalid ramp type",
         "lessThanMinimumWithdrawal": {
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",

@@ -10,7 +10,6 @@ export type RampFormValues = {
   taxId?: string;
   pixId?: string;
   walletAddress?: string;
-  moneriumWalletAddress?: string;
   fiatToken?: FiatToken;
 };
 
@@ -26,12 +25,9 @@ const evmAddressSchema = z.string().regex(/^(0x)?[0-9a-f]{40}$/i);
 
 const isValidPolkadotAddress = (address: string) => {
   try {
-    const result = encodeAddress(isHex(address) ? hexToU8a(address) : decodeAddress(address));
-
-    console.log("Valid address:", address, "->", result);
+    encodeAddress(isHex(address) ? hexToU8a(address) : decodeAddress(address));
     return true;
-  } catch (_error) {
-    console.error("Invalid address:", address, _error);
+  } catch {
     return false;
   }
 };
@@ -44,7 +40,6 @@ export const createRampFormSchema = (
   return z
     .object({
       fiatToken: z.string().optional() as z.ZodType<FiatToken | undefined>,
-      moneriumWalletAddress: z.string().optional(),
       pixId: z.string().optional(),
       taxId: z.string().optional(),
       walletAddress: z.string().optional()

@@ -40,6 +40,7 @@ export interface CreateBestQuoteRequest {
   api?: boolean; // Optional flag to indicate API usage
   paymentMethod?: PaymentMethod;
   countryCode?: string;
+  networks?: Networks[]; // Optional whitelist of networks to evaluate; if omitted, all eligible networks are tried
 }
 
 export interface QuoteResponse {
@@ -91,6 +92,7 @@ export enum QuoteError {
 
   MissingToField = "SELL rampType requires 'to' parameter",
   MissingFromField = "BUY rampType requires 'from' parameter",
+  InvalidNetworks = "Invalid 'networks' value: must be an array of valid network identifiers",
 
   // Quote lookup errors
   QuoteNotFound = "Quote not found",
@@ -103,6 +105,8 @@ export enum QuoteError {
   LowLiquidity = "Low liquidity for this route. Please try a smaller amount.",
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
+  AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of",
+  AboveUpperLimitBuy = "Input amount exceeds maximum BUY limit of",
 
   // Availability errors
   UnsupportedCurrency = "Currency not supported",

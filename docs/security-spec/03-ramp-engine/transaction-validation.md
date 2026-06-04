@@ -23,7 +23,7 @@ Several phases are broadcast from the user's wallet, not from an ephemeral key, 
 
 User-wallet phases:
 
-- `moneriumOnrampMint` — User wallet authorizes Monerium mint.
+- `moneriumOnrampMint` — (Deprecated; Monerium is removed — see `05-integrations/monerium.md`. Validation logic retained for any in-flight legacy ramps.) User wallet authorizes Monerium mint.
 - `squidRouterApprove` / `squidRouterSwap` — SELL direction only (BUY direction is ephemeral-signed).
 - `squidRouterNoPermitTransfer` — Direct ERC-20 transfer from user wallet (when source ERC-20 lacks EIP-2612 permit and direction is direct-transfer).
 - `squidRouterNoPermitApprove` — User wallet approves Squid spender.
@@ -49,6 +49,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 7. **`areAllTxsIncluded` is only an inclusion guard** — It may remain metadata-only (`phase + network + nonce + signer`) if each submitted non-skipped transaction is content-bound in `validatePresignedTxs` against the unsigned transaction selected with the same identity keys.
 8. **No chain type or transaction format may be silently skipped during validation** — If a new chain or transaction format is added, the validator must either handle it or reject it. Silent pass-through (`return` without validation) is forbidden.
 9. **Validation MUST occur before any presigned transaction is persisted or executed** — The `updateRamp` and `startRamp` flows must reject invalid transactions before merging them into ramp state.
+10. **Ephemeral addresses submitted at `registerRamp` MUST be proven fresh on every supported chain of their type before transactions are built** — Address format validation is insufficient. For each ephemeral type the client submits, the server MUST query every supported chain of that type (not only the chains the specific ramp route will use) and reject the registration if any check finds non-zero nonce, non-zero free balance, or (for Stellar) an account that already exists on-chain. Checking the full supported set prevents future phase-handler additions from silently reopening the freshness gap. Fail-closed on RPC errors. Without this, the server builds presigned transactions with assumed-fresh nonces, and execution halts mid-ramp on the first chain where the assumption breaks.
 
 ## Threat Vectors & Mitigations
 
@@ -63,6 +64,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 | **Transaction data substitution via metadata matching** | Client submits transactions with correct phase/network/nonce/signer metadata but different txData content. | **MITIGATED (F-043)**: `validatePresignedTxs` resolves the matching unsigned transaction by the same identity keys and performs content validation before `areAllTxsIncluded` is used as the final inclusion guard. |
 | **EVM contract target or execution-parameter substitution** | Client signs a raw EVM transaction to an attacker-controlled contract, or signs the expected transaction with gas/fee parameters too low to execute reliably. | **MITIGATED (F-050)**: Raw signed EVM transactions are recovered and compared to the server-issued unsigned `to`, `data`, `value`, and `nonce`; gas limit and fee caps must be at least the server-issued values, and contract-creation transactions are rejected. |
 | **New phase/format added without validation** | A developer adds a new phase and the validator silently treats it as EVM because the phase type falls through to a default. | **MITIGATED (F-047)**: `getTransactionTypeForPhase` now throws for unknown phases instead of defaulting to EVM. |
+| **Non-fresh ephemeral submitted at registration** | Client submits an ephemeral address that already has on-chain history (non-zero nonce on Substrate/EVM, or an existing Stellar account). Backend builds presigned transactions assuming nonce 0; execution halts mid-ramp on the first signed broadcast after subsidies/funding have already been committed. | **MITIGATED (F-072)**: `registerRamp` invokes `validateEphemeralAccountsFresh()` after `normalizeAndValidateSigningAccounts`. For each ephemeral type the client provides, it checks every supported chain of that type (Substrate: pendulum, hydration, assethub; EVM: all configured EVM networks including Moonbeam; Stellar). Substrate: requires `nonce === 0 && free === 0`. EVM: requires `nonce === 0`. Stellar: account must not exist on Horizon. Fail-closed on RPC errors. |
 
 ## Audit Checklist
 
@@ -75,7 +77,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] **F-047**: `getTransactionTypeForPhase` throws on unknown phases instead of defaulting to EVM.
 - [x] **F-048**: Stellar payment validation requires exactly one operation.
 - [x] **F-049**: `stellarCleanup` no longer falls through with only parse/signature checks; it validates transaction source and an expected cleanup operation count range.
-- [x] **F-050**: EVM validation checks raw transaction `to`, `data`, `value`, `nonce`, signer, chain ID, gas limit, and fee caps against the server-issued unsigned transaction; contract creation is rejected.
+- [x] **F-050**: EVM validation checks raw transaction `to`, `data`, `value`, `nonce`, signer, chain ID, gas limit, and fee caps against the server-issued unsigned transaction; contract creation is rejected. Native-token destination transfers (where viem's `parseTransaction` returns `data: undefined`) are normalized: both sides of the calldata equality check coerce empty/undefined calldata to `"0x"` so legitimate native transfers are not rejected (`apps/api/src/api/services/transactions/validation.ts:126`).
 - [x] `validatePresignedTxs` is called in both `updateRamp` and `startRamp` — dual validation confirmed
 - [x] `validateAllPresignedTransactionsSigned` checks every expected transaction has a corresponding signed entry
 - [x] EVM raw transaction validation (`validateEvmTransaction`) checks `from`, `chainId`, `nonce`, `to`, `data`, `value`, gas limit, and fee caps against expected signer, chain, and server-issued unsigned payload
@@ -97,3 +99,4 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] **Chainless EVM tx rejection**: `verifySignedEvmTransaction` rejects raw txs whose decoded `chainId` is `undefined` (pre-EIP-155 legacy txs), closing a cross-chain replay bypass that existed even when `sandboxEnabled` was false.
 - [x] **Backup re-verification**: `meta.additionalTxs` must contain exactly the expected backup set, and every backup is re-run through the primary's validator (EVM signer + nonce + content; Substrate signer + call-equality via `method.toHex()`; Stellar signer + per-phase shape), so a malicious client cannot register ignored extras or backups that encode a different call or signer than the primary tx.
 - [x] **`updateRamp` subset submissions**: `validatePresignedTxs` accepts `{ requireComplete: false }` for partial submissions but still rejects extra/unknown txs and still applies full per-tx content validation; `requireComplete` defaults to `true` for `startRamp`.
+- [x] **F-072**: `registerRamp` proves each submitted ephemeral fresh on every supported chain of its type before building transactions. `validateEphemeralAccountsFresh()` (`apps/api/src/api/services/ramp/ephemeral-freshness.ts`) is invoked after `normalizeAndValidateSigningAccounts`. The supported-network lists (`SUPPORTED_SUBSTRATE_NETWORKS`: pendulum, hydration, assethub; `SUPPORTED_EVM_NETWORKS`: all configured EVM networks including Moonbeam) MUST be kept in sync with any chain an ephemeral may ever sign on. Substrate `nonce === 0 && free === 0`; EVM `nonce === 0`; Stellar account must not exist. RPC errors fail closed with `SERVICE_UNAVAILABLE`.

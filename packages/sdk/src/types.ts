@@ -136,7 +136,6 @@ export interface RampState {
   rampId: string;
   quoteId: string;
   ephemerals: {
-    stellarEphemeral?: EphemeralAccount;
     substrateEphemeral?: EphemeralAccount;
     evmEphemeral?: EphemeralAccount;
   };

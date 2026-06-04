@@ -2,6 +2,7 @@ import { RampErrorLog } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import phaseProcessor from "../services/phases/phase-processor";
 import rampService from "../services/ramp/ramp.service";
@@ -58,6 +59,7 @@ class RampRecoveryWorker {
           currentPhase: {
             [Op.notIn]: ["complete", "failed", "initial"]
           },
+          flowVariant: config.flowVariant,
           presignedTxs: { [Op.not]: null },
           updatedAt: {
             [Op.lt]: new Date(Date.now() - TEN_MINUTES_IN_MS) // 10 minutes ago

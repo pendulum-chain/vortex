@@ -1,6 +1,7 @@
 import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import { config } from "../../../../../config/vars";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
 import { trimTrailingZeros } from "../../core/helpers";
@@ -149,6 +150,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,
       expiresAt,
+      flowVariant: config.flowVariant,
       from: request.from,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,

@@ -74,7 +74,7 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
 
     // Calculate actual subsidy (capped by maxSubsidy)
     const actualSubsidyAmountDecimal =
-      targetDiscount > 0
+      targetDiscount !== 0
         ? calculateSubsidyAmount(adjustedExpectedOutputDecimal, actualOutputAmountDecimal, maxSubsidy)
         : Big(0);
     const actualSubsidyAmountRaw = multiplyByPowerOfTen(actualSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);

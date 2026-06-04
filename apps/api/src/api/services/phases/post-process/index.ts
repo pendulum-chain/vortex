@@ -5,13 +5,11 @@ import hydrationPostProcessHandler from "./hydration-post-process-handler";
 import moonbeamPostProcessHandler from "./moonbeam-post-process-handler";
 import pendulumPostProcessHandler from "./pendulum-post-process-handler";
 import polygonPostProcessHandler from "./polygon-post-process-handler";
-import stellarPostProcessHandler from "./stellar-post-process-handler";
 
 /**
  * All available post-process handlers
  */
 const postProcessHandlers: BasePostProcessHandler[] = [
-  stellarPostProcessHandler,
   pendulumPostProcessHandler,
   moonbeamPostProcessHandler,
   polygonPostProcessHandler,
@@ -28,4 +26,3 @@ export { HydrationPostProcessHandler } from "./hydration-post-process-handler";
 export { MoonbeamPostProcessHandler } from "./moonbeam-post-process-handler";
 export { PendulumPostProcessHandler } from "./pendulum-post-process-handler";
 export { PolygonPostProcessHandler } from "./polygon-post-process-handler";
-export { StellarPostProcessHandler } from "./stellar-post-process-handler";

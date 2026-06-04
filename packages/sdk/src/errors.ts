@@ -65,6 +65,32 @@ export class InvalidAdditionalDataError extends RegisterRampError {
   }
 }
 
+export type EphemeralChain = "Substrate" | "EVM" | "Stellar";
+
+export class EphemeralNotFreshError extends RegisterRampError {
+  public readonly chain: EphemeralChain;
+  public readonly ephemeralAddress: string;
+
+  constructor(message: string, chain: EphemeralChain, ephemeralAddress: string, status = 400) {
+    super(message, status);
+    this.name = "EphemeralNotFreshError";
+    this.chain = chain;
+    this.ephemeralAddress = ephemeralAddress;
+  }
+}
+
+export class EphemeralFreshnessCheckError extends RegisterRampError {
+  public readonly chain: EphemeralChain;
+  public readonly ephemeralAddress: string;
+
+  constructor(message: string, chain: EphemeralChain, ephemeralAddress: string) {
+    super(message, 503);
+    this.name = "EphemeralFreshnessCheckError";
+    this.chain = chain;
+    this.ephemeralAddress = ephemeralAddress;
+  }
+}
+
 // BRL Onramp specific errors
 export class BrlOnrampError extends RegisterRampError {
   constructor(message: string, status = 400) {
@@ -337,6 +363,19 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage.includes("Invalid network:")) {
         const network = errorMessage.match(/"([^"]+)"/)?.[1] || "unknown";
         return new InvalidNetworkError(network);
+      }
+
+      const freshnessMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral (\S+) (?:is not fresh|already exists)/);
+      if (freshnessMatch) {
+        return new EphemeralNotFreshError(errorMessage, freshnessMatch[1] as EphemeralChain, freshnessMatch[2]);
+      }
+      const freshnessCheckMatch = errorMessage.match(/^Could not verify freshness of (Substrate|EVM|Stellar) ephemeral (\S+)/);
+      if (freshnessCheckMatch) {
+        return new EphemeralFreshnessCheckError(errorMessage, freshnessCheckMatch[1] as EphemeralChain, freshnessCheckMatch[2]);
+      }
+      const missingEphemeralMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral address is required/);
+      if (missingEphemeralMatch) {
+        return new EphemeralNotFreshError(errorMessage, missingEphemeralMatch[1] as EphemeralChain, "");
       }
       if (errorMessage === "Parameters destinationAddress and taxId are required for onramp") {
         return new MissingBrlParametersError();

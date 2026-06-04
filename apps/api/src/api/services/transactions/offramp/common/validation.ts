@@ -6,21 +6,23 @@ import {
   getOnChainTokenDetails,
   isFiatToken,
   isOnChainToken,
-  isStellarTokenDetails,
-  normalizeTaxId,
-  PaymentData,
-  StellarTokenDetails
+  normalizeTaxId
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 
 /**
  * Validates offramp quote and returns required data
  * @param quote The quote ticket
  * @param signingAccounts The signing accounts
+ * @param options Set `requireSubstrateEphemeral: false` for EVM-only offramp routes (e.g. Mykobo on Base)
  * @returns Validation result with required data
  */
-export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccounts: AccountMeta[]) {
+export function validateOfframpQuote(
+  quote: QuoteTicketAttributes,
+  signingAccounts: AccountMeta[],
+  options: { requireSubstrateEphemeral?: boolean } = {}
+) {
+  const { requireSubstrateEphemeral = true } = options;
   const fromNetwork = getNetworkFromDestination(quote.from);
   if (!fromNetwork) {
     throw new Error(`Invalid network for destination ${quote.from}`);
@@ -41,13 +43,8 @@ export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccoun
 
   const outputTokenDetails = getAnyFiatTokenDetails(quote.outputCurrency);
 
-  const stellarEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Stellar");
-  if (!stellarEphemeralEntry) {
-    throw new Error("Stellar ephemeral not found");
-  }
-
   const substrateEphemeralEntry = signingAccounts.find(ephemeral => ephemeral.type === "Substrate");
-  if (!substrateEphemeralEntry) {
+  if (requireSubstrateEphemeral && !substrateEphemeralEntry) {
     throw new Error("Pendulum ephemeral not found");
   }
 
@@ -55,7 +52,6 @@ export function validateOfframpQuote(quote: QuoteTicketAttributes, signingAccoun
     fromNetwork,
     inputTokenDetails,
     outputTokenDetails,
-    stellarEphemeralEntry,
     substrateEphemeralEntry
   };
 }
@@ -107,51 +103,5 @@ export function validateBRLOfframpMetadata(quote: QuoteTicketAttributes): {
 
   return {
     offrampAmountBeforeAnchorFeesRaw: quote.metadata.pendulumToMoonbeamXcm.outputAmountRaw
-  };
-}
-
-/**
- * Validates Stellar offramp requirements
- * @param outputTokenDetails Output token details
- * @param stellarPaymentData Stellar payment data
- * @returns Validated Stellar token details and payment data
- */
-export function validateStellarOfframp(
-  outputTokenDetails: FiatTokenDetails,
-  stellarPaymentData?: PaymentData
-): {
-  stellarTokenDetails: StellarTokenDetails;
-  stellarPaymentData: PaymentData;
-} {
-  if (!isStellarTokenDetails(outputTokenDetails)) {
-    throw new Error("Output currency must be Stellar token for offramp, got output token details type");
-  }
-
-  if (!stellarPaymentData?.anchorTargetAccount) {
-    throw new Error("Stellar payment data must be provided for offramp");
-  }
-
-  return {
-    stellarPaymentData,
-    stellarTokenDetails: outputTokenDetails as StellarTokenDetails
-  };
-}
-
-/**
- * Validates Stellar offramp metadata
- * @param quote The quote ticket
- * @returns Validated Stellar metadata
- */
-export function validateStellarOfframpMetadata(quote: QuoteTicketAttributes): {
-  offrampAmountBeforeAnchorFeesUnits: Big;
-  offrampAmountBeforeAnchorFeesRaw: string;
-} {
-  if (!quote.metadata.pendulumToStellar?.outputAmountDecimal || !quote.metadata.pendulumToStellar?.outputAmountRaw) {
-    throw new Error("Quote metadata is missing pendulumToStellar information");
-  }
-
-  return {
-    offrampAmountBeforeAnchorFeesRaw: quote.metadata.pendulumToStellar.outputAmountRaw,
-    offrampAmountBeforeAnchorFeesUnits: new Big(quote.metadata.pendulumToStellar.outputAmountDecimal)
   };
 }

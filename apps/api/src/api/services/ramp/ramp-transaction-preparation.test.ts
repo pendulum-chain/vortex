@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { FiatToken, RampDirection } from "@vortexfi/shared";
-import {
-  RampTransactionPreparationKind,
-  selectRampTransactionPreparationKind
-} from "./ramp-transaction-preparation";
+import { FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 describe("selectRampTransactionPreparationKind", () => {
   it("selects the BRL offramp preparer for sell quotes that output BRL", () => {
@@ -16,7 +13,7 @@ describe("selectRampTransactionPreparationKind", () => {
     ).toBe(RampTransactionPreparationKind.OfframpBrl);
   });
 
-  it("uses the Monerium offramp preparer only when the Monerium auth token is present", () => {
+  it("selects the non-BRL offramp preparer for EUR sell quotes (Mykobo offramp handled downstream)", () => {
     expect(
       selectRampTransactionPreparationKind({
         inputCurrency: FiatToken.EURC,
@@ -24,28 +21,28 @@ describe("selectRampTransactionPreparationKind", () => {
         rampType: RampDirection.SELL
       })
     ).toBe(RampTransactionPreparationKind.OfframpNonBrl);
-
-    expect(
-      selectRampTransactionPreparationKind(
-        {
-          inputCurrency: FiatToken.EURC,
-          outputCurrency: FiatToken.EURC,
-          rampType: RampDirection.SELL
-        },
-        { moneriumAuthToken: "token" }
-      )
-    ).toBe(RampTransactionPreparationKind.OfframpMonerium);
   });
 
-  it("selects onramp preparers from the fiat input token", () => {
+  it("routes EURC onramps to Mykobo on every supported destination", () => {
+    expect(
+      selectRampTransactionPreparationKind({
+        inputCurrency: FiatToken.EURC,
+        outputCurrency: FiatToken.EURC,
+        rampType: RampDirection.BUY,
+        to: Networks.Base
+      })
+    ).toBe(RampTransactionPreparationKind.OnrampMykobo);
+
     expect(
       selectRampTransactionPreparationKind({
         inputCurrency: FiatToken.EURC,
         outputCurrency: FiatToken.EURC,
         rampType: RampDirection.BUY
       })
-    ).toBe(RampTransactionPreparationKind.OnrampMonerium);
+    ).toBe(RampTransactionPreparationKind.OnrampMykobo);
+  });
 
+  it("selects non-EURC onramp preparers from the fiat input token", () => {
     expect(
       selectRampTransactionPreparationKind({
         inputCurrency: FiatToken.USD,

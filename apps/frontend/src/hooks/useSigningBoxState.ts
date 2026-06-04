@@ -23,12 +23,10 @@ const PROGRESS_CONFIGS: Record<"EVM" | "NON_EVM", Record<RampSigningPhase, numbe
   }
 };
 
-const getSignatureDetails = (step: RampSigningPhase, isEVM: boolean) => {
-  if (!isEVM) return { current: 1, max: 1 };
-  if (step === "login") return { current: 1, max: 1 };
-  if (step === "started") return { current: 1, max: 2 };
-  return { current: 2, max: 2 };
-};
+const getSignatureDetails = (current: number | undefined, max: number | undefined) => ({
+  current: current ?? 0,
+  max: max ?? 0
+});
 
 const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step is RampSigningPhase => {
   if (!step) return false;
@@ -39,7 +37,9 @@ const isValidStep = (step: RampSigningPhase | undefined, isEVM: boolean): step i
 
 export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => {
   const rampActor = useRampActor();
-  const { step } = useSelector(rampActor, state => ({
+  const { step, current, max } = useSelector(rampActor, state => ({
+    current: state.context.rampSigningPhaseCurrent,
+    max: state.context.rampSigningPhaseMax,
     step: state.context.rampSigningPhase
   }));
   const { selectedNetwork } = useNetwork();
@@ -75,8 +75,8 @@ export const useSigningBoxState = (autoHideDelay = 2500, displayDelay = 100) => 
     }
 
     setProgress(progressConfig[step]);
-    setSignatureState(getSignatureDetails(step, isEVM));
-  }, [step, isEVM, progressConfig, shouldExit, autoHideDelay]);
+    setSignatureState(getSignatureDetails(current, max));
+  }, [step, current, max, isEVM, progressConfig, shouldExit, autoHideDelay]);
 
   useEffect(() => {
     let timeoutId: number;

@@ -2,26 +2,18 @@ import { FiatToken, isAlfredpayToken, Networks } from "@vortexfi/shared";
 import {
   AlfredpayOnrampTransactionParams,
   AveniaOnrampTransactionParams,
-  MoneriumOnrampTransactionParams,
   OnrampTransactionParams,
   OnrampTransactionsWithMeta
 } from "./common/types";
 import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
 import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
-import { prepareMoneriumToAssethubOnrampTransactions } from "./routes/monerium-to-assethub";
-import { prepareMoneriumToEvmOnrampTransactions } from "./routes/monerium-to-evm";
 
 export async function prepareOnrampTransactions(
-  params:
-    | AveniaOnrampTransactionParams
-    | MoneriumOnrampTransactionParams
-    | AlfredpayOnrampTransactionParams
-    | OnrampTransactionParams
+  params: AveniaOnrampTransactionParams | AlfredpayOnrampTransactionParams | OnrampTransactionParams
 ): Promise<OnrampTransactionsWithMeta> {
   const { quote } = params;
 
-  // Route based on input currency and destination network
   if (quote.inputCurrency === FiatToken.BRL) {
     if (!("taxId" in params)) {
       throw new Error("taxId is required for Avenia onramp");
@@ -35,15 +27,9 @@ export async function prepareOnrampTransactions(
       return prepareAveniaToEvmOnrampTransactionsOnBase(aveniaParams);
     }
   } else if (quote.inputCurrency === FiatToken.EURC) {
-    if (!("moneriumWalletAddress" in params)) {
-      throw new Error("moneriumWalletAddress is required for Monerium onramp");
-    }
-
-    if (quote.to === Networks.AssetHub) {
-      return prepareMoneriumToAssethubOnrampTransactions(params);
-    } else {
-      return prepareMoneriumToEvmOnrampTransactions(params);
-    }
+    throw new Error(
+      "EURC onramp must be prepared via prepareMykoboToEvmOnrampTransactions, not through prepareOnrampTransactions"
+    );
   } else if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
     if (!("userId" in params)) {
       throw new Error("Alfredpay onramps requires logged in user");
