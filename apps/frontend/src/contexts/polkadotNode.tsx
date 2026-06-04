@@ -1,6 +1,6 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, JSX, useContext } from "react";
+import { createContext, type JSX, useContext } from "react";
 
 import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from "../constants/constants";
 import { useToastMessage } from "../helpers/notifications";
@@ -24,13 +24,9 @@ interface NetworkState {
 
 interface PolkadotNodeContextInterface {
   state: NetworkState;
-  isFetched: boolean;
-  error: Error | null;
 }
 
 const PolkadotNodeContext = createContext<PolkadotNodeContextInterface>({
-  error: null,
-  isFetched: false,
   state: {}
 });
 
@@ -81,60 +77,45 @@ enum NodeName {
   Moonbeam = "moonbeam"
 }
 
-const usePolkadotNode = (nodeName: NodeName) => {
+const getSocketUrl = (nodeName: NodeName): string => {
+  switch (nodeName) {
+    case NodeName.AssetHub:
+      return ASSETHUB_WSS;
+    case NodeName.Pendulum:
+      return PENDULUM_WSS;
+    case NodeName.Moonbeam:
+      return MOONBEAM_WSS;
+  }
+};
+
+const usePolkadotNode = (nodeName: NodeName, enabled = true) => {
   const { showToast, ToastMessage } = useToastMessage();
-  const { state, isFetched, error } = usePolkadotNodes();
+  const { state } = usePolkadotNodes();
+  const {
+    data: apiComponents = state[nodeName],
+    error,
+    isFetched
+  } = useQuery({
+    enabled,
+    queryFn: () => createApiComponents(getSocketUrl(nodeName)),
+    queryKey: ["polkadot-node", nodeName],
+    retry: 3
+  });
 
   if (error) {
     console.error(`Failed to initialize ${nodeName} node:`, error);
     showToast(ToastMessage.NODE_CONNECTION_ERROR);
   }
 
-  return { apiComponents: state[nodeName], error, isFetched };
+  return { apiComponents, error, isFetched: enabled ? isFetched : true };
 };
 
-const useAssetHubNode = () => usePolkadotNode(NodeName.AssetHub);
-const usePendulumNode = () => usePolkadotNode(NodeName.Pendulum);
-const useMoonbeamNode = () => {
-  const { state, isFetched } = usePolkadotNodes();
-  return { apiComponents: state.moonbeam, isFetched };
-};
-
-const initializeNetworks = async (): Promise<NetworkState> => {
-  try {
-    const [assethub, pendulum, moonbeam] = await Promise.all([
-      createApiComponents(ASSETHUB_WSS),
-      createApiComponents(PENDULUM_WSS),
-      createApiComponents(MOONBEAM_WSS)
-    ]);
-
-    return {
-      [NodeName.AssetHub]: assethub,
-      [NodeName.Pendulum]: pendulum,
-      moonbeam
-    };
-  } catch (error) {
-    console.error("Error initializing networks:", error);
-    throw error;
-  }
-};
+const useAssetHubNode = (enabled = true) => usePolkadotNode(NodeName.AssetHub, enabled);
+const usePendulumNode = (enabled = true) => usePolkadotNode(NodeName.Pendulum, enabled);
+const useMoonbeamNode = (enabled = true) => usePolkadotNode(NodeName.Moonbeam, enabled);
 
 const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
-  const {
-    data: state = {},
-    error,
-    isFetched
-  } = useQuery({
-    queryFn: initializeNetworks,
-    queryKey: ["polkadot-nodes"],
-    retry: 3
-  });
-
-  if (error) {
-    console.error("Failed to initialize Polkadot nodes:", error);
-  }
-
-  return <PolkadotNodeContext.Provider value={{ error, isFetched, state }}>{children}</PolkadotNodeContext.Provider>;
+  return <PolkadotNodeContext.Provider value={{ state: {} }}>{children}</PolkadotNodeContext.Provider>;
 };
 
 export { PolkadotNodeProvider, useAssetHubNode, usePendulumNode, useMoonbeamNode };
