@@ -84,14 +84,14 @@ export const Onramp = () => {
         <AssetNumericInput
           assetIcon={fromToken.fiat.assetIcon}
           id="inputAmount"
+          name="inputAmount"
           onChange={handleInputChange}
           onClick={() => openTokenSelectModal("from")}
-          registerInput={form.register("inputAmount")}
           tokenSymbol={fromToken.fiat.symbol}
         />
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange]
+    [fromToken, openTokenSelectModal, handleInputChange]
   );
 
   const toIconInfo = useTokenIcon(toToken);
@@ -105,15 +105,15 @@ export const Onramp = () => {
         id="outputAmount"
         loading={quoteLoading}
         logoURI={toIconInfo.iconSrc}
+        name="outputAmount"
         network={toIconInfo.network}
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
-        registerInput={form.register("outputAmount")}
         tokenLoading={tokenLoading}
         tokenSymbol={toToken.assetSymbol}
       />
     ),
-    [toToken.assetSymbol, form, quoteLoading, toAmount, openTokenSelectModal, toIconInfo, tokenLoading]
+    [toToken.assetSymbol, quoteLoading, toAmount, openTokenSelectModal, toIconInfo, tokenLoading]
   );
 
   const handleConfirm = useCallback(() => {

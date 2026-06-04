@@ -1423,13 +1423,17 @@
       "title": "Compre e Venda <1>Stablecoins</1> - <br class='hidden sm:block' /> diretamente com sua conta bancária"
     },
     "popularTokens": {
+      "countries": {
+        "description": "Faça on e off-ramp nestas moedas fiduciárias populares",
+        "title": "Países Suportados"
+      },
+      "cryptocurrencies": {
+        "description": "criptomoedas suportadas",
+        "title": "Criptomoedas Suportadas"
+      },
       "networks": {
         "description": "Negocie em várias redes blockchain",
         "title": "Redes Suportadas"
-      },
-      "tokens": {
-        "description": "Negocie estas stablecoins populares",
-        "title": "Tokens Suportados"
       }
     },
     "popularTokensPartners": {
