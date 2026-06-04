@@ -12,10 +12,11 @@ import { InfoBox } from "../../InfoBox";
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { isQuoteExpired, quote, rampState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, quote, rampState, signingPhase } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
-    rampState: state.context.rampState
+    rampState: state.context.rampState,
+    signingPhase: state.context.rampSigningPhase
   }));
 
   if (!rampState?.ramp?.ibanPaymentData) return null;
