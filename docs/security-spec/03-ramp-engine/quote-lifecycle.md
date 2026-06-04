@@ -4,7 +4,7 @@
 
 Quotes are the entry point for every ramp. A quote calculates the expected output amount for a given input, factoring in exchange rates, fees, and dynamic pricing adjustments. The lifecycle:
 
-1. **Creation** — Client requests a quote via `POST /v1/ramp/quotes` with input currency, output currency, amount, and ramp direction (on/off). The API calculates fees, fetches live exchange rates (Nabla DEX, price providers), applies the dynamic pricing adjustment, and returns a `QuoteResponse` including the expected output amount, fee breakdown, and a quote ID.
+1. **Creation** — Client requests a quote via `POST /v1/quotes` with input currency, output currency, amount, and ramp direction (on/off). The API calculates fees, fetches live exchange rates (Nabla DEX, price providers), applies the dynamic pricing adjustment, and returns a `QuoteResponse` including the expected output amount, fee breakdown, and a quote ID.
 2. **Expiry** — Quotes expire **10 minutes** after creation (hardcoded in `QuoteTicket.create()` and the model default: `new Date(Date.now() + 10 * 60 * 1000)`). After expiry, the quote cannot be used to start a ramp. Note: this is a separate timeout from `discountStateTimeoutMinutes` (see Dynamic Pricing below).
 3. **Binding** — When a ramp is registered (`POST /v1/ramp/register`), it binds to a specific quote ID. The quote's amounts become the committed values for the ramp.
 4. **Consumption** — A quote can only be bound to one ramp. Once consumed, it cannot be reused.
@@ -41,6 +41,16 @@ The system maintains an **in-memory** `Map<partnerId, { difference: Big, lastQuo
 **Partner resolution:** If the request includes a `partnerId`, that partner's config is used. Otherwise, the system falls back to a default partner named `"vortex"`.
 
 **Subsidy calculation:** After computing the expected output (oracle-based) and actual output (DEX-based), the shortfall is the "ideal subsidy." This is capped by `partner.maxSubsidy` (as a fraction of expected output). The subsidy is only applied if `targetDiscount > 0`.
+
+### AlfredPay Provider Quote TTL
+
+AlfredPay's upstream provider quote is short-lived (~30 seconds) — much shorter than the Vortex 10-minute quote expiry. To keep the two reconciled:
+
+1. **At quote time** (`OnRampAlfredpayDiscountEngine` / `OfframpTransactionAlfredpayEngine`): the platform calls the AlfredPay provider, stores the provider `quoteId` and amounts in `ctx.alfredpayOnramp` / `ctx.alfredpayOfframp`, and freezes them in the Vortex quote metadata.
+2. **At ramp start** (`refreshAlfredpayOnrampQuoteIfMatching` in `ramp.service.ts`): the API re-fetches a fresh AlfredPay provider quote. If the new provider response is byte-identical on `toAmount` and `fee` to the stored values, the platform substitutes the new provider `quoteId` so the downstream mint/transfer hits an unexpired provider quote. If amounts diverge, the original `quoteId` is kept and downstream handlers may fall back (see `alfredOnrampMintFallback` / `alfredpayOfframpTransferFallback`).
+3. **Offramp expired-quote recovery** (`alfredpay-offramp-transfer-handler.ts`): if the provider rejects the stored `quoteId` as expired, the handler requests a fresh provider quote at execute time and reattempts.
+
+The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` only). Any drift in amounts forces the route into the fallback path, which is bounded by the discount engine's `expectedOutput` and the partner's `maxSubsidy`.
 
 ## Security Invariants
 

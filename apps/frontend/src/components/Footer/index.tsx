@@ -134,13 +134,6 @@ export function Footer() {
               <FooterLink
                 className="border-gray-200 border-l-2 pl-2 hover:border-primary"
                 external
-                href="https://monerium.com/policies/personal-terms-of-service-2025-05-20/"
-              >
-                {t("components.footer.company.monerium")}
-              </FooterLink>
-              <FooterLink
-                className="border-gray-200 border-l-2 pl-2 hover:border-primary"
-                external
                 href="https://terms.mykobo.co/"
               >
                 {t("components.footer.company.mykobo")}

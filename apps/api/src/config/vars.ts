@@ -24,8 +24,14 @@ interface SpreadsheetConfig {
 
 type DeploymentEnv = "development" | "production" | "sandbox" | "staging" | "test";
 
+// Identifies which onramp flow this backend instance serves. Two backends
+// share one database; each ignores ramps/quotes belonging to the other flow.
+// "monerium" is the legacy grace-period backend; "mykobo" is the new replacement.
+export type FlowVariant = "monerium" | "mykobo";
+
 const nodeEnv = process.env.NODE_ENV || "production";
 const deploymentEnvValues: DeploymentEnv[] = ["development", "production", "sandbox", "staging", "test"];
+const flowVariantValues: FlowVariant[] = ["monerium", "mykobo"];
 
 function readDeploymentEnv(): DeploymentEnv {
   const rawDeploymentEnv = process.env.DEPLOYMENT_ENV || (nodeEnv === "production" ? "production" : nodeEnv);
@@ -37,9 +43,20 @@ function readDeploymentEnv(): DeploymentEnv {
   return rawDeploymentEnv as DeploymentEnv;
 }
 
+function readFlowVariant(): FlowVariant {
+  const rawFlowVariant = process.env.FLOW_VARIANT || "monerium";
+
+  if (!flowVariantValues.includes(rawFlowVariant as FlowVariant)) {
+    throw new Error(`FLOW_VARIANT must be one of: ${flowVariantValues.join(", ")} (got '${rawFlowVariant}')`);
+  }
+
+  return rawFlowVariant as FlowVariant;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
+  flowVariant: FlowVariant;
   port: string | number;
   amplitudeWss: string;
   pendulumWss: string;
@@ -86,17 +103,12 @@ interface Config {
 
   secrets: {
     pendulumFundingSeed: string | undefined;
-    stellarFundingSecret: string | undefined;
     moonbeamExecutorPrivateKey: string | undefined;
     clientDomainSecret: string | undefined;
     webhookPrivateKey: string | undefined;
   };
 
   integrations: {
-    monerium: {
-      clientId: string | undefined;
-      clientSecret: string | undefined;
-    };
     alchemy: {
       apiKey: string | undefined;
     };
@@ -132,14 +144,11 @@ export const config: Config = {
   },
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
+  flowVariant: readFlowVariant(),
 
   integrations: {
     alchemy: {
       apiKey: process.env.ALCHEMY_API_KEY
-    },
-    monerium: {
-      clientId: process.env.MONERIUM_CLIENT_ID_APP,
-      clientSecret: process.env.MONERIUM_CLIENT_SECRET
     },
     slack: {
       userId: process.env.SLACK_USER_ID,
@@ -185,7 +194,6 @@ export const config: Config = {
     clientDomainSecret: process.env.CLIENT_DOMAIN_SECRET,
     moonbeamExecutorPrivateKey: process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY,
     pendulumFundingSeed: process.env.PENDULUM_FUNDING_SEED,
-    stellarFundingSecret: process.env.FUNDING_SECRET,
     webhookPrivateKey: process.env.WEBHOOK_PRIVATE_KEY
   },
   spreadsheet: {
@@ -210,8 +218,6 @@ export const config: Config = {
   vortexFeePenPercentage: parseFloat(process.env.VORTEX_FEE_PEN_PERCENTAGE || "0.0")
 };
 
-// Derived values — aliases kept for semantic clarity in consuming code
-export const SEP10_MASTER_SECRET = config.secrets.stellarFundingSecret;
 export const EVM_FUNDING_PRIVATE_KEY = process.env.EVM_FUNDING_PRIVATE_KEY ?? config.secrets.moonbeamExecutorPrivateKey;
 
 if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
@@ -230,6 +236,7 @@ if (config.env === "production") {
   if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
   if (!config.secrets.webhookPrivateKey) missing.push("WEBHOOK_PRIVATE_KEY");
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
+  if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

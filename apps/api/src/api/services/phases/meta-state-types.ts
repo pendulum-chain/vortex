@@ -1,30 +1,16 @@
-import {
-  AlfredpayFiatPaymentInstructions,
-  ExtrinsicOptions,
-  IbanPaymentData,
-  PermitSignature,
-  StellarTokenDetails
-} from "@vortexfi/shared";
+import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
   squidRouterReceiverId: string;
   squidRouterReceiverHash: string;
-  // Only used in offramp - eurc & ars route
-  stellarEphemeralAccountId: string;
-  stellarTarget: {
-    stellarTargetAccountId: string;
-    stellarTokenDetails: StellarTokenDetails;
-  };
-  executeSpacewalkNonce: number;
   distributeFeeHash: string;
   // Only used in onramp - brla
   aveniaTicketId: string;
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
-  moneriumWalletAddress: string | undefined;
   walletAddress: string | undefined;
   destinationAddress: string;
   receiverTaxId: string;
@@ -54,8 +40,6 @@ export interface StateMetadata {
   presignChecksPass?: boolean;
   payOutTicketId: string | undefined;
   brlaPayoutTxHash?: `0x${string}`;
-  // Only used in onramp, offramp - monerium
-  moneriumOnrampPermit?: PermitSignature;
   permitTxHash?: string;
   moneriumOnrampSelfTransferHash?: string;
   ibanPaymentData: IbanPaymentData;
@@ -76,9 +60,10 @@ export interface StateMetadata {
   alfredpayOfframpTransferTxHash?: string;
   squidRouterPermitExecutionHash?: string;
   squidRouterPermitExecutionValue?: string;
-  stellarPaymentTxHash?: string;
   nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
+  // Snapshot of destination-token raw balance on the ephemeral, recorded immediately before squidRouterPay so finalSettlementSubsidy can compute actual bridge delivery rather than total balance (which may include leftover dust from prior phases).
+  preSettlementBalance?: string;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and
   // reports back the resulting tx hashes via UpdateRampRequest.additionalData.
@@ -86,4 +71,10 @@ export interface StateMetadata {
   squidRouterNoPermitTransferHash?: string;
   squidRouterNoPermitApproveHash?: string;
   squidRouterNoPermitSwapHash?: string;
+  // Mykobo - EUR offramp on Base
+  mykoboEmail?: string;
+  mykoboTransactionId?: string;
+  mykoboReceivablesAddress?: string;
+  mykoboPayoutTxHash?: `0x${string}`;
+  mykoboTransactionReference?: string;
 }

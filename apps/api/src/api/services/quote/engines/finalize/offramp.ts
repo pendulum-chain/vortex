@@ -3,7 +3,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { QuoteContext } from "../../core/types";
-import { validateAmountLimits } from "../../core/validation-helpers";
+import { applyAlfredpayLimits, validateAmountLimits } from "../../core/validation-helpers";
 import { BaseFinalizeEngine, FinalizeComputation } from ".";
 
 export class OffRampFinalizeEngine extends BaseFinalizeEngine {
@@ -17,20 +17,21 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
     const offrampAmount =
       ctx.request.to === "pix"
         ? (ctx.nablaSwapEvm?.outputAmountDecimal ?? ctx.pendulumToMoonbeamXcm?.outputAmountDecimal)
-        : ctx.alfredpayOfframp
-          ? ctx.alfredpayOfframp.outputAmountDecimal
-          : ctx.pendulumToStellar?.outputAmountDecimal;
+        : ctx.request.to === "sepa"
+          ? ctx.nablaSwapEvm?.outputAmountDecimal
+          : ctx.alfredpayOfframp
+            ? ctx.alfredpayOfframp.outputAmountDecimal
+            : undefined;
 
     if (!offrampAmount) {
       throw new APIError({
-        message:
-          "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm, alfredpayOfframp or pendulumToStellar output",
+        message: "OffRampFinalizeEngine requires nablaSwapEvm, pendulumToMoonbeamXcm or alfredpayOfframp output",
         status: httpStatus.INTERNAL_SERVER_ERROR
       });
     }
 
     // AlfredPay's toAmount is already net-of-fees, so no fee subtraction needed.
-    // For other providers (Stellar, BRLA), the anchor fee must still be subtracted.
+    // For other providers (e.g. BRLA), the anchor fee must still be subtracted.
     const isAlfredpay = !!ctx.alfredpayOfframp;
     let amount: Big;
 
@@ -53,7 +54,8 @@ export class OffRampFinalizeEngine extends BaseFinalizeEngine {
     };
   }
 
-  protected validate(ctx: QuoteContext, { amount }: FinalizeComputation): void {
+  protected async validate(ctx: QuoteContext, { amount }: FinalizeComputation): Promise<void> {
+    if (await applyAlfredpayLimits(ctx, ctx.request.inputAmount)) return;
     validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "min", ctx.request.rampType);
     validateAmountLimits(amount, ctx.request.outputCurrency as FiatToken, "max", ctx.request.rampType);
   }

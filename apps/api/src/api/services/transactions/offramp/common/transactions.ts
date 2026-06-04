@@ -11,21 +11,16 @@ import {
   EvmTransactionData,
   encodeSubmittableExtrinsic,
   Networks,
-  PaymentData,
   PendulumTokenDetails,
-  StellarTokenDetails,
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { Keypair } from "stellar-sdk";
 import { encodeFunctionData } from "viem";
 import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
-import { prepareSpacewalkRedeemTransaction } from "../../spacewalk/redeem";
-import { buildPaymentAndMergeTx } from "../../stellar/offrampTransaction";
 
 /**
  * Creates transactions for EVM source networks using Squidrouter or mock transactions in sandbox
@@ -249,161 +244,6 @@ export async function createBRLTransactions(
       taxId
     }
   };
-}
-
-/**
- * Creates Stellar-specific transactions for Spacewalk redeem
- * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- * @param pendulumCleanupTx Cleanup transaction template
- * @param nextNonce Next available nonce
- * @returns Updated nonce and state metadata
- */
-export async function createSpacewalkTransactions(
-  params: {
-    outputAmountRaw: string;
-    stellarEphemeralEntry: AccountMeta;
-    outputTokenDetails: StellarTokenDetails;
-    account: AccountMeta;
-    stellarPaymentData: PaymentData;
-  },
-  unsignedTxs: UnsignedTx[],
-  pendulumCleanupTx: Omit<UnsignedTx, "nonce">,
-  nextNonce: number
-): Promise<{ nextNonce: number; stateMeta: Partial<StateMetadata> }> {
-  const { outputAmountRaw, stellarEphemeralEntry, outputTokenDetails, account, stellarPaymentData } = params;
-
-  const stellarEphemeralAccountRaw = Keypair.fromPublicKey(stellarEphemeralEntry.address).rawPublicKey();
-  const spacewalkRedeemTransaction = await prepareSpacewalkRedeemTransaction({
-    executeSpacewalkNonce: nextNonce,
-    outputAmountRaw: outputAmountRaw,
-    outputTokenDetails,
-    stellarEphemeralAccountRaw
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Pendulum,
-    nonce: nextNonce,
-    phase: "spacewalkRedeem",
-    signer: account.address,
-    txData: encodeSubmittableExtrinsic(spacewalkRedeemTransaction)
-  });
-  const executeSpacewalkNonce = nextNonce;
-  nextNonce++;
-
-  // Add the cleanup transaction with the next nonce
-  unsignedTxs.push({
-    ...pendulumCleanupTx,
-    nonce: nextNonce
-  });
-  nextNonce++;
-
-  return {
-    nextNonce,
-    stateMeta: {
-      executeSpacewalkNonce,
-      stellarEphemeralAccountId: stellarEphemeralEntry.address,
-      stellarTarget: {
-        stellarTargetAccountId: stellarPaymentData.anchorTargetAccount,
-        stellarTokenDetails: outputTokenDetails
-      }
-    }
-  };
-}
-
-/**
- * Creates Stellar payment and merge transactions
- * @param params Transaction parameters
- * @param unsignedTxs Array to add transactions to
- */
-export async function createStellarPaymentTransactions(
-  params: {
-    ephemeralAddress: string;
-    outputAmountUnits: Big;
-    outputTokenDetails: StellarTokenDetails;
-    stellarPaymentData: PaymentData;
-  },
-  unsignedTxs: UnsignedTx[]
-): Promise<void> {
-  const { ephemeralAddress, outputAmountUnits, outputTokenDetails, stellarPaymentData } = params;
-
-  const { paymentTransactions, mergeAccountTransactions, createAccountTransactions, expectedSequenceNumbers } =
-    await buildPaymentAndMergeTx({
-      amountToAnchorUnits: outputAmountUnits.toFixed(),
-      ephemeralAccountId: ephemeralAddress,
-      paymentData: stellarPaymentData,
-      tokenConfigStellar: outputTokenDetails
-    });
-
-  const createAccountPrimaryTx: UnsignedTx = {
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[0]
-    },
-    network: Networks.Stellar,
-    nonce: 0,
-    phase: "stellarCreateAccount",
-    signer: ephemeralAddress,
-    txData: createAccountTransactions[0].tx
-  };
-
-  const paymentTransactionPrimary: UnsignedTx = {
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[0]
-    },
-    network: Networks.Stellar,
-    nonce: 1,
-    phase: "stellarPayment",
-    signer: ephemeralAddress,
-    txData: paymentTransactions[0].tx
-  };
-
-  const mergeAccountTransactionPrimary: UnsignedTx = {
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[0]
-    },
-    network: Networks.Stellar,
-    nonce: 2,
-    phase: "stellarCleanup",
-    signer: ephemeralAddress,
-    txData: mergeAccountTransactions[0].tx
-  };
-
-  const createAccountMultiSignedTxs = createAccountTransactions.map((tx, index) => ({
-    ...createAccountPrimaryTx,
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[index]
-    },
-    nonce: createAccountPrimaryTx.nonce + index,
-    txData: tx.tx
-  }));
-
-  const createAccountTx = addAdditionalTransactionsToMeta(createAccountPrimaryTx, createAccountMultiSignedTxs);
-  unsignedTxs.push(createAccountTx);
-
-  const paymentTransactionMultiSignedTxs = paymentTransactions.map((tx, index) => ({
-    ...paymentTransactionPrimary,
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[index]
-    },
-    nonce: paymentTransactionPrimary.nonce + index,
-    txData: tx.tx
-  }));
-
-  const paymentTransaction = addAdditionalTransactionsToMeta(paymentTransactionPrimary, paymentTransactionMultiSignedTxs);
-  unsignedTxs.push(paymentTransaction);
-
-  const mergeAccountTransactionMultiSignedTxs = mergeAccountTransactions.map((tx, index) => ({
-    ...mergeAccountTransactionPrimary,
-    meta: {
-      expectedSequenceNumber: expectedSequenceNumbers[index]
-    },
-    nonce: mergeAccountTransactionPrimary.nonce + index,
-    txData: tx.tx
-  }));
-
-  const mergeAccountTx = addAdditionalTransactionsToMeta(mergeAccountTransactionPrimary, mergeAccountTransactionMultiSignedTxs);
-  unsignedTxs.push(mergeAccountTx);
 }
 
 /**

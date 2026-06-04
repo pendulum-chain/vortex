@@ -1,6 +1,7 @@
 import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import { config } from "../../../../../config/vars";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
 import { trimTrailingZeros } from "../../core/helpers";
@@ -40,6 +41,7 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
   const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
   return {
+    alfredpayInputLimits: quoteTicket.metadata.alfredpayInputLimits,
     anchorFeeFiat: fiatFees.anchor,
     anchorFeeUsd: usdFees.anchor,
     createdAt: quoteTicket.createdAt,
@@ -87,7 +89,7 @@ export abstract class BaseFinalizeEngine implements Stage {
     }
 
     const computation = await this.computeOutput(ctx);
-    this.validate(ctx, computation);
+    await this.validate(ctx, computation);
 
     const outputAmountStr = computation.amount.toFixed(computation.decimals, 0);
 
@@ -109,6 +111,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       const expiresAt = getExpirationDate(ctx);
 
       ctx.builtResponse = {
+        alfredpayInputLimits: ctx.alfredpayInputLimits,
         anchorFeeFiat: fiatFees.anchor,
         anchorFeeUsd: usdFees.anchor,
         createdAt: new Date(),
@@ -147,6 +150,7 @@ export abstract class BaseFinalizeEngine implements Stage {
       apiKey: request.apiKey || null,
       countryCode: request.countryCode,
       expiresAt,
+      flowVariant: config.flowVariant,
       from: request.from,
       inputAmount: request.inputAmount,
       inputCurrency: request.inputCurrency,
@@ -169,7 +173,7 @@ export abstract class BaseFinalizeEngine implements Stage {
 
   protected abstract computeOutput(ctx: QuoteContext): Promise<FinalizeComputation>;
 
-  protected validate(ctx: QuoteContext, result: FinalizeComputation): void {
+  protected async validate(_ctx: QuoteContext, _result: FinalizeComputation): Promise<void> {
     // Implemented by subclasses when necessary
   }
 }

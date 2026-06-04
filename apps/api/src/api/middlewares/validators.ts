@@ -1,16 +1,19 @@
 import {
   AveniaKYCDataUploadRequest,
   CreateAveniaSubaccountRequest,
+  CreateBestQuoteRequest,
   CreateQuoteRequest,
   Currency,
   GetWidgetUrlLocked,
   GetWidgetUrlRefresh,
+  getCaseSensitiveNetwork,
   isSupportedFiatCurrency,
   isValidAveniaAccountType,
   isValidCurrencyForDirection,
   isValidDirection,
   isValidKYCDocType,
   isValidPriceProvider,
+  Networks,
   PriceProvider,
   QuoteError,
   RampDirection,
@@ -52,12 +55,6 @@ interface SwapBody {
   amountRaw: string;
   address: string;
   token?: keyof TokenConfig;
-}
-
-interface Sep10Body {
-  challengeXDR: string;
-  outToken: string;
-  clientPublicKey: string;
 }
 
 interface SiweCreateBody {
@@ -316,26 +313,6 @@ export const validatePostSwapSubsidizationInput: RequestHandler = (req, res, nex
   next();
 };
 
-export const validateSep10Input: RequestHandler = (req, res, next) => {
-  const { challengeXDR, outToken, clientPublicKey } = req.body as Sep10Body;
-
-  if (!challengeXDR) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing Anchor challenge: challengeXDR" });
-    return;
-  }
-
-  if (!outToken) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing offramp token identifier: outToken" });
-    return;
-  }
-
-  if (!clientPublicKey) {
-    res.status(httpStatus.BAD_REQUEST).json({ error: "Missing Stellar ephemeral public key: clientPublicKey" });
-    return;
-  }
-  next();
-};
-
 export const validateSiweCreate: RequestHandler = (req, res, next) => {
   const { walletAddress } = req.body as SiweCreateBody;
 
@@ -419,17 +396,13 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   next();
 };
 
-export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit<CreateQuoteRequest, "network">> = (
-  req,
-  res,
-  next
-) => {
+export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, CreateBestQuoteRequest> = (req, res, next) => {
   if (req.body) {
-    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateQuoteRequest["inputCurrency"];
-    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateQuoteRequest["outputCurrency"];
+    req.body.inputCurrency = normalizeAxlUsdcCurrency(req.body.inputCurrency) as CreateBestQuoteRequest["inputCurrency"];
+    req.body.outputCurrency = normalizeAxlUsdcCurrency(req.body.outputCurrency) as CreateBestQuoteRequest["outputCurrency"];
   }
 
-  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
+  const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, networks } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
@@ -449,6 +422,27 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Omit
   if (rampType === RampDirection.SELL && !to) {
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
     return;
+  }
+
+  if (networks !== undefined) {
+    if (!Array.isArray(networks)) {
+      res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+      return;
+    }
+    const normalized: Networks[] = [];
+    for (const entry of networks) {
+      if (typeof entry !== "string") {
+        res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+        return;
+      }
+      const canonical = getCaseSensitiveNetwork(entry);
+      if (!canonical) {
+        res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
+        return;
+      }
+      normalized.push(canonical);
+    }
+    req.body.networks = normalized;
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {

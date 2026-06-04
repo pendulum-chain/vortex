@@ -1,11 +1,9 @@
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
-import { useRampActor, useStellarKycActor } from "../../contexts/rampState";
+import { useRampActor } from "../../contexts/rampState";
 import { useToastMessage } from "../../helpers/notifications";
-import { useMoneriumFlow } from "../../hooks/monerium/useMoneriumFlow";
 import { useRampNavigation } from "../../hooks/ramp/useRampNavigation";
 import { useAuthTokens } from "../../hooks/useAuthTokens";
-import { useSiweSignature } from "../../hooks/useSignChallenge";
 import { useQuote, useQuoteActions } from "../../stores/quote/useQuoteStore";
 import { FailurePage } from "../failure";
 import { ProgressPage } from "../progress";
@@ -16,20 +14,17 @@ import { Widget } from "../widget";
 export const Ramp = () => {
   const { getCurrentComponent } = useRampNavigation(<SuccessPage />, <FailurePage />, <ProgressPage />, <Widget />, <Quote />);
   const rampActor = useRampActor();
-  const stellarKycActor = useStellarKycActor();
   const quote = useQuote();
   const { forceSetQuote } = useQuoteActions();
-  useMoneriumFlow();
-  useSiweSignature(stellarKycActor);
   useAuthTokens(rampActor);
 
   const { showToast } = useToastMessage();
 
   useEffect(() => {
-    // How to restrict this to only send one notification?
-    rampActor.on("SHOW_ERROR_TOAST", event => {
+    const subscription = rampActor.on("SHOW_ERROR_TOAST", event => {
       showToast(event.message);
     });
+    return () => subscription.unsubscribe();
   }, [rampActor, showToast]);
 
   const { state, quoteFromState } = useSelector(rampActor, state => ({

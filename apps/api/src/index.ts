@@ -9,6 +9,7 @@ import { config } from "./config/vars";
 
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
+import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
@@ -26,7 +27,6 @@ setLogger(logger);
 const validateRequiredEnvVars = () => {
   const requiredVars = {
     CLIENT_DOMAIN_SECRET: config.secrets.clientDomainSecret,
-    FUNDING_SECRET: config.secrets.stellarFundingSecret,
     MOONBEAM_EXECUTOR_PRIVATE_KEY: config.secrets.moonbeamExecutorPrivateKey,
     PENDULUM_FUNDING_SEED: config.secrets.pendulumFundingSeed
   };
@@ -67,6 +67,9 @@ const initializeApp = async () => {
     new CleanupWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
+
+    // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
+    AlfredpayLimitsService.getInstance().start();
 
     // Register phase handlers
     registerPhaseHandlers();

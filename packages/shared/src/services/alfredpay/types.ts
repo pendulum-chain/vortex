@@ -1,9 +1,6 @@
-import { FiatToken } from "../../tokens/types/base";
+import { AlfredpayCustomerType, FiatToken, RampCurrency } from "../../tokens/types/base";
 
-export enum AlfredpayCustomerType {
-  INDIVIDUAL = "INDIVIDUAL",
-  BUSINESS = "BUSINESS"
-}
+export { AlfredpayCustomerType };
 
 export type AlfredPayType = AlfredpayCustomerType;
 export const AlfredPayType = AlfredpayCustomerType;
@@ -356,19 +353,47 @@ export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
 
 export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 
-const ALFREDPAY_FIAT_TOKEN_SET = new Set<FiatToken>([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
+const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
 
-export const isAlfredpayToken = (token: FiatToken): boolean => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
+
+/** Raw shape returned by `GET …/configurations`. `typeCustomer: null` means the pair applies to both customer types. */
+export interface AlfredpayConfigPair {
+  id: string;
+  fromCurrency: string;
+  toCurrency: string;
+  businessId: string | null;
+  maxQuantity: string;
+  minQuantity: string;
+  decimals: string;
+  typeCustomer: AlfredpayCustomerType | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetAllConfigsResponse {
+  supportedPairs: AlfredpayConfigPair[];
+}
 
 export class AlfredpayTradeLimitError extends Error {
-  readonly minQuantity: string;
+  readonly kind: "above" | "below";
+  readonly quantity: string;
   readonly fromCurrency: string;
 
-  constructor(minQuantity: string, fromCurrency: string) {
-    super(`Trade below minimum: ${minQuantity} ${fromCurrency}`);
+  private constructor(kind: "above" | "below", quantity: string, fromCurrency: string) {
+    super(`Trade ${kind === "below" ? "below minimum" : "above maximum"}: ${quantity} ${fromCurrency}`);
     this.name = "AlfredpayTradeLimitError";
-    this.minQuantity = minQuantity;
+    this.kind = kind;
+    this.quantity = quantity;
     this.fromCurrency = fromCurrency;
+  }
+
+  static below(minQuantity: string, fromCurrency: string): AlfredpayTradeLimitError {
+    return new AlfredpayTradeLimitError("below", minQuantity, fromCurrency);
+  }
+
+  static above(maxQuantity: string, fromCurrency: string): AlfredpayTradeLimitError {
+    return new AlfredpayTradeLimitError("above", maxQuantity, fromCurrency);
   }
 }
 

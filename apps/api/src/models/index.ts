@@ -4,6 +4,7 @@ import Anchor from "./anchor.model";
 import ApiKey from "./apiKey.model";
 import KycLevel2 from "./kycLevel2.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
+import MykoboCustomer from "./mykoboCustomer.model";
 import Partner from "./partner.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
@@ -36,6 +37,9 @@ TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(AlfredPayCustomer, { as: "alfredPayCustomers", foreignKey: "userId" });
 AlfredPayCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 
+User.hasOne(MykoboCustomer, { as: "mykoboCustomer", foreignKey: "userId" });
+MykoboCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
+
 // Initialize models
 const models = {
   AlfredPayCustomer,
@@ -43,6 +47,7 @@ const models = {
   ApiKey,
   KycLevel2,
   MaintenanceSchedule,
+  MykoboCustomer,
   Partner,
   QuoteTicket,
   RampState,

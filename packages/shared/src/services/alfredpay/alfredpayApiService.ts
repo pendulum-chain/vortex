@@ -25,6 +25,7 @@ import {
   CreateAlfredpayOnrampResponse,
   FindAlfredpayCustomerResponse,
   GetAlfredpayOnrampTransactionResponse,
+  GetAllConfigsResponse,
   GetKybRedirectLinkResponse,
   GetKybStatusResponse,
   GetKybSubmissionResponse,
@@ -108,8 +109,13 @@ export class AlfredpayApiService {
         try {
           const parsed = JSON.parse(errorText);
           if (parsed.errorCode === 111426 && parsed.errorMetadata) {
-            const { minQuantity, fromCurrency } = parsed.errorMetadata;
-            throw new AlfredpayTradeLimitError(minQuantity, fromCurrency);
+            const { minQuantity, maxQuantity, fromCurrency } = parsed.errorMetadata;
+            logger.current.warn(
+              `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
+            );
+            throw maxQuantity !== undefined
+              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
+              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -141,6 +147,15 @@ export class AlfredpayApiService {
       "POST",
       payload
     )) as CreateAlfredpayCustomerResponse;
+  }
+
+  /**
+   * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   */
+  public async getAllConfigs(): Promise<GetAllConfigsResponse> {
+    const path = "/api/v1/third-party-service/penny/configurations";
+    return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 
   public async findCustomer(email: string, country: string): Promise<FindAlfredpayCustomerResponse> {

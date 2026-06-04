@@ -18,7 +18,7 @@ const NETWORKS: NetworkConfig[] = [
   },
   {
     name: "hydration",
-    wsUrls: ["wss://rpc.hydradx.cloud"]
+    wsUrls: ["wss://hydration.ibp.network"]
   },
   {
     name: "moonbeam",

@@ -2,6 +2,7 @@ export * from "../contracts";
 export * from "./alfredpay";
 export * from "./brla";
 export * from "./evm";
+export * from "./mykobo";
 export * from "./nabla";
 export * from "./pendulum";
 export * from "./slack.service";

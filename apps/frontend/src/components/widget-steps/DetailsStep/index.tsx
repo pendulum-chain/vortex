@@ -1,5 +1,5 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
-import { FiatToken, Networks } from "@vortexfi/shared";
+import { FiatToken, isFiatToken } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
@@ -31,7 +31,6 @@ export interface SigningState {
 export interface FormData {
   pixId?: string;
   taxId?: string;
-  moneriumWalletAddress?: string;
   walletAddress?: string;
   fiatToken?: FiatToken;
 }
@@ -50,40 +49,31 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
   const pixId = usePixId();
   const quote = useQuote();
 
-  // When onramping from EUR -> Assethub, we need to show the wallet address field
-  const isMoneriumRamp = quote?.rampType === "BUY" && quote?.inputCurrency === FiatToken.EURC;
-  const isMoneriumToAssethubRamp = isMoneriumRamp && quote?.to === Networks.AssetHub;
-  const forceNetwork = isMoneriumToAssethubRamp ? Networks.Polygon : undefined;
-
-  const { address, evmAddress, substrateAddress } = useVortexAccount(forceNetwork);
+  const { address } = useVortexAccount();
 
   const walletForm = walletLockedFromState || address || undefined;
 
+  const rawFiatCurrency = quote?.rampType === "BUY" ? quote.inputCurrency : quote?.outputCurrency;
+  const fiatToken = rawFiatCurrency && isFiatToken(rawFiatCurrency) ? rawFiatCurrency : undefined;
+
   const { form } = useRampForm({
-    fiatToken: quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken),
-    moneriumWalletAddress: evmAddress,
+    fiatToken,
     pixId,
     taxId,
-    walletAddress: isMoneriumToAssethubRamp ? substrateAddress : walletForm
+    walletAddress: walletForm
   });
 
   useEffect(() => {
-    // If a Monerium wallet needs to be connected for the ramp, set it in the form
-    if (isMoneriumRamp) {
-      form.setValue("moneriumWalletAddress", evmAddress);
-    }
-
-    if (isMoneriumToAssethubRamp && substrateAddress) {
-      form.setValue("walletAddress", substrateAddress);
-    } else if (!isMoneriumToAssethubRamp && address) {
+    if (address) {
       form.setValue("walletAddress", address);
     } else if (walletLockedFromState) {
       form.setValue("walletAddress", walletLockedFromState);
     }
 
-    const fiatToken = quote?.rampType === "BUY" ? (quote.inputCurrency as FiatToken) : (quote?.outputCurrency as FiatToken);
-    form.setValue("fiatToken", fiatToken);
-  }, [form, evmAddress, isMoneriumRamp, address, walletLockedFromState, isMoneriumToAssethubRamp, substrateAddress, quote]);
+    if (fiatToken) {
+      form.setValue("fiatToken", fiatToken);
+    }
+  }, [form, address, walletLockedFromState, fiatToken]);
 
   const { onRampConfirm } = useRampSubmission();
 
@@ -115,7 +105,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
             <DetailsStepForm
               isBrazilLanding={isBrazilLanding}
               isWalletAddressDisabled={!!walletLockedFromState}
-              showWalletAddressField={isMoneriumToAssethubRamp}
               signingState={signingState}
             />
             {isSep24Redo && (
@@ -129,7 +118,6 @@ export const DetailsStep = ({ className }: DetailsStepProps) => {
           </div>
           <StepFooter>
             <DetailsStepActions
-              forceNetwork={forceNetwork}
               isBrazilLanding={isBrazilLanding}
               requiresConnection={!canSkipConnection}
               signingState={signingState}

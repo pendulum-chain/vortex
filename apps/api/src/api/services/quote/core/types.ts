@@ -2,6 +2,7 @@
 // Shared types and contracts used by the quote pipeline.
 
 import {
+  AmountLimits,
   CreateQuoteRequest,
   DestinationType,
   EvmToken,
@@ -60,15 +61,6 @@ export interface XcmMeta {
   outputAmountDecimal: Big;
   outputAmountRaw: string;
   xcmFees: XcmFees;
-}
-
-export interface StellarMeta {
-  inputAmountDecimal: Big;
-  inputAmountRaw: string;
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-  fee: Big;
-  currency: RampCurrency;
 }
 
 // Partner info shared type
@@ -158,15 +150,6 @@ export interface QuoteContext {
     slippagePercent: number;
   };
 
-  moneriumMint?: {
-    inputAmountDecimal: Big;
-    inputAmountRaw: string;
-    outputAmountDecimal: Big;
-    outputAmountRaw: string;
-    fee: Big;
-    currency: RampCurrency;
-  };
-
   alfredpayMint?: {
     inputAmountDecimal: Big;
     inputAmountRaw: string;
@@ -207,6 +190,15 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  mykoboMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   assethubToPendulumXcm?: XcmMeta;
 
   evmToEvm?: BridgeMeta;
@@ -226,8 +218,6 @@ export interface QuoteContext {
   pendulumToAssethubXcm?: XcmMeta;
 
   pendulumToMoonbeamXcm?: XcmMeta;
-
-  pendulumToStellar?: StellarMeta;
 
   // Fees in baseline and display currency
   fees?: {
@@ -265,6 +255,12 @@ export interface QuoteContext {
   notes?: string[];
   // Allow engines to supply a ready response (used by special-case engine and finalize stage)
   builtResponse?: QuoteResponse;
+
+  /**
+   * Resolved AlfredPay input-side amount limits in human units of `inputCurrency`.
+   * Set by the finalize engine during validation for AlfredPay quotes; surfaced on the QuoteResponse.
+   */
+  alfredpayInputLimits?: AmountLimits;
 
   // Flag to skip database persistence (for best quote comparison)
   skipPersistence?: boolean;

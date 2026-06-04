@@ -1,7 +1,7 @@
 import { ApiPromise } from "@polkadot/api";
 import { EventRecord } from "@polkadot/types/interfaces";
 import logger from "../logger";
-import { parseEventRedeemExecution, parseEventXcmSent } from "./eventParsers";
+import { parseEventXcmSent } from "./xcmParsers";
 
 interface IPendingEvent<T = unknown> {
   id: string;
@@ -11,7 +11,6 @@ interface IPendingEvent<T = unknown> {
 
 export class EventListener {
   static eventListeners = new Map<ApiPromise, EventListener>();
-  pendingRedeemEvents: IPendingEvent[] = [];
   pendingXcmSentEvents: IPendingEvent[] = [];
   api: ApiPromise | undefined = undefined;
   private unsubscribeHandle: (() => void) | null = null;
@@ -39,37 +38,9 @@ export class EventListener {
     this.unsubscribeHandle =
       ((await this.api?.query.system.events((events: EventRecord[]) => {
         events.forEach((event: EventRecord) => {
-          this.processEvents(event, this.pendingRedeemEvents);
           this.processEvents(event, this.pendingXcmSentEvents);
         });
       })) as unknown as () => void) || null;
-  }
-
-  waitForRedeemExecuteEvent(redeemId: string, maxWaitingTimeMs: number) {
-    const filter = (event: EventRecord) => {
-      if (event.event.section === "redeem" && event.event.method === "ExecuteRedeem") {
-        const eventParsed = parseEventRedeemExecution({ event: event.event });
-        if (eventParsed.redeemId === redeemId) {
-          return eventParsed;
-        }
-      }
-      return null;
-    };
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error(`Max waiting time exceeded for Redeem Execution with id: ${redeemId}`));
-      }, maxWaitingTimeMs);
-
-      this.pendingRedeemEvents.push({
-        filter,
-        id: redeemId,
-        resolve: event => {
-          clearTimeout(timeout);
-          resolve(event);
-        }
-      });
-    });
   }
 
   waitForXcmSentEvent(originAddress: string, maxWaitingTimeMs: number) {
@@ -111,17 +82,7 @@ export class EventListener {
   }
 
   async checkForMissedEvents() {
-    const freshApiPromise = this.api;
-    if (!freshApiPromise || !freshApiPromise.isConnected) return;
-
-    this.pendingRedeemEvents.forEach(pendingEvent => {
-      const redeemId = pendingEvent.id;
-      freshApiPromise.query.redeem.redeemRequests(redeemId).then(redeem => {
-        if (redeem) {
-          pendingEvent.resolve(redeem);
-        }
-      });
-    });
+    // No-op: redeem/spacewalk event recovery removed with Stellar/Spacewalk deprecation.
   }
 
   unsubscribe() {
@@ -130,7 +91,6 @@ export class EventListener {
       this.unsubscribeHandle = null;
     }
 
-    this.pendingRedeemEvents = [];
     this.pendingXcmSentEvents = [];
 
     if (this.api) {

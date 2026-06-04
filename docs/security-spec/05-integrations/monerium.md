@@ -1,6 +1,10 @@
 # Monerium Integration
 
+> **⚠️ DEPRECATED / REMOVED.** Monerium is no longer used for EUR on-ramps. EUR on-ramp has been migrated to **Mykobo on Base** (see `mykobo.md`). The `moneriumOnrampMint` and `moneriumOnrampSelfTransfer` phase handlers, the Polygon Monerium EURe path, and the Polygon ephemeral cleanup for SEPA ramps are **no longer reached by any active corridor**. This file is retained for historical context and audit traceability of past Monerium-related findings; new ramps do not flow through Monerium. Active EUR architecture: `05-integrations/mykobo.md`.
+
 ## What This Does
+
+(Historical — Monerium is removed. See top-of-file deprecation banner and `mykobo.md`.)
 
 Monerium is a European e-money institution that issues EURe (Monerium EUR) tokens. Vortex uses Monerium for EUR on-ramp operations via SEPA bank transfers.
 

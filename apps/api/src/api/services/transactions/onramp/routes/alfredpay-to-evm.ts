@@ -55,6 +55,10 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error("Missing alfredpay raw mint amount in quote metadata");
   }
 
+  if (!quote.metadata.evmToEvm?.outputAmountRaw) {
+    throw new Error("Missing evmToEvm raw output amount in quote metadata");
+  }
+
   const toNetwork = getNetworkFromDestination(quote.to);
   if (!toNetwork || toNetwork === Networks.AssetHub) {
     throw new Error(`Invalid network for destination ${quote.to}`);
@@ -104,7 +108,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
-      amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+      amountRaw: quote.metadata.evmToEvm.outputAmountRaw,
       destinationNetwork: toNetwork as EvmNetworks,
       toAddress: destinationAddress,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
@@ -163,6 +167,49 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
+  // Same-chain Polygon: destinationTransfer must be the next executable nonce after the swap. The cleanup
+  // approval runs post-complete, so it follows the transfer. Backup re-swap txs are omitted here (no handler
+  // executes them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
+  if (toNetwork === Networks.Polygon) {
+    const sameChainTransferTxData = await addOnrampDestinationChainTransactions({
+      amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+      destinationNetwork: Networks.Polygon,
+      toAddress: destinationAddress,
+      toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: polygonAccountNonce++,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(sameChainTransferTxData) as EvmTransactionData
+    });
+
+    const sameChainCleanupApproval = await preparePolygonCleanupApproval(
+      ERC20_USDC_POLYGON,
+      fundingAccount.address,
+      Networks.Polygon
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: polygonAccountNonce++,
+      phase: "polygonCleanup",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(sameChainCleanupApproval) as EvmTransactionData
+    });
+
+    stateMeta = {
+      ...stateMeta,
+      squidRouterQuoteId,
+      squidRouterReceiverHash,
+      squidRouterReceiverId
+    };
+
+    return { stateMeta, unsignedTxs };
+  }
+
   const polygonCleanupApproval = await preparePolygonCleanupApproval(
     ERC20_USDC_POLYGON,
     fundingAccount.address,
@@ -184,7 +231,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 
-  let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce++ : 0; // If the destination is Polygon, we need to use the same nonce sequence. Otherwise, we start fresh on the new chain.
+  let destinationNonce = 0;
+  const destinationStartingNonce = destinationNonce;
 
   unsignedTxs.push({
     meta: {},
@@ -240,8 +288,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     tokenAddress: bridgedTokenForFallback
   });
 
-  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
-  const backupApproveNonce = 0;
+  // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = destinationStartingNonce;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,

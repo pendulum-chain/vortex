@@ -114,26 +114,51 @@ function prepareSquidrouterRouteParams(params: {
       });
 }
 
-/**
- * Helper to calculate Squidrouter network fee including GLMR price fetching and fallback.
- * Works with both full routes and cached routes (which include the value field needed for calculation).
- */
-async function calculateSquidrouterNetworkFee(route: SquidrouterRoute | SquidrouterCachedRoute): Promise<string> {
+// Squid swap gas is paid in the source chain's native token. The CoinGecko ID
+// depends on the source network — using GLMR for everything would severely
+// under-report the fee for non-Moonbeam routes (e.g. ETH on Base is ~30,000x
+// more expensive than GLMR).
+function getNativeTokenCoingeckoId(network: Networks): string {
+  switch (network) {
+    case Networks.Base:
+    case Networks.Arbitrum:
+    case Networks.Ethereum:
+    case Networks.BaseSepolia:
+      return "ethereum";
+    case Networks.Polygon:
+    case Networks.PolygonAmoy:
+      return "polygon-ecosystem-token";
+    case Networks.Avalanche:
+      return "avalanche-2";
+    case Networks.BSC:
+      return "binancecoin";
+    case Networks.Moonbeam:
+      return "moonbeam";
+    default:
+      return "moonbeam";
+  }
+}
+
+async function calculateSquidrouterNetworkFee(
+  route: SquidrouterRoute | SquidrouterCachedRoute,
+  fromNetwork: Networks
+): Promise<string> {
   const squidRouterSwapValue = multiplyByPowerOfTen(Big(route.transactionRequest.value), -18);
+  const nativeTokenId = getNativeTokenCoingeckoId(fromNetwork);
 
   try {
-    // Get current GLMR price in USD from price feed service
-    const glmrPriceUSD = await priceFeedService.getCryptoPrice("moonbeam", "usd");
-    const squidFeeUSD = squidRouterSwapValue.mul(glmrPriceUSD).toFixed(6);
-    logger.debug(`Network fee calculated using GLMR price: $${glmrPriceUSD}, fee: $${squidFeeUSD}`);
+    const nativePriceUSD = await priceFeedService.getCryptoPrice(nativeTokenId, "usd");
+    const squidFeeUSD = squidRouterSwapValue.mul(nativePriceUSD).toFixed(6);
+    logger.debug(`Network fee calculated using ${nativeTokenId} price: $${nativePriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   } catch (error) {
-    // If price feed fails, log the error and use a fallback price
-    logger.error(`Failed to get GLMR price, using fallback: ${error instanceof Error ? error.message : "Unknown error"}`);
-    // Fallback to previous hardcoded value as safety measure
-    const fallbackGlmrPrice = 0.08;
-    const squidFeeUSD = squidRouterSwapValue.mul(fallbackGlmrPrice).toFixed(6);
-    logger.warn(`Using fallback GLMR price: $${fallbackGlmrPrice}, fee: $${squidFeeUSD}`);
+    logger.error(
+      `Failed to get ${nativeTokenId} price, using fallback: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    // Conservative per-chain fallback so we never silently report ~$0 for ETH-priced chains.
+    const fallbackPriceUSD = nativeTokenId === "ethereum" ? 2500 : nativeTokenId === "polygon-ecosystem-token" ? 0.5 : 0.08;
+    const squidFeeUSD = squidRouterSwapValue.mul(fallbackPriceUSD).toFixed(6);
+    logger.warn(`Using fallback ${nativeTokenId} price: $${fallbackPriceUSD}, fee: $${squidFeeUSD}`);
     return squidFeeUSD;
   }
 }
@@ -170,7 +195,7 @@ function buildRouteRequest(request: EvmBridgeQuoteRequest) {
   });
 }
 
-async function getSquidrouterRouteData(routeParams: RouteParams) {
+async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Networks) {
   const routeResult = await getRoute(routeParams, { useCache: true });
 
   if (!routeResult?.data?.route?.estimate) {
@@ -184,7 +209,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams) {
   const outputTokenDecimals = routeData.route.estimate.toToken.decimals;
   const outputAmountRaw = routeData.route.estimate.toAmount;
   const outputAmountDecimal = parseContractBalanceResponse(outputTokenDecimals, BigInt(outputAmountRaw)).preciseBigDecimal;
-  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route);
+  const networkFeeUSD = await calculateSquidrouterNetworkFee(routeData.route, fromNetwork);
 
   return {
     fromToken: routeParams.fromToken,
@@ -216,7 +241,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     });
 
     // Execute Squidrouter route and validate response
-    const { networkFeeUSD, routeData, outputTokenDecimals } = await getSquidrouterRouteData(routeParams);
+    const { networkFeeUSD, routeData, outputTokenDecimals } = await getSquidrouterRouteData(routeParams, fromNetwork);
 
     // Calculate network fee (Squidrouter fee)
     // Parse final gross output amount
@@ -261,5 +286,5 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
 
 export async function getEvmBridgeQuote(request: EvmBridgeQuoteRequest) {
   const routeParams = buildRouteRequest(request);
-  return getSquidrouterRouteData(routeParams);
+  return getSquidrouterRouteData(routeParams, request.fromNetwork);
 }
