@@ -95,10 +95,10 @@ export const Offramp = () => {
           fallbackLogoURI={fromIconInfo.fallbackIconSrc}
           id="inputAmount"
           logoURI={fromIconInfo.iconSrc}
+          name="inputAmount"
           network={fromIconInfo.network}
           onChange={handleInputChange}
           onClick={() => openTokenSelectModal("from")}
-          registerInput={form.register("inputAmount")}
           tokenLoading={tokenLoading}
           tokenSymbol={fromToken.assetSymbol}
         />
@@ -108,7 +108,7 @@ export const Offramp = () => {
         </div>
       </>
     ),
-    [form, fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, fromIconInfo, tokenLoading]
+    [fromToken, openTokenSelectModal, handleInputChange, handleBalanceClick, isDisconnected, fromIconInfo, tokenLoading]
   );
 
   const ReceiveNumericInput = useMemo(
@@ -118,13 +118,13 @@ export const Offramp = () => {
         disabled={!toAmount}
         id="outputAmount"
         loading={quoteLoading}
+        name="outputAmount"
         onClick={() => openTokenSelectModal("to")}
         readOnly={true}
-        registerInput={form.register("outputAmount")}
         tokenSymbol={toToken.fiat.symbol}
       />
     ),
-    [toToken.fiat.assetIcon, toToken.fiat.symbol, quoteLoading, form, toAmount, openTokenSelectModal]
+    [toToken.fiat.assetIcon, toToken.fiat.symbol, quoteLoading, toAmount, openTokenSelectModal]
   );
 
   const handleConfirm = useCallback(() => {

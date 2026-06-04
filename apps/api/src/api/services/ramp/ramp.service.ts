@@ -131,18 +131,12 @@ function validateAddressFormat(address: string, type: EphemeralAccountType): voi
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
-  const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
-
   const ephemerals: { [key in EphemeralAccountType]?: string } = {};
 
   accounts.forEach(account => {
-    if (!allowedNetworks.has(account.type.toLowerCase())) {
-      throw new Error(`Invalid network: "${account.type}" provided.`);
-    }
-
     const type = Object.values(EphemeralAccountType).find(type => type.toLowerCase() === account.type.toLowerCase());
     if (!type) {
-      throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
+      return;
     }
 
     validateAddressFormat(account.address, type);

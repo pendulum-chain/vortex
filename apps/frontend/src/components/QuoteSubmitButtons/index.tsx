@@ -70,9 +70,11 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   const { quote } = useQuoteStore();
   const quoteInputAmount = quote?.inputAmount;
 
+  const hasInputAmount = Boolean(inputAmount) && !Big(inputAmount).eq(0);
   const isQuoteOutdated =
     (!!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount))) || quote?.rampType !== rampDirection;
   const isSubmitButtonDisabled = disabled || Boolean(currentErrorMessage) || !quote || isQuoteOutdated;
+  const showSpinner = hasInputAmount && (isQuoteOutdated || pending) && !currentErrorMessage;
 
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton(isSubmitButtonDisabled || pending);
 
@@ -105,7 +107,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   return (
     <div className={className}>
       <button className="btn-vortex-primary btn w-full" disabled={isSubmitButtonDisabled} onClick={onClick}>
-        {(isQuoteOutdated || pending) && !currentErrorMessage && <Spinner />}
+        {showSpinner && <Spinner />}
         {isMaintenanceDisabled ? buttonProps.title : buttonText}
       </button>
     </div>

@@ -30,6 +30,7 @@ function mergeRampStatePreservingPaymentInfo(prev: RampState | undefined, next: 
   const prevRamp = prev.ramp;
   const nextRamp = next.ramp;
   if (!nextRamp) return next;
+  if (prev.quote?.id !== next.quote?.id) return next;
   return {
     ...next,
     ramp: {
@@ -387,7 +388,9 @@ export const rampMachine = setup({
           actions: assign({
             enteredViaForm: ({ event }) => event.enteredViaForm,
             quoteId: ({ event }) => event.quoteId,
-            quoteLocked: ({ event }) => event.lock
+            quoteLocked: ({ event }) => event.lock,
+            rampSigningPhase: undefined,
+            rampState: undefined
           }),
           target: "LoadingQuote"
         },
