@@ -22,6 +22,10 @@ export function getConfig() {
     mainNablaRouter: process.env.MAIN_NABLA_ROUTER as `0x${string}` | undefined,
 
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
+    /// The amount in BRLA to swap to USDC during each execution (BRLA→USDC reverse flow on Base).
+    rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
+    /// The minimum balance in BRLA that the rebalancer account on Base must have to allow BRLA→USDC rebalancing.
+    rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
     rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.

@@ -342,3 +342,109 @@ export class UsdcBaseStateManager {
     return state;
   }
 }
+
+// --- BRLA->USDC (Base) rebalance flow ---
+
+export enum BrlaToUsdcBaseRebalancePhase {
+  Idle = "idle",
+  CheckInitialBrlaBalance = "checkInitialBrlaBalance",
+  NablaSwapBrlaToUsdc = "nablaSwapBrlaToUsdc",
+  MainNablaSwapUsdcToBrla = "mainNablaSwapUsdcToBrla",
+  VerifyFinalBalance = "verifyFinalBalance"
+}
+
+export const brlaToUsdcBasePhaseOrder: Record<BrlaToUsdcBaseRebalancePhase, number> = {
+  [BrlaToUsdcBaseRebalancePhase.Idle]: 0,
+  [BrlaToUsdcBaseRebalancePhase.CheckInitialBrlaBalance]: 1,
+  [BrlaToUsdcBaseRebalancePhase.NablaSwapBrlaToUsdc]: 2,
+  [BrlaToUsdcBaseRebalancePhase.MainNablaSwapUsdcToBrla]: 3,
+  [BrlaToUsdcBaseRebalancePhase.VerifyFinalBalance]: 4
+};
+
+export interface BrlaToUsdcBaseRebalanceState {
+  currentPhase: BrlaToUsdcBaseRebalancePhase;
+  brlaAmountRaw: string | null;
+  initialBrlaBalance: string | null;
+  initialUsdcBalance: string | null;
+  usdcBalanceBeforeNablaRaw: string | null;
+  nablaApproveHash: string | null;
+  nablaSwapHash: string | null;
+  usdcReceivedRaw: string | null;
+  mainNablaBrlaBalanceBeforeRaw: string | null;
+  mainNablaApproveHash: string | null;
+  mainNablaSwapHash: string | null;
+  mainNablaBrlaReceivedRaw: string | null;
+  finalUsdcBalance: string | null;
+  startingTime: string;
+  updatedTime: string;
+}
+
+export interface BrlaToUsdcBaseRebalanceContainer {
+  state: BrlaToUsdcBaseRebalanceState;
+  history: RebalanceHistoryEntry[];
+}
+
+export class BrlaToUsdcBaseStateManager {
+  private inner: StateManager<BrlaToUsdcBaseRebalanceContainer>;
+
+  constructor() {
+    this.inner = new StateManager<BrlaToUsdcBaseRebalanceContainer>("rebalancer_state_brla_to_usdc_base.json");
+  }
+
+  private async getContainer(): Promise<BrlaToUsdcBaseRebalanceContainer | undefined> {
+    return this.inner.getState();
+  }
+
+  async getState(): Promise<BrlaToUsdcBaseRebalanceState | undefined> {
+    const container = await this.getContainer();
+    return container?.state;
+  }
+
+  async getHistory(): Promise<RebalanceHistoryEntry[]> {
+    const container = await this.getContainer();
+    return container?.history ?? [];
+  }
+
+  async saveState(state: BrlaToUsdcBaseRebalanceState): Promise<void> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+    state.updatedTime = new Date().toISOString();
+    await this.inner.saveState({ history, state });
+  }
+
+  async addHistoryEntry(entry: RebalanceHistoryEntry): Promise<void> {
+    const existing = await this.getContainer();
+    if (!existing?.state) {
+      console.warn("No existing state found for addHistoryEntry. Skipping history entry.");
+      return;
+    }
+    existing.history.push(entry);
+    existing.state.updatedTime = new Date().toISOString();
+    await this.inner.saveState(existing);
+  }
+
+  async startNewRebalance(brlaAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
+    const existing = await this.getContainer();
+    const history = existing?.history ?? [];
+
+    const state: BrlaToUsdcBaseRebalanceState = {
+      brlaAmountRaw,
+      currentPhase: BrlaToUsdcBaseRebalancePhase.CheckInitialBrlaBalance,
+      finalUsdcBalance: null,
+      initialBrlaBalance: null,
+      initialUsdcBalance: null,
+      mainNablaApproveHash: null,
+      mainNablaBrlaBalanceBeforeRaw: null,
+      mainNablaBrlaReceivedRaw: null,
+      mainNablaSwapHash: null,
+      nablaApproveHash: null,
+      nablaSwapHash: null,
+      startingTime: new Date().toISOString(),
+      updatedTime: new Date().toISOString(),
+      usdcBalanceBeforeNablaRaw: null,
+      usdcReceivedRaw: null
+    };
+    await this.inner.saveState({ history, state });
+    return state;
+  }
+}
