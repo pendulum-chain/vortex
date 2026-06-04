@@ -71,7 +71,10 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       throw new Error("FinalSettlementSubsidyHandler: Quote not found for the given state");
     }
 
-    if (state.state.isDirectTransfer === true) {
+    if (
+      state.state.isDirectTransfer === true &&
+      !(state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken))
+    ) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for direct-transfer ramp ${state.id}`);
       return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
     }
