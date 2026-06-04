@@ -437,7 +437,10 @@ export class PriceFeedService {
   }
 
   private async getFastforexRate(fromCurrency: string, toCurrency: string): Promise<number> {
-    const url = new URL("/fetch-one", this.fastforexApiBaseUrl);
+    const normalizedBaseUrl = this.fastforexApiBaseUrl.endsWith("/")
+      ? this.fastforexApiBaseUrl
+      : `${this.fastforexApiBaseUrl}/`;
+    const url = new URL("fetch-one", normalizedBaseUrl);
     url.searchParams.append("from", fromCurrency);
     url.searchParams.append("to", toCurrency);
 

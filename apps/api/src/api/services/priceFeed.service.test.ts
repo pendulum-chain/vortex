@@ -46,6 +46,7 @@ mock.module("@vortexfi/shared", () => ({
   getTokenUsdPrice: () => undefined,
   isFiatToken: (currency: string) => ["BRL", "EUR", "ARS", "MXN", "COP"].includes(currency),
   normalizeTokenSymbol: (symbol: string) => symbol,
+  RampCurrency: { ARS: "ARS", BRL: "BRL", COP: "COP", EUR: "EUR", MXN: "MXN", USD: "USD" },
   UsdLikeEvmToken: { USDC: "USDC", USDCE: "USDC.e", USDT: "USDT" }
 }));
 
@@ -187,6 +188,15 @@ describe("PriceFeedService", () => {
       const [, options] = fetchMock.mock.calls[0] as [string, { headers: Headers }];
       expect(options.headers.get("Accept")).toBe("application/json");
       expect(options.headers.get("X-API-Key")).toBe("test-fastforex-key");
+    });
+
+    it("should preserve path components in configured fastforex base URL", async () => {
+      const instance = PriceFeedService.getInstance();
+      (instance as unknown as { fastforexApiBaseUrl: string }).fastforexApiBaseUrl = "https://api.fastforex.io/v1";
+
+      await instance.getUsdToFiatExchangeRate("BRL" as any);
+
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/v1/fetch-one?from=USD&to=BRL", expect.anything());
     });
 
     it("should return cached rate on second call", async () => {
