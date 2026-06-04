@@ -1,6 +1,6 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, type JSX, useContext } from "react";
+import { createContext, type JSX, useContext, useEffect } from "react";
 
 import { ASSETHUB_WSS, MOONBEAM_WSS, PENDULUM_WSS } from "../constants/constants";
 import { useToastMessage } from "../helpers/notifications";
@@ -86,6 +86,8 @@ const getSocketUrl = (nodeName: NodeName): string => {
     case NodeName.Moonbeam:
       return MOONBEAM_WSS;
   }
+
+  throw new Error(`Unsupported Polkadot node: ${nodeName}`);
 };
 
 const usePolkadotNode = (nodeName: NodeName, enabled = true) => {
@@ -102,10 +104,14 @@ const usePolkadotNode = (nodeName: NodeName, enabled = true) => {
     retry: 3
   });
 
-  if (error) {
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+
     console.error(`Failed to initialize ${nodeName} node:`, error);
     showToast(ToastMessage.NODE_CONNECTION_ERROR);
-  }
+  }, [error, nodeName, showToast, ToastMessage.NODE_CONNECTION_ERROR]);
 
   return { apiComponents, error, isFetched: enabled ? isFetched : true };
 };

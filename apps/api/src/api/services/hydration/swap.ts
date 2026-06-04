@@ -58,7 +58,15 @@ export class HydrationRouter {
 
   private startXcmFeeRefreshInterval() {
     if (!this.xcmFeeRefreshInterval) {
-      this.xcmFeeRefreshInterval = setInterval(() => void this.refreshCachedXcmTransactionFeeToAssethub(), 60 * 60 * 1000);
+      this.xcmFeeRefreshInterval = setInterval(
+        () => {
+          this.refreshCachedXcmTransactionFeeToAssethub().catch(error => {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.error(`HydrationRouter: Error refreshing cached XCM transaction fees: ${message}`);
+          });
+        },
+        60 * 60 * 1000
+      );
     }
   }
 

@@ -25,6 +25,9 @@ export class NetworkManager {
   private pendulumApi?: ApiPromise;
   private moonbeamApi?: ApiPromise;
   private hydrationApi?: ApiPromise;
+  private pendulumApiPromise?: Promise<ApiPromise>;
+  private moonbeamApiPromise?: Promise<ApiPromise>;
+  private hydrationApiPromise?: Promise<ApiPromise>;
 
   constructor(private readonly config: VortexSdkConfig) {}
 
@@ -33,25 +36,63 @@ export class NetworkManager {
   }
 
   async getPendulumApi(): Promise<ApiPromise> {
-    if (!this.pendulumApi) {
-      this.pendulumApi = await this.initializeApi(Networks.Pendulum);
+    if (this.pendulumApi) {
+      return this.pendulumApi;
     }
-    return this.pendulumApi;
+
+    if (!this.pendulumApiPromise) {
+      this.pendulumApiPromise = this.initializeApi(Networks.Pendulum)
+        .then(api => {
+          this.pendulumApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.pendulumApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.pendulumApiPromise;
   }
 
   async getMoonbeamApi(): Promise<ApiPromise> {
-    if (!this.moonbeamApi) {
-      this.moonbeamApi = await this.initializeApi(Networks.Moonbeam);
+    if (this.moonbeamApi) {
+      return this.moonbeamApi;
     }
-    return this.moonbeamApi;
+
+    if (!this.moonbeamApiPromise) {
+      this.moonbeamApiPromise = this.initializeApi(Networks.Moonbeam)
+        .then(api => {
+          this.moonbeamApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.moonbeamApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.moonbeamApiPromise;
   }
 
   async getHydrationApi(): Promise<ApiPromise> {
-    if (!this.hydrationApi) {
-      this.hydrationApi = await this.initializeApi(Networks.Hydration);
+    if (this.hydrationApi) {
+      return this.hydrationApi;
     }
 
-    return this.hydrationApi;
+    if (!this.hydrationApiPromise) {
+      this.hydrationApiPromise = this.initializeApi(Networks.Hydration)
+        .then(api => {
+          this.hydrationApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.hydrationApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.hydrationApiPromise;
   }
 
   getAlchemyApiKey(): string | undefined {
