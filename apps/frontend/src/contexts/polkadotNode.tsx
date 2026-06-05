@@ -90,7 +90,7 @@ const getSocketUrl = (nodeName: NodeName): string => {
   throw new Error(`Unsupported Polkadot node: ${nodeName}`);
 };
 
-const usePolkadotNode = (nodeName: NodeName, enabled = true) => {
+const usePolkadotNode = (nodeName: NodeName, enabled = false) => {
   const { showToast, ToastMessage } = useToastMessage();
   const { state } = usePolkadotNodes();
   const {
@@ -116,9 +116,9 @@ const usePolkadotNode = (nodeName: NodeName, enabled = true) => {
   return { apiComponents, error, isFetched: enabled ? isFetched : true };
 };
 
-const useAssetHubNode = (enabled = true) => usePolkadotNode(NodeName.AssetHub, enabled);
-const usePendulumNode = (enabled = true) => usePolkadotNode(NodeName.Pendulum, enabled);
-const useMoonbeamNode = (enabled = true) => usePolkadotNode(NodeName.Moonbeam, enabled);
+const useAssetHubNode = (enabled = false) => usePolkadotNode(NodeName.AssetHub, enabled);
+const usePendulumNode = (enabled = false) => usePolkadotNode(NodeName.Pendulum, enabled);
+const useMoonbeamNode = (enabled = false) => usePolkadotNode(NodeName.Moonbeam, enabled);
 
 const PolkadotNodeProvider = ({ children }: { children: JSX.Element }) => {
   return <PolkadotNodeContext.Provider value={{ state: {} }}>{children}</PolkadotNodeContext.Provider>;
