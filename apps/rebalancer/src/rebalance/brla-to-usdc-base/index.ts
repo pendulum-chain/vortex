@@ -35,7 +35,7 @@ export async function rebalanceBrlaToUsdcBase(brlaAmountRaw: string, forceRestar
 
   const { publicClient: basePublicClient, walletClient: baseWalletClient } = getBaseEvmClients();
   const baseAddress = baseWalletClient.account.address;
-  const baseNonce = await NonceManager.create(basePublicClient, baseAddress);
+  const baseNonce = await NonceManager.create(basePublicClient, baseAddress as `0x${string}`);
 
   const currentOrder = brlaToUsdcBasePhaseOrder[state.currentPhase];
   console.log(`Current phase order: ${currentOrder}`);
