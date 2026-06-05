@@ -29,6 +29,8 @@ import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
+import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { getRequestDurationMs } from "../observability/requestContext";
 
 interface CreationBody {
   accountId: string;
@@ -380,16 +382,19 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
+    observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
     return;
   }
 
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
+    observeQuoteValidationFailure(req, "quote_create");
     return;
   }
 
@@ -405,38 +410,45 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, networks } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
     return;
   }
 
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
   }
 
   if (rampType === RampDirection.BUY && !from) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingFromField });
     return;
   }
 
   if (rampType === RampDirection.SELL && !to) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
     return;
   }
 
   if (networks !== undefined) {
     if (!Array.isArray(networks)) {
+      observeQuoteValidationFailure(req, "quote_create_best");
       res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
       return;
     }
     const normalized: Networks[] = [];
     for (const entry of networks) {
       if (typeof entry !== "string") {
+        observeQuoteValidationFailure(req, "quote_create_best");
         res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
         return;
       }
       const canonical = getCaseSensitiveNetwork(entry);
       if (!canonical) {
+        observeQuoteValidationFailure(req, "quote_create_best");
         res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
         return;
       }
@@ -446,6 +458,7 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     return;
   }
 
@@ -457,6 +470,21 @@ const normalizeAxlUsdcCurrency = (value: unknown): unknown => {
 
   return value.toLowerCase() === "axlusdc" ? "USDC.axl" : value;
 };
+
+function observeQuoteValidationFailure(
+  req: { requestId?: string; requestStartedAt?: number; userId?: string },
+  operation: "quote_create" | "quote_create_best"
+): void {
+  observeApiClientEvent({
+    durationMs: getRequestDurationMs(req),
+    errorType: "validation_error",
+    httpStatus: httpStatus.BAD_REQUEST,
+    operation,
+    requestId: req.requestId,
+    status: "failure",
+    userId: req.userId || null
+  });
+}
 
 export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (
   req,

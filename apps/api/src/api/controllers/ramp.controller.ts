@@ -17,6 +17,10 @@ import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
 import { enrichAdditionalDataWithClientIp } from "../helpers/clientIp";
 import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
+import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
+import { getRequestDurationMs } from "../observability/requestContext";
+import { ApiClientOperation } from "../observability/types";
 import rampService from "../services/ramp/ramp.service";
 
 /**
@@ -46,9 +50,17 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
       userId: req.userId
     });
 
+    observeRampSuccess(req, "ramp_register", httpStatus.CREATED, {
+      paymentMethod: ramp.paymentMethod,
+      quoteId,
+      rampId: ramp.id,
+      rampType: ramp.type
+    });
+
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error("Error registering ramp:", error);
+    logger.error("Error registering ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
+    observeRampFailure(req, "ramp_register", error, { quoteId: req.body?.quoteId || null });
     next(error);
   }
 };
@@ -90,9 +102,17 @@ export const updateRamp = async (
       rampId
     });
 
+    observeRampSuccess(req, "ramp_update", httpStatus.OK, {
+      paymentMethod: ramp.paymentMethod,
+      quoteId: ramp.quoteId,
+      rampId,
+      rampType: ramp.type
+    });
+
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error updating ramp:", error);
+    logger.error("Error updating ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
+    observeRampFailure(req, "ramp_update", error, { rampId: req.body?.rampId || null });
     next(error);
   }
 };
@@ -124,9 +144,17 @@ export const startRamp = async (
       rampId
     });
 
+    observeRampSuccess(req, "ramp_start", httpStatus.OK, {
+      paymentMethod: ramp.paymentMethod,
+      quoteId: ramp.quoteId,
+      rampId,
+      rampType: ramp.type
+    });
+
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error starting ramp:", error);
+    logger.error("Error starting ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
+    observeRampFailure(req, "ramp_start", error, { rampId: req.body?.rampId || null });
     next(error);
   }
 };
@@ -155,9 +183,17 @@ export const getRampStatus = async (
       });
     }
 
+    observeRampSuccess(req, "ramp_status", httpStatus.OK, {
+      paymentMethod: ramp.paymentMethod,
+      quoteId: ramp.quoteId,
+      rampId: id,
+      rampType: ramp.type
+    });
+
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error getting ramp status:", error);
+    logger.error("Error getting ramp status", { errorType: classifyApiClientError(error), requestId: req.requestId });
+    observeRampFailure(req, "ramp_status", error, { rampId: req.params.id });
     next(error);
   }
 };
@@ -185,9 +221,12 @@ export const getErrorLogs = async (
       });
     }
 
+    observeRampSuccess(req, "ramp_errors", httpStatus.OK, { rampId: id });
+
     res.status(httpStatus.OK).json(errorLogs);
   } catch (error) {
-    logger.error("Error getting error logs:", error);
+    logger.error("Error getting error logs", { errorType: classifyApiClientError(error), requestId: req.requestId });
+    observeRampFailure(req, "ramp_errors", error, { rampId: req.params.id });
     next(error);
   }
 };
@@ -234,3 +273,67 @@ export const getRampHistory = async (
     next(error);
   }
 };
+
+type RampObservedOperation = Extract<
+  ApiClientOperation,
+  "ramp_register" | "ramp_update" | "ramp_start" | "ramp_status" | "ramp_errors"
+>;
+
+interface RampObservationContext {
+  paymentMethod?: string | null;
+  quoteId?: string | null;
+  rampId?: string | null;
+  rampType?: string | null;
+}
+
+interface ObservedRampRequest {
+  authenticatedPartner?: { id: string; name: string };
+  requestId?: string;
+  requestStartedAt?: number;
+  userId?: string;
+}
+
+function observeRampSuccess(
+  req: ObservedRampRequest,
+  operation: RampObservedOperation,
+  status: number,
+  context: RampObservationContext
+): void {
+  observeApiClientEvent({
+    ...context,
+    durationMs: getRequestDurationMs(req),
+    httpStatus: status,
+    operation,
+    partnerId: req.authenticatedPartner?.id || null,
+    partnerName: req.authenticatedPartner?.name || null,
+    requestId: req.requestId,
+    status: "success",
+    userId: req.userId || null
+  });
+}
+
+function observeRampFailure(
+  req: ObservedRampRequest,
+  operation: RampObservedOperation,
+  error: unknown,
+  context: RampObservationContext
+): void {
+  const status = getHttpStatus(error);
+  observeApiClientEvent({
+    ...context,
+    durationMs: getRequestDurationMs(req),
+    errorMessage: getErrorMessage(error),
+    errorType: classifyApiClientError(error, status),
+    httpStatus: status,
+    operation,
+    partnerId: req.authenticatedPartner?.id || null,
+    partnerName: req.authenticatedPartner?.name || null,
+    requestId: req.requestId,
+    status: "failure",
+    userId: req.userId || null
+  });
+}
+
+function getHttpStatus(error: unknown): number {
+  return error instanceof APIError ? error.status || httpStatus.INTERNAL_SERVER_ERROR : httpStatus.INTERNAL_SERVER_ERROR;
+}

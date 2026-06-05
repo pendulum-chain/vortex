@@ -18,6 +18,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
 | `CLIENT_DOMAIN_SECRET` | SEP-10 domain signing for Stellar anchors | Impersonation of Vortex in Stellar anchor authentication |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
+| `METRICS_DASHBOARD_SECRET` | Internal observability dashboard bearer token | Read-only access to sanitized API client event data |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
 | `SUPABASE_SERVICE_KEY` | Supabase admin access (bypasses RLS) | Full database read/write — all ramp data, user data, keys |
 | `SUPABASE_ANON_KEY` | Supabase public access (subject to RLS) | Limited by RLS policies — lower blast radius than service key |
@@ -55,6 +56,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 7. **Database credentials (`DB_*`) MUST NOT be accessible from the public internet** — Direct PostgreSQL access should be restricted to the application server's network.
 8. **No secret MUST be passed as a URL query parameter** — Query parameters are logged by proxies, CDNs, and web servers. Secrets must only travel in headers or request bodies.
 9. **`MYKOBO_CLIENT_DOMAIN` MUST be set in production** — Not a secret, but operationally critical: when unset, Mykobo silently applies its default fee tier (~5x worse than the negotiated rate). Quote-engine fee defaults will then diverge from what Mykobo actually charges. Deployment automation MUST treat a missing `MYKOBO_CLIENT_DOMAIN` as a hard failure rather than letting it fall through to default-tier fees.
+10. **Observability MUST follow the same no-secret rule as logs** — API client events, request correlation logs, metrics, and dashboard data must not contain full API keys, bearer tokens, provider credentials, private keys, seeds, raw request headers, or raw request bodies. See `07-operations/client-observability.md`.
 
 ## Threat Vectors & Mitigations
 
@@ -67,6 +69,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | **Lateral movement from price provider keys** — Compromise of AlchemyPay/Transak/MoonPay keys | Limited blast radius — these keys access price data, not funds. However, an attacker could manipulate prices shown to users (if the provider API allows it) or access transaction data. |
 | **Google Sheets credentials** — Access to fee logging spreadsheet | Could expose fee data and ramp metadata. Could manipulate fee records. Lower severity than financial keys but still a data leak. |
 | **`SUPABASE_SERVICE_KEY` used for all database operations** — No principle of least privilege | The service key bypasses all RLS. If any code path leaks this key, the attacker has unrestricted database access. A more secure approach would use the anon key with RLS for read operations and the service key only for privileged writes. |
+| **Observability event leak** — Operational telemetry captures secret values or payment/KYC data | Client observability uses a sanitized event schema, short key prefixes only, scalar metadata filtering, and explicit exclusion of raw headers/bodies, tax IDs, PIX data, KYC data, and private material. |
 
 ## Audit Checklist
 
@@ -85,3 +88,4 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [x] Check whether `GOOGLE_PRIVATE_KEY` contains newlines that might be mis-parsed — a common issue with PEM keys in env vars. **PASS** — PEM key handling present; standard env var parsing.
 - [x] Map the full blast radius: if the API server is compromised, list every account, service, and database that becomes accessible. **PASS (comprehensive)** — full blast radius documented in the Secret Inventory table above.
 - [x] **FINDING F-062 (MEDIUM)**: Verify SDK does not log API keys or secrets to console. **PASS (FIXED)** — removed `console.log("Creating quote with request:", request)` from `ApiService.ts` that was leaking the full request object including API key.
+- [ ] Verify API client event persistence stores only short key prefixes and never stores full `X-API-Key`, bearer tokens, raw auth headers, or request bodies.
