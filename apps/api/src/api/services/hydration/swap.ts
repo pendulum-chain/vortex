@@ -22,11 +22,17 @@ export class HydrationRouter {
   private getSdk(): Promise<SdkCtx> {
     if (!this.sdk) {
       const apiManager = ApiManager.getInstance();
-      this.sdk = apiManager.getApi("hydration").then(async ({ api }) => {
-        return createSdkContext(api, {
-          router: { includeOnly: [PoolType.Omni, PoolType.Stable, PoolType.Aave] }
+      this.sdk = apiManager
+        .getApi("hydration")
+        .then(async ({ api }) => {
+          return createSdkContext(api, {
+            router: { includeOnly: [PoolType.Omni, PoolType.Stable, PoolType.Aave] }
+          });
+        })
+        .catch(error => {
+          this.sdk = undefined;
+          throw error;
         });
-      });
     }
 
     return this.sdk;
