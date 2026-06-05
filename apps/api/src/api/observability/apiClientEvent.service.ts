@@ -80,6 +80,7 @@ function getSafeErrorMessage(errorType: ApiClientErrorType): string | null {
     auth_invalid_public_key: "Public API key validation failed.",
     auth_missing_api_key: "API authentication is missing.",
     auth_partner_mismatch: "Authenticated partner does not match the requested partner.",
+    auth_partner_not_found: "Requested partner was not found.",
     internal_error: "Internal server error.",
     invalid_ephemerals: "Ephemeral account validation failed.",
     invalid_presigned_transactions: "Presigned transaction validation failed.",

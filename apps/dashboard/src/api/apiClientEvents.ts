@@ -49,6 +49,13 @@ export type ApiClientEventsResponse = {
   total: number;
 };
 
+export function normalizeMetricsDashboardToken(token: string): string {
+  return token
+    .trim()
+    .replace(/^Bearer\s+/i, "")
+    .trim();
+}
+
 export function buildApiClientEventsUrl(filters: ApiClientEventsFilters, apiBaseUrl = config.apiBaseUrl): string {
   const params = new URLSearchParams();
 
@@ -68,9 +75,11 @@ export async function fetchApiClientEvents(
   filters: ApiClientEventsFilters,
   metricsDashboardToken: string
 ): Promise<ApiClientEventsResponse> {
+  const normalizedToken = normalizeMetricsDashboardToken(metricsDashboardToken);
+
   const response = await fetch(buildApiClientEventsUrl(filters), {
     headers: {
-      Authorization: `Bearer ${metricsDashboardToken}`
+      Authorization: `Bearer ${normalizedToken}`
     }
   });
 

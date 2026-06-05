@@ -28,6 +28,7 @@ app.use(
   cors({
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID", "X-Correlation-ID"],
     credentials: true,
+    exposedHeaders: ["X-Request-ID"],
     maxAge: 86400, // Cache preflight requests for 24 hours
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
     origin: [

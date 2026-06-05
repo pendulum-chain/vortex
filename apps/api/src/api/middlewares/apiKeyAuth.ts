@@ -104,7 +104,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
           const requestedPartner = await Partner.findByPk(partnerIdOrName);
 
           if (!requestedPartner) {
-            recordAuthFailure(req, 404, "auth_invalid_public_key", getSafeKeyPrefix(apiKey), partner);
+            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeKeyPrefix(apiKey), partner);
             return res.status(404).json({
               error: {
                 code: "PARTNER_NOT_FOUND",
@@ -180,7 +180,7 @@ export function enforcePartnerAuth() {
         const requestedPartner = await Partner.findByPk(partnerIdOrName);
 
         if (!requestedPartner) {
-          recordAuthFailure(req, 404, "auth_invalid_public_key", null, req.authenticatedPartner);
+          recordAuthFailure(req, 404, "auth_partner_not_found", null, req.authenticatedPartner);
           return res.status(404).json({
             error: {
               code: "PARTNER_NOT_FOUND",
@@ -222,7 +222,11 @@ function recordAuthFailure(
   httpStatus: number,
   errorType: Extract<
     ApiClientErrorType,
-    "auth_missing_api_key" | "auth_invalid_api_key" | "auth_invalid_public_key" | "auth_partner_mismatch"
+    | "auth_missing_api_key"
+    | "auth_invalid_api_key"
+    | "auth_invalid_public_key"
+    | "auth_partner_not_found"
+    | "auth_partner_mismatch"
   >,
   apiKeyPrefix?: string | null,
   partner?: AuthenticatedPartner

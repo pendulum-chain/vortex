@@ -34,6 +34,19 @@ describe("sanitizeApiClientEvent", () => {
     expect(sanitized.errorType).toBe("none");
     expect(sanitized.errorMessage).toBeNull();
   });
+
+  it("uses a distinct safe message for missing partner records", () => {
+    const sanitized = sanitizeApiClientEvent({
+      errorMessage: "Partner 123e4567-e89b-12d3-a456-426614174000 was not found",
+      errorType: "auth_partner_not_found",
+      operation: "auth_api_key",
+      status: "failure"
+    });
+
+    expect(sanitized.errorType).toBe("auth_partner_not_found");
+    expect(sanitized.errorMessage).toBe("Requested partner was not found.");
+    expect(sanitized.errorMessage).not.toContain("123e4567-e89b-12d3-a456-426614174000");
+  });
 });
 
 describe("recordApiClientEventSafe", () => {

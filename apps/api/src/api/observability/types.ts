@@ -20,6 +20,7 @@ export type ApiClientErrorType =
   | "auth_missing_api_key"
   | "auth_invalid_api_key"
   | "auth_invalid_public_key"
+  | "auth_partner_not_found"
   | "auth_partner_mismatch"
   | "auth_inactive_partner"
   | "ownership_denied"

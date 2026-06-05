@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
-import { ApiClientEventsFilters, fetchApiClientEvents } from "./api/apiClientEvents";
+import { ApiClientEventsFilters, fetchApiClientEvents, normalizeMetricsDashboardToken } from "./api/apiClientEvents";
 import { cn } from "./helpers/cn";
 
 const tokenStorageKey = "vortex-dashboard-metrics-token";
@@ -51,9 +51,10 @@ export function App() {
 
   function handleTokenSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmedToken = tokenDraft.trim();
-    window.sessionStorage.setItem(tokenStorageKey, trimmedToken);
-    setMetricsToken(trimmedToken);
+    const normalizedToken = normalizeMetricsDashboardToken(tokenDraft);
+    window.sessionStorage.setItem(tokenStorageKey, normalizedToken);
+    setMetricsToken(normalizedToken);
+    setTokenDraft(normalizedToken);
   }
 
   function handleFiltersSubmit(event: FormEvent<HTMLFormElement>) {
