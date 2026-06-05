@@ -9,12 +9,16 @@ import { useVortexAccount } from "./useVortexAccount";
  */
 export function useInitTokenBalances(): void {
   const { evmAddress, substrateAddress } = useVortexAccount();
-  const { apiComponents: assethubNode } = useAssetHubNode();
+  const { apiComponents: assethubNode } = useAssetHubNode(!!substrateAddress);
   const { fetchBalances, clearBalances } = useTokenBalanceActions();
 
   useEffect(() => {
     if (!evmAddress && !substrateAddress) {
       clearBalances();
+      return;
+    }
+
+    if (substrateAddress && !assethubNode?.api) {
       return;
     }
 

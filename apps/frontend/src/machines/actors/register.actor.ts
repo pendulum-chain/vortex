@@ -3,6 +3,9 @@ import {
   ApiManager,
   EphemeralAccountType,
   getAddressForFormat,
+  isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
   Networks,
   signUnsignedTransactions
 } from "@vortexfi/shared";
@@ -23,11 +26,6 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
   if (!connectedWalletAddress) {
     throw new RegisterRampError("Wallet address is required to register ramp.", RegisterRampErrorType.InvalidInput);
   }
-
-  const apiManager = ApiManager.getInstance();
-  const pendulumApiComponents = await apiManager.getApi(Networks.Pendulum);
-  const moonbeamApiComponents = await apiManager.getApi(Networks.Moonbeam);
-  const hydrationApiComponents = await apiManager.getApi(Networks.Hydration);
 
   if (!chainId) {
     throw new RegisterRampError("Chain ID is required to register ramp.", RegisterRampErrorType.InvalidInput);
@@ -60,12 +58,29 @@ export const registerRampActor = async ({ input }: { input: RampContext }): Prom
       : tx.signer.toLowerCase() !== connectedWalletAddress.toLowerCase();
   });
 
+  const apiManager = ApiManager.getInstance();
+  const pendulumApiComponents = ephemeralTxs.some(tx => tx.network === Networks.Pendulum)
+    ? await apiManager.getApi(Networks.Pendulum)
+    : undefined;
+  const moonbeamApiComponents = ephemeralTxs.some(
+    tx =>
+      tx.network === Networks.Moonbeam &&
+      !isEvmTransactionData(tx.txData) &&
+      !isSignedTypedData(tx.txData) &&
+      !isSignedTypedDataArray(tx.txData)
+  )
+    ? await apiManager.getApi(Networks.Moonbeam)
+    : undefined;
+  const hydrationApiComponents = ephemeralTxs.some(tx => tx.network === Networks.Hydration)
+    ? await apiManager.getApi(Networks.Hydration)
+    : undefined;
+
   const signedTransactions = await signUnsignedTransactions(
     ephemeralTxs,
     executionInput.ephemerals,
-    pendulumApiComponents.api,
-    moonbeamApiComponents.api,
-    hydrationApiComponents.api,
+    pendulumApiComponents?.api,
+    moonbeamApiComponents?.api,
+    hydrationApiComponents?.api,
     config.alchemyApiKey
   );
 

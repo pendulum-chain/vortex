@@ -17,6 +17,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import { useMemo } from "react";
+import { isFrontendNetworkEnabled } from "../../../config/networkAvailability";
 import { getEvmTokenConfig } from "../../../services/tokens";
 import { useRampDirection } from "../../../stores/rampDirectionStore";
 import { useTokenSelectionState } from "../../../stores/tokenSelectionStore";
@@ -120,8 +121,10 @@ function getAllOnChainTokens(): ExtendedTokenDefinition[] {
   }
 
   const allTokens: ExtendedTokenDefinition[] = [];
-  allTokens.push(...getOnChainTokensDefinitionsForNetwork(Networks.AssetHub));
-  const evmNetworks = Object.values(Networks).filter(isNetworkEVM).filter(doesNetworkSupportRamp) as EvmNetworks[];
+  const evmNetworks = Object.values(Networks)
+    .filter(isFrontendNetworkEnabled)
+    .filter(isNetworkEVM)
+    .filter(doesNetworkSupportRamp) as EvmNetworks[];
   for (const network of evmNetworks) {
     if (currentEvmConfig[network]) {
       allTokens.push(...getOnChainTokensDefinitionsForNetwork(network));
