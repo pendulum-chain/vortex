@@ -13,6 +13,8 @@ The observed surface includes:
 
 Events are persisted in `api_client_events` and structured logs are emitted through the existing backend logger. The event table is an operational telemetry store, not a source of truth for ramp state. Ramp execution failures remain in `RampState.errorLogs`; client observability events are request-level records used for dashboards, alerting, and incident investigation.
 
+Internal operators can inspect these events through `GET /v1/admin/api-client-events`, which is protected by the dedicated `Authorization: Bearer <METRICS_DASHBOARD_SECRET>` middleware. The Netlify-deployable dashboard in `apps/dashboard` calls this endpoint; it does not connect directly to the database and does not contain any server-side secrets. `METRICS_DASHBOARD_SECRET` must be different from `ADMIN_SECRET` to reduce blast radius.
+
 ## Security Invariants
 
 1. **Observability MUST NOT affect API behavior** — Event persistence, structured logging, and metric hooks must be best-effort. Failures in the observability layer must not change response bodies, HTTP statuses, ramp state, quote state, or retry behavior.
@@ -23,6 +25,7 @@ Events are persisted in `api_client_events` and structured logs are emitted thro
 6. **Partner attribution MUST use safe identifiers** — Events may store `partnerId`, `partnerName`, and short API key prefixes. Full secret keys and raw auth headers are forbidden.
 7. **Operational metrics MUST remain low-cardinality** — Future metric exporters must group by bounded labels such as operation, partner, status, HTTP status, and error type. They must not label by user ID, wallet address, request ID, quote ID, ramp ID, tax ID, PIX key, or free-form request values.
 8. **Event persistence SHOULD have automated retention before production alerting/dashboard rollout** — Raw operational events are useful for investigation but should not be retained indefinitely without aggregation or cleanup. Until that follow-up exists, operators should treat retention as a known operational gap.
+9. **Dashboard access MUST go through metrics-dashboard-authenticated backend APIs** — Browser dashboards must call protected backend endpoints and must not ship database credentials, Supabase service-role keys, Metabase embed secrets, or other server-only credentials to Netlify/frontend code.
 
 ## Threat Vectors & Mitigations
 
@@ -35,6 +38,8 @@ Events are persisted in `api_client_events` and structured logs are emitted thro
 | **Missing correlation during incidents** — Operators cannot connect a partner report to backend logs | Generate or propagate `requestId` for all requests and return it via `X-Request-ID`. Persist request IDs alongside quote/ramp IDs when available. |
 | **High-cardinality metric explosion** — Future dashboard metrics use ramp IDs or user IDs as labels | Keep high-cardinality identifiers in logs/event rows only. Export aggregate metrics using bounded labels. |
 | **Unbounded telemetry retention** — Raw event rows grow indefinitely | Known follow-up: add retention or aggregation before long-term production alerting/dashboard operation. Initial raw retention should be time-bounded, ideally 30-90 days. |
+| **Public dashboard exposure** — A static dashboard URL is discovered by outsiders | Require the dedicated backend metrics dashboard bearer token for all event data. Do not rely on obscurity of Netlify URLs. Keep frontend tokens in operator-controlled browser session storage only. |
+| **BI embed secret leak** — A future Metabase embed is generated in browser code | Generate signed embed URLs only from the backend. Do not place Metabase signing secrets in Netlify environment variables exposed to Vite. |
 
 ## Audit Checklist
 
@@ -46,4 +51,6 @@ Events are persisted in `api_client_events` and structured logs are emitted thro
 - [ ] Verify no observability event stores `X-API-Key`, bearer tokens, raw headers, raw request bodies, tax IDs, PIX destinations, QR codes, KYC data, private keys, seeds, ephemeral secrets, or signed transaction payloads.
 - [ ] Verify error messages are truncated and dashboards/alerts use stable `errorType` categories rather than raw messages.
 - [ ] Verify future metric exporters do not use request ID, quote ID, ramp ID, user ID, wallet address, tax ID, or PIX key as metric labels.
+- [ ] Verify `GET /v1/admin/api-client-events` uses `metricsDashboardAuth` and returns only sanitized event fields.
+- [ ] Verify `apps/dashboard` has no direct database connection and no server-only credentials in Vite-exposed env vars.
 - [ ] Add and verify an automated retention or aggregation mechanism before retaining high-volume production telemetry long-term.

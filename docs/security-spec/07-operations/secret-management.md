@@ -18,6 +18,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
 | `CLIENT_DOMAIN_SECRET` | SEP-10 domain signing for Stellar anchors | Impersonation of Vortex in Stellar anchor authentication |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
+| `METRICS_DASHBOARD_SECRET` | Internal observability dashboard bearer token | Read-only access to sanitized API client event data |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
 | `SUPABASE_SERVICE_KEY` | Supabase admin access (bypasses RLS) | Full database read/write — all ramp data, user data, keys |
 | `SUPABASE_ANON_KEY` | Supabase public access (subject to RLS) | Limited by RLS policies — lower blast radius than service key |

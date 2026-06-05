@@ -27,7 +27,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - The API returns `X-Request-ID` so clients can include it in support/debug reports.
 - Partner-facing quote/ramp/auth outcomes are recorded as sanitized operational events; see `07-operations/client-observability.md`.
 
-**Route structure:** 27 route files under `api/routes/v1/`, each mounting controllers with appropriate auth middleware.
+**Route structure:** 27 TypeScript route files under `api/routes/v1/` including `index.ts`, each mounting controllers with appropriate auth middleware.
 
 ## Security Invariants
 
@@ -69,7 +69,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [N/A] Verify `NODE_ENV` is set to `"production"` in production — stack traces are only stripped when not in development mode. **N/A** — requires deployment configuration inspection.
 - [x] Verify error responses do not include internal error types, database error codes, or SQL fragments. **PASS** — error handler wraps errors in generic `APIError` format.
 - [x] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names. **PASS** — error messages are user-facing validation messages.
-- [x] Map all 27 route files and verify each has appropriate auth middleware (Supabase, API key, admin, or public). **PASS** — F-013 resolved (legacy `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*` endpoints removed); `/v1/ramp/*` and `/v1/ramp/quotes(/best)` use `requirePartnerOrUserAuth()` with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) use `requireAuth` (F-068 resolved); `/v1/maintenance/*` uses `adminAuth`; `/v1/webhook/*` uses `apiKeyAuth`.
+- [x] Map all 27 TypeScript route files and verify each has appropriate auth middleware (Supabase, API key, admin, metrics dashboard, or public). **PASS** — F-013 resolved (legacy `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*` endpoints removed); `/v1/ramp/*` and `/v1/ramp/quotes(/best)` use `requirePartnerOrUserAuth()` with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) use `requireAuth` (F-068 resolved); `/v1/maintenance/*` and `/v1/admin/partners/:partnerName/api-keys` use `adminAuth`; `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` uses `apiKeyAuth`.
 - [x] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key). **PASS** — auth middleware usage reviewed per route.
 - [N/A] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns. **N/A** — deferred; requires comprehensive Sequelize usage audit.
 - [x] Verify no endpoint returns `process.env`, server config, or internal paths in responses. **PASS** — no endpoint exposes internal configuration.

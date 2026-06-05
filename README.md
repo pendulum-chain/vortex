@@ -32,6 +32,7 @@ This is a **Bun monorepo** containing multiple sub-projects organized into apps,
 ### Apps
 
 - **[apps/api](apps/api)** - Backend API service providing signature services, on/off-ramping flows, quote generation, and transaction state management
+- **[apps/dashboard](apps/dashboard)** - Internal React dashboard for protected API client observability data
 - **[apps/frontend](apps/frontend)** - React-based web application built with Vite for the Vortex user interface
 - **[apps/rebalancer](apps/rebalancer)** - Service for automated liquidity rebalancing across chains
 ### Contracts
@@ -67,6 +68,7 @@ bun dev
 
 This will start:
 - **Frontend**: [http://127.0.0.1:5173/](http://127.0.0.1:5173)
+- **Dashboard**: [http://127.0.0.1:5175/](http://127.0.0.1:5175)
 - **Backend API**: [http://localhost:3000](http://localhost:3000)
 
 #### Run Individual Projects
@@ -74,6 +76,11 @@ This will start:
 **Frontend only:**
 ```bash
 bun dev:frontend
+```
+
+**Internal dashboard only:**
+```bash
+bun dev:dashboard
 ```
 
 **Backend API only:**
@@ -102,6 +109,9 @@ bun build
 ```bash
 # Build frontend
 bun build:frontend
+
+# Build internal dashboard
+bun build:dashboard
 
 # Build backend API
 bun build:backend
@@ -177,6 +187,24 @@ bun start
 ```
 
 See [apps/api/README.md](apps/api/README.md) for detailed API documentation.
+
+### Internal Dashboard (apps/dashboard)
+
+The internal dashboard displays sanitized API client observability events from `GET /v1/admin/api-client-events`. The backend endpoint requires `Authorization: Bearer <METRICS_DASHBOARD_SECRET>`, and the dashboard stores the entered token in browser session storage only. Use a different value than `ADMIN_SECRET` so a dashboard token compromise cannot access broader admin operations.
+
+**Development:**
+```bash
+cd apps/dashboard
+bun dev
+```
+
+**Build:**
+```bash
+cd apps/dashboard
+bun build
+```
+
+For Netlify, set the build command to `bun build` from `apps/dashboard` or use the root script `bun build:dashboard`. `VITE_DASHBOARD_API_BASE` can override the API base URL; otherwise the app uses `http://localhost:3000` in development and the `/api/<environment>` Netlify redirects in deployed environments.
 
 ### Rebalancer (apps/rebalancer)
 
