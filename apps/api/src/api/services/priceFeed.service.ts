@@ -19,6 +19,15 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+const FASTFOREX_SANITY_SPREAD_LIMITS: Record<string, number> = {
+  ARS: 0.25,
+  BRL: 0.02,
+  COP: 0.03,
+  EUR: 0.02,
+  MXN: 0.03,
+  USD: 0.005
+};
+
 /**
  * PriceFeedService
  *
@@ -203,6 +212,10 @@ export class PriceFeedService {
       throw new Error(`USD-to-fiat exchange rate requires a fiat currency, got ${toCurrency}`);
     }
 
+    if (targetCurrency === "USD") {
+      return 1;
+    }
+
     const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
@@ -217,6 +230,7 @@ export class PriceFeedService {
 
       try {
         const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
+        await this.assertFastforexRateWithinSanityBand(targetCurrency, rate);
         this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
         return rate;
       } catch (ffError) {
@@ -231,6 +245,7 @@ export class PriceFeedService {
     logger.debug(`Fetching ${fromCurrency}-${targetCurrency} rate from CoinGecko as fallback.`);
     try {
       const rate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
+      this.assertValidFiatRate("CoinGecko", fromCurrency, targetCurrency, rate);
       this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
       return rate;
     } catch (cgError) {
@@ -314,9 +329,7 @@ export class PriceFeedService {
         logger.error(`Unknown error converting ${amount} from ${fromCurrency} to ${toCurrency}`);
       }
 
-      // Return the original amount as fallback
-      logger.warn(`Returning original amount ${amount} as fallback due to conversion error`);
-      return amount;
+      throw error;
     }
   }
 
@@ -465,6 +478,30 @@ export class PriceFeedService {
 
     logger.debug(`fastforex rate ${fromCurrency}-${toCurrency}: ${rate}`);
     return rate;
+  }
+
+  private async assertFastforexRateWithinSanityBand(targetCurrency: RampCurrency, fastforexRate: number): Promise<void> {
+    this.assertValidFiatRate("fastforex", "USD", targetCurrency, fastforexRate);
+
+    const referenceRate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
+    this.assertValidFiatRate("CoinGecko", "USD", targetCurrency, referenceRate);
+
+    const spread = Big(fastforexRate).minus(referenceRate).abs().div(referenceRate).toNumber();
+    const limit = FASTFOREX_SANITY_SPREAD_LIMITS[targetCurrency] ?? 0.03;
+
+    if (spread > limit) {
+      throw new Error(
+        `fastforex USD-${targetCurrency} rate ${fastforexRate} differs from CoinGecko reference ${referenceRate} by ${(
+          spread * 100
+        ).toFixed(2)}%, above ${(limit * 100).toFixed(2)}% limit`
+      );
+    }
+  }
+
+  private assertValidFiatRate(provider: string, fromCurrency: string, toCurrency: string, rate: number): void {
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`${provider} returned invalid rate for ${fromCurrency}-${toCurrency}: ${rate}`);
+    }
   }
 
   /**
