@@ -307,7 +307,8 @@ export async function waitForBrlaOnAvenia(brlaAmountDecimal: Big, startingBrlaBa
   const timeout = 10 * 60 * 1000;
   const startTime = Date.now();
   const brlaApiService = BrlaApiService.getInstance();
-  const minimumReceived = calculateMinimumDelta(brlaAmountDecimal);
+  // Use generous tolerance (95%) — continue with whatever actually arrives after fees.
+  const minimumReceived = calculateMinimumDelta(brlaAmountDecimal, "0.95");
 
   console.log(`Waiting for ~${brlaAmountDecimal.toFixed(4)} BRLA delta to appear on Avenia main account balance...`);
 
@@ -366,7 +367,7 @@ export async function fetchAveniaQuote(brlaAmountDecimal: Big): Promise<string> 
   const brlaApiService = BrlaApiService.getInstance();
   const aveniaQuote = await brlaApiService.createOnchainSwapQuote(
     {
-      inputAmount: brlaAmountDecimal.toFixed(12, 0),
+      inputAmount: brlaAmountDecimal.toFixed(4, 0),
       inputCurrency: BrlaCurrency.BRLA,
       outputCurrency: BrlaCurrency.USDC,
       outputPaymentMethod: AveniaPaymentMethod.BASE
@@ -374,8 +375,10 @@ export async function fetchAveniaQuote(brlaAmountDecimal: Big): Promise<string> 
     { useCache: true }
   );
 
-  console.log(`Avenia quote: ${aveniaQuote.outputAmount} USDC`);
-  return aveniaQuote.outputAmount;
+  // Avenia API returns outputAmount in decimal units. Convert to raw USDC (6 decimals).
+  const outputUsdcRaw = multiplyByPowerOfTen(Big(aveniaQuote.outputAmount), 6).toFixed(0, 0);
+  console.log(`Avenia quote: ${outputUsdcRaw} USDC (raw, 6 decimals)`);
+  return outputUsdcRaw;
 }
 
 export async function compareRates(brlaAmountDecimal: Big): Promise<{
@@ -415,7 +418,7 @@ export async function compareRates(brlaAmountDecimal: Big): Promise<{
   }
 
   const squidUsdcDecimal = multiplyByPowerOfTen(Big(squidRouterQuoteUsdc), -6);
-  const aveniaUsdcDecimal = Big(aveniaQuoteUsdc);
+  const aveniaUsdcDecimal = multiplyByPowerOfTen(Big(aveniaQuoteUsdc), -6);
 
   console.log(`SquidRouter: ${squidUsdcDecimal.toFixed(6)} USDC | Avenia: ${aveniaUsdcDecimal.toFixed(6)} USDC`);
 
@@ -431,7 +434,7 @@ export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promi
   const brlaApiService = BrlaApiService.getInstance();
 
   const quote = await brlaApiService.createOnchainSwapQuote({
-    inputAmount: brlaAmountDecimal.toFixed(12, 0),
+    inputAmount: brlaAmountDecimal.toFixed(4, 0),
     inputCurrency: BrlaCurrency.BRLA,
     outputCurrency: BrlaCurrency.BRLA,
     outputPaymentMethod: AveniaPaymentMethod.POLYGON
@@ -451,16 +454,26 @@ export async function aveniaTransferBrlaToPolygon(brlaAmountDecimal: Big): Promi
   return ticket.id;
 }
 
-export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalanceRaw: string): Promise<void> {
+export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalanceRaw: string): Promise<string> {
   const { walletClient: polygonWalletClient } = getPolygonEvmClients();
   const polygonAddress = polygonWalletClient.account.address;
-  const targetBalanceRaw = calculateTargetBalanceRaw(startingBrlaBalanceRaw, brlaAmountRaw, DEFAULT_ARRIVAL_TOLERANCE);
+  // Use a generous tolerance (95%) — we continue with whatever actually arrives.
+  const targetBalanceRaw = calculateTargetBalanceRaw(startingBrlaBalanceRaw, brlaAmountRaw, "0.95");
 
   console.log(`Waiting for BRLA delta to arrive on Polygon (${polygonAddress})...`);
 
-  await checkEvmBalancePeriodically(BRLA_POLYGON, polygonAddress, targetBalanceRaw, 1_000, 10 * 60 * 1_000, Networks.Polygon);
+  const finalBalance = await checkEvmBalancePeriodically(
+    BRLA_POLYGON,
+    polygonAddress,
+    targetBalanceRaw,
+    1_000,
+    10 * 60 * 1_000,
+    Networks.Polygon
+  );
 
-  console.log("BRLA arrived on Polygon.");
+  const arrivedRaw = finalBalance.minus(Big(startingBrlaBalanceRaw)).toFixed(0, 0);
+  console.log(`BRLA arrived on Polygon. Actual delta: ${arrivedRaw} raw`);
+  return arrivedRaw;
 }
 
 export async function squidRouterApproveAndSwap(
@@ -469,9 +482,10 @@ export async function squidRouterApproveAndSwap(
   polygonNonce: NonceManager,
   state: UsdcBaseRebalanceState,
   stateManager: UsdcBaseStateManager
-): Promise<{ swapHash: string; toAmountUsd: string }> {
+): Promise<{ swapHash: string; toAmountUsd: string; toAmountRaw: string }> {
   let swapHash = state.squidRouterSwapHash;
   let toAmountUsd = "0";
+  let toAmountRaw = "0";
 
   if (!swapHash) {
     console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
@@ -494,7 +508,8 @@ export async function squidRouterApproveAndSwap(
 
     const route = routeResult.data.route;
     toAmountUsd = route.estimate.toAmountUSD;
-    console.log(`SquidRouter route obtained. Expected output: ${route.estimate.toAmount} USDC (raw)`);
+    toAmountRaw = route.estimate.toAmount;
+    console.log(`SquidRouter route obtained. Expected output: ${toAmountRaw} USDC (raw)`);
 
     const { approveData, swapData } = await createTransactionDataFromRoute({
       inputTokenErc20Address: BRLA_POLYGON,
@@ -560,7 +575,7 @@ export async function squidRouterApproveAndSwap(
     throw new Error("Axelar execution timed out after 30 minutes");
   }
 
-  return { swapHash, toAmountUsd };
+  return { swapHash, toAmountRaw, toAmountUsd };
 }
 
 export async function waitUsdcOnBase(expectedUsdcRaw: string, startingUsdcBalanceRaw: string): Promise<void> {
@@ -587,7 +602,7 @@ export async function aveniaCreateSwapToUsdcBaseTicket(
   const brlaApiService = BrlaApiService.getInstance();
 
   const quote = await brlaApiService.createOnchainSwapQuote({
-    inputAmount: brlaAmountDecimal.toFixed(12, 0),
+    inputAmount: brlaAmountDecimal.toFixed(4, 0),
     inputCurrency: BrlaCurrency.BRLA,
     outputCurrency: BrlaCurrency.USDC,
     outputPaymentMethod: AveniaPaymentMethod.BASE
@@ -602,6 +617,7 @@ export async function aveniaCreateSwapToUsdcBaseTicket(
   });
   console.log(`Avenia swap ticket created: ${ticket.id}`);
 
+  // Avenia API returns outputAmount in decimal units.
   return { outputAmount: quote.outputAmount, ticketId: ticket.id };
 }
 
@@ -749,7 +765,7 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
     candidates.push({ route: "squidrouter", usdcDecimal: multiplyByPowerOfTen(Big(squidRouterQuoteUsdc), -6) });
   }
   if (aveniaQuoteUsdc) {
-    candidates.push({ route: "avenia", usdcDecimal: Big(aveniaQuoteUsdc) });
+    candidates.push({ route: "avenia", usdcDecimal: multiplyByPowerOfTen(Big(aveniaQuoteUsdc), -6) });
   }
   if (mainNablaQuoteUsdc) {
     candidates.push({ route: "nabla-main", usdcDecimal: multiplyByPowerOfTen(Big(mainNablaQuoteUsdc), -6) });

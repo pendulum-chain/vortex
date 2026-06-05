@@ -347,24 +347,23 @@ export class UsdcBaseStateManager {
 
 export enum BrlaToUsdcBaseRebalancePhase {
   Idle = "idle",
-  CheckInitialBrlaBalance = "checkInitialBrlaBalance",
-  NablaSwapBrlaToUsdc = "nablaSwapBrlaToUsdc",
+  CheckInitialUsdcBalance = "checkInitialUsdcBalance",
   MainNablaSwapUsdcToBrla = "mainNablaSwapUsdcToBrla",
+  NablaSwapBrlaToUsdc = "nablaSwapBrlaToUsdc",
   VerifyFinalBalance = "verifyFinalBalance"
 }
 
 export const brlaToUsdcBasePhaseOrder: Record<BrlaToUsdcBaseRebalancePhase, number> = {
   [BrlaToUsdcBaseRebalancePhase.Idle]: 0,
-  [BrlaToUsdcBaseRebalancePhase.CheckInitialBrlaBalance]: 1,
-  [BrlaToUsdcBaseRebalancePhase.NablaSwapBrlaToUsdc]: 2,
-  [BrlaToUsdcBaseRebalancePhase.MainNablaSwapUsdcToBrla]: 3,
+  [BrlaToUsdcBaseRebalancePhase.CheckInitialUsdcBalance]: 1,
+  [BrlaToUsdcBaseRebalancePhase.MainNablaSwapUsdcToBrla]: 2,
+  [BrlaToUsdcBaseRebalancePhase.NablaSwapBrlaToUsdc]: 3,
   [BrlaToUsdcBaseRebalancePhase.VerifyFinalBalance]: 4
 };
 
 export interface BrlaToUsdcBaseRebalanceState {
   currentPhase: BrlaToUsdcBaseRebalancePhase;
-  brlaAmountRaw: string | null;
-  initialBrlaBalance: string | null;
+  usdcAmountRaw: string | null;
   initialUsdcBalance: string | null;
   usdcBalanceBeforeNablaRaw: string | null;
   nablaApproveHash: string | null;
@@ -423,15 +422,13 @@ export class BrlaToUsdcBaseStateManager {
     await this.inner.saveState(existing);
   }
 
-  async startNewRebalance(brlaAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
+  async startNewRebalance(usdcAmountRaw: string): Promise<BrlaToUsdcBaseRebalanceState> {
     const existing = await this.getContainer();
     const history = existing?.history ?? [];
 
     const state: BrlaToUsdcBaseRebalanceState = {
-      brlaAmountRaw,
-      currentPhase: BrlaToUsdcBaseRebalancePhase.CheckInitialBrlaBalance,
+      currentPhase: BrlaToUsdcBaseRebalancePhase.CheckInitialUsdcBalance,
       finalUsdcBalance: null,
-      initialBrlaBalance: null,
       initialUsdcBalance: null,
       mainNablaApproveHash: null,
       mainNablaBrlaBalanceBeforeRaw: null,
@@ -441,6 +438,7 @@ export class BrlaToUsdcBaseStateManager {
       nablaSwapHash: null,
       startingTime: new Date().toISOString(),
       updatedTime: new Date().toISOString(),
+      usdcAmountRaw,
       usdcBalanceBeforeNablaRaw: null,
       usdcReceivedRaw: null
     };

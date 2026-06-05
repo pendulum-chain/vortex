@@ -61,21 +61,7 @@ export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
   return balance.toString();
 }
 
-export async function checkInitialBrlaBalanceOnBase(brlaAmountRaw: string): Promise<Big> {
-  const { walletClient } = getBaseEvmClients();
-  const address = walletClient.account.address;
-
-  const balanceRaw = await getBrlaBalanceOnBaseRaw();
-  const balanceDecimal = multiplyByPowerOfTen(Big(balanceRaw), -18);
-  console.log(`Current BRLA balance on Base (${address}): ${balanceDecimal.toFixed(6)} BRLA`);
-
-  const requiredAmount = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
-  if (balanceDecimal.lt(requiredAmount)) {
-    throw new Error(`Insufficient BRLA on Base. Have: ${balanceDecimal.toFixed(6)}, need: ${requiredAmount.toFixed(6)}`);
-  }
-
-  return balanceDecimal;
-}
+import { checkInitialUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
 
 export async function nablaSwapBrlaToUsdcOnBase(
   brlaAmountRaw: string,

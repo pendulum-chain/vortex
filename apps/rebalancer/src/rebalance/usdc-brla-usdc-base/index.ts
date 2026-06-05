@@ -185,6 +185,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
       if (state.winningRoute === "avenia" && state.aveniaTicketId) {
         console.log(`Checking status for Avenia swap ticket ${state.aveniaTicketId}...`);
         const paidTicket = await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+        // Avenia API returns outputAmount in decimal units.
         state.aveniaQuoteUsdc = paidTicket.quote.outputAmount;
         console.log(`Avenia swap completed. USDC output: ${state.aveniaQuoteUsdc}`);
 
@@ -247,7 +248,9 @@ export async function rebalanceUsdcBrlaUsdcBase(
         throw new Error("State corrupted: polygonBrlaBalanceBeforeTransferRaw missing for squid step 2");
       }
 
-      await waitBrlaOnPolygon(state.brlaAmountRaw, state.polygonBrlaBalanceBeforeTransferRaw);
+      const arrivedBrlaRaw = await waitBrlaOnPolygon(state.brlaAmountRaw, state.polygonBrlaBalanceBeforeTransferRaw);
+      // Continue with whatever actually arrived (after Avenia fees).
+      state.brlaAmountRaw = arrivedBrlaRaw;
 
       console.log("BRLA confirmed on Polygon.");
       state.currentPhase = UsdcBaseRebalancePhase.SquidRouterApproveAndSwap;
@@ -265,6 +268,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
       const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce, state, stateManager);
 
       state.squidRouterSwapHash = result.swapHash;
+      state.squidRouterQuoteUsdc = result.toAmountRaw;
       console.log(`SquidRouter swap completed. Tx: ${result.swapHash}`);
       state.currentPhase = UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid;
       await stateManager.saveState(state);

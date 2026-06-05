@@ -4,7 +4,6 @@ import Big from "big.js";
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
-import { checkInitialBrlaBalanceOnBase } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
 import { wouldExceedDailyBridgeLimit } from "./rebalance/usdc-brla-usdc-base/guards.ts";
 import { checkInitialUsdcBalanceOnBase } from "./rebalance/usdc-brla-usdc-base/steps.ts";
@@ -121,46 +120,39 @@ async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big) {
 
 async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big) {
   const config = getConfig();
-  const amountBrla = manualAmount || config.rebalancingBrlToUsdAmount;
-  const amountBrlaRaw = multiplyByPowerOfTen(new Big(amountBrla), 18).toFixed(0, 0);
+  const amountUsdc = manualAmount || config.rebalancingBrlToUsdAmount;
+  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
 
   const stateManager = new BrlaToUsdcBaseStateManager();
   const state = await stateManager.getState();
   const isResuming = !forceRestart && state && state.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle;
 
   if (!isResuming) {
-    const estimatedUsdcRaw = multiplyByPowerOfTen(new Big(amountBrla), 6).toFixed(0, 0);
-    if (checkDailyLimit(bridgedToday, Big(estimatedUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
+    if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
 
-    const rebalancerBrlaBalance = await checkInitialBrlaBalanceOnBase(amountBrlaRaw);
-    if (config.rebalancingBrlToUsdMinBalance && rebalancerBrlaBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
+    const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
+    if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
       throw new Error(
-        `Rebalancer BRLA balance ${rebalancerBrlaBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform BRLA->USDC rebalancing.`
+        `Rebalancer USDC balance ${rebalancerUsdcBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform rebalancing.`
       );
     }
   }
 
-  await rebalanceBrlaToUsdcBase(amountBrlaRaw, forceRestart);
+  await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart);
 }
 
 async function checkForRebalancing() {
   const config = getConfig();
   const coverage = await getBaseNablaCoverageRatio();
 
-  if (!coverage && !forceRestart) {
-    throw new Error("Failed to fetch Base Nabla coverage ratio.");
-  }
+  if (!coverage) throw new Error("Failed to fetch Base Nabla coverage ratio.");
 
-  if (!forceRestart && coverage) {
-    const inRange =
-      coverage.brlaCoverageRatio >= config.rebalancingThreshold &&
-      coverage.brlaCoverageRatio >= 1 - config.rebalancingThreshold;
-    if (inRange) {
-      console.log(`BRLA coverage ${coverage.brlaCoverageRatio} in range. No rebalancing needed.`);
-      return;
-    }
-  } else if (forceRestart) {
-    console.log("Force restart enabled.");
+  const lowerBound = 1 - config.rebalancingThresholdBrlaToUsdc;
+  const upperBound = 1 + config.rebalancingThresholdUsdcToBrla;
+
+  if (coverage.brlaCoverageRatio >= lowerBound && coverage.brlaCoverageRatio <= upperBound) {
+    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} in range [${lowerBound}, ${upperBound}]. No rebalancing needed.`);
+    return;
   }
 
   const bridgedToday = await getTodayBridgedUsdRaw();
@@ -169,13 +161,14 @@ async function checkForRebalancing() {
     `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
   );
 
-  if (coverage && coverage.brlaCoverageRatio < 1 - config.rebalancingThreshold) {
-    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} < ${1 - config.rebalancingThreshold}. Running BRLA->USDC.`);
-    await runBrlaToUsdc(bridgedToday, dailyLimitRaw);
-  } else {
-    console.log("Running USDC->BRLA->USDC flow.");
+  if (coverage.brlaCoverageRatio < lowerBound) {
+    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Running BRLA->USDC.`);
     await runUsdcToBrla(bridgedToday, dailyLimitRaw);
+    return;
   }
+
+  console.log(`BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Running USDC->BRLA.`);
+  await runUsdcToBrla(bridgedToday, dailyLimitRaw);
 }
 
 const rebalanceFn = useLegacy ? checkForRebalancingLegacy : checkForRebalancing;

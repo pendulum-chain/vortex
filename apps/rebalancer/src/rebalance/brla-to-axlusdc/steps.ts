@@ -247,7 +247,7 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 /// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
 export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
   const aveniaOnchainSwapParams: OnchainSwapQuoteParams = {
-    inputAmount: brlaAmount.toFixed(12, 0),
+    inputAmount: brlaAmount.toFixed(4, 0),
     inputCurrency: BrlaCurrency.BRLA,
     outputCurrency: BrlaCurrency.USDC
   };

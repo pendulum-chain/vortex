@@ -23,13 +23,19 @@ export function getConfig() {
 
     pendulumAccountSecret: process.env.PENDULUM_ACCOUNT_SECRET,
     /// The amount in BRLA to swap to USDC during each execution (BRLA→USDC reverse flow on Base).
+    /// NOTE: The rebalancer now starts with USDC; this amount is now interpreted as a USD amount.
     rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
-    /// The minimum balance in BRLA that the rebalancer account on Base must have to allow BRLA→USDC rebalancing.
+    /// The minimum balance in USDC that the rebalancer account on Base must have to allow the BRLA pool rebalancing.
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
     rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
+    /// Route-specific thresholds (fall back to rebalancingThreshold if unset).
+    rebalancingThresholdBrlaToUsdc:
+      Number(process.env.REBALANCING_THRESHOLD_BRLA_TO_USDC) || Number(process.env.REBALANCING_THRESHOLD) || 0.01,
+    rebalancingThresholdUsdcToBrla:
+      Number(process.env.REBALANCING_THRESHOLD_USDC_TO_BRLA) || Number(process.env.REBALANCING_THRESHOLD) || 0.01,
     /// The amount in USD to rebalance from the USD pool to the BRL pool on Pendulum during each execution.
     rebalancingUsdToBrlAmount: process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
     /// The minimum balance in USD that the rebalancer account on Pendulum must have to allow rebalancing to occur.
