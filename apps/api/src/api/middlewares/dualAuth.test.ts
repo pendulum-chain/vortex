@@ -49,6 +49,7 @@ describe("assertQuoteOwnership", () => {
     })) as typeof QuoteTicket.findByPk;
     Partner.findByPk = mock(async () => ({
       id: "quote-partner-id",
+      isActive: true,
       name: "Partner"
     })) as typeof Partner.findByPk;
 

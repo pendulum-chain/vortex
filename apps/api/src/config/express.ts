@@ -9,6 +9,7 @@ import methodOverride from "method-override";
 import morgan from "morgan";
 
 import { converter, handler, notFound } from "../api/middlewares/error";
+import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
 
 import { config } from "./vars";
@@ -25,8 +26,9 @@ const app = express();
 // enable CORS - Cross Origin Resource Sharing
 app.use(
   cors({
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID", "X-Correlation-ID"],
     credentials: true,
+    exposedHeaders: ["X-Request-ID"],
     maxAge: 86400, // Cache preflight requests for 24 hours
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
     origin: [
@@ -34,6 +36,9 @@ app.use(
       "https://metrics.vortexfinance.co",
       config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
+      config.env === "development" ? "http://127.0.0.1:5173" : null,
+      config.env === "development" ? "http://localhost:5175" : null,
+      config.env === "development" ? "http://127.0.0.1:5175" : null,
       config.env === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]
   })
@@ -54,6 +59,9 @@ app.use(limiter);
 
 // parse cookies
 app.use(cookieParser());
+
+// attach request IDs before request logging and route handling
+app.use(requestContext);
 
 // request logging. dev: console | production: file
 app.use(morgan(logs));

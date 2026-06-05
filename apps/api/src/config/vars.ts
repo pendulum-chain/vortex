@@ -65,6 +65,7 @@ interface Config {
   rateLimitNumberOfProxies: string | number;
   logs: string;
   adminSecret: string;
+  metricsDashboardSecret: string;
   supabase: {
     url: string;
     anonKey: string;
@@ -156,6 +157,7 @@ export const config: Config = {
     }
   },
   logs: nodeEnv === "production" ? "combined" : "dev",
+  metricsDashboardSecret: process.env.METRICS_DASHBOARD_SECRET || "",
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
@@ -236,6 +238,7 @@ if (config.env === "production") {
   if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
   if (!config.secrets.webhookPrivateKey) missing.push("WEBHOOK_PRIVATE_KEY");
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
+  if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
 
   if (missing.length > 0) {

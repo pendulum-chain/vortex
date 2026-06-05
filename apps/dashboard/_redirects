@@ -1,0 +1,9 @@
+/api/production/*  https://api.vortexfinance.co/:splat  200
+/api/staging/*     https://api-staging.vortexfinance.co/:splat  200
+/api/sandbox/*     https://api-sandbox.vortexfinance.co/:splat  200
+
+# Known dashboard routes — serve SPA shell with real 200
+/                              /index.html  200
+
+# Everything else is a real 404
+/*                             /404.html    404
