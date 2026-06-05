@@ -1,6 +1,7 @@
 import sequelize from "../config/database";
 import AlfredPayCustomer from "./alfredPayCustomer.model";
 import Anchor from "./anchor.model";
+import ApiClientEvent from "./apiClientEvent.model";
 import ApiKey from "./apiKey.model";
 import KycLevel2 from "./kycLevel2.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
@@ -44,6 +45,7 @@ MykoboCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 const models = {
   AlfredPayCustomer,
   Anchor,
+  ApiClientEvent,
   ApiKey,
   KycLevel2,
   MaintenanceSchedule,

@@ -9,6 +9,7 @@ import methodOverride from "method-override";
 import morgan from "morgan";
 
 import { converter, handler, notFound } from "../api/middlewares/error";
+import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
 
 import { config } from "./vars";
@@ -25,7 +26,7 @@ const app = express();
 // enable CORS - Cross Origin Resource Sharing
 app.use(
   cors({
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Request-ID", "X-Correlation-ID"],
     credentials: true,
     maxAge: 86400, // Cache preflight requests for 24 hours
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
@@ -54,6 +55,9 @@ app.use(limiter);
 
 // parse cookies
 app.use(cookieParser());
+
+// attach request IDs before request logging and route handling
+app.use(requestContext);
 
 // request logging. dev: console | production: file
 app.use(morgan(logs));
