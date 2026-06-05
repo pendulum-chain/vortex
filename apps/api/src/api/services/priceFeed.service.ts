@@ -1,17 +1,8 @@
-import {
-  ApiManager,
-  EvmToken,
-  getTokenUsdPrice,
-  isFiatToken,
-  normalizeTokenSymbol,
-  RampCurrency,
-  UsdLikeEvmToken
-} from "@vortexfi/shared";
+import { EvmToken, getTokenUsdPrice, isFiatToken, normalizeTokenSymbol, RampCurrency, UsdLikeEvmToken } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
-import { SlackNotifier } from "./slack.service";
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -81,19 +72,6 @@ export class PriceFeedService {
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`PriceFeedService initialized with fastforex API URL: ${this.fastforexApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
-
-    // Start cron job to check onchain oracle prices
-    this.checkOnchainOraclePricesUpToDate().catch(error => {
-      logger.error(`Error checking onchain oracle prices: ${error.message}`);
-    });
-    setInterval(
-      () => {
-        this.checkOnchainOraclePricesUpToDate().catch(error => {
-          logger.error(`Error checking onchain oracle prices: ${error.message}`);
-        });
-      },
-      24 * 60 * 60 * 1000
-    ); // Check every 24 hours
   }
 
   /**
@@ -257,6 +235,21 @@ export class PriceFeedService {
   }
 
   /**
+   * Get the fiat-to-USD exchange rate expected by quote discount math.
+   * FastForex returns USD-to-fiat, so this is the inverse of that rate.
+   */
+  public async getFiatToUsdExchangeRate(currency: RampCurrency): Promise<Big> {
+    const usdToFiatRate = await this.getUsdToFiatExchangeRate(currency);
+    const rate = new Big(usdToFiatRate);
+
+    if (rate.lte(0)) {
+      throw new Error(`Invalid USD-to-fiat exchange rate for ${currency}: ${usdToFiatRate}`);
+    }
+
+    return new Big(1).div(rate);
+  }
+
+  /**
    * Unified bidirectional currency conversion function
    *
    * Converts an amount from one currency to another, handling all possible conversion paths:
@@ -327,122 +320,6 @@ export class PriceFeedService {
         logger.error(`Error converting ${amount} from ${fromCurrency} to ${toCurrency}: ${error.message}`);
       } else {
         logger.error(`Unknown error converting ${amount} from ${fromCurrency} to ${toCurrency}`);
-      }
-
-      throw error;
-    }
-  }
-
-  // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
-  async checkOnchainOraclePricesUpToDate(): Promise<void> {
-    logger.info("Performing onchain oracle prices check...");
-
-    const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi("pendulum");
-    const pendulumApiInstance = pendulumApi.api;
-
-    try {
-      // Check if the oracle prices are up to date
-      const allPricesEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap.entries();
-
-      const prices = allPricesEncoded.map(([_, priceData]) => {
-        const price = priceData.toHuman() as { name: string; lastUpdateTimestamp: string };
-        return {
-          lastUpdateTimestamp: price.lastUpdateTimestamp.replaceAll(",", ""),
-          name: price.name
-        };
-      });
-
-      const outdatedPrices = [];
-      for (const price of prices) {
-        const lastUpdateTimestamp = parseInt(price.lastUpdateTimestamp, 10);
-        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-        const isPriceUpToDate = currentTime - lastUpdateTimestamp < 3600; // Check if updated within the last hour
-
-        if (!isPriceUpToDate) {
-          logger.warn(
-            `Onchain oracle price for ${price.name} is not up to date. Last update: ${lastUpdateTimestamp}, Current time: ${currentTime}`
-          );
-
-          outdatedPrices.push(price);
-        }
-      }
-
-      if (outdatedPrices.length > 0) {
-        const slackNotifier = new SlackNotifier();
-        await slackNotifier.sendMessage({
-          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.map(price => price.name).join(", ")}`
-        });
-      } else {
-        logger.info("All onchain oracle prices are up to date.");
-      }
-    } catch (error) {
-      logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : "Unknown error"}`);
-    }
-  }
-
-  /**
-   * Get the onchain oracle price for a specific currency
-   *
-   * @param currency - The RampCurrency to get the oracle price for
-   * @returns The oracle price data including price value and last update timestamp
-   * @throws Error if the price cannot be fetched or currency is not found
-   */
-  public async getOnchainOraclePrice(currency: RampCurrency): Promise<{
-    price: Big;
-    lastUpdateTimestamp: number;
-    name: string;
-  }> {
-    logger.debug(`Fetching onchain oracle price for ${currency}`);
-
-    const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi("pendulum");
-    const pendulumApiInstance = pendulumApi.api;
-
-    try {
-      // Construct the query parameters
-      const blockchain = "FIAT";
-      const symbol = `${currency}-USD`;
-
-      logger.debug(`Querying oracle with blockchain: ${blockchain}, symbol: ${symbol}`);
-
-      // Query the oracle for the specific currency
-      const priceDataEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap({
-        blockchain,
-        symbol
-      });
-
-      // Check if price data exists
-      if (priceDataEncoded.isEmpty) {
-        throw new Error(`No oracle price found for currency ${currency} (${blockchain}/${symbol})`);
-      }
-
-      // Parse the price data
-      const priceData = priceDataEncoded.toHuman() as {
-        name: string;
-        price: string;
-        lastUpdateTimestamp: string;
-      };
-
-      // Remove commas from numeric strings and parse
-      const priceRaw = parseFloat(priceData.price.replaceAll(",", ""));
-      const lastUpdateTimestamp = parseInt(priceData.lastUpdateTimestamp.replaceAll(",", ""), 10);
-
-      // Convert price from raw to decimal number by dividing by 10^12
-      const price = Big(priceRaw).div(1_000_000_000_000);
-
-      logger.debug(`Oracle price for ${currency}: ${price}, Last update: ${lastUpdateTimestamp}, Name: ${priceData.name}`);
-
-      return {
-        lastUpdateTimestamp,
-        name: priceData.name,
-        price
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(`Error fetching onchain oracle price for ${currency}: ${error.message}`);
-      } else {
-        logger.error(`Unknown error fetching onchain oracle price for ${currency}`);
       }
 
       throw error;

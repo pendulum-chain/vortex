@@ -1,6 +1,5 @@
 import { EvmToken, EvmTokenDetails, getOnChainTokenDetails, Networks, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
-import logger from "../../../../../config/logger";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateNablaSwapOutputEvm } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
@@ -54,16 +53,9 @@ export abstract class BaseNablaSwapEngineEvm implements Stage {
       rampType: request.rampType
     });
 
-    let oraclePrice;
-    try {
-      oraclePrice = await priceFeedService.getOnchainOraclePrice(
-        request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency
-      );
-    } catch (error) {
-      logger.warn(
-        `BaseNablaSwapEngineEvm: Unable to fetch on-chain oracle price for ${request.outputCurrency}, proceeding without it. Error: ${error}`
-      );
-    }
+    const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(
+      request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency
+    );
 
     this.assignNablaSwapContext(
       ctx,
@@ -74,7 +66,7 @@ export abstract class BaseNablaSwapEngineEvm implements Stage {
       outputToken,
       inputTokenDetails,
       outputTokenDetails,
-      oraclePrice?.price
+      oraclePrice
     );
 
     this.addNote(ctx, inputTokenDetails, outputTokenDetails, inputAmountForSwap, result);
