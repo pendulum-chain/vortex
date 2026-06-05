@@ -37,11 +37,9 @@ async function createApiComponents(socketUrl: string, autoReconnect = true): Pro
 
 class PendulumApiService {
   private static instance: PendulumApiService;
-  private apiComponents: Promise<ApiComponents>;
+  private apiComponents?: Promise<ApiComponents>;
 
-  private constructor() {
-    this.apiComponents = createApiComponents(PENDULUM_WSS);
-  }
+  private constructor() {}
 
   public static getInstance(): PendulumApiService {
     if (!PendulumApiService.instance) {
@@ -51,6 +49,10 @@ class PendulumApiService {
   }
 
   public getApi(): Promise<ApiComponents> {
+    if (!this.apiComponents) {
+      this.apiComponents = createApiComponents(PENDULUM_WSS);
+    }
+
     return this.apiComponents;
   }
 }

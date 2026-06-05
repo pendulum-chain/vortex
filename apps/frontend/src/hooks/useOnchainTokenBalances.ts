@@ -150,8 +150,8 @@ export const useEvmNativeBalance = (): EvmTokenDetailsWithBalance | null => {
 export const useAssetHubNativeBalance = (): AssetHubTokenDetailsWithBalance | null => {
   const [nativeBalance, setNativeBalance] = useState<AssetHubTokenDetailsWithBalance | null>(null);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assethubNode } = useAssetHubNode();
   const { selectedNetwork } = useNetwork();
+  const { apiComponents: assethubNode } = useAssetHubNode(selectedNetwork === Networks.AssetHub && !!substrateAddress);
 
   const nativeToken = useMemo(() => {
     const assethubTokens = Object.values(assetHubTokenConfig);
@@ -217,6 +217,24 @@ const groupTokensByNetwork = (tokens: EvmTokenDetails[]): Record<string, EvmToke
   }, {});
 };
 
+const getNumericProperty = (value: unknown, propertyName: string): number => {
+  if (!value || typeof value !== "object" || !(propertyName in value)) {
+    return 0;
+  }
+
+  const propertyValue = (value as Record<string, unknown>)[propertyName];
+  return typeof propertyValue === "number" ? propertyValue : Number(propertyValue ?? 0);
+};
+
+const toJsonValue = (value: unknown): unknown => {
+  if (!value || typeof value !== "object" || !("toJSON" in value)) {
+    return undefined;
+  }
+
+  const toJSON = (value as { toJSON?: unknown }).toJSON;
+  return typeof toJSON === "function" ? toJSON.call(value) : undefined;
+};
+
 export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBalance[] => {
   const { evmAddress: address } = useVortexAccount();
   const [balanceMap, setBalanceMap] = useState<Map<string, string>>(new Map());
@@ -240,8 +258,9 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
         const cacheKey = `${address}-${network}`;
         let balances: Map<string, string>;
 
-        if (globalBalanceCache.has(cacheKey)) {
-          balances = globalBalanceCache.get(cacheKey)!;
+        const cachedBalances = globalBalanceCache.get(cacheKey);
+        if (cachedBalances) {
+          balances = cachedBalances;
         } else {
           try {
             balances = await fetchAlchemyTokenBalances(address, network);
@@ -297,13 +316,13 @@ export const useEvmBalances = (tokens: EvmTokenDetails[]): EvmTokenDetailsWithBa
 export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTokenDetailsWithBalance[] => {
   const [balances, setBalances] = useState<Array<AssetHubTokenDetailsWithBalance>>([]);
   const { substrateAddress } = useVortexAccount();
-  const { apiComponents: assethubNode } = useAssetHubNode();
+  const assetTokens = useMemo(() => tokens.filter(t => !t.isNative), [tokens]);
+  const { apiComponents: assethubNode } = useAssetHubNode(assetTokens.length > 0 && !!substrateAddress);
 
   useEffect(() => {
     // Only process non-native asset tokens here - native token handled by useAssetHubNativeBalance
     if (tokens.length === 0) return;
 
-    const assetTokens = tokens.filter(t => !t.isNative);
     if (assetTokens.length === 0) {
       setBalances([]);
       return;
@@ -326,10 +345,10 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
       const accountInfos = await api.query.assets.account.multi(accountQueries);
 
       // Build maps by assetId
-      const assetInfoMap = new Map<any, any>();
+      const assetInfoMap = new Map<AssetHubTokenDetails["foreignAssetId"], unknown>();
       assetIds.forEach((id, i) => assetInfoMap.set(id, assetInfos[i]));
 
-      const accountInfoMap = new Map<any, any>();
+      const accountInfoMap = new Map<AssetHubTokenDetails["foreignAssetId"], unknown>();
       assetIds.forEach((id, i) => accountInfoMap.set(id, accountInfos[i]));
 
       const tokensWithBalances = assetTokens.map(token => {
@@ -343,8 +362,8 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
           const assetInfo = assetInfoMap.get(assetId);
           const accountInfo = accountInfoMap.get(assetId);
 
-          const rawMinBalance = assetInfo ? ((assetInfo.toJSON() as any).minBalance ?? 0) : 0;
-          const rawBalance = accountInfo ? ((accountInfo.toJSON() as any).balance ?? 0) : 0;
+          const rawMinBalance = getNumericProperty(toJsonValue(assetInfo), "minBalance");
+          const rawBalance = getNumericProperty(toJsonValue(accountInfo), "balance");
           const offrampableBalance = rawBalance > 0 ? rawBalance - rawMinBalance : 0;
           balance = nativeToDecimal(offrampableBalance, token.decimals).toFixed(2, 0).toString();
         }
@@ -356,7 +375,7 @@ export const useAssetHubBalances = (tokens: AssetHubTokenDetails[]): AssetHubTok
     };
 
     getBalances();
-  }, [assethubNode, tokens, substrateAddress]);
+  }, [assethubNode, assetTokens, tokens.length, substrateAddress]);
 
   return balances;
 };

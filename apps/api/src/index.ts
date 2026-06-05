@@ -1,4 +1,4 @@
-import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
+import { EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
 import cryptoService from "./config/crypto";
@@ -56,9 +56,6 @@ const initializeApp = async () => {
 
     // Run database migrations
     await runMigrations();
-
-    const apiManager = ApiManager.getInstance();
-    await apiManager.populateAllApis();
 
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();

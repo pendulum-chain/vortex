@@ -10,6 +10,7 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   FiatToken,
@@ -207,6 +208,7 @@ export class RampService extends BaseRampService {
         normalizedSigningAccounts,
         additionalData,
         signingAccounts,
+        transaction,
         request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
@@ -1028,8 +1030,15 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
+    transaction: Transaction,
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    // We refresh the quote. It will be used in the transaction creation process, right after this.
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
+      const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
+      await this.refreshAlfredpayOfframpQuoteIfMatching(quote, quote.metadata.alfredpayOfframp, toCurrency, transaction);
+    }
+
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       destinationAddress: additionalData?.destinationAddress,
       email: additionalData?.email,
@@ -1177,6 +1186,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
+    transaction: Transaction,
     userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
@@ -1190,7 +1200,7 @@ export class RampService extends BaseRampService {
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
 
       case RampTransactionPreparationKind.OfframpNonBrl:
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
 
       case RampTransactionPreparationKind.OnrampMykobo:
         return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
@@ -1458,6 +1468,61 @@ export class RampService extends BaseRampService {
       );
       return originalQuoteId;
     }
+  }
+
+  private async refreshAlfredpayOfframpQuoteIfMatching(
+    quote: QuoteTicket,
+    originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
+    toCurrency: AlfredpayFiatCurrency,
+    transaction: Transaction
+  ): Promise<string> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const originalQuoteId = originalAlfredpayOfframp.quoteId;
+
+    const freshQuote = await alfredpayService.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+      metadata: { businessId: "vortex", customerId: quote.userId || "unknown" },
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency
+    } satisfies CreateAlfredpayOfframpQuoteRequest);
+
+    const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
+    const freshToAmount = new Big(freshQuote.toAmount);
+
+    const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
+    const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
+
+    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+      throw new APIError({
+        message:
+          `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
+          `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
+          `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
+          "Cannot proceed with offramp order.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    await quote.update(
+      {
+        metadata: {
+          ...quote.metadata,
+          alfredpayOfframp: {
+            ...originalAlfredpayOfframp,
+            expirationDate: new Date(freshQuote.expiration),
+            quoteId: freshQuote.quoteId
+          }
+        }
+      },
+      { transaction }
+    );
+
+    logger.info(
+      `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: swapped Alfredpay offramp quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
+    );
+    return freshQuote.quoteId;
   }
 
   private async processAlfredpayOfframpStart(
