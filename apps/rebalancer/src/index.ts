@@ -163,7 +163,7 @@ async function checkForRebalancing() {
 
   if (coverage.brlaCoverageRatio < lowerBound) {
     console.log(`BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Running BRLA->USDC.`);
-    await runUsdcToBrla(bridgedToday, dailyLimitRaw);
+    await runBrlaToUsdc(bridgedToday, dailyLimitRaw);
     return;
   }
 
