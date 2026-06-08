@@ -257,7 +257,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: bridgedTokenForFallback,
     network: toNetwork as EvmNetworks,
-    rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toString(),
+    rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 
