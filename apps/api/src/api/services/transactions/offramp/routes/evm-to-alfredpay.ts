@@ -41,12 +41,13 @@ import erc20ABI from "../../../../../contracts/ERC20";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { ALFREDPAY_OFFRAMP } from "../../../phases/ramp-flow-definitions";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 
-// TokenRelayer deployments. Address may differ per chain 
+// TokenRelayer deployments. Address may differ per chain
 export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
   [Networks.Arbitrum]: "0xC9ECD03c89349B3EAe4613c7091c6c3029413785",
   [Networks.Base]: "0xDbece5cE27984FC64688bcC57f75b96a28e8c68c",
@@ -54,7 +55,6 @@ export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
   [Networks.Avalanche]: "0x11871C77Aa0170ae13864E4E82cFa471720e045e",
   [Networks.Ethereum]: "0x522A51f9c5B1683F0F15910075487c4D162A8b83",
   [Networks.BSC]: "0x2d657ac14088fED401b58FEd377988ed3F875220"
-
 };
 
 export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
@@ -322,6 +322,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
         isDirectTransfer: true,
+        phaseFlow: ALFREDPAY_OFFRAMP,
         walletAddress: userAddress
       };
     } else {
@@ -338,9 +339,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       const relayerAddress = RELAYER_ADDRESSES[fromNetwork];
 
       if (!relayerAddress) {
-        throw new Error(
-          `Alfredpay offramp permit flow is not supported on ${fromNetwork}: no relayer deployment configured`
-        );
+        throw new Error(`Alfredpay offramp permit flow is not supported on ${fromNetwork}: no relayer deployment configured`);
       }
 
       const permitTypedData: SignedTypedData = {
@@ -414,6 +413,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         alfredpayUserId: customer.alfredPayId,
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
+        phaseFlow: ALFREDPAY_OFFRAMP,
         squidRouterPermitExecutionValue: bridgeResult.swapData.value,
         walletAddress: userAddress
       };
@@ -449,6 +449,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       fiatAccountId,
       isDirectTransfer: true,
       isNoPermitFallback: true,
+      phaseFlow: ALFREDPAY_OFFRAMP,
       walletAddress: userAddress
     };
   } else {
@@ -490,6 +491,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
       isNoPermitFallback: true,
+      phaseFlow: ALFREDPAY_OFFRAMP,
       squidRouterPermitExecutionValue: bridgeResult.swapData.value,
       walletAddress: userAddress
     };

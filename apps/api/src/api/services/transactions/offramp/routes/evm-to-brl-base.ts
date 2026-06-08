@@ -13,6 +13,7 @@ import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { BRL_OFFRAMP_BASE } from "../../../phases/ramp-flow-definitions";
 import { encodeEvmTransactionData } from "../..";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -233,6 +234,7 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
     ...stateMeta,
     brlaEvmAddress: validatedBrlaEvmAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    phaseFlow: BRL_OFFRAMP_BASE,
     pixDestination: validatedPixDestination,
     receiverTaxId: validatedReceiverTaxId,
     taxId: validatedTaxId

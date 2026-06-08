@@ -58,7 +58,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
       const approvedAmount = approval.toString() !== "" ? Big(approval.toString()) : Big(0);
       if (approvedAmount.gte(requiredAmount)) {
         logger.info("NablaApprovePhaseHandler: Amount already approved. Skipping approval.");
-        return this.transitionToNextPhase(state, "nablaSwap");
+        return state;
       }
     } catch (e) {
       throw this.createRecoverableError(
@@ -103,7 +103,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
         throw new Error("Could not approve token");
       }
 
-      return this.transitionToNextPhase(state, "nablaSwap");
+      return state;
     } catch (e) {
       let errorMessage = "";
       const { result } = e as ExecuteMessageResult;
@@ -145,7 +145,7 @@ export class NablaApprovePhaseHandler extends BasePhaseHandler {
 
       logger.info(`NablaApprovePhaseHandler: EVM approve transaction successful: ${txHash}`);
 
-      return this.transitionToNextPhase(state, "nablaSwap");
+      return state;
     } catch (e) {
       logger.error(`Could not approve token on EVM: ${(e as Error).message}`);
       throw e;

@@ -23,7 +23,6 @@ import RampState from "../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { fundEphemeralAccount } from "../../pendulum/pendulum.service";
-import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { verifyUserSubmittedTxByHash } from "../helpers/user-tx-verifier";
@@ -237,43 +236,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       throw recoverableError;
     }
 
-    return this.transitionToNextPhase(state, this.nextPhaseSelector(state, quote));
-  }
-
-  protected nextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    if (
-      (state.state.isDirectTransfer === true &&
-        !(state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken))) ||
-      (isOnramp(state) && isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network))
-    ) {
-      return "destinationTransfer";
-    }
-
-    // brla onramp case
-    if (isOnramp(state) && quote.inputCurrency === FiatToken.BRL) {
-      return "subsidizePreSwap";
-    }
-    // mykobo (EURC) onramp case
-    if (isOnramp(state) && quote.inputCurrency === FiatToken.EURC) {
-      return "subsidizePreSwap";
-    }
-    // alfredpay onramp case
-    if (isOnramp(state) && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-      return "subsidizePreSwap";
-    }
-
-    // off ramp cases
-    if (state.type === RampDirection.SELL && state.from === Networks.AssetHub) {
-      return "distributeFees";
-    } else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-      return "finalSettlementSubsidy";
-    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.BRL) {
-      return "distributeFees";
-    } else if (state.type === RampDirection.SELL && quote.outputCurrency === FiatToken.EURC) {
-      return "distributeFees";
-    } else {
-      return "moonbeamToPendulum"; // Via contract.subsidizePreSwap
-    }
+    return state;
   }
 
   protected async fundEvmEphemeralAccount(state: RampState, network: EvmNetworks): Promise<void> {

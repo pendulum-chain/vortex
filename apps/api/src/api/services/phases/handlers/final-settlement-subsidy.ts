@@ -57,12 +57,6 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     return "finalSettlementSubsidy";
   }
 
-  private getNextPhase(state: RampState, quote: QuoteTicket): RampPhase {
-    return state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)
-      ? "alfredpayOfframpTransfer"
-      : "destinationTransfer";
-  }
-
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyHandler: Starting phase execution for ramp ${state.id}, type=${state.type}`);
 
@@ -76,7 +70,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       !(state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken))
     ) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for direct-transfer ramp ${state.id}`);
-      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+      return state;
     }
 
     const evmClientManager = EvmClientManager.getInstance();
@@ -88,7 +82,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
       logger.info(`FinalSettlementSubsidyHandler: Skipping subsidy for Base direct-transfer route (ramp ${state.id})`);
-      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+      return state;
     }
 
     const isAlfredpaySell = state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken);
@@ -147,7 +141,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         logger.info(
           `FinalSettlementSubsidyHandler: Transaction ${state.state.finalSettlementSubsidyTxHash} already successful. Skipping.`
         );
-        return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+        return state;
       }
     }
 
@@ -187,7 +181,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       logger.info(
         `FinalSettlementSubsidyHandler: Delivered amount (${delivered.toString()}) meets expected amount with actualBalance=${actualBalance.toString()} and preSettlementBalance=${preBalance.toString()}. No subsidy needed.`
       );
-      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+      return state;
     }
 
     logger.info(
@@ -364,7 +358,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         }
       });
 
-      return this.transitionToNextPhase(state, this.getNextPhase(state, quote));
+      return state;
     } catch (error) {
       throw this.createRecoverableError(
         `FinalSettlementSubsidyHandler: Error during phase execution - ${(error as Error).message}`
