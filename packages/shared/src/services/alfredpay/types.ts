@@ -381,14 +381,24 @@ export interface GetAllConfigsResponse {
 }
 
 export class AlfredpayTradeLimitError extends Error {
-  readonly minQuantity: string;
+  readonly kind: "above" | "below";
+  readonly quantity: string;
   readonly fromCurrency: string;
 
-  constructor(minQuantity: string, fromCurrency: string) {
-    super(`Trade below minimum: ${minQuantity} ${fromCurrency}`);
+  private constructor(kind: "above" | "below", quantity: string, fromCurrency: string) {
+    super(`Trade ${kind === "below" ? "below minimum" : "above maximum"}: ${quantity} ${fromCurrency}`);
     this.name = "AlfredpayTradeLimitError";
-    this.minQuantity = minQuantity;
+    this.kind = kind;
+    this.quantity = quantity;
     this.fromCurrency = fromCurrency;
+  }
+
+  static below(minQuantity: string, fromCurrency: string): AlfredpayTradeLimitError {
+    return new AlfredpayTradeLimitError("below", minQuantity, fromCurrency);
+  }
+
+  static above(maxQuantity: string, fromCurrency: string): AlfredpayTradeLimitError {
+    return new AlfredpayTradeLimitError("above", maxQuantity, fromCurrency);
   }
 }
 

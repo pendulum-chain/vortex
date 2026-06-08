@@ -11,6 +11,7 @@ import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { UnrecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -101,6 +102,43 @@ export class DestinationTransferHandler extends BasePhaseHandler {
           throw error;
         }
         // If receipt not found, proceed to normal flow
+      }
+    }
+
+    // Nonce-gap guard: a presigned nonce ahead of the live ephemeral nonce can never be mined and would
+    // silently retry until the processor gives up, stranding user funds. Raise it for manual review.
+    // Reading the live nonce is best-effort: an RPC failure must not block the happy path.
+    if (!destinationTransferTxHash && state.state.evmEphemeralAddress) {
+      try {
+        const presignedNonce = parseTransaction(destinationTransfer as `0x${string}`).nonce;
+        if (presignedNonce !== undefined) {
+          try {
+            const liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
+              address: state.state.evmEphemeralAddress as `0x${string}`,
+              blockTag: "pending"
+            });
+            if (presignedNonce > liveNonce) {
+              throw this.createUnrecoverableError(
+                `DestinationTransferHandler: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
+                  "The transfer can never broadcast (nonce gap); manual review required."
+              );
+            }
+          } catch (error) {
+            if (error instanceof UnrecoverablePhaseError) {
+              throw error;
+            }
+            logger.warn(
+              `DestinationTransferHandler: could not verify ephemeral nonce before broadcast - ${(error as Error).message}`
+            );
+          }
+        }
+      } catch (error) {
+        if (error instanceof UnrecoverablePhaseError) {
+          throw error;
+        }
+        logger.warn(
+          `DestinationTransferHandler: could not parse presigned destination transfer for nonce check - ${(error as Error).message}`
+        );
       }
     }
 

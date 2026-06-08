@@ -1,4 +1,5 @@
 import { ArrowDownIcon } from "@heroicons/react/20/solid";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import {
   BaseFiatTokenDetails,
   FiatToken,
@@ -22,6 +23,7 @@ import { trimAddress } from "../../../helpers/addressFormatter";
 import { useCountdown } from "../../../hooks/useCountdown";
 import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
+import { MykoboService } from "../../../services/api/mykobo.service";
 import { RampExecutionInput } from "../../../types/phases";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
@@ -54,14 +56,22 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
   const { apiComponents } = useAssetHubNode();
   const { chainId } = useVortexAccount();
 
-  const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked } = useSelector(rampActor, state => ({
+  const { connectedWalletAddress, isQuoteExpired, quote, quoteLocked, userEmail } = useSelector(rampActor, state => ({
     connectedWalletAddress: state.context.connectedWalletAddress,
     isQuoteExpired: state.context.isQuoteExpired,
     quote: state.context.quote,
-    quoteLocked: state.context.quoteLocked
+    quoteLocked: state.context.quoteLocked,
+    userEmail: state.context.userEmail
   }));
 
   const targetTimestampMs = quote ? new Date(quote.expiresAt).getTime() : null;
+
+  const isEurOfframp = !isOnramp && executionInput.fiatToken === FiatToken.EURC;
+
+  const { data: mykoboProfile } = useQuery({
+    queryFn: isEurOfframp && userEmail ? () => MykoboService.getProfile(userEmail) : skipToken,
+    queryKey: ["mykoboProfile", userEmail]
+  });
 
   const isAlfredpayFlow = isAlfredpayToken(executionInput.fiatToken);
   const countdownTarget = isAlfredpayFlow ? null : targetTimestampMs;
@@ -84,6 +94,9 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
     const fiatToken = (isOnramp ? fromToken : toToken) as FiatTokenDetails;
     if (isAlfredpayToken(executionInput.fiatToken)) {
       return "https://alfredpay.io";
+    }
+    if (executionInput.fiatToken === FiatToken.EURC) {
+      return "https://mykobo.co";
     }
     if (isMoonbeamTokenDetails(fiatToken)) {
       return fiatToken.partnerUrl;
@@ -131,6 +144,7 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
           vortex: quote.vortexFeeFiat
         }}
         fromToken={fromToken}
+        iban={isEurOfframp ? mykoboProfile?.bankAccountNumber : undefined}
         partnerUrl={getPartnerUrl()}
         toToken={toToken}
       />

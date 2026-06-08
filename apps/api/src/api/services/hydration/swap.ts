@@ -11,30 +11,40 @@ const CACHED_ASSET_IDS = [
 ];
 
 export class HydrationRouter {
-  private sdk: Promise<SdkCtx>;
+  private sdk?: Promise<SdkCtx>;
   private cachedXcmFees: Record<string, XcmFees>;
+  private xcmFeeRefreshInterval?: ReturnType<typeof setInterval>;
 
   constructor() {
-    const apiManager = ApiManager.getInstance();
     this.cachedXcmFees = {};
-    this.sdk = apiManager.getApi("hydration").then(async ({ api }) => {
-      return createSdkContext(api, {
-        router: { includeOnly: [PoolType.Omni, PoolType.Stable, PoolType.Aave] }
-      });
-    });
+  }
 
-    // Refresh transaction fees every hour
-    void this.refreshCachedXcmTransactionFeeToAssethub();
-    setInterval(() => this.refreshCachedXcmTransactionFeeToAssethub, 60 * 60 * 1000);
+  private getSdk(): Promise<SdkCtx> {
+    if (!this.sdk) {
+      const apiManager = ApiManager.getInstance();
+      this.sdk = apiManager
+        .getApi("hydration")
+        .then(async ({ api }) => {
+          return createSdkContext(api, {
+            router: { includeOnly: [PoolType.Omni, PoolType.Stable, PoolType.Aave] }
+          });
+        })
+        .catch(error => {
+          this.sdk = undefined;
+          throw error;
+        });
+    }
+
+    return this.sdk;
   }
 
   async getBestSellPriceFor(assetIn: string, assetOut: string, amountIn: string): Promise<Trade> {
-    const sdk = await this.sdk;
+    const sdk = await this.getSdk();
     return sdk.api.router.getBestSell(assetIn, assetOut, amountIn);
   }
 
   async createTransactionForTrade(trade: Trade, beneficiaryAddress: string, slippage = 0.1): Promise<SubstrateTransaction> {
-    const sdk = await this.sdk;
+    const sdk = await this.getSdk();
     const txBuilder = sdk.tx.trade(trade);
     txBuilder.withBeneficiary(beneficiaryAddress);
     txBuilder.withSlippage(slippage);
@@ -47,7 +57,22 @@ export class HydrationRouter {
       return this.cachedXcmFees[assetId];
     } else {
       await this.refreshCachedXcmTransactionFeeToAssethub();
+      this.startXcmFeeRefreshInterval();
       return this.cachedXcmFees[assetId];
+    }
+  }
+
+  private startXcmFeeRefreshInterval() {
+    if (!this.xcmFeeRefreshInterval) {
+      this.xcmFeeRefreshInterval = setInterval(
+        () => {
+          this.refreshCachedXcmTransactionFeeToAssethub().catch(error => {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.error(`HydrationRouter: Error refreshing cached XCM transaction fees: ${message}`);
+          });
+        },
+        60 * 60 * 1000
+      );
     }
   }
 

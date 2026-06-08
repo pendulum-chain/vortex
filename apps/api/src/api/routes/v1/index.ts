@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
+import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
@@ -173,6 +174,12 @@ router.use("/metrics", metricsRoutes);
  * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
 router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+
+/**
+ * Admin routes for API client observability dashboards
+ * GET /v1/admin/api-client-events
+ */
+router.use("/admin/api-client-events", apiClientEventsRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

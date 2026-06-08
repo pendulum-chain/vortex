@@ -195,9 +195,9 @@ export async function signUnsignedTransactions(
     substrateEphemeral?: EphemeralAccount;
     evmEphemeral?: EphemeralAccount;
   },
-  pendulumApi: ApiPromise,
-  moonbeamApi: ApiPromise,
-  hydrationApi: ApiPromise,
+  pendulumApi?: ApiPromise,
+  moonbeamApi?: ApiPromise,
+  hydrationApi?: ApiPromise,
   alchemyApiKey?: string
 ): Promise<PresignedTx[]> {
   // Wait for initialization of crypto libraries
@@ -286,6 +286,10 @@ export async function signUnsignedTransactions(
 
         signedTxs.push(txWithMeta);
       } else if (!isSignedTypedData(tx.txData) && !isSignedTypedDataArray(tx.txData)) {
+        if (!moonbeamApi) {
+          throw new Error("Moonbeam API is required for signing Substrate-format Moonbeam transactions");
+        }
+
         // Handle Moonbeam Substrate transactions
         const keyring = new Keyring({ type: "ethereum" });
         const privateKey = ephemerals.evmEphemeral.secret as `0x${string}`;

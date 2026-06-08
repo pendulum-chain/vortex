@@ -1,3 +1,4 @@
+import { EphemeralAccount } from "@vortexfi/shared";
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AnyActorRef, Snapshot } from "xstate";
@@ -11,8 +12,57 @@ import {
   SelectedAveniaData,
   SelectedMykoboData
 } from "../machines/types";
+import { RampExecutionInput } from "../types/phases";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
+const RAMP_EPHEMERALS_STORAGE_KEY = "rampEphemerals";
+const MAX_RAMP_EPHEMERALS = 50;
+
+type RampEphemeralEntry = {
+  substrateEphemeral: EphemeralAccount;
+  evmEphemeral: EphemeralAccount;
+  timestamp?: number;
+};
+type RampEphemeralsMap = Record<string, RampEphemeralEntry>;
+
+export function updateRampEphemeral(rampId: string, ephemerals: RampExecutionInput["ephemerals"]): void {
+  try {
+    const existing = readRampEphemerals();
+    existing[rampId] = { ...ephemerals, timestamp: Date.now() };
+
+    const keys = Object.keys(existing);
+    if (keys.length > MAX_RAMP_EPHEMERALS) {
+      const sorted = keys.sort((a, b) => (existing[a]?.timestamp ?? 0) - (existing[b]?.timestamp ?? 0));
+      const toRemove = sorted.slice(0, sorted.length - MAX_RAMP_EPHEMERALS);
+      for (const key of toRemove) {
+        delete existing[key];
+      }
+    }
+
+    localStorage.setItem(RAMP_EPHEMERALS_STORAGE_KEY, JSON.stringify(existing));
+  } catch {
+    // localStorage may be full or unavailable — non-critical backup
+  }
+}
+
+export function readRampEphemerals(): RampEphemeralsMap {
+  try {
+    const raw = localStorage.getItem(RAMP_EPHEMERALS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function removeRampEphemeral(rampId: string): void {
+  try {
+    const existing = readRampEphemerals();
+    delete existing[rampId];
+    localStorage.setItem(RAMP_EPHEMERALS_STORAGE_KEY, JSON.stringify(existing));
+  } catch {
+    // non-critical
+  }
+}
 
 function readPersistedRampState(): Snapshot<unknown> | undefined {
   try {
@@ -75,6 +125,12 @@ const PersistenceEffect = () => {
   useEffect(() => {
     const persistedSnapshot = rampActor.getPersistedSnapshot();
     localStorage.setItem(RAMP_STATE_STORAGE_KEY, JSON.stringify(persistedSnapshot));
+
+    const rampId = rampContext.rampState?.ramp?.id;
+    const ephemerals = (rampContext.executionInput as RampExecutionInput | undefined)?.ephemerals;
+    if (rampId && ephemerals) {
+      updateRampEphemeral(rampId, ephemerals);
+    }
   }, [rampContext, rampState, aveniaState, mykoboState, isQuoteExpired, quote, rampActor.getPersistedSnapshot]);
 
   return null;

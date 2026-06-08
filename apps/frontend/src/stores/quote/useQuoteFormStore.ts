@@ -1,13 +1,4 @@
-import {
-  AssetHubToken,
-  EvmToken,
-  FiatToken,
-  getOnChainTokenDetails,
-  Networks,
-  OnChainToken,
-  OnChainTokenSymbol,
-  RampDirection
-} from "@vortexfi/shared";
+import { EvmToken, FiatToken, getOnChainTokenDetails, Networks, OnChainTokenSymbol, RampDirection } from "@vortexfi/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { getRampDirectionFromPath } from "../../helpers/path";
@@ -38,14 +29,7 @@ const defaultFiatToken = getLanguageFromPath() === Language.Portuguese_Brazil ? 
 const defaultFiatAmount =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
 
-const storedNetwork = localStorage.getItem("SELECTED_NETWORK");
-
-const defaultOnChainToken =
-  getRampDirectionFromPath() === RampDirection.BUY
-    ? storedNetwork === Networks.AssetHub
-      ? AssetHubToken.USDC
-      : EvmToken.USDT
-    : EvmToken.USDC;
+const defaultOnChainToken = getRampDirectionFromPath() === RampDirection.BUY ? EvmToken.USDT : EvmToken.USDC;
 
 interface RampFormState {
   inputAmount: string;

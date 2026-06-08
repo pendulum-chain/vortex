@@ -10,6 +10,7 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
+  CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   FiatToken,
@@ -51,6 +52,7 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import { syncMykoboCustomerKyc } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -130,18 +132,12 @@ function validateAddressFormat(address: string, type: EphemeralAccountType): voi
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
-  const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
-
   const ephemerals: { [key in EphemeralAccountType]?: string } = {};
 
   accounts.forEach(account => {
-    if (!allowedNetworks.has(account.type.toLowerCase())) {
-      throw new Error(`Invalid network: "${account.type}" provided.`);
-    }
-
     const type = Object.values(EphemeralAccountType).find(type => type.toLowerCase() === account.type.toLowerCase());
     if (!type) {
-      throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
+      return;
     }
 
     validateAddressFormat(account.address, type);
@@ -212,6 +208,7 @@ export class RampService extends BaseRampService {
         normalizedSigningAccounts,
         additionalData,
         signingAccounts,
+        transaction,
         request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
@@ -1020,8 +1017,15 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
+    transaction: Transaction,
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    // We refresh the quote. It will be used in the transaction creation process, right after this.
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
+      const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
+      await this.refreshAlfredpayOfframpQuoteIfMatching(quote, quote.metadata.alfredpayOfframp, toCurrency, transaction);
+    }
+
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
       destinationAddress: additionalData?.destinationAddress,
       email: additionalData?.email,
@@ -1100,7 +1104,8 @@ export class RampService extends BaseRampService {
   private async prepareMykoboOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1156,6 +1161,10 @@ export class RampService extends BaseRampService {
       reference: intent.transaction.reference
     };
 
+    if (userId) {
+      await syncMykoboCustomerKyc(userId, additionalData.email);
+    }
+
     return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
@@ -1164,6 +1173,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
+    transaction: Transaction,
     userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
@@ -1177,10 +1187,10 @@ export class RampService extends BaseRampService {
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
 
       case RampTransactionPreparationKind.OfframpNonBrl:
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
 
       case RampTransactionPreparationKind.OnrampMykobo:
-        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
@@ -1445,6 +1455,61 @@ export class RampService extends BaseRampService {
       );
       return originalQuoteId;
     }
+  }
+
+  private async refreshAlfredpayOfframpQuoteIfMatching(
+    quote: QuoteTicket,
+    originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
+    toCurrency: AlfredpayFiatCurrency,
+    transaction: Transaction
+  ): Promise<string> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const originalQuoteId = originalAlfredpayOfframp.quoteId;
+
+    const freshQuote = await alfredpayService.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+      metadata: { businessId: "vortex", customerId: quote.userId || "unknown" },
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency
+    } satisfies CreateAlfredpayOfframpQuoteRequest);
+
+    const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
+    const freshToAmount = new Big(freshQuote.toAmount);
+
+    const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
+    const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
+
+    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+      throw new APIError({
+        message:
+          `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
+          `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
+          `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
+          "Cannot proceed with offramp order.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    await quote.update(
+      {
+        metadata: {
+          ...quote.metadata,
+          alfredpayOfframp: {
+            ...originalAlfredpayOfframp,
+            expirationDate: new Date(freshQuote.expiration),
+            quoteId: freshQuote.quoteId
+          }
+        }
+      },
+      { transaction }
+    );
+
+    logger.info(
+      `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: swapped Alfredpay offramp quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
+    );
+    return freshQuote.quoteId;
   }
 
   private async processAlfredpayOfframpStart(

@@ -12,12 +12,16 @@ import { InfoBox } from "../../InfoBox";
 export const EUROnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { isQuoteExpired, rampState } = useSelector(rampActor, state => ({
+  const { isQuoteExpired, quote, rampState, signingPhase } = useSelector(rampActor, state => ({
     isQuoteExpired: state.context.isQuoteExpired,
-    rampState: state.context.rampState
+    quote: state.context.quote,
+    rampState: state.context.rampState,
+    signingPhase: state.context.rampSigningPhase
   }));
 
   if (!rampState?.ramp?.ibanPaymentData) return null;
+  if (rampState.quote.id !== quote?.id) return null;
+  if (signingPhase !== "finished") return null; // Only show details if the ramp is finished
   if (isQuoteExpired) return null;
 
   const { iban, bic, receiverName, reference } = rampState.ramp.ibanPaymentData;
@@ -54,6 +58,14 @@ export const EUROnrampDetails: FC = () => {
             <span>{t("components.SummaryPage.EUROnrampDetails.bic")}</span>
             <div className="flex items-center">
               <CopyButton text={bic} />
+            </div>
+          </div>
+        )}
+        {reference && (
+          <div className="mt-2 flex items-center justify-between">
+            <span>{t("components.SummaryPage.EUROnrampDetails.reference")}</span>
+            <div className="flex items-center">
+              <CopyButton text={reference} />
             </div>
           </div>
         )}

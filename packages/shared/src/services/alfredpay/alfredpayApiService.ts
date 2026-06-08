@@ -109,8 +109,13 @@ export class AlfredpayApiService {
         try {
           const parsed = JSON.parse(errorText);
           if (parsed.errorCode === 111426 && parsed.errorMetadata) {
-            const { minQuantity, fromCurrency } = parsed.errorMetadata;
-            throw new AlfredpayTradeLimitError(minQuantity, fromCurrency);
+            const { minQuantity, maxQuantity, fromCurrency } = parsed.errorMetadata;
+            logger.current.warn(
+              `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
+            );
+            throw maxQuantity !== undefined
+              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
+              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {

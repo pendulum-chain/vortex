@@ -1,6 +1,5 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Networks } from "@vortexfi/shared";
-import { APINotInitializedError } from "../errors";
 import type { NetworkConfig, VortexSdkConfig } from "../types";
 
 const DEFAULT_NETWORKS: NetworkConfig[] = [
@@ -18,7 +17,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "hydration",
-    wsUrl: "wss://rpc.hydradx.cloud"
+    wsUrl: "wss://hydration.ibp.network"
   }
 ];
 
@@ -26,62 +25,97 @@ export class NetworkManager {
   private pendulumApi?: ApiPromise;
   private moonbeamApi?: ApiPromise;
   private hydrationApi?: ApiPromise;
-  private initializationPromise: Promise<void>;
+  private pendulumApiPromise?: Promise<ApiPromise>;
+  private moonbeamApiPromise?: Promise<ApiPromise>;
+  private hydrationApiPromise?: Promise<ApiPromise>;
 
-  constructor(private readonly config: VortexSdkConfig) {
-    this.initializationPromise = this.initializeApis();
-  }
+  constructor(private readonly config: VortexSdkConfig) {}
 
   async waitForInitialization(): Promise<void> {
-    await this.initializationPromise;
+    return;
   }
 
-  getPendulumApi(): ApiPromise {
-    if (!this.pendulumApi) {
-      throw new APINotInitializedError("Pendulum");
+  async getPendulumApi(): Promise<ApiPromise> {
+    if (this.pendulumApi) {
+      return this.pendulumApi;
     }
-    return this.pendulumApi;
+
+    if (!this.pendulumApiPromise) {
+      this.pendulumApiPromise = this.initializeApi(Networks.Pendulum)
+        .then(api => {
+          this.pendulumApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.pendulumApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.pendulumApiPromise;
   }
 
-  getMoonbeamApi(): ApiPromise {
-    if (!this.moonbeamApi) {
-      throw new APINotInitializedError("Moonbeam");
+  async getMoonbeamApi(): Promise<ApiPromise> {
+    if (this.moonbeamApi) {
+      return this.moonbeamApi;
     }
-    return this.moonbeamApi;
+
+    if (!this.moonbeamApiPromise) {
+      this.moonbeamApiPromise = this.initializeApi(Networks.Moonbeam)
+        .then(api => {
+          this.moonbeamApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.moonbeamApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.moonbeamApiPromise;
   }
 
-  getHydrationApi(): ApiPromise {
-    if (!this.hydrationApi) {
-      throw new APINotInitializedError("Moonbeam");
+  async getHydrationApi(): Promise<ApiPromise> {
+    if (this.hydrationApi) {
+      return this.hydrationApi;
     }
 
-    return this.hydrationApi;
+    if (!this.hydrationApiPromise) {
+      this.hydrationApiPromise = this.initializeApi(Networks.Hydration)
+        .then(api => {
+          this.hydrationApi = api;
+          return api;
+        })
+        .catch(error => {
+          this.hydrationApiPromise = undefined;
+          throw error;
+        });
+    }
+
+    return this.hydrationApiPromise;
   }
 
   getAlchemyApiKey(): string | undefined {
     return "9nk8Nf7Eaz_4smCzIcPUk";
   }
 
-  private async initializeApis(): Promise<void> {
-    const _autoReconnect = this.config.autoReconnect ?? true;
-
-    const pendulumWsUrl = this.config.pendulumWsUrl || DEFAULT_NETWORKS.find(n => n.name === Networks.Pendulum)?.wsUrl;
-    const moonbeamWsUrl = this.config.moonbeamWsUrl || DEFAULT_NETWORKS.find(n => n.name === Networks.Moonbeam)?.wsUrl;
-    const hydrationWsUrl = this.config.hydrationWsUrl || DEFAULT_NETWORKS.find(n => n.name === Networks.Hydration)?.wsUrl;
-
-    if (!pendulumWsUrl || !moonbeamWsUrl || !hydrationWsUrl) {
-      throw new Error("Pendulum, Moonbeam and Hydration WebSocket URLs must be provided or configured.");
+  private async initializeApi(network: Networks.Pendulum | Networks.Moonbeam | Networks.Hydration): Promise<ApiPromise> {
+    const wsUrl = this.getWsUrl(network);
+    if (!wsUrl) {
+      throw new Error(`${network} WebSocket URL must be provided or configured.`);
     }
 
-    const pendulumProvider = new WsProvider(pendulumWsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
-    this.pendulumApi = await ApiPromise.create({ provider: pendulumProvider });
+    const provider = new WsProvider(wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
+    const api = await ApiPromise.create({ provider });
+    await api.isReady;
+    return api;
+  }
 
-    const moonbeamProvider = new WsProvider(moonbeamWsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
-    this.moonbeamApi = await ApiPromise.create({ provider: moonbeamProvider });
-
-    const hydrationProvider = new WsProvider(hydrationWsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
-    this.hydrationApi = await ApiPromise.create({ provider: hydrationProvider });
-
-    await Promise.all([this.pendulumApi.isReady, this.moonbeamApi.isReady, this.hydrationApi.isReady]);
+  private getWsUrl(network: Networks.Pendulum | Networks.Moonbeam | Networks.Hydration): string | undefined {
+    if (network === Networks.Pendulum)
+      return this.config.pendulumWsUrl || DEFAULT_NETWORKS.find(n => n.name === network)?.wsUrl;
+    if (network === Networks.Moonbeam)
+      return this.config.moonbeamWsUrl || DEFAULT_NETWORKS.find(n => n.name === network)?.wsUrl;
+    return this.config.hydrationWsUrl || DEFAULT_NETWORKS.find(n => n.name === network)?.wsUrl;
   }
 }

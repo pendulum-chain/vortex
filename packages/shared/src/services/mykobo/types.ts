@@ -29,6 +29,31 @@ export enum MykoboTransactionStatus {
   EXPIRED = "EXPIRED"
 }
 
+export enum MykoboCustomerStatus {
+  CONSULTED = "CONSULTED", // checked Mykobo but no profile/review exists yet
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED"
+}
+
+export enum MykoboCustomerType {
+  INDIVIDUAL = "INDIVIDUAL",
+  BUSINESS = "BUSINESS"
+}
+
+export function mapMykoboReviewStatus(reviewStatus: string | null | undefined): MykoboCustomerStatus {
+  switch ((reviewStatus ?? "").toLowerCase()) {
+    case "approved":
+      return MykoboCustomerStatus.APPROVED;
+    case "pending":
+      return MykoboCustomerStatus.PENDING;
+    case "rejected":
+      return MykoboCustomerStatus.REJECTED;
+    default:
+      return MykoboCustomerStatus.CONSULTED;
+  }
+}
+
 export interface MykoboAuthTokenRequest {
   access_key: string;
   secret_key: string;
