@@ -217,13 +217,7 @@ export class QuoteService extends BaseRampService {
 
       // Detect Alfredpay trade limit error and surface it as a user-facing limit error
       if (error instanceof AlfredpayTradeLimitError) {
-        const isOnramp = ctx.request.rampType === RampDirection.BUY;
-        throw new APIError({
-          message: isOnramp
-            ? `${QuoteError.BelowLowerLimitBuy} ${error.minQuantity} ${error.fromCurrency}`
-            : `${QuoteError.BelowLowerLimitSell} ${error.minQuantity} ${error.fromCurrency}`,
-          status: httpStatus.BAD_REQUEST
-        });
+        throw mapAlfredpayLimitErrorToApiError(error, ctx.request.rampType === RampDirection.BUY);
       }
 
       // Wrap unexpected errors as generic failure
@@ -263,6 +257,21 @@ export class QuoteService extends BaseRampService {
       return supportedChains.from.filter(dest => Object.values(Networks).includes(dest as Networks)) as Networks[];
     }
   }
+}
+
+function mapAlfredpayLimitErrorToApiError(error: AlfredpayTradeLimitError, isOnramp: boolean): APIError {
+  const prefix = selectAlfredpayLimitPrefix(error.kind === "above", isOnramp);
+  return new APIError({
+    message: `${prefix} ${error.quantity} ${error.fromCurrency}`,
+    status: httpStatus.BAD_REQUEST
+  });
+}
+
+function selectAlfredpayLimitPrefix(isAboveMax: boolean, isOnramp: boolean): QuoteError {
+  if (isAboveMax && isOnramp) return QuoteError.AboveUpperLimitBuy;
+  if (isAboveMax) return QuoteError.AboveUpperLimitSell;
+  if (isOnramp) return QuoteError.BelowLowerLimitBuy;
+  return QuoteError.BelowLowerLimitSell;
 }
 
 function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {

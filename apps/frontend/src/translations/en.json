@@ -670,12 +670,14 @@
         "hint": "Scan this QR code in your banking app to start the payment instantly.",
         "iban": "IBAN",
         "receiver": "Recipient",
+        "reference": "Reference",
         "title": "Do an instant bank transfer with the following details"
       },
       "headerText": {
         "buy": "Payment Summary",
         "sell": "Payment Summary"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expires",
         "instruction": "Transfer funds via SPEI to the CLABE below",
@@ -1416,13 +1418,17 @@
       "title": "Buy & Sell <1>Stablecoins</1> - <br class='hidden sm:block' /> directly with your Bank Account"
     },
     "popularTokens": {
+      "countries": {
+        "description": "On and off-ramp in these popular fiat currencies",
+        "title": "Supported Countries"
+      },
+      "cryptocurrencies": {
+        "description": "supported cryptocurrencies",
+        "title": "Supported Cryptocurrencies"
+      },
       "networks": {
         "description": "Trade across multiple blockchain networks",
         "title": "Supported Networks"
-      },
-      "tokens": {
-        "description": "Trade these popular crypto and fiat currencies",
-        "title": "Supported Tokens"
       }
     },
     "popularTokensPartners": {

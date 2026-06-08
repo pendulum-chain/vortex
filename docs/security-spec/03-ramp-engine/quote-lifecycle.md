@@ -47,10 +47,12 @@ The system maintains an **in-memory** `Map<partnerId, { difference: Big, lastQuo
 AlfredPay's upstream provider quote is short-lived (~30 seconds) — much shorter than the Vortex 10-minute quote expiry. To keep the two reconciled:
 
 1. **At quote time** (`OnRampAlfredpayDiscountEngine` / `OfframpTransactionAlfredpayEngine`): the platform calls the AlfredPay provider, stores the provider `quoteId` and amounts in `ctx.alfredpayOnramp` / `ctx.alfredpayOfframp`, and freezes them in the Vortex quote metadata.
-2. **At ramp start** (`refreshAlfredpayOnrampQuoteIfMatching` in `ramp.service.ts`): the API re-fetches a fresh AlfredPay provider quote. If the new provider response is byte-identical on `toAmount` and `fee` to the stored values, the platform substitutes the new provider `quoteId` so the downstream mint/transfer hits an unexpired provider quote. If amounts diverge, the original `quoteId` is kept and downstream handlers may fall back (see `alfredOnrampMintFallback` / `alfredpayOfframpTransferFallback`).
-3. **Offramp expired-quote recovery** (`alfredpay-offramp-transfer-handler.ts`): if the provider rejects the stored `quoteId` as expired, the handler requests a fresh provider quote at execute time and reattempts.
+2. **At ramp registration / prep time** (`refreshAlfredpayOnrampQuoteIfMatching` / `refreshAlfredpayOfframpQuoteIfMatching` in `ramp.service.ts`): the API re-fetches a fresh AlfredPay provider quote.
+   - **On-ramp:** If the new provider response is byte-identical on `toAmount` and `fee` to the stored values, the platform substitutes the new provider `quoteId` so the downstream mint/transfer hits an unexpired provider quote. If amounts diverge, the original `quoteId` is kept and downstream handlers may fall back (see `alfredOnrampMintFallback`).
+   - **Off-ramp:** `refreshAlfredpayOfframpQuoteIfMatching` compares `toAmount` and `fee` exactly. If identical, the new `quoteId` and `expirationDate` are written to quote metadata within the registration transaction. If amounts diverge, the method throws `INTERNAL_SERVER_ERROR`, aborting ramp registration entirely — unlike the on-ramp fallback path, the off-ramp does NOT proceed with a stale quote at prep time.
+3. **Offramp expired-quote recovery** (`alfredpay-offramp-transfer-handler.ts`): if the provider rejects the stored `quoteId` as expired at execute time (post-registration), the handler requests a fresh provider quote and reattempts.
 
-The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` only). Any drift in amounts forces the route into the fallback path, which is bounded by the discount engine's `expectedOutput` and the partner's `maxSubsidy`.
+The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` only). Any drift in amounts forces the on-ramp into the fallback path (bounded by the discount engine's `expectedOutput` and the partner's `maxSubsidy`) or aborts off-ramp registration.
 
 ## Security Invariants
 

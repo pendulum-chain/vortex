@@ -2,7 +2,6 @@ import { useSearch } from "@tanstack/react-router";
 import {
   AssetHubToken,
   DestinationType,
-  EPaymentMethod,
   type EvmNetworks,
   EvmToken,
   FiatToken,
@@ -21,6 +20,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { isFrontendNetworkEnabled } from "../config/networkAvailability";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
@@ -107,7 +107,7 @@ function findOnChainToken(
 function getNetworkFromParam(param?: string): Networks | undefined {
   if (param) {
     const matchedNetwork = Object.values(Networks).find(network => network.toLowerCase() === param);
-    return matchedNetwork;
+    return matchedNetwork && isFrontendNetworkEnabled(matchedNetwork) ? matchedNetwork : undefined;
   }
   return undefined;
 }

@@ -674,12 +674,14 @@
         "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
+        "reference": "Referência",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
       },
       "headerText": {
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expira",
         "instruction": "Transfira os fundos via SPEI para o CLABE abaixo",
@@ -1421,13 +1423,17 @@
       "title": "Compre e Venda <1>Stablecoins</1> - <br class='hidden sm:block' /> diretamente com sua conta bancária"
     },
     "popularTokens": {
+      "countries": {
+        "description": "Faça on e off-ramp nestas moedas fiduciárias populares",
+        "title": "Países Suportados"
+      },
+      "cryptocurrencies": {
+        "description": "criptomoedas suportadas",
+        "title": "Criptomoedas Suportadas"
+      },
       "networks": {
         "description": "Negocie em várias redes blockchain",
         "title": "Redes Suportadas"
-      },
-      "tokens": {
-        "description": "Negocie estas stablecoins populares",
-        "title": "Tokens Suportados"
       }
     },
     "popularTokensPartners": {

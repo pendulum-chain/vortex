@@ -1,6 +1,7 @@
 import { getNetworkId, isNetworkEVM, Networks } from "@vortexfi/shared";
 import { createContext, ReactNode, useCallback, useContext, useState } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
+import { getEnabledFrontendNetwork } from "../config/networkAvailability";
 import { WALLETCONNECT_ASSETHUB_ID } from "../constants/constants";
 import { LocalStorageKeys, useLocalStorage } from "../hooks/useLocalStorage";
 import { useRampUrlParams } from "../hooks/useRampUrlParams";
@@ -16,7 +17,7 @@ interface NetworkContextType {
 
 const NetworkContext = createContext<NetworkContextType>({
   networkSelectorDisabled: false,
-  selectedNetwork: Networks.AssetHub,
+  selectedNetwork: getEnabledFrontendNetwork(undefined),
   setNetworkSelectorDisabled: () => null,
   setSelectedNetwork: async () => undefined,
   walletConnectPolkadotSelectedNetworkId: WALLETCONNECT_ASSETHUB_ID
@@ -37,7 +38,9 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   // We do this to ensure that the local storage value is always in lowercase. Previously the first letter was uppercase
   const selectedNetworkLocalStorage = selectedNetworkLocalStorageState.toLowerCase() as Networks;
 
-  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(network || selectedNetworkLocalStorage);
+  const [selectedNetwork, setSelectedNetworkState] = useState<Networks>(
+    getEnabledFrontendNetwork(network || selectedNetworkLocalStorage)
+  );
   const [networkSelectorDisabled, setNetworkSelectorDisabled] = useState(false);
 
   const { switchChainAsync } = useSwitchChain();
@@ -48,15 +51,16 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       if (resetState) {
         rampActor.send({ type: "RESET_RAMP" });
       }
-      setSelectedNetworkState(network);
-      setSelectedNetworkLocalStorage(network);
+      const enabledNetwork = getEnabledFrontendNetwork(network);
+      setSelectedNetworkState(enabledNetwork);
+      setSelectedNetworkLocalStorage(enabledNetwork);
 
       // Will only switch chain on the EVM connected wallet case.
-      if (isNetworkEVM(network)) {
+      if (isNetworkEVM(enabledNetwork)) {
         // Only switch chain if the network is different from the current one
         // see https://github.com/wevm/wagmi/issues/3417
-        if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(network)) {
-          await switchChainAsync({ chainId: getNetworkId(network) });
+        if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(enabledNetwork)) {
+          await switchChainAsync({ chainId: getNetworkId(enabledNetwork) });
         }
       }
     },

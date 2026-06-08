@@ -1,6 +1,7 @@
 import {
   EvmToken,
   getNetworkFromDestination,
+  getOnChainTokenDetails,
   multiplyByPowerOfTen,
   Networks,
   OnChainToken,
@@ -11,6 +12,7 @@ import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
+import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../utils";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
 
 export class OnRampSquidRouterToBaseEngine extends BaseSquidRouterEngine {
@@ -45,6 +47,56 @@ export class OnRampSquidRouterToBaseEngine extends BaseSquidRouterEngine {
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const nablaSwap = ctx.nablaSwapEvm!;
+
+    if (isEurToEurcBaseDirect(ctx.request.inputCurrency, ctx.request.outputCurrency, ctx.request.to)) {
+      const eurcBaseTokenDetails = getOnChainTokenDetails(Networks.Base, EvmToken.EURC);
+      if (!eurcBaseTokenDetails || eurcBaseTokenDetails.type !== "evm") {
+        throw new Error("OnRampSquidRouterToBaseEngine: EURC Base token details not found");
+      }
+
+      const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+      const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+
+      return {
+        data: {
+          amountRaw: inputAmountRaw,
+          fromNetwork: Networks.Base,
+          fromToken: eurcBaseTokenDetails.erc20AddressSourceChain,
+          inputAmountDecimal,
+          inputAmountRaw,
+          outputDecimals: eurcBaseTokenDetails.decimals,
+          skipRouteCalculation: true,
+          toNetwork: Networks.Base,
+          toToken: eurcBaseTokenDetails.erc20AddressSourceChain
+        },
+        type: "evm-to-evm"
+      };
+    }
+
+    if (isBrlToBrlaBaseDirect(ctx.request.inputCurrency, ctx.request.outputCurrency, ctx.request.to)) {
+      const brlaBaseTokenDetails = getOnChainTokenDetails(Networks.Base, EvmToken.BRLA);
+      if (!brlaBaseTokenDetails || brlaBaseTokenDetails.type !== "evm") {
+        throw new Error("OnRampSquidRouterToBaseEngine: BRLA Base token details not found");
+      }
+
+      const inputAmountDecimal = this.mergeSubsidy(ctx, new Big(nablaSwap.outputAmountDecimal));
+      const inputAmountRaw = this.mergeSubsidyRaw(ctx, new Big(nablaSwap.outputAmountRaw)).toFixed(0, 0);
+
+      return {
+        data: {
+          amountRaw: inputAmountRaw,
+          fromNetwork: Networks.Base,
+          fromToken: brlaBaseTokenDetails.erc20AddressSourceChain,
+          inputAmountDecimal,
+          inputAmountRaw,
+          outputDecimals: brlaBaseTokenDetails.decimals,
+          skipRouteCalculation: true,
+          toNetwork: Networks.Base,
+          toToken: brlaBaseTokenDetails.erc20AddressSourceChain
+        },
+        type: "evm-to-evm"
+      };
+    }
 
     const usdFeesDistributedDecimal = Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
     const usdFeesDistributedRaw = multiplyByPowerOfTen(usdFeesDistributedDecimal, nablaSwap.outputDecimals);

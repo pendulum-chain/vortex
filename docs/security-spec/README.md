@@ -45,6 +45,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum) and USDC→BRLA→USDC (Base, default) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
+| Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
 
 ## Per-File Format
 
@@ -77,3 +78,5 @@ Every spec file uses exactly four sections:
 | **PIX** | Brazilian instant payment system |
 | **SEPA** | Single Euro Payments Area — European bank transfer system |
 | **Coverage ratio** | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing |
+| **Request ID** | Non-secret correlation identifier generated or propagated by the API for log/event debugging |
+| **Client event** | Sanitized operational record of a partner-facing API request outcome |

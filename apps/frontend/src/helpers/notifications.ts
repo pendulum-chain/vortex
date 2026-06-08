@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ToastOptions, toast } from "react-toastify";
 
@@ -89,24 +90,19 @@ const toastConfig: Record<ToastMessage, { options: ToastOptions; translationKey:
 export function useToastMessage() {
   const { t } = useTranslation();
 
-  const getToastOptions = (message: ToastMessage): ToastOptions => {
-    return toastConfig[message].options;
-  };
+  const showToast = useCallback(
+    (message: ToastMessage, customMessage?: string) => {
+      const options = toastConfig[message].options;
 
-  const getToastMessage = (message: ToastMessage): string => {
-    return t(toastConfig[message].translationKey);
-  };
+      if (customMessage) {
+        return toast(customMessage, options);
+      }
 
-  const showToast = (message: ToastMessage, customMessage?: string) => {
-    const options = getToastOptions(message);
-
-    if (customMessage) {
-      return toast(customMessage, options);
-    }
-
-    const translatedMessage = getToastMessage(message);
-    return toast(translatedMessage, options);
-  };
+      const translatedMessage = t(toastConfig[message].translationKey);
+      return toast(translatedMessage, options);
+    },
+    [t]
+  );
 
   return {
     showToast,
