@@ -174,7 +174,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // executes them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
   if (toNetwork === Networks.Polygon) {
     const sameChainTransferTxData = await addOnrampDestinationChainTransactions({
-      amountRaw: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toString(),
+      amountRaw: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
       destinationNetwork: Networks.Polygon,
       toAddress: destinationAddress,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
