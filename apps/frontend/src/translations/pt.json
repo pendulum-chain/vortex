@@ -1213,6 +1213,8 @@
       "hydrationToAssethubXcm": "Transferindo {{assetSymbol}} de Hydration --> AssetHub",
       "initial": "Iniciando processo",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
+      "morphoApprove": "Aprovando tokens para depósito no Morpho vault",
+      "morphoDeposit": "Depositando no Morpho vault",
       "mykoboOnrampDeposit": "Aguardando recebimento do pagamento",
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",

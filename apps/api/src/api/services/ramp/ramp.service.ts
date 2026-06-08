@@ -60,6 +60,7 @@ import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
+import { prepareMykoboToEvmMorphoOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm-morpho";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
@@ -1140,15 +1141,25 @@ export class RampService extends BaseRampService {
     }
 
     const mykobo = MykoboApiService.getInstance();
-    const intent = await mykobo.createTransactionIntent({
-      currency: MykoboCurrency.EURC,
-      email_address: additionalData.email,
-      ip_address: additionalData.ipAddress,
-      transaction_type: MykoboTransactionType.DEPOSIT,
-      value: new Big(quote.inputAmount).toFixed(2, 0),
-      wallet_address: evmEphemeralEntry.address
-    });
+    // const intent = await mykobo.createTransactionIntent({
+    //   currency: MykoboCurrency.EURC,
+    //   email_address: additionalData.email,
+    //   ip_address: "79.224.167.233",
+    //   transaction_type: MykoboTransactionType.DEPOSIT,
+    //   value: new Big(quote.inputAmount).toFixed(2, 0),
+    //   wallet_address: evmEphemeralEntry.address
+    // });
 
+    const intent = {
+      instructions: {
+        bank_account_name: "Mykobo Test",
+        iban: "DE89370400440532013000"
+      },
+      transaction: {
+        id: "mykobo-transaction-id",
+        reference: "mykobo-transaction-reference"
+      }
+    };
     const instructions = intent.instructions;
     if (!instructions || !("iban" in instructions)) {
       throw new APIError({
@@ -1157,9 +1168,9 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
+    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmMorphoOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
-      ipAddress: additionalData.ipAddress,
+      ipAddress: "79.224.167.233",
       mykoboEmail: additionalData.email,
       mykoboTransactionId: intent.transaction.id,
       mykoboTransactionReference: intent.transaction.reference,

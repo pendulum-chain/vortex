@@ -1208,6 +1208,8 @@
       "hydrationToAssethubXcm": "Transferring {{assetSymbol}} from Hydration --> AssetHub",
       "initial": "Starting process",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
+      "morphoApprove": "Approving tokens for Morpho vault deposit",
+      "morphoDeposit": "Depositing into Morpho vault",
       "mykoboOnrampDeposit": "Waiting to receive payment",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",

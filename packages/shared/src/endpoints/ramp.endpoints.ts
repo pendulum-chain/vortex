@@ -51,6 +51,8 @@ export type RampPhase =
   | "backupSquidRouterApprove"
   | "backupSquidRouterSwap"
   | "backupApprove"
+  | "morphoApprove"
+  | "morphoDeposit"
   | "complete";
 
 export type CleanupPhase =
