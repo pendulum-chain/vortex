@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
+import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -49,6 +50,7 @@ router
     validatePublicKey(),
     apiKeyAuth({ required: false }),
     enforcePartnerAuth(),
+    rejectDuringActiveMaintenance,
     createQuote
   );
 
@@ -110,6 +112,7 @@ router
     validatePublicKey(),
     apiKeyAuth({ required: false }),
     enforcePartnerAuth(),
+    rejectDuringActiveMaintenance,
     createBestQuote
   );
 
