@@ -140,21 +140,27 @@ export class MorphoDepositHandler extends BasePhaseHandler {
     meta: StateMetadata
   ): Promise<void> {
     const client = evmClientManager.getClient(MORPHO_NETWORK);
-
-    const allowance = await client.readContract({
-      abi: erc20Abi,
-      address: tokenAddress,
-      args: [ownerAddress, spenderAddress],
-      functionName: "allowance"
-    });
-
     const requiredAmount = BigInt(meta.morphoDepositAmountRaw || "0");
+    const deadline = Date.now() + EVM_BALANCE_CHECK_TIMEOUT_MS;
+    let lastAllowance = 0n;
 
-    if (allowance < requiredAmount) {
-      throw new Error(`MorphoDepositHandler: Insufficient allowance. Have ${allowance}, need ${requiredAmount}`);
+    while (Date.now() < deadline) {
+      lastAllowance = await client.readContract({
+        abi: erc20Abi,
+        address: tokenAddress,
+        args: [ownerAddress, spenderAddress],
+        functionName: "allowance"
+      });
+
+      if (lastAllowance >= requiredAmount) {
+        logger.info(`MorphoDepositHandler: Allowance verified: ${lastAllowance} >= ${requiredAmount}`);
+        return;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, BALANCE_POLLING_INTERVAL_MS));
     }
 
-    logger.info(`MorphoDepositHandler: Allowance verified: ${allowance} >= ${requiredAmount}`);
+    throw new Error(`MorphoDepositHandler: Insufficient allowance. Have ${lastAllowance}, need ${requiredAmount}`);
   }
 
   private async executeDeposit(
