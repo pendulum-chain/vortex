@@ -14,7 +14,7 @@ For each quote, the discount engine:
 4. Calculates `expectedOutput = inputAmount × oraclePrice × (1 + targetDiscount + adjustedDifference)`. For offramps the oracle price is inverted first.
 5. Calculates `actualOutput` as what the user would receive without subsidy (Nabla output minus post-swap fees on onramp, anchor fee added back on offramp).
 6. Calculates `idealSubsidy = max(0, expectedOutput − actualOutput)` and `actualSubsidy = min(idealSubsidy, maxSubsidy × expectedOutput)` (only when `targetDiscount > 0`).
-7. Writes a `ctx.subsidy` record consumed by downstream merge-subsidy and finalize stages and ultimately by the subsidy phase handlers.
+7. Writes a `ctx.subsidy` record consumed by downstream merge-subsidy and finalize stages and ultimately by the subsidy phase handlers. On EVM post-swap routes this record represents the discount-derived subsidy component only; the runtime handler may additionally cover actual-vs-quoted swap-output discrepancy, which is capped separately.
 
 The engine is wired by strategy configuration. Of the 10 route strategies in `apps/api/src/api/services/quote/routes/strategies/`, 9 register a discount engine and 1 does **not**: `onramp-monerium-to-evm`. On that single route, no subsidy is computed regardless of partner configuration.
 
@@ -35,8 +35,9 @@ For onramps to EVM destinations other than AssetHub, the engine also probes Squi
 6. **Subsidy MUST NOT bypass fee collection.** For onramps, `actualOutput = nablaOutput − (network + vortex + partnerMarkup)`. The subsidy then covers the shortfall against `expectedOutput` *after* those fees, so fees still flow to fee accounts.
 7. **For offramps, the anchor fee MUST be added back to `expectedOutput`** before computing the shortfall (`adjustedExpectedOutputDecimal = oracleExpected + anchorFeeInBrl`). Otherwise the user would receive `expectedOutput − anchorFee`, which is short of the advertised rate by the anchor's cut.
 8. **Subsidy amounts written to `ctx.subsidy` MUST be deterministic for a given input.** With `targetDiscount=0` the actual subsidy is forced to zero (`actualSubsidyAmountDecimal = Big(0)`), even when `idealSubsidy > 0`. This is the contract the merge-subsidy and subsidy phase handlers rely on.
-9. **The dynamic difference MUST NOT be incremented within `discountStateTimeoutMinutes` of the last quote** — `getAdjustedDifference` only adds `deltaD` when `isWithinStateTimeout` is **false**. Otherwise repeated quotes from the same partner would inflate the difference faster than intended.
-10. **Squid Router probe failures MUST fall back to a 1:1 assumption, never block the quote.** Both `getSquidRouterUSDCConversionRate` and `getSquidRouterAxlUSDCConversionRate` return `null` on error and the engine proceeds with `adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal`. A network failure on the probe MUST NOT cause the entire quote stage to throw.
+9. **Discount subsidy MUST remain distinct from runtime swap discrepancy subsidy.** `ctx.subsidy.subsidyAmountInOutputTokenRaw` is the quote-time discount component, bounded by partner `maxSubsidy`. On EVM `subsidizePostSwap`, any actual-vs-quoted swap-output discrepancy is calculated against the live post-swap balance and capped by `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`; the discount component is capped separately by `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION`.
+10. **The dynamic difference MUST NOT be incremented within `discountStateTimeoutMinutes` of the last quote** — `getAdjustedDifference` only adds `deltaD` when `isWithinStateTimeout` is **false**. Otherwise repeated quotes from the same partner would inflate the difference faster than intended.
+11. **Squid Router probe failures MUST fall back to a 1:1 assumption, never block the quote.** Both `getSquidRouterUSDCConversionRate` and `getSquidRouterAxlUSDCConversionRate` return `null` on error and the engine proceeds with `adjustedExpectedOutputDecimal = oracleExpectedOutputDecimal`. A network failure on the probe MUST NOT cause the entire quote stage to throw.
 
 ## Threat Vectors & Mitigations
 
@@ -60,6 +61,7 @@ For onramps to EVM destinations other than AssetHub, the engine also probes Squi
 - [x] `OffRampDiscountEngine` only fires for `RampDirection.SELL`; `OnRampDiscountEngine` only fires for `RampDirection.BUY`. **PASS** — `offramp.ts:10`, `onramp.ts:18`.
 - [x] Discount parameters (`targetDiscount`, `maxSubsidy`, `minDynamicDifference`, `maxDynamicDifference`) are read exclusively from the `Partner` Sequelize model and never accepted from request fields. **PASS** — `resolveDiscountPartner` uses `Partner.findOne`; no request field is read.
 - [x] Subsidy cap `maxSubsidy × expectedOutput` is enforced in `calculateSubsidyAmount` (`helpers.ts:152-167`). **PASS**.
+- [x] EVM post-swap runtime cap logic treats discount subsidy separately from swap discrepancy subsidy. **PASS** — the discount component comes from `ctx.subsidy.subsidyAmountInOutputTokenRaw`; the live discrepancy component is computed from the post-swap balance and quoted actual output. Each component must pass its own runtime cap before transfer.
 - [x] `targetDiscount=0` forces `actualSubsidyAmountDecimal = Big(0)` in both engines. **PASS** — `offramp.ts:76-79`, `onramp.ts:209-212`.
 - [x] Offramp `expectedOutput` adds back the anchor fee (`adjustedExpectedOutputDecimal = oracleExpectedOutput + anchorFeeInBrl`). **PASS** — `offramp.ts:50-51`.
 - [x] Onramp `actualOutput` subtracts post-swap fees (`network + vortex + partnerMarkup`). **PASS** — `onramp.ts:198-199`.
