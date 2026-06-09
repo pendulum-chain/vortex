@@ -7,33 +7,20 @@ import { ApiClientErrorType, ApiClientEventInput } from "./types";
 const API_KEY_PREFIX_LENGTH = 16;
 
 const SENSITIVE_METADATA_KEYS = new Set([
-  "additionalData",
   "additionaldata",
-  "apiKey",
   "apikey",
   "authorization",
-  "depositQrCode",
   "depositqrcode",
-  "ephemeralAccounts",
   "ephemeralaccounts",
-  "ibanPaymentData",
   "ibanpaymentdata",
-  "pixDestination",
   "pixdestination",
-  "presignedTxs",
   "presignedtxs",
-  "rawBody",
   "rawbody",
-  "receiverTaxId",
   "receivertaxid",
-  "secretKey",
   "secretkey",
-  "signingAccounts",
   "signingaccounts",
-  "taxId",
   "taxid",
   "token",
-  "walletAddress",
   "walletaddress",
   "x-api-key"
 ]);
@@ -116,7 +103,7 @@ function sanitizeMetadata(metadata: Record<string, unknown> | null | undefined):
 
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(metadata)) {
-    if (SENSITIVE_METADATA_KEYS.has(key) || SENSITIVE_METADATA_KEYS.has(key.toLowerCase()) || typeof value === "object") {
+    if (isSensitiveMetadataKey(key) || typeof value === "object") {
       continue;
     }
     sanitized[key] = typeof value === "string" ? trimString(value, 100) : value;
@@ -137,8 +124,7 @@ function addSelectedValues(
     const value = values[key];
     if (value === undefined) continue;
 
-    const isSensitiveKey = SENSITIVE_METADATA_KEYS.has(key) || SENSITIVE_METADATA_KEYS.has(key.toLowerCase());
-    if (isSensitiveKey && !Array.isArray(value) && !isPlainObject(value)) continue;
+    if (isSensitiveMetadataKey(key) && !Array.isArray(value) && !isPlainObject(value)) continue;
 
     const metadataKey = `${prefix}${toPascalCase(key)}`;
     if (Array.isArray(value)) {
@@ -152,6 +138,10 @@ function addSelectedValues(
 
     metadata[metadataKey] = sanitizeRequestMetadataValue(value);
   }
+}
+
+function isSensitiveMetadataKey(key: string): boolean {
+  return SENSITIVE_METADATA_KEYS.has(key.toLowerCase());
 }
 
 function buildTemplatedRequestPath(path: string | undefined, params: unknown): string | null {
