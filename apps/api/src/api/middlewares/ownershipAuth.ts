@@ -3,12 +3,17 @@ import Partner from "../../models/partner.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { APIError } from "../errors/api-error";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import type { AuthenticatedPartner } from "./apiKeyAuth.helpers";
 
 interface OwnershipRequest {
   authenticatedPartner?: AuthenticatedPartner;
+  body?: unknown;
+  method?: string;
+  params?: unknown;
+  path?: string;
+  query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
   userId?: string;
@@ -144,6 +149,7 @@ function recordOwnershipFailure(
     durationMs: getRequestDurationMs(req),
     errorType,
     httpStatus: status,
+    metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "rampId"], paramKeys: ["id"] }),
     operation: "auth_ownership",
     partnerId: req.authenticatedPartner?.id || null,
     partnerName: req.authenticatedPartner?.name || null,
