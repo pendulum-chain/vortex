@@ -85,9 +85,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     // transferred to the ephemeral. We accept a balance of at least 95% of the
     // pre-computed expected amount to account for fee differences between quote
     // creation time and execution time.
-    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw)
-      .times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR)
-      .toFixed(0, 0);
+    const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
 
     if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
       logger.info(
@@ -149,10 +147,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     // Derive the expected on-chain amount from the live quote's outputAmount rather than
     // the stale pre-computed metadata value. The live quote accounts for the actual fees
     // applied at execution time, so this is the amount that will truly arrive on Base.
-    const expectedAmountReceived = multiplyByPowerOfTen(
-      new Big(aveniaQuote.outputAmount),
-      tokenDetails.decimals
-    ).toFixed(0, 0);
+    const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDetails.decimals).toFixed(0, 0);
 
     logger.info(
       `BrlaOnrampMintHandler: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`

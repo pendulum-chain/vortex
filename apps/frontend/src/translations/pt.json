@@ -31,6 +31,33 @@
       "verifyingStatus": "Verificando Status {{kycOrKyb}}",
       "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
     },
+    "arDocumentUpload": {
+      "backLabel": "Verso do DNI",
+      "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
+      "fileTooLarge": "O arquivo excede o limite de 5 MB.",
+      "frontLabel": "Frente do DNI",
+      "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do seu DNI (frente e verso) e uma selfie. Máx. 5 MB por arquivo.",
+      "tapToSelect": "Toque para selecionar o arquivo",
+      "title": "Enviar Documentos de Identidade"
+    },
+    "arKycForm": {
+      "continue": "Continuar",
+      "cuit": "CUIT",
+      "cuitPlaceholder": "CUIT",
+      "dni": "Número do DNI",
+      "dniPlaceholder": "Número do DNI",
+      "documentType": "Tipo de Documento",
+      "options": {
+        "dni": "DNI (Documento Nacional de Identidad)"
+      },
+      "pepLabel": "Sou uma Pessoa Politicamente Exposta (PEP)",
+      "phoneNumber": "Número de Telefone",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade"
+    },
     "authEmailStep": {
       "buttons": {
         "continue": "Continuar",
@@ -233,6 +260,7 @@
       }
     },
     "colKycForm": {
+      "continue": "Continuar",
       "dni": "Número de Documento",
       "dniPlaceholderCc": "Número CC de 10 dígitos",
       "dniPlaceholderCe": "Número CE de 6 a 10 dígitos",
@@ -391,12 +419,14 @@
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
         "ACH_COL": "Transferência bancária colombiana",
+        "COELSA": "Transferência bancária argentina",
         "SPEI": "Transferência interbancária instantânea via número CLABE",
         "WIRE": "No mesmo dia"
       },
       "labels": {
         "ACH": "Transferência ACH",
         "ACH_COL": "ACH Colômbia",
+        "COELSA": "COELSA",
         "SPEI": "SPEI",
         "WIRE": "Transferência Internacional"
       },
@@ -535,6 +565,7 @@
       "fileTooLarge": "O arquivo excede o limite de 5 MB.",
       "frontLabel": "Frente do Documento",
       "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
       "submit": "Enviar Documentos",
       "subtitle": "Por favor, envie uma foto ou digitalização do seu documento. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
       "tapToSelect": "Toque para selecionar o arquivo",
@@ -647,6 +678,15 @@
       "title": "Sua opinião é importante!"
     },
     "SummaryPage": {
+      "ARSOnrampDetails": {
+        "aliasLabel": "Alias",
+        "cvuLabel": "CBU/CVU",
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos para a conta bancária abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar via Transferência Bancária"
+      },
       "BRLOnrampDetails": {
         "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
         "pixCode": "Código PIX",

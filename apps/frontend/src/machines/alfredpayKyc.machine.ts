@@ -13,12 +13,17 @@ import { assign, fromPromise, setup } from "xstate";
 import { AlfredpayService } from "../services/api/alfredpay.service";
 import { AlfredpayKycContext } from "./kyc.states";
 
-export type MxnKycFormData = Omit<SubmitKycInformationRequest, "country">;
+/**
+ * Generic Alfredpay KYC form payload (country is added by the API layer).
+ * Fields are a union across MX/CO/AR; country-specific schemas pick which are required.
+ */
+export type AlfredpayKycFormData = Omit<SubmitKycInformationRequest, "country">;
 export type KybFormData = Omit<SubmitKybInformationRequest, "country">;
 
 export interface MxnKycFiles {
   front: File;
   back: File;
+  selfie?: File;
 }
 
 export interface KybBusinessFiles {
@@ -178,12 +183,16 @@ export const alfredpayKycMachine = setup({
     }),
 
     submitFiles: fromPromise(
-      async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: MxnKycFormData; mxnFiles?: MxnKycFiles } }) => {
+      async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: AlfredpayKycFormData; mxnFiles?: MxnKycFiles } }) => {
         const country = input.country || "MX";
         if (!input.submissionId) throw new Error("Submission ID missing");
         if (!input.mxnFiles) throw new Error("KYC files missing");
         await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.FRONT, input.mxnFiles.front);
         await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.BACK, input.mxnFiles.back);
+        if (country === "AR") {
+          if (!input.mxnFiles.selfie) throw new Error("Selfie file missing");
+          await AlfredpayService.submitKycFile(country, input.submissionId, AlfredpayKycFileType.SELFIE, input.mxnFiles.selfie);
+        }
       }
     ),
 
@@ -265,7 +274,7 @@ export const alfredpayKycMachine = setup({
         );
       }
     ),
-    submitKycInfo: fromPromise(async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: MxnKycFormData } }) => {
+    submitKycInfo: fromPromise(async ({ input }: { input: AlfredpayKycContext & { mxnFormData?: AlfredpayKycFormData } }) => {
       const country = input.country || "MX";
       if (!input.mxnFormData) throw new Error("KYC form data missing");
       return AlfredpayService.submitKycInformation(country, input.mxnFormData);
@@ -312,7 +321,7 @@ export const alfredpayKycMachine = setup({
   },
   types: {
     context: {} as AlfredpayKycContext & {
-      mxnFormData?: MxnKycFormData;
+      mxnFormData?: AlfredpayKycFormData;
       mxnFiles?: MxnKycFiles;
       kybFormData?: KybFormData;
       kybBusinessFiles?: KybBusinessFiles;
@@ -333,7 +342,7 @@ export const alfredpayKycMachine = setup({
       | { type: "USER_RETRY" }
       | { type: "USER_CANCEL" }
       | { type: "GO_BACK" }
-      | { type: "SUBMIT_FORM"; data: MxnKycFormData }
+      | { type: "SUBMIT_FORM"; data: AlfredpayKycFormData }
       | { type: "SUBMIT_FILES"; files: MxnKycFiles }
       | { type: "SUBMIT_KYB_FORM"; data: KybFormData }
       | { type: "SUBMIT_KYB_BUSINESS_FILES"; files: KybBusinessFiles }
@@ -375,8 +384,8 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
-            // MXN and CO use API-based form, not iFrame link
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            // MXN, CO, and AR use API-based form, not iFrame link
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -415,11 +424,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -654,11 +664,12 @@ export const alfredpayKycMachine = setup({
         input: ({ context }) => context,
         onDone: [
           {
-            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            guard: ({ context }) =>
+              (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
             target: "FillingKybForm"
           },
           {
-            guard: ({ context }) => context.country === "MX" || context.country === "CO",
+            guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
           },
           {
@@ -722,10 +733,15 @@ export const alfredpayKycMachine = setup({
         },
         onError: {
           actions: assign({
-            error: () =>
-              new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError)
+            error: ({ event }) => {
+              const err = event.error;
+              const msg = err instanceof Error ? err.message : "";
+              return msg
+                ? new AlfredpayKycMachineError(msg, AlfredpayKycMachineErrorType.UnknownError)
+                : new AlfredpayKycMachineError("Failed to upload ID documents", AlfredpayKycMachineErrorType.UnknownError);
+            }
           }),
-          target: "Failure"
+          target: "UploadingDocuments"
         },
         src: "submitFiles"
       }

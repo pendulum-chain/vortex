@@ -24,7 +24,6 @@ export class OffRampFromEvmInitializeAlfredpayEngine extends BaseInitializeEngin
       rampType: req.rampType,
       toNetwork: Networks.Polygon
     };
-
     const bridgeQuote = await getEvmBridgeQuote(quoteRequest);
 
     ctx.evmToEvm = {

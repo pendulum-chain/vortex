@@ -84,6 +84,38 @@ export const FORMS: Record<FiatAccountTypeKey, FieldDef[]> = {
       type: "select"
     }
   ],
+  COELSA: [
+    {
+      field: "accountNumber",
+      label: "components.fiatAccountForms.accountNumber",
+      placeholder: "22-digit CBU/CVU or Alias",
+      required: true,
+      type: "text"
+    },
+    {
+      field: "accountType",
+      label: "components.fiatAccountForms.accountType",
+      options: [
+        { label: "CBU", value: "CBU" },
+        { label: "CVU", value: "CVU" },
+        { label: "Alias", value: "ALIAS" }
+      ],
+      required: true,
+      type: "select"
+    },
+    { field: "accountName", label: "components.fiatAccountForms.accountName", required: true, type: "text" },
+    {
+      defaultValue: "own",
+      field: "isOwnAccount",
+      label: "components.fiatAccountForms.isOwnAccount",
+      options: [
+        { label: "components.fiatAccountForms.options.ownAccount", value: "own" },
+        { label: "components.fiatAccountForms.options.externalAccount", value: "external" }
+      ],
+      required: true,
+      type: "select"
+    }
+  ],
   SPEI: [
     {
       field: "accountNumber",

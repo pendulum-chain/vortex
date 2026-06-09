@@ -67,7 +67,7 @@ import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRamp } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
-const RAMP_START_EXPIRATION_TIME_SECONDS = 480;
+const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -428,6 +428,18 @@ export class RampService extends BaseRampService {
 
       this.validateRampStateData(rampState, quote);
 
+      const rampStateCreationTime = new Date(rampState.createdAt);
+      const currentTime = new Date();
+      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
+
+      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+        this.cancelRamp(rampState.id);
+        throw new APIError({
+          message: "Maximum time window to start process exceeded. Ramp invalidated.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
         throw new APIError({
@@ -442,19 +454,6 @@ export class RampService extends BaseRampService {
         Substrate: rampState.state.substrateEphemeralAddress
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals, rampState.unsignedTxs);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      // We leave 20% of the time window for to reach the stellar creation operation.
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        this.cancelRamp(rampState.id);
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
 
       logger.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
       webhookDeliveryService

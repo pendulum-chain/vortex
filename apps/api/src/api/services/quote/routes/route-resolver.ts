@@ -71,12 +71,12 @@ export class RouteResolver {
       case "wire":
       case "ach":
       case "spei":
+      case "cbu":
         return offrampEvmToAlfredpayStrategy;
       case "sepa":
         return offrampToSepaEvmStrategy;
-      case "cbu":
       default:
-        throw new APIError({ message: "ARS offramp temporarily unavailable", status: httpStatus.BAD_REQUEST });
+        throw new APIError({ message: `Unsupported offramp payment method: ${ctx.to}`, status: httpStatus.BAD_REQUEST });
     }
   }
 }

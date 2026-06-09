@@ -17,6 +17,7 @@ import {
   PriceProvider,
   QuoteError,
   RampDirection,
+  SubmitKycInformationRequest,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
@@ -499,6 +500,34 @@ export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidg
 
   if (!network || !fiat || !inputAmount || !cryptoLocked || !rampType || !externalSessionId) {
     res.status(httpStatus.BAD_REQUEST).json({ error: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  next();
+};
+
+const countryValidators: Record<string, (body: SubmitKycInformationRequest) => string | null> = {
+  AR: ({ phoneNumber, cuit, nationalities, pep }) => {
+    if (!phoneNumber) return "Phone number is required for Argentina";
+    if (!phoneNumber.startsWith("+54")) return "Phone number must use Argentina country code (+54)";
+    if (cuit && !/^\d{11}$/.test(cuit)) return "CUIT must be exactly 11 digits";
+    if (nationalities && !nationalities.every(n => /^[A-Z]{2}$/.test(n))) return "Nationalities must use alpha-2 country codes";
+    if (typeof pep !== "boolean") return "PEP declaration is required for Argentina";
+    return null;
+  }
+};
+
+export const validateKycSubmission: RequestHandler = (req, res, next) => {
+  const body = req.body as SubmitKycInformationRequest;
+  const validator = countryValidators[body.country];
+
+  if (!validator) {
+    return next();
+  }
+
+  const error = validator(body);
+  if (error) {
+    res.status(httpStatus.BAD_REQUEST).json({ error });
     return;
   }
 
