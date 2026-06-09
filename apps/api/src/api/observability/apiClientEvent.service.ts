@@ -101,7 +101,7 @@ export function buildApiClientRequestMetadata(
 ): Record<string, RequestMetadataValue> {
   const metadata: Record<string, RequestMetadataValue> = {
     requestMethod: req.method || null,
-    requestPath: req.path || null
+    requestPath: buildTemplatedRequestPath(req.path, req.params)
   };
 
   addSelectedValues(metadata, "requestBody", req.body, options.bodyKeys);
@@ -134,10 +134,11 @@ function addSelectedValues(
   if (!isPlainObject(values) || !keys || keys.length === 0) return;
 
   for (const key of keys) {
-    if (SENSITIVE_METADATA_KEYS.has(key) || SENSITIVE_METADATA_KEYS.has(key.toLowerCase())) continue;
-
     const value = values[key];
     if (value === undefined) continue;
+
+    const isSensitiveKey = SENSITIVE_METADATA_KEYS.has(key) || SENSITIVE_METADATA_KEYS.has(key.toLowerCase());
+    if (isSensitiveKey && !Array.isArray(value) && !isPlainObject(value)) continue;
 
     const metadataKey = `${prefix}${toPascalCase(key)}`;
     if (Array.isArray(value)) {
@@ -153,6 +154,26 @@ function addSelectedValues(
   }
 }
 
+function buildTemplatedRequestPath(path: string | undefined, params: unknown): string | null {
+  if (!path) return null;
+  if (!isPlainObject(params)) return path;
+
+  const paramEntries = Object.entries(params)
+    .filter(([, value]) => isScalarPathParam(value))
+    .map(([key, value]) => [key, String(value)] as const);
+
+  if (paramEntries.length === 0) return path;
+
+  return path
+    .split("/")
+    .map(segment => {
+      const decodedSegment = decodePathSegment(segment);
+      const matchingParam = paramEntries.find(([, value]) => segment === value || decodedSegment === value);
+      return matchingParam ? `:${matchingParam[0]}` : segment;
+    })
+    .join("/");
+}
+
 function sanitizeRequestMetadataValue(value: unknown): RequestMetadataValue {
   if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
@@ -163,6 +184,18 @@ function sanitizeRequestMetadataValue(value: unknown): RequestMetadataValue {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isScalarPathParam(value: unknown): value is string | number | boolean {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
+
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 function toPascalCase(value: string): string {

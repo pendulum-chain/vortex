@@ -94,12 +94,53 @@ describe("buildApiClientRequestMetadata", () => {
     );
 
     expect(metadata).toEqual({
+      hasRequestBodyAdditionalData: true,
       requestBodyInputAmount: "100",
       requestBodyNetworksCount: 2,
       requestMethod: "POST",
       requestParamId: "ramp-1",
       requestPath: "/v1/quotes/best",
       requestQueryShowUnsignedTxs: "true"
+    });
+  });
+
+  it("templates route param values out of request paths", () => {
+    const metadata = buildApiClientRequestMetadata(
+      {
+        method: "GET",
+        params: { walletAddress: "0xabc123" },
+        path: "/v1/ramp/history/0xabc123"
+      },
+      { paramKeys: [] }
+    );
+
+    expect(metadata).toEqual({
+      requestMethod: "GET",
+      requestPath: "/v1/ramp/history/:walletAddress"
+    });
+  });
+
+  it("records only counts or presence flags for allowlisted sensitive payload fields", () => {
+    const metadata = buildApiClientRequestMetadata(
+      {
+        body: {
+          additionalData: { receiverTaxId: "12345678900" },
+          presignedTxs: ["signed-payload"],
+          signingAccounts: ["wallet-address-1", "wallet-address-2"],
+          taxId: "12345678900"
+        },
+        method: "POST",
+        path: "/v1/ramp/register"
+      },
+      { bodyKeys: ["additionalData", "presignedTxs", "signingAccounts", "taxId"] }
+    );
+
+    expect(metadata).toEqual({
+      hasRequestBodyAdditionalData: true,
+      requestBodyPresignedTxsCount: 1,
+      requestBodySigningAccountsCount: 2,
+      requestMethod: "POST",
+      requestPath: "/v1/ramp/register"
     });
   });
 });
