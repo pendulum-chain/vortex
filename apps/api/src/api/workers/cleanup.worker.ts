@@ -154,11 +154,10 @@ class CleanupWorker {
         where: {
           currentPhase: { [Op.in]: ["complete", "failed", "timedOut"] },
           flowVariant: config.flowVariant,
-          postCompleteState: {
-            cleanup: {
-              [Op.or]: [{ cleanupCompleted: false }, { cleanupCompleted: { [Op.is]: null } }]
-            }
-          }
+          [Op.or]: [
+            { "postCompleteState.cleanup.cleanupCompleted": false },
+            { "postCompleteState.cleanup.cleanupCompleted": null }
+          ]
         }
       });
 

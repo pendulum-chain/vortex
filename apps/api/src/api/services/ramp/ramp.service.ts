@@ -13,6 +13,7 @@ import {
   CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
+  EvmToken,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -1168,15 +1169,33 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmMorphoOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
-      ipAddress: "79.224.167.233",
-      mykoboEmail: additionalData.email,
-      mykoboTransactionId: intent.transaction.id,
-      mykoboTransactionReference: intent.transaction.reference,
-      quote,
-      signingAccounts: normalizedSigningAccounts
-    });
+    let unsignedTxs;
+    let stateMeta;
+    if (quote.outputCurrency === EvmToken.MORPHO_VAULT) {
+      const result = await prepareMykoboToEvmMorphoOnrampTransactions({
+        destinationAddress: additionalData.destinationAddress,
+        ipAddress: "79.224.167.233",
+        mykoboEmail: additionalData.email,
+        mykoboTransactionId: intent.transaction.id,
+        mykoboTransactionReference: intent.transaction.reference,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      });
+      unsignedTxs = result.unsignedTxs;
+      stateMeta = result.stateMeta;
+    } else {
+      const result = await prepareMykoboToEvmOnrampTransactions({
+        destinationAddress: additionalData.destinationAddress,
+        ipAddress: "79.224.167.233",
+        mykoboEmail: additionalData.email,
+        mykoboTransactionId: intent.transaction.id,
+        mykoboTransactionReference: intent.transaction.reference,
+        quote,
+        signingAccounts: normalizedSigningAccounts
+      });
+      unsignedTxs = result.unsignedTxs;
+      stateMeta = result.stateMeta;
+    }
 
     const ibanPaymentData: IbanPaymentData = {
       bic: "",

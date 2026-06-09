@@ -226,6 +226,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Base,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.MORPHO_VAULT]: {
+      assetSymbol: "Morpho Vault",
+      decimals: 6,
+      erc20AddressSourceChain: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", // USDC on Base
+      isNative: false,
+      network: Networks.Base,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.BaseSepolia]: {

@@ -57,7 +57,10 @@ export class OnRampMykoboToEvmFeeEngine extends BaseFeeEngine {
       throw new Error(`OnRampMykoboToEvmFeeEngine: invalid token configuration for ${this.fromToken} on ${swapNetwork}`);
     }
 
-    if (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) {
+    if (
+      (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) ||
+      request.outputCurrency === EvmToken.MORPHO_VAULT
+    ) {
       return {
         anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
         network: { amount: "0", currency: "USD" as RampCurrency }
