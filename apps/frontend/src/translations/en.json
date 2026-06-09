@@ -938,12 +938,13 @@
         "submit": "Submit"
       },
       "info": {
-        "integrationHelp": "Get integration help",
-        "onboardingHelp": "Get onboarding help",
+        "integrationHelp": "Integrate with your platform",
+        "onboardingHelp": "Get onboarding support",
+        "requestCommercials": "Request commercials",
         "requestDemo": "Request a demo",
         "supportLink": "Contact support",
         "technicalQuestions": "Technical issues or product questions?",
-        "title": "Contact sales"
+        "title": "Scale your stablecoin payouts"
       },
       "success": "Thank you! We'll be in touch soon.",
       "title": "Tell us how to help",

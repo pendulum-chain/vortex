@@ -13,7 +13,7 @@ export function ContactInfo() {
       <ul className="mb-8 space-y-3 text-gray-700">
         <li className="flex items-center gap-3">
           <CheckIcon />
-          <span>{t("pages.contact.info.requestDemo")}</span>
+          <span>{t("pages.contact.info.requestCommercials")}</span>
         </li>
         <li className="flex items-center gap-3">
           <CheckIcon />
