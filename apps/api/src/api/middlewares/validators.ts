@@ -23,14 +23,14 @@ import {
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@vortexfi/shared";
-import { RequestHandler, Response } from "express";
+import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 
 interface CreationBody {
@@ -473,17 +473,36 @@ const normalizeAxlUsdcCurrency = (value: unknown): unknown => {
 };
 
 function observeQuoteValidationFailure(
-  req: { requestId?: string; requestStartedAt?: number; userId?: string },
+  req: Request<unknown, unknown, CreateQuoteRequest | CreateBestQuoteRequest>,
   operation: "quote_create" | "quote_create_best"
 ): void {
   observeApiClientEvent({
     durationMs: getRequestDurationMs(req),
     errorType: "validation_error",
     httpStatus: httpStatus.BAD_REQUEST,
+    metadata: buildQuoteValidationRequestMetadata(req, operation),
     operation,
     requestId: req.requestId,
     status: "failure",
     userId: req.userId || null
+  });
+}
+
+function buildQuoteValidationRequestMetadata(
+  req: Request<unknown, unknown, CreateQuoteRequest | CreateBestQuoteRequest>,
+  operation: "quote_create" | "quote_create_best"
+): Record<string, unknown> {
+  return buildApiClientRequestMetadata(req, {
+    bodyKeys: [
+      ...(operation === "quote_create_best" ? ["countryCode", "networks"] : []),
+      "from",
+      "inputAmount",
+      "inputCurrency",
+      "outputCurrency",
+      "partnerId",
+      "rampType",
+      "to"
+    ]
   });
 }
 
