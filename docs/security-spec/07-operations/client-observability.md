@@ -11,9 +11,9 @@ The observed surface includes:
 - Ramp register, update, start, status, and error-log retrieval.
 - Request correlation through `X-Request-ID` / `X-Correlation-ID` and response `X-Request-ID`.
 
-Events are persisted in `api_client_events` and structured logs are emitted through the existing backend logger. The event table is an operational telemetry store, not a source of truth for ramp state. Ramp execution failures remain in `RampState.errorLogs`; client observability events are request-level records used for dashboards, alerting, and incident investigation.
+Events are persisted in `api_client_events` and structured logs are emitted through the existing backend logger. The event table is an operational telemetry store, not a source of truth for ramp state. Ramp execution failures remain in `RampState.errorLogs`; client observability events are request-level records used for alerting and incident investigation.
 
-Internal operators can inspect these events through `GET /v1/admin/api-client-events`, which is protected by the dedicated `Authorization: Bearer <METRICS_DASHBOARD_SECRET>` middleware. The Netlify-deployable dashboard in `apps/dashboard` calls this endpoint; it does not connect directly to the database and does not contain any server-side secrets. `METRICS_DASHBOARD_SECRET` must be different from `ADMIN_SECRET` to reduce blast radius.
+Internal operators can inspect these events through `GET /v1/admin/api-client-events`, which is protected by the dedicated `Authorization: Bearer <METRICS_DASHBOARD_SECRET>` middleware. `METRICS_DASHBOARD_SECRET` must be different from `ADMIN_SECRET` to reduce blast radius.
 
 ## Security Invariants
 
@@ -24,8 +24,8 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 5. **Request correlation MUST be non-secret** — `requestId`, `quoteId`, and `rampId` may be stored for debugging, but they must not be used as high-cardinality metric labels. They are correlation identifiers, not authentication material.
 6. **Partner attribution MUST use safe identifiers** — Events may store `partnerId`, `partnerName`, and short API key prefixes. Full secret keys and raw auth headers are forbidden.
 7. **Operational metrics MUST remain low-cardinality** — Future metric exporters must group by bounded labels such as operation, partner, status, HTTP status, and error type. They must not label by user ID, wallet address, request ID, quote ID, ramp ID, tax ID, PIX key, or free-form request values.
-8. **Event persistence SHOULD have automated retention before production alerting/dashboard rollout** — Raw operational events are useful for investigation but must not be retained indefinitely without aggregation or cleanup. The backend retention worker keeps the current UTC calendar day plus the previous six full UTC calendar days and removes older `api_client_events` rows on startup and daily.
-9. **Dashboard access MUST go through metrics-dashboard-authenticated backend APIs** — Browser dashboards must call protected backend endpoints and must not ship database credentials, Supabase service-role keys, Metabase embed secrets, or other server-only credentials to Netlify/frontend code.
+8. **Event persistence SHOULD have automated retention before production operational use** — Raw operational events are useful for investigation but must not be retained indefinitely without aggregation or cleanup. The backend retention worker keeps the current UTC calendar day plus the previous six full UTC calendar days and removes older `api_client_events` rows on startup and daily.
+9. **Client observability access MUST go through metrics-dashboard-authenticated backend APIs** — Internal consumers must call protected backend endpoints and must not ship database credentials, Supabase service-role keys, Metabase embed secrets, or other server-only credentials to client-side code.
 
 ## Threat Vectors & Mitigations
 
@@ -36,10 +36,10 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 | **PII leakage through metadata** — Client-provided `additionalData` or error messages include tax IDs, PIX keys, or bank details | Do not persist nested metadata objects. Keep metadata scalar-only and sanitized. Avoid passing request bodies to observability helpers. Truncate error messages and prefer stable `errorType` categories. |
 | **Business flow disruption** — Database/logging outage causes quote/ramp requests to fail | Observability writes are fire-and-forget/best-effort and catch their own errors. The request path must proceed exactly as it would without observability. |
 | **Missing correlation during incidents** — Operators cannot connect a partner report to backend logs | Generate or propagate `requestId` for all requests and return it via `X-Request-ID`. Persist request IDs alongside quote/ramp IDs when available. |
-| **High-cardinality metric explosion** — Future dashboard metrics use ramp IDs or user IDs as labels | Keep high-cardinality identifiers in logs/event rows only. Export aggregate metrics using bounded labels. |
+| **High-cardinality metric explosion** — Future observability metrics use ramp IDs or user IDs as labels | Keep high-cardinality identifiers in logs/event rows only. Export aggregate metrics using bounded labels. |
 | **Unbounded telemetry retention** — Raw event rows grow indefinitely | Use the backend retention worker to delete `api_client_events` older than the 7-day UTC calendar retention window. The cleanup runs on startup and daily, uses advisory locking, and deletes in bounded batches. |
-| **Public dashboard exposure** — A static dashboard URL is discovered by outsiders | Require the dedicated backend metrics dashboard bearer token for all event data. Do not rely on obscurity of Netlify URLs. Keep frontend tokens in operator-controlled browser session storage only. |
-| **BI embed secret leak** — A future Metabase embed is generated in browser code | Generate signed embed URLs only from the backend. Do not place Metabase signing secrets in Netlify environment variables exposed to Vite. |
+| **Internal metrics client exposure** — An internal metrics consumer is reachable by outsiders | Require the dedicated backend metrics dashboard bearer token for all event data. Do not rely on obscurity of client URLs. |
+| **BI embed secret leak** — A future Metabase embed is generated in client-side code | Generate signed embed URLs only from the backend. Do not place Metabase signing secrets in publicly exposed environment variables. |
 
 ## Audit Checklist
 
@@ -49,8 +49,7 @@ Internal operators can inspect these events through `GET /v1/admin/api-client-ev
 - [ ] Verify event persistence helpers catch their own errors and cannot throw into controller or middleware responses.
 - [ ] Verify auth, quote, and ramp request instrumentation does not alter existing response bodies or HTTP status codes.
 - [ ] Verify no observability event stores `X-API-Key`, bearer tokens, raw headers, raw request bodies, tax IDs, PIX destinations, QR codes, KYC data, private keys, seeds, ephemeral secrets, or signed transaction payloads.
-- [ ] Verify error messages are truncated and dashboards/alerts use stable `errorType` categories rather than raw messages.
+- [ ] Verify error messages are truncated and alerts/consumers use stable `errorType` categories rather than raw messages.
 - [ ] Verify future metric exporters do not use request ID, quote ID, ramp ID, user ID, wallet address, tax ID, or PIX key as metric labels.
 - [ ] Verify `GET /v1/admin/api-client-events` uses `metricsDashboardAuth` and returns only sanitized event fields.
-- [ ] Verify `apps/dashboard` has no direct database connection and no server-only credentials in Vite-exposed env vars.
 - [ ] Verify the API client events retention worker runs on backend startup and daily, and deletes `api_client_events` older than the 7-day UTC calendar retention window in bounded batches.

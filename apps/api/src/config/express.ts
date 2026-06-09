@@ -37,8 +37,6 @@ app.use(
       config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
       config.env === "development" ? "http://127.0.0.1:5173" : null,
-      config.env === "development" ? "http://localhost:5175" : null,
-      config.env === "development" ? "http://127.0.0.1:5175" : null,
       config.env === "development" ? "http://localhost:6006" : null
     ].filter(Boolean) as string[]
   })
