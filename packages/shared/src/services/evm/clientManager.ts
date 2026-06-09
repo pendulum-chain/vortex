@@ -194,7 +194,9 @@ export class EvmClientManager {
         );
 
         if (!shouldRetry(lastError)) {
-          throw lastError;
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizeRpcErrorMessage(lastError.message)}`, {
+            cause: lastError
+          });
         }
 
         if (attempt < maxRetries) {
