@@ -65,6 +65,9 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         });
       }
       let amount = new Big(output);
+      if (ctx.evmToEvm) {
+        finalOutputDecimals = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, request.to).decimals;
+      }
       if (!ctx.evmToEvm && ctx.alfredpayMint) {
         const usdFees = ctx.fees?.usd;
         const feesToDeduct = usdFees ? new Big(usdFees.vortex).plus(usdFees.partnerMarkup) : new Big(0);
