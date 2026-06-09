@@ -18,10 +18,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../config/logger";
-import {
-  MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION,
-  MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION
-} from "../../../../constants/constants";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
@@ -268,19 +265,21 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const discrepancySubsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const discrepancySubsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const discrepancySubsidyCapUsd = Big(quoteOutputUsd).mul(discrepancySubsidyCapFraction);
         if (Big(discrepancySubsidyUsd).gt(discrepancySubsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapPhaseHandler: Required swap discrepancy subsidy $${discrepancySubsidyUsd} exceeds cap $${discrepancySubsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapPhaseHandler: Required swap discrepancy subsidy $${discrepancySubsidyUsd} exceeds cap $${discrepancySubsidyCapUsd.toFixed(2)} (${discrepancySubsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 
-        const discountSubsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION);
+        const discountSubsidyCapFraction = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
+        const discountSubsidyCapUsd = Big(quoteOutputUsd).mul(discountSubsidyCapFraction);
         if (Big(discountSubsidyUsd).gt(discountSubsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapPhaseHandler: Required discount subsidy $${discountSubsidyUsd} exceeds cap $${discountSubsidyCapUsd.toFixed(2)} (${MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapPhaseHandler: Required discount subsidy $${discountSubsidyUsd} exceeds cap $${discountSubsidyCapUsd.toFixed(2)} (${discountSubsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 
