@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import {beforeEach, describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
 
 const EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
@@ -194,7 +194,7 @@ describe("prepareAveniaToEvmOnrampTransactionsOnBase", () => {
     addOnrampDestinationChainTransactions.mockClear();
   });
 
-  it("uses fixed integer notation for large final destination raw amounts", async () => {
+  it("preserves 18-decimal BSC USDT precision for the final destination raw amount", async () => {
     await prepareAveniaToEvmOnrampTransactionsOnBase({
       destinationAddress: DESTINATION_ADDRESS,
       quote: {
@@ -212,7 +212,7 @@ describe("prepareAveniaToEvmOnrampTransactionsOnBase", () => {
           }
         },
         network: Networks.BSC,
-        outputAmount: "4818.903696",
+        outputAmount: "4817.805726163073314321",
         outputCurrency: EvmToken.USDT,
         to: Networks.BSC
       } as never,
@@ -222,7 +222,7 @@ describe("prepareAveniaToEvmOnrampTransactionsOnBase", () => {
 
     expect(destinationTransferCalls).toContainEqual(
       expect.objectContaining({
-        amountRaw: "4818903696000000000000",
+        amountRaw: "4817805726163073314321",
         destinationNetwork: Networks.BSC
       })
     );
