@@ -169,7 +169,6 @@ export const EUR_ONRAMP_BASE_MORPHO: RampPhase[] = [
   "nablaSwap",
   "distributeFees",
   "subsidizePostSwap",
-  "morphoApprove",
   "morphoDeposit",
   "complete"
 ];

@@ -23,7 +23,7 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   initial: 0,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
-  morphoApprove: 24,
+  morphoApprove: 0,
   morphoDeposit: 30,
   mykoboOnrampDeposit: 5 * 60,
   mykoboPayoutOnBase: 60,

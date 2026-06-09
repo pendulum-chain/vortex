@@ -85,6 +85,5 @@ export interface StateMetadata {
   morphoShareTokenAddress?: string;
   morphoDepositAssetAddress?: string;
   morphoDepositAmountRaw?: string;
-  morphoApproveTxHash?: `0x${string}`;
   morphoDepositTxHash?: `0x${string}`;
 }
