@@ -1,7 +1,8 @@
-import { AssetHubToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { AssetHubToken, FiatToken, OnChainToken, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
+import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { applyAlfredpayLimits, validateAmountLimits } from "../../core/validation-helpers";
 import { BaseFinalizeEngine, FinalizeComputation } from ".";
@@ -17,6 +18,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
     const { request } = ctx;
 
     let finalOutputAmountDecimal: Big;
+    let finalOutputDecimals = 6;
     if (request.to === "assethub") {
       if (request.outputCurrency === AssetHubToken.USDC) {
         const output = ctx.pendulumToAssethubXcm?.outputAmountDecimal;
@@ -46,6 +48,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         });
       }
       finalOutputAmountDecimal = new Big(output);
+      finalOutputDecimals = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, request.to).decimals;
     } else if (
       request.inputCurrency === FiatToken.USD ||
       request.inputCurrency === FiatToken.MXN ||
@@ -62,6 +65,9 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
         });
       }
       let amount = new Big(output);
+      if (ctx.evmToEvm) {
+        finalOutputDecimals = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, request.to).decimals;
+      }
       if (!ctx.evmToEvm && ctx.alfredpayMint) {
         const usdFees = ctx.fees?.usd;
         const feesToDeduct = usdFees ? new Big(usdFees.vortex).plus(usdFees.partnerMarkup) : new Big(0);
@@ -88,7 +94,7 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
 
     return {
       amount: finalOutputAmountDecimal,
-      decimals: 6
+      decimals: finalOutputDecimals
     };
   }
 
