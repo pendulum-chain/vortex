@@ -66,7 +66,7 @@ The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` 
 8. **Dynamic pricing state MUST NOT be externally modifiable** — The `partnerDiscountState` Map is in-memory and module-private. No API endpoint should expose or allow modification of discount state.
 9. **Exchange rates MUST be sourced from authoritative on-chain data** — Swap rates should come from the actual DEX (Nabla) or routing protocol (Squid), not from stale caches or third-party price feeds that could be manipulated.
 10. **Subsidy MUST only be applied when `targetDiscount > 0`** — If a partner has no target discount configured, the subsidy amount is always `0`, regardless of the shortfall.
-11. **Quote output precision MUST match the final settlement token** — For EVM onramps whose final output comes from Squid, the stored `quote.outputAmount` must retain the destination token's precision, not a fixed source-token precision. Downstream transaction builders convert this immutable quote amount back to raw units using destination token decimals.
+11. **Quote output precision MUST match the final settlement token** — For EVM onramps whose final output comes from Squid, the stored `quote.outputAmount` must retain the destination token's precision, not a fixed source-token precision. This includes BRL/EURC Base→EVM routes and routed Alfredpay USD/MXN/COP Polygon→EVM routes. Direct same-chain same-token passthrough keeps the minted/source token's precision.
 
 ## Threat Vectors & Mitigations
 
@@ -98,7 +98,7 @@ The refresh policy is intentionally strict (byte-identical `toAmount` and `fee` 
 - [x] Exchange rates used in quote calculation come from live on-chain sources (Nabla, Squid), not stale caches. **PASS** — verified: rates fetched from Nabla DEX and SquidRouter API at quote time.
 - [x] Quote response does not include internal implementation details (e.g., the `adjustedDifference` or `adjustedTargetDiscount` values). **PASS** — verified: response includes only user-facing fields (amounts, fees, expiry).
 - [x] Quote amounts (input, output, fees) are immutable once stored — no UPDATE endpoint modifies them. **PASS** — no quote mutation endpoints exist.
-- [x] EVM onramp output precision follows destination token decimals where the quote output comes from Squid. **PASS** — BRL/EURC Base→EVM finalization preserves destination token precision before downstream raw transfer construction.
+- [x] EVM onramp output precision follows destination token decimals where the quote output comes from Squid. **PASS** — BRL/EURC Base→EVM and routed Alfredpay USD/MXN/COP Polygon→EVM finalization preserve destination token precision before downstream raw transfer construction. Direct same-chain same-token passthrough remains at minted/source-token precision.
 - [PARTIAL] Authentication is enforced on quote creation (verify which auth mechanisms protect `POST /v1/ramp/quotes`). **PARTIAL** — quote creation is accessible via API key auth or Supabase auth; the endpoint is optional-auth by design (public quotes allowed for some partners).
 - [PARTIAL] Quote ownership is verified at ramp registration — the user/partner creating the ramp must match the quote creator. **PARTIAL** — no strict user-to-quote binding; mitigated by UUID unpredictability and 10-minute expiry.
 - [x] Subsidy is only calculated when `targetDiscount > 0` — partners with no discount get `0` subsidy regardless of shortfall. **PASS** — verified in `calculateSubsidyAmount()`.
