@@ -33,7 +33,8 @@ class ApiClientEventsRetentionWorker {
 
       logger.info("API client events retention worker cycle completed");
     } catch (error) {
-      logger.error("Error during API client events retention worker cycle:", error);
+      const errorDetails = error instanceof Error ? error.stack ?? error.message : String(error);
+      logger.error(`Error during API client events retention worker cycle: ${errorDetails}`);
     }
   }
 }
