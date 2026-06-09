@@ -902,12 +902,13 @@
         "submit": "Enviar"
       },
       "info": {
-        "integrationHelp": "Obter ajuda de integração",
-        "onboardingHelp": "Obter ajuda de onboarding",
+        "integrationHelp": "Integre com sua plataforma",
+        "onboardingHelp": "Receba suporte de onboarding",
+        "requestCommercials": "Solicitar condições comerciais",
         "requestDemo": "Solicitar uma demonstração",
         "supportLink": "Contatar suporte",
         "technicalQuestions": "Problemas técnicos ou dúvidas sobre o produto?",
-        "title": "Fale com vendas"
+        "title": "Escale seus pagamentos em stablecoins"
       },
       "success": "Obrigado! Entraremos em contato em breve.",
       "title": "Conte-nos como podemos ajudar",
