@@ -45,12 +45,12 @@ const router: Router = Router({ mergeParams: true });
 router
   .route("/")
   .post(
+    rejectDuringActiveMaintenance,
     validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
     enforcePartnerAuth(),
-    rejectDuringActiveMaintenance,
     createQuote
   );
 
@@ -107,12 +107,12 @@ router
 router
   .route("/best")
   .post(
+    rejectDuringActiveMaintenance,
     validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),
     apiKeyAuth({ required: false }),
     enforcePartnerAuth(),
-    rejectDuringActiveMaintenance,
     createBestQuote
   );
 

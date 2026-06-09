@@ -33,8 +33,8 @@ const router = Router();
 
 router.post(
   "/register",
-  optionalPartnerOrUserAuth(),
   rejectDuringActiveMaintenance,
+  optionalPartnerOrUserAuth(),
   rampController.registerRamp as unknown as RequestHandler
 );
 
@@ -65,8 +65,8 @@ router.post(
  */
 router.post(
   "/update",
-  optionalPartnerOrUserAuth(),
   rejectDuringActiveMaintenance,
+  optionalPartnerOrUserAuth(),
   rampController.updateRamp as unknown as RequestHandler
 );
 
@@ -96,8 +96,8 @@ router.post(
  */
 router.post(
   "/start",
-  optionalPartnerOrUserAuth(),
   rejectDuringActiveMaintenance,
+  optionalPartnerOrUserAuth(),
   rampController.startRamp as unknown as RequestHandler
 );
 

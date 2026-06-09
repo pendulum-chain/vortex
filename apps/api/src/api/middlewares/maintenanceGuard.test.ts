@@ -11,19 +11,14 @@ const originalGetMaintenanceStatus = maintenanceService.getMaintenanceStatus;
 
 function buildResponse() {
   const headers: Record<string, string> = {};
-  const res: Partial<Response> & { headers: Record<string, string>; sentContentType?: string } = { headers };
+  const res: Partial<Response> & { headers: Record<string, string> } = { headers };
 
   res.setHeader = mock((name: string, value: number | string | readonly string[]) => {
     headers[name] = Array.isArray(value) ? value.join(", ") : String(value);
     return res as Response;
   }) as Response["setHeader"];
 
-  res.type = mock((contentType: string) => {
-    res.sentContentType = contentType;
-    return res as Response;
-  }) as Response["type"];
-
-  return res as Response & { headers: Record<string, string>; sentContentType?: string };
+  return res as Response & { headers: Record<string, string> };
 }
 
 function mockMaintenanceStatus(status: MaintenanceStatus) {
@@ -74,12 +69,14 @@ describe("rejectDuringActiveMaintenance", () => {
     expect(error).toBeInstanceOf(APIError);
     expect(error.status).toBe(503);
     expect(error.message).toContain("scheduled maintenance");
+    expect(error.message).toContain("Database upgrade");
+    expect(error.message).toContain("Scheduled database maintenance");
     expect(error.errors).toEqual([
       {
         detail: "Scheduled database maintenance",
         maintenance_end: end,
         maintenance_start: start,
-        operations: ["create_quote", "ramp_register", "ramp_update", "ramp_start"],
+        operations: ["quote_create", "quote_create_best", "ramp_register", "ramp_update", "ramp_start"],
         retry_after_seconds: expect.any(Number),
         title: "Database upgrade",
         type: "https://api.vortexfinance.co/problems/maintenance-window"
@@ -87,6 +84,5 @@ describe("rejectDuringActiveMaintenance", () => {
     ]);
     expect(res.headers["Retry-After"]).toBe(new Date(end).toUTCString());
     expect(res.headers["Cache-Control"]).toBe("no-store");
-    expect(res.sentContentType).toBe("application/problem+json");
   });
 });

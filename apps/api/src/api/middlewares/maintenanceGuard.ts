@@ -1,10 +1,17 @@
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
+import type { ApiClientOperation } from "../observability/types";
 import { MaintenanceService } from "../services/maintenance.service";
 
 const MAINTENANCE_PROBLEM_TYPE = "https://api.vortexfinance.co/problems/maintenance-window";
-const BLOCKED_OPERATIONS = ["create_quote", "ramp_register", "ramp_update", "ramp_start"];
+const BLOCKED_OPERATIONS: ApiClientOperation[] = [
+  "quote_create",
+  "quote_create_best",
+  "ramp_register",
+  "ramp_update",
+  "ramp_start"
+];
 
 export async function rejectDuringActiveMaintenance(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -20,7 +27,7 @@ export async function rejectDuringActiveMaintenance(_req: Request, res: Response
 
     res.setHeader("Retry-After", maintenanceEnd.toUTCString());
     res.setHeader("Cache-Control", "no-store");
-    res.type("application/problem+json");
+    const message = `Vortex services are temporarily unavailable during scheduled maintenance: ${status.maintenance_details.title} - ${status.maintenance_details.message}`;
 
     next(
       new APIError({
@@ -35,7 +42,7 @@ export async function rejectDuringActiveMaintenance(_req: Request, res: Response
             type: MAINTENANCE_PROBLEM_TYPE
           }
         ],
-        message: "Vortex services are temporarily unavailable during scheduled maintenance",
+        message,
         status: httpStatus.SERVICE_UNAVAILABLE
       })
     );
