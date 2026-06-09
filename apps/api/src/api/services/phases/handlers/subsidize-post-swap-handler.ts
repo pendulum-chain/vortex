@@ -236,11 +236,12 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const percentageCap = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
           );
         }
 

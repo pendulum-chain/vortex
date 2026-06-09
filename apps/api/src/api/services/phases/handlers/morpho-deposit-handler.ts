@@ -89,8 +89,9 @@ export class MorphoDepositHandler extends BasePhaseHandler {
       return this.executeApprove(state, evmClientManager, vaultAddress, depositAssetAddress, ephemeralAddress as `0x${string}`);
     }
 
-    // Phase 2: morphoDeposit — broadcast deposit, verify share tokens
-    return this.executeDeposit(state, evmClientManager, vaultAddress, ephemeralAddress as `0x${string}`);
+    // Phase 2: morphoDeposit — broadcast deposit, verify share tokens minted to destination
+    const destinationAddress = meta.destinationAddress as `0x${string}`;
+    return this.executeDeposit(state, evmClientManager, vaultAddress, destinationAddress);
   }
 
   private async executeApprove(
@@ -167,14 +168,16 @@ export class MorphoDepositHandler extends BasePhaseHandler {
     state: RampState,
     evmClientManager: EvmClientManager,
     vaultAddress: `0x${string}`,
-    ephemeralAddress: `0x${string}`
+    shareReceiver: `0x${string}`
   ): Promise<RampState> {
     const meta = state.state as StateMetadata;
 
     // Recovery: if we already broadcast the deposit, just verify shares
     if (meta.morphoDepositTxHash) {
-      logger.info(`MorphoDepositHandler: Deposit tx already broadcast (${meta.morphoDepositTxHash}), verifying shares`);
-      const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, ephemeralAddress);
+      logger.info(
+        `MorphoDepositHandler: Deposit tx already broadcast (${meta.morphoDepositTxHash}), verifying shares on ${shareReceiver}`
+      );
+      const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, shareReceiver);
       logger.info(`MorphoDepositHandler: Share balance verified: ${shares}`);
       return state;
     }
@@ -197,8 +200,8 @@ export class MorphoDepositHandler extends BasePhaseHandler {
       throw new Error(`MorphoDepositHandler: Deposit transaction ${txHash} failed on chain`);
     }
 
-    const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, ephemeralAddress);
-    logger.info(`MorphoDepositHandler: Deposit successful. Share balance: ${shares}`);
+    const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, shareReceiver);
+    logger.info(`MorphoDepositHandler: Deposit successful. Share balance on ${shareReceiver}: ${shares}`);
 
     return state;
   }

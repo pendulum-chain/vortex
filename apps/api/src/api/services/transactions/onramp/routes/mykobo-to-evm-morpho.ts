@@ -137,7 +137,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
   // Morpho deposit: deposit USDC into the vault
   const depositCallData = encodeFunctionData({
     abi: morphoVaultAbi,
-    args: [BigInt(depositAmountRaw), evmEphemeralEntry.address as `0x${string}`],
+    args: [BigInt(depositAmountRaw), destinationAddress as `0x${string}`],
     functionName: "deposit"
   });
 
