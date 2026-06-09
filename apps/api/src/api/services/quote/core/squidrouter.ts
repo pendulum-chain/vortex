@@ -46,6 +46,7 @@ export interface EvmBridgeQuoteRequest {
 
 export interface EvmBridgeResult {
   finalGrossOutputAmountDecimal: Big; // Final amount after Squidrouter
+  finalGrossOutputAmountRaw: string; // Final amount in destination token raw units
   networkFeeUSD: string; // Squidrouter specific fee
   finalEffectiveExchangeRate?: string;
   outputTokenDecimals: number;
@@ -261,6 +262,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     return {
       finalEffectiveExchangeRate,
       finalGrossOutputAmountDecimal,
+      finalGrossOutputAmountRaw: finalGrossOutputAmount,
       networkFeeUSD,
       outputTokenDecimals
     };
