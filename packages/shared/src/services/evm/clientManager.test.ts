@@ -1,6 +1,6 @@
-import { describe, expect, it } from "bun:test";
-import { Networks } from "../../helpers";
-import { EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage } from "./clientManager";
+import {describe, expect, it} from "bun:test";
+import {Networks} from "../../helpers";
+import {EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
@@ -27,5 +27,40 @@ describe("EvmClientManager RPC cache keys", () => {
     const defaultRpcClient = manager.getClient(Networks.PolygonAmoy, "");
 
     expect(defaultRpcClient).not.toBe(explicitRpcClient);
+  });
+});
+
+describe("EvmClientManager read contract retries", () => {
+  it("does not retry deterministic Nabla coverage-ratio reverts", async () => {
+    const manager = EvmClientManager.getInstance();
+    const managerWithMockedClient = manager as EvmClientManager & { getClient: EvmClientManager["getClient"] };
+    const originalGetClient = managerWithMockedClient.getClient;
+    let attempts = 0;
+
+    managerWithMockedClient.getClient = (() =>
+      ({
+        readContract: async () => {
+          attempts += 1;
+          throw new Error("execution reverted: SP:quoteSwapInto:EXCEEDS_MAX_COVERAGE_RATIO");
+        }
+      }) as unknown as ReturnType<EvmClientManager["getClient"]>) as EvmClientManager["getClient"];
+
+    try {
+      await expect(
+        manager.readContractWithRetry(
+          Networks.Base,
+          {
+            abi: [],
+            address: "0x2A7989993335b31A3133CDA93bc1a095e7b178Ff",
+            functionName: "quoteSwapExactTokensForTokens"
+          },
+          3,
+          0
+        )
+      ).rejects.toThrow("EXCEEDS_MAX_COVERAGE_RATIO");
+      expect(attempts).toBe(1);
+    } finally {
+      managerWithMockedClient.getClient = originalGetClient;
+    }
   });
 });
