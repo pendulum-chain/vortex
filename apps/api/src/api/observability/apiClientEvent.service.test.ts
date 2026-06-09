@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import ApiClientEvent from "../../models/apiClientEvent.model";
-import { recordApiClientEventSafe, sanitizeApiClientEvent } from "./apiClientEvent.service";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  recordApiClientEventSafe,
+  sanitizeApiClientEvent
+} from "./apiClientEvent.service";
 
 describe("sanitizeApiClientEvent", () => {
   it("removes sensitive metadata and replaces raw error messages", () => {
@@ -28,6 +33,27 @@ describe("sanitizeApiClientEvent", () => {
     expect(sanitized.partnerName).toHaveLength(100);
   });
 
+  it("keeps sanitized request summaries while stripping raw request details", () => {
+    const sanitized = sanitizeApiClientEvent({
+      errorType: "validation_error",
+      metadata: {
+        authorization: "Bearer token",
+        requestBodyInputAmount: "100\n200",
+        requestBodyNetworksCount: 2,
+        requestMethod: "POST",
+        rawBody: { inputAmount: "100" }
+      },
+      operation: "quote_create_best",
+      status: "failure"
+    });
+
+    expect(sanitized.metadata).toEqual({
+      requestBodyInputAmount: "100 200",
+      requestBodyNetworksCount: 2,
+      requestMethod: "POST"
+    });
+  });
+
   it("defaults successful events to the none error type", () => {
     const sanitized = sanitizeApiClientEvent({ operation: "quote_get", status: "success" });
 
@@ -46,6 +72,47 @@ describe("sanitizeApiClientEvent", () => {
     expect(sanitized.errorType).toBe("auth_partner_not_found");
     expect(sanitized.errorMessage).toBe("Requested partner was not found.");
     expect(sanitized.errorMessage).not.toContain("123e4567-e89b-12d3-a456-426614174000");
+  });
+});
+
+describe("buildApiClientRequestMetadata", () => {
+  it("builds a scalar request summary from allowlisted request fields", () => {
+    const metadata = buildApiClientRequestMetadata(
+      {
+        body: {
+          additionalData: { taxId: "12345678900" },
+          apiKey: "pk_live_secret",
+          inputAmount: "100",
+          networks: ["Polygon", "Base"]
+        },
+        method: "POST",
+        params: { id: "ramp-1" },
+        path: "/v1/quotes/best",
+        query: { showUnsignedTxs: "true" }
+      },
+      { bodyKeys: ["apiKey", "inputAmount", "networks", "additionalData"], paramKeys: ["id"], queryKeys: ["showUnsignedTxs"] }
+    );
+
+    expect(metadata).toEqual({
+      requestBodyInputAmount: "100",
+      requestBodyNetworksCount: 2,
+      requestMethod: "POST",
+      requestParamId: "ramp-1",
+      requestPath: "/v1/quotes/best",
+      requestQueryShowUnsignedTxs: "true"
+    });
+  });
+});
+
+describe("getSafeApiKeyPrefix", () => {
+  it("keeps enough key-specific characters to identify an API key", () => {
+    expect(getSafeApiKeyPrefix("pk_live_1234567890abcdef")).toBe("pk_live_12345678");
+    expect(getSafeApiKeyPrefix("sk_live_abcdef1234567890", ["sk_"])).toBe("sk_live_abcdef12");
+  });
+
+  it("rejects disallowed key types", () => {
+    expect(getSafeApiKeyPrefix("sk_live_abcdef1234567890", ["pk_"])).toBeNull();
+    expect(getSafeApiKeyPrefix("not-a-key")).toBeNull();
   });
 });
 
