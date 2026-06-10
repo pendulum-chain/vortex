@@ -8,15 +8,16 @@ import type { ApiClientOperation } from "../observability/types";
 import { MaintenanceService } from "../services/maintenance.service";
 
 const MAINTENANCE_PROBLEM_TYPE = "https://api.vortexfinance.co/problems/maintenance-window";
-const BLOCKED_OPERATIONS: ApiClientOperation[] = [
+const BLOCKED_OPERATIONS = [
   "quote_create",
   "quote_create_best",
   "ramp_register",
   "ramp_update",
   "ramp_start"
-];
+] as const satisfies readonly ApiClientOperation[];
+type BlockedMaintenanceOperation = (typeof BLOCKED_OPERATIONS)[number];
 
-export function rejectDuringActiveMaintenance(operation: ApiClientOperation): RequestHandler {
+export function rejectDuringActiveMaintenance(operation: BlockedMaintenanceOperation): RequestHandler {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const status = await MaintenanceService.getInstance().getMaintenanceStatus();
@@ -59,7 +60,7 @@ export function rejectDuringActiveMaintenance(operation: ApiClientOperation): Re
 
 function observeMaintenanceDenial(
   req: Request,
-  operation: ApiClientOperation,
+  operation: BlockedMaintenanceOperation,
   error: APIError,
   maintenanceDetails: {
     end_datetime: string;
