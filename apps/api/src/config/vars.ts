@@ -53,6 +53,22 @@ function readFlowVariant(): FlowVariant {
   return rawFlowVariant as FlowVariant;
 }
 
+function readFractionEnv(name: string, defaultValue: string): number {
+  const rawValue = process.env[name] ?? defaultValue;
+  const trimmedValue = rawValue.trim();
+
+  if (trimmedValue === "") {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  const value = Number(trimmedValue);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  return value;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
@@ -215,10 +231,8 @@ export const config: Config = {
   subscanApiKey: process.env.SUBSCAN_API_KEY,
 
   subsidy: {
-    evmPostSwapDiscountSubsidyQuoteFraction: parseFloat(
-      process.env.MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION || "0.05"
-    ),
-    evmSwapSubsidyQuoteFraction: parseFloat(process.env.MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION || "0.05")
+    evmPostSwapDiscountSubsidyQuoteFraction: readFractionEnv("MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION", "0.05"),
+    evmSwapSubsidyQuoteFraction: readFractionEnv("MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION", "0.05")
   },
   supabase: {
     anonKey: process.env.SUPABASE_ANON_KEY || "",
