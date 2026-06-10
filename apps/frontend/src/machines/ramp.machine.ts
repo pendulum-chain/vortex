@@ -1,5 +1,6 @@
 import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
+import { findKybRegionByCode } from "../constants/kybRegions";
 import { ToastMessage } from "../helpers/notifications";
 import { AuthService } from "../services/auth";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
@@ -173,6 +174,15 @@ export const rampMachine = setup({
           rampSigningPhaseMax: ({ context, event }) => (event.max !== undefined ? event.max : context.rampSigningPhaseMax)
         })
       ]
+    },
+    START_KYB_LINK: {
+      actions: assign({
+        isKybLinkMode: true,
+        isKybRegionLocked: ({ event }) => event.locked,
+        kybFiatToken: ({ event }) => findKybRegionByCode(event.region)?.fiatToken,
+        postAuthTarget: () => "SelectRegion" as const
+      }),
+      target: "#ramp.CheckAuth"
     }
   },
   states: {
@@ -200,6 +210,17 @@ export const rampMachine = setup({
             ],
             guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "QuoteReady",
             target: "QuoteReady"
+          },
+          {
+            actions: [
+              assign({
+                isAuthenticated: true,
+                userEmail: ({ event }) => event.output.tokens?.userEmail,
+                userId: ({ event }) => event.output.tokens?.userId
+              })
+            ],
+            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "SelectRegion",
+            target: "SelectRegion"
           },
           {
             actions: [
@@ -324,6 +345,20 @@ export const rampMachine = setup({
         }
       }
     },
+    // KYB deep-link: Brazil-only step to collect the company CNPJ before entering the Avenia KYB flow.
+    EnterKybTaxId: {
+      on: {
+        // Returns to the selector — but a locked region's SelectRegion.always immediately re-routes back
+        // through KybRouting, so back is intentionally a no-op when ?kybLocked is set.
+        GO_BACK: {
+          target: "SelectRegion"
+        },
+        SUBMIT_KYB_TAX_ID: {
+          actions: assign({ kybTaxId: ({ event }) => event.taxId }),
+          target: "KYC"
+        }
+      }
+    },
     EnterOTP: {
       on: {
         CHANGE_EMAIL: {
@@ -407,6 +442,21 @@ export const rampMachine = setup({
     InitialFetchFailed: {},
     // biome-ignore lint/suspicious/noExplicitAny: child KYC state node is shared across machines and XState cannot infer its event union here.
     KYC: kycStateNode as any,
+    // KYB deep-link: terminal success screen shown after a quote-less KYB completes. RESET_RAMP (global) exits.
+    KybLinkComplete: {},
+    // KYB deep-link: single place that routes a chosen region to its next step. Brazil/Avenia needs a CNPJ
+    // (normally supplied by the quote) collected first; every other region goes straight to the KYC node.
+    KybRouting: {
+      always: [
+        {
+          guard: ({ context }) => context.kybFiatToken === FiatToken.BRL,
+          target: "EnterKybTaxId"
+        },
+        {
+          target: "KYC"
+        }
+      ]
+    },
     KycComplete: {
       invoke: {
         input: ({ context }) => ({ context }),
@@ -671,6 +721,22 @@ export const rampMachine = setup({
         src: "urlCleaner"
       }
     },
+    SelectRegion: {
+      // `?kybLocked=` pins the region: if it resolved to a fiat token, skip the selector and route straight in.
+      always: {
+        guard: ({ context }) => !!context.isKybRegionLocked && !!context.kybFiatToken,
+        target: "KybRouting"
+      },
+      on: {
+        GO_BACK: {
+          target: "EnterEmail"
+        },
+        SELECT_REGION: {
+          actions: assign({ kybFiatToken: ({ event }) => event.fiatToken }),
+          target: "KybRouting"
+        }
+      }
+    },
     StartRamp: {
       invoke: {
         input: ({ context }) => context,
@@ -779,6 +845,27 @@ export const rampMachine = setup({
             ],
             guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
             target: "RegisterRamp"
+          },
+          {
+            actions: [
+              assign({
+                errorMessage: undefined,
+                isAuthenticated: true,
+                postAuthTarget: undefined,
+                userId: ({ event }) => event.output.userId
+              }),
+              ({ event, context }) => {
+                // Store tokens in localStorage for session persistence
+                AuthService.storeTokens({
+                  accessToken: event.output.accessToken,
+                  refreshToken: event.output.refreshToken,
+                  userEmail: context.userEmail,
+                  userId: event.output.userId
+                });
+              }
+            ],
+            guard: ({ context }) => context.postAuthTarget === "SelectRegion",
+            target: "SelectRegion"
           },
           {
             actions: [

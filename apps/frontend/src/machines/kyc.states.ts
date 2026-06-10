@@ -26,6 +26,11 @@ const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
   [FiatToken.COP]: "alfredpayKyc"
 };
 
+// In the normal flow the fiat token comes from the quote (executionInput); in the quote-less
+// KYB deep-link flow it comes from the region the user picked (kybFiatToken).
+const resolveKycFiatToken = (context: RampContext): FiatToken | undefined =>
+  context.executionInput?.fiatToken ?? context.kybFiatToken;
+
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
   submissionId?: string;
@@ -81,7 +86,7 @@ export const kycStateNode = {
       actions: [
         sendTo(
           ({ context }: { context: RampContext }) => {
-            const fiatToken = context.executionInput?.fiatToken;
+            const fiatToken = resolveKycFiatToken(context);
             return fiatToken ? KYC_CHILD_BY_FIAT[fiatToken] : "aveniaKyc";
           },
           { type: "SummaryConfirm" }
@@ -94,10 +99,12 @@ export const kycStateNode = {
       invoke: {
         id: "alfredpayKyc",
         input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
-          const fiatToken = context.executionInput?.fiatToken;
+          const fiatToken = resolveKycFiatToken(context);
           const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
             ...context,
+            // A KYB deep link is business verification by definition; preselect the business customer type.
+            business: context.isKybLinkMode || undefined,
             country
           };
         },
@@ -130,7 +137,8 @@ export const kycStateNode = {
           return {
             ...context,
             kycFormData: context.kycFormData,
-            taxId: context.executionInput?.taxId ?? ""
+            // KYB deep link has no quote; fall back to the CNPJ collected on the deep-link tax-id step.
+            taxId: context.executionInput?.taxId ?? context.kybTaxId ?? ""
           };
         },
         onDone: [
@@ -161,13 +169,17 @@ export const kycStateNode = {
     Deciding: {
       always: [
         {
-          guard: ({ context }: { context: RampContext }) =>
-            !!context.executionInput?.fiatToken && KYC_CHILD_BY_FIAT[context.executionInput.fiatToken] === "alfredpayKyc",
+          guard: ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
+            return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "alfredpayKyc";
+          },
           target: "Alfredpay"
         },
         {
-          guard: ({ context }: { context: RampContext }) =>
-            !!context.executionInput?.fiatToken && KYC_CHILD_BY_FIAT[context.executionInput.fiatToken] === "mykoboKyc",
+          guard: ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
+            return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "mykoboKyc";
+          },
           target: "Mykobo"
         },
         {
@@ -214,9 +226,16 @@ export const kycStateNode = {
       }
     },
     VerificationComplete: {
-      always: {
-        target: "#ramp.KycComplete"
-      }
+      always: [
+        {
+          // KYB deep-link flow has no quote/summary to return to — go straight to the success screen.
+          guard: ({ context }: { context: RampContext }) => !!context.isKybLinkMode,
+          target: "#ramp.KybLinkComplete"
+        },
+        {
+          target: "#ramp.KycComplete"
+        }
+      ]
     }
   }
 };

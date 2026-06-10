@@ -28,18 +28,22 @@ export const createSubaccountActor = fromPromise(
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
-    if (!quoteId) {
+    // The KYB deep link has no quote; the backend treats quoteId as optional, so only require it for the normal flow.
+    if (!quoteId && !input.isKybLinkMode) {
       throw new Error("createSubaccountActor: Missing quoteId in input");
     }
 
     try {
       ({ subAccountId } = await BrlaService.getUser(taxId));
 
-      try {
-        maybeKycAttemptStatus = await fetchKycStatus(taxId, quoteId, input.externalSessionId);
-      } catch (e) {
-        console.log("Debug: could not fetch kyc status", e);
-        // It's fine if this fails, we just won't have the status.
+      // KYB status is tied to a quote; the quote-less KYB deep link has none, so skip this non-fatal lookup.
+      if (quoteId) {
+        try {
+          maybeKycAttemptStatus = await fetchKycStatus(taxId, quoteId, input.externalSessionId);
+        } catch (e) {
+          console.log("Debug: could not fetch kyc status", e);
+          // It's fine if this fails, we just won't have the status.
+        }
       }
 
       if (isCompany) {
