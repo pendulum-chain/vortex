@@ -2,7 +2,17 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import { APIError } from "../errors/api-error";
 import { MaintenanceService } from "../services/maintenance.service";
-import { rejectDuringActiveMaintenance } from "./maintenanceGuard";
+import type { ApiClientEventInput } from "../observability/types";
+
+const observedEvents: ApiClientEventInput[] = [];
+
+mock.module("../observability/apiClientEvent.service", () => ({
+  observeApiClientEvent: mock((event: ApiClientEventInput) => {
+    observedEvents.push(event);
+  })
+}));
+
+const { rejectDuringActiveMaintenance } = await import("./maintenanceGuard");
 
 type MaintenanceStatus = Awaited<ReturnType<MaintenanceService["getMaintenanceStatus"]>>;
 
@@ -27,6 +37,7 @@ function mockMaintenanceStatus(status: MaintenanceStatus) {
 
 describe("rejectDuringActiveMaintenance", () => {
   afterEach(() => {
+    observedEvents.length = 0;
     maintenanceService.getMaintenanceStatus = originalGetMaintenanceStatus;
   });
 
@@ -36,10 +47,11 @@ describe("rejectDuringActiveMaintenance", () => {
     const res = buildResponse();
     const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
 
-    await rejectDuringActiveMaintenance({} as Request, res, next);
+    await rejectDuringActiveMaintenance("quote_create")({} as Request, res, next);
 
     expect(next).toHaveBeenCalledTimes(1);
     expect(next).toHaveBeenCalledWith();
+    expect(observedEvents).toEqual([]);
     expect(res.headers["Retry-After"]).toBeUndefined();
   });
 
@@ -61,7 +73,20 @@ describe("rejectDuringActiveMaintenance", () => {
     const res = buildResponse();
     const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
 
-    await rejectDuringActiveMaintenance({} as Request, res, next);
+    await rejectDuringActiveMaintenance("quote_create")(
+      {
+        body: {
+          apiKey: "pk_live_1234567890abcdef",
+          paymentMethod: "pix",
+          quoteId: "quote-1",
+          rampType: "BUY"
+        },
+        requestId: "request-1",
+        requestStartedAt: Date.now() - 50
+      } as Request,
+      res,
+      next
+    );
 
     expect(next).toHaveBeenCalledTimes(1);
     const error = (next as ReturnType<typeof mock>).mock.calls[0][0] as APIError;
@@ -84,5 +109,23 @@ describe("rejectDuringActiveMaintenance", () => {
     ]);
     expect(res.headers["Retry-After"]).toBe(new Date(end).toUTCString());
     expect(res.headers["Cache-Control"]).toBe("no-store");
+    expect(observedEvents).toEqual([
+      expect.objectContaining({
+        apiKeyPrefix: "pk_live_",
+        errorType: "service_unavailable",
+        httpStatus: 503,
+        metadata: {
+          maintenance_end: end,
+          maintenance_start: start,
+          maintenance_title: "Database upgrade"
+        },
+        operation: "quote_create",
+        paymentMethod: "pix",
+        quoteId: "quote-1",
+        rampType: "BUY",
+        requestId: "request-1",
+        status: "failure"
+      })
+    ]);
   });
 });

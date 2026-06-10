@@ -45,7 +45,7 @@ const router: Router = Router({ mergeParams: true });
 router
   .route("/")
   .post(
-    rejectDuringActiveMaintenance,
+    rejectDuringActiveMaintenance("quote_create"),
     validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
@@ -107,7 +107,7 @@ router
 router
   .route("/best")
   .post(
-    rejectDuringActiveMaintenance,
+    rejectDuringActiveMaintenance("quote_create_best"),
     validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),
