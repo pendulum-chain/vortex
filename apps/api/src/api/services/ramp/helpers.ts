@@ -17,7 +17,7 @@ enum TransactionHashKey {
 
 type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string | undefined;
 
-// Map chain names from AxelarScan to their respective explorer URLs
+// Explorer base URLs used to build transaction links (includes AxelarScan chain slugs and EVM network identifiers)
 const CHAIN_EXPLORERS: Record<string, string> = {
   arbitrum: "https://arbiscan.io/tx",
   avalanche: "https://snowtrace.io/tx",
