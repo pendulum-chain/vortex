@@ -27,6 +27,7 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   mykoboPayoutOnBase: 60,
   nablaApprove: 24,
   nablaSwap: 24,
+  onHoldForComplianceCheck: 0,
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
