@@ -100,5 +100,21 @@ export const PHASE_FLOWS = {
     "distributeFees",
     "destinationTransfer",
     "complete"
+  ] as RampPhase[],
+
+  onramp_eur_morpho: [
+    "initial",
+    "mykoboOnrampDeposit",
+    "fundEphemeral",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "distributeFees",
+    "subsidizePostSwap",
+    "squidRouterSwap",
+    "squidRouterPay",
+    "finalSettlementSubsidy",
+    "morphoDeposit",
+    "complete"
   ] as RampPhase[]
 };

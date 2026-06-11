@@ -65,7 +65,7 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
     // No bridge needed, so skip the Squid route call (which would fail with "same token same chain") and report zero network fee.
     if (
       (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) ||
-      request.outputCurrency === EvmToken.MORPHO_VAULT
+      (request.outputCurrency === EvmToken.MORPHO_VAULT && swapNetwork === toNetwork)
     ) {
       return {
         anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },

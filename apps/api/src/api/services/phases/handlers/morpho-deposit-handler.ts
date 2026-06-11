@@ -28,7 +28,7 @@ const morphoVaultAbi = [
   }
 ] as const;
 
-const MORPHO_NETWORK: EvmNetworks = Networks.Base;
+const MORPHO_NETWORK: EvmNetworks = Networks.Ethereum;
 
 async function pollForShareBalance(
   evmClientManager: EvmClientManager,

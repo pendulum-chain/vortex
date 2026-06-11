@@ -59,7 +59,7 @@ export class OnRampMykoboToEvmFeeEngine extends BaseFeeEngine {
 
     if (
       (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) ||
-      request.outputCurrency === EvmToken.MORPHO_VAULT
+      (request.outputCurrency === EvmToken.MORPHO_VAULT && swapNetwork === toNetwork)
     ) {
       return {
         anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
