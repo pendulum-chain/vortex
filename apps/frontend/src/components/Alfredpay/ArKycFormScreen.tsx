@@ -66,12 +66,18 @@ function PhoneNumberField({ form }: { form: ArForm }) {
   const error = form.formState.errors.phoneNumber;
   return (
     <div className={`flex items-center rounded-lg border ${error ? "border-error" : "border-neutral-300"}`}>
-      <span className="select-none border-neutral-300 border-r px-3 py-2 text-base text-gray-500">+</span>
+      <span aria-hidden="true" className="select-none border-neutral-300 border-r px-3 py-2 text-base text-gray-500">
+        +
+      </span>
       <input
         autoComplete="tel"
         className="input-vortex-primary input-ghost w-full rounded-r-lg p-2 text-base"
         id="ar-phoneNumber"
-        inputMode="tel"
+        inputMode="numeric"
+        onInput={event => {
+          event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "");
+        }}
+        pattern="[0-9]*"
         placeholder="5491112345678"
         type="tel"
         {...form.register("phoneNumber", {
