@@ -108,7 +108,7 @@
     "build:sdk": "bun run --cwd packages/sdk build",
     "build:shared": "bun run --cwd packages/shared build",
     "compile:contracts:relayer": "bun run --cwd contracts/relayer compile",
-    "dev": "concurrently -n 'shared,backend,frontend,dashboard' -c '#ffa500,#007755,#2f6da3,#24c989' 'cd packages/shared && bun run dev' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev' 'cd apps/dashboard && bun dev'",
+    "dev": "bun run --cwd packages/shared dev & bun run --cwd apps/api dev & bun run --cwd apps/frontend dev & wait",
     "dev:backend": "bun run --cwd apps/api dev",
     "dev:contracts:relayer": "bun run --cwd contracts/relayer node",
     "dev:dashboard": "bun run --cwd apps/dashboard dev",
