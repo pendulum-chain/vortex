@@ -1349,6 +1349,7 @@ export interface components {
       | "subsidizePreSwap"
       | "subsidizePostSwap"
       | "brlaTeleport"
+      | "onHoldForComplianceCheck"
       | "brlaPayoutOnMoonbeam"
       | "failed";
     RampProcess: {
