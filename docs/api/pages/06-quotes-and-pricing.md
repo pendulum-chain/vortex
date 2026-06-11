@@ -85,7 +85,7 @@ To restrict the search to a subset of chains (for example when you only support 
 
 ## Quote Error Handling
 
-Expected route-availability failures are returned as `500` responses with a user-facing message. This is not treated as a client validation problem: the route exists, but current pool or route liquidity cannot serve the requested amount. Both `POST /v1/quotes` and `POST /v1/quotes/best` can return:
+Expected route-availability failures are returned as `500` responses with a user-facing message. The HTTP status reflects that the route exists but current pool or route liquidity cannot serve the requested amount. The `type: "BAD_REQUEST"` field is provider-style compatibility metadata, not the HTTP status; clients should treat this as a user-correctable liquidity failure and ask the user to try a smaller amount. Both `POST /v1/quotes` and `POST /v1/quotes/best` can return:
 
 ```json
 {
