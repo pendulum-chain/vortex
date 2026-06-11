@@ -45,8 +45,7 @@ describe("error middleware", () => {
       new APIError({
         isPublic: true,
         message: "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
-        status: httpStatus.INTERNAL_SERVER_ERROR,
-        type: "BAD_REQUEST"
+        status: httpStatus.INTERNAL_SERVER_ERROR
       }),
       undefined as never,
       response as never,
@@ -56,9 +55,7 @@ describe("error middleware", () => {
     expect(response.statusCode).toBe(httpStatus.INTERNAL_SERVER_ERROR);
     expect(response.body).toMatchObject({
       code: httpStatus.INTERNAL_SERVER_ERROR,
-      message: "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
-      statusCode: httpStatus.INTERNAL_SERVER_ERROR,
-      type: "BAD_REQUEST"
+      message: "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
     });
   });
 });

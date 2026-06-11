@@ -20,7 +20,6 @@ export function createLowLiquidityQuoteError(): APIError {
   return new APIError({
     isPublic: true,
     message: QuoteError.LowLiquidity,
-    status: httpStatus.INTERNAL_SERVER_ERROR,
-    type: "BAD_REQUEST"
+    status: httpStatus.INTERNAL_SERVER_ERROR
   });
 }

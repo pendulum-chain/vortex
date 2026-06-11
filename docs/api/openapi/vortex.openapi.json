@@ -2006,9 +2006,7 @@
                     "summary": "Low-liquidity route failure",
                     "value": {
                       "code": 500,
-                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
-                      "statusCode": 500,
-                      "type": "BAD_REQUEST"
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
                     }
                   }
                 },
@@ -2238,9 +2236,7 @@
                     "summary": "Low-liquidity route failure",
                     "value": {
                       "code": 500,
-                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
-                      "statusCode": 500,
-                      "type": "BAD_REQUEST"
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
                     }
                   }
                 },
