@@ -362,8 +362,20 @@
       },
       "ErrorResponse": {
         "properties": {
+          "code": {
+            "description": "HTTP status code returned by the API error handler.",
+            "type": "integer"
+          },
           "message": {
             "description": "A human-readable error message.",
+            "type": "string"
+          },
+          "statusCode": {
+            "description": "HTTP status code included by selected provider-style error responses.",
+            "type": "integer"
+          },
+          "type": {
+            "description": "Provider-style error category, when available.",
             "type": "string"
           }
         },
@@ -1958,32 +1970,44 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
-                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                      "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   }
                 },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
-                "example": {
-                  "message": "An unexpected error occurred."
+                "examples": {
+                  "internal": {
+                    "summary": "Unexpected internal failure",
+                    "value": {
+                      "message": "An unexpected error occurred."
+                    }
+                  },
+                  "lowLiquidity": {
+                    "summary": "Low-liquidity route failure",
+                    "value": {
+                      "code": 500,
+                      "message": "Low liquidity for this route. Please try a smaller amount.",
+                      "statusCode": 500,
+                      "type": "BAD_REQUEST"
+                    }
+                  }
                 },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Internal Server Error.",
+            "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked.",
             "headers": {}
           }
         },
@@ -2077,7 +2101,7 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
-                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                      "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   },
                   "4": {
@@ -2189,24 +2213,33 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
+                "examples": {
+                  "lowLiquidity": {
+                    "summary": "Low-liquidity route failure",
+                    "value": {
+                      "code": 500,
+                      "message": "Low liquidity for this route. Please try a smaller amount.",
+                      "statusCode": 500,
+                      "type": "BAD_REQUEST"
+                    }
+                  }
+                },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Internal Server Error.",
+            "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked.",
             "headers": {}
           }
         },

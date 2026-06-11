@@ -1,7 +1,7 @@
-import { describe, expect, it } from "bun:test";
+import {describe, expect, it} from "bun:test";
 import httpStatus from "http-status";
-import { APIError } from "../errors/api-error";
-import { classifyApiClientError } from "./errorClassifier";
+import {APIError} from "../errors/api-error";
+import {classifyApiClientError} from "./errorClassifier";
 
 describe("classifyApiClientError", () => {
   it("classifies common quote and ramp errors", () => {
@@ -14,6 +14,11 @@ describe("classifyApiClientError", () => {
     expect(classifyApiClientError(new APIError({ message: "No presigned transactions found", status: httpStatus.BAD_REQUEST }))).toBe(
       "missing_presigned_transactions"
     );
+    expect(
+      classifyApiClientError(
+        new APIError({ message: "Low liquidity for this route. Please try a smaller amount.", status: httpStatus.INTERNAL_SERVER_ERROR })
+      )
+    ).toBe("provider_error");
   });
 
   it("classifies auth and ownership failures", () => {
