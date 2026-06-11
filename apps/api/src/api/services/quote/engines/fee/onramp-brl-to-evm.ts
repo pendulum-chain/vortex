@@ -63,7 +63,10 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
 
     // Same-chain same-token: Nabla swap output already matches the destination token (e.g. BRL → Base USDC).
     // No bridge needed, so skip the Squid route call (which would fail with "same token same chain") and report zero network fee.
-    if (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) {
+    if (
+      (swapNetwork === toNetwork && fromTokenDetails.erc20AddressSourceChain.toLowerCase() === toToken.toLowerCase()) ||
+      (request.outputCurrency === EvmToken.MORPHO_VAULT && swapNetwork === toNetwork)
+    ) {
       return {
         anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
         network: { amount: "0", currency: "USD" as RampCurrency }

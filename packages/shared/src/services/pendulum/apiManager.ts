@@ -18,7 +18,7 @@ const NETWORKS: NetworkConfig[] = [
   },
   {
     name: "hydration",
-    wsUrls: ["wss://hydration.ibp.network"]
+    wsUrls: ["wss://hydration.dotters.network"]
   },
   {
     name: "moonbeam",

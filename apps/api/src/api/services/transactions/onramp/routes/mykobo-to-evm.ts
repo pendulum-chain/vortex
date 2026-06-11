@@ -18,6 +18,11 @@ import { isAddress } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import {
+  EUR_ONRAMP_BASE_CROSS_CHAIN,
+  EUR_ONRAMP_BASE_DIRECT,
+  EUR_ONRAMP_BASE_SAME_CHAIN
+} from "../../../phases/ramp-flow-definitions";
 import { isEurToEurcBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -105,7 +110,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
       txData: finalDestinationTransfer
     });
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: EUR_ONRAMP_BASE_DIRECT }, unsignedTxs };
   }
 
   const nablaSwapOutputTokenAddress = evmTokenConfig[Networks.Base][EvmToken.USDC]?.erc20AddressSourceChain;
@@ -180,7 +185,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
       txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
     });
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: EUR_ONRAMP_BASE_SAME_CHAIN }, unsignedTxs };
   }
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
@@ -263,6 +268,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
 
     stateMeta = {
       ...stateMeta,
+      phaseFlow: EUR_ONRAMP_BASE_SAME_CHAIN,
       squidRouterQuoteId,
       squidRouterReceiverHash,
       squidRouterReceiverId
@@ -395,6 +401,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
 
   stateMeta = {
     ...stateMeta,
+    phaseFlow: EUR_ONRAMP_BASE_CROSS_CHAIN,
     squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId

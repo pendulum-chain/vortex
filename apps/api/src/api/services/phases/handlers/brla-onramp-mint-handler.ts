@@ -93,7 +93,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       logger.info(
         `BrlaOnrampMintHandler: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
-      return this.transitionToNextPhase(state, "fundEphemeral");
+      return state;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
@@ -218,7 +218,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         : new Error(`Error checking Base balance: ${error}`);
     }
 
-    return this.transitionToNextPhase(state, "fundEphemeral");
+    return state;
   }
 
   private async ephemeralAlreadyFunded(

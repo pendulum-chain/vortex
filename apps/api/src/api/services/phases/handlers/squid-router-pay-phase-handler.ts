@@ -100,11 +100,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Enter check status loop
       await this.checkStatus(state, bridgeCallHash, quote);
 
-      if (state.to === Networks.AssetHub) {
-        return this.transitionToNextPhase(state, "moonbeamToPendulum");
-      } else {
-        return this.transitionToNextPhase(state, "finalSettlementSubsidy");
-      }
+      return state;
     } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
       throw error;
@@ -236,10 +232,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
             payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
+            const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+            const fromChain = bridgeMeta?.fromNetwork as Networks;
+
             let subsidyToken: SubsidyToken;
             let payerAccount: `0x${string}` | undefined;
 
-            if (quote.inputCurrency === FiatToken.BRL) {
+            if (fromChain === Networks.Base || (!fromChain && quote.inputCurrency === FiatToken.BRL)) {
               subsidyToken = SubsidyToken.ETH;
               payerAccount = this.baseWalletClient.account?.address as `0x${string}` | undefined;
             } else {
@@ -286,10 +285,18 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     state: RampState,
     quote: QuoteTicket
   ): Promise<Hash> {
-    if (quote.inputCurrency === FiatToken.BRL) {
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    const fromChain = bridgeMeta?.fromNetwork as Networks;
+    if (fromChain === Networks.Base) {
       return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
-    } else {
+    } else if (fromChain === Networks.Polygon) {
       return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
+    } else {
+      if (quote.inputCurrency === FiatToken.BRL) {
+        return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
+      } else {
+        return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
+      }
     }
   }
 
@@ -383,13 +390,15 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
   private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
+      const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
       // Always Polygon for Monerium/Alfredpay onramp, Base for BRL
       const fromChain =
-        quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)
+        (bridgeMeta?.fromNetwork as Networks) ||
+        (quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)
           ? Networks.Polygon
           : quote.inputCurrency === FiatToken.BRL
             ? Networks.Base
-            : Networks.Moonbeam;
+            : Networks.Moonbeam);
       const fromChainId = getNetworkId(fromChain)?.toString();
       const toChain = quote.to === Networks.AssetHub ? Networks.Moonbeam : quote.to;
       const toChainId = getNetworkId(toChain)?.toString();

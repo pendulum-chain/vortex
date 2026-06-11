@@ -41,6 +41,7 @@ import erc20ABI from "../../../../../contracts/ERC20";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { ALFREDPAY_OFFRAMP } from "../../../phases/ramp-flow-definitions";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -322,6 +323,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
         isDirectTransfer: true,
+        phaseFlow: ALFREDPAY_OFFRAMP,
         walletAddress: userAddress
       };
     } else {
@@ -412,6 +414,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
         alfredpayUserId: customer.alfredPayId,
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
+        phaseFlow: ALFREDPAY_OFFRAMP,
         squidRouterPermitExecutionValue: bridgeResult.swapData.value,
         walletAddress: userAddress
       };
@@ -447,6 +450,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       fiatAccountId,
       isDirectTransfer: true,
       isNoPermitFallback: true,
+      phaseFlow: ALFREDPAY_OFFRAMP,
       walletAddress: userAddress
     };
   } else {
@@ -488,6 +492,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
       isNoPermitFallback: true,
+      phaseFlow: ALFREDPAY_OFFRAMP,
       squidRouterPermitExecutionValue: bridgeResult.swapData.value,
       walletAddress: userAddress
     };

@@ -36,6 +36,24 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Ethereum,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.AXLUSDC]: {
+      assetSymbol: "USDC.axl",
+      decimals: 6,
+      erc20AddressSourceChain: "0x1B81D678ffb9C0263b24A97847620C99d213eB14",
+      isNative: false,
+      network: Networks.Ethereum,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
+    },
+    [EvmToken.MORPHO_VAULT]: {
+      assetSymbol: "Morpho Vault",
+      decimals: 6,
+      erc20AddressSourceChain: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
+      isNative: false,
+      network: Networks.Ethereum,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.Polygon]: {

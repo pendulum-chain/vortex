@@ -1,4 +1,4 @@
-import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData } from "@vortexfi/shared";
+import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, RampPhase } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -80,4 +80,13 @@ export interface StateMetadata {
   mykoboReceivablesAddress?: string;
   mykoboPayoutTxHash?: `0x${string}`;
   mykoboTransactionReference?: string;
+  // Explicit phase flow for this ramp (set at registration by route builder).
+  // When present, the PhaseProcessor follows this sequence instead of handler-driven routing.
+  phaseFlow?: RampPhase[];
+  // Morpho vault deposit
+  morphoVaultAddress?: string;
+  morphoShareTokenAddress?: string;
+  morphoDepositAssetAddress?: string;
+  morphoDepositAmountRaw?: string;
+  morphoDepositTxHash?: `0x${string}`;
 }

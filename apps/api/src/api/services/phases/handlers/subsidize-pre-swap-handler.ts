@@ -75,7 +75,6 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         inputToken: ALFREDPAY_EVM_TOKEN,
         inputTokenDetails,
         logLabel: "Alfredpay",
-        nextPhase: "squidRouterSwap" as RampPhase,
         subsidyToken: ALFREDPAY_EVM_TOKEN as unknown as SubsidyToken,
         tokenContract: ALFREDPAY_ERC20_TOKEN
       };
@@ -99,7 +98,6 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       inputToken,
       inputTokenDetails,
       logLabel: "EVM",
-      nextPhase: "nablaApprove" as RampPhase,
       subsidyToken: quote.metadata.nablaSwapEvm.inputCurrency as unknown as SubsidyToken,
       tokenContract: inputTokenDetails.erc20AddressSourceChain as `0x${string}`
     };
@@ -185,7 +183,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         await waitUntilTrueWithTimeout(didBalanceReachExpected, 5000);
       }
 
-      return this.transitionToNextPhase(state, "nablaApprove");
+      return state;
     } catch (e) {
       logger.error("Error in subsidizePreSwap (substrate):", e);
       throw this.createRecoverableError("SubsidizePreSwapPhaseHandler: Failed to subsidize pre swap.");
@@ -205,7 +203,6 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         inputToken,
         inputTokenDetails,
         logLabel,
-        nextPhase,
         expectedInputAmountForSwapRaw,
         subsidyToken,
         tokenContract
@@ -243,11 +240,12 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const percentageCap = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
           );
         }
 
@@ -292,7 +290,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
         }
       }
 
-      return this.transitionToNextPhase(state, nextPhase);
+      return state;
     } catch (e) {
       logger.error("Error in subsidizePreSwap (EVM):", e);
       if (e instanceof PhaseError) {

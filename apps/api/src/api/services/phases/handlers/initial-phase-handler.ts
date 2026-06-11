@@ -1,4 +1,4 @@
-import { FiatToken, isAlfredpayToken, RampDirection, RampPhase } from "@vortexfi/shared";
+import { RampPhase } from "@vortexfi/shared";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -6,7 +6,9 @@ import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
- * Handler for the initial phase
+ * Handler for the initial phase.
+ * Routing is handled by the PhaseProcessor via phaseFlow.
+ * This handler only performs setup and sandbox short-circuiting.
  */
 export class InitialPhaseHandler extends BasePhaseHandler {
   /**
@@ -34,17 +36,7 @@ export class InitialPhaseHandler extends BasePhaseHandler {
       return this.transitionToNextPhase(state, "complete");
     }
 
-    if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.BRL) {
-      return this.transitionToNextPhase(state, "brlaOnrampMint");
-    } else if (state.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
-      return this.transitionToNextPhase(state, "mykoboOnrampDeposit");
-    } else if (state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-      return this.transitionToNextPhase(state, "alfredpayOnrampMint");
-    } else if (state.type === RampDirection.SELL && isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-      return this.transitionToNextPhase(state, "squidRouterPermitExecute");
-    }
-
-    return this.transitionToNextPhase(state, "fundEphemeral");
+    return state;
   }
 }
 

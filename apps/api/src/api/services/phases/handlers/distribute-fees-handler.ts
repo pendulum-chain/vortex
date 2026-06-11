@@ -72,9 +72,6 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Quote ticket not found for ID: ${state.quoteId}`);
     }
 
-    // Determine next phase
-    const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
-
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
 
@@ -92,7 +89,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
         if (status === ExtrinsicStatus.Success) {
           logger.info(`Existing distribute fee EVM transaction was successful for ramp ${state.id}`);
-          return this.transitionToNextPhase(state, nextPhase);
+          return state;
         } else {
           logger.info(`Existing distribute fee EVM transaction was not successful (status: ${status}), will retry`);
         }
@@ -103,7 +100,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
 
         if (status === ExtrinsicStatus.Success) {
           logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
-          return this.transitionToNextPhase(state, nextPhase);
+          return state;
         } else {
           logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
         }
@@ -115,7 +112,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const distributeFeeTransaction = this.getPresignedTransaction(state, "distributeFees");
       if (distributeFeeTransaction === undefined) {
         logger.info("No fee distribution transaction data found. Skipping fee distribution.");
-        return this.transitionToNextPhase(state, nextPhase);
+        return state;
       }
 
       // The funding token (USDC) may not yet be on the ephemeral when we reach this phase
@@ -157,7 +154,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       }
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
-      return this.transitionToNextPhase(updatedState, nextPhase);
+      return state;
     } catch (e: unknown) {
       logger.error(`Error distributing fees for ramp ${state.id}:`, e);
 
