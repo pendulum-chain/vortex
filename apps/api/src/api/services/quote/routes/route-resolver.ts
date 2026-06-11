@@ -23,7 +23,12 @@ import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-as
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
-const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
+const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([
+  EPaymentMethod.ACH,
+  EPaymentMethod.CBU,
+  EPaymentMethod.SPEI,
+  EPaymentMethod.WIRE
+]);
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
