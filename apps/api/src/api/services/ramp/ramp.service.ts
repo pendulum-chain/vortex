@@ -538,8 +538,9 @@ export class RampService extends BaseRampService {
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
     // Never return 'failed' as current phase, instead return last known phase
-    const currentPhase =
-      rampState.currentPhase !== "failed"
+    const currentPhase: RampPhase = rampState.state.onHold
+      ? "onHoldForComplianceCheck"
+      : rampState.currentPhase !== "failed"
         ? rampState.currentPhase
         : // Find second-last entry in phase history or show 'initial' if not available
           rampState.phaseHistory && rampState.phaseHistory.length > 1
