@@ -24,6 +24,7 @@ import TaxId from "../../../../models/taxId.model";
 import { APIError } from "../../../errors/api-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+import { syncAveniaOnHoldState } from "./brla-onramp-hold";
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
 // case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
@@ -103,6 +104,24 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         async () => {
           if (!quote.metadata.aveniaMint) {
             return false;
+          }
+
+          const ticketFound = await syncAveniaOnHoldState(
+            state.state,
+            updatedState =>
+              state.update({
+                state: {
+                  ...state.state,
+                  ...updatedState
+                }
+              }),
+            brlaApiService,
+            taxIdRecord.subAccountId
+          );
+          if (!ticketFound) {
+            logger.warn(
+              `BrlaOnrampMintHandler: Avenia ticket ${state.state.aveniaTicketId} was not found while checking hold status.`
+            );
           }
 
           // Check internal balance of Avenia subaccount
