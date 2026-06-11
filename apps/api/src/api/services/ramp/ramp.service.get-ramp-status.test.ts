@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { EPaymentMethod, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import { EPaymentMethod, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -46,16 +46,16 @@ class TestRampService extends RampService {
   }
 }
 
-function makeRampState(onHold: boolean) {
+function makeRampState(onHold: boolean, currentPhase: RampPhase = "brlaOnrampMint") {
   return RampState.build({
     createdAt,
-    currentPhase: "brlaOnrampMint",
+    currentPhase,
     errorLogs: [],
     flowVariant: "monerium",
     from: EPaymentMethod.PIX,
     id: "ramp-1",
     paymentMethod: EPaymentMethod.PIX,
-    phaseHistory: [{ phase: "brlaOnrampMint", timestamp: createdAt }],
+    phaseHistory: [{ phase: currentPhase, timestamp: createdAt }],
     postCompleteState: {
       cleanup: {
         cleanupAt: null,
@@ -152,5 +152,13 @@ describe("RampService.getRampStatus", () => {
     const status = await service.getRampStatus("ramp-1");
 
     expect(status?.currentPhase).toBe("brlaOnrampMint");
+  });
+
+  it("does not mask later phases if a stale on-hold flag remains", async () => {
+    const service = new TestRampService(makeRampState(true, "fundEphemeral"));
+
+    const status = await service.getRampStatus("ramp-1");
+
+    expect(status?.currentPhase).toBe("fundEphemeral");
   });
 });

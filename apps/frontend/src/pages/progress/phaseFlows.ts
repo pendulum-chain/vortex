@@ -71,6 +71,7 @@ export const PHASE_FLOWS = {
   onramp_brl: [
     "initial",
     "brlaOnrampMint",
+    "onHoldForComplianceCheck",
     "fundEphemeral",
     "subsidizePreSwap",
     "nablaApprove",
