@@ -1,8 +1,8 @@
 import type {
   CreateQuoteRequest,
+  GetRampStatusResponse,
   QuoteResponse,
   RampDirection,
-  RampProcess,
   RegisterRampRequest,
   RegisterRampResponse,
   StartRampRequest,
@@ -77,14 +77,14 @@ export class ApiService {
     return handleAPIResponse<StartRampResponse>(response, "/v1/ramp/start");
   }
 
-  async getRampStatus(rampId: string): Promise<RampProcess> {
+  async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     const url = new URL(`${this.apiBaseUrl}/v1/ramp/${rampId}`);
     const response = await fetch(url.toString(), {
       headers: this.buildHeaders(),
       method: "GET"
     });
 
-    return handleAPIResponse<RampProcess>(response, `/v1/ramp/status?id=${rampId}`);
+    return handleAPIResponse<GetRampStatusResponse>(response, `/v1/ramp/status?id=${rampId}`);
   }
 
   async getBrlKycStatus(taxId: string): Promise<BrlKycResponse> {

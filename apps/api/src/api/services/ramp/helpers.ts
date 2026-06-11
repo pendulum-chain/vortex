@@ -1,3 +1,4 @@
+import { RampDirection } from "@vortexfi/shared";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -7,22 +8,37 @@ import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 enum TransactionHashKey {
   HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
   PendulumToAssethubXcmHash = "pendulumToAssethubXcmHash",
-  SquidRouterSwapHash = "squidRouterSwapHash"
+  SquidRouterSwapHash = "squidRouterSwapHash",
+  DestinationTransferTxHash = "destinationTransferTxHash",
+  BrlaPayoutTxHash = "brlaPayoutTxHash",
+  MykoboPayoutTxHash = "mykoboPayoutTxHash",
+  AlfredpayOfframpTransferTxHash = "alfredpayOfframpTransferTxHash"
 }
 
-type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string;
+type ExplorerLinkBuilder = (hash: string, rampState: RampState, quote: QuoteTicket) => string | undefined;
 
-// Map chain names from AxelarScan to their respective explorer URLs
+// Explorer base URLs used to build transaction links (includes AxelarScan chain slugs and EVM network identifiers)
 const CHAIN_EXPLORERS: Record<string, string> = {
   arbitrum: "https://arbiscan.io/tx",
   avalanche: "https://snowtrace.io/tx",
   base: "https://basescan.org/tx",
+  "base-sepolia": "https://sepolia.basescan.org/tx",
   binance: "https://bscscan.com/tx",
   bsc: "https://bscscan.com/tx",
   ethereum: "https://etherscan.io/tx",
   moonbeam: "https://moonscan.io/tx",
-  polygon: "https://polygonscan.com/tx"
+  polygon: "https://polygonscan.com/tx",
+  polygonAmoy: "https://amoy.polygonscan.com/tx"
 };
+
+function buildEvmExplorerLink(hash: string, network: string | undefined): string | undefined {
+  if (!network) {
+    return undefined;
+  }
+
+  const explorerBaseUrl = CHAIN_EXPLORERS[network];
+  return explorerBaseUrl ? `${explorerBaseUrl}/${hash}` : undefined;
+}
 
 async function getAxelarScanExecutionLink(hash: string): Promise<{ explorerLink: string; executionHash: string }> {
   const url = "https://api.axelarscan.io/gmp/searchGMP";
@@ -87,13 +103,33 @@ const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = 
 
   [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
 
-  [TransactionHashKey.SquidRouterSwapHash]: hash => `https://axelarscan.io/gmp/${hash}`
+  [TransactionHashKey.SquidRouterSwapHash]: hash => `https://axelarscan.io/gmp/${hash}`,
+
+  [TransactionHashKey.DestinationTransferTxHash]: (hash, _rampState, quote) => buildEvmExplorerLink(hash, quote.network),
+
+  [TransactionHashKey.BrlaPayoutTxHash]: hash => `${CHAIN_EXPLORERS.base}/${hash}`,
+
+  [TransactionHashKey.MykoboPayoutTxHash]: hash => `${CHAIN_EXPLORERS.base}/${hash}`,
+
+  [TransactionHashKey.AlfredpayOfframpTransferTxHash]: hash => `${CHAIN_EXPLORERS.base}/${hash}`
 };
 
 const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
   TransactionHashKey.HydrationToAssethubXcmHash,
   TransactionHashKey.PendulumToAssethubXcmHash,
   TransactionHashKey.SquidRouterSwapHash
+] as const;
+
+const BUY_TRANSACTION_HASH_V2_PRIORITY: readonly TransactionHashKey[] = [
+  TransactionHashKey.HydrationToAssethubXcmHash,
+  TransactionHashKey.PendulumToAssethubXcmHash,
+  TransactionHashKey.DestinationTransferTxHash
+] as const;
+
+const SELL_TRANSACTION_HASH_V2_PRIORITY: readonly TransactionHashKey[] = [
+  TransactionHashKey.BrlaPayoutTxHash,
+  TransactionHashKey.MykoboPayoutTxHash,
+  TransactionHashKey.AlfredpayOfframpTransferTxHash
 ] as const;
 
 /// Generate a sandbox transaction hash for testing purposes. It's derived from the id of the ramp state to ensure uniqueness.
@@ -148,6 +184,38 @@ export async function getFinalTransactionHashForRamp(
       }
 
       // For other hash types, use them directly
+      return {
+        transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
+        transactionHash: hash
+      };
+    }
+  }
+
+  return { transactionExplorerLink: undefined, transactionHash: undefined };
+}
+
+export function getFinalTransactionHashForRampV2(
+  rampState: RampState,
+  quote: QuoteTicket
+): { transactionExplorerLink: string | undefined; transactionHash: string | undefined } {
+  if (rampState.currentPhase !== "complete") {
+    return { transactionExplorerLink: undefined, transactionHash: undefined };
+  }
+
+  if (config.sandboxEnabled) {
+    const sandboxHash = deriveSandboxTransactionHash(rampState);
+    return {
+      transactionExplorerLink: `https://sandbox-explorer.example.com/tx/${sandboxHash}`,
+      transactionHash: sandboxHash
+    };
+  }
+
+  const priority = rampState.type === RampDirection.BUY ? BUY_TRANSACTION_HASH_V2_PRIORITY : SELL_TRANSACTION_HASH_V2_PRIORITY;
+
+  for (const hashKey of priority) {
+    const hash = rampState.state[hashKey];
+
+    if (hash) {
       return {
         transactionExplorerLink: EXPLORER_LINK_BUILDERS[hashKey](hash, rampState, quote),
         transactionHash: hash

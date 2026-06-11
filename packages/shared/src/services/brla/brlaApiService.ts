@@ -395,7 +395,9 @@ export class BrlaApiService {
     const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined);
 
     if ("tickets" in aveniaTicketsQueryResponse) {
-      return aveniaTicketsQueryResponse.tickets.filter((ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket);
+      return aveniaTicketsQueryResponse.tickets.filter(
+        (ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket || "brazilianFiatSenderInfo" in ticket
+      );
     }
     throw new Error("Invalid response from Avenia API for getAveniaPayinTickets");
   }

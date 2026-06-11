@@ -883,6 +883,7 @@
           "subsidizePreSwap",
           "subsidizePostSwap",
           "brlaTeleport",
+          "onHoldForComplianceCheck",
           "brlaPayoutOnMoonbeam",
           "failed"
         ],

@@ -29,7 +29,7 @@ interface NetworkProviderProps {
 
 export const NetworkProvider = ({ children }: NetworkProviderProps) => {
   const { state: selectedNetworkLocalStorageState, set: setSelectedNetworkLocalStorage } = useLocalStorage<Networks>({
-    defaultValue: Networks.Polygon,
+    defaultValue: Networks.Base,
     key: LocalStorageKeys.SELECTED_NETWORK
   });
 
