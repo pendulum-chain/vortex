@@ -267,6 +267,7 @@ export const ProgressPage = () => {
 
   const rampId = rampState?.ramp?.id;
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
+  const prevRampIdRef = useRef<string | undefined>(rampId);
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
 
   const flowType = getRampFlow(rampState);
@@ -294,14 +295,22 @@ export const ProgressPage = () => {
     const newPhase = rampState?.ramp?.currentPhase ?? "initial";
     if (newPhase === prevPhaseRef.current) return;
     const phaseIndex = phaseSequence.indexOf(newPhase);
+    const previousPhaseIndex = phaseSequence.indexOf(prevPhaseRef.current);
+    const isSameRamp = rampId === prevRampIdRef.current;
+
+    if (isSameRamp && phaseIndex >= 0 && previousPhaseIndex >= 0 && phaseIndex < previousPhaseIndex) {
+      return;
+    }
+
     trackEvent({
       event: "progress",
       phase_index: phaseIndex >= 0 ? phaseIndex : 0,
       phase_name: newPhase
     });
+    prevRampIdRef.current = rampId;
     prevPhaseRef.current = newPhase;
     setCurrentPhase(newPhase);
-  }, [rampState?.ramp?.currentPhase, phaseSequence, trackEvent]);
+  }, [rampId, rampState?.ramp?.currentPhase, phaseSequence, trackEvent]);
 
   useEffect(() => {
     if (!rampId || !flowType) return;

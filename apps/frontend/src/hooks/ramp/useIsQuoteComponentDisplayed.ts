@@ -1,3 +1,4 @@
+import { TransactionStatus } from "@vortexfi/shared";
 import { RampSearchParams } from "./../../types/searchParams";
 import { useRampComponentState } from "./useRampComponentState";
 
@@ -12,11 +13,11 @@ function isExternalFlow(params: RampSearchParams): boolean {
 export const useIsQuoteComponentDisplayed = (): boolean => {
   const { rampState, rampMachineState, searchParams } = useRampComponentState();
 
-  if (rampState?.ramp?.currentPhase === "complete") {
+  if (rampState?.ramp?.status === TransactionStatus.COMPLETE || rampState?.ramp?.currentPhase === "complete") {
     return false;
   }
 
-  if (rampState?.ramp?.currentPhase === "failed") {
+  if (rampState?.ramp?.status === TransactionStatus.FAILED || rampState?.ramp?.currentPhase === "failed") {
     return false;
   }
 
