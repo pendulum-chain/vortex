@@ -23,8 +23,8 @@ import RampState from "../../../../models/rampState.model";
 import TaxId from "../../../../models/taxId.model";
 import { APIError } from "../../../errors/api-error";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { syncAveniaOnHoldState } from "../helpers/brla-onramp-hold";
 import { StateMetadata } from "../meta-state-types";
-import { syncAveniaOnHoldState } from "./brla-onramp-hold";
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
 // case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
