@@ -16,7 +16,10 @@ describe("classifyApiClientError", () => {
     );
     expect(
       classifyApiClientError(
-        new APIError({ message: "Low liquidity for this route. Please try a smaller amount.", status: httpStatus.INTERNAL_SERVER_ERROR })
+        new APIError({
+          message: "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
+          status: httpStatus.INTERNAL_SERVER_ERROR
+        })
       )
     ).toBe("provider_error");
   });

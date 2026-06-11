@@ -1319,7 +1319,7 @@
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
+        "lowLiquidity": "Esta rota está temporariamente indisponível devido à baixa liquidez. Tente um valor menor ou volte em breve.",
         "MXN_tokenUnavailable": "Construa seu trilho MXN - disponível em breve!",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {

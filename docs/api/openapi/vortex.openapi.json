@@ -1996,7 +1996,7 @@
                     "summary": "Low-liquidity route failure",
                     "value": {
                       "code": 500,
-                      "message": "Low liquidity for this route. Please try a smaller amount.",
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
                       "statusCode": 500,
                       "type": "BAD_REQUEST"
                     }
@@ -2228,7 +2228,7 @@
                     "summary": "Low-liquidity route failure",
                     "value": {
                       "code": 500,
-                      "message": "Low liquidity for this route. Please try a smaller amount.",
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
                       "statusCode": 500,
                       "type": "BAD_REQUEST"
                     }
