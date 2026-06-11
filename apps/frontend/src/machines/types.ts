@@ -46,12 +46,15 @@ export interface RampContext {
   isAuthLoading?: boolean;
   alfredpayCustomer?: unknown;
   postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
-  isKybLinkMode?: boolean;
-  // Drives KYC provider routing when there is no quote (set from the region selector).
-  kybFiatToken?: FiatToken;
-  isKybRegionLocked?: boolean;
-  // CNPJ collected on the deep-link tax-id step; normally comes from the quote.
-  kybTaxId?: string;
+  // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
+  kybLink?: {
+    // Drives KYC provider routing when there is no quote (set from the region selector).
+    fiatToken?: FiatToken;
+    // `?kybLocked=` pins the region; going back to the selector is disabled.
+    regionLocked?: boolean;
+    // CNPJ collected on the deep-link tax-id step; normally comes from the quote.
+    taxId?: string;
+  };
 }
 
 export type RampMachineEvents =

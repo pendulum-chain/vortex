@@ -27,9 +27,9 @@ const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
 };
 
 // In the normal flow the fiat token comes from the quote (executionInput); in the quote-less
-// KYB deep-link flow it comes from the region the user picked (kybFiatToken).
+// KYB deep-link flow it comes from the region the user picked (kybLink.fiatToken).
 const resolveKycFiatToken = (context: RampContext): FiatToken | undefined =>
-  context.executionInput?.fiatToken ?? context.kybFiatToken;
+  context.executionInput?.fiatToken ?? context.kybLink?.fiatToken;
 
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
@@ -86,9 +86,13 @@ export const kycStateNode = {
   on: {
     GO_BACK: [
       {
+        // `?kybLocked=` pins the region — leaving and re-entering KYC would restart the child flow, so back does nothing.
+        guard: ({ context }: { context: RampContext }) => !!context.kybLink?.regionLocked
+      },
+      {
         // KYB deep link has no quote to return to — go back to the region selector instead.
         actions: [clearSigningPhase],
-        guard: ({ context }: { context: RampContext }) => !!context.isKybLinkMode,
+        guard: ({ context }: { context: RampContext }) => !!context.kybLink,
         target: "#ramp.SelectRegion"
       },
       {
@@ -118,7 +122,7 @@ export const kycStateNode = {
           return {
             ...context,
             // A KYB deep link is business verification by definition; preselect the business customer type.
-            business: context.isKybLinkMode || undefined,
+            business: context.kybLink ? true : undefined,
             country
           };
         },
@@ -152,7 +156,7 @@ export const kycStateNode = {
             ...context,
             kycFormData: context.kycFormData,
             // KYB deep link has no quote; fall back to the CNPJ collected on the deep-link tax-id step.
-            taxId: context.executionInput?.taxId ?? context.kybTaxId ?? ""
+            taxId: context.executionInput?.taxId ?? context.kybLink?.taxId ?? ""
           };
         },
         onDone: [
@@ -243,7 +247,7 @@ export const kycStateNode = {
       always: [
         {
           // KYB deep-link flow has no quote/summary to return to — go straight to the success screen.
-          guard: ({ context }: { context: RampContext }) => !!context.isKybLinkMode,
+          guard: ({ context }: { context: RampContext }) => !!context.kybLink,
           target: "#ramp.KybLinkComplete"
         },
         {

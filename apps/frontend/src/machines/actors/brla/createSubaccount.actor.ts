@@ -29,7 +29,7 @@ export const createSubaccountActor = fromPromise(
       throw new Error("Invalid input state. This is a Bug.");
     }
     // The KYB deep link has no quote; the backend treats quoteId as optional, so only require it for the normal flow.
-    if (!quoteId && !input.isKybLinkMode) {
+    if (!quoteId && !input.kybLink) {
       throw new Error("createSubaccountActor: Missing quoteId in input");
     }
 

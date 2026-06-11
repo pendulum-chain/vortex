@@ -84,7 +84,7 @@ const WidgetContent = () => {
     isError: state.matches("Error"),
     isInitialQuoteFailed: state.matches("InitialFetchFailed"),
     isKybComplete: state.matches("KybLinkComplete"),
-    isKybLinkMode: state.context.isKybLinkMode,
+    isKybLinkMode: !!state.context.kybLink,
     isLoadingAuthEmail: state.matches("CheckAuth"),
     isRedirectCallback: state.matches("RedirectCallback"),
     isSelectRegion: state.matches("SelectRegion"),
@@ -136,7 +136,7 @@ const WidgetContent = () => {
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
     // A KYB deep link has no quote-supplied taxId yet, so route to the company (KYB) flow regardless of CNPJ.
-    const treatAsKyb = isCnpj || !!isKybLinkMode;
+    const treatAsKyb = isCnpj || isKybLinkMode;
 
     const isInKybFlow = treatAsKyb && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
 

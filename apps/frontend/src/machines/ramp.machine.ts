@@ -177,9 +177,10 @@ export const rampMachine = setup({
     },
     START_KYB_LINK: {
       actions: assign({
-        isKybLinkMode: true,
-        isKybRegionLocked: ({ event }) => event.locked,
-        kybFiatToken: ({ event }) => findKybRegionByCode(event.region)?.fiatToken,
+        kybLink: ({ event }) => ({
+          fiatToken: findKybRegionByCode(event.region)?.fiatToken,
+          regionLocked: event.locked
+        }),
         postAuthTarget: () => "SelectRegion" as const
       }),
       target: "#ramp.CheckAuth"
@@ -197,30 +198,8 @@ export const rampMachine = setup({
                 userId: ({ event }) => event.output.tokens?.userId
               })
             ],
-            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "RegisterRamp",
-            target: "RegisterRamp"
-          },
-          {
-            actions: [
-              assign({
-                isAuthenticated: true,
-                userEmail: ({ event }) => event.output.tokens?.userEmail,
-                userId: ({ event }) => event.output.tokens?.userId
-              })
-            ],
-            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "QuoteReady",
-            target: "QuoteReady"
-          },
-          {
-            actions: [
-              assign({
-                isAuthenticated: true,
-                userEmail: ({ event }) => event.output.tokens?.userEmail,
-                userId: ({ event }) => event.output.tokens?.userId
-              })
-            ],
-            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "SelectRegion",
-            target: "SelectRegion"
+            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget !== undefined,
+            target: "PostAuthRouting"
           },
           {
             actions: [
@@ -348,13 +327,13 @@ export const rampMachine = setup({
     // KYB deep-link: Brazil-only step to collect the company CNPJ before entering the Avenia KYB flow.
     EnterKybTaxId: {
       on: {
-        // Returns to the selector — but a locked region's SelectRegion.always immediately re-routes back
-        // through KybRouting, so back is intentionally a no-op when ?kybLocked is set.
+        // Back returns to the selector; with `?kybLocked=` the region is pinned, so back does nothing.
         GO_BACK: {
+          guard: ({ context }) => !context.kybLink?.regionLocked,
           target: "SelectRegion"
         },
         SUBMIT_KYB_TAX_ID: {
-          actions: assign({ kybTaxId: ({ event }) => event.taxId }),
+          actions: assign({ kybLink: ({ context, event }) => ({ ...context.kybLink, taxId: event.taxId }) }),
           target: "KYC"
         }
       }
@@ -449,7 +428,7 @@ export const rampMachine = setup({
     KybRouting: {
       always: [
         {
-          guard: ({ context }) => context.kybFiatToken === FiatToken.BRL,
+          guard: ({ context }) => context.kybLink?.fiatToken === FiatToken.BRL,
           target: "EnterKybTaxId"
         },
         {
@@ -558,6 +537,23 @@ export const rampMachine = setup({
         },
         src: "loadQuote"
       }
+    },
+    // Single place that routes a successful login (CheckAuth or OTP) to the state recorded in postAuthTarget.
+    PostAuthRouting: {
+      always: [
+        {
+          guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+          target: "RegisterRamp"
+        },
+        {
+          guard: ({ context }) => context.postAuthTarget === "SelectRegion",
+          target: "SelectRegion"
+        },
+        {
+          target: "QuoteReady"
+        }
+      ],
+      exit: assign({ postAuthTarget: undefined })
     },
     QuoteReady: {
       always: [
@@ -724,15 +720,12 @@ export const rampMachine = setup({
     SelectRegion: {
       // `?kybLocked=` pins the region: if it resolved to a fiat token, skip the selector and route straight in.
       always: {
-        guard: ({ context }) => !!context.isKybRegionLocked && !!context.kybFiatToken,
+        guard: ({ context }) => !!context.kybLink?.regionLocked && !!context.kybLink.fiatToken,
         target: "KybRouting"
       },
       on: {
-        GO_BACK: {
-          target: "EnterEmail"
-        },
         SELECT_REGION: {
-          actions: assign({ kybFiatToken: ({ event }) => event.fiatToken }),
+          actions: assign({ kybLink: ({ context, event }) => ({ ...context.kybLink, fiatToken: event.fiatToken }) }),
           target: "KybRouting"
         }
       }
@@ -824,70 +817,25 @@ export const rampMachine = setup({
             email: context.userEmail
           };
         },
-        onDone: [
-          {
-            actions: [
-              assign({
-                errorMessage: undefined,
-                isAuthenticated: true,
-                postAuthTarget: undefined,
-                userId: ({ event }) => event.output.userId
-              }),
-              ({ event, context }) => {
-                // Store tokens in localStorage for session persistence
-                AuthService.storeTokens({
-                  accessToken: event.output.accessToken,
-                  refreshToken: event.output.refreshToken,
-                  userEmail: context.userEmail,
-                  userId: event.output.userId
-                });
-              }
-            ],
-            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
-            target: "RegisterRamp"
-          },
-          {
-            actions: [
-              assign({
-                errorMessage: undefined,
-                isAuthenticated: true,
-                postAuthTarget: undefined,
-                userId: ({ event }) => event.output.userId
-              }),
-              ({ event, context }) => {
-                // Store tokens in localStorage for session persistence
-                AuthService.storeTokens({
-                  accessToken: event.output.accessToken,
-                  refreshToken: event.output.refreshToken,
-                  userEmail: context.userEmail,
-                  userId: event.output.userId
-                });
-              }
-            ],
-            guard: ({ context }) => context.postAuthTarget === "SelectRegion",
-            target: "SelectRegion"
-          },
-          {
-            actions: [
-              assign({
-                errorMessage: undefined,
-                isAuthenticated: true,
-                postAuthTarget: undefined,
-                userId: ({ event }) => event.output.userId
-              }),
-              ({ event, context }) => {
-                // Store tokens in localStorage for session persistence
-                AuthService.storeTokens({
-                  accessToken: event.output.accessToken,
-                  refreshToken: event.output.refreshToken,
-                  userEmail: context.userEmail,
-                  userId: event.output.userId
-                });
-              }
-            ],
-            target: "QuoteReady"
-          }
-        ],
+        onDone: {
+          actions: [
+            assign({
+              errorMessage: undefined,
+              isAuthenticated: true,
+              userId: ({ event }) => event.output.userId
+            }),
+            ({ event, context }) => {
+              // Store tokens in localStorage for session persistence
+              AuthService.storeTokens({
+                accessToken: event.output.accessToken,
+                refreshToken: event.output.refreshToken,
+                userEmail: context.userEmail,
+                userId: event.output.userId
+              });
+            }
+          ],
+          target: "PostAuthRouting"
+        },
         onError: {
           actions: assign({
             errorMessage: "Invalid OTP code. Please try again."
