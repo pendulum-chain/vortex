@@ -7,6 +7,7 @@ interface APIErrorParams {
   stack?: string;
   status?: number;
   isPublic?: boolean;
+  type?: string;
 }
 
 /**
@@ -20,13 +21,14 @@ export class APIError extends ExtendableError {
    * @param {number} status - HTTP status code of error.
    * @param {boolean} isPublic - Whether the message should be visible to user or not.
    */
-  constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false }: APIErrorParams) {
+  constructor({ message, errors, stack, status = httpStatus.INTERNAL_SERVER_ERROR, isPublic = false, type }: APIErrorParams) {
     super({
       errors,
       isPublic,
       message,
       stack,
-      status
+      status,
+      type
     });
   }
 }

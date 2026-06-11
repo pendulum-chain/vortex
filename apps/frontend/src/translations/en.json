@@ -1315,7 +1315,7 @@
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
+        "lowLiquidity": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
         "MXN_tokenUnavailable": "Building your MXN rail - available soon!",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {
