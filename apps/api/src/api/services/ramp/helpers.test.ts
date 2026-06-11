@@ -1,8 +1,8 @@
-import {describe, expect, it} from "bun:test";
-import {Networks, RampDirection} from "@vortexfi/shared";
+import { describe, expect, it } from "bun:test";
+import { Networks, RampDirection } from "@vortexfi/shared";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import {getFinalTransactionHashForRampV2} from "./helpers";
+import { getFinalTransactionHashForRampV2 } from "./helpers";
 
 type RampStateTestOverrides = {
   currentPhase?: string;
@@ -74,6 +74,23 @@ describe("getFinalTransactionHashForRampV2", () => {
     expect(result).toEqual({
       transactionExplorerLink: "https://basescan.org/tx/0xbrla",
       transactionHash: "0xbrla"
+    });
+  });
+
+  it("uses Polygon explorer links for Alfredpay offramps", () => {
+    const result = getFinalTransactionHashForRampV2(
+      createRampState({
+        state: {
+          alfredpayOfframpTransferTxHash: "0xalfredpay"
+        },
+        type: RampDirection.SELL
+      }),
+      createQuote(Networks.Polygon)
+    );
+
+    expect(result).toEqual({
+      transactionExplorerLink: "https://polygonscan.com/tx/0xalfredpay",
+      transactionHash: "0xalfredpay"
     });
   });
 });

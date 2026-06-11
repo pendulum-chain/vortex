@@ -18,7 +18,7 @@ const schema = z
     lastName: z.string().min(1),
     nationalities: z.array(z.string().regex(/^[A-Z]{2}$/)).optional(),
     pep: z.boolean(),
-    phoneNumber: z.string().regex(/^\+54[\d\s\-()]{7,}$/, "Use Argentina format (+54...)"),
+    phoneNumber: z.string().regex(/^\+54\d{7,}$/, "Use Argentina format (+54...)"),
     state: z.string().min(1),
     typeDocumentAr: z.nativeEnum(AlfredpayArgentinaDocumentType),
     zipCode: z.string().min(1)
@@ -62,6 +62,36 @@ function DniField({ form }: { form: ArForm }) {
   );
 }
 
+function PhoneNumberField({ form }: { form: ArForm }) {
+  const error = form.formState.errors.phoneNumber;
+  return (
+    <div className={`flex items-center rounded-lg border ${error ? "border-error" : "border-neutral-300"}`}>
+      <span aria-hidden="true" className="select-none border-neutral-300 border-r px-3 py-2 text-base text-gray-500">
+        +
+      </span>
+      <input
+        autoComplete="tel"
+        className="input-vortex-primary input-ghost w-full rounded-r-lg p-2 text-base"
+        id="ar-phoneNumber"
+        inputMode="numeric"
+        onInput={event => {
+          event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "");
+        }}
+        pattern="[0-9]*"
+        placeholder="5491112345678"
+        type="tel"
+        {...form.register("phoneNumber", {
+          setValueAs: (value: string) => {
+            if (!value) return value;
+            const digits = value.replace(/\D/g, "");
+            return digits.startsWith("54") ? `+${digits}` : `+54${digits}`;
+          }
+        })}
+      />
+    </div>
+  );
+}
+
 const config: KycFormConfig<ArKycFormValues> = {
   defaultValues: {
     countryCode: "AR",
@@ -94,13 +124,10 @@ const config: KycFormConfig<ArKycFormValues> = {
       type: "text"
     },
     {
-      autoComplete: "tel",
-      inputMode: "tel",
-      inputType: "tel",
       labelKey: "components.arKycForm.phoneNumber",
       name: "phoneNumber",
-      placeholder: "+54 9 11 1234 5678",
-      type: "text"
+      render: form => <PhoneNumberField form={form} />,
+      type: "custom"
     },
     {
       labelKey: "components.arKycForm.documentType",

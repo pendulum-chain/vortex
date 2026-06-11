@@ -2,7 +2,8 @@ import { Networks, QuoteError, RampDirection } from "@vortexfi/shared";
 import { describe, expect, it, mock } from "bun:test";
 import type { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
-import { validateCreateBestQuoteInput } from "./validators";
+import { APIError } from "../errors/api-error";
+import { validateCreateBestQuoteInput, validateKycSubmission } from "./validators";
 
 function buildRes() {
   const res: Partial<Response> & { statusCode?: number; body?: unknown } = {};
@@ -50,7 +51,8 @@ describe("validateCreateBestQuoteInput - networks whitelist", () => {
     const body: Record<string, unknown> = { ...baseBody, networks: ["BASE", "Polygon", "BASE-SEPOLIA", "polygonamoy"] };
     const req = { body } as unknown as Request;
     const res = buildRes();
-    const next: NextFunction = mock(() => undefined) as unknown as NextFunction;
+    const nextMock = mock((_error?: unknown) => undefined);
+    const next = nextMock as unknown as NextFunction;
     validateCreateBestQuoteInput(req, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(res.statusCode).toBeUndefined();
@@ -89,5 +91,51 @@ describe("validateCreateBestQuoteInput - networks whitelist", () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
     expect(res.body).toEqual({ message: QuoteError.MissingRequiredFields });
+  });
+});
+
+describe("validateKycSubmission", () => {
+  it("forwards structured API errors for invalid Argentina submissions", () => {
+    const req = {
+      body: {
+        country: "AR",
+        pep: false,
+        phoneNumber: "+5511999999999"
+      }
+    } as unknown as Request;
+    const res = buildRes();
+    const nextMock = mock((_error?: unknown) => undefined);
+    const next = nextMock as unknown as NextFunction;
+
+    validateKycSubmission(req, res, next);
+
+    expect(res.statusCode).toBeUndefined();
+    expect(next).toHaveBeenCalledTimes(1);
+    const error = nextMock.mock.calls[0][0];
+    expect(error).toBeInstanceOf(APIError);
+    expect((error as APIError).status).toBe(httpStatus.BAD_REQUEST);
+    expect((error as APIError).message).toBe("Phone number must use Argentina country code (+54)");
+    expect((error as APIError).errors).toEqual([{ message: "Phone number must use Argentina country code (+54)" }]);
+  });
+
+  it("accepts valid Argentina-specific fields", () => {
+    const req = {
+      body: {
+        country: "AR",
+        cuit: "20123456789",
+        nationalities: ["AR"],
+        pep: false,
+        phoneNumber: "+5491112345678"
+      }
+    } as unknown as Request;
+    const res = buildRes();
+    const nextMock = mock((_error?: unknown) => undefined);
+    const next = nextMock as unknown as NextFunction;
+
+    validateKycSubmission(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(nextMock.mock.calls[0]?.[0]).toBeUndefined();
+    expect(res.statusCode).toBeUndefined();
   });
 });

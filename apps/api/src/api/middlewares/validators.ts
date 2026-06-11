@@ -30,6 +30,7 @@ import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
+import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 
@@ -546,7 +547,13 @@ export const validateKycSubmission: RequestHandler = (req, res, next) => {
 
   const error = validator(body);
   if (error) {
-    res.status(httpStatus.BAD_REQUEST).json({ error });
+    next(
+      new APIError({
+        errors: [{ message: error }],
+        message: error,
+        status: httpStatus.BAD_REQUEST
+      })
+    );
     return;
   }
 

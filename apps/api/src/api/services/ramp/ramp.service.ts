@@ -433,7 +433,7 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        this.cancelRamp(rampState.id);
+        await this.cancelRamp(rampState.id);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
