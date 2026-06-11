@@ -1978,7 +1978,6 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
-                      "code": 400,
                       "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   }
