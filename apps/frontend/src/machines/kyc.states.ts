@@ -75,13 +75,27 @@ export interface MykoboKycContext extends RampContext {
 
 type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
 
+const clearSigningPhase = assign({
+  rampSigningPhase: undefined,
+  rampSigningPhaseCurrent: undefined,
+  rampSigningPhaseMax: undefined
+});
+
 export const kycStateNode = {
   initial: "Deciding",
   on: {
-    GO_BACK: {
-      actions: [assign({ rampSigningPhase: undefined, rampSigningPhaseCurrent: undefined, rampSigningPhaseMax: undefined })],
-      target: "#ramp.QuoteReady"
-    },
+    GO_BACK: [
+      {
+        // KYB deep link has no quote to return to — go back to the region selector instead.
+        actions: [clearSigningPhase],
+        guard: ({ context }: { context: RampContext }) => !!context.isKybLinkMode,
+        target: "#ramp.SelectRegion"
+      },
+      {
+        actions: [clearSigningPhase],
+        target: "#ramp.QuoteReady"
+      }
+    ],
     SummaryConfirm: {
       actions: [
         sendTo(
