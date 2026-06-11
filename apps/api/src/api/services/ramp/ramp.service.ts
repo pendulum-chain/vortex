@@ -537,9 +537,12 @@ export class RampService extends BaseRampService {
     const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+    const isOnHoldForComplianceCheck = rampState.currentPhase === "brlaOnrampMint" && rampState.state.onHold;
+
     // Never return 'failed' as current phase, instead return last known phase
-    const currentPhase =
-      rampState.currentPhase !== "failed"
+    const currentPhase: RampPhase = isOnHoldForComplianceCheck
+      ? "onHoldForComplianceCheck"
+      : rampState.currentPhase !== "failed"
         ? rampState.currentPhase
         : // Find second-last entry in phase history or show 'initial' if not available
           rampState.phaseHistory && rampState.phaseHistory.length > 1
