@@ -111,7 +111,7 @@ const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = 
 
   [TransactionHashKey.MykoboPayoutTxHash]: hash => `${CHAIN_EXPLORERS.base}/${hash}`,
 
-  [TransactionHashKey.AlfredpayOfframpTransferTxHash]: hash => `${CHAIN_EXPLORERS.base}/${hash}`
+  [TransactionHashKey.AlfredpayOfframpTransferTxHash]: hash => `${CHAIN_EXPLORERS.polygon}/${hash}`
 };
 
 const TRANSACTION_HASH_PRIORITY: readonly TransactionHashKey[] = [
