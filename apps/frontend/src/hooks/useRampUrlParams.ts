@@ -295,7 +295,13 @@ export const useSetRampUrlParams = () => {
     if (hasInitialized.current) return;
 
     // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
+    // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.
     if (kybMode) {
+      if (externalSessionId) {
+        rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+      }
+      setPartnerIdFn(partnerId || null);
+      setApiKeyFn(apiKey || null);
       rampActor.send({ locked: kybRegionLocked, region, type: "START_KYB_LINK" });
       hasInitialized.current = true;
       return;
