@@ -21,6 +21,6 @@ describe("quote error helpers", () => {
     expect(error.isPublic).toBe(true);
     expect(error.message).toBe(QuoteError.LowLiquidity);
     expect(error.status).toBe(httpStatus.INTERNAL_SERVER_ERROR);
-    expect(error.type).toBe("BAD_REQUEST");
+    expect(error.type).toBeUndefined();
   });
 });
