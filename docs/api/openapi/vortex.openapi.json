@@ -366,6 +366,13 @@
             "description": "HTTP status code returned by the API error handler.",
             "type": "integer"
           },
+          "errors": {
+            "description": "Validation error details, when the request fails schema or input validation.",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
           "message": {
             "description": "A human-readable error message.",
             "type": "string"
@@ -1970,6 +1977,7 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
+                      "code": 400,
                       "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   }
@@ -1989,7 +1997,8 @@
                   "internal": {
                     "summary": "Unexpected internal failure",
                     "value": {
-                      "message": "An unexpected error occurred."
+                      "code": 500,
+                      "message": "Internal server error"
                     }
                   },
                   "lowLiquidity": {
