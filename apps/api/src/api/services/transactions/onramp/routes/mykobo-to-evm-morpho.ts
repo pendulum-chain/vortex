@@ -234,58 +234,9 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     } as EvmTransactionData
   });
 
-  // 6. Backup transactions on Ethereum (in case axlUSDC lands instead of USDC)
-  const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(Networks.Ethereum, EvmToken.AXLUSDC) as EvmTokenDetails;
-  const bridgedTokenForFallback = destinationAxlUsdcDetails.erc20AddressSourceChain as `0x${string}`;
-  // TODO triple-check, if squidrouter fails, does it deposit axlUSDC on destination as well for the Ethereum case?
-  // or is this destination different ?
-
-  const { approveData: finalApproveData, swapData: finalSwapData } =
-    await createOnrampSquidrouterTransactionsOnDestinationChain({
-      destinationAddress: evmEphemeralEntry.address,
-      fromAddress: evmEphemeralEntry.address,
-      fromToken: bridgedTokenForFallback,
-      network: Networks.Ethereum,
-      rawAmount: bridgeInputAmountRaw,
-      toToken: morphoVault.depositAssetAddress // swap to USDC
-    });
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: destinationNonce++,
-    phase: "backupSquidRouterApprove",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(finalApproveData) as EvmTransactionData
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: destinationNonce++,
-    phase: "backupSquidRouterSwap",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(finalSwapData) as EvmTransactionData
-  });
-
-  const fundingAccount = getEvmFundingAccount(Networks.Base);
-  const backupApproveAmountRaw = new Big(bridgeInputAmountRaw).mul("1.05").toFixed(0, 0);
-
-  const backupApproveTransaction = await addDestinationChainApprovalTransaction({
-    amountRaw: backupApproveAmountRaw,
-    destinationNetwork: Networks.Ethereum,
-    spenderAddress: fundingAccount.address,
-    tokenAddress: bridgedTokenForFallback
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: destinationStartingNonce,
-    phase: "backupApprove",
-    signer: evmEphemeralEntry.address,
-    txData: backupApproveTransaction
-  });
+  // 6. Backup transactions
+  // No backup swap transactions are needed on Ethereum because SquidRouter bridges USDC
+  // directly as native USDC, which is already the deposit asset for the Morpho vault.
 
   stateMeta = {
     ...stateMeta,
