@@ -7,6 +7,7 @@ import KycLevel2 from "./kycLevel2.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import MykoboCustomer from "./mykoboCustomer.model";
 import Partner from "./partner.model";
+import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
 import Subsidy from "./subsidy.model";
@@ -19,6 +20,8 @@ RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
 Partner.hasMany(QuoteTicket, { as: "quotes", foreignKey: "partnerId" });
+QuoteTicket.belongsTo(Partner, { as: "pricingPartner", foreignKey: "pricingPartnerId" });
+Partner.hasMany(QuoteTicket, { as: "pricedQuotes", foreignKey: "pricingPartnerId" });
 RampState.hasMany(Subsidy, { as: "subsidies", foreignKey: "rampId" });
 Subsidy.belongsTo(RampState, { as: "rampState", foreignKey: "rampId" });
 
@@ -41,6 +44,9 @@ AlfredPayCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasOne(MykoboCustomer, { as: "mykoboCustomer", foreignKey: "userId" });
 MykoboCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 
+User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
+ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
+
 // Initialize models
 const models = {
   AlfredPayCustomer,
@@ -51,6 +57,7 @@ const models = {
   MaintenanceSchedule,
   MykoboCustomer,
   Partner,
+  ProfilePartnerAssignment,
   QuoteTicket,
   RampState,
   Subsidy,

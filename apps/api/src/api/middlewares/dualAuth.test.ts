@@ -27,6 +27,17 @@ describe("assertQuoteOwnership", () => {
   it("allows a Supabase user registering their own quote", async () => {
     QuoteTicket.findByPk = mock(async () => ({
       partnerId: null,
+      pricingPartnerId: null,
+      userId: "user-1"
+    })) as typeof QuoteTicket.findByPk;
+
+    await expect(assertQuoteOwnership({ userId: "user-1" }, "quote-1")).resolves.toBeUndefined();
+  });
+
+  it("allows a Supabase user registering their own profile-priced quote", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      partnerId: null,
+      pricingPartnerId: "pricing-partner-id",
       userId: "user-1"
     })) as typeof QuoteTicket.findByPk;
 

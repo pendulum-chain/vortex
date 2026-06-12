@@ -8,12 +8,15 @@
  */
 
 import { CreateQuoteRequest, RampCurrency, RampDirection } from "@vortexfi/shared";
-import type { QuoteContext as IQuoteContext, PartnerInfo } from "./types";
+import type { QuoteContext as IQuoteContext, PartnerInfo, PartnerPricingSource } from "./types";
 
 export function createQuoteContext(args: {
-  request: CreateQuoteRequest;
+  request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
   targetFeeFiatCurrency: RampCurrency;
   partner: PartnerInfo | null;
+  partnerOwnerId?: string | null;
+  partnerPricingSource?: PartnerPricingSource;
+  pricingPartnerId?: string | null;
   now?: Date;
 }): IQuoteContext {
   let notes: string[] | undefined;
@@ -41,6 +44,9 @@ export function createQuoteContext(args: {
     },
     now: args.now ?? new Date(),
     partner: args.partner,
+    partnerOwnerId: args.partnerOwnerId ?? null,
+    partnerPricingSource: args.partnerPricingSource ?? "none",
+    pricingPartnerId: args.pricingPartnerId ?? null,
 
     // Provide a default object to keep stage logic simple; optional by interface.
     request: args.request,
