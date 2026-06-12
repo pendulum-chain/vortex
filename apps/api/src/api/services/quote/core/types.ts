@@ -203,6 +203,13 @@ export interface QuoteContext {
 
   evmToEvm?: BridgeMeta;
 
+  // Morpho vault redeem metadata (offramp only). Set by OffRampFromEvmInitializeMorphoEngine.
+  redeemMeta?: {
+    sharesAmountRaw: string;
+    vaultAddress: string;
+    expectedUsdcRaw: string;
+  };
+
   evmToMoonbeam?: BridgeMeta;
 
   hydrationToAssethubXcm?: XcmMeta;

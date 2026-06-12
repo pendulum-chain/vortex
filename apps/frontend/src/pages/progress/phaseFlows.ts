@@ -25,6 +25,8 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   moonbeamToPendulumXcm: 30,
   morphoApprove: 0,
   morphoDeposit: 30,
+  morphoPermitExecute: 30,
+  morphoRedeem: 30,
   mykoboOnrampDeposit: 5 * 60,
   mykoboPayoutOnBase: 60,
   nablaApprove: 24,
@@ -59,6 +61,22 @@ export const PHASE_FLOWS = {
 
   offramp_eur_evm: [
     "initial",
+    "fundEphemeral",
+    "distributeFees",
+    "subsidizePreSwap",
+    "nablaApprove",
+    "nablaSwap",
+    "subsidizePostSwap",
+    "mykoboPayoutOnBase",
+    "complete"
+  ] as RampPhase[],
+
+  offramp_eur_morpho: [
+    "initial",
+    "morphoPermitExecute",
+    "morphoRedeem",
+    "squidRouterApprove",
+    "squidRouterSwap",
     "fundEphemeral",
     "distributeFees",
     "subsidizePreSwap",

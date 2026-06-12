@@ -175,3 +175,27 @@ export const EUR_ONRAMP_BASE_MORPHO: RampPhase[] = [
   "morphoDeposit",
   "complete"
 ];
+
+// ─── Morpho Vault Redeem Off-Ramp (Morpho Vault on Ethereum → Mykobo SEPA on Base) ────
+
+/**
+ * EUR offramp from Morpho vault shares on Ethereum → SEPA payout via Mykobo.
+ * User signs a single EIP-2612 permit; ephemeral broadcasts permit+transferFrom,
+ * redeems shares to USDC on Ethereum, bridges USDC to Base, then the existing
+ * Mykobo payout leg (Nabla USDC→EURC + EURC→Mykobo) executes on Base.
+ */
+export const EUR_OFFRAMP_MORPHO: RampPhase[] = [
+  "initial",
+  "morphoPermitExecute",
+  "morphoRedeem",
+  "squidRouterApprove",
+  "squidRouterSwap",
+  "fundEphemeral",
+  "distributeFees",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "subsidizePostSwap",
+  "mykoboPayoutOnBase",
+  "complete"
+];

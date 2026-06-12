@@ -69,7 +69,7 @@ export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
  * Resolves the EIP-712 domain for a token's permit signature.
  * Some tokens (like USDT in polygon) use salt-based domain separation instead of chainId.
  */
-async function resolvePermitDomain(
+export async function resolvePermitDomain(
   publicClient: PublicClient,
   tokenAddress: `0x${string}`,
   chainId: number,

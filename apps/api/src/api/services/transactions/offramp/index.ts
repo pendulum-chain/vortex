@@ -1,4 +1,5 @@
 import {
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -11,6 +12,7 @@ import { prepareAssethubToBRLOfframpTransactions } from "./routes/assethub-to-br
 import { prepareEvmToAlfredpayOfframpTransactions } from "./routes/evm-to-alfredpay";
 import { prepareEvmToBRLOfframpBaseTransactions } from "./routes/evm-to-brl-base";
 import { prepareEvmToMykoboOfframpTransactions } from "./routes/evm-to-mykobo";
+import { prepareEvmToMykoboMorphoOfframpTransactions } from "./routes/evm-to-mykobo-morpho";
 
 export async function prepareOfframpTransactions(params: OfframpTransactionParams): Promise<OfframpTransactionsWithMeta> {
   const { quote } = params;
@@ -29,6 +31,10 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
       return prepareAssethubToBRLOfframpTransactions(params);
     }
   } else if (quote.outputCurrency === FiatToken.EURC) {
+    // Morpho vault share source (Ethereum) → redeem + bridge to Base → Mykobo payout
+    if (quote.inputCurrency === EvmToken.MORPHO_VAULT) {
+      return prepareEvmToMykoboMorphoOfframpTransactions(params);
+    }
     // Mykobo EUR offramp on Base (EVM-only path)
     const inputTokenDetails = getOnChainTokenDetails(fromNetwork, quote.inputCurrency as OnChainToken);
     if (!inputTokenDetails || !isEvmTokenDetails(inputTokenDetails)) {

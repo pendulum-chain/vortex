@@ -86,6 +86,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
     morphoApprove: "",
     morphoDeposit: t("pages.progress.morphoDeposit"),
+    morphoPermitExecute: t("pages.progress.morphoPermitExecute"),
+    morphoRedeem: t("pages.progress.morphoRedeem"),
     mykoboOnrampDeposit: t("pages.progress.mykoboOnrampDeposit"),
     mykoboPayoutOnBase: getTransferringMessage(),
     nablaApprove: getSwappingMessage(),

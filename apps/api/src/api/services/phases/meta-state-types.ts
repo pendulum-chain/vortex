@@ -86,4 +86,14 @@ export interface StateMetadata {
   morphoDepositAssetAddress?: string;
   morphoDepositAmountRaw?: string;
   morphoDepositTxHash?: `0x${string}`;
+  // Morpho vault redeem (offramp)
+  morphoRedeemVaultAddress?: string;
+  morphoRedeemShareTokenAddress?: string;
+  morphoRedeemAssetAddress?: string;
+  morphoRedeemSharesAmountRaw?: string;
+  morphoRedeemMinOutputRaw?: string;
+  morphoRedeemTxHash?: `0x${string}`;
+  morphoRedeemActualOutputRaw?: string;
+  morphoPermitTxHash?: `0x${string}`;
+  morphoPermitTransferFromTxHash?: `0x${string}`;
 }

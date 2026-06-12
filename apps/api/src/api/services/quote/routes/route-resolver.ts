@@ -4,6 +4,7 @@
 import {
   AssetHubToken,
   EPaymentMethod,
+  EvmToken,
   FiatToken,
   isAlfredpayToken,
   Networks,
@@ -18,6 +19,7 @@ import { offrampEvmToAlfredpayStrategy } from "./strategies/offramp-evm-to-alfre
 import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
 import { offrampToSepaEvmStrategy } from "./strategies/offramp-to-sepa-evm.strategy";
+import { offrampToSepaEvmMorphoStrategy } from "./strategies/offramp-to-sepa-evm-morpho.strategy";
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
 import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
@@ -73,6 +75,9 @@ export class RouteResolver {
       case "spei":
         return offrampEvmToAlfredpayStrategy;
       case "sepa":
+        if (ctx.request.inputCurrency === EvmToken.MORPHO_VAULT) {
+          return offrampToSepaEvmMorphoStrategy;
+        }
         return offrampToSepaEvmStrategy;
       case "cbu":
       default:

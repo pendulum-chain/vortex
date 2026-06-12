@@ -53,6 +53,8 @@ export type RampPhase =
   | "backupApprove"
   | "morphoApprove"
   | "morphoDeposit"
+  | "morphoPermitExecute"
+  | "morphoRedeem"
   | "complete";
 
 export type CleanupPhase =
