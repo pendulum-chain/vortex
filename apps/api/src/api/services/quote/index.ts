@@ -19,11 +19,17 @@ import { config } from "../../../config/vars";
 import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
+import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./core/errors";
 import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
 import { buildQuoteResponse } from "./engines/finalize";
 import { RouteResolver } from "./routes/route-resolver";
+
+type BestQuoteFailure = {
+  error: unknown;
+  network: Networks;
+};
 
 export class QuoteService extends BaseRampService {
   public async createQuote(
@@ -101,15 +107,22 @@ export class QuoteService extends BaseRampService {
           return { network, quote };
         } catch (error) {
           logger.warn(`Failed to get quote for network ${network}: ${error instanceof Error ? error.message : String(error)}`);
-          return null;
+          return { error, network };
         }
       })
     );
 
     const quoteResults = await Promise.all(quotePromises);
-    const validQuotes = quoteResults.filter((result): result is { network: Networks; quote: QuoteResponse } => result !== null);
+    const validQuotes = quoteResults.filter(
+      (result): result is { network: Networks; quote: QuoteResponse } => "quote" in result
+    );
 
     if (validQuotes.length === 0) {
+      const failures = quoteResults.filter((result): result is BestQuoteFailure => "error" in result);
+      if (failures.length > 0 && failures.every(failure => isLowLiquidityQuoteError(failure.error))) {
+        throw createLowLiquidityQuoteError();
+      }
+
       throw new APIError({
         message: QuoteError.FailedToCalculateQuote,
         status: httpStatus.INTERNAL_SERVER_ERROR
@@ -213,6 +226,10 @@ export class QuoteService extends BaseRampService {
       // Preserve validation errors (BAD_REQUEST) - these are user-facing errors
       if (error instanceof APIError && error.status === httpStatus.BAD_REQUEST) {
         throw error;
+      }
+
+      if (isLowLiquidityQuoteError(error)) {
+        throw createLowLiquidityQuoteError();
       }
 
       // Detect Alfredpay trade limit error and surface it as a user-facing limit error

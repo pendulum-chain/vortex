@@ -52,7 +52,8 @@ export class OnRampFinalizeEngine extends BaseFinalizeEngine {
     } else if (
       request.inputCurrency === FiatToken.USD ||
       request.inputCurrency === FiatToken.MXN ||
-      request.inputCurrency === FiatToken.COP
+      request.inputCurrency === FiatToken.COP ||
+      request.inputCurrency === FiatToken.ARS
     ) {
       // evmToEvm is set when Squid Router ran (e.g. USDC Polygon → USDT Arbitrum).
       // When destination is USDC on Polygon, Squid Router is skipped (skipRouteCalculation)

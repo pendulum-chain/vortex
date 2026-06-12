@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
 import { DoneScreen } from "../DoneScreen";
+import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
 import { CustomerDefinitionScreen } from "./CustomerDefinitionScreen";
 import { FailureKycScreen } from "./FailureKycScreen";
@@ -30,7 +31,7 @@ export const AlfredpayKycFlow = () => {
   const retryProcess = useCallback(() => actor?.send({ type: "RETRY_PROCESS" }), [actor]);
   const cancelProcess = useCallback(() => actor?.send({ type: "CANCEL_PROCESS" }), [actor]);
   const submitForm = useCallback(
-    (data: import("../../machines/alfredpayKyc.machine").MxnKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }),
+    (data: import("../../machines/alfredpayKyc.machine").AlfredpayKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }),
     [actor]
   );
   const submitFiles = useCallback(
@@ -59,6 +60,7 @@ export const AlfredpayKycFlow = () => {
   const kycOrKyb = context.business ? "KYB" : "KYC";
   const isMxn = context.country === "MX";
   const isCo = context.country === "CO";
+  const isAr = context.country === "AR";
 
   if (
     stateValue === "CheckingStatus" ||
@@ -86,8 +88,21 @@ export const AlfredpayKycFlow = () => {
     return <ColKycFormScreen onSubmit={submitForm} />;
   }
 
-  if (stateValue === "UploadingDocuments" && (isMxn || isCo)) {
-    return <MxnDocumentUploadScreen onSubmit={submitFiles} />;
+  if (stateValue === "FillingKycForm" && isAr) {
+    return <ArKycFormScreen onSubmit={submitForm} />;
+  }
+
+  if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
+    const includeSelfie = isAr;
+    const i18nNamespace = isAr ? "components.arDocumentUpload" : undefined;
+    return (
+      <MxnDocumentUploadScreen
+        error={context.error?.message}
+        i18nNamespace={i18nNamespace}
+        includeSelfie={includeSelfie}
+        onSubmit={submitFiles}
+      />
+    );
   }
 
   if (stateValue === "FillingKybForm") {

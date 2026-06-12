@@ -2,7 +2,7 @@ import { BuildingLibraryIcon, CreditCardIcon } from "@heroicons/react/24/outline
 import { GlobeAmericasIcon } from "@heroicons/react/24/solid";
 import { AlfredpayFiatAccountType, FiatToken } from "@vortexfi/shared";
 
-export type FiatAccountTypeKey = "SPEI" | "ACH" | "ACH_COL" | "WIRE";
+export type FiatAccountTypeKey = "SPEI" | "ACH" | "ACH_COL" | "WIRE" | "COELSA";
 
 export interface CountryFiatAccountConfig {
   country: string;
@@ -33,12 +33,20 @@ export const ALFREDPAY_COUNTRY_METHODS: CountryFiatAccountConfig[] = [
     currency: "COP",
     offramp: ["ACH_COL"],
     onramp: ["ACH_COL"]
+  },
+  {
+    country: "AR",
+    countryName: "Argentina",
+    currency: "ARS",
+    offramp: ["COELSA"],
+    onramp: ["COELSA"]
   }
 ];
 
 export const ACCOUNT_TYPE_ICONS: Record<FiatAccountTypeKey, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   ACH: BuildingLibraryIcon,
   ACH_COL: BuildingLibraryIcon,
+  COELSA: BuildingLibraryIcon,
   SPEI: CreditCardIcon,
   WIRE: GlobeAmericasIcon
 };
@@ -46,6 +54,7 @@ export const ACCOUNT_TYPE_ICONS: Record<FiatAccountTypeKey, React.ComponentType<
 export const ACCOUNT_TYPE_LABELS: Record<FiatAccountTypeKey, string> = {
   ACH: "components.fiatAccountMethods.labels.ACH",
   ACH_COL: "components.fiatAccountMethods.labels.ACH_COL",
+  COELSA: "components.fiatAccountMethods.labels.COELSA",
   SPEI: "components.fiatAccountMethods.labels.SPEI",
   WIRE: "components.fiatAccountMethods.labels.WIRE"
 };
@@ -53,6 +62,7 @@ export const ACCOUNT_TYPE_LABELS: Record<FiatAccountTypeKey, string> = {
 export const ACCOUNT_TYPE_DESCRIPTIONS: Record<FiatAccountTypeKey, string> = {
   ACH: "components.fiatAccountMethods.descriptions.ACH",
   ACH_COL: "components.fiatAccountMethods.descriptions.ACH_COL",
+  COELSA: "components.fiatAccountMethods.descriptions.COELSA",
   SPEI: "components.fiatAccountMethods.descriptions.SPEI",
   WIRE: "components.fiatAccountMethods.descriptions.WIRE"
 };
@@ -60,16 +70,16 @@ export const ACCOUNT_TYPE_DESCRIPTIONS: Record<FiatAccountTypeKey, string> = {
 export const ACCOUNT_TYPE_TO_ALFRED_TYPE: Record<FiatAccountTypeKey, AlfredpayFiatAccountType | null> = {
   ACH: AlfredpayFiatAccountType.ACH,
   ACH_COL: AlfredpayFiatAccountType.ACH,
+  COELSA: AlfredpayFiatAccountType.COELSA,
   SPEI: AlfredpayFiatAccountType.SPEI,
   WIRE: AlfredpayFiatAccountType.BANK_USA
 };
 
-// ACH_COL and ACH both map to AlfredpayFiatAccountType.ACH on the API side.
-// We prefer "ACH" as the display key for ACH accounts since it's the more general label.
 export const ALFRED_TO_ACCOUNT_TYPE: Partial<Record<AlfredpayFiatAccountType, FiatAccountTypeKey>> = {
   [AlfredpayFiatAccountType.ACH]: "ACH",
   [AlfredpayFiatAccountType.SPEI]: "SPEI",
-  [AlfredpayFiatAccountType.BANK_USA]: "WIRE"
+  [AlfredpayFiatAccountType.BANK_USA]: "WIRE",
+  [AlfredpayFiatAccountType.COELSA]: "COELSA"
 };
 
 // Resolves the display key for a fiat account, taking country into account.

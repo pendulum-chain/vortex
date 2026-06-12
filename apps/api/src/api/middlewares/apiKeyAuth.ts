@@ -1,7 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import Partner from "../../models/partner.model";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientErrorType } from "../observability/types";
 import { AuthenticatedPartner, getKeyType, isValidSecretKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
@@ -51,7 +55,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       // Validate that it's a secret key format (sk_*)
       const keyType = getKeyType(apiKey);
       if (keyType !== "secret") {
-        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeKeyPrefix(apiKey));
+        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
         return res.status(401).json({
           error: {
             code: "INVALID_SECRET_KEY",
@@ -63,7 +67,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       }
 
       if (!isValidSecretKeyFormat(apiKey)) {
-        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeKeyPrefix(apiKey));
+        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
         return res.status(401).json({
           error: {
             code: "INVALID_SECRET_KEY_FORMAT",
@@ -77,7 +81,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       const partner = await validateApiKey(apiKey);
 
       if (!partner) {
-        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeKeyPrefix(apiKey));
+        recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
         return res.status(401).json({
           error: {
             code: "INVALID_API_KEY",
@@ -104,7 +108,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
           const requestedPartner = await Partner.findByPk(partnerIdOrName);
 
           if (!requestedPartner) {
-            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeKeyPrefix(apiKey), partner);
+            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner);
             return res.status(404).json({
               error: {
                 code: "PARTNER_NOT_FOUND",
@@ -122,7 +126,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
         // Compare partner names since one API key works for all partners with same name
         if (requestedPartnerName !== partner.name) {
-          recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeKeyPrefix(apiKey), partner);
+          recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner);
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
@@ -236,6 +240,7 @@ function recordAuthFailure(
     durationMs: getRequestDurationMs(req),
     errorType,
     httpStatus,
+    metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
     operation: "auth_api_key",
     partnerId: partner?.id || req.authenticatedPartner?.id || null,
     partnerName: partner?.name || req.authenticatedPartner?.name || null,
@@ -243,10 +248,4 @@ function recordAuthFailure(
     status: "failure",
     userId: req.userId || null
   });
-}
-
-function getSafeKeyPrefix(apiKey: string | undefined): string | null {
-  if (!apiKey) return null;
-  if (!apiKey.startsWith("pk_") && !apiKey.startsWith("sk_")) return null;
-  return apiKey.slice(0, 8);
 }

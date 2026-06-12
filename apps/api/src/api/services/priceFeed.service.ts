@@ -187,7 +187,7 @@ export class PriceFeedService {
     }
 
     // Check if the currency has a Pendulum representative (Nabla pool).
-    // Currencies like MXN and COP are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
+    // Currencies like MXN, COP, and ARS are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
     let outputTokenPendulumDetails;
     try {
       outputTokenPendulumDetails = getPendulumDetails(toCurrency);
