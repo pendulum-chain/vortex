@@ -50,6 +50,8 @@ export const useStepBackNavigation = () => {
   const shouldHide =
     rampState === "RampFollowUp" ||
     rampState === "RedirectCallback" ||
+    // The region selector is the root of the KYB deep-link flow — there is nothing to go back to.
+    rampState === "SelectRegion" ||
     isExternalProviderEntry ||
     (rampState === "QuoteReady" && !enteredViaForm);
 

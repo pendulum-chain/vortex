@@ -1,12 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import i18n from "i18next";
+import { findKybRegionByCode } from "../constants/kybRegions";
 import { Language } from "../translations/helpers";
 
 // Define valid locales
 const VALID_LOCALES = [Language.English, Language.Portuguese_Brazil];
 
 export const Route = createFileRoute("/{-$locale}")({
-  beforeLoad: async ({ params }) => {
+  beforeLoad: async ({ params, location }) => {
     const { locale } = params;
 
     // Normalize locale to handle case-insensitivity (pt-br vs pt-BR)
@@ -21,8 +22,13 @@ export const Route = createFileRoute("/{-$locale}")({
       });
     }
 
+    // A region-pinned KYB deep link (e.g. `?kybLocked=BR`) targets businesses in that region — fall back
+    // to the region's default locale. An explicit locale in the path still wins.
+    const { kybLocked } = location.search as { kybLocked?: unknown };
+    const kybRegion = typeof kybLocked === "string" ? findKybRegionByCode(kybLocked) : undefined;
+
     // Use matched locale or default to English
-    const currentLocale = validLocale || Language.English;
+    const currentLocale = validLocale || kybRegion?.defaultLocale || Language.English;
 
     // Update i18n language
     await i18n.changeLanguage(currentLocale);

@@ -538,6 +538,20 @@
       "subtitle": "Please upload a photo or scan of the representative's ID document.",
       "title": "Representative ID ({{current}} of {{total}})"
     },
+    "kybTaxIdStep": {
+      "continue": "Continue",
+      "description": "Enter your company's CNPJ to begin business verification.",
+      "fields": {
+        "cnpj": {
+          "label": "CNPJ",
+          "placeholder": "00.000.000/0000-00"
+        }
+      },
+      "title": "Company Tax ID",
+      "validation": {
+        "invalidCnpj": "Please enter a valid CNPJ"
+      }
+    },
     "kycDoneScreen": {
       "accountVerified": "Your account has been verified. You can now proceed.",
       "completed": "{{kycOrKyb}} Completed!",
@@ -672,6 +686,19 @@
       "howWouldYouRateYourExperience": "How would you rate your experience?",
       "thankYou": "Thank you!",
       "title": "Your opinion matters!"
+    },
+    "regionSelectStep": {
+      "continue": "Continue",
+      "description": "Select the region you want to verify your business for.",
+      "label": "Region",
+      "placeholder": "Select a region",
+      "regions": {
+        "BR": "Brazil",
+        "CO": "Colombia",
+        "MX": "Mexico",
+        "US": "United States"
+      },
+      "title": "Select Your Region"
     },
     "SummaryPage": {
       "ARSOnrampDetails": {

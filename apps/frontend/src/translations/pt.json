@@ -542,6 +542,20 @@
       "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
       "title": "Documento do Representante ({{current}} de {{total}})"
     },
+    "kybTaxIdStep": {
+      "continue": "Continuar",
+      "description": "Informe o CNPJ da sua empresa para iniciar a verificação empresarial.",
+      "fields": {
+        "cnpj": {
+          "label": "CNPJ",
+          "placeholder": "00.000.000/0000-00"
+        }
+      },
+      "title": "CNPJ da Empresa",
+      "validation": {
+        "invalidCnpj": "Por favor, informe um CNPJ válido"
+      }
+    },
     "kycDoneScreen": {
       "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
       "completed": "{{kycOrKyb}} Concluído!",
@@ -676,6 +690,19 @@
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
       "thankYou": "Obrigado!",
       "title": "Sua opinião é importante!"
+    },
+    "regionSelectStep": {
+      "continue": "Continuar",
+      "description": "Selecione a região para a qual deseja verificar sua empresa.",
+      "label": "Região",
+      "placeholder": "Selecione uma região",
+      "regions": {
+        "BR": "Brasil",
+        "CO": "Colômbia",
+        "MX": "México",
+        "US": "Estados Unidos"
+      },
+      "title": "Selecione sua região"
     },
     "SummaryPage": {
       "ARSOnrampDetails": {
