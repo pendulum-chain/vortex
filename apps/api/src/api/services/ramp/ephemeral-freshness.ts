@@ -10,7 +10,7 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../errors/api-error";
 
-const SUPPORTED_SUBSTRATE_NETWORKS: SubstrateApiNetwork[] = ["pendulum", "hydration", "assethub"];
+const SUPPORTED_SUBSTRATE_NETWORKS: SubstrateApiNetwork[] = ["pendulum", "assethub"];
 
 const SUPPORTED_EVM_NETWORKS: EvmNetworks[] = [
   Networks.Arbitrum,
@@ -25,8 +25,8 @@ const SUPPORTED_EVM_NETWORKS: EvmNetworks[] = [
 ];
 
 // SECURITY: fail-closed. Any RPC error rejects the registration since we cannot prove freshness without on-chain data.
-// We check every supported network unconditionally rather than deriving the route-relevant subset, so a buggy/missing
-// route mapping cannot reopen a freshness gap when new phase handlers add chains an ephemeral signs on.
+// Hydration is intentionally excluded while Hydration-backed routes are disabled; otherwise unrelated registrations
+// would open the Hydration RPC even when their route never signs on Hydration.
 export async function validateEphemeralAccountsFresh(
   ephemerals: {
     [key in EphemeralAccountType]?: string;
@@ -56,8 +56,10 @@ async function assertSubstrateAccountFresh(address: string, network: SubstrateAp
   let free: string;
   try {
     const { api } = await ApiManager.getInstance().getApi(network);
-    // @ts-ignore - api.query.system.account return type is dynamic per chain
-    const accountInfo = await api.query.system.account(address);
+    const accountInfo = (await api.query.system.account(address)) as {
+      data: { free: { toString(): string } };
+      nonce: { toNumber(): number };
+    };
     nonce = accountInfo.nonce.toNumber();
     free = accountInfo.data.free.toString();
   } catch (error) {

@@ -46,8 +46,7 @@
   "dependencies": {
     "big.js": "^7.0.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.1.0",
-    "numora-react": "^3.0.3"
+    "lint-staged": "^16.1.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.0",
@@ -85,6 +84,7 @@
     "@polkadot/types-known": "^16.4.6",
     "@polkadot/util": "^13.5.6",
     "@polkadot/util-crypto": "^13.5.6",
+    "@wagmi/connectors": "6.2.0",
     "adm-zip": "0.5.2",
     "axios": "^1.15.0",
     "big.js": "^7.0.1",
@@ -107,7 +107,7 @@
     "build:sdk": "bun run --cwd packages/sdk build",
     "build:shared": "bun run --cwd packages/shared build",
     "compile:contracts:relayer": "bun run --cwd contracts/relayer compile",
-    "dev": "concurrently -n 'shared,backend,frontend' -c '#ffa500,#007755,#2f6da3' 'cd packages/shared && bun run dev' 'cd apps/api && bun dev' 'cd apps/frontend && bun dev'",
+    "dev": "bun run --cwd packages/shared dev & bun run --cwd apps/api dev & bun run --cwd apps/frontend dev & wait",
     "dev:backend": "bun run --cwd apps/api dev",
     "dev:contracts:relayer": "bun run --cwd contracts/relayer node",
     "dev:frontend": "bun run --cwd apps/frontend dev",

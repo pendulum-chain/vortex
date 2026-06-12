@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Admin authentication protects internal/operational endpoints (partner management, system configuration, diagnostics). It uses a single shared secret (`ADMIN_SECRET` env var) compared via Bearer token.
+Admin authentication protects internal/operational endpoints that can mutate system state or manage partners. It uses a single shared secret (`ADMIN_SECRET` env var) compared via Bearer token. Read-only access to client observability endpoints uses a separate `METRICS_DASHBOARD_SECRET` so a metrics token compromise does not grant broader admin access.
 
 The flow:
 1. Admin includes `Authorization: Bearer <ADMIN_SECRET>` header

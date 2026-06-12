@@ -83,6 +83,19 @@ To restrict the search to a subset of chains (for example when you only support 
 }
 ```
 
+## Quote Error Handling
+
+Expected route-availability failures are returned as `500` responses with a user-facing message. The HTTP status reflects that the route exists but current pool or route liquidity cannot serve the requested amount. Clients should treat this as a user-correctable liquidity failure and ask the user to try a smaller amount or check back soon. Both `POST /v1/quotes` and `POST /v1/quotes/best` can return:
+
+```json
+{
+  "code": 500,
+  "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
+}
+```
+
+For `POST /v1/quotes/best`, this low-liquidity response is returned when every eligible candidate route fails because of liquidity. Unexpected provider or calculation errors remain internal failures and should be retried or escalated with the response request ID if they persist.
+
 ## Quote Expiry
 
 Quotes are immutable and short-lived. If the user takes too long to confirm, or if you delay before calling `POST /v1/ramp/register`, the quote expires and the register call rejects it. Catch the expiry error, create a fresh quote, and re-prompt the user before registering.

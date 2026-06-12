@@ -1,6 +1,5 @@
 import { EvmToken, Networks } from "@vortexfi/shared";
 import type { ChangeEvent, FC } from "react";
-import type { UseFormRegisterReturn } from "react-hook-form";
 import { cn } from "../../helpers/cn";
 import { QuoteFormValues } from "../../hooks/quote/schema";
 import { AssetButton } from "../buttons/AssetButton";
@@ -23,7 +22,7 @@ interface AssetNumericInputProps {
   tokenLoading?: boolean;
   logoURI?: string;
   fallbackLogoURI?: string;
-  registerInput: UseFormRegisterReturn<keyof QuoteFormValues>;
+  name: keyof QuoteFormValues;
   id: string;
   network?: Networks;
 }
@@ -32,7 +31,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
   assetIcon,
   tokenSymbol,
   onClick,
-  registerInput,
+  name,
   loading,
   tokenLoading,
   ...rest
@@ -62,7 +61,7 @@ export const AssetNumericInput: FC<AssetNumericInputProps> = ({
         additionalStyle={cn("text-right text-lg", rest.readOnly && "text-xl", rest.disabled && "input-disabled opacity-50")}
         loading={loading}
         maxDecimals={getMaxDecimalsForToken(tokenSymbol)}
-        register={registerInput}
+        name={name}
         {...rest}
       />
     )}

@@ -12,6 +12,8 @@ interface ErrorResponse {
   message: string;
   errors?: unknown[];
   stack?: string;
+  statusCode?: number;
+  type?: string;
 }
 
 /**
@@ -29,12 +31,17 @@ const handler = (err: APIError | Error, _req: Request, res: Response, _next: Nex
     stack: err.stack
   };
 
+  if (apiError.type) {
+    response.statusCode = statusCode;
+    response.type = apiError.type;
+  }
+
   if (env !== "development") {
     delete response.stack;
     if (statusCode >= 500) {
       // Preserve messages for intentional 5xx codes (e.g. 503 SERVICE_UNAVAILABLE used by
       // ephemeral freshness checks). Only mask unexpected internal server errors (500).
-      if (statusCode === httpStatus.INTERNAL_SERVER_ERROR) {
+      if (statusCode === httpStatus.INTERNAL_SERVER_ERROR && !apiError.isPublic) {
         response.message = "Internal server error";
       }
     }

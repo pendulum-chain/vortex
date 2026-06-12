@@ -2,6 +2,7 @@ import { doesNetworkSupportRamp, FiatToken, getNetworkDisplayName, Networks } fr
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CountUp } from "../../../components/CountUp";
 import { cn } from "../../../helpers/cn";
 import { isValidFiatIcon } from "../../../hooks/useGetAssetIcon";
 import { useGetNetworkIcon } from "../../../hooks/useGetNetworkIcon";
@@ -110,9 +111,9 @@ export function PopularTokens() {
           </ul>
         </div>
 
-        <div>
-          <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.tokens.title")}</h2>
-          <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.tokens.description")}</p>
+        <div className="mb-12">
+          <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.countries.title")}</h2>
+          <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.countries.description")}</p>
           <motion.ul
             animate={{ opacity: 1, y: 0 }}
             className="mt-4 flex flex-wrap items-center justify-center gap-2"
@@ -127,6 +128,14 @@ export function PopularTokens() {
               />
             ))}
           </motion.ul>
+        </div>
+
+        <div>
+          <h2 className="text-gray-900 text-h2">{t("sections.popularTokens.cryptocurrencies.title")}</h2>
+          <p className="mt-4 font-bold text-6xl text-primary md:text-7xl">
+            <CountUp to={100} />+
+          </p>
+          <p className="mt-2 text-body-lg text-gray-600">{t("sections.popularTokens.cryptocurrencies.description")}</p>
         </div>
       </div>
     </>

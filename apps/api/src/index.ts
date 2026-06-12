@@ -1,4 +1,4 @@
-import { ApiManager, EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
+import { EvmClientManager, initializeEvmTokens, setLogger } from "@vortexfi/shared";
 import dotenv from "dotenv";
 import path from "path";
 import cryptoService from "./config/crypto";
@@ -11,6 +11,7 @@ import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
@@ -57,14 +58,12 @@ const initializeApp = async () => {
     // Run database migrations
     await runMigrations();
 
-    const apiManager = ApiManager.getInstance();
-    await apiManager.populateAllApis();
-
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
 
     // Start background workers
     new CleanupWorker().start();
+    new ApiClientEventsRetentionWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
 

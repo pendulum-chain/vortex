@@ -5,6 +5,12 @@ import {
   createPendulumEphemeral,
   EphemeralAccount,
   EphemeralAccountType,
+  GetRampStatusResponse,
+  isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
+  Networks,
+  PresignedTx,
   QuoteResponse,
   RampDirection,
   RampProcess,
@@ -60,7 +66,7 @@ export class VortexSdk {
     return this.apiService.getQuote(quoteId);
   }
 
-  async getRampStatus(rampId: string): Promise<RampProcess> {
+  async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     return this.apiService.getRampStatus(rampId);
   }
 
@@ -196,16 +202,24 @@ export class VortexSdk {
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
-  ): Promise<any[]> {
+  ): Promise<PresignedTx[]> {
     await this.ensureInitialized();
 
     try {
       const signedTxs = await signUnsignedTransactions(
         unsignedTxs,
         ephemerals,
-        this.networkManager.getPendulumApi() as any, // TODO fix typing
-        this.networkManager.getMoonbeamApi() as any,
-        this.networkManager.getHydrationApi() as any,
+        unsignedTxs.some(tx => tx.network === Networks.Pendulum) ? await this.networkManager.getPendulumApi() : undefined,
+        unsignedTxs.some(
+          tx =>
+            tx.network === Networks.Moonbeam &&
+            !isEvmTransactionData(tx.txData) &&
+            !isSignedTypedData(tx.txData) &&
+            !isSignedTypedDataArray(tx.txData)
+        )
+          ? await this.networkManager.getMoonbeamApi()
+          : undefined,
+        unsignedTxs.some(tx => tx.network === Networks.Hydration) ? await this.networkManager.getHydrationApi() : undefined,
         this.networkManager.getAlchemyApiKey()
       );
 

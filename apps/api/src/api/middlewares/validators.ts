@@ -17,18 +17,22 @@ import {
   PriceProvider,
   QuoteError,
   RampDirection,
+  SubmitKycInformationRequest,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
   VALID_FIAT_CURRENCIES,
   VALID_PROVIDERS
 } from "@vortexfi/shared";
-import { RequestHandler, Response } from "express";
+import { Request, RequestHandler, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { CONTACT_SHEET_HEADER_VALUES } from "../controllers/contact.controller";
 import { EMAIL_SHEET_HEADER_VALUES } from "../controllers/email.controller";
 import { RATING_SHEET_HEADER_VALUES } from "../controllers/rating.controller";
 import { FLOW_HEADERS } from "../controllers/storage.controller";
+import { APIError } from "../errors/api-error";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { getRequestDurationMs } from "../observability/requestContext";
 
 interface CreationBody {
   accountId: string;
@@ -380,16 +384,19 @@ export const validateCreateQuoteInput: RequestHandler<unknown, unknown, CreateQu
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency } = req.body;
 
   if (!rampType || !from || !to || !inputAmount || !inputCurrency || !outputCurrency) {
+    observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
     return;
   }
 
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    observeQuoteValidationFailure(req, "quote_create");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
+    observeQuoteValidationFailure(req, "quote_create");
     return;
   }
 
@@ -405,38 +412,45 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, networks } = req.body;
 
   if (!rampType || !inputAmount || !inputCurrency || !outputCurrency) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingRequiredFields });
     return;
   }
 
   if (rampType !== RampDirection.BUY && rampType !== RampDirection.SELL) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidRampType });
     return;
   }
 
   if (rampType === RampDirection.BUY && !from) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingFromField });
     return;
   }
 
   if (rampType === RampDirection.SELL && !to) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.MissingToField });
     return;
   }
 
   if (networks !== undefined) {
     if (!Array.isArray(networks)) {
+      observeQuoteValidationFailure(req, "quote_create_best");
       res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
       return;
     }
     const normalized: Networks[] = [];
     for (const entry of networks) {
       if (typeof entry !== "string") {
+        observeQuoteValidationFailure(req, "quote_create_best");
         res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
         return;
       }
       const canonical = getCaseSensitiveNetwork(entry);
       if (!canonical) {
+        observeQuoteValidationFailure(req, "quote_create_best");
         res.status(httpStatus.BAD_REQUEST).json({ message: QuoteError.InvalidNetworks });
         return;
       }
@@ -446,6 +460,7 @@ export const validateCreateBestQuoteInput: RequestHandler<unknown, unknown, Crea
   }
 
   if (!validateSupportedFiatCurrency(rampType, inputCurrency, outputCurrency, res)) {
+    observeQuoteValidationFailure(req, "quote_create_best");
     return;
   }
 
@@ -457,6 +472,40 @@ const normalizeAxlUsdcCurrency = (value: unknown): unknown => {
 
   return value.toLowerCase() === "axlusdc" ? "USDC.axl" : value;
 };
+
+function observeQuoteValidationFailure(
+  req: Request<unknown, unknown, CreateQuoteRequest | CreateBestQuoteRequest>,
+  operation: "quote_create" | "quote_create_best"
+): void {
+  observeApiClientEvent({
+    durationMs: getRequestDurationMs(req),
+    errorType: "validation_error",
+    httpStatus: httpStatus.BAD_REQUEST,
+    metadata: buildQuoteValidationRequestMetadata(req, operation),
+    operation,
+    requestId: req.requestId,
+    status: "failure",
+    userId: req.userId || null
+  });
+}
+
+function buildQuoteValidationRequestMetadata(
+  req: Request<unknown, unknown, CreateQuoteRequest | CreateBestQuoteRequest>,
+  operation: "quote_create" | "quote_create_best"
+): Record<string, unknown> {
+  return buildApiClientRequestMetadata(req, {
+    bodyKeys: [
+      ...(operation === "quote_create_best" ? ["countryCode", "networks"] : []),
+      "from",
+      "inputAmount",
+      "inputCurrency",
+      "outputCurrency",
+      "partnerId",
+      "rampType",
+      "to"
+    ]
+  });
+}
 
 export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidgetUrlLocked | GetWidgetUrlRefresh> = (
   req,
@@ -471,6 +520,40 @@ export const validateGetWidgetUrlInput: RequestHandler<unknown, unknown, GetWidg
 
   if (!network || !fiat || !inputAmount || !cryptoLocked || !rampType || !externalSessionId) {
     res.status(httpStatus.BAD_REQUEST).json({ error: QuoteError.MissingRequiredFields });
+    return;
+  }
+
+  next();
+};
+
+const countryValidators: Record<string, (body: SubmitKycInformationRequest) => string | null> = {
+  AR: ({ phoneNumber, cuit, nationalities, pep }) => {
+    if (!phoneNumber) return "Phone number is required for Argentina";
+    if (!phoneNumber.startsWith("+54")) return "Phone number must use Argentina country code (+54)";
+    if (cuit && !/^\d{11}$/.test(cuit)) return "CUIT must be exactly 11 digits";
+    if (nationalities && !nationalities.every(n => /^[A-Z]{2}$/.test(n))) return "Nationalities must use alpha-2 country codes";
+    if (typeof pep !== "boolean") return "PEP declaration is required for Argentina";
+    return null;
+  }
+};
+
+export const validateKycSubmission: RequestHandler = (req, res, next) => {
+  const body = req.body as SubmitKycInformationRequest;
+  const validator = countryValidators[body.country];
+
+  if (!validator) {
+    return next();
+  }
+
+  const error = validator(body);
+  if (error) {
+    next(
+      new APIError({
+        errors: [{ message: error }],
+        message: error,
+        status: httpStatus.BAD_REQUEST
+      })
+    );
     return;
   }
 

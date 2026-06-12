@@ -4,6 +4,7 @@ interface ExtendableErrorParams {
   status?: number;
   isPublic?: boolean;
   stack?: string;
+  type?: string;
 }
 
 /**
@@ -19,7 +20,9 @@ class ExtendableError extends Error {
 
   readonly isOperational: boolean;
 
-  constructor({ message, errors, status, isPublic = false, stack }: ExtendableErrorParams) {
+  readonly type?: string;
+
+  constructor({ message, errors, status, isPublic = false, stack, type }: ExtendableErrorParams) {
     super(message);
     this.name = this.constructor.name;
     this.message = message;
@@ -28,6 +31,7 @@ class ExtendableError extends Error {
     this.isPublic = isPublic;
     this.isOperational = true;
     this.stack = stack;
+    this.type = type;
     // Error.captureStackTrace(this, this.constructor.name);
   }
 }

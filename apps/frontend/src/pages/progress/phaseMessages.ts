@@ -88,6 +88,7 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     mykoboPayoutOnBase: getTransferringMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
+    onHoldForComplianceCheck: t("pages.progress.onHoldForComplianceCheck"),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),

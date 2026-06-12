@@ -8,6 +8,7 @@ export interface StateMetadata {
   distributeFeeHash: string;
   // Only used in onramp - brla
   aveniaTicketId: string;
+  onHold?: boolean;
   taxId: string;
   pixDestination: string;
   brlaEvmAddress: string;
@@ -49,6 +50,8 @@ export interface StateMetadata {
   // Final transaction hash and explorer link (computed once when ramp is complete)
   finalTransactionHash?: string;
   finalTransactionExplorerLink?: string;
+  finalTransactionHashV2?: string;
+  finalTransactionExplorerLinkV2?: string;
   // Alfredpay
   alfredpayUserId?: string;
   alfredpayTransactionId?: string;

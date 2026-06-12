@@ -63,19 +63,6 @@ export class PriceFeedService {
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
-
-    // Start cron job to check onchain oracle prices
-    this.checkOnchainOraclePricesUpToDate().catch(error => {
-      logger.error(`Error checking onchain oracle prices: ${error.message}`);
-    });
-    setInterval(
-      () => {
-        this.checkOnchainOraclePricesUpToDate().catch(error => {
-          logger.error(`Error checking onchain oracle prices: ${error.message}`);
-        });
-      },
-      24 * 60 * 60 * 1000
-    ); // Check every 24 hours
   }
 
   /**
@@ -200,7 +187,7 @@ export class PriceFeedService {
     }
 
     // Check if the currency has a Pendulum representative (Nabla pool).
-    // Currencies like MXN and COP are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
+    // Currencies like MXN, COP, and ARS are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
     let outputTokenPendulumDetails;
     try {
       outputTokenPendulumDetails = getPendulumDetails(toCurrency);

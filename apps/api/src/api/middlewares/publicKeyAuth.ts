@@ -1,9 +1,16 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
+import { getRequestDurationMs } from "../observability/requestContext";
 import { getKeyType, isValidApiKeyFormat, validatePublicApiKey } from "./apiKeyAuth.helpers";
 
 // Extend Express Request type to include validated public key
 declare global {
+  // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
   namespace Express {
     interface Request {
       validatedPublicKey?: {
@@ -33,6 +40,7 @@ export function validatePublicKey() {
 
       // Validate API key format
       if (!isValidApiKeyFormat(apiKey)) {
+        recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
         return res.status(400).json({
           error: {
             code: "INVALID_API_KEY_FORMAT",
@@ -45,6 +53,7 @@ export function validatePublicKey() {
       // Check if it's a public key
       const keyType = getKeyType(apiKey);
       if (keyType !== "public") {
+        recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
         return res.status(400).json({
           error: {
             code: "INVALID_KEY_TYPE",
@@ -58,6 +67,7 @@ export function validatePublicKey() {
       const partnerName = await validatePublicApiKey(apiKey);
 
       if (!partnerName) {
+        recordPublicKeyFailure(req, 401, getSafeApiKeyPrefix(apiKey));
         return res.status(401).json({
           error: {
             code: "INVALID_PUBLIC_KEY",
@@ -79,4 +89,18 @@ export function validatePublicKey() {
       next(error);
     }
   };
+}
+
+function recordPublicKeyFailure(req: Request, httpStatus: number, apiKeyPrefix: string | null): void {
+  observeApiClientEvent({
+    apiKeyPrefix,
+    durationMs: getRequestDurationMs(req),
+    errorType: "auth_invalid_public_key",
+    httpStatus,
+    metadata: buildApiClientRequestMetadata(req),
+    operation: "auth_public_key",
+    requestId: req.requestId,
+    status: "failure",
+    userId: req.userId || null
+  });
 }

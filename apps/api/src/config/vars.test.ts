@@ -5,6 +5,7 @@ const bunExecutable = Bun.argv[0];
 
 const requiredProductionEnv = {
   ADMIN_SECRET: "test-admin-secret",
+  METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
   SUPABASE_URL: "https://example.supabase.co",
@@ -66,5 +67,16 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
+  });
+
+  it("requires the metrics dashboard secret in production", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      METRICS_DASHBOARD_SECRET: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("METRICS_DASHBOARD_SECRET");
   });
 });
