@@ -44,6 +44,9 @@ export class RouteResolver {
             status: httpStatus.BAD_REQUEST
           });
         }
+        if (ctx.request.outputCurrency !== AssetHubToken.USDC) {
+          throw new APIError({ message: QuoteError.UnsupportedCurrency, status: httpStatus.BAD_REQUEST });
+        }
         return onrampAveniaToAssethubStrategy;
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
