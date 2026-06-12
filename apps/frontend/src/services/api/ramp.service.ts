@@ -119,7 +119,12 @@ export class RampService {
         onUpdate(status);
       }
 
-      if (status.currentPhase === "complete" || status.currentPhase === "failed") {
+      if (
+        status.status === "COMPLETE" ||
+        status.status === "FAILED" ||
+        status.currentPhase === "complete" ||
+        status.currentPhase === "failed"
+      ) {
         return status;
       }
 

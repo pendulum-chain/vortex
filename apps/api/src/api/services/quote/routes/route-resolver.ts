@@ -23,7 +23,12 @@ import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-as
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
-const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([EPaymentMethod.ACH, EPaymentMethod.SPEI, EPaymentMethod.WIRE]);
+const ALFREDPAY_PAYMENT_METHODS: ReadonlySet<string> = new Set([
+  EPaymentMethod.ACH,
+  EPaymentMethod.CBU,
+  EPaymentMethod.SPEI,
+  EPaymentMethod.WIRE
+]);
 
 export class RouteResolver {
   resolve(ctx: QuoteContext): IRouteStrategy {
@@ -38,6 +43,9 @@ export class RouteResolver {
             message: "EUR onramp to AssetHub is not supported; please choose an EVM destination chain",
             status: httpStatus.BAD_REQUEST
           });
+        }
+        if (ctx.request.outputCurrency !== AssetHubToken.USDC) {
+          throw new APIError({ message: QuoteError.UnsupportedCurrency, status: httpStatus.BAD_REQUEST });
         }
         return onrampAveniaToAssethubStrategy;
       } else {

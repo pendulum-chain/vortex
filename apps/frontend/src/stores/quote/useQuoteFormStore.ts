@@ -29,7 +29,7 @@ const defaultFiatToken = getLanguageFromPath() === Language.Portuguese_Brazil ? 
 const defaultFiatAmount =
   getLanguageFromPath() === Language.Portuguese_Brazil ? DEFAULT_BRL_AMOUNT : defaultFiatTokenAmounts[defaultFiatToken];
 
-const defaultOnChainToken = getRampDirectionFromPath() === RampDirection.BUY ? EvmToken.USDT : EvmToken.USDC;
+const defaultOnChainToken = EvmToken.USDC;
 
 interface RampFormState {
   inputAmount: string;

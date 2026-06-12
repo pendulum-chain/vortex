@@ -1255,6 +1255,7 @@
       "initial": "Iniciando processo",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
       "mykoboOnrampDeposit": "Aguardando recebimento do pagamento",
+      "onHoldForComplianceCheck": "Seu pagamento está em espera para uma verificação de compliance. A Vortex continuará automaticamente quando a Avenia liberar.",
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
@@ -1319,7 +1320,7 @@
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
+        "lowLiquidity": "Esta rota está temporariamente indisponível devido à baixa liquidez. Tente um valor menor ou volte em breve.",
         "MXN_tokenUnavailable": "Construa seu trilho MXN - disponível em breve!",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {

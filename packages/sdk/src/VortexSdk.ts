@@ -5,6 +5,7 @@ import {
   createPendulumEphemeral,
   EphemeralAccount,
   EphemeralAccountType,
+  GetRampStatusResponse,
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
@@ -65,7 +66,7 @@ export class VortexSdk {
     return this.apiService.getQuote(quoteId);
   }
 
-  async getRampStatus(rampId: string): Promise<RampProcess> {
+  async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     return this.apiService.getRampStatus(rampId);
   }
 

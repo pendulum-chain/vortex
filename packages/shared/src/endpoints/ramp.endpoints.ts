@@ -40,6 +40,7 @@ export type RampPhase =
   | "alfredpayOfframpTransfer"
   | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
+  | "onHoldForComplianceCheck"
   | "brlaPayoutOnBase"
   | "mykoboOnrampDeposit"
   | "mykoboPayoutOnBase"

@@ -1250,6 +1250,7 @@
       "initial": "Starting process",
       "moonbeamToPendulum": "Transferring {{assetSymbol}} from Moonbeam --> Pendulum",
       "mykoboOnrampDeposit": "Waiting to receive payment",
+      "onHoldForComplianceCheck": "Your payment is on hold for a compliance check. Vortex will continue automatically once Avenia clears it.",
       "pendulumToAssethubXcm": "Transferring {{assetSymbol}} from Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferring {{assetSymbol}} from Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferring {{assetSymbol}} from Pendulum --> Moonbeam",
@@ -1314,7 +1315,7 @@
           "buy": "Minimum buy amount is {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "Minimum sell amount is {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Low liquidity for this route. Please try a smaller amount.",
+        "lowLiquidity": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
         "MXN_tokenUnavailable": "Building your MXN rail - available soon!",
         "missingFields": "Missing required fields",
         "moreThanMaximumWithdrawal": {

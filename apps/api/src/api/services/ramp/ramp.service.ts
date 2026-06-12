@@ -64,7 +64,7 @@ import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
-import { getFinalTransactionHashForRamp } from "./helpers";
+import { getFinalTransactionHashForRampV2 } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
@@ -433,7 +433,7 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        this.cancelRamp(rampState.id);
+        await this.cancelRamp(rampState.id);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
@@ -537,26 +537,26 @@ export class RampService extends BaseRampService {
     const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+    const isOnHoldForComplianceCheck = rampState.currentPhase === "brlaOnrampMint" && rampState.state.onHold;
+
     // Never return 'failed' as current phase, instead return last known phase
-    const currentPhase =
-      rampState.currentPhase !== "failed"
+    const currentPhase: RampPhase = isOnHoldForComplianceCheck
+      ? "onHoldForComplianceCheck"
+      : rampState.currentPhase !== "failed"
         ? rampState.currentPhase
         : // Find second-last entry in phase history or show 'initial' if not available
           rampState.phaseHistory && rampState.phaseHistory.length > 1
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    // Get or compute final transaction hash and explorer link
-    let transactionHash = rampState.state.finalTransactionHash;
-    let transactionExplorerLink = rampState.state.finalTransactionExplorerLink;
+    // Get or compute the V2 final transaction hash and explorer link. The legacy field intentionally used the
+    // second-last network for older clients, so status/history responses ignore it here.
+    let transactionHash = rampState.state.finalTransactionHashV2;
+    let transactionExplorerLink = rampState.state.finalTransactionExplorerLinkV2;
 
     // If not stored yet and ramp is complete, compute and store them
-    if (
-      rampState.type === RampDirection.BUY &&
-      rampState.currentPhase === "complete" &&
-      (!transactionHash || !transactionExplorerLink)
-    ) {
-      const result = await getFinalTransactionHashForRamp(rampState, quote);
+    if (rampState.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+      const result = getFinalTransactionHashForRampV2(rampState, quote);
       transactionHash = result.transactionHash;
       transactionExplorerLink = result.transactionExplorerLink;
 
@@ -565,8 +565,8 @@ export class RampService extends BaseRampService {
         await rampState.update({
           state: {
             ...rampState.state,
-            finalTransactionExplorerLink: transactionExplorerLink,
-            finalTransactionHash: transactionHash
+            finalTransactionExplorerLinkV2: transactionExplorerLink,
+            finalTransactionHashV2: transactionHash
           }
         });
       }
@@ -689,17 +689,14 @@ export class RampService extends BaseRampService {
           });
         }
 
-        // Get or compute final transaction hash and explorer link (similar to getRampStatus)
-        let transactionHash = ramp.state.finalTransactionHash;
-        let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
+        // Get or compute the V2 final transaction hash and explorer link (similar to getRampStatus).
+        // Do not fall back to the legacy finalTransactionExplorerLink because that may point to Squid/Axelar.
+        let transactionHash = ramp.state.finalTransactionHashV2;
+        let transactionExplorerLink = ramp.state.finalTransactionExplorerLinkV2;
 
         // If not stored yet and ramp is complete, compute and store them
-        if (
-          ramp.type === RampDirection.BUY &&
-          ramp.currentPhase === "complete" &&
-          (!transactionHash || !transactionExplorerLink)
-        ) {
-          const result = await getFinalTransactionHashForRamp(ramp, quote);
+        if (ramp.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+          const result = getFinalTransactionHashForRampV2(ramp, quote);
           transactionHash = result.transactionHash;
           transactionExplorerLink = result.transactionExplorerLink;
 
@@ -708,8 +705,8 @@ export class RampService extends BaseRampService {
             await ramp.update({
               state: {
                 ...ramp.state,
-                finalTransactionExplorerLink: transactionExplorerLink,
-                finalTransactionHash: transactionHash
+                finalTransactionExplorerLinkV2: transactionExplorerLink,
+                finalTransactionHashV2: transactionHash
               }
             });
           }
@@ -1533,7 +1530,6 @@ export class RampService extends BaseRampService {
       return;
     }
 
-    const alfredpayService = AlfredpayApiService.getInstance();
     const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
 
     if (!alfredpayQuoteId) {

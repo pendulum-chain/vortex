@@ -17,7 +17,7 @@ import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
 import { enrichAdditionalDataWithClientIp } from "../helpers/clientIp";
 import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientOperation } from "../observability/types";
@@ -288,6 +288,11 @@ interface RampObservationContext {
 
 interface ObservedRampRequest {
   authenticatedPartner?: { id: string; name: string };
+  body?: unknown;
+  method?: string;
+  params?: unknown;
+  path?: string;
+  query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
   userId?: string;
@@ -325,6 +330,7 @@ function observeRampFailure(
     errorMessage: getErrorMessage(error),
     errorType: classifyApiClientError(error, status),
     httpStatus: status,
+    metadata: buildRampRequestMetadata(req, operation),
     operation,
     partnerId: req.authenticatedPartner?.id || null,
     partnerName: req.authenticatedPartner?.name || null,
@@ -332,6 +338,26 @@ function observeRampFailure(
     status: "failure",
     userId: req.userId || null
   });
+}
+
+function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
+  if (operation === "ramp_register") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "signingAccounts", "additionalData"] });
+  }
+
+  if (operation === "ramp_update") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId", "presignedTxs", "additionalData"] });
+  }
+
+  if (operation === "ramp_start") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId"] });
+  }
+
+  if (operation === "ramp_status") {
+    return buildApiClientRequestMetadata(req, { paramKeys: ["id"], queryKeys: ["showUnsignedTxs"] });
+  }
+
+  return buildApiClientRequestMetadata(req, { paramKeys: ["id"] });
 }
 
 function getHttpStatus(error: unknown): number {

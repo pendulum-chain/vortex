@@ -2,6 +2,7 @@ import { ApiPromise, WsProvider } from "@polkadot/api";
 import { SubmittableExtrinsic } from "@polkadot/api/submittable/types";
 import { KeyringPair } from "@polkadot/keyring/types";
 import { ISubmittableResult } from "@polkadot/types/types";
+import { getEnvVar } from "../../helpers/environment";
 import logger from "../../logger";
 
 export type SubstrateApiNetwork = "assethub" | "pendulum" | "moonbeam" | "hydration" | "paseo";
@@ -11,14 +12,14 @@ export interface NetworkConfig {
   wsUrls: string[];
 }
 
-const NETWORKS: NetworkConfig[] = [
+const DEFAULT_NETWORKS: NetworkConfig[] = [
   {
     name: "assethub",
     wsUrls: ["wss://dot-rpc.stakeworld.io/assethub"]
   },
   {
     name: "hydration",
-    wsUrls: ["wss://hydration.ibp.network"]
+    wsUrls: ["wss://rpc.hydradx.cloud"]
   },
   {
     name: "moonbeam",
@@ -33,6 +34,31 @@ const NETWORKS: NetworkConfig[] = [
     wsUrls: ["wss://paseo.ibp.network"]
   }
 ];
+
+const NETWORK_RPC_ENV_KEYS: Partial<Record<SubstrateApiNetwork, string>> = {
+  assethub: "ASSETHUB_WSS",
+  hydration: "HYDRATION_WSS",
+  moonbeam: "MOONBEAM_WSS"
+};
+
+function parseWsUrls(value: string): string[] {
+  return value
+    .split(",")
+    .map(url => url.trim())
+    .filter(Boolean);
+}
+
+export function getConfiguredNetworks(): NetworkConfig[] {
+  return DEFAULT_NETWORKS.map(network => {
+    const envKey = NETWORK_RPC_ENV_KEYS[network.name];
+    const configuredWsUrls = envKey ? parseWsUrls(getEnvVar(envKey)) : [];
+
+    return {
+      ...network,
+      wsUrls: configuredWsUrls.length > 0 ? configuredWsUrls : network.wsUrls
+    };
+  });
+}
 
 export type API = {
   api: ApiPromise;
@@ -58,7 +84,7 @@ export class ApiManager {
   private usedRpcIndices: Map<string, Set<number>> = new Map();
 
   private constructor() {
-    this.networks = NETWORKS;
+    this.networks = getConfiguredNetworks();
 
     // Initialize nonce maps for each network
     this.networks.forEach(network => {
@@ -75,7 +101,6 @@ export class ApiManager {
   }
 
   public async populateApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
-    const network = this.getNetworkConfig(networkName);
     const index = wsUrlIndex ?? 0;
     const instanceKey = this.generateInstanceKey(networkName, index);
     const existingInstance = this.apiInstances.get(instanceKey);
@@ -126,16 +151,18 @@ export class ApiManager {
    */
   public async getApiWithShuffling(networkName: SubstrateApiNetwork, uuid?: string): Promise<API> {
     const network = this.getNetworkConfig(networkName);
-    const usedIndices = uuid ? this.usedRpcIndices.get(uuid) || new Set<number>() : null;
+    const usedIndices = uuid ? (this.usedRpcIndices.get(uuid) ?? new Set<number>()) : undefined;
 
     // Get available indices: all if no UUID, unused ones if UUID provided
     const availableIndices = uuid
-      ? network.wsUrls.map((_, index) => index).filter(index => !usedIndices!.has(index))
+      ? network.wsUrls.map((_, index) => index).filter(index => !usedIndices?.has(index))
       : network.wsUrls.map((_, index) => index);
 
     // If no available indices any more, reset the used indices for this UUID and throw
     if (availableIndices.length === 0) {
-      this.usedRpcIndices.delete(uuid!); // uuid is guaranteed to be defined here.
+      if (uuid) {
+        this.usedRpcIndices.delete(uuid);
+      }
       throw new Error(`All RPC endpoints have been used for network ${networkName} with UUID ${uuid}`);
     }
 
@@ -146,7 +173,7 @@ export class ApiManager {
       if (!this.usedRpcIndices.has(uuid)) {
         this.usedRpcIndices.set(uuid, new Set<number>());
       }
-      this.usedRpcIndices.get(uuid)!.add(randomIndex);
+      this.usedRpcIndices.get(uuid)?.add(randomIndex);
     }
 
     const instanceKey = this.generateInstanceKey(networkName, randomIndex);

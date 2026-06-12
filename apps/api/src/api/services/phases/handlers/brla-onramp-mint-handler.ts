@@ -23,6 +23,7 @@ import RampState from "../../../../models/rampState.model";
 import TaxId from "../../../../models/taxId.model";
 import { APIError } from "../../../errors/api-error";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { syncAveniaOnHoldState } from "../helpers/brla-onramp-hold";
 import { StateMetadata } from "../meta-state-types";
 
 // The rationale for these difference is that it allows for a finer check over the payment timeout in
@@ -30,6 +31,7 @@ import { StateMetadata } from "../meta-state-types";
 // process loop and check for the operation timestamp.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 
 // The pre-computed expected amount stored at quote-creation time can be slightly higher than the
 // amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
@@ -95,6 +97,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     }
 
     const brlaApiService = BrlaApiService.getInstance();
+    let lastAveniaHoldStatusCheckAt = 0;
     try {
       logger.info(
         `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
@@ -103,6 +106,28 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         async () => {
           if (!quote.metadata.aveniaMint) {
             return false;
+          }
+
+          const now = Date.now();
+          if (now - lastAveniaHoldStatusCheckAt >= AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS) {
+            lastAveniaHoldStatusCheckAt = now;
+            const ticketFound = await syncAveniaOnHoldState(
+              state.state,
+              updatedState =>
+                state.update({
+                  state: {
+                    ...state.state,
+                    ...updatedState
+                  }
+                }),
+              brlaApiService,
+              taxIdRecord.subAccountId
+            );
+            if (!ticketFound) {
+              logger.warn(
+                `BrlaOnrampMintHandler: Avenia ticket ${state.state.aveniaTicketId} was not found while checking hold status.`
+              );
+            }
           }
 
           // Check internal balance of Avenia subaccount

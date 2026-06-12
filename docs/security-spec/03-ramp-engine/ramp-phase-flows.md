@@ -57,6 +57,8 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - From Base to supported EVM destinations (BRL and EUR onramps): `squidRouterApprove` → `squidRouterSwap` → `squidRouterPay` → optional `backupSquidRouter*` on destination → `destinationTransfer`
 - Trivial case (Base→Base USDC): direct `destinationTransfer` only (Squid skipped)
 
+**History/status terminal transaction link:** The API's V2 final transaction hash/link must point to the terminal user-facing on-chain delivery phase, not to intermediate bridge/swap phases such as `squidRouterSwap`. For EVM onramps this is `destinationTransferTxHash`; for AssetHub onramps it is `pendulumToAssethubXcmHash` or `hydrationToAssethubXcmHash`; for active offramps it is the corridor terminal payout hash (`brlaPayoutTxHash`, `mykoboPayoutTxHash`, or `alfredpayOfframpTransferTxHash`). Post-complete cleanup sweeps are not user-facing delivery and must not be exposed as the final transaction.
+
 ### Phase Transition Diagrams
 
 The following diagrams show the phase transitions for all on-ramp and off-ramp corridors as registered in `register-handlers.ts` and assembled by the route builders in `apps/api/src/api/services/transactions/{on,off}ramp/routes/`. Diamond nodes denote conditional branches resolved at route-build time (not runtime phase transitions).
