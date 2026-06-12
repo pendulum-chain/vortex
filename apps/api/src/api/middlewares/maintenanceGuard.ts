@@ -47,7 +47,8 @@ export function rejectDuringActiveMaintenance(operation: BlockedMaintenanceOpera
           }
         ],
         message,
-        status: httpStatus.SERVICE_UNAVAILABLE
+        status: httpStatus.SERVICE_UNAVAILABLE,
+        type: MAINTENANCE_PROBLEM_TYPE
       });
 
       observeMaintenanceDenial(req, operation, error, status.maintenance_details);
