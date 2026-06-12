@@ -42,7 +42,7 @@ This directory contains the security specification for the Vortex cross-border p
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
-| Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management |
+| Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum) and USDC→BRLA→USDC (Base, default) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
 | Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
@@ -71,9 +71,12 @@ Every spec file uses exactly four sections:
 | **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
+| **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
+| **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
 | **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
 | **PIX** | Brazilian instant payment system |
 | **SEPA** | Single Euro Payments Area — European bank transfer system |
+| **Coverage ratio** | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing |
 | **Request ID** | Non-secret correlation identifier generated or propagated by the API for log/event debugging |
 | **Client event** | Sanitized operational record of a partner-facing API request outcome |

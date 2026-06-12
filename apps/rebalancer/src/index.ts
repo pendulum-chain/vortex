@@ -1,24 +1,43 @@
 import { cryptoWaitReady } from "@polkadot/util-crypto";
+import { multiplyByPowerOfTen } from "@vortexfi/shared";
+import Big from "big.js";
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
-import { getSwapPoolsWithCoverageRatio } from "./services/indexer";
-import { phaseOrder, RebalancePhase, StateManager } from "./services/stateManager.ts";
+import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
+import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
+import { wouldExceedDailyBridgeLimit } from "./rebalance/usdc-brla-usdc-base/guards.ts";
+import { checkInitialUsdcBalanceOnBase } from "./rebalance/usdc-brla-usdc-base/steps.ts";
+import { getBaseNablaCoverageRatio, getSwapPoolsWithCoverageRatio } from "./services/indexer";
+import {
+  BrlaToAxlUsdcStateManager,
+  BrlaToUsdcBaseRebalancePhase,
+  BrlaToUsdcBaseStateManager,
+  RebalancePhase,
+  UsdcBaseRebalancePhase,
+  UsdcBaseStateManager
+} from "./services/stateManager.ts";
 import { getConfig, getPendulumAccount } from "./utils/config.ts";
 
 const args = process.argv.slice(2);
 const forceRestart = args.includes("--restart");
+const useLegacy = args.includes("--legacy");
 const manualAmount = args.find(arg => !arg.startsWith("--")) || null;
+const routeArg = args.find(arg => arg.startsWith("--route="));
+const forcedRoute = routeArg ? (routeArg.split("=")[1] as "squidrouter" | "avenia" | "nabla-main") : undefined;
+if (forcedRoute && !["squidrouter", "avenia", "nabla-main"].includes(forcedRoute)) {
+  console.error("Invalid --route value. Must be 'squidrouter', 'avenia', or 'nabla-main'.");
+  process.exit(1);
+}
 
-async function checkForRebalancing() {
+async function checkForRebalancingLegacy() {
   const config = getConfig();
   const amountAxlUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
 
   if (forceRestart) {
-    console.log("Force restart enabled. Starting rebalancing regardless of coverage ratios.");
+    console.log("Force restart enabled. Starting legacy rebalancing regardless of coverage ratios.");
   } else {
     const swapPoolsWithCoverage = await getSwapPoolsWithCoverageRatio();
 
-    // For now, we can only handle automatic rebalancing for USDC.axl and BRLA
     const brlaPool = swapPoolsWithCoverage.find(pool => pool.pool.token.symbol === "BRLA");
     if (!brlaPool) {
       console.log("No BRLA swap pool found.");
@@ -38,11 +57,10 @@ async function checkForRebalancing() {
     }
   }
 
-  // Proceed with rebalancing
   await cryptoWaitReady();
   const pendulumAccount = getPendulumAccount();
 
-  const stateManager = new StateManager();
+  const stateManager = new BrlaToAxlUsdcStateManager();
   const state = await stateManager.getState();
   const isResuming = !forceRestart && state && state.currentPhase !== RebalancePhase.Idle;
 
@@ -58,7 +76,105 @@ async function checkForRebalancing() {
   await rebalanceBrlaToUsdcAxl(amountAxlUsdc, forceRestart);
 }
 
-checkForRebalancing()
+async function getTodayBridgedUsdRaw(): Promise<Big> {
+  const usdcStateManager = new UsdcBaseStateManager();
+  const brlaStateManager = new BrlaToUsdcBaseStateManager();
+
+  const [usdcHistory, brlaHistory] = await Promise.all([usdcStateManager.getHistory(), brlaStateManager.getHistory()]);
+
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  return [...usdcHistory, ...brlaHistory]
+    .filter(e => new Date(e.startingTime) >= todayStart)
+    .reduce((sum, e) => sum.plus(Big(e.initialAmount)), Big(0));
+}
+
+function checkDailyLimit(bridgedToday: Big, requestedAmountRaw: Big, dailyLimitRaw: Big, dailyLimitUsd: number): boolean {
+  if (wouldExceedDailyBridgeLimit(bridgedToday, requestedAmountRaw, dailyLimitRaw)) {
+    const projectedTotal = bridgedToday.plus(requestedAmountRaw);
+    console.log(
+      `Daily bridge limit reached: projected $${projectedTotal.div(1e6).toFixed(2)}, limit $${dailyLimitUsd}. Skipping.`
+    );
+    return true;
+  }
+  return false;
+}
+
+async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big) {
+  const config = getConfig();
+  const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
+  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
+
+  const stateManager = new UsdcBaseStateManager();
+  const state = await stateManager.getState();
+  const isResuming = !forceRestart && state && state.currentPhase !== UsdcBaseRebalancePhase.Idle;
+
+  if (!isResuming) {
+    if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
+    await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
+  }
+
+  await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, forcedRoute);
+}
+
+async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big) {
+  const config = getConfig();
+  const amountUsdc = manualAmount || config.rebalancingBrlToUsdAmount;
+  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
+
+  const stateManager = new BrlaToUsdcBaseStateManager();
+  const state = await stateManager.getState();
+  const isResuming = !forceRestart && state && state.currentPhase !== BrlaToUsdcBaseRebalancePhase.Idle;
+
+  if (!isResuming) {
+    if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
+
+    const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
+    if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
+      throw new Error(
+        `Rebalancer USDC balance ${rebalancerUsdcBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform rebalancing.`
+      );
+    }
+  }
+
+  await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart);
+}
+
+async function checkForRebalancing() {
+  const config = getConfig();
+  const coverage = await getBaseNablaCoverageRatio();
+
+  if (!coverage) throw new Error("Failed to fetch Base Nabla coverage ratio.");
+
+  const lowerBound = 1 - config.rebalancingThresholdBrlaToUsdc;
+  const upperBound = 1 + config.rebalancingThresholdUsdcToBrla;
+
+  if (coverage.brlaCoverageRatio >= lowerBound && coverage.brlaCoverageRatio <= upperBound) {
+    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} in range [${lowerBound}, ${upperBound}]. No rebalancing needed.`);
+    return;
+  }
+
+  const bridgedToday = await getTodayBridgedUsdRaw();
+  const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
+  console.log(
+    `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
+  );
+
+  if (coverage.brlaCoverageRatio < lowerBound) {
+    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Running BRLA->USDC.`);
+    await runBrlaToUsdc(bridgedToday, dailyLimitRaw);
+    return;
+  }
+
+  console.log(`BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Running USDC->BRLA.`);
+  await runUsdcToBrla(bridgedToday, dailyLimitRaw);
+}
+
+const rebalanceFn = useLegacy ? checkForRebalancingLegacy : checkForRebalancing;
+console.log(`Using ${useLegacy ? "legacy" : "new"} rebalancing flow.`);
+
+rebalanceFn()
   .then(() => {
     console.log("Rebalancing process completed successfully.");
     process.exit(0);
