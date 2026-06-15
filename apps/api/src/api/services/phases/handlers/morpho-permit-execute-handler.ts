@@ -1,4 +1,5 @@
 import { EvmClientManager, EvmNetworks, isSignedTypedData, Networks, RampPhase, SignedTypedData } from "@vortexfi/shared";
+import { encodeFunctionData } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
@@ -90,6 +91,84 @@ export class MorphoPermitExecuteHandler extends BasePhaseHandler {
     if (!receipt || receipt.status !== "success") {
       throw this.createRecoverableError(`${label} tx failed: ${hash}`);
     }
+  }
+
+  /**
+   * Broadcasts the executor-signed `vault.permit(...)` call. The shared funding/executor
+   * account has high nonce contention on Base, so a prior attempt of the same tx can stay
+   * stuck in the mempool at the same nonce with higher gas, causing the next attempt to be
+   * rejected as "replacement transaction underpriced". We retry up to 3 times, bumping the
+   * gas price by 1.5x on each attempt to outbid any stuck replacement.
+   */
+  private async broadcastPermitWithGasBump(
+    network: EvmNetworks,
+    account: ReturnType<typeof privateKeyToAccount>,
+    token: `0x${string}`,
+    owner: `0x${string}`,
+    spender: `0x${string}`,
+    value: bigint,
+    deadline: bigint,
+    v: number,
+    r: `0x${string}`,
+    s: `0x${string}`
+  ): Promise<`0x${string}`> {
+    const { walletClient, publicClient } = this.getExecutorWallet(network);
+    const data = encodeFunctionData({
+      abi: permitAbi,
+      args: [owner, spender, value, deadline, v, r, s],
+      functionName: "permit"
+    });
+
+    const PERMIT_GAS = 100_000n;
+    const MAX_ATTEMPTS = 3;
+    const GAS_BUMP_NUMERATOR = 3n;
+    const GAS_BUMP_DENOMINATOR = 2n;
+
+    let maxFeePerGas: bigint | undefined;
+    let maxPriorityFeePerGas: bigint | undefined;
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      if (maxFeePerGas === undefined || maxPriorityFeePerGas === undefined) {
+        const fees = await publicClient.estimateFeesPerGas();
+        maxFeePerGas = fees.maxFeePerGas;
+        maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+      } else {
+        maxFeePerGas = (maxFeePerGas * GAS_BUMP_NUMERATOR) / GAS_BUMP_DENOMINATOR;
+        maxPriorityFeePerGas = (maxPriorityFeePerGas * GAS_BUMP_NUMERATOR) / GAS_BUMP_DENOMINATOR;
+      }
+
+      try {
+        const nonce = await publicClient.getTransactionCount({
+          address: account.address,
+          blockTag: "pending"
+        });
+        logger.info(
+          `MorphoPermitExecuteHandler: permit broadcast attempt ${attempt}/${MAX_ATTEMPTS} nonce=${nonce} maxFeePerGas=${maxFeePerGas}`
+        );
+        const hash = await walletClient.sendTransaction({
+          data,
+          gas: PERMIT_GAS,
+          maxFeePerGas,
+          maxPriorityFeePerGas,
+          nonce,
+          to: token,
+          value: 0n
+        });
+        return hash;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        const msg = lastError.message;
+        if (msg.includes("replacement transaction underpriced") || msg.includes("nonce too low")) {
+          logger.warn(
+            `MorphoPermitExecuteHandler: permit attempt ${attempt} rejected (${msg.slice(0, 120)}); bumping gas and retrying`
+          );
+          continue;
+        }
+        throw lastError;
+      }
+    }
+    throw lastError ?? new Error("MorphoPermitExecuteHandler: permit broadcast failed after gas-bump retries");
   }
 
   private async awaitAllowance(
@@ -188,13 +267,19 @@ export class MorphoPermitExecuteHandler extends BasePhaseHandler {
     }
 
     if (!meta.morphoPermitTxHash) {
-      const { walletClient } = this.getExecutorWallet(network);
-      const permitHash = await walletClient.writeContract({
-        abi: permitAbi,
-        address: token,
-        args: [owner, ephemeralAddress, value, deadline, sig.v, sig.r, sig.s],
-        functionName: "permit"
-      });
+      const account = privateKeyToAccount(config.secrets.moonbeamExecutorPrivateKey as `0x${string}`);
+      const permitHash = await this.broadcastPermitWithGasBump(
+        network,
+        account,
+        token,
+        owner,
+        ephemeralAddress,
+        value,
+        deadline,
+        sig.v,
+        sig.r,
+        sig.s
+      );
       logger.info(`MorphoPermitExecuteHandler: Permit tx sent: ${permitHash}`);
 
       state = await state.update({ state: { ...state.state, morphoPermitTxHash: permitHash } });
