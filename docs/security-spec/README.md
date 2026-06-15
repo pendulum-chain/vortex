@@ -38,6 +38,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (active EUR rail) |
 | Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
+| FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
@@ -71,6 +72,7 @@ Every spec file uses exactly four sections:
 | **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base) |
 | **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
+| **FastForex** | Fiat exchange-rate provider used as the primary source for USD-to-fiat quote/conversion rates |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
 | **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
