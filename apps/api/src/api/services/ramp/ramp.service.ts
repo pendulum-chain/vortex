@@ -153,6 +153,22 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   return { ephemerals, normalizedSigningAccounts };
 }
 
+const ALFREDPAY_REFRESH_DRIFT_TOLERANCE = 0.01;
+
+function isAlfredpayRefreshDrifted(originalToAmount: Big, freshToAmount: Big, originalFee: Big, freshFee: Big): boolean {
+  return (
+    exceedsTolerance(originalToAmount, freshToAmount, ALFREDPAY_REFRESH_DRIFT_TOLERANCE) ||
+    exceedsTolerance(originalFee, freshFee, ALFREDPAY_REFRESH_DRIFT_TOLERANCE)
+  );
+}
+
+function exceedsTolerance(original: Big, fresh: Big, tolerance: number): boolean {
+  if (original.eq(0)) {
+    return !fresh.eq(0);
+  }
+  return fresh.minus(original).abs().div(original).gt(tolerance);
+}
+
 export class RampService extends BaseRampService {
   // Two backends share one database; each must only touch ramps/quotes for its own flow.
   // We return 404 on mismatch so the wrong backend looks indistinguishable from "not found".
@@ -1421,7 +1437,6 @@ export class RampService extends BaseRampService {
         paymentMethodType: AlfredpayPaymentMethodType.BANK,
         toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
       });
-
       // outputAmountDecimal arrives as a serialized Big after JSONB roundtrip; normalize via Big().
       const originalToAmount = new Big(originalAlfredpayMint.outputAmountDecimal as unknown as string);
       const freshToAmount = new Big(freshQuote.toAmount);
@@ -1429,7 +1444,7 @@ export class RampService extends BaseRampService {
       const originalFee = new Big(originalAlfredpayMint.fee as unknown as string);
       const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, fromCurrency);
 
-      if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+      if (isAlfredpayRefreshDrifted(originalToAmount, freshToAmount, originalFee, freshFee)) {
         logger.warn(
           `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refreshed Alfredpay quote drifted. ` +
             `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
@@ -1487,11 +1502,10 @@ export class RampService extends BaseRampService {
 
     const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
     const freshToAmount = new Big(freshQuote.toAmount);
-
     const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
     const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
 
-    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+    if (isAlfredpayRefreshDrifted(originalToAmount, freshToAmount, originalFee, freshFee)) {
       throw new APIError({
         message:
           `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
