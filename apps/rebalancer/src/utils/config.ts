@@ -27,7 +27,7 @@ export function getConfig() {
     rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
     /// The minimum balance in USDC that the rebalancer account on Base must have to allow the BRLA pool rebalancing.
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
-    rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
+    rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 20_000,
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
