@@ -24,6 +24,10 @@ import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { getZenlinkIdForAsset } from "../../zenlink";
 
+function getQuotePricingPartnerId(quote: QuoteTicketAttributes): string | null {
+  return quote.pricingPartnerId ?? quote.partnerId ?? null;
+}
+
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase.
  * This is shared between onramp and offramp flows.
@@ -71,10 +75,11 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   }
   const vortexPayoutAddress = vortexPartner.payoutAddressSubstrate;
 
+  const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddress = null;
-  if (quote.partnerId) {
+  if (pricingPartnerId) {
     const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
+      where: { id: pricingPartnerId, isActive: true, rampType: quote.rampType }
     });
     if (quotePartner && quotePartner.payoutAddressSubstrate) {
       partnerPayoutAddress = quotePartner.payoutAddressSubstrate;
@@ -249,10 +254,11 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const vortexPayoutAddress = vortexPartner.payoutAddressEvm ?? (config.defaults.vortexEvmPayoutAddress as string);
 
   // Look up partner EVM payout address for markup split
+  const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddressEvm: string | null = null;
-  if (quote.partnerId) {
+  if (pricingPartnerId) {
     const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
+      where: { id: pricingPartnerId, isActive: true, rampType: quote.rampType }
     });
     if (quotePartner?.payoutAddressEvm) {
       partnerPayoutAddressEvm = quotePartner.payoutAddressEvm;
@@ -261,7 +267,7 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
 
   if (Big(partnerMarkupFeeUSD).gt(0) && partnerPayoutAddressEvm === null) {
     logger.warn(
-      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (partnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${pricingPartnerId ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
     );
   }
 

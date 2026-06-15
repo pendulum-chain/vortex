@@ -21,7 +21,7 @@ mock.module("../observability/apiClientEvent.service", () => ({
 function controllerHandler(name: string) {
   return (_req: Request, res: Response) => {
     controllerCalls.push(name);
-    res.status(httpStatus.I_AM_A_TEAPOT).json({ reached: name });
+    res.status(httpStatus.IM_A_TEAPOT).json({ reached: name });
   };
 }
 
@@ -38,6 +38,12 @@ mock.module("../controllers/ramp.controller", () => ({
   registerRamp: mock(controllerHandler("ramp_register_controller")),
   startRamp: mock(controllerHandler("ramp_start_controller")),
   updateRamp: mock(controllerHandler("ramp_update_controller"))
+}));
+
+mock.module("../services/auth", () => ({
+  SupabaseAuthService: {
+    verifyToken: mock(async () => ({ valid: false }))
+  }
 }));
 
 const { rejectDuringActiveMaintenance } = await import("./maintenanceGuard");

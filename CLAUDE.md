@@ -158,6 +158,12 @@ cd apps/frontend
 bun test
 ```
 
+## Security Spec Sync
+
+`docs/security-spec/` is the audit-facing source of truth for security-sensitive behavior. When changing auth, admin routes, quote/ramp state, signing, fees, partner pricing, integrations, migrations/schema that affect invariants, or cross-chain fund flow, do a quick targeted check for the matching spec file and update it in the same change if behavior changed.
+
+Keep this lightweight: grep/read only the relevant spec path from `docs/security-spec/README.md`; skip this for cosmetic refactors, test-only changes, or implementation changes that do not alter security-relevant behavior.
+
 ## Type Issues
 
 If IDE doesn't detect `@pendulum-chain/types` properly, ensure all `@polkadot/*` packages match versions in the types package. The root `package.json` uses `catalog:` for version management.
