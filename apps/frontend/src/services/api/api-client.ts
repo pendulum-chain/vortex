@@ -51,7 +51,9 @@ async function apiFetch<T>(
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
     console.error("API Error:", errorData);
-    throw new ApiError(response.status, errorData, errorData.error ?? errorData.message ?? response.statusText);
+    const serverMessage = errorData.error ?? errorData.message ?? response.statusText;
+    // Prefix with method/status/path so Sentry groups by endpoint instead of one generic bucket.
+    throw new ApiError(response.status, errorData, `${method.toUpperCase()} ${path} (${response.status}): ${serverMessage}`);
   }
 
   if (response.status === 204) return undefined as T;
