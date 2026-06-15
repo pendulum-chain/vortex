@@ -9,6 +9,13 @@ import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.m
 import User from "../../../models/user.model";
 import {createProfilePartnerAssignment, listProfilePartnerAssignments} from "./profilePartnerAssignments.controller";
 
+interface AssignmentFindAllOptions {
+  where: {
+    isActive?: boolean;
+    [Op.or]?: unknown[];
+  };
+}
+
 function createResponse() {
   const res = {
     body: undefined as unknown,
@@ -182,7 +189,7 @@ describe("createProfilePartnerAssignment", () => {
   });
 
   it("excludes expired assignments from the default list", async () => {
-    const assignmentFindAllMock = mock(async () => []);
+    const assignmentFindAllMock = mock(async (_options: AssignmentFindAllOptions) => []);
     ProfilePartnerAssignment.findAll = assignmentFindAllMock as unknown as typeof ProfilePartnerAssignment.findAll;
     const res = createResponse();
 
@@ -190,13 +197,17 @@ describe("createProfilePartnerAssignment", () => {
 
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(assignmentFindAllMock).toHaveBeenCalledTimes(1);
-    const findOptions = assignmentFindAllMock.mock.calls[0][0];
+    const findOptions = assignmentFindAllMock.mock.calls[0]?.[0];
+    expect(findOptions).toBeDefined();
+    if (!findOptions) {
+      throw new Error("ProfilePartnerAssignment.findAll was not called with options");
+    }
     expect(findOptions.where.isActive).toBe(true);
     expect(findOptions.where[Op.or]).toHaveLength(2);
   });
 
   it("includes expired assignments when includeInactive is true", async () => {
-    const assignmentFindAllMock = mock(async () => []);
+    const assignmentFindAllMock = mock(async (_options: AssignmentFindAllOptions) => []);
     ProfilePartnerAssignment.findAll = assignmentFindAllMock as unknown as typeof ProfilePartnerAssignment.findAll;
     const res = createResponse();
 
@@ -205,7 +216,11 @@ describe("createProfilePartnerAssignment", () => {
       res as unknown as Response
     );
 
-    const findOptions = assignmentFindAllMock.mock.calls[0][0];
+    const findOptions = assignmentFindAllMock.mock.calls[0]?.[0];
+    expect(findOptions).toBeDefined();
+    if (!findOptions) {
+      throw new Error("ProfilePartnerAssignment.findAll was not called with options");
+    }
     expect(findOptions.where).not.toHaveProperty("isActive");
     expect(findOptions.where[Op.or]).toBeUndefined();
   });

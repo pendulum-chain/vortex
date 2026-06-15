@@ -200,18 +200,16 @@ export async function listProfilePartnerAssignments(
 ): Promise<void> {
   try {
     const { includeInactive, partnerName, userId } = req.query;
-    const where: WhereOptions<ProfilePartnerAssignmentAttributes> = {};
-
-    if (includeInactive !== "true") {
-      where.isActive = true;
-      where[Op.or] = [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }];
-    }
-    if (partnerName) {
-      where.partnerName = partnerName;
-    }
-    if (userId) {
-      where.userId = userId;
-    }
+    const where: WhereOptions<ProfilePartnerAssignmentAttributes> = {
+      ...(includeInactive === "true"
+        ? {}
+        : {
+            [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }],
+            isActive: true
+          }),
+      ...(partnerName ? { partnerName } : {}),
+      ...(userId ? { userId } : {})
+    };
 
     const assignments = await ProfilePartnerAssignment.findAll({
       order: [["createdAt", "DESC"]],
