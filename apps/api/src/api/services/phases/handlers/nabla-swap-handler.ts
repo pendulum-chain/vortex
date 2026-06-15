@@ -19,6 +19,7 @@ import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -211,6 +212,10 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       logger.info(`NablaSwapPhaseHandler: EVM swap transaction successful: ${txHash}`);
     } catch (e) {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
+      if (e instanceof PhaseError) {
+        throw e;
+      }
+
       // unrecoverable by default.
       // TODO do we want to add automatic recovery? Issue is, invalid swaps now revert.
       // We can add a retry with up to 1 or 2 backups. Or try to differentiate based on the revert message.
@@ -265,8 +270,15 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         });
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`NablaSwapPhaseHandler: EVM swap dry-run failed: ${errorMessage}`);
+      if (error instanceof Error) {
+        const recoverableError = this.createRecoverableError(
+          `NablaSwapPhaseHandler: EVM swap dry-run failed: ${error.message}`
+        );
+        recoverableError.stack = error.stack;
+        throw recoverableError;
+      }
+
+      throw this.createRecoverableError(`NablaSwapPhaseHandler: EVM swap dry-run failed: ${String(error)}`);
     }
   }
 }
