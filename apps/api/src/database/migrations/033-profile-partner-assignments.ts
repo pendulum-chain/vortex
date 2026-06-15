@@ -2,6 +2,17 @@ import { DataTypes, QueryInterface } from "sequelize";
 
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.createTable("profile_partner_assignments", {
+    buyPartnerId: {
+      allowNull: true,
+      field: "buy_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -29,6 +40,17 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       field: "partner_name",
       type: DataTypes.STRING(100)
     },
+    sellPartnerId: {
+      allowNull: true,
+      field: "sell_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     updatedAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -54,6 +76,14 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.addIndex("profile_partner_assignments", ["partner_name"], {
     name: "idx_profile_partner_assignments_partner_name"
+  });
+
+  await queryInterface.addIndex("profile_partner_assignments", ["buy_partner_id"], {
+    name: "idx_profile_partner_assignments_buy_partner"
+  });
+
+  await queryInterface.addIndex("profile_partner_assignments", ["sell_partner_id"], {
+    name: "idx_profile_partner_assignments_sell_partner"
   });
 
   await queryInterface.addIndex("profile_partner_assignments", ["user_id", "is_active", "expires_at"], {
@@ -88,6 +118,8 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
 
   await queryInterface.removeIndex("profile_partner_assignments", "uniq_profile_partner_assignments_active_user");
   await queryInterface.removeIndex("profile_partner_assignments", "idx_profile_partner_assignments_active_lookup");
+  await queryInterface.removeIndex("profile_partner_assignments", "idx_profile_partner_assignments_sell_partner");
+  await queryInterface.removeIndex("profile_partner_assignments", "idx_profile_partner_assignments_buy_partner");
   await queryInterface.removeIndex("profile_partner_assignments", "idx_profile_partner_assignments_partner_name");
   await queryInterface.removeIndex("profile_partner_assignments", "idx_profile_partner_assignments_user_id");
   await queryInterface.dropTable("profile_partner_assignments");

@@ -1,6 +1,7 @@
+import { RampDirection } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
+import { Op, Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
@@ -8,6 +9,15 @@ import ProfilePartnerAssignment, { ProfilePartnerAssignmentAttributes } from "..
 import User from "../../../models/user.model";
 
 const PROFILE_NOT_FOUND_AFTER_LOCK = "PROFILE_NOT_FOUND_AFTER_LOCK";
+
+function getUniquePartnerIdForRamp(partners: Partner[], rampType: RampDirection): string | null {
+  const rampPartners = partners.filter(partner => partner.rampType === rampType);
+  if (rampPartners.length > 1) {
+    throw new Error(`Multiple active ${rampType} partners found with this name`);
+  }
+
+  return rampPartners[0]?.id ?? null;
+}
 
 function parseExpiration(expiresAt: unknown): Date | null {
   if (!expiresAt) {
@@ -28,11 +38,13 @@ function parseExpiration(expiresAt: unknown): Date | null {
 
 function serializeAssignment(assignment: ProfilePartnerAssignment) {
   return {
+    buyPartnerId: assignment.buyPartnerId,
     createdAt: assignment.createdAt,
     expiresAt: assignment.expiresAt,
     id: assignment.id,
     isActive: assignment.isActive,
     partnerName: assignment.partnerName,
+    sellPartnerId: assignment.sellPartnerId,
     updatedAt: assignment.updatedAt,
     userId: assignment.userId
   };
@@ -83,6 +95,9 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
       return;
     }
 
+    const buyPartnerId = getUniquePartnerIdForRamp(partners, RampDirection.BUY);
+    const sellPartnerId = getUniquePartnerIdForRamp(partners, RampDirection.SELL);
+
     const expirationDate = parseExpiration(expiresAt);
 
     const assignment = await sequelize.transaction(async transaction => {
@@ -108,9 +123,11 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
 
       return ProfilePartnerAssignment.create(
         {
+          buyPartnerId,
           expiresAt: expirationDate,
           isActive: true,
           partnerName,
+          sellPartnerId,
           userId
         },
         { transaction }
@@ -122,6 +139,17 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
       partnerCount: partners.length
     });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Multiple active")) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "AMBIGUOUS_PARTNER_ASSIGNMENT",
+          message: error.message,
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
+
     if (error instanceof Error && error.message.startsWith("expiresAt")) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
@@ -176,6 +204,7 @@ export async function listProfilePartnerAssignments(
 
     if (includeInactive !== "true") {
       where.isActive = true;
+      where[Op.or] = [{ expiresAt: null }, { expiresAt: { [Op.gt]: new Date() } }];
     }
     if (partnerName) {
       where.partnerName = partnerName;

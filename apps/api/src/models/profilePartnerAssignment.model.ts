@@ -5,6 +5,8 @@ export interface ProfilePartnerAssignmentAttributes {
   id: string;
   userId: string;
   partnerName: string;
+  buyPartnerId: string | null;
+  sellPartnerId: string | null;
   isActive: boolean;
   expiresAt: Date | null;
   createdAt: Date;
@@ -26,6 +28,10 @@ class ProfilePartnerAssignment
 
   declare partnerName: string;
 
+  declare buyPartnerId: string | null;
+
+  declare sellPartnerId: string | null;
+
   declare isActive: boolean;
 
   declare expiresAt: Date | null;
@@ -37,6 +43,17 @@ class ProfilePartnerAssignment
 
 ProfilePartnerAssignment.init(
   {
+    buyPartnerId: {
+      allowNull: true,
+      field: "buy_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
@@ -63,6 +80,17 @@ ProfilePartnerAssignment.init(
       allowNull: false,
       field: "partner_name",
       type: DataTypes.STRING(100)
+    },
+    sellPartnerId: {
+      allowNull: true,
+      field: "sell_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
     },
     updatedAt: {
       allowNull: false,
@@ -91,6 +119,14 @@ ProfilePartnerAssignment.init(
       {
         fields: ["partner_name"],
         name: "idx_profile_partner_assignments_partner_name"
+      },
+      {
+        fields: ["buy_partner_id"],
+        name: "idx_profile_partner_assignments_buy_partner"
+      },
+      {
+        fields: ["sell_partner_id"],
+        name: "idx_profile_partner_assignments_sell_partner"
       },
       {
         fields: ["user_id", "is_active", "expires_at"],

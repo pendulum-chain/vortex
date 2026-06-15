@@ -1,11 +1,13 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import {afterEach, describe, expect, it, mock} from "bun:test";
+import {RampDirection} from "@vortexfi/shared";
+import {Request, Response} from "express";
 import httpStatus from "http-status";
-import { Transaction, UniqueConstraintError } from "sequelize";
+import {Op, Transaction, UniqueConstraintError} from "sequelize";
 import sequelize from "../../../config/database";
 import Partner from "../../../models/partner.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
 import User from "../../../models/user.model";
-import { createProfilePartnerAssignment } from "./profilePartnerAssignments.controller";
+import {createProfilePartnerAssignment, listProfilePartnerAssignments} from "./profilePartnerAssignments.controller";
 
 function createResponse() {
   const res = {
@@ -31,6 +33,7 @@ describe("createProfilePartnerAssignment", () => {
   const originalPartnerFindAll = Partner.findAll;
   const originalAssignmentUpdate = ProfilePartnerAssignment.update;
   const originalAssignmentCreate = ProfilePartnerAssignment.create;
+  const originalAssignmentFindAll = ProfilePartnerAssignment.findAll;
 
   const transaction = { id: "profile-assignment-tx" };
   const createdAt = new Date("2026-06-03T12:00:00.000Z");
@@ -42,19 +45,25 @@ describe("createProfilePartnerAssignment", () => {
     Partner.findAll = originalPartnerFindAll;
     ProfilePartnerAssignment.update = originalAssignmentUpdate;
     ProfilePartnerAssignment.create = originalAssignmentCreate;
+    ProfilePartnerAssignment.findAll = originalAssignmentFindAll;
   });
 
   function mockValidAssignmentDependencies() {
     const transactionMock = mock(async (callback: (tx: unknown) => Promise<unknown>) => callback(transaction));
     const userFindByPkMock = mock(async () => ({ id: "user-1" }));
-    const partnerFindAllMock = mock(async () => [{ id: "partner-1", name: "Acme" }]);
+    const partnerFindAllMock = mock(async () => [
+      { id: "buy-partner-1", name: "Acme", rampType: RampDirection.BUY },
+      { id: "sell-partner-1", name: "Acme", rampType: RampDirection.SELL }
+    ]);
     const assignmentUpdateMock = mock(async () => [1]);
     const assignmentCreateMock = mock(async () => ({
       createdAt,
       expiresAt: null,
+      buyPartnerId: "buy-partner-1",
       id: "assignment-2",
       isActive: true,
       partnerName: "Acme",
+      sellPartnerId: "sell-partner-1",
       updatedAt,
       userId: "user-1"
     }));
@@ -84,8 +93,8 @@ describe("createProfilePartnerAssignment", () => {
           partnerName: "Acme",
           userId: "user-1"
         }
-      } as any,
-      res as any
+      } as unknown as Request,
+      res as unknown as Response
     );
 
     expect(res.statusCode).toBe(httpStatus.CREATED);
@@ -106,9 +115,11 @@ describe("createProfilePartnerAssignment", () => {
     );
     expect(assignmentCreateMock).toHaveBeenCalledWith(
       {
+        buyPartnerId: "buy-partner-1",
         expiresAt: null,
         isActive: true,
         partnerName: "Acme",
+        sellPartnerId: "sell-partner-1",
         userId: "user-1"
       },
       { transaction }
@@ -128,8 +139,8 @@ describe("createProfilePartnerAssignment", () => {
           partnerName: "Acme",
           userId: "user-1"
         }
-      } as any,
-      res as any
+      } as unknown as Request,
+      res as unknown as Response
     );
 
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
@@ -140,5 +151,62 @@ describe("createProfilePartnerAssignment", () => {
         status: httpStatus.CONFLICT
       }
     });
+  });
+
+  it("rejects ambiguous active partners for the same ramp type", async () => {
+    mockValidAssignmentDependencies();
+    Partner.findAll = mock(async () => [
+      { id: "buy-partner-1", name: "Acme", rampType: RampDirection.BUY },
+      { id: "buy-partner-2", name: "Acme", rampType: RampDirection.BUY }
+    ]) as unknown as typeof Partner.findAll;
+    const res = createResponse();
+
+    await createProfilePartnerAssignment(
+      {
+        body: {
+          partnerName: "Acme",
+          userId: "user-1"
+        }
+      } as unknown as Request,
+      res as unknown as Response
+    );
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(res.body).toEqual({
+      error: {
+        code: "AMBIGUOUS_PARTNER_ASSIGNMENT",
+        message: `Multiple active ${RampDirection.BUY} partners found with this name`,
+        status: httpStatus.CONFLICT
+      }
+    });
+  });
+
+  it("excludes expired assignments from the default list", async () => {
+    const assignmentFindAllMock = mock(async () => []);
+    ProfilePartnerAssignment.findAll = assignmentFindAllMock as unknown as typeof ProfilePartnerAssignment.findAll;
+    const res = createResponse();
+
+    await listProfilePartnerAssignments({ query: {} } as unknown as Request, res as unknown as Response);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(assignmentFindAllMock).toHaveBeenCalledTimes(1);
+    const findOptions = assignmentFindAllMock.mock.calls[0][0];
+    expect(findOptions.where.isActive).toBe(true);
+    expect(findOptions.where[Op.or]).toHaveLength(2);
+  });
+
+  it("includes expired assignments when includeInactive is true", async () => {
+    const assignmentFindAllMock = mock(async () => []);
+    ProfilePartnerAssignment.findAll = assignmentFindAllMock as unknown as typeof ProfilePartnerAssignment.findAll;
+    const res = createResponse();
+
+    await listProfilePartnerAssignments(
+      { query: { includeInactive: "true" } } as unknown as Request<unknown, unknown, unknown, { includeInactive?: string }>,
+      res as unknown as Response
+    );
+
+    const findOptions = assignmentFindAllMock.mock.calls[0][0];
+    expect(findOptions.where).not.toHaveProperty("isActive");
+    expect(findOptions.where[Op.or]).toBeUndefined();
   });
 });

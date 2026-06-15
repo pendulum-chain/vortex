@@ -42,7 +42,25 @@ async function findPartnerForRamp(
   return partner;
 }
 
-async function findAssignedPartnerName(userId: string, now: Date): Promise<string | null> {
+async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection): Promise<Partner | null> {
+  const partner = await Partner.findOne({
+    where: {
+      id: partnerId,
+      isActive: true,
+      rampType
+    }
+  });
+
+  if (!partner) {
+    logger.warn(
+      `Assigned partner '${partnerId}' not found or not active for rampType=${rampType}. Proceeding with default fees.`
+    );
+  }
+
+  return partner;
+}
+
+async function findAssignedPartnerId(userId: string, rampType: RampDirection, now: Date): Promise<string | null> {
   const assignment = await ProfilePartnerAssignment.findOne({
     order: [["createdAt", "DESC"]],
     where: {
@@ -52,7 +70,11 @@ async function findAssignedPartnerName(userId: string, now: Date): Promise<strin
     }
   });
 
-  return assignment?.partnerName ?? null;
+  if (!assignment) {
+    return null;
+  }
+
+  return rampType === RampDirection.BUY ? assignment.buyPartnerId : assignment.sellPartnerId;
 }
 
 export async function resolveQuotePartner(
@@ -80,9 +102,9 @@ export async function resolveQuotePartner(
   }
 
   if (request.userId) {
-    const assignedPartnerName = await findAssignedPartnerName(request.userId, now);
-    if (assignedPartnerName) {
-      const partner = await findPartnerForRamp(assignedPartnerName, request.rampType, "profileAssignment");
+    const assignedPartnerId = await findAssignedPartnerId(request.userId, request.rampType, now);
+    if (assignedPartnerId) {
+      const partner = await findPartnerByIdForRamp(assignedPartnerId, request.rampType);
       return {
         ownerPartnerId: null,
         partner,

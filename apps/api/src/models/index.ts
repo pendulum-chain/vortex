@@ -46,6 +46,10 @@ MykoboCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
+ProfilePartnerAssignment.belongsTo(Partner, { as: "buyPartner", foreignKey: "buyPartnerId" });
+ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "sellPartnerId" });
+Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
+Partner.hasMany(ProfilePartnerAssignment, { as: "sellProfileAssignments", foreignKey: "sellPartnerId" });
 
 // Initialize models
 const models = {

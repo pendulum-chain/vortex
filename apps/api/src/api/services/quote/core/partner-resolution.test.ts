@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
-import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import {afterEach, describe, expect, it, mock} from "bun:test";
+import {EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection} from "@vortexfi/shared";
 import Partner from "../../../../models/partner.model";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
-import { resolveQuotePartner } from "./partner-resolution";
+import {resolveQuotePartner} from "./partner-resolution";
 
 const baseRequest = {
   from: EPaymentMethod.PIX,
@@ -33,7 +33,7 @@ describe("resolveQuotePartner", () => {
     }) as typeof Partner.findOne;
     ProfilePartnerAssignment.findOne = mock(async () => {
       assignmentLookupCount++;
-      return { partnerName: "AssignedPartner" };
+      return { buyPartnerId: "assigned-buy-id", sellPartnerId: "assigned-sell-id" };
     }) as typeof ProfilePartnerAssignment.findOne;
 
     const result = await resolveQuotePartner({
@@ -56,7 +56,10 @@ describe("resolveQuotePartner", () => {
       }
       return null;
     }) as typeof Partner.findOne;
-    ProfilePartnerAssignment.findOne = mock(async () => ({ partnerName: "AssignedPartner" })) as typeof ProfilePartnerAssignment.findOne;
+    ProfilePartnerAssignment.findOne = mock(async () => ({
+      buyPartnerId: "assigned-buy-id",
+      sellPartnerId: "assigned-sell-id"
+    })) as typeof ProfilePartnerAssignment.findOne;
 
     const result = await resolveQuotePartner({
       ...baseRequest,
@@ -69,10 +72,13 @@ describe("resolveQuotePartner", () => {
     expect(result.ownerPartnerId).toBe("public-key-buy-id");
   });
 
-  it("applies profile assignments as pricing-only for authenticated users", async () => {
-    ProfilePartnerAssignment.findOne = mock(async () => ({ partnerName: "AssignedPartner" })) as typeof ProfilePartnerAssignment.findOne;
-    Partner.findOne = mock(async ({ where }: { where: { name?: string } }) => {
-      if (where.name === "AssignedPartner") {
+  it("applies the buy profile assignment as pricing-only for authenticated buy users", async () => {
+    ProfilePartnerAssignment.findOne = mock(async () => ({
+      buyPartnerId: "assigned-buy-id",
+      sellPartnerId: "assigned-sell-id"
+    })) as typeof ProfilePartnerAssignment.findOne;
+    Partner.findOne = mock(async ({ where }: { where: { id?: string; rampType?: RampDirection } }) => {
+      if (where.id === "assigned-buy-id" && where.rampType === RampDirection.BUY) {
         return { id: "assigned-buy-id", name: "AssignedPartner" };
       }
       return null;
@@ -88,11 +94,51 @@ describe("resolveQuotePartner", () => {
     expect(result.ownerPartnerId).toBeNull();
   });
 
+  it("applies the sell profile assignment as pricing-only for authenticated sell users", async () => {
+    ProfilePartnerAssignment.findOne = mock(async () => ({
+      buyPartnerId: "assigned-buy-id",
+      sellPartnerId: "assigned-sell-id"
+    })) as typeof ProfilePartnerAssignment.findOne;
+    Partner.findOne = mock(async ({ where }: { where: { id?: string; rampType?: RampDirection } }) => {
+      if (where.id === "assigned-sell-id" && where.rampType === RampDirection.SELL) {
+        return { id: "assigned-sell-id", name: "AssignedPartner" };
+      }
+      return null;
+    }) as typeof Partner.findOne;
+
+    const result = await resolveQuotePartner({
+      ...baseRequest,
+      rampType: RampDirection.SELL,
+      userId: "user-1"
+    });
+
+    expect(result.source).toBe("profileAssignment");
+    expect(result.pricingPartnerId).toBe("assigned-sell-id");
+    expect(result.ownerPartnerId).toBeNull();
+  });
+
+  it("falls back to default pricing when no partner id is assigned for the ramp type", async () => {
+    ProfilePartnerAssignment.findOne = mock(async () => ({
+      buyPartnerId: null,
+      sellPartnerId: "assigned-sell-id"
+    })) as typeof ProfilePartnerAssignment.findOne;
+    Partner.findOne = mock(async () => ({ id: "unexpected" })) as typeof Partner.findOne;
+
+    const result = await resolveQuotePartner({
+      ...baseRequest,
+      userId: "user-1"
+    });
+
+    expect(result.source).toBe("none");
+    expect(result.pricingPartnerId).toBeNull();
+    expect(result.ownerPartnerId).toBeNull();
+  });
+
   it("does not apply profile assignments to anonymous requests", async () => {
     let assignmentLookupCount = 0;
     ProfilePartnerAssignment.findOne = mock(async () => {
       assignmentLookupCount++;
-      return { partnerName: "AssignedPartner" };
+      return { buyPartnerId: "assigned-buy-id", sellPartnerId: "assigned-sell-id" };
     }) as typeof ProfilePartnerAssignment.findOne;
     Partner.findOne = mock(async () => null) as typeof Partner.findOne;
 
