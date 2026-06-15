@@ -2,6 +2,7 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid";
 import { getNetworkDisplayName, getNetworkId, Networks } from "@vortexfi/shared";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
+import { isFrontendNetworkEnabled } from "../../config/networkAvailability";
 import { useNetwork } from "../../contexts/network";
 import { cn } from "../../helpers/cn";
 import { useClickOutside } from "../../hooks/useClickOutside";
@@ -16,7 +17,7 @@ interface NetworkButtonProps {
 }
 
 const supportedNetworks = Object.values(Networks).filter(
-  network => network !== Networks.Pendulum && network !== Networks.Moonbeam
+  network => isFrontendNetworkEnabled(network) && network !== Networks.Pendulum && network !== Networks.Moonbeam
 );
 
 const NetworkButton = ({ selectedNetwork, isOpen, onClick, disabled }: NetworkButtonProps) => (

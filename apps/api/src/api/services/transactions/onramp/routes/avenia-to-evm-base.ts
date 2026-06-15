@@ -72,9 +72,9 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   // BRL→BRLA on Base: Avenia already minted the requested BRLA, so no Nabla swap, fee-token
   // conversion, or SquidRouter step is needed — transfer the minted BRLA straight to the user.
   if (isDirectTransfer) {
-    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
     const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -122,12 +122,12 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
 
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
-  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
 
   // Special case, onramping USDC on Base. We need to skip the SquidRouter step and go directly to the destination transfer.
   if (toNetwork === Networks.Base && outputTokenDetails.erc20AddressSourceChain === nablaSwapOutputTokenAddress) {
     const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -206,7 +206,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   // them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
   if (toNetwork === Networks.Base) {
     const sameChainDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -289,7 +289,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
   const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-    amountRaw: finalAmountRaw.toString(),
+    amountRaw: finalAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,
@@ -307,10 +307,16 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
 
   // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
   const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
-  const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+  let bridgedTokenForFallback: `0x${string}`;
+  if (toNetwork === Networks.Ethereum) {
+    const ethereumUsdc = evmTokenConfig.ethereum.USDC;
+    if (!ethereumUsdc) {
+      throw new Error("USDC config missing for Ethereum");
+    }
+    bridgedTokenForFallback = ethereumUsdc.erc20AddressSourceChain as `0x${string}`;
+  } else {
+    bridgedTokenForFallback = destinationAxlUsdcDetails.erc20AddressSourceChain as `0x${string}`;
+  }
 
   const inputAmountRawFinalBridge = quote.metadata.evmToEvm?.inputAmountRaw;
   if (!inputAmountRawFinalBridge) {

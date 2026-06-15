@@ -150,8 +150,20 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(userEmail, AlfredpayCustomerType.INDIVIDUAL, country);
-      const customerId = newCustomer.customerId;
+      let customerId: string;
+      try {
+        const newCustomer = await alfredpayService.createCustomer(userEmail, AlfredpayCustomerType.INDIVIDUAL, country);
+        customerId = newCustomer.customerId;
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
+          logger.info("Customer already exists in Alfredpay, fetching existing customer");
+          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
+          customerId = existingCustomer.customerId;
+        } else {
+          throw error;
+        }
+      }
 
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
@@ -360,7 +372,7 @@ export class AlfredpayController {
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
-      } else if (country === "MX" || country === "CO") {
+      } else if (country === "MX" || country === "CO" || country === "AR") {
         // MX/CO use API-based (form) KYC — no redirect link needed.
         // Just reset status so the user can re-fill the form.
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
@@ -399,8 +411,20 @@ export class AlfredpayController {
 
       const alfredpayService = AlfredpayApiService.getInstance();
 
-      const newCustomer = await alfredpayService.createCustomer(userEmail, type, country);
-      const customerId = newCustomer.customerId;
+      let customerId: string;
+      try {
+        const newCustomer = await alfredpayService.createCustomer(userEmail, type, country);
+        customerId = newCustomer.customerId;
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("409") || errorMessage.includes("already registered")) {
+          logger.info("Business customer already exists in Alfredpay, fetching existing customer");
+          const existingCustomer = await alfredpayService.findCustomer(userEmail, country);
+          customerId = existingCustomer.customerId;
+        } else {
+          throw error;
+        }
+      }
 
       await AlfredPayCustomer.create({
         alfredPayId: customerId,
@@ -463,7 +487,7 @@ export class AlfredpayController {
 
   static async submitKycInformation(req: Request, res: Response) {
     try {
-      const { country, ...kycData } = req.body as SubmitKycInformationRequest & { country: string };
+      const { country, ...kycData } = req.body as SubmitKycInformationRequest;
       const userId = req.userId!;
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
@@ -475,7 +499,21 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      const result = await alfredpayService.submitKycInformation(alfredPayCustomer.alfredPayId, { ...kycData, country });
+      let result: Awaited<ReturnType<typeof alfredpayService.submitKycInformation>>;
+      try {
+        result = await alfredpayService.submitKycInformation(alfredPayCustomer.alfredPayId, { ...kycData, country });
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried")) {
+          logger.info("KYC record cannot be retried, fetching existing submission");
+          const existingSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+          result = { submissionId: existingSubmission.submissionId } as Awaited<
+            ReturnType<typeof alfredpayService.submitKycInformation>
+          >;
+        } else {
+          throw error;
+        }
+      }
 
       res.json(result);
     } catch (error) {
@@ -557,7 +595,21 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      const result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+      let result: Awaited<ReturnType<typeof alfredpayService.submitKybInformation>>;
+      try {
+        result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+      } catch (error) {
+        const errorMessage = (error as Error)?.message || "";
+        if (errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried")) {
+          logger.info("KYB record cannot be retried, fetching existing submission");
+          const existingSubmission = await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId);
+          result = { submissionId: existingSubmission.submissionId } as Awaited<
+            ReturnType<typeof alfredpayService.submitKybInformation>
+          >;
+        } else {
+          throw error;
+        }
+      }
 
       res.json(result);
     } catch (error) {
@@ -748,6 +800,11 @@ export class AlfredpayController {
           accountNumber,
           accountType: accountType ?? "",
           metadata: { accountHolderName: accountName, documentNumber, documentType }
+        };
+      } else if (alfredpayFiatAccountType === AlfredpayFiatAccountType.COELSA) {
+        fiatAccountFields = {
+          accountNumber,
+          accountType: accountType ?? ""
         };
       } else {
         // BANK_USA — external accounts need address fields inside metadata

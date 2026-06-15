@@ -87,9 +87,9 @@ export async function prepareMykoboToEvmOnrampTransactions({
   let baseNonce = 0;
 
   if (isDirectTransfer) {
-    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+    const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
     const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -129,12 +129,12 @@ export async function prepareMykoboToEvmOnrampTransactions({
 
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
-  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
 
   // Special case: onramping USDC on Base. Skip SquidRouter and transfer directly to destination.
   if (toNetwork === Networks.Base && outputTokenDetails.erc20AddressSourceChain === nablaSwapOutputTokenAddress) {
     const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -216,7 +216,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
   // them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
   if (toNetwork === Networks.Base) {
     const sameChainDestinationTransfer = await addOnrampDestinationChainTransactions({
-      amountRaw: finalAmountRaw.toString(),
+      amountRaw: finalAmountRaw,
       destinationNetwork: Networks.Base,
       isNativeToken: isNativeEvmToken(outputTokenDetails),
       toAddress: destinationAddress,
@@ -305,7 +305,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
   const destinationStartingNonce = destinationNonce;
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-    amountRaw: finalAmountRaw.toString(),
+    amountRaw: finalAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,

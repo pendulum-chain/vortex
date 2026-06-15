@@ -20,6 +20,7 @@ describe("progress phase flows", () => {
     expect(PHASE_FLOWS.onramp_brl).toEqual([
       "initial",
       "brlaOnrampMint",
+      "onHoldForComplianceCheck",
       "fundEphemeral",
       "subsidizePreSwap",
       "nablaApprove",

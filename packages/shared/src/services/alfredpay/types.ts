@@ -353,7 +353,12 @@ export interface AlfredpayFiatAccount extends AlfredpayFiatAccountFields {
 
 export type ListAlfredpayFiatAccountsResponse = AlfredpayFiatAccount[];
 
-const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([FiatToken.USD, FiatToken.MXN, FiatToken.COP]);
+const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
+  FiatToken.USD,
+  FiatToken.MXN,
+  FiatToken.COP,
+  FiatToken.ARS
+]);
 
 export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
@@ -422,7 +427,12 @@ export interface SubmitKycInformationRequest {
   dni: string;
   typeDocument?: string;
   typeDocumentCol?: AlfredpayColombiaDocumentType;
-  phoneNumber?: string; // Colombia
+  typeDocumentAr?: AlfredpayArgentinaDocumentType;
+  phoneNumber?: string; // Colombia, Argentina
+  countryCode?: string; // Argentina
+  nationalities?: string[]; // Argentina
+  pep?: boolean; // Argentina
+  cuit?: string; // Argentina, mandatory 11 digits
 }
 
 export interface SubmitKycInformationResponse {
@@ -431,7 +441,12 @@ export interface SubmitKycInformationResponse {
 
 export enum AlfredpayKycFileType {
   FRONT = "National ID Front",
-  BACK = "National ID Back"
+  BACK = "National ID Back",
+  SELFIE = "Selfie"
+}
+
+export enum AlfredpayArgentinaDocumentType {
+  DNI = "DNI"
 }
 
 // KYB form submission types

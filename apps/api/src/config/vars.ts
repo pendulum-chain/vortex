@@ -53,6 +53,22 @@ function readFlowVariant(): FlowVariant {
   return rawFlowVariant as FlowVariant;
 }
 
+function readFractionEnv(name: string, defaultValue: string): number {
+  const rawValue = process.env[name] ?? defaultValue;
+  const trimmedValue = rawValue.trim();
+
+  if (trimmedValue === "") {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  const value = Number(trimmedValue);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  return value;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
@@ -65,6 +81,7 @@ interface Config {
   rateLimitNumberOfProxies: string | number;
   logs: string;
   adminSecret: string;
+  metricsDashboardSecret: string;
   supabase: {
     url: string;
     anonKey: string;
@@ -97,6 +114,10 @@ interface Config {
   };
   swap: {
     deadlineMinutes: number;
+  };
+  subsidy: {
+    evmPostSwapDiscountSubsidyQuoteFraction: number;
+    evmSwapSubsidyQuoteFraction: number;
   };
   quote: {
     discountStateTimeoutMinutes: number;
@@ -160,6 +181,7 @@ export const config: Config = {
     }
   },
   logs: nodeEnv === "production" ? "combined" : "dev",
+  metricsDashboardSecret: process.env.METRICS_DASHBOARD_SECRET || "",
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
@@ -215,6 +237,11 @@ export const config: Config = {
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
   subscanApiKey: process.env.SUBSCAN_API_KEY,
+
+  subsidy: {
+    evmPostSwapDiscountSubsidyQuoteFraction: readFractionEnv("MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION", "0.05"),
+    evmSwapSubsidyQuoteFraction: readFractionEnv("MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION", "0.05")
+  },
   supabase: {
     anonKey: process.env.SUPABASE_ANON_KEY || "",
     serviceRoleKey: process.env.SUPABASE_SERVICE_KEY || "",
@@ -244,6 +271,7 @@ if (config.env === "production") {
   if (!config.supabase.serviceRoleKey) missing.push("SUPABASE_SERVICE_KEY");
   if (!config.secrets.webhookPrivateKey) missing.push("WEBHOOK_PRIVATE_KEY");
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
+  if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
 
   if (missing.length > 0) {

@@ -7,6 +7,7 @@ const EVM_ADDR = "0x1111111111111111111111111111111111111111";
 
 let substrateNonce = 0;
 let substrateFree = "0";
+let checkedSubstrateNetworks: string[] = [];
 let evmNonce = 0;
 let evmGetClientShouldThrow = false;
 
@@ -16,18 +17,22 @@ mock.module("@vortexfi/shared", () => {
     ...actual,
     ApiManager: {
       getInstance: () => ({
-        getApi: async (_network: string) => ({
-          api: {
-            query: {
-              system: {
-                account: async (_address: string) => ({
-                  data: { free: { toString: () => substrateFree } },
-                  nonce: { toNumber: () => substrateNonce }
-                })
+        getApi: async (network: string) => {
+          checkedSubstrateNetworks.push(network);
+
+          return {
+            api: {
+              query: {
+                system: {
+                  account: async (_address: string) => ({
+                    data: { free: { toString: () => substrateFree } },
+                    nonce: { toNumber: () => substrateNonce }
+                  })
+                }
               }
             }
-          }
-        })
+          };
+        }
       })
     },
     EvmClientManager: {
@@ -50,6 +55,7 @@ describe("validateEphemeralAccountsFresh", () => {
   beforeEach(() => {
     substrateNonce = 0;
     substrateFree = "0";
+    checkedSubstrateNetworks = [];
     evmNonce = 0;
     evmGetClientShouldThrow = false;
   });
@@ -61,6 +67,12 @@ describe("validateEphemeralAccountsFresh", () => {
         [EphemeralAccountType.Substrate]: SUBSTRATE_ADDR
       })
     ).resolves.toBeUndefined();
+  });
+
+  it("does not check Hydration while Hydration-backed routes are disabled", async () => {
+    await validateEphemeralAccountsFresh({ [EphemeralAccountType.Substrate]: SUBSTRATE_ADDR });
+
+    expect(checkedSubstrateNetworks).toEqual(["pendulum", "assethub"]);
   });
 
   it("passes when no ephemerals are submitted", async () => {

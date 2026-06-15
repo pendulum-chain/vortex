@@ -2,11 +2,10 @@ import { StageKey } from "../../core/types";
 import { OnRampDiscountEngine } from "../../engines/discount/onramp";
 import { OnRampAveniaToAssethubFeeEngine } from "../../engines/fee/onramp-brl-to-assethub";
 import { OnRampFinalizeEngine } from "../../engines/finalize/onramp";
-import { OnRampHydrationEngine } from "../../engines/hydration/onramp";
 import { OnRampInitializeAveniaEngine } from "../../engines/initialize/onramp-avenia";
 import { OnRampSwapEngine } from "../../engines/nabla-swap/onramp";
 import { OnRampPendulumTransferEngine } from "../../engines/pendulum-transfers/onramp";
-import { defineRouteStrategy, withHydrationForNonUsdc } from "../route-definition";
+import { defineRouteStrategy } from "../route-definition";
 
 export const onrampAveniaToAssethubStrategy = defineRouteStrategy({
   engines: () => ({
@@ -15,16 +14,15 @@ export const onrampAveniaToAssethubStrategy = defineRouteStrategy({
     [StageKey.NablaSwap]: new OnRampSwapEngine(),
     [StageKey.Discount]: new OnRampDiscountEngine(),
     [StageKey.PendulumTransfer]: new OnRampPendulumTransferEngine(),
-    [StageKey.HydrationSwap]: new OnRampHydrationEngine(),
     [StageKey.Finalize]: new OnRampFinalizeEngine()
   }),
   name: "OnRampAveniaToAssetHub",
-  stages: withHydrationForNonUsdc([
+  stages: [
     StageKey.Initialize,
     StageKey.Fee,
     StageKey.NablaSwap,
     StageKey.Discount,
     StageKey.PendulumTransfer,
     StageKey.Finalize
-  ])
+  ]
 });

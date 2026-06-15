@@ -16,6 +16,7 @@ export interface QuoteTicketAttributes {
   outputAmount: string;
   outputCurrency: RampCurrency;
   partnerId: string | null;
+  pricingPartnerId: string | null;
   apiKey: string | null;
   expiresAt: Date;
   status: "pending" | "consumed" | "expired";
@@ -52,6 +53,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   declare outputCurrency: RampCurrency;
 
   declare partnerId: string | null;
+
+  declare pricingPartnerId: string | null;
 
   declare apiKey: string | null;
 
@@ -157,6 +160,17 @@ QuoteTicket.init(
       field: "payment_method",
       type: DataTypes.STRING(20)
     },
+    pricingPartnerId: {
+      allowNull: true,
+      field: "pricing_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     rampType: {
       allowNull: false,
       field: "ramp_type",
@@ -201,6 +215,10 @@ QuoteTicket.init(
       {
         fields: ["partner_id"],
         name: "idx_quote_tickets_partner"
+      },
+      {
+        fields: ["pricing_partner_id"],
+        name: "idx_quote_tickets_pricing_partner"
       },
       {
         fields: ["flow_variant"],

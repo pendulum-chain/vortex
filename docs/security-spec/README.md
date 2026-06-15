@@ -28,6 +28,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Quote Lifecycle | `03-ramp-engine/quote-lifecycle.md` | Creation, expiry, binding to ramp |
 | Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
+| Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
 | Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
 | Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
@@ -45,6 +46,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
+| Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
 
 ## Per-File Format
 
@@ -74,3 +76,5 @@ Every spec file uses exactly four sections:
 | **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
 | **PIX** | Brazilian instant payment system |
 | **SEPA** | Single Euro Payments Area — European bank transfer system |
+| **Request ID** | Non-secret correlation identifier generated or propagated by the API for log/event debugging |
+| **Client event** | Sanitized operational record of a partner-facing API request outcome |

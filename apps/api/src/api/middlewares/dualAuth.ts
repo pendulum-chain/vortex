@@ -1,5 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
+import { getRequestDurationMs } from "../observability/requestContext";
 import { SupabaseAuthService } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
 
@@ -35,6 +41,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
       if (apiKey) {
         const keyType = getKeyType(apiKey);
         if (keyType !== "secret" || !isValidSecretKeyFormat(apiKey)) {
+          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
           return res.status(401).json({
             error: {
               code: "INVALID_SECRET_KEY",
@@ -46,6 +53,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
 
         const partner = await validateSecretApiKey(apiKey);
         if (!partner) {
+          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
           return res.status(401).json({
             error: {
               code: "INVALID_API_KEY",
@@ -63,6 +71,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
         const token = authHeader.slice(7);
         const result = await SupabaseAuthService.verifyToken(token);
         if (!result.valid) {
+          recordDualAuthFailure(req, 401, "auth_invalid_api_key");
           return res.status(401).json({
             error: {
               code: "INVALID_BEARER_TOKEN",
@@ -81,6 +90,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
         return next();
       }
 
+      recordDualAuthFailure(req, 401, "auth_missing_api_key");
       return res.status(401).json({
         error: {
           code: "AUTHENTICATION_REQUIRED",
@@ -93,4 +103,25 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
       next(error);
     }
   };
+}
+
+function recordDualAuthFailure(
+  req: Request,
+  httpStatus: number,
+  errorType: "auth_missing_api_key" | "auth_invalid_api_key",
+  apiKeyPrefix?: string | null
+): void {
+  observeApiClientEvent({
+    apiKeyPrefix,
+    durationMs: getRequestDurationMs(req),
+    errorType,
+    httpStatus,
+    metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
+    operation: "auth_dual",
+    partnerId: req.authenticatedPartner?.id || null,
+    partnerName: req.authenticatedPartner?.name || null,
+    requestId: req.requestId,
+    status: "failure",
+    userId: req.userId || null
+  });
 }

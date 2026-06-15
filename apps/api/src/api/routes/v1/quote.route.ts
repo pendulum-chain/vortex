@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
+import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -44,6 +45,7 @@ const router: Router = Router({ mergeParams: true });
 router
   .route("/")
   .post(
+    rejectDuringActiveMaintenance("quote_create"),
     validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
@@ -105,6 +107,7 @@ router
 router
   .route("/best")
   .post(
+    rejectDuringActiveMaintenance("quote_create_best"),
     validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),

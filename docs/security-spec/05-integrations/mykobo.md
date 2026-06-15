@@ -32,7 +32,7 @@ Mykobo replaces two earlier EUR rails:
    - **Recovery shortcut**: if the ephemeral already holds ≥ 95% of `quote.metadata.mykoboMint.outputAmountRaw` EURC (`EPHEMERAL_FUNDED_TOLERANCE_FACTOR = 0.95`), the handler skips the wait. The 5% tolerance absorbs fee variance between quote-creation time and SEPA settlement time.
    - On outer-timeout expiry, the ramp transitions to `failed` (the user did not pay).
 5. `fundEphemeral` (Base ETH gas top-up; same as BRL onramp) → `subsidizePreSwap` (if needed) → `nablaApprove` → `nablaSwap`: Nabla DEX **on Base** swaps EURC → USDC.
-6. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
+6. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`). The EVM post-swap branch uses the split subsidy caps documented in `fund-routing.md`: swap-output discrepancy and discount subsidy are bounded separately before any transfer is submitted.
 7. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's destination EVM chain → optional `backupSquidRouter*` fallback → `destinationTransfer`.
 
 #### Degenerate EUR→EURC-on-Base route (direct bypass)
@@ -110,6 +110,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 | **`MYKOBO_CLIENT_DOMAIN` unset → wrong fee tier** | Operator forgets to set `MYKOBO_CLIENT_DOMAIN`; Mykobo silently applies its default tier (~5x worse fees) and quotes/distributions drift from reality | Deploy-time check fails fast if the env var is missing; alarms on observed Mykobo fees exceeding `defaultDepositFee` / `defaultWithdrawFee` (see `07-operations/secret-management.md`). |
 | **Intent-value precision drift** | EURC payout amount carries >2 dp; Mykobo silently truncates and credits less than the on-chain transfer, leaving the user short | Both `DEPOSIT` and `WITHDRAW` intents send `Big.toFixed(2, 0)`-floored `value`; the off-ramp on-chain EURC transfer is derived from the same floored value; sub-cent dust is swept by `baseCleanupEurc`. |
 | **EUR→EURC-Base self-swap drain** | The generic pipeline swaps the user's already-settled EURC to USDC and back, charging two swaps of slippage/fees and triggering `finalSettlementSubsidy` against bridge-less dust (over-subsidy + strand) | `isEurToEurcBaseDirect` collapses the corridor to a single `destinationTransfer` with `isDirectTransfer = true`; Nabla/Squid/finalSettlementSubsidy/cleanup are skipped at both route-build and handler level. |
+| **Underdelivery from Nabla-on-Base** | Nabla swap returns less USDC/EURC than quoted and the ramp reaches `subsidizePostSwap`. | `subsidizePostSwap` (EVM branch) tops up eligible shortfalls subject to split caps: actual-vs-quoted swap discrepancy uses `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`; discount subsidy uses `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION`. Over-cap cases are recoverable waits with no transfer submitted. |
 
 ## Audit Checklist
 
