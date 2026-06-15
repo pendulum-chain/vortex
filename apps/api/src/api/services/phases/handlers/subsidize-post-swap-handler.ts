@@ -18,7 +18,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../config/logger";
-import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../constants/constants";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
@@ -27,6 +27,7 @@ import { PhaseError } from "../../../errors/phase-error";
 import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
+import { calculatePostSwapSubsidyComponents } from "../helpers/post-swap-subsidy-breakdown";
 import { StateMetadata } from "../meta-state-types";
 
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
@@ -132,7 +133,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         }
 
         logger.info(
-          `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
+          `Subsidizing post-swap with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw.toFixed(0, 0)}`
         );
         const result = await apiManager.executeApiCall(
           api =>
@@ -213,7 +214,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         quote.metadata.subsidy.subsidyAmountInOutputTokenRaw
       );
 
-      logger.debug(`SubsidizePostSwapHandler (EVM): expectedSwapOutputAmountRaw ${expectedSwapOutputAmountRaw.toString()}`);
+      logger.debug(`SubsidizePostSwapHandler (EVM): expectedSwapOutputAmountRaw ${expectedSwapOutputAmountRaw.toFixed(0, 0)}`);
 
       // Try to find the required amount to subsidize on the quote metadata
       if (state.type === RampDirection.BUY) {
@@ -223,32 +224,70 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         expectedSwapOutputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
       }
 
-      const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
-      logger.debug(`SubsidizePostSwapHandler (EVM): requiredAmount ${requiredAmount.toString()}`);
+      const subsidyComponents = calculatePostSwapSubsidyComponents({
+        currentBalanceRaw: currentBalance,
+        discountSubsidyAmountRaw: quote.metadata.subsidy.subsidyAmountInOutputTokenRaw,
+        expectedOutputAmountRaw: expectedSwapOutputAmountRaw,
+        quotedActualOutputAmountRaw: quote.metadata.subsidy.actualOutputAmountRaw
+      });
+      const requiredAmount = subsidyComponents.requiredAmountRaw;
+      logger.debug(
+        `SubsidizePostSwapHandler (EVM): requiredAmount ${requiredAmount.toFixed(0, 0)}, ` +
+          `discrepancyAmount ${subsidyComponents.discrepancyAmountRaw.toFixed(0, 0)}, ` +
+          `discountAmount ${subsidyComponents.discountAmountRaw.toFixed(0, 0)}`
+      );
 
       if (requiredAmount.gt(Big(0))) {
-        const subsidyDecimal = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.outputDecimals).toString();
-        const subsidyUsd = await priceFeedService.convertCurrency(
-          subsidyDecimal,
-          outputToken as RampCurrency,
-          EvmToken.USDC as RampCurrency
-        );
+        const discrepancySubsidyDecimal = nativeToDecimal(
+          subsidyComponents.discrepancyAmountRaw,
+          quote.metadata.nablaSwapEvm.outputDecimals
+        ).toFixed();
+        const discountSubsidyDecimal = nativeToDecimal(
+          subsidyComponents.discountAmountRaw,
+          quote.metadata.nablaSwapEvm.outputDecimals
+        ).toFixed();
+        const discrepancySubsidyUsd = subsidyComponents.discrepancyAmountRaw.gt(0)
+          ? await priceFeedService.convertCurrency(
+              discrepancySubsidyDecimal,
+              outputToken as RampCurrency,
+              EvmToken.USDC as RampCurrency
+            )
+          : "0";
+        const discountSubsidyUsd = subsidyComponents.discountAmountRaw.gt(0)
+          ? await priceFeedService.convertCurrency(
+              discountSubsidyDecimal,
+              outputToken as RampCurrency,
+              EvmToken.USDC as RampCurrency
+            )
+          : "0";
         const quoteOutputUsd = await priceFeedService.convertCurrency(
           quote.outputAmount,
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
-        if (Big(subsidyUsd).gt(subsidyCapUsd)) {
+        const discrepancySubsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const discrepancySubsidyCapUsd = Big(quoteOutputUsd).mul(discrepancySubsidyCapFraction);
+        if (Big(discrepancySubsidyUsd).gt(discrepancySubsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapPhaseHandler: Required swap discrepancy subsidy $${discrepancySubsidyUsd} exceeds cap $${discrepancySubsidyCapUsd.toFixed(2)} (${discrepancySubsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 
+        const discountSubsidyCapFraction = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
+        const discountSubsidyCapUsd = Big(quoteOutputUsd).mul(discountSubsidyCapFraction);
+        if (Big(discountSubsidyUsd).gt(discountSubsidyCapUsd)) {
+          // Pause for operator intervention without moving the ramp to failed.
+          throw this.createRecoverableError(
+            `SubsidizePostSwapPhaseHandler: Required discount subsidy $${discountSubsidyUsd} exceeds cap $${discountSubsidyCapUsd.toFixed(2)} (${discountSubsidyCapFraction} of quote output $${quoteOutputUsd}).`
+          );
+        }
+
+        const subsidyUsd = Big(discrepancySubsidyUsd).plus(discountSubsidyUsd).toFixed();
+
         // Do the actual subsidizing on EVM
         logger.info(
-          `Subsidizing post-swap EVM with ${requiredAmount.toFixed()} to reach target value of ${expectedSwapOutputAmountRaw}`
+          `Subsidizing post-swap EVM with ${requiredAmount.toFixed()} ($${subsidyUsd}) to reach target value of ${expectedSwapOutputAmountRaw.toFixed(0, 0)}`
         );
 
         const evmClientManager = EvmClientManager.getInstance();

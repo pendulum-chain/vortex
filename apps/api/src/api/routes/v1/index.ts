@@ -3,6 +3,7 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
@@ -174,6 +175,14 @@ router.use("/metrics", metricsRoutes);
  * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
 router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+
+/**
+ * Admin routes for profile partner pricing assignments
+ * POST /v1/admin/profile-partner-assignments
+ * GET /v1/admin/profile-partner-assignments
+ * DELETE /v1/admin/profile-partner-assignments/:assignmentId
+ */
+router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes);
 
 /**
  * Admin routes for API client observability dashboards

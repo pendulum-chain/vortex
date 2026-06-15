@@ -16,11 +16,11 @@ import httpStatus from "http-status";
 import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
-import Partner from "../../../models/partner.model";
 import { APIError } from "../../errors/api-error";
 import { BaseRampService } from "../ramp/base.service";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./core/errors";
 import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
+import { resolveQuotePartner } from "./core/partner-resolution";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
 import { buildQuoteResponse } from "./engines/finalize";
@@ -165,22 +165,8 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
     }
 
-    let partner = null;
-    const partnerNameToUse = request.partnerId || request.partnerName;
-
-    if (partnerNameToUse) {
-      partner = await Partner.findOne({
-        where: {
-          isActive: true,
-          name: partnerNameToUse,
-          rampType: request.rampType
-        }
-      });
-
-      if (!partner) {
-        logger.warn(`Partner with name '${partnerNameToUse}' not found or not active. Proceeding with default fees.`);
-      }
-    }
+    const resolvedPartner = await resolveQuotePartner(request);
+    const partner = resolvedPartner.partner;
 
     if (partner && partner.markupType !== "none" && partner.payoutAddressEvm === null && requiresEvmPartnerPayout(request)) {
       logger.error(
@@ -205,6 +191,9 @@ export class QuoteService extends BaseRampService {
             targetDiscount: partner.targetDiscount
           }
         : { id: null },
+      partnerOwnerId: resolvedPartner.ownerPartnerId,
+      partnerPricingSource: resolvedPartner.source,
+      pricingPartnerId: resolvedPartner.pricingPartnerId,
       request: { ...request, apiKey: request.apiKey || undefined },
       targetFeeFiatCurrency
     });
