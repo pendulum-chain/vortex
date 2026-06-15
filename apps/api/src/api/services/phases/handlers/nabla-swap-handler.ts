@@ -14,7 +14,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { parseTransaction } from "viem";
+import { parseTransaction, recoverTransactionAddress } from "viem";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -195,7 +195,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
       }
 
-      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`, evmEphemeralAddress as `0x${string}`);
+      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`);
 
       const txHash = await baseClient.sendRawTransaction({
         serializedTransaction: nablaSwapTransaction as `0x${string}`
@@ -228,10 +228,14 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(state, nextPhase);
   }
 
-  private async dryRunEvmSwap(serializedTransaction: `0x${string}`, senderAddress: `0x${string}`): Promise<void> {
+  private async dryRunEvmSwap(serializedTransaction: `0x${string}`): Promise<void> {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
     const transaction = parseTransaction(serializedTransaction);
+    type RecoverTransactionAddressParams = Parameters<typeof recoverTransactionAddress>[0];
+    const transactionSender = await recoverTransactionAddress({
+      serializedTransaction: serializedTransaction as RecoverTransactionAddressParams["serializedTransaction"]
+    });
 
     if (!transaction.to) {
       throw new Error("NablaSwapPhaseHandler: Cannot dry-run EVM swap transaction without a recipient address.");
@@ -239,7 +243,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     try {
       const callParameters = {
-        account: senderAddress,
+        account: transactionSender,
         blockTag: "pending" as const,
         data: transaction.data,
         gas: transaction.gas,
@@ -247,7 +251,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         value: transaction.value
       };
 
-      if (transaction.type === "legacy") {
+      if (transaction.type === "legacy" || transaction.type === undefined) {
         await baseClient.call({
           ...callParameters,
           gasPrice: transaction.gasPrice,
@@ -260,7 +264,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
           gasPrice: transaction.gasPrice,
           type: "eip2930"
         });
-      } else {
+      } else if (transaction.type === "eip1559") {
         await baseClient.call({
           ...callParameters,
           accessList: transaction.accessList,
@@ -268,6 +272,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
           maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
           type: "eip1559"
         });
+      } else {
+        throw new Error(`Unsupported EVM swap transaction type for dry-run: ${transaction.type}`);
       }
     } catch (error) {
       if (error instanceof Error) {

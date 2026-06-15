@@ -18,6 +18,7 @@ const EvmToken = {
 const EVM_EPHEMERAL_ACCOUNT = privateKeyToAccount(
   "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 );
+const STATE_EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
 const NABLA_ROUTER_ADDRESS = "0x2222222222222222222222222222222222222222";
 const SWAP_TX_HASH = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const SWAP_TX = await EVM_EPHEMERAL_ACCOUNT.signTransaction({
@@ -55,6 +56,7 @@ mock.module("@vortexfi/shared", () => ({
     })
   },
   EvmToken,
+  EvmTokenDetails: {},
   evmTokenConfig: {
     [Networks.Base]: {
       [EvmToken.USDC]: {
@@ -68,6 +70,7 @@ mock.module("@vortexfi/shared", () => ({
   },
   NABLA_ROUTER: "0x4444444444444444444444444444444444444444",
   Networks,
+  RampPhase: {},
   RampDirection
 }));
 
@@ -113,7 +116,7 @@ function makeState() {
     ],
     quoteId: "quote-1",
     state: {
-      evmEphemeralAddress: EVM_EPHEMERAL_ACCOUNT.address
+      evmEphemeralAddress: STATE_EVM_EPHEMERAL_ADDRESS
     },
     type: RampDirection.SELL,
     async update(updateData: Record<string, unknown>) {
