@@ -17,15 +17,18 @@ const FASTFOREX_TEST_FIATS = [EUR, ARS, BRL, MXN, COP] as const;
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 
-process.env = {
-  ...originalEnv,
+const testEnv: Record<string, string> = {
   COINGECKO_API_KEY: "test-api-key",
   COINGECKO_API_URL: "https://api.coingecko.com/api/v3",
   CRYPTO_CACHE_TTL_MS: "300000",
   FASTFOREX_API_KEY: "test-fastforex-key",
   FASTFOREX_API_URL: "https://api.fastforex.io",
   FIAT_CACHE_TTL_MS: "300000"
-} as NodeJS.ProcessEnv;
+};
+
+for (const [key, value] of Object.entries(testEnv)) {
+  process.env[key] = value;
+}
 
 const loggerMock = {
   debug: mock(() => {}),
@@ -82,7 +85,14 @@ describe("PriceFeedService", () => {
   });
 
   afterAll(() => {
-    process.env = originalEnv;
+    for (const key of Object.keys(testEnv)) {
+      const originalValue = originalEnv[key];
+      if (originalValue === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = originalValue;
+      }
+    }
     global.fetch = originalFetch;
     Reflect.set(PriceFeedService, "instance", undefined);
   });
@@ -255,6 +265,18 @@ describe("PriceFeedService", () => {
       await expect(instance.getUsdToFiatExchangeRate(BRL)).rejects.toThrow("cg down");
     });
 
+    it("should accept fastforex when CoinGecko sanity check is unavailable", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Unable to sanity-check fastforex USD-BRL"));
+    });
+
     it("should throw when fastforex returns invalid rate and CoinGecko also fails", async () => {
       const instance = PriceFeedService.getInstance();
       fetchMock = mock(
@@ -284,21 +306,30 @@ describe("PriceFeedService", () => {
       expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("above 2.00% limit"));
     });
 
-    it("should fail closed when both fastforex and CoinGecko return invalid fiat rates", async () => {
+    it("should accept fastforex when the CoinGecko sanity-check rate is invalid", async () => {
       const instance = PriceFeedService.getInstance();
-      fetchMock = mock(async () => mockFastforexResponse(6.2));
-      global.fetch = fetchMock as unknown as typeof fetch;
       instance.getCryptoPrice = mock(async () => 0);
-
-      await expect(instance.getUsdToFiatExchangeRate(BRL)).rejects.toThrow("CoinGecko returned invalid rate for USD-BRL: 0");
-
-      instance.getCryptoPrice = mock(async () => 5.85);
-      fetchMock.mockClear();
 
       const rate = await instance.getUsdToFiatExchangeRate(BRL);
 
       expect(rate).toBe(5.85);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Unable to sanity-check fastforex USD-BRL"));
+    });
+
+    it("should cache accepted FastForex rates when CoinGecko sanity check is unavailable", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 0);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+      expect(rate).toBe(5.85);
+
+      instance.getCryptoPrice = mock(async () => 5.85);
+      fetchMock.mockClear();
+
+      const cachedRate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(cachedRate).toBe(5.85);
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("should return one for USD without calling external providers", async () => {

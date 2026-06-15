@@ -15,8 +15,7 @@ const FASTFOREX_SANITY_SPREAD_LIMITS: Record<string, number> = {
   BRL: 0.02,
   COP: 0.03,
   EUR: 0.02,
-  MXN: 0.03,
-  USD: 0.005
+  MXN: 0.03
 };
 
 /**
@@ -322,7 +321,7 @@ export class PriceFeedService {
         logger.error(`Unknown error converting ${amount} from ${fromCurrency} to ${toCurrency}`);
       }
 
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -360,8 +359,18 @@ export class PriceFeedService {
   private async assertFastforexRateWithinSanityBand(targetCurrency: RampCurrency, fastforexRate: number): Promise<void> {
     this.assertValidFiatRate("fastforex", "USD", targetCurrency, fastforexRate);
 
-    const referenceRate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
-    this.assertValidFiatRate("CoinGecko", "USD", targetCurrency, referenceRate);
+    let referenceRate: number;
+    try {
+      referenceRate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
+      this.assertValidFiatRate("CoinGecko", "USD", targetCurrency, referenceRate);
+    } catch (error) {
+      logger.warn(
+        `Unable to sanity-check fastforex USD-${targetCurrency} rate against CoinGecko; accepting fastforex rate: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
+      return;
+    }
 
     const spread = Big(fastforexRate).minus(referenceRate).abs().div(referenceRate).toNumber();
     const limit = FASTFOREX_SANITY_SPREAD_LIMITS[targetCurrency] ?? 0.03;
