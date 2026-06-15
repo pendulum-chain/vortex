@@ -18,7 +18,7 @@ const EvmToken = {
 const EVM_EPHEMERAL_ACCOUNT = privateKeyToAccount(
   "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 );
-const STATE_EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
+const UNEXPECTED_EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
 const NABLA_ROUTER_ADDRESS = "0x2222222222222222222222222222222222222222";
 const SWAP_TX_HASH = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const SWAP_TX = await EVM_EPHEMERAL_ACCOUNT.signTransaction({
@@ -94,7 +94,7 @@ QuoteTicket.findByPk = mock(async () => ({
   }
 })) as typeof QuoteTicket.findByPk;
 
-function makeState() {
+function makeState(overrides: Record<string, unknown> = {}) {
   const state = {
     currentPhase: "nablaSwap",
     errorLogs: [],
@@ -116,13 +116,14 @@ function makeState() {
     ],
     quoteId: "quote-1",
     state: {
-      evmEphemeralAddress: STATE_EVM_EPHEMERAL_ADDRESS
+      evmEphemeralAddress: EVM_EPHEMERAL_ACCOUNT.address
     },
     type: RampDirection.SELL,
     async update(updateData: Record<string, unknown>) {
       Object.assign(this, updateData);
       return this;
-    }
+    },
+    ...overrides
   };
 
   return state as unknown as NablaSwapState;
@@ -172,5 +173,24 @@ describe("NablaSwapPhaseHandler", () => {
     expect(appendErrorLog).toHaveBeenCalledTimes(1);
     expect(appendErrorLog.mock.calls[0][1].error).toContain("SP:quoteSwapInto:EXCEEDS_MAX_COVERAGE_RATIO");
     expect(appendErrorLog.mock.calls[0][1].recoverable).toBe(true);
+  });
+
+  it("rejects EVM swap transactions signed by an unexpected sender", async () => {
+    const handler = new NablaSwapPhaseHandler();
+
+    await expect(
+      handler.execute(
+        makeState({
+          state: {
+            evmEphemeralAddress: UNEXPECTED_EVM_EPHEMERAL_ADDRESS
+          }
+        })
+      )
+    ).rejects.toThrow("EVM swap transaction sender mismatch");
+
+    expect(call).not.toHaveBeenCalled();
+    expect(sendRawTransaction).not.toHaveBeenCalled();
+    expect(appendErrorLog).toHaveBeenCalledTimes(1);
+    expect(appendErrorLog.mock.calls[0][1].recoverable).toBe(false);
   });
 });

@@ -195,7 +195,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
       }
 
-      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`);
+      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`, evmEphemeralAddress as `0x${string}`);
 
       const txHash = await baseClient.sendRawTransaction({
         serializedTransaction: nablaSwapTransaction as `0x${string}`
@@ -228,7 +228,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     return this.transitionToNextPhase(state, nextPhase);
   }
 
-  private async dryRunEvmSwap(serializedTransaction: `0x${string}`): Promise<void> {
+  private async dryRunEvmSwap(serializedTransaction: `0x${string}`, expectedSenderAddress: `0x${string}`): Promise<void> {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
     const transaction = parseTransaction(serializedTransaction);
@@ -236,6 +236,12 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     const transactionSender = await recoverTransactionAddress({
       serializedTransaction: serializedTransaction as RecoverTransactionAddressParams["serializedTransaction"]
     });
+
+    if (transactionSender.toLowerCase() !== expectedSenderAddress.toLowerCase()) {
+      throw new Error(
+        `NablaSwapPhaseHandler: EVM swap transaction sender mismatch. Expected ${expectedSenderAddress}, got ${transactionSender}`
+      );
+    }
 
     if (!transaction.to) {
       throw new Error("NablaSwapPhaseHandler: Cannot dry-run EVM swap transaction without a recipient address.");
