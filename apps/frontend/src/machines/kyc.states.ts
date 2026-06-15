@@ -155,8 +155,8 @@ export const kycStateNode = {
           return {
             ...context,
             kycFormData: context.kycFormData,
-            // KYB deep link has no quote; fall back to the CNPJ collected on the deep-link tax-id step.
-            taxId: context.executionInput?.taxId ?? context.kybLink?.taxId ?? ""
+            // KYB deep link has no quote-supplied taxId; the CNPJ is collected on the Avenia company form instead.
+            taxId: context.executionInput?.taxId ?? ""
           };
         },
         onDone: [

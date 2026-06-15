@@ -15,7 +15,6 @@ import { AuthOTPStep } from "../../components/widget-steps/AuthOTPStep";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
-import { KybTaxIdStep } from "../../components/widget-steps/KybTaxIdStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
 import { RegionSelectStep } from "../../components/widget-steps/RegionSelectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
@@ -74,13 +73,11 @@ const WidgetContent = () => {
     isLoadingAuthEmail,
     isAuthOTP,
     isSelectRegion,
-    isEnterKybTaxId,
     isKybComplete,
     isKybLinkMode
   } = useSelector(rampActor, state => ({
     isAuthEmail: state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP"),
     isAuthOTP: state.matches("EnterOTP") || state.matches("VerifyingOTP"),
-    isEnterKybTaxId: state.matches("EnterKybTaxId"),
     isError: state.matches("Error"),
     isInitialQuoteFailed: state.matches("InitialFetchFailed"),
     isKybComplete: state.matches("KybLinkComplete"),
@@ -120,10 +117,6 @@ const WidgetContent = () => {
 
   if (isSelectRegion) {
     return <RegionSelectStep />;
-  }
-
-  if (isEnterKybTaxId) {
-    return <KybTaxIdStep />;
   }
 
   if (rampSummaryVisible) {

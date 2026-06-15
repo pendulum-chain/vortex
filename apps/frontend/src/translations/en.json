@@ -508,20 +508,6 @@
       "subtitle": "Please upload a photo or scan of the representative's ID document.",
       "title": "Representative ID ({{current}} of {{total}})"
     },
-    "kybTaxIdStep": {
-      "continue": "Continue",
-      "description": "Enter your company's CNPJ to begin business verification.",
-      "fields": {
-        "cnpj": {
-          "label": "CNPJ",
-          "placeholder": "00.000.000/0000-00"
-        }
-      },
-      "title": "Company Tax ID",
-      "validation": {
-        "invalidCnpj": "Please enter a valid CNPJ"
-      }
-    },
     "kycDoneScreen": {
       "accountVerified": "Your account has been verified. You can now proceed.",
       "completed": "{{kycOrKyb}} Completed!",
@@ -780,6 +766,7 @@
           "required": "PIX key is required when transferring BRL"
         },
         "taxId": {
+          "cnpjFormat": "Invalid CNPJ format",
           "format": "Invalid CPF or CNPJ format",
           "required": "CPF or CNPJ is required when transferring BRL"
         },

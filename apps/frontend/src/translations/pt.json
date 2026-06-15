@@ -512,20 +512,6 @@
       "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
       "title": "Documento do Representante ({{current}} de {{total}})"
     },
-    "kybTaxIdStep": {
-      "continue": "Continuar",
-      "description": "Informe o CNPJ da sua empresa para iniciar a verificação empresarial.",
-      "fields": {
-        "cnpj": {
-          "label": "CNPJ",
-          "placeholder": "00.000.000/0000-00"
-        }
-      },
-      "title": "CNPJ da Empresa",
-      "validation": {
-        "invalidCnpj": "Por favor, informe um CNPJ válido"
-      }
-    },
     "kycDoneScreen": {
       "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
       "completed": "{{kycOrKyb}} Concluído!",
@@ -784,6 +770,7 @@
           "required": "Chave PIX é obrigatória para transferências em BRL"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
         },

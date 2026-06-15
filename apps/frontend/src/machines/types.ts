@@ -52,8 +52,6 @@ export interface RampContext {
     fiatToken?: FiatToken;
     // `?kybLocked=` pins the region; going back to the selector is disabled.
     regionLocked?: boolean;
-    // CNPJ collected on the deep-link tax-id step; normally comes from the quote.
-    taxId?: string;
   };
 }
 
@@ -92,8 +90,7 @@ export type RampMachineEvents =
   | { type: "LOGOUT" }
   | { type: "GO_BACK" }
   | { type: "START_KYB_LINK"; region?: string; locked?: boolean }
-  | { type: "SELECT_REGION"; fiatToken: FiatToken }
-  | { type: "SUBMIT_KYB_TAX_ID"; taxId: string };
+  | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
 export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

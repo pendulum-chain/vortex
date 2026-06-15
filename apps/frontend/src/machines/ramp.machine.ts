@@ -177,10 +177,14 @@ export const rampMachine = setup({
     },
     START_KYB_LINK: {
       actions: assign({
-        kybLink: ({ event }) => ({
-          fiatToken: findKybRegionByCode(event.region)?.fiatToken,
-          regionLocked: event.locked
-        }),
+        kybLink: ({ event }) => {
+          const region = findKybRegionByCode(event.region);
+          return {
+            fiatToken: region?.fiatToken,
+            // Only honor the lock when the region code is valid; an unknown code degrades to the open selector.
+            regionLocked: !!event.locked && region !== undefined
+          };
+        },
         postAuthTarget: () => "SelectRegion" as const
       }),
       target: "#ramp.CheckAuth"
@@ -324,20 +328,6 @@ export const rampMachine = setup({
         }
       }
     },
-    // KYB deep-link: Brazil-only step to collect the company CNPJ before entering the Avenia KYB flow.
-    EnterKybTaxId: {
-      on: {
-        // Back returns to the selector; with `?kybLocked=` the region is pinned, so back does nothing.
-        GO_BACK: {
-          guard: ({ context }) => !context.kybLink?.regionLocked,
-          target: "SelectRegion"
-        },
-        SUBMIT_KYB_TAX_ID: {
-          actions: assign({ kybLink: ({ context, event }) => ({ ...context.kybLink, taxId: event.taxId }) }),
-          target: "KYC"
-        }
-      }
-    },
     EnterOTP: {
       on: {
         CHANGE_EMAIL: {
@@ -423,19 +413,6 @@ export const rampMachine = setup({
     KYC: kycStateNode as any,
     // KYB deep-link: terminal success screen shown after a quote-less KYB completes. RESET_RAMP (global) exits.
     KybLinkComplete: {},
-    // KYB deep-link: single place that routes a chosen region to its next step. Brazil/Avenia needs a CNPJ
-    // (normally supplied by the quote) collected first; every other region goes straight to the KYC node.
-    KybRouting: {
-      always: [
-        {
-          guard: ({ context }) => context.kybLink?.fiatToken === FiatToken.BRL,
-          target: "EnterKybTaxId"
-        },
-        {
-          target: "KYC"
-        }
-      ]
-    },
     KycComplete: {
       invoke: {
         input: ({ context }) => ({ context }),
@@ -721,12 +698,12 @@ export const rampMachine = setup({
       // `?kybLocked=` pins the region: if it resolved to a fiat token, skip the selector and route straight in.
       always: {
         guard: ({ context }) => !!context.kybLink?.regionLocked && !!context.kybLink.fiatToken,
-        target: "KybRouting"
+        target: "KYC"
       },
       on: {
         SELECT_REGION: {
           actions: assign({ kybLink: ({ context, event }) => ({ ...context.kybLink, fiatToken: event.fiatToken }) }),
-          target: "KybRouting"
+          target: "KYC"
         }
       }
     },

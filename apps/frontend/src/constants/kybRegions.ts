@@ -2,7 +2,7 @@ import { FiatToken } from "@vortexfi/shared";
 import { Language } from "../translations/helpers";
 
 export interface KybRegion {
-  /** Region code used by the `?region=` deep-link param, e.g. "BR". */
+  /** Region code used by the `?kyb=` / `?kybLocked=` deep-link param, e.g. "BR". */
   code: string;
   /** i18n key for the region's display name. */
   labelKey: string;
