@@ -375,6 +375,11 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
+            // Business (KYB deep link) on API-based countries → company KYB form, not the individual KYC form.
+            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            target: "FillingKybForm"
+          },
+          {
             // MXN and CO use API-based form, not iFrame link
             guard: ({ context }) => context.country === "MX" || context.country === "CO",
             target: "FillingKycForm"
