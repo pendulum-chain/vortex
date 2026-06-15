@@ -93,7 +93,7 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     maxBuyAmountRaw: "10000000000",
     maxSellAmountRaw: "10000000000",
     minBuyAmountRaw: "1000000",
-    minSellAmountRaw: "25000000",
+    minSellAmountRaw: "500000",
     type: TokenType.Fiat
   },
   [FiatToken.USD]: {

@@ -9,12 +9,12 @@ export interface MorphoVaultInfo {
 }
 
 const MORPHO_VAULTS: Record<string, MorphoVaultInfo> = {
-  "usdc-ethereum": {
-    depositAssetAddress: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
+  "usdc-base": {
+    depositAssetAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC on Base
     depositAssetDecimals: 6,
-    network: Networks.Ethereum,
+    network: Networks.Base,
     shareDecimals: 18, // MetaMorpho default
-    vaultAddress: "0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9"
+    vaultAddress: "0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9" // Steakhouse Prime Instant on Base
   }
 };
 

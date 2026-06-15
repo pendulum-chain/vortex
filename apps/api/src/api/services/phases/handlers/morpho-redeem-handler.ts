@@ -31,6 +31,10 @@ const vaultRedeemAbi = [
 
 const ETHEREUM_NETWORK: EvmNetworks = Networks.Ethereum;
 
+function resolveMorphoNetwork(meta: StateMetadata): EvmNetworks {
+  return (meta.morphoNetwork as EvmNetworks | undefined) ?? ETHEREUM_NETWORK;
+}
+
 /**
  * Phase description:
  *  Broadcasts the presigned vault.redeem(shares, ephemeral, ephemeral) tx on Ethereum.
@@ -71,6 +75,7 @@ export class MorphoRedeemHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError("Missing morphoRedeemSharesAmountRaw in state metadata");
     }
 
+    const network = resolveMorphoNetwork(meta);
     const vaultAddress = meta.morphoRedeemVaultAddress as `0x${string}`;
     const assetAddress = meta.morphoRedeemAssetAddress as `0x${string}`;
     const ephemeralAddress = meta.evmEphemeralAddress as `0x${string}`;
@@ -80,13 +85,13 @@ export class MorphoRedeemHandler extends BasePhaseHandler {
     // Recovery: if we already broadcast the redeem, verify the outcome.
     if (meta.morphoRedeemTxHash) {
       logger.info(`MorphoRedeemHandler: Redeem tx already broadcast (${meta.morphoRedeemTxHash}), verifying USDC balance`);
-      await this.verifyUsdcBalance(assetAddress, ephemeralAddress, minOutputRaw);
+      await this.verifyUsdcBalance(network, assetAddress, ephemeralAddress, minOutputRaw);
       return state;
     }
 
     // Layer 1: pre-flight previewRedeem. If the on-chain rate has drifted past tolerance before
     // we even broadcast, abort without spending gas on a doomed redeem.
-    const publicClient = this.evmClientManager.getClient(ETHEREUM_NETWORK);
+    const publicClient = this.evmClientManager.getClient(network);
     const previewAssets = (await publicClient.readContract({
       abi: vaultRedeemAbi,
       address: vaultAddress,
@@ -106,7 +111,7 @@ export class MorphoRedeemHandler extends BasePhaseHandler {
     }
 
     const txHash = (await this.evmClientManager.sendRawTransactionWithRetry(
-      ETHEREUM_NETWORK,
+      network,
       presigned.txData as `0x${string}`
     )) as `0x${string}`;
     logger.info(`MorphoRedeemHandler: Redeem tx broadcast: ${txHash}`);
@@ -151,16 +156,17 @@ export class MorphoRedeemHandler extends BasePhaseHandler {
     );
 
     // Layer 3: balance polling fallback
-    await this.verifyUsdcBalance(assetAddress, ephemeralAddress, minOutputRaw);
+    await this.verifyUsdcBalance(network, assetAddress, ephemeralAddress, minOutputRaw);
     return state;
   }
 
   private async verifyUsdcBalance(
+    network: EvmNetworks,
     assetAddress: `0x${string}`,
     ephemeralAddress: `0x${string}`,
     minOutputRaw: bigint
   ): Promise<void> {
-    const client = this.evmClientManager.getClient(ETHEREUM_NETWORK);
+    const client = this.evmClientManager.getClient(network);
     const deadline = Date.now() + EVM_BALANCE_CHECK_TIMEOUT_MS;
     let lastBalance = 0n;
 

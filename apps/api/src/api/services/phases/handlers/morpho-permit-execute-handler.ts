@@ -24,9 +24,29 @@ const permitAbi = [
   }
 ] as const;
 
+const allowanceAbi = [
+  {
+    inputs: [
+      { name: "owner", type: "address" },
+      { name: "spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+] as const;
+
+const ALLOWANCE_POLL_INTERVAL_MS = 2_000;
+const ALLOWANCE_POLL_TIMEOUT_MS = 120_000;
+
 type VrsSignature = { v: number; r: `0x${string}`; s: `0x${string}` };
 
 const ETHEREUM_NETWORK: EvmNetworks = Networks.Ethereum;
+
+function resolveMorphoNetwork(meta: StateMetadata): EvmNetworks {
+  return (meta.morphoNetwork as EvmNetworks | undefined) ?? ETHEREUM_NETWORK;
+}
 
 /**
  * Phase description:
@@ -72,11 +92,48 @@ export class MorphoPermitExecuteHandler extends BasePhaseHandler {
     }
   }
 
+  private async awaitAllowance(
+    network: EvmNetworks,
+    vaultAddress: `0x${string}`,
+    owner: `0x${string}`,
+    spender: `0x${string}`,
+    expected: bigint
+  ): Promise<void> {
+    const { publicClient } = this.getExecutorWallet(network);
+    const startedAt = Date.now();
+    let lastObserved = 0n;
+    while (Date.now() - startedAt < ALLOWANCE_POLL_TIMEOUT_MS) {
+      try {
+        const current = (await publicClient.readContract({
+          abi: allowanceAbi,
+          address: vaultAddress,
+          args: [owner, spender],
+          functionName: "allowance"
+        })) as bigint;
+        lastObserved = current;
+        if (current >= expected) {
+          logger.info(
+            `MorphoPermitExecuteHandler: allowance synced for ${vaultAddress} (${owner} -> ${spender}): ${current.toString()}`
+          );
+          return;
+        }
+      } catch (err) {
+        logger.warn(
+          `MorphoPermitExecuteHandler: allowance read failed (${vaultAddress}); will retry: ${(err as Error).message}`
+        );
+      }
+      await new Promise(resolve => setTimeout(resolve, ALLOWANCE_POLL_INTERVAL_MS));
+    }
+    throw this.createRecoverableError(
+      `MorphoPermitExecuteHandler: timed out waiting for allowance to reach ${expected.toString()} on ${vaultAddress} (last observed: ${lastObserved.toString()})`
+    );
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing morphoPermitExecute phase for ramp ${state.id}`);
 
     const meta = state.state as StateMetadata;
-    const network = ETHEREUM_NETWORK;
+    const network = resolveMorphoNetwork(meta);
 
     if (!meta.evmEphemeralAddress) {
       throw this.createUnrecoverableError("Missing evmEphemeralAddress in state metadata");
@@ -112,25 +169,25 @@ export class MorphoPermitExecuteHandler extends BasePhaseHandler {
     }
 
     // ── Step 1: broadcast vault.permit via executor ──
+    const permitData = permitPresigned.txData;
+    if (!isSignedTypedData(permitData)) {
+      throw this.createUnrecoverableError("morphoPermitExecute: user presignedTx is not a SignedTypedData");
+    }
+    const permitTypedData: SignedTypedData = permitData;
+    const sig = permitTypedData.signature as VrsSignature | undefined;
+    if (!sig) {
+      throw this.createUnrecoverableError("morphoPermitExecute: permit signature missing from user signed typed data");
+    }
+    const token = permitTypedData.domain.verifyingContract as `0x${string}`;
+    const owner = permitTypedData.message.owner as `0x${string}`;
+    const value = BigInt(permitTypedData.message.value as string);
+    const deadline = BigInt(permitTypedData.message.deadline as string);
+
+    if (deadline * 1000n < BigInt(Date.now())) {
+      throw this.createUnrecoverableError("Permit deadline already passed;");
+    }
+
     if (!meta.morphoPermitTxHash) {
-      const permitData = permitPresigned.txData;
-      if (!isSignedTypedData(permitData)) {
-        throw this.createUnrecoverableError("morphoPermitExecute: user presignedTx is not a SignedTypedData");
-      }
-      const permitTypedData: SignedTypedData = permitData;
-      const sig = permitTypedData.signature as VrsSignature | undefined;
-      if (!sig) {
-        throw this.createUnrecoverableError("morphoPermitExecute: permit signature missing from user signed typed data");
-      }
-      const token = permitTypedData.domain.verifyingContract as `0x${string}`;
-      const owner = permitTypedData.message.owner as `0x${string}`;
-      const value = BigInt(permitTypedData.message.value as string);
-      const deadline = BigInt(permitTypedData.message.deadline as string);
-
-      if (deadline * 1000n < BigInt(Date.now())) {
-        throw this.createUnrecoverableError("Permit deadline already passed;");
-      }
-
       const { walletClient } = this.getExecutorWallet(network);
       const permitHash = await walletClient.writeContract({
         abi: permitAbi,
@@ -146,7 +203,12 @@ export class MorphoPermitExecuteHandler extends BasePhaseHandler {
       logger.info(`MorphoPermitExecuteHandler: Permit already broadcast (${meta.morphoPermitTxHash})`);
     }
 
-    // TODO be smart with rpc state sync, read and await for allowance of ephemeral to be updated.
+    // ── Step 1.5: await allowance RPC sync ──
+    // `waitForTransactionReceipt` only confirms the tx is mined on the source node;
+    // downstream public RPCs may lag in their state view. Poll the vault's allowance
+    // until it reflects the post-permit value, otherwise the subsequent transferFrom
+    // will revert with "insufficient allowance".
+    await this.awaitAllowance(network, token, owner, ephemeralAddress, value);
 
     // ── Step 2: broadcast ephemeral-signed transferFrom ──
     if (!meta.morphoPermitTransferFromTxHash) {

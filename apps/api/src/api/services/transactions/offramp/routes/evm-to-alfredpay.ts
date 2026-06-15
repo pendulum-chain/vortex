@@ -67,7 +67,10 @@ export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
 
 /**
  * Resolves the EIP-712 domain for a token's permit signature.
- * Some tokens (like USDT in polygon) use salt-based domain separation instead of chainId.
+ * Supports three formats:
+ *   - Standard (OZ ERC20Permit): name, version, chainId, verifyingContract
+ *   - Salt-based (e.g. USDT on Polygon): name, version, verifyingContract, salt
+ *   - Minimal (e.g. Morpho VaultV2): chainId, verifyingContract
  */
 export async function resolvePermitDomain(
   publicClient: PublicClient,
@@ -78,7 +81,7 @@ export async function resolvePermitDomain(
   let version = "1";
   try {
     version = (await publicClient.readContract({
-      abi: [{ inputs: [], name: "version", outputs: [{ type: "string" }], type: "function" }],
+      abi: [{ inputs: [], name: "version", outputs: [{ type: "string" }], stateMutability: "view", type: "function" }],
       address: tokenAddress,
       functionName: "version"
     })) as string;
@@ -96,10 +99,20 @@ export async function resolvePermitDomain(
     ])
   );
 
+  const minimalHash = keccak256(
+    encodeAbiParameters(parseAbiParameters("bytes32, uint256, address"), [
+      keccak256(toHex("EIP712Domain(uint256 chainId,address verifyingContract)")),
+      BigInt(chainId),
+      tokenAddress
+    ])
+  );
+
   let onChainSeparator: `0x${string}` | undefined;
   try {
     onChainSeparator = (await publicClient.readContract({
-      abi: [{ inputs: [], name: "DOMAIN_SEPARATOR", outputs: [{ type: "bytes32" }], type: "function" }],
+      abi: [
+        { inputs: [], name: "DOMAIN_SEPARATOR", outputs: [{ type: "bytes32" }], stateMutability: "view", type: "function" }
+      ],
       address: tokenAddress,
       functionName: "DOMAIN_SEPARATOR"
     })) as `0x${string}`;
@@ -108,30 +121,31 @@ export async function resolvePermitDomain(
   }
 
   if (onChainSeparator !== undefined) {
-    if (onChainSeparator !== standardHash) {
-      // On-chain separator exists but doesn't match standard - compute salt hash for comparison
-      const salt = pad(toHex(chainId), { size: 32 });
-      const saltHash = keccak256(
-        encodeAbiParameters(parseAbiParameters("bytes32, bytes32, bytes32, address, bytes32"), [
-          keccak256(toHex("EIP712Domain(string name,string version,address verifyingContract,bytes32 salt)")),
-          keccak256(toHex(tokenName)),
-          keccak256(toHex(version)),
-          tokenAddress,
-          salt
-        ])
-      );
-
-      if (onChainSeparator === saltHash) {
-        return { name: tokenName, salt, verifyingContract: tokenAddress, version };
-      }
-
-      // Neither matches - this is an error
-      throw new Error(
-        `Token ${tokenName} has unexpected DOMAIN_SEPARATOR. Expected standard: ${standardHash} or salt: ${saltHash}, got: ${onChainSeparator}`
-      );
+    if (onChainSeparator === standardHash) {
+      return { chainId, name: tokenName, verifyingContract: tokenAddress, version };
     }
-    // use standard domain
-    return { chainId, name: tokenName, verifyingContract: tokenAddress, version };
+    if (onChainSeparator === minimalHash) {
+      return { chainId, verifyingContract: tokenAddress };
+    }
+    // On-chain separator exists but doesn't match standard or minimal - try salt hash.
+    const salt = pad(toHex(chainId), { size: 32 });
+    const saltHash = keccak256(
+      encodeAbiParameters(parseAbiParameters("bytes32, bytes32, bytes32, address, bytes32"), [
+        keccak256(toHex("EIP712Domain(string name,string version,address verifyingContract,bytes32 salt)")),
+        keccak256(toHex(tokenName)),
+        keccak256(toHex(version)),
+        tokenAddress,
+        salt
+      ])
+    );
+
+    if (onChainSeparator === saltHash) {
+      return { name: tokenName, salt, verifyingContract: tokenAddress, version };
+    }
+
+    throw new Error(
+      `Token ${tokenName} has unexpected DOMAIN_SEPARATOR. Expected standard: ${standardHash}, minimal: ${minimalHash} or salt: ${saltHash}, got: ${onChainSeparator}`
+    );
   }
 
   // No on-chain separator available - default to standard

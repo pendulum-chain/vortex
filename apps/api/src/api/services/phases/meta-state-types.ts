@@ -1,4 +1,4 @@
-import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, RampPhase } from "@vortexfi/shared";
+import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, Networks, RampPhase } from "@vortexfi/shared";
 
 export interface StateMetadata {
   nablaSoftMinimumOutputRaw: string;
@@ -96,4 +96,5 @@ export interface StateMetadata {
   morphoRedeemActualOutputRaw?: string;
   morphoPermitTxHash?: `0x${string}`;
   morphoPermitTransferFromTxHash?: `0x${string}`;
+  morphoNetwork?: Networks;
 }

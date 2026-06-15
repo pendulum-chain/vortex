@@ -1,8 +1,8 @@
-import { EvmClientManager, EvmToken, Networks, RampDirection } from "@vortexfi/shared";
+import { EvmClientManager, EvmNetworks, EvmToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { getMorphoVaultInfo } from "../../../phases/handlers/morpho-vault-config";
 import { EvmBridgeQuoteRequest, getEvmBridgeQuote } from "../../core/squidrouter";
-import { QuoteContext } from "../../core/types";
+import { BridgeMeta, QuoteContext } from "../../core/types";
 import { assignPreNablaContext, BaseInitializeEngine } from "./index";
 
 const vaultAbi = [
@@ -24,18 +24,15 @@ export class OffRampFromEvmInitializeMorphoEngine extends BaseInitializeEngine {
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
 
-    if (req.from !== Networks.Ethereum) {
-      throw new Error(`OffRampFromEvmInitializeMorphoEngine: expected from=Ethereum, got ${req.from}`);
-    }
-
     // 1. Resolve the Morpho vault and compute shares -> USDC conversion via previewRedeem.
-    const vault = getMorphoVaultInfo("usdc-ethereum");
+    const vault = getMorphoVaultInfo("usdc-base");
     const evmClientManager = EvmClientManager.getInstance();
-    const ethereumClient = evmClientManager.getClient(Networks.Ethereum);
+    const vaultNetwork = vault.network as EvmNetworks;
+    const vaultClient = evmClientManager.getClient(vaultNetwork);
 
     const sharesAmountRaw = new Big(req.inputAmount).mul(new Big(10).pow(vault.shareDecimals)).toFixed(0, 0);
 
-    const assetsFromShares = (await ethereumClient.readContract({
+    const assetsFromShares = (await vaultClient.readContract({
       abi: vaultAbi,
       address: vault.vaultAddress,
       args: [BigInt(sharesAmountRaw)],
@@ -47,28 +44,45 @@ export class OffRampFromEvmInitializeMorphoEngine extends BaseInitializeEngine {
     // 2. Set up preNabla context (mirrors the standard offramp EVM flow)
     await assignPreNablaContext(ctx);
 
-    // 3. Get bridge quote: USDC on Ethereum -> USDC on Base
-    const bridgeRequest: EvmBridgeQuoteRequest = {
-      amountDecimal: expectedUsdcDecimal.toFixed(vault.depositAssetDecimals),
-      fromNetwork: Networks.Ethereum,
-      inputCurrency: EvmToken.USDC,
-      outputCurrency: EvmToken.USDC,
-      rampType: req.rampType,
-      toNetwork: Networks.Base
-    };
+    // 3. Bridge context: when the vault is on Base, USDC is already on Base and no
+    //    SquidRouter bridge is required. Surface a same-chain evmToEvm so downstream
+    //    engines (e.g. OffRampSwapEngineEvm) can read outputAmountDecimal without
+    //    conditional code paths. For non-Base vaults, fetch a real bridge quote.
+    if (vaultNetwork === Networks.Base) {
+      ctx.evmToEvm = {
+        fromNetwork: vaultNetwork,
+        fromToken: vault.depositAssetAddress as `0x${string}`,
+        inputAmountDecimal: expectedUsdcDecimal,
+        inputAmountRaw: assetsFromShares.toString(),
+        networkFeeUSD: "0",
+        outputAmountDecimal: expectedUsdcDecimal,
+        outputAmountRaw: assetsFromShares.toString(),
+        toNetwork: vaultNetwork,
+        toToken: vault.depositAssetAddress as `0x${string}`
+      } satisfies BridgeMeta;
+    } else {
+      const bridgeRequest: EvmBridgeQuoteRequest = {
+        amountDecimal: expectedUsdcDecimal.toFixed(vault.depositAssetDecimals),
+        fromNetwork: vaultNetwork,
+        inputCurrency: EvmToken.USDC,
+        outputCurrency: EvmToken.USDC,
+        rampType: req.rampType,
+        toNetwork: Networks.Base
+      };
 
-    const bridgeQuote = await getEvmBridgeQuote(bridgeRequest);
+      const bridgeQuote = await getEvmBridgeQuote(bridgeRequest);
 
-    ctx.evmToEvm = {
-      ...bridgeRequest,
-      fromToken: bridgeQuote.fromToken,
-      inputAmountDecimal: new Big(bridgeRequest.amountDecimal),
-      inputAmountRaw: bridgeQuote.inputAmountRaw,
-      networkFeeUSD: bridgeQuote.networkFeeUSD,
-      outputAmountDecimal: bridgeQuote.outputAmountDecimal,
-      outputAmountRaw: bridgeQuote.outputAmountRaw,
-      toToken: bridgeQuote.toToken
-    };
+      ctx.evmToEvm = {
+        ...bridgeRequest,
+        fromToken: bridgeQuote.fromToken,
+        inputAmountDecimal: new Big(bridgeRequest.amountDecimal),
+        inputAmountRaw: bridgeQuote.inputAmountRaw,
+        networkFeeUSD: bridgeQuote.networkFeeUSD,
+        outputAmountDecimal: bridgeQuote.outputAmountDecimal,
+        outputAmountRaw: bridgeQuote.outputAmountRaw,
+        toToken: bridgeQuote.toToken
+      };
+    }
 
     // 4. Surface redeem metadata for the route-prep phase (compute share->USDC rate at quote time).
     ctx.redeemMeta = {
@@ -78,7 +92,10 @@ export class OffRampFromEvmInitializeMorphoEngine extends BaseInitializeEngine {
     };
 
     ctx.addNote?.(
-      `Morpho offramp init: ${sharesAmountRaw} vault shares -> ~${expectedUsdcDecimal.toFixed()} USDC (previewRedeem); bridge to ${bridgeQuote.outputAmountDecimal.toFixed()} USDC on Base`
+      `Morpho offramp init: ${sharesAmountRaw} vault shares on ${vaultNetwork} -> ~${expectedUsdcDecimal.toFixed()} USDC (previewRedeem)` +
+        (vaultNetwork === Networks.Base
+          ? ""
+          : `; bridge to ${ctx.evmToEvm.outputAmountDecimal.toFixed()} USDC on ${Networks.Base}`)
     );
   }
 }

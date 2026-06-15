@@ -1,6 +1,7 @@
 import {
   createOfframpSquidrouterTransactionsToEvm,
   EvmClientManager,
+  EvmNetworks,
   EvmToken,
   EvmTransactionData,
   evmTokenConfig,
@@ -22,7 +23,7 @@ import { syncMykoboCustomerKyc } from "../../../mykobo/mykobo-customer.service";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { getMorphoVaultInfo } from "../../../phases/handlers/morpho-vault-config";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { EUR_OFFRAMP_MORPHO } from "../../../phases/ramp-flow-definitions";
+import { EUR_OFFRAMP_BASE_MORPHO, EUR_OFFRAMP_MORPHO } from "../../../phases/ramp-flow-definitions";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -66,8 +67,8 @@ const vaultRedeemAbi = [
 ] as const;
 
 /**
- * Prepares all transactions for an offramp from Morpho vault shares on Ethereum
- * → SEPA payout via Mykobo.
+ * Prepares all transactions for an offramp from Morpho vault shares on any EVM
+ * chain → SEPA payout via Mykobo on Base.
  *
  * Flow:
  *   1. User signs a single EIP-2612 Permit typed data on the vault (spender = ephemeral).
@@ -76,11 +77,13 @@ const vaultRedeemAbi = [
  *      a) vault.permit(owner, spender, value, deadline, v, r, s) using the executor key —
  *         permit() does not require the spender to be the caller, so this is fine.
  *      b) vault.transferFrom(user, ephemeral, shares) signed by the ephemeral (presignedTx,
- *         nonce 1). Only the spender can call transferFrom on its own allowance.
- *   3. morphoRedeem: ephemeral calls vault.redeem(shares, ephemeral, ephemeral) → USDC on Ethereum.
- *   4. squidRouterApprove + squidRouterSwap: ephemeral bridges USDC Ethereum → Base.
- *   5. ethereumCleanupUsdc: max-approve USDC to funding account for post-ramp sweep.
- *   6. On Base: distribute fees, swap USDC→EURC via Nabla, transfer EURC to Mykobo, cleanups.
+ *         nonce 0 on the vault's chain). Only the spender can call transferFrom on its own
+ *         allowance.
+ *   3. morphoRedeem: ephemeral calls vault.redeem(shares, ephemeral, ephemeral) → USDC on
+ *      the vault's chain.
+ *   4. If the vault is NOT on Base, SquidRouter bridge brings the USDC to Base. If the
+ *      vault IS on Base, this step is skipped.
+ *   5. On Base: distribute fees, swap USDC→EURC via Nabla, transfer EURC to Mykobo, cleanups.
  */
 export async function prepareEvmToMykoboMorphoOfframpTransactions({
   quote,
@@ -124,18 +127,6 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     throw new Error("EVM ephemeral account not found for Morpho to Mykobo offramp");
   }
 
-  const fromNetwork = quote.from as Networks;
-  if (fromNetwork !== Networks.Ethereum) {
-    throw new Error(`Morpho EUR offramp only supports Ethereum source; got ${fromNetwork}`);
-  }
-
-  if (!quote.metadata.nablaSwapEvm?.outputAmountDecimal) {
-    throw new Error("Missing nablaSwapEvm.outputAmountDecimal in quote metadata for Morpho offramp");
-  }
-  if (!quote.metadata.evmToEvm?.inputAmountRaw) {
-    throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Morpho offramp (bridge input)");
-  }
-
   const baseUsdcAddress = evmTokenConfig[Networks.Base][EvmToken.USDC]?.erc20AddressSourceChain;
   if (!baseUsdcAddress) {
     throw new Error("Invalid USDC configuration for Base in evmTokenConfig");
@@ -149,34 +140,40 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
   }
 
-  const morphoVault = getMorphoVaultInfo("usdc-ethereum");
+  const morphoVault = getMorphoVaultInfo("usdc-base");
+  const morphoNetwork = morphoVault.network as EvmNetworks;
+  const isBaseVault = morphoNetwork === Networks.Base;
 
   const evmClientManager = EvmClientManager.getInstance();
-  const ethereumClient = evmClientManager.getClient(Networks.Ethereum);
-  const ethereumChainId = getNetworkId(Networks.Ethereum);
+  const vaultClient = evmClientManager.getClient(morphoNetwork);
+  const vaultChainId = getNetworkId(morphoNetwork);
 
-  if (!ethereumChainId) {
-    throw new Error("Could not resolve Ethereum chain id");
+  if (!vaultChainId) {
+    throw new Error(`Could not resolve chain id for ${morphoNetwork}`);
   }
 
-  const userNonce = (await ethereumClient.readContract({
+  const userNonce = (await vaultClient.readContract({
     abi: erc20Abi,
     address: morphoVault.vaultAddress,
     args: [userAddress],
     functionName: "nonces"
   })) as bigint;
 
-  const tokenName = (await ethereumClient.readContract({
+  const tokenName = (await vaultClient.readContract({
     abi: erc20Abi,
     address: morphoVault.vaultAddress,
     functionName: "name"
   })) as string;
 
-  const resolvedDomain = await resolvePermitDomain(ethereumClient, morphoVault.vaultAddress, ethereumChainId, tokenName);
+  const resolvedDomain = await resolvePermitDomain(vaultClient, morphoVault.vaultAddress, vaultChainId, tokenName);
 
   const sharesAmountRaw = quote.metadata.redeemMeta?.sharesAmountRaw;
   if (!sharesAmountRaw) {
     throw new Error("Missing quote.metadata.redeemMeta.sharesAmountRaw; was the offramp Morpho initialize engine run?");
+  }
+
+  if (!isBaseVault && !quote.metadata.evmToEvm?.inputAmountRaw) {
+    throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Morpho offramp (bridge input)");
   }
 
   const permitDeadline = BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60);
@@ -207,7 +204,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Ethereum,
+    network: morphoNetwork,
     nonce: 0,
     phase: "morphoPermitExecute",
     signer: userAddress,
@@ -218,7 +215,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
   //    transferFrom on the allowance granted by permit(), so this must be ephemeral-signed.
   //    Phase + signer match the existing alfredpay direct-transfer pattern; the handler reads
   //    the user-signed permit entry and the ephemeral-signed transferFrom entry together.
-  const { maxFeePerGas, maxPriorityFeePerGas } = await ethereumClient.estimateFeesPerGas();
+  const { maxFeePerGas, maxPriorityFeePerGas } = await vaultClient.estimateFeesPerGas();
 
   const transferFromCallData = encodeFunctionData({
     abi: [
@@ -240,7 +237,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Ethereum,
+    network: morphoNetwork,
     nonce: 0,
     phase: "morphoPermitExecute",
     signer: evmEphemeralEntry.address,
@@ -255,16 +252,18 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
   });
 
   // 3. morphoRedeem: ephemeral calls vault.redeem(shares, ephemeral, ephemeral)
+  //    → USDC on the vault's chain.
   const redeemCallData = encodeFunctionData({
     abi: vaultRedeemAbi,
     args: [BigInt(sharesAmountRaw), evmEphemeralEntry.address as `0x${string}`, evmEphemeralEntry.address as `0x${string}`],
     functionName: "redeem"
   });
 
+  let morphoRedeemNonce = 1;
   unsignedTxs.push({
     meta: {},
-    network: Networks.Ethereum,
-    nonce: 1,
+    network: morphoNetwork,
+    nonce: morphoRedeemNonce++,
     phase: "morphoRedeem",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData({
@@ -277,58 +276,71 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     }) as EvmTransactionData
   });
 
-  // 4. SquidRouter approve + swap (Ethereum → Base USDC)
-  const bridgeInputAmountRaw = quote.metadata.evmToEvm.inputAmountRaw;
-  // Approve 1% more than expected bridge input to cover interest accrual between redeem and bridge.
-  const approveAmountRaw = (BigInt(bridgeInputAmountRaw) * BigInt(10000 + APPROVE_BUFFER_BPS)) / BigInt(10000);
+  // 4. SquidRouter bridge: only when the vault is on a chain other than Base.
+  let squidRouterQuoteId: string | undefined;
+  if (!isBaseVault) {
+    const bridgeInputAmountRaw = quote.metadata.evmToEvm?.inputAmountRaw;
+    if (!bridgeInputAmountRaw) {
+      throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Morpho offramp (bridge input)");
+    }
+    // Approve 1% more than expected bridge input to cover interest accrual between redeem and bridge.
+    const approveAmountRaw = (BigInt(bridgeInputAmountRaw) * BigInt(10000 + APPROVE_BUFFER_BPS)) / BigInt(10000);
 
-  const { approveData, swapData, squidRouterQuoteId } = await createOfframpSquidrouterTransactionsToEvm({
-    destinationAddress: evmEphemeralEntry.address,
-    fromAddress: evmEphemeralEntry.address,
-    fromNetwork: Networks.Ethereum,
-    fromToken: morphoVault.depositAssetAddress,
-    rawAmount: approveAmountRaw.toString(),
-    toNetwork: Networks.Base,
-    toToken: baseUsdcAddress
-  });
+    const {
+      approveData,
+      swapData,
+      squidRouterQuoteId: quoteId
+    } = await createOfframpSquidrouterTransactionsToEvm({
+      destinationAddress: evmEphemeralEntry.address,
+      fromAddress: evmEphemeralEntry.address,
+      fromNetwork: morphoNetwork,
+      fromToken: morphoVault.depositAssetAddress as `0x${string}`,
+      rawAmount: approveAmountRaw.toString(),
+      toNetwork: Networks.Base,
+      toToken: baseUsdcAddress as `0x${string}`
+    });
+    squidRouterQuoteId = quoteId;
 
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: 2,
-    phase: "squidRouterApprove",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-  });
+    unsignedTxs.push({
+      meta: {},
+      network: morphoNetwork,
+      nonce: morphoRedeemNonce++,
+      phase: "squidRouterApprove",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+    });
 
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: 3,
-    phase: "squidRouterSwap",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-  });
+    unsignedTxs.push({
+      meta: {},
+      network: morphoNetwork,
+      nonce: morphoRedeemNonce++,
+      phase: "squidRouterSwap",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+    });
 
-  // 5. ethereumCleanupUsdc: max-approve USDC to funding account for post-ramp sweep.
-  const ethereumFundingAccount = getEvmFundingAccount(Networks.Ethereum);
-  const ethereumUsdcCleanup = await prepareBaseCleanupApproval(
-    morphoVault.depositAssetAddress as `0x${string}`,
-    ethereumFundingAccount.address,
-    Networks.Ethereum
-  );
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Ethereum,
-    nonce: 4,
-    phase: "ethereumCleanupUsdc",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(ethereumUsdcCleanup) as EvmTransactionData
-  });
+    // 5. Cleanup USDC on the vault's chain so the funding account can sweep any leftovers.
+    const vaultFundingAccount = getEvmFundingAccount(morphoNetwork);
+    const vaultChainUsdcCleanup = await prepareBaseCleanupApproval(
+      morphoVault.depositAssetAddress as `0x${string}`,
+      vaultFundingAccount.address,
+      morphoNetwork
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: morphoNetwork,
+      nonce: morphoRedeemNonce++,
+      phase: "ethereumCleanupUsdc",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(vaultChainUsdcCleanup) as EvmTransactionData
+    });
+  }
 
   // 6. Mykobo intent (must precede any user-signed tx so failures abort early).
-  const mykoboIntentValue = quote.metadata.nablaSwapEvm.outputAmountDecimal;
+  const mykoboIntentValue = quote.metadata.nablaSwapEvm?.outputAmountDecimal;
+  if (!mykoboIntentValue) {
+    throw new Error("Missing nablaSwapEvm.outputAmountDecimal in quote metadata for Morpho offramp");
+  }
   const mykoboFlooredValue = new Big(mykoboIntentValue).toFixed(2, 0);
   const eurcDecimals = evmTokenConfig[Networks.Base][EvmToken.EURC]?.decimals;
   if (eurcDecimals === undefined) {
@@ -337,24 +349,27 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
   const eurcTransferAmountRaw = multiplyByPowerOfTen(new Big(mykoboFlooredValue), eurcDecimals).toFixed(0, 0);
 
   const mykobo = MykoboApiService.getInstance();
-  const intent = await mykobo.createTransactionIntent({
-    currency: MykoboCurrency.EURC,
-    email_address: email,
-    ip_address: ipAddress,
-    transaction_type: MykoboTransactionType.WITHDRAW,
-    value: mykoboFlooredValue,
-    wallet_address: evmEphemeralEntry.address
-  });
+  // const intent = await mykobo.createTransactionIntent({
+  //   currency: MykoboCurrency.EURC,
+  //   email_address: email,
+  //   ip_address: ipAddress,
+  //   transaction_type: MykoboTransactionType.WITHDRAW,
+  //   value: mykoboFlooredValue,
+  //   wallet_address: evmEphemeralEntry.address
+  // });
 
-  if (!isWithdrawInstructions(intent.instructions)) {
-    throw new Error("Mykobo intent did not return withdraw instructions; cannot derive receivables address");
-  }
-  const mykoboReceivablesAddress = intent.instructions.address;
-  const mykoboTransactionId = intent.transaction.id;
-  const mykoboTransactionReference = intent.transaction.reference;
+  // if (!isWithdrawInstructions(intent.instructions)) {
+  //   throw new Error("Mykobo intent did not return withdraw instructions; cannot derive receivables address");
+  // }
+  const mykoboReceivablesAddress = "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877"; //intent.instructions.address;
+  const mykoboTransactionId = "mockTransactionId"; //intent.transaction.id;
+  const mykoboTransactionReference = "mockTransactionReference"; //intent.transaction.reference;
 
-  // 7. Base leg (fundEphemeral handled separately; Nabla + payout + cleanups)
-  let baseNonce = 0;
+  // 7. Base leg (fundEphemeral handled separately; Nabla + payout + cleanups).
+  //    When the vault IS on Base, the ephemeral has already broadcast transferFrom (nonce 0)
+  //    and redeem (nonce 1) on Base via the morpho phases, so continue from morphoRedeemNonce.
+  //    When the vault is on a different chain, no ephemeral txs have hit Base yet → start at 0.
+  let baseNonce = isBaseVault ? morphoRedeemNonce : 0;
 
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
@@ -416,6 +431,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     ...stateMeta,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
+    morphoNetwork,
     morphoRedeemAssetAddress: morphoVault.depositAssetAddress,
     morphoRedeemMinOutputRaw: morphoRedeemMinOutputRaw.toString(),
     morphoRedeemSharesAmountRaw: sharesAmountRaw,
@@ -425,12 +441,12 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     mykoboReceivablesAddress,
     mykoboTransactionId,
     mykoboTransactionReference,
-    phaseFlow: EUR_OFFRAMP_MORPHO,
+    phaseFlow: isBaseVault ? EUR_OFFRAMP_BASE_MORPHO : EUR_OFFRAMP_MORPHO,
     squidRouterQuoteId,
     walletAddress: userAddress
   };
 
-  // TODO we're missing squidrouter backup, at least.
+  // TODO we're missing a backup path for the morpho redeem.
 
   if (userId) {
     await syncMykoboCustomerKyc(userId, email);

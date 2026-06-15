@@ -19,7 +19,7 @@ import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { getMorphoVaultInfo } from "../../../phases/handlers/morpho-vault-config";
 import { StateMetadata } from "../../../phases/meta-state-types";
-import { EUR_ONRAMP_BASE_MORPHO } from "../../../phases/ramp-flow-definitions";
+import { EUR_ONRAMP_BASE_MORPHO, EUR_ONRAMP_MORPHO } from "../../../phases/ramp-flow-definitions";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
@@ -41,9 +41,13 @@ const morphoVaultAbi = [
 ] as const;
 
 /**
- * Prepares all transactions for a Mykobo (EUR) onramp that deposits into a Morpho vault on Ethereum.
+ * Prepares all transactions for a Mykobo (EUR) onramp that deposits into a Morpho vault.
  *
- * Flow: user SEPA deposit → EURC on Base ephemeral → Nabla swap EURC→USDC → SquidRouter to Ethereum (USDC) → Morpho vault deposit on Ethereum.
+ * Two variants:
+ *   - Base vault: user SEPA deposit → EURC on Base ephemeral → Nabla swap EURC→USDC
+ *     → Morpho vault deposit on Base. No SquidRouter bridge.
+ *   - Non-Base vault: same as above, but then SquidRouter bridges USDC from Base to
+ *     the vault's chain, where the Morpho deposit executes.
  */
 export async function prepareMykoboToEvmMorphoOnrampTransactions({
   quote,
@@ -70,17 +74,28 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     throw new Error("Missing nablaSwapEvm.outputAmountRaw in quote metadata for Morpho onramp");
   }
 
-  if (!quote.metadata.evmToEvm?.inputAmountRaw) {
+  const morphoVault = getMorphoVaultInfo("usdc-base");
+  const morphoNetwork = morphoVault.network as EvmNetworks;
+  const isBaseVault = morphoNetwork === Networks.Base;
+
+  // For Base vaults, the deposit amount equals the Nabla swap output directly. For
+  // non-Base vaults, the deposit amount is the bridge output (USDC that lands on the
+  // vault's chain after the SquidRouter bridge).
+  const depositAmountRaw = isBaseVault
+    ? (quote.metadata.nablaSwapEvm.outputAmountRaw as string)
+    : quote.metadata.evmToEvm?.outputAmountRaw;
+  if (!depositAmountRaw) {
+    throw new Error(
+      isBaseVault
+        ? "Missing nablaSwapEvm.outputAmountRaw in quote metadata for Base Morpho onramp"
+        : "Missing evmToEvm.outputAmountRaw in quote metadata for Morpho onramp"
+    );
+  }
+
+  const bridgeInputAmountRaw = isBaseVault ? null : quote.metadata.evmToEvm?.inputAmountRaw;
+  if (!isBaseVault && !bridgeInputAmountRaw) {
     throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Morpho onramp");
   }
-
-  if (!quote.metadata.evmToEvm?.outputAmountRaw) {
-    throw new Error("Missing evmToEvm.outputAmountRaw in quote metadata for Morpho onramp");
-  }
-
-  const morphoVault = getMorphoVaultInfo("usdc-ethereum");
-  const bridgeInputAmountRaw = quote.metadata.evmToEvm.inputAmountRaw;
-  const depositAmountRaw = quote.metadata.evmToEvm.outputAmountRaw;
 
   stateMeta = {
     destinationAddress,
@@ -88,6 +103,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     isDirectTransfer: false,
     morphoDepositAmountRaw: depositAmountRaw,
     morphoDepositAssetAddress: morphoVault.depositAssetAddress,
+    morphoNetwork,
     morphoShareTokenAddress: morphoVault.vaultAddress,
     morphoVaultAddress: morphoVault.vaultAddress,
     mykoboEmail,
@@ -121,34 +137,47 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
   // 2. Fee Distribution on Base
   baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, baseNonce);
 
-  // 3. SquidRouter Swap: USDC on Base -> USDC on Ethereum
-  const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
-    await createOnrampSquidrouterTransactionsFromBaseToEvm({
+  // 3. SquidRouter bridge (only when the vault is on a chain other than Base).
+  let squidRouterQuoteId: string | undefined;
+  let squidRouterReceiverId: string | undefined;
+  let squidRouterReceiverHash: string | undefined;
+  if (!isBaseVault) {
+    const {
+      approveData,
+      swapData,
+      squidRouterQuoteId: quoteId,
+      squidRouterReceiverId: receiverId,
+      squidRouterReceiverHash: receiverHash
+    } = await createOnrampSquidrouterTransactionsFromBaseToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: nablaSwapOutputTokenAddress,
-      rawAmount: bridgeInputAmountRaw,
-      toNetwork: Networks.Ethereum,
-      toToken: morphoVault.depositAssetAddress // USDC on Ethereum
+      rawAmount: bridgeInputAmountRaw as string,
+      toNetwork: morphoNetwork,
+      toToken: morphoVault.depositAssetAddress as `0x${string}`
+    });
+    squidRouterQuoteId = quoteId;
+    squidRouterReceiverId = receiverId;
+    squidRouterReceiverHash = receiverHash;
+
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "squidRouterApprove",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
     });
 
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Base,
-    nonce: baseNonce++,
-    phase: "squidRouterApprove",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-  });
-
-  unsignedTxs.push({
-    meta: {},
-    network: Networks.Base,
-    nonce: baseNonce++,
-    phase: "squidRouterSwap",
-    signer: evmEphemeralEntry.address,
-    txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-  });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Base,
+      nonce: baseNonce++,
+      phase: "squidRouterSwap",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+    });
+  }
 
   // 4. Base Cleanups
   const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
@@ -181,12 +210,9 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
   });
 
-  // 5. Destination chain (Ethereum) transactions
-  let destinationNonce = 0;
-  const destinationStartingNonce = destinationNonce;
-
-  const ethereumClient = EvmClientManager.getInstance().getClient(Networks.Ethereum);
-  const { maxFeePerGas, maxPriorityFeePerGas } = await ethereumClient.estimateFeesPerGas();
+  // 5. Vault chain (morphoNetwork) transactions
+  const morphoClient = EvmClientManager.getInstance().getClient(morphoNetwork);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await morphoClient.estimateFeesPerGas();
 
   // Morpho approval: approve vault to spend the deposit asset (USDC)
   const approveCallData = encodeFunctionData({
@@ -197,8 +223,8 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Ethereum,
-    nonce: destinationNonce++,
+    network: morphoNetwork,
+    nonce: isBaseVault ? baseNonce : 0,
     phase: "morphoApprove",
     signer: evmEphemeralEntry.address,
     txData: {
@@ -211,7 +237,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     } as EvmTransactionData
   });
 
-  // Morpho deposit: deposit USDC into the vault on Ethereum
+  // Morpho deposit: deposit USDC into the vault on morphoNetwork
   const depositCallData = encodeFunctionData({
     abi: morphoVaultAbi,
     args: [BigInt(depositAmountRaw), destinationAddress as `0x${string}`],
@@ -220,8 +246,8 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
 
   unsignedTxs.push({
     meta: {},
-    network: Networks.Ethereum,
-    nonce: destinationNonce++,
+    network: morphoNetwork,
+    nonce: isBaseVault ? baseNonce + 1 : 1,
     phase: "morphoDeposit",
     signer: evmEphemeralEntry.address,
     txData: {
@@ -234,13 +260,9 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     } as EvmTransactionData
   });
 
-  // 6. Backup transactions
-  // No backup swap transactions are needed on Ethereum because SquidRouter bridges USDC
-  // directly as native USDC, which is already the deposit asset for the Morpho vault.
-
   stateMeta = {
     ...stateMeta,
-    phaseFlow: EUR_ONRAMP_BASE_MORPHO,
+    phaseFlow: isBaseVault ? EUR_ONRAMP_BASE_MORPHO : EUR_ONRAMP_MORPHO,
     squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId

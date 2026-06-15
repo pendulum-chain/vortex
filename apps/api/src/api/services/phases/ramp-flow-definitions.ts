@@ -157,10 +157,14 @@ export const ALFREDPAY_OFFRAMP: RampPhase[] = [
   "complete"
 ];
 
-// ─── Morpho Vault Deposit On-Ramp (Mykobo SEPA on Base → Morpho Vault) ─────
+// ─── Morpho Vault On-Ramp (Mykobo SEPA on Base → Morpho Vault) ──────────────────
 
-/** EUR → USDC on Base via Nabla, then deposit into Morpho vault. No SquidRouter bridge. */
-export const EUR_ONRAMP_BASE_MORPHO: RampPhase[] = [
+/**
+ * Generic EUR onramp from Mykobo SEPA → deposit into a Morpho vault on any EVM chain.
+ * EURC on Base via Nabla swap to USDC, then SquidRouter bridge to the vault's chain,
+ * then deposit into the Morpho vault. Use this for vaults on chains other than Base.
+ */
+export const EUR_ONRAMP_MORPHO: RampPhase[] = [
   "initial",
   "mykoboOnrampDeposit",
   "fundEphemeral",
@@ -176,21 +180,61 @@ export const EUR_ONRAMP_BASE_MORPHO: RampPhase[] = [
   "complete"
 ];
 
-// ─── Morpho Vault Redeem Off-Ramp (Morpho Vault on Ethereum → Mykobo SEPA on Base) ────
+/**
+ * Same-chain variant for vaults on Base. After the Nabla EURC→USDC swap on Base, USDC
+ * is already on Base, so the deposit into the Base vault does not need a SquidRouter
+ * bridge. The route-prep code in `mykobo-to-evm-morpho.ts` selects this flow when
+ * `morphoNetwork === Networks.Base` and skips adding bridge presignedTxs.
+ */
+export const EUR_ONRAMP_BASE_MORPHO: RampPhase[] = [
+  "initial",
+  "mykoboOnrampDeposit",
+  "fundEphemeral",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "distributeFees",
+  "subsidizePostSwap",
+  "morphoDeposit",
+  "complete"
+];
+
+// ─── Morpho Vault Off-Ramp (Morpho Vault → Mykobo SEPA on Base) ────────────────
 
 /**
- * EUR offramp from Morpho vault shares on Ethereum → SEPA payout via Mykobo.
- * User signs a single EIP-2612 permit; ephemeral broadcasts permit+transferFrom,
- * redeems shares to USDC on Ethereum, bridges USDC to Base, then the existing
- * Mykobo payout leg (Nabla USDC→EURC + EURC→Mykobo) executes on Base.
+ * Generic EUR offramp from Morpho vault shares on any EVM chain → SEPA payout via Mykobo.
+ * User signs a single EIP-2612 Permit typed data on the vault (spender = ephemeral).
+ * The ephemeral broadcasts permit + transferFrom, redeems shares to USDC on the
+ * vault's chain, then SquidRouter bridges the USDC to Base, where the Mykobo payout
+ * leg (Nabla USDC→EURC + EURC→Mykobo) executes. Use this for vaults on chains
+ * other than Base.
  */
 export const EUR_OFFRAMP_MORPHO: RampPhase[] = [
   "initial",
+  "fundEphemeral",
   "morphoPermitExecute",
   "morphoRedeem",
-  "squidRouterApprove",
   "squidRouterSwap",
+  "distributeFees",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "subsidizePostSwap",
+  "mykoboPayoutOnBase",
+  "complete"
+];
+
+/**
+ * Same-chain variant for vaults on Base. After morphoRedeem, USDC is already on Base,
+ * so no SquidRouter bridge is needed before the Mykobo payout leg. The route-prep
+ * code in `evm-to-mykobo-morpho.ts` selects this flow when
+ * `morphoNetwork === Networks.Base` and skips adding bridge presignedTxs.
+ */
+export const EUR_OFFRAMP_BASE_MORPHO: RampPhase[] = [
+  "initial",
   "fundEphemeral",
+  "morphoPermitExecute",
+  "morphoRedeem",
   "distributeFees",
   "subsidizePreSwap",
   "nablaApprove",

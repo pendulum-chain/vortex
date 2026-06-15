@@ -30,6 +30,10 @@ const morphoVaultAbi = [
 
 const MORPHO_NETWORK: EvmNetworks = Networks.Ethereum;
 
+function resolveMorphoNetwork(meta: StateMetadata): EvmNetworks {
+  return (meta.morphoNetwork as EvmNetworks | undefined) ?? MORPHO_NETWORK;
+}
+
 async function pollForShareBalance(
   evmClientManager: EvmClientManager,
   network: EvmNetworks,
@@ -80,6 +84,7 @@ export class MorphoDepositHandler extends BasePhaseHandler {
       throw new Error("MorphoDepositHandler: Missing evmEphemeralAddress in state metadata");
     }
 
+    const network = resolveMorphoNetwork(meta);
     const vaultAddress = meta.morphoVaultAddress as `0x${string}`;
     const depositAssetAddress = meta.morphoDepositAssetAddress as `0x${string}`;
     const ephemeralAddress = meta.evmEphemeralAddress as `0x${string}`;
@@ -91,6 +96,7 @@ export class MorphoDepositHandler extends BasePhaseHandler {
     state = await this.executeApprove(
       state,
       evmClientManager,
+      network,
       vaultAddress,
       depositAssetAddress,
       ephemeralAddress,
@@ -98,7 +104,7 @@ export class MorphoDepositHandler extends BasePhaseHandler {
     );
 
     // Step 2: Deposit into vault, verify share tokens minted to destination
-    return this.executeDeposit(state, evmClientManager, vaultAddress, destinationAddress, depositTxData);
+    return this.executeDeposit(state, evmClientManager, network, vaultAddress, destinationAddress, depositTxData);
   }
 
   private getMorphoPresignedTxs(state: RampState): { approveTxData: string; depositTxData: string } {
@@ -113,6 +119,7 @@ export class MorphoDepositHandler extends BasePhaseHandler {
   private async executeApprove(
     state: RampState,
     evmClientManager: EvmClientManager,
+    network: EvmNetworks,
     vaultAddress: `0x${string}`,
     depositAssetAddress: `0x${string}`,
     ephemeralAddress: `0x${string}`,
@@ -121,36 +128,37 @@ export class MorphoDepositHandler extends BasePhaseHandler {
     const meta = state.state as StateMetadata;
     const requiredAmount = BigInt(meta.morphoDepositAmountRaw || "0");
 
-    const allowance = await this.readAllowance(evmClientManager, depositAssetAddress, ephemeralAddress, vaultAddress);
+    const allowance = await this.readAllowance(evmClientManager, network, depositAssetAddress, ephemeralAddress, vaultAddress);
     if (allowance >= requiredAmount) {
       logger.info(`MorphoDepositHandler: Allowance ${allowance} >= ${requiredAmount}, skipping approve`);
       return state;
     }
 
     const txHash = (await evmClientManager.sendRawTransactionWithRetry(
-      MORPHO_NETWORK,
+      network,
       approveTxData as `0x${string}`
     )) as `0x${string}`;
 
     logger.info(`MorphoDepositHandler: Approval tx broadcast: ${txHash}`);
 
-    const receipt = await evmClientManager.getClient(MORPHO_NETWORK).waitForTransactionReceipt({ hash: txHash });
+    const receipt = await evmClientManager.getClient(network).waitForTransactionReceipt({ hash: txHash });
     if (!receipt || receipt.status !== "success") {
       throw new Error(`MorphoDepositHandler: Approval transaction ${txHash} failed on chain`);
     }
 
-    await this.verifyAllowance(evmClientManager, depositAssetAddress, ephemeralAddress, vaultAddress, meta);
+    await this.verifyAllowance(evmClientManager, network, depositAssetAddress, ephemeralAddress, vaultAddress, meta);
 
     return state;
   }
 
   private async readAllowance(
     evmClientManager: EvmClientManager,
+    network: EvmNetworks,
     tokenAddress: `0x${string}`,
     ownerAddress: `0x${string}`,
     spenderAddress: `0x${string}`
   ): Promise<bigint> {
-    const client = evmClientManager.getClient(MORPHO_NETWORK);
+    const client = evmClientManager.getClient(network);
     return client.readContract({
       abi: erc20Abi,
       address: tokenAddress,
@@ -161,12 +169,13 @@ export class MorphoDepositHandler extends BasePhaseHandler {
 
   private async verifyAllowance(
     evmClientManager: EvmClientManager,
+    network: EvmNetworks,
     tokenAddress: `0x${string}`,
     ownerAddress: `0x${string}`,
     spenderAddress: `0x${string}`,
     meta: StateMetadata
   ): Promise<void> {
-    const client = evmClientManager.getClient(MORPHO_NETWORK);
+    const client = evmClientManager.getClient(network);
     const requiredAmount = BigInt(meta.morphoDepositAmountRaw || "0");
     const deadline = Date.now() + EVM_BALANCE_CHECK_TIMEOUT_MS;
     let lastAllowance = 0n;
@@ -193,6 +202,7 @@ export class MorphoDepositHandler extends BasePhaseHandler {
   private async executeDeposit(
     state: RampState,
     evmClientManager: EvmClientManager,
+    network: EvmNetworks,
     vaultAddress: `0x${string}`,
     shareReceiver: `0x${string}`,
     depositTxData: string
@@ -204,13 +214,13 @@ export class MorphoDepositHandler extends BasePhaseHandler {
       logger.info(
         `MorphoDepositHandler: Deposit tx already broadcast (${meta.morphoDepositTxHash}), verifying shares on ${shareReceiver}`
       );
-      const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, shareReceiver);
+      const shares = await pollForShareBalance(evmClientManager, network, vaultAddress, shareReceiver);
       logger.info(`MorphoDepositHandler: Share balance verified: ${shares}`);
       return state;
     }
 
     const txHash = (await evmClientManager.sendRawTransactionWithRetry(
-      MORPHO_NETWORK,
+      network,
       depositTxData as `0x${string}`
     )) as `0x${string}`;
 
@@ -220,12 +230,12 @@ export class MorphoDepositHandler extends BasePhaseHandler {
       state: { ...state.state, morphoDepositTxHash: txHash }
     });
 
-    const receipt = await evmClientManager.getClient(MORPHO_NETWORK).waitForTransactionReceipt({ hash: txHash });
+    const receipt = await evmClientManager.getClient(network).waitForTransactionReceipt({ hash: txHash });
     if (!receipt || receipt.status !== "success") {
       throw new Error(`MorphoDepositHandler: Deposit transaction ${txHash} failed on chain`);
     }
 
-    const shares = await pollForShareBalance(evmClientManager, MORPHO_NETWORK, vaultAddress, shareReceiver);
+    const shares = await pollForShareBalance(evmClientManager, network, vaultAddress, shareReceiver);
     logger.info(`MorphoDepositHandler: Deposit successful. Share balance on ${shareReceiver}: ${shares}`);
 
     return state;

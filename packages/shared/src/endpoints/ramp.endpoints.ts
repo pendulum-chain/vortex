@@ -67,7 +67,8 @@ export type CleanupPhase =
   | "baseCleanupUsdc"
   | "baseCleanupBrla"
   | "baseCleanupEurc"
-  | "baseCleanupAxlUsdc";
+  | "baseCleanupAxlUsdc"
+  | "ethereumCleanupUsdc";
 
 export enum EphemeralAccountType {
   Substrate = "Substrate",
@@ -90,8 +91,8 @@ export interface EvmTransactionData {
 }
 
 export interface TypedDataDomain {
-  name: string;
-  version: string;
+  name?: string;
+  version?: string;
   salt?: `0x${string}`;
   chainId?: number;
   verifyingContract: EvmAddress;

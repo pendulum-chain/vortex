@@ -85,6 +85,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return false;
   }
 
+  protected getRequiresMorphoNetworkFunding(state: RampState): boolean {
+    const meta = state.state as StateMetadata;
+    if (!meta.morphoNetwork) return false;
+    if (!isNetworkEVM(meta.morphoNetwork as EvmNetworks)) return false;
+    return true;
+  }
+
   protected getRequiresDestinationEvmFunding(state: RampState): boolean {
     // Required for onramps where the destination is an EVM network (not AssetHub)
     if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -193,6 +200,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
           ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork)
           : true;
 
+      const requiresMorphoNetworkFunding = this.getRequiresMorphoNetworkFunding(state);
+      const morphoNetwork = (state.state as StateMetadata).morphoNetwork as EvmNetworks | undefined;
+      const isMorphoNetworkFunded =
+        requiresMorphoNetworkFunding && morphoNetwork
+          ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, morphoNetwork)
+          : true;
+
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${substrateEphemeralAddress}`);
         if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -216,6 +230,13 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         await this.fundEvmEphemeralAccount(state, Networks.Polygon);
       } else if (requiresPolygonEphemeralAddress) {
         logger.info("Polygon ephemeral address already funded.");
+      }
+
+      if (!isMorphoNetworkFunded && morphoNetwork) {
+        logger.info(`Funding morpho network ephemeral account ${evmEphemeralAddress} on ${morphoNetwork}`);
+        await this.fundDestinationEvmEphemeralAccount(state, morphoNetwork);
+      } else if (requiresMorphoNetworkFunding) {
+        logger.info(`Morpho network ephemeral account already funded on ${morphoNetwork}.`);
       }
 
       if (isOnramp(state) && !isDestinationEvmFunded && destinationNetwork && isNetworkEVM(destinationNetwork)) {
