@@ -131,6 +131,8 @@ export interface QuoteContext {
     inputDecimals: number;
     outputAmountRaw: string;
     outputAmountDecimal: Big;
+    ammOutputAmountRaw?: string;
+    ammOutputAmountDecimal?: Big;
     outputCurrency: EvmToken;
     outputDecimals: number;
     outputToken: string; // ERC20 address
