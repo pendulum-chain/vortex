@@ -50,6 +50,7 @@ export abstract class BaseSquidRouterEngine implements Stage {
       const passthroughResult: EvmBridgeResult = {
         finalEffectiveExchangeRate: "1",
         finalGrossOutputAmountDecimal: computation.data.inputAmountDecimal,
+        finalGrossOutputAmountRaw: computation.data.inputAmountRaw,
         networkFeeUSD: "0",
         outputTokenDecimals: computation.data.outputDecimals
       };
@@ -110,9 +111,7 @@ export abstract class BaseSquidRouterEngine implements Stage {
       inputAmountRaw: data.inputAmountRaw,
       networkFeeUSD: bridgeResult.networkFeeUSD,
       outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
-      outputAmountRaw: new Big(bridgeResult.finalGrossOutputAmountDecimal)
-        .times(new Big(10).pow(data.outputDecimals))
-        .toFixed(0, 0),
+      outputAmountRaw: bridgeResult.finalGrossOutputAmountRaw,
       toNetwork: data.toNetwork,
       toToken: data.toToken
     };

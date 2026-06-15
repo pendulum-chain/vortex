@@ -265,10 +265,15 @@ export class AlfredpayApiService {
     data: SubmitKycInformationRequest
   ): Promise<SubmitKycInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc`;
-    const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
+    const kycSubmission: Record<string, unknown> = { ...data };
+    if (!kycSubmission.nationalities) kycSubmission.nationalities = [data.country];
     if (!data.typeDocument) delete kycSubmission.typeDocument;
     if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
+    delete kycSubmission.typeDocumentAr; // Currently not required, (typeDocument throws an error on Alfredpay side)
     if (!data.phoneNumber) delete kycSubmission.phoneNumber;
+    if (!data.cuit) delete kycSubmission.cuit;
+    if (data.pep !== false && !data.pep) delete kycSubmission.pep;
+    if (!data.countryCode) delete kycSubmission.countryCode;
     return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 
@@ -279,7 +284,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("fileBody", file);
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;

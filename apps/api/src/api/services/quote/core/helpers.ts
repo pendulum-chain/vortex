@@ -31,6 +31,7 @@ export const SUPPORTED_CHAINS: {
     from: [
       EPaymentMethod.PIX as DestinationType,
       EPaymentMethod.SEPA as DestinationType,
+      EPaymentMethod.CBU as DestinationType,
       EPaymentMethod.ACH as DestinationType,
       EPaymentMethod.SPEI as DestinationType
     ],

@@ -102,7 +102,7 @@ export enum QuoteError {
   InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0",
   InputAmountTooLow = "Input amount too low. Please try a larger amount.",
   InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.",
-  LowLiquidity = "Low liquidity for this route. Please try a smaller amount.",
+  LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
   AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of",

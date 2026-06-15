@@ -196,12 +196,21 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
+        /** @description RSA-PSS public key in PEM format. */
         200: {
           headers: {
             [name: string]: unknown;
           };
           content: {
-            "application/json": Record<string, never>;
+            /**
+             * @example {
+             *       "publicKey": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...replace-with-actual-key...\n-----END PUBLIC KEY-----\n"
+             *     }
+             */
+            "application/json": {
+              /** @description RSA-PSS 2048-bit public key in PEM format. Use this key to verify webhook signatures with RSA-PSS / SHA-256. */
+              publicKey: string;
+            };
           };
         };
       };
@@ -547,8 +556,16 @@ export interface paths {
     get?: never;
     put?: never;
     /**
-     * Generating widget URL (for existing quote)
-     * @description You can call this endpoint to get a widget URL ready with a quote you provide. You need to pass the `quoteId` parameter to the body, and optionally supply the  `callbackUrl`, `walletAddressLocked` and `externalSessionId`. The quote will not automatically refresh and if it expires, the user needs to close the window and start over.
+     * Create widget session
+     * @description Creates a hosted Vortex Widget session and returns the URL to open for the user.
+     *
+     *     This single endpoint supports two mutually exclusive request shapes:
+     *
+     *     - **Fixed quote** (`GetWidgetUrlLocked`) — pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.
+     *
+     *     - **Auto-refresh** (`GetWidgetUrlRefresh`) — pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.
+     *
+     *     Use the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.
      */
     post: {
       parameters: {
@@ -557,29 +574,59 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: {
+      requestBody: {
         content: {
-          /**
-           * @example {
-           *       "callbackUrl": "https://www.example.com/",
-           *       "externalSessionId": "my-session-id",
-           *       "quoteId": "my-quote-id",
-           *       "walletAddressLocked": "0x00000000000000000000000000000000"
-           *     }
-           */
-          "application/json": components["schemas"]["GetWidgetUrlLocked"];
+          "application/json": components["schemas"]["GetWidgetUrlLocked"] | components["schemas"]["GetWidgetUrlRefresh"];
         };
       };
       responses: {
+        /** @description Returned when a fixed-quote session was created. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            /**
+             * @example {
+             *       "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..."
+             *     }
+             */
+            "application/json": {
+              /** @description The widget URL to open for the user. */
+              url: string;
+            };
+          };
+        };
+        /** @description Returned when an auto-refresh session was created. */
         201: {
           headers: {
             [name: string]: unknown;
           };
           content: {
+            /**
+             * @example {
+             *       "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
+             *     }
+             */
             "application/json": {
+              /** @description The widget URL to open for the user. */
               url: string;
             };
           };
+        };
+        /** @description Missing required fields, or `quoteId` not provided for fixed-quote mode and route fields not provided for auto-refresh mode. */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description Quote not found or expired (fixed-quote mode only). */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
         };
       };
     };
@@ -1012,6 +1059,8 @@ export interface components {
       inputAmount: string;
       /** @description The currency type for the input amount. */
       inputCurrency: components["schemas"]["RampCurrency"];
+      /** @description Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered. */
+      networks?: components["schemas"]["Networks"][];
       /** @description The desired currency type for the output amount. */
       outputCurrency: components["schemas"]["RampCurrency"];
       /** @description Your partner ID, if available. */
@@ -1095,8 +1144,16 @@ export interface components {
       validateLivenessToken?: string;
     };
     ErrorResponse: {
+      /** @description HTTP status code returned by the API error handler. */
+      code?: number;
+      /** @description Validation error details, when the request fails schema or input validation. */
+      errors?: Record<string, never>[];
       /** @description A human-readable error message. */
       message?: string;
+      /** @description HTTP status code included by selected provider-style error responses. */
+      statusCode?: number;
+      /** @description Provider-style error category, when available. */
+      type?: string;
     };
     /** @enum {string} */
     FiatToken: "EUR" | "ARS" | "BRL";
@@ -1172,15 +1229,15 @@ export interface components {
       /** @description The widget will redirect to this callbackUrl after the user successfully created the transaction. */
       callbackUrl?: string;
       countryCode?: components["schemas"]["CountryCode"];
-      cryptoLocked: components["schemas"]["OnChainToken"];
+      cryptoLocked?: components["schemas"]["OnChainToken"];
       /** @description A unique identifier for yourself to keep track of the widget session. Returned in the responses of webhooks, if registered. */
       externalSessionId: string;
-      fiat: components["schemas"]["FiatToken"];
+      fiat?: components["schemas"]["FiatToken"];
       inputAmount: string;
       network: components["schemas"]["Networks"];
       /** @description The identifier of a partner. */
       partnerId?: string;
-      paymentMethod: components["schemas"]["PaymentMethod"];
+      paymentMethod?: components["schemas"]["PaymentMethod"];
       rampType: components["schemas"]["RampDirection"];
       /** @description Pass this parameter if you want to lock the wallet address for the user. It will not be editable in the widget. */
       walletAddressLocked?: string;
@@ -1349,6 +1406,7 @@ export interface components {
       | "subsidizePreSwap"
       | "subsidizePostSwap"
       | "brlaTeleport"
+      | "onHoldForComplianceCheck"
       | "brlaPayoutOnMoonbeam"
       | "failed";
     RampProcess: {
@@ -2052,28 +2110,23 @@ export interface operations {
       /**
        * @description Bad Request. Possible reasons:
        *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
-       *     - Invalid ramp type (must be "on" or "off")
+       *     - Invalid ramp type (must be "BUY" or "SELL")
        */
       400: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Internal Server Error. */
+      /** @description Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked. */
       500: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          /**
-           * @example {
-           *       "message": "An unexpected error occurred."
-           *     }
-           */
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
     };
@@ -2147,23 +2200,23 @@ export interface operations {
       /**
        * @description Bad Request. Possible reasons:
        *     - Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)
-       *     - Invalid ramp type (must be "on" or "off")
+       *     - Invalid ramp type (must be "BUY" or "SELL")
        */
       400: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
-      /** @description Internal Server Error. */
+      /** @description Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked. */
       500: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": Record<string, never>;
+          "application/json": components["schemas"]["ErrorResponse"];
         };
       };
     };
