@@ -233,16 +233,37 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
     }
 
     try {
-      await baseClient.call({
+      const callParameters = {
         account: senderAddress,
-        blockTag: "pending",
+        blockTag: "pending" as const,
         data: transaction.data,
         gas: transaction.gas,
-        maxFeePerGas: transaction.maxFeePerGas,
-        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
         to: transaction.to,
         value: transaction.value
-      });
+      };
+
+      if (transaction.type === "legacy") {
+        await baseClient.call({
+          ...callParameters,
+          gasPrice: transaction.gasPrice,
+          type: "legacy"
+        });
+      } else if (transaction.type === "eip2930") {
+        await baseClient.call({
+          ...callParameters,
+          accessList: transaction.accessList,
+          gasPrice: transaction.gasPrice,
+          type: "eip2930"
+        });
+      } else {
+        await baseClient.call({
+          ...callParameters,
+          accessList: transaction.accessList,
+          maxFeePerGas: transaction.maxFeePerGas,
+          maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+          type: "eip1559"
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(`NablaSwapPhaseHandler: EVM swap dry-run failed: ${errorMessage}`);
