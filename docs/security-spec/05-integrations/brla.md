@@ -40,7 +40,9 @@ When the user on-ramps BRL and asks for **BRLA delivered on Base** (input BRL, o
 
 ### Subaccount model
 
-Avenia requires a subaccount per user, identified by tax ID (CPF). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
+Avenia requires a subaccount per user, identified by tax ID (CPF for individuals, CNPJ for businesses). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
+
+`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in the **quote-less KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) it is omitted. The controller stores it as the nullable `TaxId.initialQuoteId` — a provenance field only. It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and `optionalAuth` user context gate subaccount creation independently of whether a quote is present.
 
 ### The three-amount model (off-ramp)
 

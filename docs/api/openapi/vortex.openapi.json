@@ -299,6 +299,10 @@
           "phone": {
             "type": "string"
           },
+          "quoteId": {
+            "description": "Optional. The quote that triggered onboarding. Omit it for the quote-less KYB deep link (`?kyb` / `?kybLocked` widget entry), where business verification starts before any quote exists. Stored only as onboarding provenance; it is not an authorization input.",
+            "type": ["string", "null"]
+          },
           "startDate": {
             "description": "Date must be in format YYYY-MMM-DD.",
             "format": "date",
@@ -1243,7 +1247,7 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "createSubaccount",
         "parameters": [],
         "requestBody": {
