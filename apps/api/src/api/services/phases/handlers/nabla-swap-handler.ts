@@ -14,6 +14,7 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { parseTransaction } from "viem";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -193,6 +194,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
       }
 
+      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`, evmEphemeralAddress as `0x${string}`);
+
       const txHash = await baseClient.sendRawTransaction({
         serializedTransaction: nablaSwapTransaction as `0x${string}`
       });
@@ -218,6 +221,32 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
+  }
+
+  private async dryRunEvmSwap(serializedTransaction: `0x${string}`, senderAddress: `0x${string}`): Promise<void> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+    const transaction = parseTransaction(serializedTransaction);
+
+    if (!transaction.to) {
+      throw new Error("NablaSwapPhaseHandler: Cannot dry-run EVM swap transaction without a recipient address.");
+    }
+
+    try {
+      await baseClient.call({
+        account: senderAddress,
+        blockTag: "pending",
+        data: transaction.data,
+        gas: transaction.gas,
+        maxFeePerGas: transaction.maxFeePerGas,
+        maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+        to: transaction.to,
+        value: transaction.value
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`NablaSwapPhaseHandler: EVM swap dry-run failed: ${errorMessage}`);
+    }
   }
 }
 
