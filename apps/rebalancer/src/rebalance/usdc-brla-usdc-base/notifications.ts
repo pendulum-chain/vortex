@@ -23,18 +23,21 @@ export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceComple
     "✅ *Base rebalancer completed*",
     "USDC -> BRLA -> USDC on Base",
     "",
-    "*Rebalance summary*",
-    formatCodeTable([
-      ["Route", formatRoute(params.route)],
-      ["Requested", `${params.requestedUsdc.toFixed(6)} USDC`],
-      ["BRLA received", `${params.brlaReceived.toFixed(6)} BRLA`],
-      ["Start balance", `${params.initialUsdcBalance.toFixed(6)} USDC`],
-      ["Final balance", `${params.finalUsdcBalance.toFixed(6)} USDC`],
-      ["Net USDC cost", `${params.cost.toFixed(6)} USDC`],
-      ["Cost/requested", formatCostBps(params.cost, params.requestedUsdc)]
-    ]),
-    "",
-    "*Policy bounds*",
+    "*Summary*",
+    formatCompactTable(
+      ["Route", "Req USDC", "BRLA out", "Start", "Final", "Cost", "Cost bps"],
+      [
+        [
+          formatRoute(params.route),
+          params.requestedUsdc.toFixed(6),
+          params.brlaReceived.toFixed(6),
+          params.initialUsdcBalance.toFixed(6),
+          params.finalUsdcBalance.toFixed(6),
+          params.cost.toFixed(6),
+          formatCostBps(params.cost, params.requestedUsdc)
+        ]
+      ]
+    ),
     formatPolicySummary(params.policy)
   ].join("\n");
 }
@@ -42,39 +45,39 @@ export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceComple
 export function formatPolicySummary(policy: RebalancePolicySummary | undefined): string {
   if (!policy) return "```Policy decision unavailable (resumed or manual execution).```";
 
-  const decisionRows: [string, string][] = policy.decision
+  const decision = policy.decision;
+  const decisionRow = decision
     ? [
-        ["Decision", policy.decision.shouldExecute ? "execute" : "skip"],
-        ["Band", policy.decision.band],
-        ["Deviation", policy.deviationBps === undefined ? "N/A" : `${formatBps(policy.deviationBps)} bps`],
-        ["Projected cost", `${formatBps(policy.decision.costBps)} bps`],
-        ["Allowed for band", `${formatBps(policy.decision.allowedCostBps)} bps`]
+        policy.config.mode,
+        decision.shouldExecute ? "execute" : "skip",
+        decision.band,
+        policy.deviationBps === undefined ? "N/A" : formatBps(policy.deviationBps),
+        formatBps(decision.costBps),
+        formatBps(decision.allowedCostBps),
+        formatBps(policy.config.hardMaxCostBps)
       ]
-    : [["Decision", "unavailable"]];
+    : [policy.config.mode, "unavailable", "N/A", "N/A", "N/A", "N/A", formatBps(policy.config.hardMaxCostBps)];
 
-  const rows: [string, string][] = [
-    ["Mode", policy.config.mode],
-    ...decisionRows,
-    ["Moderate starts", `${formatBps(policy.config.moderateDeviationBps)} bps`],
-    ["Severe starts", `${formatBps(policy.config.severeDeviationBps)} bps`],
-    ["Mild max cost", `${formatBps(policy.config.maxCostBpsMild)} bps`],
-    ["Moderate max cost", `${formatBps(policy.config.maxCostBpsModerate)} bps`],
-    ["Severe max cost", `${formatBps(policy.config.maxCostBpsSevere)} bps`],
-    ["Hard max cost", `${formatBps(policy.config.hardMaxCostBps)} bps`]
-  ];
-
-  return formatCodeTable(rows);
+  return [
+    "*Policy*",
+    formatCompactTable(["Mode", "Decision", "Band", "Dev bps", "Cost bps", "Cap bps", "Hard bps"], [decisionRow]),
+    `Bands bps: mod>=${formatBps(policy.config.moderateDeviationBps)} severe>=${formatBps(policy.config.severeDeviationBps)} | caps bps: mild<=${formatBps(policy.config.maxCostBpsMild)} mod<=${formatBps(policy.config.maxCostBpsModerate)} severe<=${formatBps(policy.config.maxCostBpsSevere)}`
+  ].join("\n");
 }
 
-export function formatCodeTable(rows: [string, string][]): string {
-  const labelWidth = Math.max(...rows.map(([label]) => label.length));
-  const formattedRows = rows.map(([label, value]) => `${label.padEnd(labelWidth)}  ${value}`);
-  return ["```", ...formattedRows, "```"].join("\n");
+export function formatCompactTable(headers: string[], rows: string[][]): string {
+  const widths = headers.map((header, index) => Math.max(header.length, ...rows.map(row => row[index]?.length ?? 0)));
+  const formatRow = (row: string[]) =>
+    row
+      .map((cell, index) => cell.padEnd(widths[index] ?? cell.length))
+      .join("  ")
+      .trimEnd();
+  return ["```", formatRow(headers), ...rows.map(formatRow), "```"].join("\n");
 }
 
 export function formatCostBps(cost: Big, denominator: Big): string {
   if (denominator.lte(0)) return "N/A";
-  return `${cost.div(denominator).mul(10_000).toFixed(2)} bps`;
+  return cost.div(denominator).mul(10_000).toFixed(2);
 }
 
 function formatBps(value: number): string {

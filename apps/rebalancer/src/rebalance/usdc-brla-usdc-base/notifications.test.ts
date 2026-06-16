@@ -36,17 +36,14 @@ describe("Base rebalance Slack notifications", () => {
       route: "squidrouter"
     });
 
-    expect(message).toContain("*Rebalance summary*");
-    expect(message).toContain("Route           SquidRouter");
-    expect(message).toContain("Net USDC cost   12.340000 USDC");
-    expect(message).toContain("Cost/requested  123.40 bps");
+    expect(message).toContain("*Summary*");
+    expect(message).toContain("Route        Req USDC     BRLA out    Start        Final       Cost       Cost bps");
+    expect(message).toContain("SquidRouter  1000.000000  994.500000  1000.000000  987.660000  12.340000  123.40");
     expect(message).not.toContain("Cost/requested amount");
     expect(message).not.toContain("1.23%");
-    expect(message).toContain("*Policy bounds*");
-    expect(message).toContain("```\nMode");
-    expect(message).toContain("Band               moderate");
-    expect(message).toContain("Deviation          220 bps");
-    expect(message).toContain("Allowed for band   75 bps");
-    expect(message).toContain("Hard max cost      1000 bps");
+    expect(message).toContain("*Policy*");
+    expect(message).toContain("Mode  Decision  Band      Dev bps  Cost bps  Cap bps  Hard bps");
+    expect(message).toContain("auto  execute   moderate  220      42        75       1000");
+    expect(message).toContain("Bands bps: mod>=200 severe>=500 | caps bps: mild<=25 mod<=75 severe<=250");
   });
 });

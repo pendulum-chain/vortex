@@ -1,6 +1,6 @@
 import Big from "big.js";
 import {
-  formatCodeTable,
+  formatCompactTable,
   formatCostBps,
   formatPolicySummary,
   type RebalancePolicySummary
@@ -19,17 +19,20 @@ export function formatBrlaToUsdcBaseCompletionMessage(params: BrlaToUsdcBaseComp
     "✅ *Base rebalancer completed (Main Nabla → BRLA Nabla)*",
     "USDC → BRLA (Main Nabla) → USDC (BRLA Nabla)",
     "",
-    "*Rebalance summary*",
-    formatCodeTable([
-      ["Route", "Main Nabla + BRLA Nabla"],
-      ["USDC in", `${params.usdcIn.toFixed(6)} USDC`],
-      ["BRLA intermediate", `${params.brlaIntermediate.toFixed(6)} BRLA`],
-      ["USDC out", `${params.usdcOut.toFixed(6)} USDC`],
-      ["Net USDC cost", `${params.cost.toFixed(6)} USDC`],
-      ["Cost/input", formatCostBps(params.cost, params.usdcIn)]
-    ]),
-    "",
-    "*Policy bounds*",
+    "*Summary*",
+    formatCompactTable(
+      ["Route", "USDC in", "BRLA mid", "USDC out", "Cost", "Cost bps"],
+      [
+        [
+          "Main+BRLA Nabla",
+          params.usdcIn.toFixed(6),
+          params.brlaIntermediate.toFixed(6),
+          params.usdcOut.toFixed(6),
+          params.cost.toFixed(6),
+          formatCostBps(params.cost, params.usdcIn)
+        ]
+      ]
+    ),
     formatPolicySummary(params.policy)
   ].join("\n");
 }

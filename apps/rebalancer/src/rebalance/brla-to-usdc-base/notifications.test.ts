@@ -34,14 +34,11 @@ describe("BRLA to USDC Base Slack notifications", () => {
       usdcOut: Big("991.5")
     });
 
-    expect(message).toContain("*Rebalance summary*");
-    expect(message).toContain("Route              Main Nabla + BRLA Nabla");
-    expect(message).toContain("Net USDC cost      8.500000 USDC");
-    expect(message).toContain("Cost/input         85.00 bps");
+    expect(message).toContain("*Summary*");
+    expect(message).toContain("Route            USDC in      BRLA mid    USDC out    Cost      Cost bps");
+    expect(message).toContain("Main+BRLA Nabla  1000.000000  994.500000  991.500000  8.500000  85.00");
     expect(message).not.toContain("0.85%");
-    expect(message).toContain("*Policy bounds*");
-    expect(message).toContain("Band               severe");
-    expect(message).toContain("Deviation          520 bps");
-    expect(message).toContain("Allowed for band   250 bps");
+    expect(message).toContain("*Policy*");
+    expect(message).toContain("auto  execute   severe  520      85        250      1000");
   });
 });
