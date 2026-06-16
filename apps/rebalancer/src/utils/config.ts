@@ -2,6 +2,20 @@ import { Keyring } from "@polkadot/api";
 import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
 import { mnemonicToAccount } from "viem/accounts";
 
+const DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD = 10_000;
+
+export function parseRebalancingDailyBridgeLimitUsd(value = process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) return DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD;
+
+  const parsedValue = Number(trimmedValue.replaceAll("_", "").replaceAll(",", ""));
+  if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+    throw new Error("REBALANCING_DAILY_BRIDGE_LIMIT_USD must be a non-negative number.");
+  }
+
+  return parsedValue;
+}
+
 export function getConfig() {
   if (!process.env.EVM_ACCOUNT_SECRET) throw new Error("Missing EVM_ACCOUNT_SECRET environment variable");
 
@@ -27,7 +41,7 @@ export function getConfig() {
     rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
     /// The minimum balance in USDC that the rebalancer account on Base must have to allow the BRLA pool rebalancing.
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
-    rebalancingDailyBridgeLimitUsd: Number(process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) || 10_000,
+    rebalancingDailyBridgeLimitUsd: parseRebalancingDailyBridgeLimitUsd(),
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
