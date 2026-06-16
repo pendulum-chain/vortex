@@ -32,8 +32,6 @@ export class OffRampMergeSubsidyEvmEngine implements Stage {
 
     ctx.nablaSwapEvm = {
       ...ctx.nablaSwapEvm,
-      ammOutputAmountDecimal: ctx.nablaSwapEvm.ammOutputAmountDecimal ?? ctx.nablaSwapEvm.outputAmountDecimal,
-      ammOutputAmountRaw: ctx.nablaSwapEvm.ammOutputAmountRaw ?? ctx.nablaSwapEvm.outputAmountRaw,
       outputAmountDecimal: ctx.nablaSwapEvm.outputAmountDecimal.plus(ctx.subsidy.subsidyAmountInOutputTokenDecimal),
       outputAmountRaw: (BigInt(ctx.nablaSwapEvm.outputAmountRaw) + BigInt(ctx.subsidy.subsidyAmountInOutputTokenRaw)).toString()
     };
