@@ -20,7 +20,7 @@
     "@polkadot/types-known": "^16.4.6",
     "@polkadot/util": "^13.5.6",
     "@polkadot/util-crypto": "^13.5.6",
-    "@scure/bip39": "2.0.1",
+    "@scure/bip39": "^2.2.0",
     "@storybook/react": "^9.1.16",
     "@supabase/supabase-js": "^2.80.0",
     "@types/big.js": "^6.0.2",
