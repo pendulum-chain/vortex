@@ -1,5 +1,6 @@
 import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
+import { findKybRegionByCode } from "../constants/kybRegions";
 import { ToastMessage } from "../helpers/notifications";
 import { AuthService } from "../services/auth";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
@@ -173,6 +174,20 @@ export const rampMachine = setup({
           rampSigningPhaseMax: ({ context, event }) => (event.max !== undefined ? event.max : context.rampSigningPhaseMax)
         })
       ]
+    },
+    START_KYB_LINK: {
+      actions: assign({
+        kybLink: ({ event }) => {
+          const region = findKybRegionByCode(event.region);
+          return {
+            fiatToken: region?.fiatToken,
+            // Only honor the lock when the region code is valid; an unknown code degrades to the open selector.
+            regionLocked: !!event.locked && region !== undefined
+          };
+        },
+        postAuthTarget: () => "SelectRegion" as const
+      }),
+      target: "#ramp.CheckAuth"
     }
   },
   states: {
@@ -187,19 +202,8 @@ export const rampMachine = setup({
                 userId: ({ event }) => event.output.tokens?.userId
               })
             ],
-            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "RegisterRamp",
-            target: "RegisterRamp"
-          },
-          {
-            actions: [
-              assign({
-                isAuthenticated: true,
-                userEmail: ({ event }) => event.output.tokens?.userEmail,
-                userId: ({ event }) => event.output.tokens?.userId
-              })
-            ],
-            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget === "QuoteReady",
-            target: "QuoteReady"
+            guard: ({ event, context }) => event.output.success === true && context.postAuthTarget !== undefined,
+            target: "PostAuthRouting"
           },
           {
             actions: [
@@ -407,6 +411,8 @@ export const rampMachine = setup({
     InitialFetchFailed: {},
     // biome-ignore lint/suspicious/noExplicitAny: child KYC state node is shared across machines and XState cannot infer its event union here.
     KYC: kycStateNode as any,
+    // KYB deep-link: terminal success screen shown after a quote-less KYB completes. RESET_RAMP (global) exits.
+    KybLinkComplete: {},
     KycComplete: {
       invoke: {
         input: ({ context }) => ({ context }),
@@ -508,6 +514,23 @@ export const rampMachine = setup({
         },
         src: "loadQuote"
       }
+    },
+    // Single place that routes a successful login (CheckAuth or OTP) to the state recorded in postAuthTarget.
+    PostAuthRouting: {
+      always: [
+        {
+          guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
+          target: "RegisterRamp"
+        },
+        {
+          guard: ({ context }) => context.postAuthTarget === "SelectRegion",
+          target: "SelectRegion"
+        },
+        {
+          target: "QuoteReady"
+        }
+      ],
+      exit: assign({ postAuthTarget: undefined })
     },
     QuoteReady: {
       always: [
@@ -671,6 +694,19 @@ export const rampMachine = setup({
         src: "urlCleaner"
       }
     },
+    SelectRegion: {
+      // `?kybLocked=` pins the region: if it resolved to a fiat token, skip the selector and route straight in.
+      always: {
+        guard: ({ context }) => !!context.kybLink?.regionLocked && !!context.kybLink.fiatToken,
+        target: "KYC"
+      },
+      on: {
+        SELECT_REGION: {
+          actions: assign({ kybLink: ({ context, event }) => ({ ...context.kybLink, fiatToken: event.fiatToken }) }),
+          target: "KYC"
+        }
+      }
+    },
     StartRamp: {
       invoke: {
         input: ({ context }) => context,
@@ -758,49 +794,25 @@ export const rampMachine = setup({
             email: context.userEmail
           };
         },
-        onDone: [
-          {
-            actions: [
-              assign({
-                errorMessage: undefined,
-                isAuthenticated: true,
-                postAuthTarget: undefined,
-                userId: ({ event }) => event.output.userId
-              }),
-              ({ event, context }) => {
-                // Store tokens in localStorage for session persistence
-                AuthService.storeTokens({
-                  accessToken: event.output.accessToken,
-                  refreshToken: event.output.refreshToken,
-                  userEmail: context.userEmail,
-                  userId: event.output.userId
-                });
-              }
-            ],
-            guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
-            target: "RegisterRamp"
-          },
-          {
-            actions: [
-              assign({
-                errorMessage: undefined,
-                isAuthenticated: true,
-                postAuthTarget: undefined,
-                userId: ({ event }) => event.output.userId
-              }),
-              ({ event, context }) => {
-                // Store tokens in localStorage for session persistence
-                AuthService.storeTokens({
-                  accessToken: event.output.accessToken,
-                  refreshToken: event.output.refreshToken,
-                  userEmail: context.userEmail,
-                  userId: event.output.userId
-                });
-              }
-            ],
-            target: "QuoteReady"
-          }
-        ],
+        onDone: {
+          actions: [
+            assign({
+              errorMessage: undefined,
+              isAuthenticated: true,
+              userId: ({ event }) => event.output.userId
+            }),
+            ({ event, context }) => {
+              // Store tokens in localStorage for session persistence
+              AuthService.storeTokens({
+                accessToken: event.output.accessToken,
+                refreshToken: event.output.refreshToken,
+                userEmail: context.userEmail,
+                userId: event.output.userId
+              });
+            }
+          ],
+          target: "PostAuthRouting"
+        },
         onError: {
           actions: assign({
             errorMessage: "Invalid OTP code. Please try again."
