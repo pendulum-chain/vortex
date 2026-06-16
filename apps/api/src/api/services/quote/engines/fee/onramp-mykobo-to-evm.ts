@@ -10,7 +10,7 @@ import {
   RampCurrency,
   RampDirection
 } from "@vortexfi/shared";
-import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
+import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
@@ -49,7 +49,7 @@ export class OnRampMykoboToEvmFeeEngine extends BaseFeeEngine {
       throw new Error(`OnRampMykoboToEvmFeeEngine: invalid network for destination: ${request.to}`);
     }
 
-    const toToken = getTokenDetailsForEvmDestination(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
+    const toToken = getBridgeTargetTokenDetails(request.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
     const swapNetwork = this.fromNetwork as EvmNetworks;
     const fromTokenDetails = evmTokenConfig[swapNetwork]?.[this.fromToken];

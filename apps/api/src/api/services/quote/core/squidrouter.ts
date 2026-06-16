@@ -2,6 +2,7 @@ import {
   createGenericRouteParams,
   createRouteParamsWithMoonbeamPostHook,
   DestinationType,
+  EvmToken,
   EvmTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -76,6 +77,20 @@ export function getTokenDetailsForEvmDestination(
   }
 
   return tokenDetails;
+}
+
+/**
+ * Returns the token details that SquidRouter should deliver on the destination
+ * chain for a given (outputCurrency, toNetwork). For MORPHO_VAULT, the bridge
+ * must land the vault's deposit asset (USDC) - the vault contract itself is an
+ * ERC-4626 share token that SquidRouter cannot bridge. The actual vault deposit
+ * runs as a separate on-chain step in route-prep.
+ */
+export function getBridgeTargetTokenDetails(outputCurrency: OnChainToken, toNetwork: Networks): EvmTokenDetails {
+  if (outputCurrency === EvmToken.MORPHO_VAULT) {
+    return getTokenDetailsForEvmDestination(EvmToken.USDC, toNetwork);
+  }
+  return getTokenDetailsForEvmDestination(outputCurrency, toNetwork);
 }
 
 /**
@@ -182,7 +197,7 @@ function calculateFinalExchangeRate(
 
 function buildRouteRequest(request: EvmBridgeQuoteRequest) {
   const inputTokenDetails = getTokenDetailsForEvmDestination(request.inputCurrency, request.fromNetwork);
-  const outputTokenDetails = getTokenDetailsForEvmDestination(request.outputCurrency, request.toNetwork);
+  const outputTokenDetails = getBridgeTargetTokenDetails(request.outputCurrency, request.toNetwork);
   const amountRaw = multiplyByPowerOfTen(request.amountDecimal, inputTokenDetails.decimals).toFixed(0, 0);
 
   return prepareSquidrouterRouteParams({

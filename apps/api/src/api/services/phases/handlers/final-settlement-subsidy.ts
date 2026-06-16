@@ -89,7 +89,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
 
     const outTokenDetails =
       state.type === RampDirection.BUY
-        ? (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
+        ? quote.outputCurrency === EvmToken.MORPHO_VAULT
+          ? (getOnChainTokenDetails(quote.network as Networks, EvmToken.USDC) as EvmTokenDetails)
+          : (getOnChainTokenDetails(quote.network, quote.outputCurrency) as EvmTokenDetails)
         : isAlfredpaySell
           ? getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN)
           : getOnChainTokenDetails(Networks.Polygon, EvmToken.USDC);
@@ -104,6 +106,17 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     let expectedAmountRaw: Big | undefined;
     switch (state.type) {
       case RampDirection.BUY:
+        if (quote.outputCurrency === EvmToken.MORPHO_VAULT) {
+          // MORPHO_VAULT onramp: SquidRouter delivers the deposit asset (USDC) to the ephemeral, not vault shares.
+          // Vault shares are minted by the later morphoDeposit phase. Use the raw deposit amount from state metadata.
+          if (!state.state.morphoDepositAmountRaw) {
+            throw new Error(
+              "FinalSettlementSubsidyHandler: Missing morphoDepositAmountRaw in state metadata for MORPHO_VAULT onramp"
+            );
+          }
+          expectedAmountRaw = Big(state.state.morphoDepositAmountRaw);
+          break;
+        }
         expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
         break;
       case RampDirection.SELL:

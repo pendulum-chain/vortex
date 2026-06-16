@@ -10,7 +10,7 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
-import { getTokenDetailsForEvmDestination } from "../../core/squidrouter";
+import { getBridgeTargetTokenDetails, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
 import { isBrlToBrlaBaseDirect, isEurToEurcBaseDirect } from "../../utils";
 import { BaseSquidRouterEngine, SquidRouterComputation, SquidRouterConfig } from "./index";
@@ -139,7 +139,7 @@ export class OnRampSquidRouterToBaseEngine extends BaseSquidRouterEngine {
       });
     }
 
-    const toToken = getTokenDetailsForEvmDestination(req.outputCurrency as OnChainToken, req.to).erc20AddressSourceChain;
+    const toToken = getBridgeTargetTokenDetails(req.outputCurrency as OnChainToken, toNetwork).erc20AddressSourceChain;
 
     return {
       data: {

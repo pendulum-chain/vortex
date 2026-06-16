@@ -1,19 +1,15 @@
 import {
   createOnrampSquidrouterTransactionsFromBaseToEvm,
-  createOnrampSquidrouterTransactionsOnDestinationChain,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
-  getOnChainTokenDetailsOrDefault,
   isEvmTokenDetails,
-  multiplyByPowerOfTen,
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
@@ -23,7 +19,7 @@ import { EUR_ONRAMP_BASE_MORPHO, EUR_ONRAMP_MORPHO } from "../../../phases/ramp-
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
-import { addDestinationChainApprovalTransaction, addNablaSwapTransactionsOnBase } from "../common/transactions";
+import { addNablaSwapTransactionsOnBase } from "../common/transactions";
 import { MykoboOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 import { validateMykoboOnramp } from "../common/validation";
 
@@ -63,7 +59,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
   let stateMeta: Partial<StateMetadata> = {};
   const unsignedTxs: UnsignedTx[] = [];
 
-  const { toNetwork, outputTokenDetails, evmEphemeralEntry, inputTokenDetails } = validateMykoboOnramp(quote, signingAccounts);
+  const { evmEphemeralEntry, inputTokenDetails } = validateMykoboOnramp(quote, signingAccounts);
   logger.debug(`Starting prepareMykoboToEvmMorphoOnrampTransactions with destinationAddress: ${destinationAddress}`);
 
   if (!isEvmTokenDetails(inputTokenDetails)) {
@@ -139,15 +135,11 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
 
   // 3. SquidRouter bridge (only when the vault is on a chain other than Base).
   let squidRouterQuoteId: string | undefined;
-  let squidRouterReceiverId: string | undefined;
-  let squidRouterReceiverHash: string | undefined;
   if (!isBaseVault) {
     const {
       approveData,
       swapData,
-      squidRouterQuoteId: quoteId,
-      squidRouterReceiverId: receiverId,
-      squidRouterReceiverHash: receiverHash
+      squidRouterQuoteId: quoteId
     } = await createOnrampSquidrouterTransactionsFromBaseToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
@@ -157,8 +149,6 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
       toToken: morphoVault.depositAssetAddress as `0x${string}`
     });
     squidRouterQuoteId = quoteId;
-    squidRouterReceiverId = receiverId;
-    squidRouterReceiverHash = receiverHash;
 
     unsignedTxs.push({
       meta: {},
@@ -263,9 +253,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
   stateMeta = {
     ...stateMeta,
     phaseFlow: isBaseVault ? EUR_ONRAMP_BASE_MORPHO : EUR_ONRAMP_MORPHO,
-    squidRouterQuoteId,
-    squidRouterReceiverHash,
-    squidRouterReceiverId
+    squidRouterQuoteId
   };
 
   return { stateMeta, unsignedTxs };
