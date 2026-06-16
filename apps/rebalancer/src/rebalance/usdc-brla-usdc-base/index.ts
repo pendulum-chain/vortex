@@ -2,9 +2,9 @@ import { BrlaApiService, multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/s
 import Big from "big.js";
 import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from "../../services/stateManager.ts";
 import { checkTicketStatusPaid } from "../../utils/brla.ts";
-import { getBaseEvmClients, getPolygonEvmClients } from "../../utils/config.ts";
+import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
-import { formatBaseRebalanceCompletionMessage } from "./notifications.ts";
+import { formatBaseRebalanceCompletionMessage, type RebalancePolicySummary } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
   aveniaTransferBrlaToPolygon,
@@ -26,7 +26,8 @@ import {
 export async function rebalanceUsdcBrlaUsdcBase(
   usdcAmountRaw: string,
   forceRestart = false,
-  forcedRoute?: "squidrouter" | "avenia" | "nabla-main"
+  forcedRoute?: "squidrouter" | "avenia" | "nabla-main",
+  policy?: RebalancePolicySummary
 ) {
   console.log(`Starting USDC->BRLA->USDC rebalance on Base with amount: ${usdcAmountRaw} (raw USDC)`);
 
@@ -329,6 +330,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
       cost,
       finalUsdcBalance: finalUsdcDecimal,
       initialUsdcBalance: initialUsdcDecimal,
+      policy: policy ?? { config: getConfig().rebalancingCostPolicy },
       requestedUsdc: usdcRebalanced,
       route: state.winningRoute
     })

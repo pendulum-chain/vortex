@@ -5,13 +5,14 @@ import {
   BrlaToUsdcBaseStateManager,
   brlaToUsdcBasePhaseOrder
 } from "../../services/stateManager.ts";
-import { getBaseEvmClients } from "../../utils/config.ts";
+import { getBaseEvmClients, getConfig } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
+import type { RebalancePolicySummary } from "../usdc-brla-usdc-base/notifications.ts";
 import { checkInitialUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
 import { formatBrlaToUsdcBaseCompletionMessage } from "./notifications.ts";
 import { mainNablaSwapUsdcToBrlaOnBase, nablaSwapBrlaToUsdcOnBase, verifyFinalUsdcBalanceOnBase } from "./steps.ts";
 
-export async function rebalanceBrlaToUsdcBase(usdcAmountRaw: string, forceRestart = false) {
+export async function rebalanceBrlaToUsdcBase(usdcAmountRaw: string, forceRestart = false, policy?: RebalancePolicySummary) {
   console.log(`Starting USDC→BRLA→USDC rebalance on Base with amount: ${usdcAmountRaw} (raw USDC)`);
 
   const stateManager = new BrlaToUsdcBaseStateManager();
@@ -99,6 +100,7 @@ export async function rebalanceBrlaToUsdcBase(usdcAmountRaw: string, forceRestar
     text: formatBrlaToUsdcBaseCompletionMessage({
       brlaIntermediate,
       cost,
+      policy: policy ?? { config: getConfig().rebalancingCostPolicy },
       usdcIn,
       usdcOut
     })

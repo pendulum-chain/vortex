@@ -1,27 +1,35 @@
 import Big from "big.js";
+import {
+  formatCodeTable,
+  formatCostBps,
+  formatPolicySummary,
+  type RebalancePolicySummary
+} from "../usdc-brla-usdc-base/notifications.ts";
 
 interface BrlaToUsdcBaseCompletionMessageParams {
   brlaIntermediate: Big;
   cost: Big;
+  policy?: RebalancePolicySummary;
   usdcIn: Big;
   usdcOut: Big;
 }
 
 export function formatBrlaToUsdcBaseCompletionMessage(params: BrlaToUsdcBaseCompletionMessageParams): string {
-  const costPercent = params.usdcIn.gt(0) ? params.cost.div(params.usdcIn).mul(100).toFixed(2) : "N/A";
-
   return [
-    "\u2705 *Base rebalancer completed (Main Nabla \u2192 BRLA Nabla)*",
-    "USDC \u2192 BRLA (Main Nabla) \u2192 USDC (BRLA Nabla)",
+    "✅ *Base rebalancer completed (Main Nabla → BRLA Nabla)*",
+    "USDC → BRLA (Main Nabla) → USDC (BRLA Nabla)",
     "",
-    "*Execution*",
-    "- \uD83D\uDEE3\uFE0F Route: Main Nabla + BRLA Nabla",
-    `- \uD83D\uDCB5 USDC in: \`${params.usdcIn.toFixed(6)} USDC\``,
-    `- \uD83E\uDD9A BRLA intermediate: \`${params.brlaIntermediate.toFixed(6)} BRLA\``,
-    `- \uD83D\uDCB5 USDC out: \`${params.usdcOut.toFixed(6)} USDC\``,
+    "*Rebalance summary*",
+    formatCodeTable([
+      ["Route", "Main Nabla + BRLA Nabla"],
+      ["USDC in", `${params.usdcIn.toFixed(6)} USDC`],
+      ["BRLA intermediate", `${params.brlaIntermediate.toFixed(6)} BRLA`],
+      ["USDC out", `${params.usdcOut.toFixed(6)} USDC`],
+      ["Net USDC cost", `${params.cost.toFixed(6)} USDC`],
+      ["Cost/input", formatCostBps(params.cost, params.usdcIn)]
+    ]),
     "",
-    "*Cost*",
-    `- \uD83D\uDCC9 Net USDC cost: \`${params.cost.toFixed(6)} USDC\``,
-    `- \uD83D\uDCCA Cost/input: \`${costPercent === "N/A" ? costPercent : `${costPercent}%`}\``
+    "*Policy bounds*",
+    formatPolicySummary(params.policy)
   ].join("\n");
 }

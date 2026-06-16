@@ -154,7 +154,7 @@ function logCostPolicyDecision(
 async function evaluateUsdcToBrlaPolicy(
   amountUsdcRaw: string,
   coverageDeviationBps: number
-): Promise<{ shouldExecute: boolean; routeToRun?: Exclude<WinningRoute, null> }> {
+): Promise<{ decision: RebalancingCostPolicyDecision; shouldExecute: boolean; routeToRun?: Exclude<WinningRoute, null> }> {
   const config = getConfig();
   if (config.rebalancingCostPolicy.mode === "off") {
     const decision = evaluateRebalancingCostPolicy(
@@ -164,7 +164,7 @@ async function evaluateUsdcToBrlaPolicy(
       config.rebalancingCostPolicy
     );
     logCostPolicyDecision("USDC->BRLA->USDC", amountUsdcRaw, amountUsdcRaw, decision);
-    return { shouldExecute: false };
+    return { decision, shouldExecute: false };
   }
 
   const comparison = await compareRoutesUpfront(amountUsdcRaw);
@@ -182,10 +182,13 @@ async function evaluateUsdcToBrlaPolicy(
   );
   logCostPolicyDecision(`USDC->BRLA->USDC via ${routeToRun}`, amountUsdcRaw, projectedOutputRaw, decision);
 
-  return { routeToRun, shouldExecute: decision.shouldExecute };
+  return { decision, routeToRun, shouldExecute: decision.shouldExecute };
 }
 
-async function evaluateBrlaToUsdcPolicy(amountUsdcRaw: string, coverageDeviationBps: number): Promise<boolean> {
+async function evaluateBrlaToUsdcPolicy(
+  amountUsdcRaw: string,
+  coverageDeviationBps: number
+): Promise<{ decision: RebalancingCostPolicyDecision; shouldExecute: boolean }> {
   const config = getConfig();
   if (config.rebalancingCostPolicy.mode === "off") {
     const decision = evaluateRebalancingCostPolicy(
@@ -195,7 +198,7 @@ async function evaluateBrlaToUsdcPolicy(amountUsdcRaw: string, coverageDeviation
       config.rebalancingCostPolicy
     );
     logCostPolicyDecision("BRLA->USDC", amountUsdcRaw, amountUsdcRaw, decision);
-    return false;
+    return { decision, shouldExecute: false };
   }
 
   const quote = await quoteBrlaToUsdcBaseRebalance(amountUsdcRaw);
@@ -207,7 +210,7 @@ async function evaluateBrlaToUsdcPolicy(amountUsdcRaw: string, coverageDeviation
   );
   logCostPolicyDecision("BRLA->USDC", amountUsdcRaw, quote.projectedUsdcRaw, decision);
 
-  return decision.shouldExecute;
+  return { decision, shouldExecute: decision.shouldExecute };
 }
 
 async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big, coverageDeviationBps: number) {
@@ -224,7 +227,11 @@ async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
     const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, coverageDeviationBps);
     if (!policyDecision.shouldExecute) return;
     await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
-    await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun);
+    await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun, {
+      config: config.rebalancingCostPolicy,
+      decision: policyDecision.decision,
+      deviationBps: coverageDeviationBps
+    });
     return;
   }
 
@@ -242,7 +249,8 @@ async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
 
   if (!isResuming) {
     if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
-    if (!(await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps))) return;
+    const policyDecision = await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps);
+    if (!policyDecision.shouldExecute) return;
 
     const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
     if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
@@ -250,6 +258,12 @@ async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
         `Rebalancer USDC balance ${rebalancerUsdcBalance} is below the minimum required balance of ${config.rebalancingBrlToUsdMinBalance} to perform rebalancing.`
       );
     }
+    await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart, {
+      config: config.rebalancingCostPolicy,
+      decision: policyDecision.decision,
+      deviationBps: coverageDeviationBps
+    });
+    return;
   }
 
   await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart);
