@@ -32,7 +32,7 @@ export const useKYBForm = ({ initialData, requireCnpj = false }: UseKYBFormProps
 
   const kybForm = useForm<KYBFormData>({
     defaultValues: {
-      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
+      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId ?? taxIdFromStore ?? "",
       [ExtendedAveniaFieldOptions.FULL_NAME]: initialData?.fullName || ""
     },
     mode: "onBlur",

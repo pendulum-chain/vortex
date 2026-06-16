@@ -26,9 +26,9 @@ Append one of these to the widget URL (e.g. `https://widget.vortexfinance.co/en/
 | `?kyb=BR` \| `MX` \| `CO` \| `US` | Selector shown with the region preselected. The user can still change it. |
 | `?kybLocked=BR` \| `MX` \| `CO` \| `US` | Selector skipped, region pinned, back navigation into the selector disabled. |
 | `?kybLocked=BR` (specifically) | Additionally defaults the widget locale to `pt-BR`. An explicit locale in the path still wins (e.g. `/en/widget?kybLocked=BR` stays English). |
-| unknown region code (e.g. `?kybLocked=ZZ`) | Degrades gracefully to the open selector; the region is **not** treated as locked. |
+| unknown or empty region code (e.g. `?kybLocked=ZZ`, `?kybLocked`) | Degrades gracefully to the open selector; the region is **not** treated as locked. |
 
-Region codes are case-insensitive.
+Query keys are case-sensitive: use `kyb` and `kybLocked` exactly. Region codes are case-insensitive.
 
 ## Attribution
 
