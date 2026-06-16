@@ -4,14 +4,15 @@ import {
   BalanceCheckErrorType,
   checkEvmBalanceForToken,
   EvmClientManager,
-  EvmNetworks,
   EvmTokenDetails,
   FiatToken,
+  getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
   getStatus,
   getStatusAxelarScan,
   isAlfredpayToken,
+  isNetworkEVM,
   Networks,
   nativeToDecimal,
   OnChainToken,
@@ -112,16 +113,19 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Only if both fail (timeout) we throw.
    */
   private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+    // Resolve the actual EVM destination of the Squid bridge. For onramps, quote.to is the
+    // EVM network directly. For offramps to a payment method (e.g. SEPA via Mykobo), the
+    // bridge lands on the EVM leg of the ramp, recorded in quote.metadata.evmToEvm.toNetwork.
+    const toChain = this.resolveBridgeToChain(quote);
+
     // If the destination is not an EVM network, skip the EVM balance optimization and rely on bridge status only.
-    if (quote.to === Networks.AssetHub) {
+    if (!toChain || !isNetworkEVM(toChain)) {
       logger.info("SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.", {
         toNetwork: quote.to
       });
       await this.checkBridgeStatus(state, swapHash, quote);
       return;
     }
-
-    const toChain = quote.to as EvmNetworks;
 
     let balanceCheckPromise: Promise<Big>;
 
@@ -449,7 +453,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             ? Networks.Base
             : Networks.Moonbeam);
       const fromChainId = getNetworkId(fromChain)?.toString();
-      const toChain = quote.to === Networks.AssetHub ? Networks.Moonbeam : quote.to;
+      // Axelar routes through Moonbeam for AssetHub destinations, so the Squid status API
+      // expects Moonbeam's chain id when quote.to is AssetHub.
+      const resolvedToChain = this.resolveBridgeToChain(quote);
+      const toChain = resolvedToChain === Networks.AssetHub ? Networks.Moonbeam : resolvedToChain;
       const toChainId = getNetworkId(toChain)?.toString();
 
       if (!fromChainId || !toChainId) {
@@ -492,6 +499,22 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error(`SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`);
       }
     }
+  }
+
+  /**
+   * Resolve the actual destination network of the Squid bridge.
+   *
+   * For onramps, `quote.to` is the EVM network the bridge delivers to. For offramps to a
+   * payment method (e.g. Morpho -> SEPA via Mykobo), `quote.to` is a PaymentMethod enum
+   * value, so we fall back to the bridge metadata recorded at quote time.
+   */
+  private resolveBridgeToChain(quote: QuoteTicket): Networks | undefined {
+    const directNetwork = getNetworkFromDestination(quote.to);
+    if (directNetwork) {
+      return directNetwork;
+    }
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    return bridgeMeta?.toNetwork as Networks | undefined;
   }
 
   private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {

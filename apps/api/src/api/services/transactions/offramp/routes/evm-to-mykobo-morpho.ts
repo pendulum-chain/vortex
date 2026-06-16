@@ -50,7 +50,6 @@ const erc20Abi = [
 ] as const;
 
 const REDEEM_SLIPPAGE_BPS = 50; // 0.5% — covers interest accrual between quote-time and redeem-time (0% vault fee assumed)
-const APPROVE_BUFFER_BPS = 100; // 1% — exact output + 1% for interest accrual before bridge
 
 const vaultRedeemAbi = [
   {
@@ -283,9 +282,6 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     if (!bridgeInputAmountRaw) {
       throw new Error("Missing evmToEvm.inputAmountRaw in quote metadata for Morpho offramp (bridge input)");
     }
-    // Approve 1% more than expected bridge input to cover interest accrual between redeem and bridge.
-    const approveAmountRaw = (BigInt(bridgeInputAmountRaw) * BigInt(10000 + APPROVE_BUFFER_BPS)) / BigInt(10000);
-
     const {
       approveData,
       swapData,
@@ -295,7 +291,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
       fromAddress: evmEphemeralEntry.address,
       fromNetwork: morphoNetwork,
       fromToken: morphoVault.depositAssetAddress as `0x${string}`,
-      rawAmount: approveAmountRaw.toString(),
+      rawAmount: bridgeInputAmountRaw,
       toNetwork: Networks.Base,
       toToken: baseUsdcAddress as `0x${string}`
     });
