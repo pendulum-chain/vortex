@@ -4,8 +4,10 @@ import {
   calculateMinimumDelta,
   calculateProjectedCostBps,
   calculateTargetBalanceRaw,
+  evaluateDailyBridgeLimit,
   evaluateRebalancingCostPolicy,
   getRebalancingUrgencyBand,
+  isProjectedProfit,
   type RebalancingCostPolicyConfig,
   wouldExceedDailyBridgeLimit
 } from "./guards.ts";
@@ -36,6 +38,27 @@ describe("USDC Base rebalance guards", () => {
   test("daily bridge limit includes the amount about to be rebalanced", () => {
     expect(wouldExceedDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"))).toBe(true);
     expect(wouldExceedDailyBridgeLimit(Big("9000000000"), Big("1000000000"), Big("10000000000"))).toBe(false);
+  });
+
+  test("detects profitable projected rebalances", () => {
+    expect(isProjectedProfit(Big("100000000"), Big("101000000"))).toBe(true);
+    expect(isProjectedProfit(Big("100000000"), Big("100000000"))).toBe(false);
+    expect(isProjectedProfit(Big("100000000"), Big("99000000"))).toBe(false);
+  });
+
+  test("evaluates daily bridge limit decisions", () => {
+    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+      reason: "under_limit",
+      shouldSkip: false
+    });
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+      reason: "daily_limit_reached",
+      shouldSkip: true
+    });
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), true)).toMatchObject({
+      reason: "profitable_quote",
+      shouldSkip: false
+    });
   });
 
   test("calculates projected rebalancing cost in basis points", () => {

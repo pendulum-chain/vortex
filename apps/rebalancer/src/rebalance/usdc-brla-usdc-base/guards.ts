@@ -25,6 +25,12 @@ export interface RebalancingCostPolicyDecision {
   shouldExecute: boolean;
 }
 
+export interface DailyBridgeLimitDecision {
+  projectedTotalRaw: string;
+  reason: "under_limit" | "profitable_quote" | "daily_limit_reached";
+  shouldSkip: boolean;
+}
+
 export function calculateMinimumDelta(expectedDelta: Big, tolerance = DEFAULT_ARRIVAL_TOLERANCE): Big {
   return expectedDelta.mul(tolerance);
 }
@@ -37,6 +43,29 @@ export function calculateTargetBalanceRaw(startingBalanceRaw: string, expectedDe
 
 export function wouldExceedDailyBridgeLimit(bridgedTodayRaw: Big, requestedAmountRaw: Big, dailyLimitRaw: Big): boolean {
   return bridgedTodayRaw.plus(requestedAmountRaw).gt(dailyLimitRaw);
+}
+
+export function isProjectedProfit(inputAmountRaw: Big, projectedOutputRaw: Big): boolean {
+  return projectedOutputRaw.gt(inputAmountRaw);
+}
+
+export function evaluateDailyBridgeLimit(
+  bridgedTodayRaw: Big,
+  requestedAmountRaw: Big,
+  dailyLimitRaw: Big,
+  profitable: boolean
+): DailyBridgeLimitDecision {
+  const projectedTotalRaw = bridgedTodayRaw.plus(requestedAmountRaw).toFixed(0, 0);
+
+  if (!wouldExceedDailyBridgeLimit(bridgedTodayRaw, requestedAmountRaw, dailyLimitRaw)) {
+    return { projectedTotalRaw, reason: "under_limit", shouldSkip: false };
+  }
+
+  if (profitable) {
+    return { projectedTotalRaw, reason: "profitable_quote", shouldSkip: false };
+  }
+
+  return { projectedTotalRaw, reason: "daily_limit_reached", shouldSkip: true };
 }
 
 export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRaw: Big): number {
