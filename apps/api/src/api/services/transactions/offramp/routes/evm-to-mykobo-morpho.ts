@@ -140,7 +140,7 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
     throw new Error("Invalid AXLUSDC configuration for Base in evmTokenConfig");
   }
 
-  const morphoVault = getMorphoVaultInfo("usdc-base");
+  const morphoVault = getMorphoVaultInfo("usdc-arbitrum");
   const morphoNetwork = morphoVault.network as EvmNetworks;
   const isBaseVault = morphoNetwork === Networks.Base;
 

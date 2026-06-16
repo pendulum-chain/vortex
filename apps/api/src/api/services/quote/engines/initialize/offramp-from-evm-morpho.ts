@@ -25,7 +25,7 @@ export class OffRampFromEvmInitializeMorphoEngine extends BaseInitializeEngine {
     const req = ctx.request;
 
     // 1. Resolve the Morpho vault and compute shares -> USDC conversion via previewRedeem.
-    const vault = getMorphoVaultInfo("usdc-base");
+    const vault = getMorphoVaultInfo("usdc-arbitrum");
     const evmClientManager = EvmClientManager.getInstance();
     const vaultNetwork = vault.network as EvmNetworks;
     const vaultClient = evmClientManager.getClient(vaultNetwork);

@@ -130,7 +130,10 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return;
     }
 
-    const hasSquidApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterApprove");
+    const hasSquidApproveBlueprint = state.unsignedTxs.some(
+      tx =>
+        tx.phase === "squidRouterApprove" && tx.signer.toLowerCase() !== (state.state.evmEphemeralAddress ?? "").toLowerCase()
+    );
     if (!hasSquidApproveBlueprint) return;
 
     await verifyUserSubmittedTxByHash({

@@ -59,7 +59,7 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
 // short-funded ephemeral.
 export const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
   [VortexNetworks.Ethereum]: "0.005",
-  [VortexNetworks.Arbitrum]: "0.000045",
+  [VortexNetworks.Arbitrum]: "0.001",
   [VortexNetworks.Base]: "0.000034",
   [VortexNetworks.Polygon]: "0.6",
   [VortexNetworks.BSC]: "0.000115",

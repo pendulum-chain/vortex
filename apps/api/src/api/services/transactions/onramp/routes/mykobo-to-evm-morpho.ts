@@ -74,7 +74,7 @@ export async function prepareMykoboToEvmMorphoOnrampTransactions({
     throw new Error("Missing nablaSwapEvm.outputAmountRaw in quote metadata for Morpho onramp");
   }
 
-  const morphoVault = getMorphoVaultInfo("usdc-base");
+  const morphoVault = getMorphoVaultInfo("usdc-arbitrum");
   const morphoNetwork = morphoVault.network as EvmNetworks;
   const isBaseVault = morphoNetwork === Networks.Base;
 

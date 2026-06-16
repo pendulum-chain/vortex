@@ -2,6 +2,7 @@ import ARS from "../assets/coins/ARS.png";
 import BRL from "../assets/coins/BRL.png";
 import COP from "../assets/coins/COP.png";
 import EUR from "../assets/coins/EU.png";
+import MORPHO from "../assets/coins/MORPHO.svg";
 import MXN from "../assets/coins/MXN.png";
 import PLACEHOLDER from "../assets/coins/placeholder.svg";
 import USD from "../assets/coins/USD.png";
@@ -11,6 +12,7 @@ const FIAT_ICONS: Record<string, string> = {
   brl: BRL,
   cop: COP,
   eur: EUR,
+  morpho: MORPHO,
   mxn: MXN,
   usd: USD
 };

@@ -1293,12 +1293,15 @@ export class RampService extends BaseRampService {
           status: httpStatus.BAD_REQUEST
         });
       } else if (rampState.from !== Networks.AssetHub) {
-        const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
-        if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
-          throw new APIError({
-            message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
-            status: httpStatus.BAD_REQUEST
-          });
+        const isMorpho = rampState.unsignedTxs.some(tx => tx.phase === "morphoPermitExecute" || tx.phase === "morphoRedeem");
+        if (!isMorpho) {
+          const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
+          if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
+            throw new APIError({
+              message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
+              status: httpStatus.BAD_REQUEST
+            });
+          }
         }
       }
     }

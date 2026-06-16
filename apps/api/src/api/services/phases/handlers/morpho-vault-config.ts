@@ -9,12 +9,12 @@ export interface MorphoVaultInfo {
 }
 
 const MORPHO_VAULTS: Record<string, MorphoVaultInfo> = {
-  "usdc-base": {
-    depositAssetAddress: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC on Base
+  "usdc-arbitrum": {
+    depositAssetAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // USDC on Arbitrum
     depositAssetDecimals: 6,
-    network: Networks.Base,
+    network: Networks.Arbitrum,
     shareDecimals: 18, // MetaMorpho default
-    vaultAddress: "0xbeef0e0834849aCC03f0089F01f4F1Eeb06873C9" // Steakhouse Prime Instant on Base
+    vaultAddress: "0xbeeff1D5dE8F79ff37a151681100B039661da518" // Steakhouse on Arbitrum
   }
 };
 

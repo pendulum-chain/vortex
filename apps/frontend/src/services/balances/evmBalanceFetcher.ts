@@ -2,8 +2,10 @@ import {
   ALCHEMY_API_KEY,
   doesNetworkSupportRamp,
   EvmNetworks,
+  EvmToken,
   EvmTokenDetails,
   getAllEvmTokens,
+  getTokenUsdPrice,
   isNetworkEVM,
   Networks
 } from "@vortexfi/shared";
@@ -11,6 +13,7 @@ import Big from "big.js";
 import { hexToBigInt } from "viem";
 import { multiplyByPowerOfTen } from "../../helpers/contracts";
 import { getEvmTokenConfig } from "../tokens";
+import { fetchMorphoVaultShareBalance, MORPHO_VAULT_NETWORK } from "./morphoBalanceFetcher";
 import { BalanceMap, getBalanceKey, TokenBalance } from "./types";
 
 const ALCHEMY_NETWORK_MAP: Partial<Record<Networks, string>> = {
@@ -102,14 +105,26 @@ export async function fetchEvmBalances(evmAddress: string): Promise<BalanceMap> 
 
   for (const token of evmTokens) {
     const addressKey = `${token.network}-${token.erc20AddressSourceChain?.toLowerCase()}`;
-    const rawBalance = allEvmBalances.get(addressKey);
 
-    const showDecimals = token.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
-    const balance = rawBalance ? multiplyByPowerOfTen(Big(rawBalance), -token.decimals).toFixed(showDecimals, 0) : "0.00";
+    let balance = "0.00";
+    let balanceUsd = "0.00";
 
-    const matchingToken = evmTokenLookup.get(addressKey);
-    const usdPrice = matchingToken?.usdPrice ?? 0;
-    const balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
+    if (token.assetSymbol === EvmToken.MORPHO_VAULT && token.network === MORPHO_VAULT_NETWORK) {
+      const rawShares = await fetchMorphoVaultShareBalance(token.erc20AddressSourceChain, evmAddress as `0x${string}`);
+      if (rawShares !== null) {
+        balance = multiplyByPowerOfTen(Big(rawShares.toString()), -token.decimals).toFixed(6, 0);
+        const usdcPrice = getTokenUsdPrice(EvmToken.USDC) ?? 0;
+        balanceUsd = usdcPrice > 0 ? Big(balance).times(usdcPrice).toFixed(2, 0) : "0.00";
+      }
+    } else {
+      const rawBalance = allEvmBalances.get(addressKey);
+      const showDecimals = token.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
+      balance = rawBalance ? multiplyByPowerOfTen(Big(rawBalance), -token.decimals).toFixed(showDecimals, 0) : "0.00";
+
+      const matchingToken = evmTokenLookup.get(addressKey);
+      const usdPrice = matchingToken?.usdPrice ?? 0;
+      balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
+    }
 
     const balanceKey = getBalanceKey(token.network, token.assetSymbol);
     newBalances.set(balanceKey, { balance, balanceUsd });

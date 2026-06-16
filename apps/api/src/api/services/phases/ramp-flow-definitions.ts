@@ -215,6 +215,7 @@ export const EUR_OFFRAMP_MORPHO: RampPhase[] = [
   "morphoPermitExecute",
   "morphoRedeem",
   "squidRouterSwap",
+  "squidRouterPay",
   "distributeFees",
   "subsidizePreSwap",
   "nablaApprove",

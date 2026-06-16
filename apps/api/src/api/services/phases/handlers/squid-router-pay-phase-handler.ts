@@ -15,13 +15,12 @@ import {
   Networks,
   nativeToDecimal,
   OnChainToken,
-  RampDirection,
   RampPhase,
   SquidRouterPayResponse
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
-import { base, polygon } from "viem/chains";
+import { arbitrum, base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -48,9 +47,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private moonbeamPublicClient: PublicClient;
   private polygonPublicClient: PublicClient;
   private basePublicClient: PublicClient;
+  private arbitrumPublicClient: PublicClient;
   private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
   private polygonWalletClient: ReturnType<typeof createWalletClient>;
   private baseWalletClient: ReturnType<typeof createWalletClient>;
+  private arbitrumWalletClient: ReturnType<typeof createWalletClient>;
 
   constructor() {
     super();
@@ -58,11 +59,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     this.moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
     this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
     this.basePublicClient = evmClientManager.getClient(Networks.Base);
+    this.arbitrumPublicClient = evmClientManager.getClient(Networks.Arbitrum);
 
     const moonbeamExecutorAccount = getEvmFundingAccount(Networks.Moonbeam);
     this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
     this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
     this.baseWalletClient = evmClientManager.getWalletClient(Networks.Base, moonbeamExecutorAccount);
+    this.arbitrumWalletClient = evmClientManager.getWalletClient(Networks.Arbitrum, moonbeamExecutorAccount);
   }
 
   /**
@@ -84,11 +87,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
 
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
-
-    if (state.type === RampDirection.SELL) {
-      logger.info("squidRouterPay phase is not supported for off-ramp");
-      return state;
-    }
 
     try {
       // Get the bridge hash
@@ -241,6 +239,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             if (fromChain === Networks.Base || (!fromChain && quote.inputCurrency === FiatToken.BRL)) {
               subsidyToken = SubsidyToken.ETH;
               payerAccount = this.baseWalletClient.account?.address as `0x${string}` | undefined;
+            } else if (fromChain === Networks.Arbitrum) {
+              subsidyToken = SubsidyToken.ETH;
+              payerAccount = this.arbitrumWalletClient.account?.address as `0x${string}` | undefined;
             } else {
               subsidyToken = SubsidyToken.MATIC;
               payerAccount = this.polygonWalletClient.account?.address as `0x${string}` | undefined;
@@ -289,6 +290,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     const fromChain = bridgeMeta?.fromNetwork as Networks;
     if (fromChain === Networks.Base) {
       return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
+    } else if (fromChain === Networks.Arbitrum) {
+      return this.executeFundTransactionOnArbitrum(tokenValueRaw, swapHash, logIndex);
     } else if (fromChain === Networks.Polygon) {
       return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
     } else {
@@ -385,6 +388,52 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     } catch (error) {
       logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Base: ", error);
       throw new Error("SquidRouterPayPhaseHandler: Failed to send Base transaction");
+    }
+  }
+
+  /**
+   * Execute a call to the Axelar gas service on Arbitrum network.
+   * @param tokenValueRaw The amount of ETH to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @returns Hash of the transaction that funds the Axelar gas service.
+   */
+  private async executeFundTransactionOnArbitrum(
+    tokenValueRaw: string,
+    swapHash: `0x${string}`,
+    logIndex: number
+  ): Promise<Hash> {
+    try {
+      const walletClientAccount = this.arbitrumWalletClient.account;
+
+      if (!walletClientAccount) {
+        throw new Error("SquidRouterPayPhaseHandler: Arbitrum wallet client account not found.");
+      }
+
+      // Create addNativeGas transaction data
+      const transactionData = encodeFunctionData({
+        abi: axelarGasServiceAbi,
+        args: [swapHash, logIndex, walletClientAccount.address],
+        functionName: "addNativeGas"
+      });
+
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.arbitrumPublicClient.estimateFeesPerGas();
+
+      const gasPaymentHash = await this.arbitrumWalletClient.sendTransaction({
+        account: walletClientAccount,
+        chain: arbitrum,
+        data: transactionData,
+        maxFeePerGas: maxFeePerGas * 2n,
+        maxPriorityFeePerGas: maxPriorityFeePerGas * 2n,
+        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+        value: BigInt(tokenValueRaw)
+      });
+
+      logger.info(`SquidRouterPayPhaseHandler: Arbitrum fund transaction sent with hash: ${gasPaymentHash}`);
+      return gasPaymentHash;
+    } catch (error) {
+      logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Arbitrum: ", error);
+      throw new Error("SquidRouterPayPhaseHandler: Failed to send Arbitrum transaction");
     }
   }
 
