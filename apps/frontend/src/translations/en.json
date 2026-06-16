@@ -245,6 +245,7 @@
           "required": "Street is required"
         },
         "taxId": {
+          "cnpjFormat": "Invalid CNPJ format",
           "format": "Invalid Tax ID format",
           "required": "Tax ID is required"
         }
