@@ -1,19 +1,76 @@
 import { Keyring } from "@polkadot/api";
 import { BRLA_BASE_URL, EvmClientManager, Networks } from "@vortexfi/shared";
 import { mnemonicToAccount } from "viem/accounts";
+import type { RebalancingCostPolicyConfig, RebalancingPolicyMode } from "../rebalance/usdc-brla-usdc-base/guards.ts";
 
 const DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD = 10_000;
+const REBALANCING_POLICY_MODES: RebalancingPolicyMode[] = ["auto", "always", "dry-run", "off"];
 
-export function parseRebalancingDailyBridgeLimitUsd(value = process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) {
+function parseNonNegativeNumber(name: string, value: string | undefined, defaultValue: number): number {
   const trimmedValue = value?.trim();
-  if (!trimmedValue) return DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD;
+  if (!trimmedValue) return defaultValue;
 
   const parsedValue = Number(trimmedValue.replaceAll("_", "").replaceAll(",", ""));
   if (!Number.isFinite(parsedValue) || parsedValue < 0) {
-    throw new Error("REBALANCING_DAILY_BRIDGE_LIMIT_USD must be a non-negative number.");
+    throw new Error(`${name} must be a non-negative number.`);
   }
 
   return parsedValue;
+}
+
+export function parseRebalancingDailyBridgeLimitUsd(value = process.env.REBALANCING_DAILY_BRIDGE_LIMIT_USD) {
+  return parseNonNegativeNumber("REBALANCING_DAILY_BRIDGE_LIMIT_USD", value, DEFAULT_REBALANCING_DAILY_BRIDGE_LIMIT_USD);
+}
+
+export function parseRebalancingPolicyMode(value = process.env.REBALANCING_POLICY_MODE): RebalancingPolicyMode {
+  const mode = value?.trim() || "auto";
+  if (!REBALANCING_POLICY_MODES.includes(mode as RebalancingPolicyMode)) {
+    throw new Error(`REBALANCING_POLICY_MODE must be one of: ${REBALANCING_POLICY_MODES.join(", ")}.`);
+  }
+
+  return mode as RebalancingPolicyMode;
+}
+
+export function getRebalancingCostPolicyConfig(): RebalancingCostPolicyConfig {
+  const config: RebalancingCostPolicyConfig = {
+    hardMaxCostBps: parseNonNegativeNumber("REBALANCING_HARD_MAX_COST_BPS", process.env.REBALANCING_HARD_MAX_COST_BPS, 1_000),
+    maxCostBpsMild: parseNonNegativeNumber("REBALANCING_MAX_COST_BPS_MILD", process.env.REBALANCING_MAX_COST_BPS_MILD, 25),
+    maxCostBpsModerate: parseNonNegativeNumber(
+      "REBALANCING_MAX_COST_BPS_MODERATE",
+      process.env.REBALANCING_MAX_COST_BPS_MODERATE,
+      75
+    ),
+    maxCostBpsSevere: parseNonNegativeNumber(
+      "REBALANCING_MAX_COST_BPS_SEVERE",
+      process.env.REBALANCING_MAX_COST_BPS_SEVERE,
+      250
+    ),
+    mode: parseRebalancingPolicyMode(),
+    moderateDeviationBps: parseNonNegativeNumber(
+      "REBALANCING_MODERATE_DEVIATION_BPS",
+      process.env.REBALANCING_MODERATE_DEVIATION_BPS,
+      200
+    ),
+    severeDeviationBps: parseNonNegativeNumber(
+      "REBALANCING_SEVERE_DEVIATION_BPS",
+      process.env.REBALANCING_SEVERE_DEVIATION_BPS,
+      500
+    )
+  };
+
+  if (config.moderateDeviationBps > config.severeDeviationBps) {
+    throw new Error("REBALANCING_MODERATE_DEVIATION_BPS must be less than or equal to REBALANCING_SEVERE_DEVIATION_BPS.");
+  }
+
+  if (config.maxCostBpsMild > config.maxCostBpsModerate || config.maxCostBpsModerate > config.maxCostBpsSevere) {
+    throw new Error("Rebalancing max cost bps values must be ordered: mild <= moderate <= severe.");
+  }
+
+  if (config.maxCostBpsSevere > config.hardMaxCostBps) {
+    throw new Error("REBALANCING_MAX_COST_BPS_SEVERE must be less than or equal to REBALANCING_HARD_MAX_COST_BPS.");
+  }
+
+  return config;
 }
 
 export function getConfig() {
@@ -41,6 +98,7 @@ export function getConfig() {
     rebalancingBrlToUsdAmount: process.env.REBALANCING_BRL_TO_USD_AMOUNT || "1",
     /// The minimum balance in USDC that the rebalancer account on Base must have to allow the BRLA pool rebalancing.
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
+    rebalancingCostPolicy: getRebalancingCostPolicyConfig(),
     rebalancingDailyBridgeLimitUsd: parseRebalancingDailyBridgeLimitUsd(),
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
