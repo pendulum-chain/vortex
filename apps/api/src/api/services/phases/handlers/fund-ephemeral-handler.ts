@@ -197,19 +197,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
 
       const isPolygonFunded = requiresPolygonEphemeralAddress ? await isPolygonEphemeralFunded(evmEphemeralAddress) : true;
 
-      const destinationNetwork = getNetworkFromDestination(state.to);
-      const isDestinationEvmFunded =
-        requiresDestinationEvmFunding && destinationNetwork && isNetworkEVM(destinationNetwork) // for type safety
-          ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork)
-          : true;
-
-      const requiresMorphoNetworkFunding = this.getRequiresMorphoNetworkFunding(state);
-      const morphoNetwork = (state.state as StateMetadata).morphoNetwork as EvmNetworks | undefined;
-      const isMorphoNetworkFunded =
-        requiresMorphoNetworkFunding && morphoNetwork
-          ? await isDestinationEvmEphemeralFunded(evmEphemeralAddress, morphoNetwork)
-          : true;
-
       if (!isPendulumFunded) {
         logger.info(`Funding PEN ephemeral account ${substrateEphemeralAddress}`);
         if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -235,18 +222,28 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.info("Polygon ephemeral address already funded.");
       }
 
-      if (!isMorphoNetworkFunded && morphoNetwork) {
-        logger.info(`Funding morpho network ephemeral account ${evmEphemeralAddress} on ${morphoNetwork}`);
-        await this.fundDestinationEvmEphemeralAccount(state, morphoNetwork);
-      } else if (requiresMorphoNetworkFunding) {
-        logger.info(`Morpho network ephemeral account already funded on ${morphoNetwork}.`);
+      // Deduplicate morpho + destination EVM networks: a single network can appear
+      // in both sets (e.g. onramp Morpho on Arbitrum, where the destination ==
+      // morpho network). Funding twice for the same address on the same chain
+      // would over-fund the ephemeral.
+      const evmNetworksToFund = new Set<EvmNetworks>();
+      const morphoNetwork = (state.state as StateMetadata).morphoNetwork as EvmNetworks | undefined;
+      if (morphoNetwork && this.getRequiresMorphoNetworkFunding(state)) {
+        evmNetworksToFund.add(morphoNetwork);
+      }
+      const destinationNetwork = getNetworkFromDestination(state.to);
+      if (isOnramp(state) && destinationNetwork && isNetworkEVM(destinationNetwork) && requiresDestinationEvmFunding) {
+        evmNetworksToFund.add(destinationNetwork);
       }
 
-      if (isOnramp(state) && !isDestinationEvmFunded && destinationNetwork && isNetworkEVM(destinationNetwork)) {
-        logger.info(`Funding destination EVM ephemeral account ${evmEphemeralAddress} on ${destinationNetwork}`);
-        await this.fundDestinationEvmEphemeralAccount(state, destinationNetwork);
-      } else if (requiresDestinationEvmFunding) {
-        logger.info(`Destination EVM ephemeral address already funded on ${destinationNetwork}.`);
+      for (const network of evmNetworksToFund) {
+        const isFunded = await isDestinationEvmEphemeralFunded(evmEphemeralAddress, network);
+        if (!isFunded) {
+          logger.info(`Funding EVM ephemeral account ${evmEphemeralAddress} on ${network}`);
+          await this.fundDestinationEvmEphemeralAccount(state, network);
+        } else {
+          logger.info(`EVM ephemeral account already funded on ${network}.`);
+        }
       }
     } catch (e) {
       logger.error("Error in FundEphemeralPhaseHandler:", e);
