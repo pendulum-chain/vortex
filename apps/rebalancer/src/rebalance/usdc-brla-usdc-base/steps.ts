@@ -485,7 +485,7 @@ export async function squidRouterApproveAndSwap(
 ): Promise<{ swapHash: string; toAmountUsd: string; toAmountRaw: string }> {
   let swapHash = state.squidRouterSwapHash;
   let toAmountUsd = "0";
-  let toAmountRaw = "0";
+  let toAmountRaw = state.squidRouterQuoteUsdc ?? "0";
 
   if (!swapHash) {
     console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
@@ -552,6 +552,9 @@ export async function squidRouterApproveAndSwap(
     console.log(`Swap tx: ${swapHash}`);
     await waitForTransactionConfirmation(swapHash, polygonPublicClient);
   } else {
+    if (!state.squidRouterQuoteUsdc) {
+      throw new Error("State corrupted: squidRouterQuoteUsdc missing while resuming SquidRouter swap.");
+    }
     console.log(`Resuming SquidRouter swap with existing swap tx: ${swapHash}`);
   }
 
@@ -578,16 +581,25 @@ export async function squidRouterApproveAndSwap(
   return { swapHash, toAmountRaw, toAmountUsd };
 }
 
-export async function waitUsdcOnBase(expectedUsdcRaw: string, startingUsdcBalanceRaw: string): Promise<void> {
+export async function waitUsdcOnBase(expectedUsdcRaw: string, startingUsdcBalanceRaw: string): Promise<string> {
   const { walletClient } = getBaseEvmClients();
   const baseAddress = walletClient.account.address;
-  const targetBalanceRaw = calculateTargetBalanceRaw(startingUsdcBalanceRaw, expectedUsdcRaw);
+  const targetBalanceRaw = calculateTargetBalanceRaw(startingUsdcBalanceRaw, expectedUsdcRaw, DEFAULT_ARRIVAL_TOLERANCE);
 
   console.log(`Waiting for USDC delta to arrive on Base (${baseAddress})...`);
 
-  await checkEvmBalancePeriodically(USDC_BASE, baseAddress, targetBalanceRaw, 1_000, 30 * 60 * 1_000, Networks.Base);
+  const finalBalanceRaw = await checkEvmBalancePeriodically(
+    USDC_BASE,
+    baseAddress,
+    targetBalanceRaw,
+    1_000,
+    30 * 60 * 1_000,
+    Networks.Base
+  );
+  const receivedDeltaRaw = finalBalanceRaw.minus(Big(startingUsdcBalanceRaw)).toFixed(0, 0);
 
-  console.log("USDC arrived on Base.");
+  console.log(`USDC arrived on Base. Actual delta: ${receivedDeltaRaw} raw`);
+  return receivedDeltaRaw;
 }
 
 export async function aveniaCreateSwapToUsdcBaseTicket(

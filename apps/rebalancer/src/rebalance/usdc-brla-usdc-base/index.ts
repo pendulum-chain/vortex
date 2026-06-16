@@ -206,7 +206,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
         }
 
         const aveniaUsdcRaw = multiplyByPowerOfTen(Big(state.aveniaQuoteUsdc), 6).toFixed(0, 0);
-        await waitUsdcOnBase(aveniaUsdcRaw, state.baseUsdcBalanceBeforeAveniaSwapRaw);
+        state.aveniaQuoteUsdc = await waitUsdcOnBase(aveniaUsdcRaw, state.baseUsdcBalanceBeforeAveniaSwapRaw);
 
         console.log("USDC from Avenia confirmed on Base.");
         state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;
@@ -280,7 +280,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
         throw new Error("State corrupted: baseUsdcBalanceBeforeSquidSwapRaw missing for squid step 4");
       }
 
-      await waitUsdcOnBase(state.squidRouterQuoteUsdc, state.baseUsdcBalanceBeforeSquidSwapRaw);
+      state.squidRouterQuoteUsdc = await waitUsdcOnBase(state.squidRouterQuoteUsdc, state.baseUsdcBalanceBeforeSquidSwapRaw);
 
       console.log("USDC from SquidRouter confirmed on Base.");
       state.currentPhase = UsdcBaseRebalancePhase.VerifyFinalBalance;

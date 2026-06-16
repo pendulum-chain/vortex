@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import {describe, expect, test} from "bun:test";
 import Big from "big.js";
 import {
   calculateMinimumDelta,
@@ -6,8 +6,8 @@ import {
   calculateTargetBalanceRaw,
   evaluateRebalancingCostPolicy,
   getRebalancingUrgencyBand,
-  wouldExceedDailyBridgeLimit,
-  type RebalancingCostPolicyConfig
+  type RebalancingCostPolicyConfig,
+  wouldExceedDailyBridgeLimit
 } from "./guards.ts";
 
 const policyConfig: RebalancingCostPolicyConfig = {
@@ -27,6 +27,10 @@ describe("USDC Base rebalance guards", () => {
 
   test("supports tolerated delta checks without treating the total balance as the received amount", () => {
     expect(calculateMinimumDelta(Big("100"), "0.998").toString()).toBe("99.8");
+  });
+
+  test("allows small Base USDC arrival shortfalls with the default tolerance", () => {
+    expect(calculateTargetBalanceRaw("13148408", "999225918", "0.998")).toBe("1010375874");
   });
 
   test("daily bridge limit includes the amount about to be rebalanced", () => {
