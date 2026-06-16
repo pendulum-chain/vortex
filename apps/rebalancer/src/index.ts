@@ -4,9 +4,14 @@ import Big from "big.js";
 import { rebalanceBrlaToUsdcAxl } from "./rebalance/brla-to-axlusdc";
 import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.ts";
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
+import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
-import { wouldExceedDailyBridgeLimit } from "./rebalance/usdc-brla-usdc-base/guards.ts";
-import { checkInitialUsdcBalanceOnBase } from "./rebalance/usdc-brla-usdc-base/steps.ts";
+import {
+  evaluateRebalancingCostPolicy,
+  type RebalancingCostPolicyDecision,
+  wouldExceedDailyBridgeLimit
+} from "./rebalance/usdc-brla-usdc-base/guards.ts";
+import { checkInitialUsdcBalanceOnBase, compareRoutesUpfront } from "./rebalance/usdc-brla-usdc-base/steps.ts";
 import { getBaseNablaCoverageRatio, getSwapPoolsWithCoverageRatio } from "./services/indexer";
 import {
   BrlaToAxlUsdcStateManager,
@@ -14,7 +19,8 @@ import {
   BrlaToUsdcBaseStateManager,
   RebalancePhase,
   UsdcBaseRebalancePhase,
-  UsdcBaseStateManager
+  UsdcBaseStateManager,
+  type WinningRoute
 } from "./services/stateManager.ts";
 import { getConfig, getPendulumAccount } from "./utils/config.ts";
 
@@ -101,7 +107,110 @@ function checkDailyLimit(bridgedToday: Big, requestedAmountRaw: Big, dailyLimitR
   return false;
 }
 
-async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big) {
+function calculateCoverageDeviationBps(coverageRatio: number, triggerBound: number): number {
+  return Number(
+    Big(Math.abs(coverageRatio - triggerBound))
+      .mul(10_000)
+      .toFixed(2)
+  );
+}
+
+function getQuoteForRoute(
+  route: Exclude<WinningRoute, null>,
+  quotes: {
+    squidRouterQuoteUsdc: string | null;
+    aveniaQuoteUsdc: string | null;
+    mainNablaQuoteUsdc: string | null;
+  }
+): string | null {
+  if (route === "squidrouter") return quotes.squidRouterQuoteUsdc;
+  if (route === "avenia") return quotes.aveniaQuoteUsdc;
+  return quotes.mainNablaQuoteUsdc;
+}
+
+function logCostPolicyDecision(
+  direction: string,
+  inputAmountRaw: string,
+  projectedOutputRaw: string,
+  decision: RebalancingCostPolicyDecision
+) {
+  const inputUsdc = Big(inputAmountRaw).div(1e6).toFixed(6);
+  const projectedUsdc = Big(projectedOutputRaw).div(1e6).toFixed(6);
+  const projectedCostUsdc = Big(decision.projectedCostRaw).div(1e6).toFixed(6);
+  console.log(
+    [
+      `Rebalancing cost policy (${direction}): ${decision.shouldExecute ? "execute" : "skip"}`,
+      `band=${decision.band}`,
+      `cost=${decision.costBps}bps`,
+      `allowed=${decision.allowedCostBps}bps`,
+      `input=${inputUsdc} USDC`,
+      `projectedOutput=${projectedUsdc} USDC`,
+      `projectedCost=${projectedCostUsdc} USDC`,
+      `reason=${decision.reason}`
+    ].join(" | ")
+  );
+}
+
+async function evaluateUsdcToBrlaPolicy(
+  amountUsdcRaw: string,
+  coverageDeviationBps: number
+): Promise<{ shouldExecute: boolean; routeToRun?: Exclude<WinningRoute, null> }> {
+  const config = getConfig();
+  if (config.rebalancingCostPolicy.mode === "off") {
+    const decision = evaluateRebalancingCostPolicy(
+      Big(amountUsdcRaw),
+      Big(amountUsdcRaw),
+      coverageDeviationBps,
+      config.rebalancingCostPolicy
+    );
+    logCostPolicyDecision("USDC->BRLA->USDC", amountUsdcRaw, amountUsdcRaw, decision);
+    return { shouldExecute: false };
+  }
+
+  const comparison = await compareRoutesUpfront(amountUsdcRaw);
+  const routeToRun = forcedRoute || comparison.winningRoute;
+  if (!routeToRun) throw new Error("Route comparison did not select a route.");
+
+  const projectedOutputRaw = getQuoteForRoute(routeToRun, comparison);
+  if (!projectedOutputRaw) throw new Error(`Forced route ${routeToRun} did not return a quote.`);
+
+  const decision = evaluateRebalancingCostPolicy(
+    Big(amountUsdcRaw),
+    Big(projectedOutputRaw),
+    coverageDeviationBps,
+    config.rebalancingCostPolicy
+  );
+  logCostPolicyDecision(`USDC->BRLA->USDC via ${routeToRun}`, amountUsdcRaw, projectedOutputRaw, decision);
+
+  return { routeToRun, shouldExecute: decision.shouldExecute };
+}
+
+async function evaluateBrlaToUsdcPolicy(amountUsdcRaw: string, coverageDeviationBps: number): Promise<boolean> {
+  const config = getConfig();
+  if (config.rebalancingCostPolicy.mode === "off") {
+    const decision = evaluateRebalancingCostPolicy(
+      Big(amountUsdcRaw),
+      Big(amountUsdcRaw),
+      coverageDeviationBps,
+      config.rebalancingCostPolicy
+    );
+    logCostPolicyDecision("BRLA->USDC", amountUsdcRaw, amountUsdcRaw, decision);
+    return false;
+  }
+
+  const quote = await quoteBrlaToUsdcBaseRebalance(amountUsdcRaw);
+  const decision = evaluateRebalancingCostPolicy(
+    Big(amountUsdcRaw),
+    Big(quote.projectedUsdcRaw),
+    coverageDeviationBps,
+    config.rebalancingCostPolicy
+  );
+  logCostPolicyDecision("BRLA->USDC", amountUsdcRaw, quote.projectedUsdcRaw, decision);
+
+  return decision.shouldExecute;
+}
+
+async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big, coverageDeviationBps: number) {
   const config = getConfig();
   const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
@@ -112,13 +221,17 @@ async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big) {
 
   if (!isResuming) {
     if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
+    const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, coverageDeviationBps);
+    if (!policyDecision.shouldExecute) return;
     await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
+    await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun);
+    return;
   }
 
   await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, forcedRoute);
 }
 
-async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big) {
+async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDeviationBps: number) {
   const config = getConfig();
   const amountUsdc = manualAmount || config.rebalancingBrlToUsdAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
@@ -129,6 +242,7 @@ async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big) {
 
   if (!isResuming) {
     if (checkDailyLimit(bridgedToday, Big(amountUsdcRaw), dailyLimitRaw, config.rebalancingDailyBridgeLimitUsd)) return;
+    if (!(await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps))) return;
 
     const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
     if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
@@ -162,13 +276,19 @@ async function checkForRebalancing() {
   );
 
   if (coverage.brlaCoverageRatio < lowerBound) {
-    console.log(`BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Running BRLA->USDC.`);
-    await runBrlaToUsdc(bridgedToday, dailyLimitRaw);
+    const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, lowerBound);
+    console.log(
+      `BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Evaluating BRLA->USDC (${deviationBps} bps deviation).`
+    );
+    await runBrlaToUsdc(bridgedToday, dailyLimitRaw, deviationBps);
     return;
   }
 
-  console.log(`BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Running USDC->BRLA.`);
-  await runUsdcToBrla(bridgedToday, dailyLimitRaw);
+  const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, upperBound);
+  console.log(
+    `BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Evaluating USDC->BRLA (${deviationBps} bps deviation).`
+  );
+  await runUsdcToBrla(bridgedToday, dailyLimitRaw, deviationBps);
 }
 
 const rebalanceFn = useLegacy ? checkForRebalancingLegacy : checkForRebalancing;

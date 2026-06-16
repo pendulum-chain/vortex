@@ -63,6 +63,47 @@ export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
 
 import { checkInitialUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
 
+export async function quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw: string): Promise<string> {
+  const { router, quoter } = getMainNablaConfig();
+  const evmClientManager = EvmClientManager.getInstance();
+
+  const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+    abi: MAIN_NABLA_QUOTE_ABI,
+    address: quoter,
+    args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
+    functionName: "quoteSwapExactTokensForTokens"
+  });
+
+  const expectedOutputDecimal = multiplyByPowerOfTen(Big(expectedOutputRaw.toString()), -18);
+  console.log(`Main Nabla preflight quote: ${expectedOutputDecimal.toFixed(6)} BRLA`);
+  return expectedOutputRaw.toString();
+}
+
+export async function quoteBrlaNablaToUsdcOnBase(brlaAmountRaw: string): Promise<string> {
+  const evmClientManager = EvmClientManager.getInstance();
+
+  const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
+    abi: NABLA_QUOTE_ABI,
+    address: BRLA_NABLA_QUOTER,
+    args: [BigInt(brlaAmountRaw), [ERC20_BRLA_BASE, USDC_BASE], [BRLA_NABLA_ROUTER]],
+    functionName: "quoteSwapExactTokensForTokens"
+  });
+
+  const expectedOutputDecimal = multiplyByPowerOfTen(Big(expectedOutputRaw.toString()), -6);
+  console.log(`BRLA Nabla preflight quote: ${expectedOutputDecimal.toFixed(6)} USDC`);
+  return expectedOutputRaw.toString();
+}
+
+export async function quoteBrlaToUsdcBaseRebalance(usdcAmountRaw: string): Promise<{
+  estimatedBrlaRaw: string;
+  projectedUsdcRaw: string;
+}> {
+  const estimatedBrlaRaw = await quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw);
+  const projectedUsdcRaw = await quoteBrlaNablaToUsdcOnBase(estimatedBrlaRaw);
+
+  return { estimatedBrlaRaw, projectedUsdcRaw };
+}
+
 export async function nablaSwapBrlaToUsdcOnBase(
   brlaAmountRaw: string,
   baseNonce: NonceManager,
@@ -93,13 +134,7 @@ export async function nablaSwapBrlaToUsdcOnBase(
   let swapHash = state.nablaSwapHash;
 
   if (!swapHash) {
-    const evmClientManager = EvmClientManager.getInstance();
-    const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: NABLA_QUOTE_ABI,
-      address: BRLA_NABLA_QUOTER,
-      args: [BigInt(brlaAmountRaw), [ERC20_BRLA_BASE, USDC_BASE], [BRLA_NABLA_ROUTER]],
-      functionName: "quoteSwapExactTokensForTokens"
-    });
+    const expectedOutputRaw = BigInt(await quoteBrlaNablaToUsdcOnBase(brlaAmountRaw));
 
     const expectedOutputDecimal = multiplyByPowerOfTen(Big(expectedOutputRaw.toString()), -6);
     console.log(`Expected USDC output: ${expectedOutputDecimal.toFixed(6)}`);
@@ -229,7 +264,7 @@ export async function mainNablaSwapUsdcToBrlaOnBase(
   state: BrlaToUsdcBaseRebalanceState,
   stateManager: BrlaToUsdcBaseStateManager
 ): Promise<string> {
-  const { router, quoter } = getMainNablaConfig();
+  const { router } = getMainNablaConfig();
   const { walletClient, publicClient } = getBaseEvmClients();
   const executorAddress = walletClient.account.address;
 
@@ -254,13 +289,7 @@ export async function mainNablaSwapUsdcToBrlaOnBase(
   let swapHash = state.mainNablaSwapHash;
 
   if (!swapHash) {
-    const evmClientManager = EvmClientManager.getInstance();
-    const expectedOutputRaw = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
-      abi: MAIN_NABLA_QUOTE_ABI,
-      address: quoter,
-      args: [BigInt(usdcAmountRaw), [USDC_BASE, ERC20_BRLA_BASE], [router]],
-      functionName: "quoteSwapExactTokensForTokens"
-    });
+    const expectedOutputRaw = BigInt(await quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw));
 
     const expectedOutputDecimal = multiplyByPowerOfTen(Big(expectedOutputRaw.toString()), -18);
     console.log(`Expected BRLA output from Main Nabla: ${expectedOutputDecimal.toFixed(6)}`);
