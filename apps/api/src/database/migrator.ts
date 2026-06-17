@@ -4,18 +4,34 @@ import { MigrationParams, SequelizeStorage, Umzug } from "umzug";
 import sequelize from "../config/database";
 import logger from "../config/logger";
 
+function getDatabaseErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("original" in error)) {
+    return undefined;
+  }
+
+  const { original } = error as { original?: unknown };
+  return original && typeof original === "object" && "code" in original ? String(original.code) : undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 // Create Umzug instance for migrations
 const umzug = new Umzug({
   context: new Proxy(sequelize.getQueryInterface(), {
     get(target, prop, receiver) {
       if (prop === "addIndex") {
-        return async (...args: any[]) => {
+        return async (...args: Parameters<typeof target.addIndex>) => {
           try {
-            // @ts-ignore: dynamic args spreading
             return await target.addIndex(...args);
-          } catch (error: any) {
-            if (error?.original?.code === "42P07") {
-              const indexName = args[2]?.name || "unknown";
+          } catch (error) {
+            if (getDatabaseErrorCode(error) === "42P07") {
+              const options = args[2] as unknown;
+              const indexName =
+                typeof options === "object" && options !== null && "name" in options
+                  ? String((options as Record<"name", unknown>).name)
+                  : "unknown";
               const tableName = args[0];
               logger.warn(`Index ${indexName} already exists on ${tableName}, skipping creation.`);
               return;
@@ -25,26 +41,24 @@ const umzug = new Umzug({
         };
       }
       if (prop === "bulkInsert") {
-        return async (...args: any[]) => {
+        return async (...args: Parameters<typeof target.bulkInsert>) => {
           try {
-            // @ts-ignore: dynamic args spreading
             return await target.bulkInsert(...args);
-          } catch (error: any) {
+          } catch (error) {
             // Swallow ALL bulkInsert errors to force migration forward in inconsistent environments
             // This is critical to unblock 022 when 001/004 etc are re-running on existing data
             const tableName = args[0];
-            logger.warn(`Swallowing bulkInsert error on ${tableName}: ${error.message || error}`);
+            logger.warn(`Swallowing bulkInsert error on ${tableName}: ${getErrorMessage(error)}`);
             return 0;
           }
         };
       }
       if (prop === "addColumn") {
-        return async (...args: any[]) => {
+        return async (...args: Parameters<typeof target.addColumn>) => {
           try {
-            // @ts-ignore: dynamic args spreading
             return await target.addColumn(...args);
-          } catch (error: any) {
-            if (error?.original?.code === "42701") {
+          } catch (error) {
+            if (getDatabaseErrorCode(error) === "42701") {
               const columnName = args[1];
               const tableName = args[0];
               logger.warn(`Column ${columnName} already exists on ${tableName}, skipping creation.`);
@@ -55,14 +69,14 @@ const umzug = new Umzug({
         };
       }
       if (prop === "renameColumn") {
-        return async (...args: any[]) => {
+        return async (...args: Parameters<typeof target.renameColumn>) => {
           try {
-            // @ts-ignore: dynamic args spreading
             return await target.renameColumn(...args);
-          } catch (error: any) {
+          } catch (error) {
             // 42701: duplicate_column (target column already exists)
             // 42703: undefined_column (source column does not exist)
-            if (error?.original?.code === "42701" || error?.original?.code === "42703") {
+            const code = getDatabaseErrorCode(error);
+            if (code === "42701" || code === "42703") {
               const tableName = args[0];
               const oldName = args[1];
               const newName = args[2];
@@ -74,14 +88,14 @@ const umzug = new Umzug({
         };
       }
       if (prop === "changeColumn") {
-        return async (...args: any[]) => {
+        return async (...args: Parameters<typeof target.changeColumn>) => {
           try {
-            // @ts-ignore: dynamic args spreading
             return await target.changeColumn(...args);
-          } catch (error: any) {
+          } catch (error) {
             // 42710: duplicate_object (constraint already exists)
             // 42P07: duplicate_table (relation/constraint already exists)
-            if (error?.original?.code === "42710" || error?.original?.code === "42P07") {
+            const code = getDatabaseErrorCode(error);
+            if (code === "42710" || code === "42P07") {
               const tableName = args[0];
               const columnName = args[1];
               logger.warn(`Change column ${columnName} on ${tableName} failed (likely constraint exists), skipping.`);
@@ -96,19 +110,19 @@ const umzug = new Umzug({
         return new Proxy(originalSequelize, {
           get(seqTarget, seqProp, seqReceiver) {
             if (seqProp === "query") {
-              return async (...args: any[]) => {
+              return async (...args: Parameters<typeof seqTarget.query>) => {
                 try {
-                  // @ts-ignore: dynamic args spreading
                   return await seqTarget.query(...args);
-                } catch (error: any) {
+                } catch (error) {
                   // 42710: duplicate_object (trigger/function already exists)
                   // 42P07: duplicate_table (relation already exists)
-                  if (error?.original?.code === "42710" || error?.original?.code === "42P07") {
+                  const code = getDatabaseErrorCode(error);
+                  if (code === "42710" || code === "42P07") {
                     const sql = args[0] as string;
                     // Try to extract object name from SQL for logging
                     const match = sql.match(/CREATE (?:OR REPLACE )?(?:TRIGGER|FUNCTION|TABLE) ["']?(\w+)["']?/i);
                     const objectName = match ? match[1] : "unknown object";
-                    logger.warn(`Query failed with "${error.message}" for ${objectName}, skipping.`);
+                    logger.warn(`Query failed with "${getErrorMessage(error)}" for ${objectName}, skipping.`);
                     return [[], 0];
                   }
                   throw error;
