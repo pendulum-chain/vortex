@@ -34,10 +34,7 @@ const umzug = new Umzug({
           } catch (error) {
             if (getDatabaseErrorCode(error) === "42P07") {
               const options = getAddIndexOptions(args);
-              const indexName =
-                typeof options === "object" && options !== null && "name" in options
-                  ? String((options as Record<"name", unknown>).name)
-                  : "unknown";
+              const indexName = options && "name" in options ? String(options.name) : "unknown";
               const tableName = args[0];
               logger.warn(`Index ${indexName} already exists on ${tableName}, skipping creation.`);
               return;
