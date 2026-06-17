@@ -338,7 +338,7 @@ export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
   const pollInterval = 5000; // 5 seconds
   const timeout = 5 * 60 * 1000; // 5 minutes
   const startTime = Date.now();
-  let lastError: any;
+  let lastError: unknown;
   const brlaAmountUnits = brlaAmountBig.toFixed(0, 0);
   const brlaApiService = BrlaApiService.getInstance();
 
