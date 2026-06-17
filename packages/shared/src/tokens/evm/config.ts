@@ -181,7 +181,7 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       type: TokenType.Evm
     },
     [EvmToken.MORPHO_VAULT]: {
-      assetSymbol: "MORPHO VAULT",
+      assetSymbol: "VAULT",
       decimals: 18,
       erc20AddressSourceChain: "0xbeeff1D5dE8F79ff37a151681100B039661da518", // Steakhouse USDC vault on Arbitrum
       isNative: false,
