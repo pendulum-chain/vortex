@@ -190,6 +190,10 @@ export class SupabaseAuthService {
       throw error;
     }
 
+    if (!data.user) {
+      throw new Error(`Supabase user ${userId} not found`);
+    }
+
     return data.user;
   }
 }

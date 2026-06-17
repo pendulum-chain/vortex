@@ -212,7 +212,9 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
 
           logger.debug(`AlfredpayOfframpTransferHandler: Alfredpay offramp ${transactionId} status: ${status}`);
         } catch (error) {
-          logger.warn(`AlfredpayOfframpTransferHandler: Error polling Alfredpay status for ${transactionId}: ${error}`);
+          logger.warn(
+            `AlfredpayOfframpTransferHandler: Error polling Alfredpay status for ${transactionId}: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
 
         setTimeout(poll, intervalMs);
