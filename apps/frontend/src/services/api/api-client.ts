@@ -1,8 +1,19 @@
 import { SIGNING_SERVICE_URL } from "../../constants/constants";
 import { AuthService } from "../auth";
 
-// Errors carrying a `domain` are tagged by business area (kyc/kyb/quote/ramp/auth/wallet)
-// in Sentry's beforeSend. Implemented by ApiError and SignRampError.
+// Named business areas used as the Sentry `domain` tag. API errors map to these by endpoint;
+// unmapped endpoints fall through to their raw path segment (see getApiDomain).
+export enum SentryDomain {
+  Kyc = "kyc",
+  Kyb = "kyb",
+  Quote = "quote",
+  Ramp = "ramp",
+  Auth = "auth",
+  Wallet = "wallet"
+}
+
+// Errors carrying a `domain` are tagged by business area in Sentry's beforeSend.
+// Implemented by ApiError and SignRampError.
 export interface DomainError {
   domain: string;
 }
@@ -34,25 +45,22 @@ function normalizePath(path: string): string {
     .replace(/\/[A-Za-z0-9]{20,}(?=\/|$)/g, "/:id");
 }
 
-// Map an endpoint path to a coarse business domain for Sentry tagging.
+const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
+  alfredpay: SentryDomain.Kyc,
+  brla: SentryDomain.Kyc,
+  mykobo: SentryDomain.Kyc,
+  quotes: SentryDomain.Quote,
+  ramp: SentryDomain.Ramp,
+  siwe: SentryDomain.Auth,
+  subsidize: SentryDomain.Ramp
+};
+
+// Map an endpoint path to a business domain for Sentry tagging. Unmapped endpoints fall
+// through to their raw path segment.
 function getApiDomain(path: string): string {
-  if (path.toLowerCase().includes("kyb")) return "kyb";
-  const segment = path.split("/").filter(Boolean)[0]?.toLowerCase();
-  switch (segment) {
-    case "ramp":
-    case "subsidize":
-      return "ramp";
-    case "quotes":
-      return "quote";
-    case "brla":
-    case "alfredpay":
-    case "mykobo":
-      return "kyc";
-    case "siwe":
-      return "auth";
-    default:
-      return segment ?? "api";
-  }
+  if (path.toLowerCase().includes("kyb")) return SentryDomain.Kyb;
+  const segment = path.split("/").filter(Boolean)[0]?.toLowerCase() ?? "api";
+  return DOMAIN_BY_SEGMENT[segment] ?? segment;
 }
 
 async function apiFetch<T>(
