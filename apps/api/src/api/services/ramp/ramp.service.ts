@@ -1145,7 +1145,7 @@ export class RampService extends BaseRampService {
     const intent = await mykobo.createTransactionIntent({
       currency: MykoboCurrency.EURC,
       email_address: additionalData.email,
-      ip_address: "79.224.167.233",
+      ip_address: additionalData.ipAddress,
       transaction_type: MykoboTransactionType.DEPOSIT,
       value: new Big(quote.inputAmount).toFixed(2, 0),
       wallet_address: evmEphemeralEntry.address
@@ -1175,7 +1175,7 @@ export class RampService extends BaseRampService {
     if (quote.outputCurrency === EvmToken.MORPHO_VAULT) {
       const result = await prepareMykoboToEvmMorphoOnrampTransactions({
         destinationAddress: additionalData.destinationAddress,
-        ipAddress: "79.224.167.233",
+        ipAddress: additionalData.ipAddress,
         mykoboEmail: additionalData.email,
         mykoboTransactionId: intent.transaction.id,
         mykoboTransactionReference: intent.transaction.reference,
@@ -1187,7 +1187,7 @@ export class RampService extends BaseRampService {
     } else {
       const result = await prepareMykoboToEvmOnrampTransactions({
         destinationAddress: additionalData.destinationAddress,
-        ipAddress: "79.224.167.233",
+        ipAddress: additionalData.ipAddress,
         mykoboEmail: additionalData.email,
         mykoboTransactionId: intent.transaction.id,
         mykoboTransactionReference: intent.transaction.reference,
