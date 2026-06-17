@@ -1,17 +1,17 @@
 import { ArrowTopRightOnSquareIcon } from "@heroicons/react/20/solid";
 import { TransactionStatus } from "@vortexfi/shared";
 import { AnimatePresence, motion } from "motion/react";
-import { FC } from "react";
+import { FC, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../helpers/cn";
 
 interface StatusBadgeProps {
   status: TransactionStatus;
   explorerLink?: string;
-  isHovered?: boolean;
 }
 
-export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHovered = false }) => {
+export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink }) => {
+  const [showExplorerLink, setShowExplorerLink] = useState(false);
   const { t } = useTranslation();
   const normalizedStatus = status.toLowerCase();
 
@@ -22,7 +22,7 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
   } as const;
 
   const colorClass = colors[normalizedStatus as keyof typeof colors] || colors.pending;
-  const showLink = isHovered && !!explorerLink;
+  const showLink = showExplorerLink && !!explorerLink;
 
   const badgeContent = (
     <motion.div
@@ -59,7 +59,16 @@ export const StatusBadge: FC<StatusBadgeProps> = ({ status, explorerLink, isHove
 
   if (explorerLink) {
     return (
-      <a href={explorerLink} onClick={e => e.stopPropagation()} rel="noopener noreferrer" target="_blank">
+      <a
+        href={explorerLink}
+        onBlur={() => setShowExplorerLink(false)}
+        onClick={e => e.stopPropagation()}
+        onFocus={() => setShowExplorerLink(true)}
+        onMouseEnter={() => setShowExplorerLink(true)}
+        onMouseLeave={() => setShowExplorerLink(false)}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
         {badgeContent}
       </a>
     );
