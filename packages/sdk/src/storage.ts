@@ -1,6 +1,6 @@
 const isNode = typeof window === "undefined";
 
-async function storeEphemeralKeys(fileName: string, data: any): Promise<void> {
+async function storeEphemeralKeys(fileName: string, data: unknown): Promise<void> {
   const content = JSON.stringify(data, null, 2);
   if (isNode) {
     const { writeFile } = await import("fs/promises");
@@ -10,14 +10,14 @@ async function storeEphemeralKeys(fileName: string, data: any): Promise<void> {
   }
 }
 
-async function retrieveEphemeralKeys(key: string): Promise<any | null> {
+async function retrieveEphemeralKeys(key: string): Promise<unknown | null> {
   if (isNode) {
     try {
       const { readFile } = await import("fs/promises");
       const data = await readFile(`${key}.json`, "utf-8");
       return JSON.parse(data);
-    } catch (error: any) {
-      if (error.code === "ENOENT") {
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
         return null;
       }
       throw error;
