@@ -15,7 +15,8 @@ export const SolutionsDropdown = ({ isOpen, onMouseEnter, onMouseLeave, submenuI
   const { t } = useTranslation();
 
   return (
-    <div className="relative ml-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} role="menu">
+    // biome-ignore lint/a11y/noStaticElementInteractions: Hover controls a visual dropdown; this is not a full ARIA menu.
+    <div className="relative ml-3" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       <div className={`cursor-pointer ${navLinkStyles}`}>{t("components.navbar.solutions")}</div>
       {isOpen && (
         <div className="absolute top-full left-0 z-50 cursor-initial pt-2">

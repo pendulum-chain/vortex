@@ -58,11 +58,11 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
   const toIcon = useTokenIcon(transaction.toCurrency, toNetwork);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Hover only reveals visual status details; there is no list container here.
     <div
       className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      role="listitem"
     >
       <div className="flex items-center space-x-2">
         <div>
