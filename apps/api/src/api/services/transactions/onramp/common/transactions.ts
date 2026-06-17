@@ -265,6 +265,7 @@ export async function addNablaSwapTransactionsOnBase(
   // OffRampMergeSubsidyEvmEngine). Use the AMM-only amount when available so
   // the on-chain minimum reflects what the AMM can actually deliver.
   const minOutputBaseRaw = quote.metadata.nablaSwapEvm.ammOutputAmountRaw ?? quote.metadata.nablaSwapEvm.outputAmountRaw;
+  // biome-ignore lint/correctness/noUnusedVariables: retained to keep the downstream interface stable while min-output uses the AMM-only amount
   const outputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
 
   const nablaSoftMinimumOutputRaw = Big(minOutputBaseRaw)
