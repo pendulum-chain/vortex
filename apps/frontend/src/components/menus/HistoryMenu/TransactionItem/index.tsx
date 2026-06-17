@@ -62,6 +62,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
       className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      role="listitem"
     >
       <div className="flex items-center space-x-2">
         <div>

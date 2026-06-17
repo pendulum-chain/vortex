@@ -62,10 +62,15 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
 
   return (
     <div
+      aria-label="Image comparison slider"
+      aria-valuemax={100}
+      aria-valuemin={0}
+      aria-valuenow={sliderPosition}
       className={`group relative h-full touch-none select-none overflow-hidden ${className}`}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       ref={containerRef}
+      role="slider"
     >
       <img
         alt={beforeAlt}
