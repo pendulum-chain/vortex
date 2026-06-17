@@ -50,7 +50,8 @@ export const getOrCreateSheet = async (doc: GoogleSpreadsheet, headerValues: str
           return sheet;
         }
       } catch (error) {
-        logger.debug("Spreadsheet header check failed while searching for matching sheet", error);
+        const message = error instanceof Error ? error.message : String(error);
+        logger.debug(`Spreadsheet header check failed while searching for matching sheet: ${message}`);
       }
     }
 
