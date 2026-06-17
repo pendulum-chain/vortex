@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
@@ -64,6 +65,15 @@ function getActorErrorMessage(event: unknown): string {
 
 export const rampMachine = setup({
   actions: {
+    // Report genuine money-flow failures to Sentry. User-rejected signatures are expected,
+    // not bugs, so they are skipped here regardless of how the transition was routed.
+    captureActorError: ({ event }) => {
+      const error = (event as { error?: unknown }).error;
+      if (!error || (error instanceof SignRampError && error.type === SignRampErrorType.UserRejected)) {
+        return;
+      }
+      Sentry.captureException(error);
+    },
     refreshQuoteActionWithDelay: async ({ context, self }) => {
       const { quote, quoteLocked, apiKey, partnerId } = context;
       if (quoteLocked || !quote) {
@@ -355,12 +365,15 @@ export const rampMachine = setup({
       }
     },
     Error: {
-      entry: assign(({ context }) => ({
-        ...context,
-        rampSigningPhase: undefined,
-        rampSigningPhaseCurrent: undefined,
-        rampSigningPhaseMax: undefined
-      })),
+      entry: [
+        "captureActorError",
+        assign(({ context }) => ({
+          ...context,
+          rampSigningPhase: undefined,
+          rampSigningPhaseCurrent: undefined,
+          rampSigningPhaseMax: undefined
+        }))
+      ],
       on: {
         RESET_RAMP: {
           target: "Resetting"
