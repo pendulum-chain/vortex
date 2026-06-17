@@ -1,19 +1,58 @@
 import { SIGNING_SERVICE_URL } from "../../constants/constants";
 import { AuthService } from "../auth";
 
-export class ApiError extends Error {
+// Errors carrying a `domain` are tagged by business area (kyc/kyb/quote/ramp/auth/wallet)
+// in Sentry's beforeSend. Implemented by ApiError and SignRampError.
+export interface DomainError {
+  domain: string;
+}
+
+export class ApiError extends Error implements DomainError {
   status: number;
   data: { error?: string; message?: string; details?: string };
+  domain: string;
 
-  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string) {
+  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string, domain: string) {
     super(message);
     this.status = status;
     this.data = data;
+    this.domain = domain;
   }
 }
 
 export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
+}
+
+// Replace dynamic path segments (uuids, numeric ids, wallet addresses/long tokens) with ":id"
+// so Sentry groups errors by endpoint instead of creating one issue per id. Also keeps
+// addresses out of issue titles.
+function normalizePath(path: string): string {
+  return path
+    .replace(/\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=\/|$)/g, "/:id")
+    .replace(/\/\d+(?=\/|$)/g, "/:id")
+    .replace(/\/[A-Za-z0-9]{20,}(?=\/|$)/g, "/:id");
+}
+
+// Map an endpoint path to a coarse business domain for Sentry tagging.
+function getApiDomain(path: string): string {
+  if (path.toLowerCase().includes("kyb")) return "kyb";
+  const segment = path.split("/").filter(Boolean)[0]?.toLowerCase();
+  switch (segment) {
+    case "ramp":
+    case "subsidize":
+      return "ramp";
+    case "quotes":
+      return "quote";
+    case "brla":
+    case "alfredpay":
+    case "mykobo":
+      return "kyc";
+    case "siwe":
+      return "auth";
+    default:
+      return segment ?? "api";
+  }
 }
 
 async function apiFetch<T>(
@@ -52,8 +91,14 @@ async function apiFetch<T>(
     const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
     console.error("API Error:", errorData);
     const serverMessage = errorData.error ?? errorData.message ?? response.statusText;
-    // Prefix with method/status/path so Sentry groups by endpoint instead of one generic bucket.
-    throw new ApiError(response.status, errorData, `${method.toUpperCase()} ${path} (${response.status}): ${serverMessage}`);
+    // Prefix with method/status/normalized-path so Sentry groups by endpoint (one issue per
+    // endpoint, not per id) instead of one generic bucket.
+    throw new ApiError(
+      response.status,
+      errorData,
+      `${method.toUpperCase()} ${normalizePath(path)} (${response.status}): ${serverMessage}`,
+      getApiDomain(path)
+    );
   }
 
   if (response.status === 204) return undefined as T;

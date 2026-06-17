@@ -7,6 +7,7 @@ import {
   PresignedTx
 } from "@vortexfi/shared";
 import { RampService } from "../../services/api";
+import type { DomainError } from "../../services/api/api-client";
 import {
   signAndSubmitEvmTransaction,
   signAndSubmitSubstrateTransaction,
@@ -19,8 +20,10 @@ export enum SignRampErrorType {
   UserRejected = "USER_REJECTED",
   UnknownError = "UNKNOWN_ERROR"
 }
-export class SignRampError extends Error {
+export class SignRampError extends Error implements DomainError {
   type: SignRampErrorType;
+  // Tagged as the "wallet" business area in Sentry's beforeSend.
+  domain = "wallet";
   constructor(message: string, type: SignRampErrorType) {
     super(message);
     this.type = type;
