@@ -17,6 +17,12 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function getAddIndexOptions(args: readonly unknown[]): Record<string, unknown> | undefined {
+  const options = args.length >= 3 ? args[2] : args[1];
+
+  return typeof options === "object" && options !== null ? (options as Record<string, unknown>) : undefined;
+}
+
 // Create Umzug instance for migrations
 const umzug = new Umzug({
   context: new Proxy(sequelize.getQueryInterface(), {
@@ -27,7 +33,7 @@ const umzug = new Umzug({
             return await target.addIndex(...args);
           } catch (error) {
             if (getDatabaseErrorCode(error) === "42P07") {
-              const options = args[2] as unknown;
+              const options = getAddIndexOptions(args);
               const indexName =
                 typeof options === "object" && options !== null && "name" in options
                   ? String((options as Record<"name", unknown>).name)

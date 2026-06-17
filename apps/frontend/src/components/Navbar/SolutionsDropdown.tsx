@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import type { FocusEvent, KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { SubmenuItem } from "./types";
 
@@ -37,8 +37,15 @@ export const SolutionsDropdown = ({ isOpen, onMouseEnter, onMouseLeave, submenuI
     }
   };
 
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const nextFocusedElement = event.relatedTarget;
+    if (!nextFocusedElement || !event.currentTarget.contains(nextFocusedElement)) {
+      onMouseLeave();
+    }
+  };
+
   return (
-    <div className="relative ml-3">
+    <div className="relative ml-3" onBlur={handleBlur} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} role="group">
       <button
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -55,13 +62,7 @@ export const SolutionsDropdown = ({ isOpen, onMouseEnter, onMouseLeave, submenuI
         <div className="absolute top-full left-0 z-50 cursor-initial pt-2">
           <div className="min-w-24 rounded-lg bg-white py-2 shadow-lg">
             {submenuItems.map(item => (
-              <button
-                className={submenuButtonStyles}
-                key={item.label}
-                onBlur={onMouseLeave}
-                onClick={item.onClick}
-                type="button"
-              >
+              <button className={submenuButtonStyles} key={item.label} onClick={item.onClick} type="button">
                 {item.label}
               </button>
             ))}

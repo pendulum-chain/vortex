@@ -315,7 +315,9 @@ export class AlfredpayController {
         ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId)
         : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
 
-      const newStatus = AlfredpayController.mapKycStatus(statusResponse.status);
+      const newStatus = isBusiness
+        ? AlfredpayController.mapKybStatus(statusResponse.status)
+        : AlfredpayController.mapKycStatus(statusResponse.status);
       const updateData: Partial<AlfredPayCustomer> = {};
 
       if (newStatus && newStatus !== alfredPayCustomer.status) {
