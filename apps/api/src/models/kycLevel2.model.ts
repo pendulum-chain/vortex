@@ -6,9 +6,9 @@ export interface KycLevel2Attributes {
   userId: string | null;
   subaccountId: string;
   documentType: "RG" | "CNH";
-  uploadData: any;
+  uploadData: unknown;
   status: "Requested" | "DataCollected" | "BrlaValidating" | "Rejected" | "Accepted" | "Cancelled";
-  errorLogs: any[];
+  errorLogs: unknown[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,9 +20,9 @@ class KycLevel2 extends Model<KycLevel2Attributes, KycLevel2CreationAttributes> 
   declare userId: string | null;
   declare subaccountId: string;
   declare documentType: "RG" | "CNH";
-  declare uploadData: any;
+  declare uploadData: unknown;
   declare status: "Requested" | "DataCollected" | "BrlaValidating" | "Rejected" | "Accepted" | "Cancelled";
-  declare errorLogs: any[];
+  declare errorLogs: unknown[];
   declare createdAt: Date;
   declare updatedAt: Date;
 }
