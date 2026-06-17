@@ -3,6 +3,7 @@ import logger from "../../config/logger";
 import { SupabaseAuthService } from "../services/auth";
 
 declare global {
+  // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
   namespace Express {
     interface Request {
       userId?: string;

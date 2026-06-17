@@ -19,6 +19,15 @@ const ALFREDPAY_ONRAMP_MINT_TIMEOUT_MS = 5 * 60 * 1000;
 const BALANCE_POLL_INTERVAL_MS = 5000;
 const ALFREDPAY_POLL_INTERVAL_MS = 5000;
 
+type AlfredpayFailedStatusError = {
+  failureReason?: string;
+  kind: "failed";
+};
+
+function isAlfredpayFailedStatusError(error: unknown): error is AlfredpayFailedStatusError {
+  return !!error && typeof error === "object" && "kind" in error && error.kind === "failed";
+}
+
 export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "alfredpayOnrampMint";
@@ -74,8 +83,8 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
     //   (it does NOT resolve on ON_CHAIN_COMPLETED, because we trust the balance check)
     try {
       await Promise.race([balanceCheckPromise, alfredpayPollingPromise]);
-    } catch (error: any) {
-      if (error?.kind === "failed") {
+    } catch (error) {
+      if (isAlfredpayFailedStatusError(error)) {
         logger.error(`AlfredpayOnrampMintHandler: Alfredpay onramp FAILED. Reason: ${error.failureReason ?? "unknown"}`);
         return this.transitionToNextPhase(state, "failed");
       }
@@ -147,8 +156,8 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
             }
             return;
           }
-        } catch (error: any) {
-          if (error?.kind === "failed") {
+        } catch (error) {
+          if (isAlfredpayFailedStatusError(error)) {
             reject(error);
             return;
           }

@@ -7,7 +7,7 @@ import {
   roundDownToSignificantDecimals
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { FC, useState } from "react";
+import { FC } from "react";
 import { useTokenIcon } from "../../../../hooks/useTokenIcon";
 import { StatusBadge } from "../../../StatusBadge";
 import { TokenIconWithNetwork } from "../../../TokenIconWithNetwork";
@@ -48,8 +48,6 @@ const getNetworkName = (network: TransactionDestination) => {
 };
 
 export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   // Determine network for each currency (only on-chain tokens have networks)
   const fromNetwork = isNetwork(transaction.from) ? transaction.from : undefined;
   const toNetwork = isNetwork(transaction.to) ? transaction.to : undefined;
@@ -58,11 +56,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
   const toIcon = useTokenIcon(transaction.toCurrency, toNetwork);
 
   return (
-    <div
-      className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="group flex items-center justify-between border-gray-200 border-b p-4 hover:bg-gray-50">
       <div className="flex items-center space-x-2">
         <div>
           <div className="relative h-8 w-16">
@@ -98,7 +92,7 @@ export const TransactionItem: FC<TransactionItemProps> = ({ transaction }) => {
         </div>
       </div>
       <div className="flex flex-col items-end space-y-2">
-        <StatusBadge explorerLink={transaction.externalTxExplorerLink} isHovered={isHovered} status={transaction.status} />
+        <StatusBadge explorerLink={transaction.externalTxExplorerLink} status={transaction.status} />
         <div className="cursor-pointer text-gray-500 text-sm hover:text-gray-700">
           <div className="tooltip tooltip-left z-50" data-tip={formatTooltipDate(transaction.date)}>
             {formatDate(transaction.date)}

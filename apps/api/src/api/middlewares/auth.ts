@@ -4,9 +4,10 @@ import logger from "../../config/logger";
 import { validateSignatureAndGetMemo } from "../services/siwe.service";
 
 declare global {
+  // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
   namespace Express {
     interface Request {
-      derivedMemo: string | null;
+      derivedMemo?: string | null;
     }
   }
 }

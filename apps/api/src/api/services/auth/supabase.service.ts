@@ -1,3 +1,4 @@
+import type { User } from "@supabase/supabase-js";
 import logger from "../../../config/logger";
 import { supabase, supabaseAdmin } from "../../../config/supabase";
 
@@ -182,11 +183,15 @@ export class SupabaseAuthService {
   /**
    * Get user profile from Supabase
    */
-  static async getUserProfile(userId: string): Promise<any> {
+  static async getUserProfile(userId: string): Promise<User> {
     const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
 
     if (error) {
       throw error;
+    }
+
+    if (!data.user) {
+      throw new Error(`Supabase user ${userId} not found`);
     }
 
     return data.user;

@@ -13,10 +13,6 @@ export interface VolumeRow {
   total_usd: number;
 }
 
-export interface MonthlyVolume extends VolumeRow {
-  month: string;
-}
-
 export interface ChainVolume {
   chain: string;
   buy_usd: number;
@@ -80,9 +76,10 @@ function getAnonSupabaseClient() {
   return supabaseAnonClient;
 }
 
-function isAuthOrPermissionError(error: any): boolean {
-  const rawCode = error?.code ?? "";
-  const rawMessage = error?.message ?? "";
+function isAuthOrPermissionError(error: unknown): boolean {
+  const errorRecord = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+  const rawCode = errorRecord.code ?? "";
+  const rawMessage = errorRecord.message ?? "";
   const errorCode = String(rawCode).toLowerCase();
   const errorMessage = String(rawMessage).toLowerCase();
 
@@ -100,7 +97,7 @@ function isAuthOrPermissionError(error: any): boolean {
   return hasAuthOrPermissionText || has401 || has403;
 }
 
-async function rpcWithFallback<T extends any[], P extends Record<string, unknown>>(fn: string, params: P): Promise<T> {
+async function rpcWithFallback<T extends unknown[], P extends Record<string, unknown>>(fn: string, params: P): Promise<T> {
   const hasServiceKey = !!config.supabase.serviceRoleKey;
   const hasAnonKey = !!config.supabase.anonKey;
 
@@ -164,10 +161,15 @@ async function rpcWithFallback<T extends any[], P extends Record<string, unknown
   throw fallbackResult.error;
 }
 
-const zeroVolume = (key: string, keyName: "day" | "month"): any => ({
-  [keyName]: key,
-  chains: []
-});
+function zeroVolume(key: string, keyName: "day"): DailyVolume;
+function zeroVolume(key: string, keyName: "month"): MonthlyVolume;
+function zeroVolume(key: string, keyName: "day" | "month"): DailyVolume | MonthlyVolume {
+  return keyName === "day" ? { chains: [], day: key } : { chains: [], month: key };
+}
+
+function getErrorStack(error: unknown): string | undefined {
+  return error instanceof Error ? error.stack : undefined;
+}
 
 async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
   const cacheKey = "monthly";
@@ -198,9 +200,9 @@ async function getMonthlyVolumes(): Promise<MonthlyVolume[]> {
 
     cache.set(cacheKey, volumes, CACHE_TTL_SECONDS);
     return volumes;
-  } catch (error: any) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("Could not calculate monthly volumes", { error: errorMessage, stack: error?.stack });
+    logger.error("Could not calculate monthly volumes", { error: errorMessage, stack: getErrorStack(error) });
     throw new Error("Could not calculate monthly volumes: " + errorMessage);
   }
 }
@@ -229,9 +231,9 @@ async function getDailyVolumes(startDate: string, endDate: string): Promise<Dail
     }
 
     return volumes;
-  } catch (error: any) {
+  } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logger.error("Could not calculate daily volumes", { error: errorMessage, stack: error?.stack });
+    logger.error("Could not calculate daily volumes", { error: errorMessage, stack: getErrorStack(error) });
     throw new Error("Could not calculate daily volumes: " + errorMessage);
   }
 }
@@ -244,10 +246,10 @@ function aggregateWeekly(daily: DailyVolume[]): WeeklyVolume[] {
     const startDay = chunk[0].day;
     const endDay = chunk[chunk.length - 1].day;
 
-    const chainTotals = new Map<string, any>();
+    const chainTotals = new Map<string, ChainVolume>();
 
     chunk.forEach(day => {
-      day.chains.forEach((c: any) => {
+      day.chains.forEach(c => {
         const existing = chainTotals.get(c.chain) || { buy_usd: 0, chain: c.chain, sell_usd: 0, total_usd: 0 };
         existing.buy_usd += c.buy_usd;
         existing.sell_usd += c.sell_usd;

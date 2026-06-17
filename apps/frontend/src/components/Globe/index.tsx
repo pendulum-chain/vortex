@@ -164,10 +164,11 @@ export const Globe = ({ className }: GlobeProps) => {
 
   useEffect(() => {
     if (!canvasRef.current || reducedMotion) return;
+    const draggingRef = isDraggingRef;
     let rafId: number;
     const globe = createGlobe(canvasRef.current, createGlobeConfig(size));
     const tick = () => {
-      if (!isDraggingRef.current) {
+      if (!draggingRef.current) {
         phiRef.current += NORMAL_SPEED;
         thetaRef.current += VERTICAL_SPEED;
       }
@@ -180,7 +181,7 @@ export const Globe = ({ className }: GlobeProps) => {
       globe.destroy();
       cancelAnimationFrame(rafId);
     };
-  }, [reducedMotion, size]);
+  }, [isDraggingRef, reducedMotion, size]);
 
   return (
     <div
