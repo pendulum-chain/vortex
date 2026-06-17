@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { ComponentProps } from "react";
 import { AveniaLivenessStep } from "../components/widget-steps/AveniaLivenessStep";
 
-type AveniaLivenessStepProps = React.ComponentProps<typeof AveniaLivenessStep>;
+type AveniaLivenessStepProps = ComponentProps<typeof AveniaLivenessStep>;
 
 // Create mock Avenia KYC actor
 const createMockAveniaKycActor = (livenessCheckOpened = false) => ({

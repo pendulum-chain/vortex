@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { ComponentProps } from "react";
 import { RampFollowUpRedirectStep } from "../components/widget-steps/RampFollowUpRedirectStep";
 import { RampStateContext } from "../contexts/rampState";
 
-type RampStateProviderOptions = NonNullable<React.ComponentProps<typeof RampStateContext.Provider>["options"]>;
+type RampStateProviderOptions = NonNullable<ComponentProps<typeof RampStateContext.Provider>["options"]>;
 
 // Helper to create a complete snapshot
 const createSnapshot = (callbackUrl = "https://example.com/callback") => ({
