@@ -19,6 +19,7 @@
       "!**/coverage/**",
       "!**/gql/**",
       "!**/lottie/**",
+      "!contracts/relayer/typechain-types/**",
       "!**/*.test.ts",
       "!**/*.test.tsx",
       "!**/routeTree.gen.ts"
@@ -113,16 +114,5 @@
         "useNamespaceKeyword": "error"
       }
     }
-  },
-  "overrides": [
-    {
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
-        }
-      }
-    }
-  ]
+  }
 }
