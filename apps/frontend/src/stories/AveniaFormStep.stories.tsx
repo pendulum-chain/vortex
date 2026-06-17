@@ -3,7 +3,13 @@ import { FormProvider, useForm } from "react-hook-form";
 import { AveniaFormStep } from "../components/widget-steps/AveniaFormStep";
 
 // Wrapper to provide form context
-const FormWrapper = ({ children, defaultValues }: { children: React.ReactNode; defaultValues?: any }) => {
+type AveniaFormValues = {
+  pixId: string;
+  taxId: string;
+  walletAddress: string;
+};
+
+const FormWrapper = ({ children, defaultValues }: { children: React.ReactNode; defaultValues?: AveniaFormValues }) => {
   const methods = useForm({
     defaultValues: defaultValues || {
       pixId: "",

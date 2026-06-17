@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { RampFollowUpRedirectStep } from "../components/widget-steps/RampFollowUpRedirectStep";
 import { RampStateContext } from "../contexts/rampState";
 
+type RampStateProviderOptions = NonNullable<React.ComponentProps<typeof RampStateContext.Provider>["options"]>;
+
 // Helper to create a complete snapshot
 const createSnapshot = (callbackUrl = "https://example.com/callback") => ({
   children: {},
@@ -46,7 +48,7 @@ const meta: Meta<typeof RampFollowUpRedirectStep> = {
       const snapshot = createSnapshot(callbackUrl);
 
       return (
-        <RampStateContext.Provider options={{ snapshot: snapshot as any }}>
+        <RampStateContext.Provider options={{ snapshot: snapshot as unknown as RampStateProviderOptions["snapshot"] }}>
           <div className="mx-auto w-96 rounded-lg border bg-white p-6 shadow-custom">
             <Story />
           </div>
