@@ -61,8 +61,6 @@ export async function getBrlaBalanceOnBaseRaw(): Promise<string> {
   return balance.toString();
 }
 
-import { checkInitialUsdcBalanceOnBase } from "../usdc-brla-usdc-base/steps.ts";
-
 export async function quoteMainNablaUsdcToBrlaOnBase(usdcAmountRaw: string): Promise<string> {
   const { router, quoter } = getMainNablaConfig();
   const evmClientManager = EvmClientManager.getInstance();
