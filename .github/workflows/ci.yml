@@ -34,9 +34,8 @@ jobs:
       - name: Build 
         run: bun run build
 
+      - name: 🧪 Biome check
+        run: bun run verify
+
       - name: ✏️ Typecheck
         run: bun run typecheck
-
-#      We currently do not run the linter as we have too many issues.
-#      - name: 🧪 Lint
-#        run: bun run lint
