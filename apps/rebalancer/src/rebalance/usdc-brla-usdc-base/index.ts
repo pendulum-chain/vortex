@@ -4,6 +4,7 @@ import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from
 import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
+import { evaluateFallbackRoutePolicy } from "./guards.ts";
 import { formatBaseRebalanceCompletionMessage, type RebalancePolicySummary } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
@@ -177,6 +178,28 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         } catch (error) {
           console.error("Avenia swap ticket creation failed. Falling back to SquidRouter route.", error);
+          if (policy?.opportunistic) {
+            if (!state.usdcAmountRaw)
+              throw new Error("State corrupted: usdcAmountRaw missing for opportunistic fallback check");
+            if (!state.squidRouterQuoteUsdc) {
+              throw new Error("Opportunistic Avenia fallback blocked: SquidRouter was not quoted before execution.");
+            }
+
+            const fallbackPolicy = evaluateFallbackRoutePolicy(
+              Big(state.usdcAmountRaw),
+              Big(state.squidRouterQuoteUsdc),
+              policy.deviationBps ?? 0,
+              policy.config,
+              {
+                requireOpportunisticCost: true,
+                requireProfit: policy.dailyLimitDecision?.reason === "profitable_quote"
+              }
+            );
+            if (!fallbackPolicy.shouldExecute) {
+              throw new Error(`Opportunistic Avenia fallback blocked: ${fallbackPolicy.reason}`);
+            }
+          }
+
           state.winningRoute = "squidrouter";
           state.currentPhase = UsdcBaseRebalancePhase.AveniaTransferToPolygon;
           await stateManager.saveState(state);

@@ -1,6 +1,7 @@
 import Big from "big.js";
 
 export const DEFAULT_ARRIVAL_TOLERANCE = "0.998";
+export const OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS = 10;
 
 export type RebalancingPolicyMode = "auto" | "always" | "dry-run" | "off";
 export type RebalancingUrgencyBand = "mild" | "moderate" | "severe";
@@ -29,6 +30,13 @@ export interface DailyBridgeLimitDecision {
   projectedTotalRaw: string;
   reason: "under_limit" | "profitable_quote" | "daily_limit_reached";
   shouldSkip: boolean;
+}
+
+export interface FallbackRoutePolicyDecision {
+  decision: RebalancingCostPolicyDecision;
+  profitable: boolean;
+  reason: string;
+  shouldExecute: boolean;
 }
 
 export function calculateMinimumDelta(expectedDelta: Big, tolerance = DEFAULT_ARRIVAL_TOLERANCE): Big {
@@ -71,6 +79,45 @@ export function evaluateDailyBridgeLimit(
 export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRaw: Big): number {
   if (inputAmountRaw.lte(0)) throw new Error("inputAmountRaw must be greater than zero.");
   return Number(inputAmountRaw.minus(projectedOutputRaw).div(inputAmountRaw).mul(10_000).toFixed(2));
+}
+
+export function shouldTriggerOpportunisticUsdcToBrla(costBps: number): boolean {
+  return costBps < OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS;
+}
+
+export function evaluateFallbackRoutePolicy(
+  inputAmountRaw: Big,
+  fallbackOutputRaw: Big,
+  deviationBps: number,
+  config: RebalancingCostPolicyConfig,
+  options: { requireOpportunisticCost: boolean; requireProfit: boolean }
+): FallbackRoutePolicyDecision {
+  const decision = evaluateRebalancingCostPolicy(inputAmountRaw, fallbackOutputRaw, deviationBps, config);
+  const profitable = isProjectedProfit(inputAmountRaw, fallbackOutputRaw);
+
+  if (!decision.shouldExecute) {
+    return { decision, profitable, reason: decision.reason, shouldExecute: false };
+  }
+
+  if (options.requireOpportunisticCost && !shouldTriggerOpportunisticUsdcToBrla(decision.costBps)) {
+    return {
+      decision,
+      profitable,
+      reason: `Fallback route cost ${decision.costBps} bps is not below opportunistic cap ${OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS} bps.`,
+      shouldExecute: false
+    };
+  }
+
+  if (options.requireProfit && !profitable) {
+    return {
+      decision,
+      profitable,
+      reason: "Fallback route is not profitable, but the original route bypassed the daily bridge limit as profitable.",
+      shouldExecute: false
+    };
+  }
+
+  return { decision, profitable, reason: "Fallback route satisfies the required policy checks.", shouldExecute: true };
 }
 
 export function getRebalancingUrgencyBand(
