@@ -2,10 +2,13 @@ import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import { SupabaseAuthService } from "../services/auth";
 
-declare module "express" {
-  interface Request {
-    userId?: string;
-    userEmail?: string;
+declare global {
+  // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
+  namespace Express {
+    interface Request {
+      userId?: string;
+      userEmail?: string;
+    }
   }
 }
 
