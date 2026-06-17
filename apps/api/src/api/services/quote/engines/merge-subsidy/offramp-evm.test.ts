@@ -33,6 +33,8 @@ function createContext(nablaSwapEvm: QuoteContext["nablaSwapEvm"]): QuoteContext
 describe("OffRampMergeSubsidyEvmEngine", () => {
   it("preserves AMM-only output before writing the merged subsidized output", async () => {
     const ctx = createContext({
+      ammOutputAmountDecimal: new Big("100"),
+      ammOutputAmountRaw: "100000000",
       inputAmountForSwapDecimal: "100",
       inputAmountForSwapRaw: "100000000",
       inputCurrency: "USDC",
@@ -53,7 +55,7 @@ describe("OffRampMergeSubsidyEvmEngine", () => {
     expect(ctx.nablaSwapEvm?.outputAmountRaw).toBe("110000000");
   });
 
-  it("keeps an existing AMM-only snapshot when subsidy is merged again", async () => {
+  it("does not change the AMM-only output when subsidy is merged again", async () => {
     const ctx = createContext({
       ammOutputAmountDecimal: new Big("100"),
       ammOutputAmountRaw: "100000000",
