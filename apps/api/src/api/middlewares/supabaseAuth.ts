@@ -2,12 +2,10 @@ import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
 import { SupabaseAuthService } from "../services/auth";
 
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-      userEmail?: string;
-    }
+declare module "express" {
+  interface Request {
+    userId?: string;
+    userEmail?: string;
   }
 }
 

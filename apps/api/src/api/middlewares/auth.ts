@@ -3,11 +3,9 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { validateSignatureAndGetMemo } from "../services/siwe.service";
 
-declare global {
-  namespace Express {
-    interface Request {
-      derivedMemo: string | null;
-    }
+declare module "express" {
+  interface Request {
+    derivedMemo?: string | null;
   }
 }
 
