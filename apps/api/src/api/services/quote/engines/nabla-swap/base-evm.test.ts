@@ -2,32 +2,32 @@ import {describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
 import type {QuoteContext} from "../../core/types";
 
-const EvmToken = {
+const mockedEvmToken = {
   BRLA: "BRLA",
   USDC: "USDC"
 } as const;
 
-const Networks = {
+const mockedNetworks = {
   Base: "base"
 } as const;
 
-const RampDirection = {
+const mockedRampDirection = {
   BUY: "BUY",
   SELL: "SELL"
 } as const;
 
 mock.module("@vortexfi/shared", () => ({
-  EvmToken,
+  EvmToken: mockedEvmToken,
   getOnChainTokenDetails: (_network: string, token: string) => ({
     assetSymbol: token,
     decimals: 6,
-    erc20AddressSourceChain: token === EvmToken.USDC ? "0xusdc" : "0xbrla",
+    erc20AddressSourceChain: token === mockedEvmToken.USDC ? "0xusdc" : "0xbrla",
     isNative: false,
-    network: Networks.Base,
+    network: mockedNetworks.Base,
     type: "evm"
   }),
-  Networks,
-  RampDirection
+  Networks: mockedNetworks,
+  RampDirection: mockedRampDirection
 }));
 
 mock.module("../../core/nabla", () => ({
@@ -50,6 +50,7 @@ mock.module("../../../../../config/logger", () => ({
   }
 }));
 
+const {EvmToken, RampDirection} = await import("@vortexfi/shared");
 const {BaseNablaSwapEngineEvm} = await import("./base-evm");
 
 class TestNablaSwapEngineEvm extends BaseNablaSwapEngineEvm {

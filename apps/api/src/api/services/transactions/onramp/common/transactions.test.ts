@@ -7,20 +7,36 @@ const Networks = {
   Moonbeam: "moonbeam"
 } as const;
 
-const createNablaTransactionsForOnrampOnEVM = mock(async () => ({
-  approve: {
-    data: "0xapprove",
-    gas: "100000",
-    to: "0xinput",
-    value: "0"
-  },
-  swap: {
-    data: "0xswap",
-    gas: "200000",
-    to: "0xrouter",
-    value: "0"
+const nablaHardMinimumOutputRawCalls: string[] = [];
+
+const createNablaTransactionsForOnrampOnEVM = mock(
+  async (
+    _inputAmountForNablaSwapRaw: string,
+    _account: AccountMeta,
+    _inputTokenAddress: `0x${string}`,
+    _outputTokenAddress: `0x${string}`,
+    nablaHardMinimumOutputRaw: string,
+    _deadlineMinutes: number,
+    _router: string
+  ) => {
+    nablaHardMinimumOutputRawCalls.push(nablaHardMinimumOutputRaw);
+
+    return {
+      approve: {
+        data: "0xapprove",
+        gas: "100000",
+        to: "0xinput",
+        value: "0"
+      },
+      swap: {
+        data: "0xswap",
+        gas: "200000",
+        to: "0xrouter",
+        value: "0"
+      }
+    };
   }
-}));
+);
 
 mock.module("@vortexfi/shared", () => ({
   AMM_MINIMUM_OUTPUT_HARD_MARGIN: 0.02,
@@ -79,6 +95,7 @@ describe("addNablaSwapTransactionsOnBase", () => {
 
   beforeEach(() => {
     createNablaTransactionsForOnrampOnEVM.mockClear();
+    nablaHardMinimumOutputRawCalls.length = 0;
   });
 
   it("uses AMM-only output for Nabla minimums when subsidy was merged into the quote", async () => {
@@ -95,7 +112,7 @@ describe("addNablaSwapTransactionsOnBase", () => {
       7
     );
 
-    expect(createNablaTransactionsForOnrampOnEVM.mock.calls[0][4]).toBe("98000000");
+    expect(nablaHardMinimumOutputRawCalls).toEqual(["98000000"]);
     expect(result.stateMeta.nablaSoftMinimumOutputRaw).toBe("99000000");
     expect(unsignedTxs.map(tx => tx.phase)).toEqual(["nablaApprove", "nablaSwap"]);
     expect(result.nextNonce).toBe(9);
@@ -113,7 +130,7 @@ describe("addNablaSwapTransactionsOnBase", () => {
       0
     );
 
-    expect(createNablaTransactionsForOnrampOnEVM.mock.calls[0][4]).toBe("107800000");
+    expect(nablaHardMinimumOutputRawCalls).toEqual(["107800000"]);
     expect(result.stateMeta.nablaSoftMinimumOutputRaw).toBe("108900000");
   });
 });
