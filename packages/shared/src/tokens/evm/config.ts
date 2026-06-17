@@ -183,10 +183,10 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
     [EvmToken.MORPHO_VAULT]: {
       assetSymbol: "VAULT",
       decimals: 18,
-      erc20AddressSourceChain: "0xbeeff1D5dE8F79ff37a151681100B039661da518", // Steakhouse USDC vault on Arbitrum
+      erc20AddressSourceChain: "0x0bF0164D17469241B6E086dA4016DCc54FEAA334", // Alphaping USDC vault on Ethereum
       isNative: false,
       logoURI: "https://cdn.morpho.org/v2/assets/images/favicon.svg",
-      network: Networks.Arbitrum,
+      network: Networks.Ethereum,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
     }

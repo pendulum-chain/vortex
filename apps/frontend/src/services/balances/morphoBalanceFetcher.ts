@@ -1,3 +1,4 @@
+import { mainnet } from "@reown/appkit/networks";
 import { Networks } from "@vortexfi/shared";
 import { readContract } from "@wagmi/core";
 import { wagmiConfig } from "../../wagmiConfig";
@@ -12,15 +13,13 @@ const MORPHO_VAULT_ABI = [
   }
 ] as const;
 
-const ARBITRUM_CHAIN_ID = 42161;
-
 export async function fetchMorphoVaultShareBalance(vaultAddress: `0x${string}`, owner: `0x${string}`): Promise<bigint | null> {
   try {
     const raw = (await readContract(wagmiConfig, {
       abi: MORPHO_VAULT_ABI,
       address: vaultAddress,
       args: [owner],
-      chainId: ARBITRUM_CHAIN_ID,
+      chainId: mainnet.id,
       functionName: "balanceOf"
     })) as bigint;
 
@@ -31,4 +30,4 @@ export async function fetchMorphoVaultShareBalance(vaultAddress: `0x${string}`, 
   }
 }
 
-export const MORPHO_VAULT_NETWORK = Networks.Arbitrum;
+export const MORPHO_VAULT_NETWORK = Networks.Ethereum;

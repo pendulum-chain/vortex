@@ -10,11 +10,11 @@ export interface MorphoVaultInfo {
 
 const MORPHO_VAULTS: Record<string, MorphoVaultInfo> = {
   "usdc-arbitrum": {
-    depositAssetAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // USDC on Arbitrum
+    depositAssetAddress: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum
     depositAssetDecimals: 6,
-    network: Networks.Arbitrum,
+    network: Networks.Ethereum,
     shareDecimals: 18, // MetaMorpho default
-    vaultAddress: "0xbeeff1D5dE8F79ff37a151681100B039661da518" // Steakhouse on Arbitrum
+    vaultAddress: "0x0bF0164D17469241B6E086dA4016DCc54FEAA334" // Alphaping on Ethereum
   }
 };
 
