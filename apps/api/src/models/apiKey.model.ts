@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-import Partner from "./partner.model";
+import type Partner from "./partner.model";
 
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {

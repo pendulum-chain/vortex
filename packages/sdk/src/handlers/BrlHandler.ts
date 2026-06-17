@@ -2,6 +2,7 @@ import {
   AccountMeta,
   EphemeralAccount,
   EphemeralAccountType,
+  PresignedTx,
   RampDirection,
   RampProcess,
   RegisterRampRequest,
@@ -18,8 +19,6 @@ import type {
   VortexSdkContext
 } from "../types";
 
-type SignedTransactionPayload = UnsignedTx;
-
 export class BrlHandler implements RampHandler {
   private apiService: ApiService;
   private context: VortexSdkContext;
@@ -33,7 +32,7 @@ export class BrlHandler implements RampHandler {
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
-  ) => Promise<SignedTransactionPayload[]>;
+  ) => Promise<PresignedTx[]>;
 
   constructor(
     apiService: ApiService,
@@ -48,7 +47,7 @@ export class BrlHandler implements RampHandler {
         substrateEphemeral?: EphemeralAccount;
         evmEphemeral?: EphemeralAccount;
       }
-    ) => Promise<SignedTransactionPayload[]>
+    ) => Promise<PresignedTx[]>
   ) {
     this.apiService = apiService;
     this.context = context;
