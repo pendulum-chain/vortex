@@ -167,11 +167,18 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
 
     // Determine which nabla swap we're using (Base EVM or Pendulum)
     const isBaseFlow = !!ctx.nablaSwapEvm;
-    const nablaSwap = ctx.nablaSwapEvm || ctx.nablaSwap!;
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const oraclePrice = nablaSwap.oraclePrice!;
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const usdFees = ctx.fees!.usd!;
+    const nablaSwap = ctx.nablaSwapEvm ?? ctx.nablaSwap;
+    if (!nablaSwap) {
+      throw new Error("OnRampDiscountEngine requires nablaSwap or nablaSwapEvm in context");
+    }
+    const oraclePrice = nablaSwap.oraclePrice;
+    if (!oraclePrice) {
+      throw new Error("OnRampDiscountEngine requires oraclePrice in swap metadata");
+    }
+    const usdFees = ctx.fees?.usd;
+    if (!usdFees) {
+      throw new Error("OnRampDiscountEngine requires fees.usd in context");
+    }
 
     const { inputAmount, rampType } = ctx.request;
 
