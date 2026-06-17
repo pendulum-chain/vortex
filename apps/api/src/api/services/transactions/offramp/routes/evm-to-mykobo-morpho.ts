@@ -345,21 +345,22 @@ export async function prepareEvmToMykoboMorphoOfframpTransactions({
   const eurcTransferAmountRaw = multiplyByPowerOfTen(new Big(mykoboFlooredValue), eurcDecimals).toFixed(0, 0);
 
   const mykobo = MykoboApiService.getInstance();
-  // const intent = await mykobo.createTransactionIntent({
-  //   currency: MykoboCurrency.EURC,
-  //   email_address: email,
-  //   ip_address: ipAddress,
-  //   transaction_type: MykoboTransactionType.WITHDRAW,
-  //   value: mykoboFlooredValue,
-  //   wallet_address: evmEphemeralEntry.address
-  // });
+  const intent = await mykobo.createTransactionIntent({
+    currency: MykoboCurrency.EURC,
+    email_address: email,
+    ip_address: ipAddress,
+    transaction_type: MykoboTransactionType.WITHDRAW,
+    value: mykoboFlooredValue,
+    wallet_address: evmEphemeralEntry.address
+  });
 
-  // if (!isWithdrawInstructions(intent.instructions)) {
-  //   throw new Error("Mykobo intent did not return withdraw instructions; cannot derive receivables address");
-  // }
-  const mykoboReceivablesAddress = "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877"; //intent.instructions.address;
-  const mykoboTransactionId = "mockTransactionId"; //intent.transaction.id;
-  const mykoboTransactionReference = "mockTransactionReference"; //intent.transaction.reference;
+  if (!isWithdrawInstructions(intent.instructions)) {
+    throw new Error("Mykobo intent did not return withdraw instructions; cannot derive receivables address");
+  }
+  // Mocking Mykobo intent call
+  // const mykoboReceivablesAddress = "0x7Ba99e99Bc669B3508AFf9CC0A898E869459F877"; //intent.instructions.address;
+  // const mykoboTransactionId = "mockTransactionId"; //intent.transaction.id;
+  // const mykoboTransactionReference = "mockTransactionReference"; //intent.transaction.reference;
 
   // 7. Base leg (fundEphemeral handled separately; Nabla + payout + cleanups).
   //    When the vault IS on Base, the ephemeral has already broadcast transferFrom (nonce 0)
