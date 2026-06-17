@@ -13,9 +13,10 @@ Then, open the `.env` file and add your Alchemy API key.
 
 ```
 ALCHEMY_API_KEY=your_alchemy_api_key
+EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
+
+# Only required for legacy flow (--legacy flag)
 PENDULUM_ACCOUNT_SECRET=xxx
-MOONBEAM_ACCOUNT_SECRET=xxx
-POLYGON_ACCOUNT_SECRET=xxx
 ```
 
 ## Installation
