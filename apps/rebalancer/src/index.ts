@@ -99,6 +99,17 @@ async function getTodayBridgedUsdRaw(): Promise<Big> {
     .reduce((sum, e) => sum.plus(Big(e.initialAmount)), Big(0));
 }
 
+async function getDailyBridgeLimitContext(): Promise<{ bridgedToday: Big; dailyLimitRaw: Big }> {
+  const config = getConfig();
+  const bridgedToday = await getTodayBridgedUsdRaw();
+  const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
+  console.log(
+    `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
+  );
+
+  return { bridgedToday, dailyLimitRaw };
+}
+
 function logDailyLimitDecision(decision: DailyBridgeLimitDecision, dailyLimitUsd: number) {
   if (decision.reason === "under_limit") return;
 
@@ -238,7 +249,7 @@ async function executeUsdcToBrlaRebalance(
   });
 }
 
-async function tryOpportunisticUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big): Promise<boolean> {
+async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
   const config = getConfig();
   const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
@@ -254,6 +265,7 @@ async function tryOpportunisticUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big)
   }
 
   console.log(`Opportunistic USDC->BRLA rebalance triggered at ${policyDecision.decision.costBps} bps projected cost.`);
+  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
   await executeUsdcToBrlaRebalance(amountUsdcRaw, bridgedToday, dailyLimitRaw, 0, policyDecision, { opportunistic: true });
   return true;
 }
@@ -357,17 +369,13 @@ async function checkForRebalancing() {
   const lowerBound = 1 - config.rebalancingThresholdBrlaToUsdc;
   const upperBound = 1 + config.rebalancingThresholdUsdcToBrla;
 
-  const bridgedToday = await getTodayBridgedUsdRaw();
-  const dailyLimitRaw = multiplyByPowerOfTen(Big(config.rebalancingDailyBridgeLimitUsd), 6);
-  console.log(
-    `Bridged $${bridgedToday.div(1e6).toFixed(2)} today. Daily bridge limit is $${config.rebalancingDailyBridgeLimitUsd}.`
-  );
-
   if (coverage.brlaCoverageRatio >= lowerBound && coverage.brlaCoverageRatio <= upperBound) {
-    if (await tryOpportunisticUsdcToBrla(bridgedToday, dailyLimitRaw)) return;
+    if (await tryOpportunisticUsdcToBrla()) return;
     console.log(`BRLA coverage ${coverage.brlaCoverageRatio} in range [${lowerBound}, ${upperBound}]. No rebalancing needed.`);
     return;
   }
+
+  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
 
   if (coverage.brlaCoverageRatio < lowerBound) {
     const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, lowerBound);
