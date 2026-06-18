@@ -5,6 +5,8 @@ import { calculateFeeComponents } from "../../core/quote-fees";
 import type { PhaseCtx } from "./types";
 
 export async function computeFees(ctx: PhaseCtx): Promise<void> {
+  if (ctx.fees) return;
+
   const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await calculateFeeComponents({
     from: ctx.request.from,
     inputAmount: ctx.request.inputAmount,

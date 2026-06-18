@@ -1,4 +1,4 @@
-import { EvmTokenDetails, getOnChainTokenDetails, multiplyByPowerOfTen, Networks, OnChainToken } from "@vortexfi/shared";
+import { EvmTokenDetails, getOnChainTokenDetails, Networks, OnChainToken } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../core/squidrouter";
 import { evmIO } from "../core/io";
@@ -17,22 +17,14 @@ export function SquidRouterSwap<FromChain extends ChainBrand, ToChain extends Ch
         throw new Error("SquidRouterSwap: Missing ctx.fees.usd - ensure computeFees ran successfully");
       }
 
-      const usdFees = ctx.fees.usd;
-
       const inputTokenDetails = getOnChainTokenDetails(fromChain as Networks, token) as EvmTokenDetails;
-
-      const usdFeesDistributedDecimal = Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
-      const usdFeesDistributedRaw = multiplyByPowerOfTen(usdFeesDistributedDecimal, inputTokenDetails.decimals);
-
-      const inputAmountDecimal = new Big(input.amount).minus(usdFeesDistributedDecimal);
-      const inputAmountRaw = new Big(input.amountRaw).minus(usdFeesDistributedRaw).toFixed(0, 0);
 
       const fromToken = inputTokenDetails.erc20AddressSourceChain;
       const toTokenDetails = getBridgeTargetTokenDetails(ctx.request.outputCurrency as OnChainToken, toChain as Networks);
       const toToken = toTokenDetails.erc20AddressSourceChain;
 
       const bridgeRequest = {
-        amountRaw: inputAmountRaw,
+        amountRaw: input.amountRaw,
         fromNetwork: fromChain as Networks,
         fromToken,
         originalInputAmountForRateCalc: input.amountRaw,
@@ -57,8 +49,8 @@ export function SquidRouterSwap<FromChain extends ChainBrand, ToChain extends Ch
           effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
           fromNetwork: fromChain as Networks,
           fromToken,
-          inputAmountDecimal,
-          inputAmountRaw,
+          inputAmountDecimal: input.amount,
+          inputAmountRaw: input.amountRaw,
           networkFeeUSD: bridgeResult.networkFeeUSD,
           outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
           outputAmountRaw,
