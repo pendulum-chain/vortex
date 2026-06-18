@@ -51,6 +51,11 @@ export function getRebalancingCostPolicyConfig(): RebalancingCostPolicyConfig {
       process.env.REBALANCING_MODERATE_DEVIATION_BPS,
       200
     ),
+    opportunisticUsdcToBrlaMaxCostBps: parseNonNegativeNumber(
+      "REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS",
+      process.env.REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS,
+      10
+    ),
     severeDeviationBps: parseNonNegativeNumber(
       "REBALANCING_SEVERE_DEVIATION_BPS",
       process.env.REBALANCING_SEVERE_DEVIATION_BPS,

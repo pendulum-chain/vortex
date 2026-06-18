@@ -1,7 +1,6 @@
 import Big from "big.js";
 
 export const DEFAULT_ARRIVAL_TOLERANCE = "0.998";
-export const OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS = 10;
 
 export type RebalancingPolicyMode = "auto" | "always" | "dry-run" | "off";
 export type RebalancingUrgencyBand = "mild" | "moderate" | "severe";
@@ -13,6 +12,7 @@ export interface RebalancingCostPolicyConfig {
   maxCostBpsSevere: number;
   mode: RebalancingPolicyMode;
   moderateDeviationBps: number;
+  opportunisticUsdcToBrlaMaxCostBps: number;
   severeDeviationBps: number;
 }
 
@@ -81,8 +81,8 @@ export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRa
   return Number(inputAmountRaw.minus(projectedOutputRaw).div(inputAmountRaw).mul(10_000).toFixed(2));
 }
 
-export function shouldTriggerOpportunisticUsdcToBrla(costBps: number): boolean {
-  return costBps < OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS;
+export function shouldTriggerOpportunisticUsdcToBrla(costBps: number, maxCostBps: number): boolean {
+  return costBps < maxCostBps;
 }
 
 export function evaluateFallbackRoutePolicy(
@@ -90,7 +90,7 @@ export function evaluateFallbackRoutePolicy(
   fallbackOutputRaw: Big,
   deviationBps: number,
   config: RebalancingCostPolicyConfig,
-  options: { requireOpportunisticCost: boolean; requireProfit: boolean }
+  options: { opportunisticMaxCostBps: number; requireOpportunisticCost: boolean; requireProfit: boolean }
 ): FallbackRoutePolicyDecision {
   const decision = evaluateRebalancingCostPolicy(inputAmountRaw, fallbackOutputRaw, deviationBps, config);
   const profitable = isProjectedProfit(inputAmountRaw, fallbackOutputRaw);
@@ -99,11 +99,14 @@ export function evaluateFallbackRoutePolicy(
     return { decision, profitable, reason: decision.reason, shouldExecute: false };
   }
 
-  if (options.requireOpportunisticCost && !shouldTriggerOpportunisticUsdcToBrla(decision.costBps)) {
+  if (
+    options.requireOpportunisticCost &&
+    !shouldTriggerOpportunisticUsdcToBrla(decision.costBps, options.opportunisticMaxCostBps)
+  ) {
     return {
       decision,
       profitable,
-      reason: `Fallback route cost ${decision.costBps} bps is not below opportunistic cap ${OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS} bps.`,
+      reason: `Fallback route cost ${decision.costBps} bps is not below opportunistic cap ${options.opportunisticMaxCostBps} bps.`,
       shouldExecute: false
     };
   }

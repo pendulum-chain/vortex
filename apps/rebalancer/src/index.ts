@@ -11,7 +11,6 @@ import {
   evaluateDailyBridgeLimit,
   evaluateRebalancingCostPolicy,
   isProjectedProfit,
-  OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS,
   type RebalancingCostPolicyDecision,
   shouldTriggerOpportunisticUsdcToBrla
 } from "./rebalance/usdc-brla-usdc-base/guards.ts";
@@ -162,6 +161,11 @@ async function evaluateUsdcToBrlaPolicy(
 ): Promise<{
   decision: RebalancingCostPolicyDecision;
   profitable: boolean;
+  routeQuotes?: {
+    aveniaQuoteUsdc: string | null;
+    mainNablaQuoteUsdc: string | null;
+    squidRouterQuoteUsdc: string | null;
+  };
   shouldExecute: boolean;
   routeToRun?: Exclude<WinningRoute, null>;
 }> {
@@ -195,6 +199,11 @@ async function evaluateUsdcToBrlaPolicy(
   return {
     decision,
     profitable: isProjectedProfit(Big(amountUsdcRaw), Big(projectedOutputRaw)),
+    routeQuotes: {
+      aveniaQuoteUsdc: comparison.aveniaQuoteUsdc,
+      mainNablaQuoteUsdc: comparison.mainNablaQuoteUsdc,
+      squidRouterQuoteUsdc: comparison.squidRouterQuoteUsdc
+    },
     routeToRun,
     shouldExecute: decision.shouldExecute
   };
@@ -224,7 +233,8 @@ async function executeUsdcToBrlaRebalance(
     dailyLimitDecision,
     decision: policyDecision.decision,
     deviationBps: coverageDeviationBps,
-    opportunistic: options.opportunistic
+    opportunistic: options.opportunistic,
+    preflightQuotes: policyDecision.routeQuotes
   });
 }
 
@@ -233,11 +243,12 @@ async function tryOpportunisticUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big)
   const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
   const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, 0);
+  const opportunisticMaxCostBps = config.rebalancingCostPolicy.opportunisticUsdcToBrlaMaxCostBps;
 
   if (!policyDecision.shouldExecute) return false;
-  if (!shouldTriggerOpportunisticUsdcToBrla(policyDecision.decision.costBps)) {
+  if (!shouldTriggerOpportunisticUsdcToBrla(policyDecision.decision.costBps, opportunisticMaxCostBps)) {
     console.log(
-      `No opportunistic USDC->BRLA rebalance: projected cost ${policyDecision.decision.costBps} bps >= ${OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS} bps.`
+      `No opportunistic USDC->BRLA rebalance: projected cost ${policyDecision.decision.costBps} bps >= ${opportunisticMaxCostBps} bps.`
     );
     return false;
   }

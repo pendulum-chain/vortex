@@ -19,6 +19,9 @@ EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
 PENDULUM_ACCOUNT_SECRET=xxx
 ```
 
+For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
+`REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.
+
 ## Installation
 
 To install dependencies:

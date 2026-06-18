@@ -9,7 +9,6 @@ import {
   evaluateRebalancingCostPolicy,
   getRebalancingUrgencyBand,
   isProjectedProfit,
-  OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS,
   type RebalancingCostPolicyConfig,
   shouldTriggerOpportunisticUsdcToBrla,
   wouldExceedDailyBridgeLimit
@@ -22,6 +21,7 @@ const policyConfig: RebalancingCostPolicyConfig = {
   maxCostBpsSevere: 250,
   mode: "auto",
   moderateDeviationBps: 200,
+  opportunisticUsdcToBrlaMaxCostBps: 10,
   severeDeviationBps: 500
 };
 
@@ -70,14 +70,17 @@ describe("USDC Base rebalance guards", () => {
   });
 
   test("triggers opportunistic USDC to BRLA rebalances only below the route cost cap", () => {
-    expect(shouldTriggerOpportunisticUsdcToBrla(-1)).toBe(true);
-    expect(shouldTriggerOpportunisticUsdcToBrla(OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS - 0.01)).toBe(true);
-    expect(shouldTriggerOpportunisticUsdcToBrla(OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS)).toBe(false);
+    const maxCostBps = 7.5;
+
+    expect(shouldTriggerOpportunisticUsdcToBrla(-1, maxCostBps)).toBe(true);
+    expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps - 0.01, maxCostBps)).toBe(true);
+    expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps, maxCostBps)).toBe(false);
   });
 
   test("allows fallback routes only when they satisfy opportunistic policy checks", () => {
     expect(
       evaluateFallbackRoutePolicy(Big("100000000"), Big("99910000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
         requireOpportunisticCost: true,
         requireProfit: false
       }).shouldExecute
@@ -85,6 +88,7 @@ describe("USDC Base rebalance guards", () => {
 
     expect(
       evaluateFallbackRoutePolicy(Big("100000000"), Big("99900000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
         requireOpportunisticCost: true,
         requireProfit: false
       }).shouldExecute
@@ -94,12 +98,14 @@ describe("USDC Base rebalance guards", () => {
   test("requires fallback route profit when the original route bypassed the daily limit as profitable", () => {
     expect(
       evaluateFallbackRoutePolicy(Big("100000000"), Big("100100000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
         requireOpportunisticCost: true,
         requireProfit: true
       }).shouldExecute
     ).toBe(true);
 
     const decision = evaluateFallbackRoutePolicy(Big("100000000"), Big("99910000"), 0, policyConfig, {
+      opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
       requireOpportunisticCost: true,
       requireProfit: true
     });

@@ -71,6 +71,9 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (forcedRoute) {
       console.log(`Forced route: ${forcedRoute}. Skipping full comparison.`);
       state.winningRoute = forcedRoute;
+      state.squidRouterQuoteUsdc = policy?.preflightQuotes?.squidRouterQuoteUsdc ?? null;
+      state.aveniaQuoteUsdc = policy?.preflightQuotes?.aveniaQuoteUsdc ?? null;
+      state.mainNablaQuoteUsdc = policy?.preflightQuotes?.mainNablaQuoteUsdc ?? null;
     } else {
       const comparison = await compareRoutesUpfront(state.usdcAmountRaw);
       state.winningRoute = comparison.winningRoute;
@@ -191,6 +194,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
               policy.deviationBps ?? 0,
               policy.config,
               {
+                opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
                 requireOpportunisticCost: true,
                 requireProfit: policy.dailyLimitDecision?.reason === "profitable_quote"
               }

@@ -8,6 +8,11 @@ export interface RebalancePolicySummary {
   decision?: RebalancingCostPolicyDecision;
   deviationBps?: number;
   opportunistic?: boolean;
+  preflightQuotes?: {
+    aveniaQuoteUsdc: string | null;
+    mainNablaQuoteUsdc: string | null;
+    squidRouterQuoteUsdc: string | null;
+  };
 }
 
 interface BaseRebalanceCompletionMessageParams {
