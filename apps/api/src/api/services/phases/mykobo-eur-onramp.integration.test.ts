@@ -66,7 +66,6 @@ const TEST_EMAIL = "mail@test.com";
 const TEST_IP_ADDRESS = "203.0.113.42";
 
 const filePath = path.join(__dirname, "lastRampStateMykoboEurOnramp.json");
-const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const IBAN_REGEX = /^[A-Z]{2}[0-9A-Z]{2}[0-9A-Z]{4,30}$/;
 
 interface TestSigningAccounts {
