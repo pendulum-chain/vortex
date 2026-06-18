@@ -206,6 +206,10 @@ export interface UsdcBaseRebalanceState {
   mainNablaApproveHash: string | null;
   mainNablaSwapHash: string | null;
   mainNablaUsdcBalanceBeforeRaw: string | null;
+  opportunisticDeviationBps: number | null;
+  opportunisticMaxCostBps: number | null;
+  opportunisticRequiresProfit: boolean;
+  opportunisticUsdcToBrla: boolean;
   polygonBrlaBalanceBeforeTransferRaw: string | null;
   squidRouterSwapHash: string | null;
   baseUsdcBalanceBeforeAveniaSwapRaw: string | null;
@@ -249,6 +253,10 @@ function createFreshState(): UsdcBaseRebalanceState {
     mainNablaUsdcBalanceBeforeRaw: null,
     nablaApproveHash: null,
     nablaSwapHash: null,
+    opportunisticDeviationBps: null,
+    opportunisticMaxCostBps: null,
+    opportunisticRequiresProfit: false,
+    opportunisticUsdcToBrla: false,
     polygonBrlaBalanceBeforeTransferRaw: null,
     squidRouterQuoteUsdc: null,
     squidRouterSwapHash: null,
@@ -330,6 +338,10 @@ export class UsdcBaseStateManager {
       mainNablaUsdcBalanceBeforeRaw: null,
       nablaApproveHash: null,
       nablaSwapHash: null,
+      opportunisticDeviationBps: null,
+      opportunisticMaxCostBps: null,
+      opportunisticRequiresProfit: false,
+      opportunisticUsdcToBrla: false,
       polygonBrlaBalanceBeforeTransferRaw: null,
       squidRouterQuoteUsdc: null,
       squidRouterSwapHash: null,

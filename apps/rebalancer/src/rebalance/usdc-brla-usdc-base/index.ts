@@ -1,6 +1,11 @@
 import { BrlaApiService, multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
-import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from "../../services/stateManager.ts";
+import {
+  UsdcBaseRebalancePhase,
+  type UsdcBaseRebalanceState,
+  UsdcBaseStateManager,
+  usdcBasePhaseOrder
+} from "../../services/stateManager.ts";
 import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
@@ -24,6 +29,37 @@ import {
   waitUsdcOnBase
 } from "./steps.ts";
 
+interface OpportunisticFallbackContext {
+  config: RebalancePolicySummary["config"];
+  deviationBps: number;
+  opportunisticMaxCostBps: number;
+  requireProfit: boolean;
+}
+
+function getOpportunisticFallbackContext(
+  state: UsdcBaseRebalanceState,
+  policy: RebalancePolicySummary | undefined
+): OpportunisticFallbackContext | null {
+  if (policy?.opportunistic) {
+    return {
+      config: policy.config,
+      deviationBps: policy.deviationBps ?? 0,
+      opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
+      requireProfit: policy.dailyLimitDecision?.reason === "profitable_quote"
+    };
+  }
+
+  if (!state.opportunisticUsdcToBrla) return null;
+
+  const config = getConfig().rebalancingCostPolicy;
+  return {
+    config,
+    deviationBps: state.opportunisticDeviationBps ?? 0,
+    opportunisticMaxCostBps: state.opportunisticMaxCostBps ?? config.opportunisticUsdcToBrlaMaxCostBps,
+    requireProfit: state.opportunisticRequiresProfit
+  };
+}
+
 export async function rebalanceUsdcBrlaUsdcBase(
   usdcAmountRaw: string,
   forceRestart = false,
@@ -45,6 +81,14 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
   if (!state) {
     throw new Error("State is undefined after initialization.");
+  }
+
+  if (policy?.opportunistic) {
+    state.opportunisticUsdcToBrla = true;
+    state.opportunisticMaxCostBps = policy.config.opportunisticUsdcToBrlaMaxCostBps;
+    state.opportunisticRequiresProfit = policy.dailyLimitDecision?.reason === "profitable_quote";
+    state.opportunisticDeviationBps = policy.deviationBps ?? 0;
+    await stateManager.saveState(state);
   }
 
   const { publicClient: basePublicClient, walletClient: baseWalletClient } = getBaseEvmClients();
@@ -181,7 +225,8 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         } catch (error) {
           console.error("Avenia swap ticket creation failed. Falling back to SquidRouter route.", error);
-          if (policy?.opportunistic) {
+          const opportunisticFallbackContext = getOpportunisticFallbackContext(state, policy);
+          if (opportunisticFallbackContext) {
             if (!state.usdcAmountRaw)
               throw new Error("State corrupted: usdcAmountRaw missing for opportunistic fallback check");
             if (!state.squidRouterQuoteUsdc) {
@@ -191,12 +236,12 @@ export async function rebalanceUsdcBrlaUsdcBase(
             const fallbackPolicy = evaluateFallbackRoutePolicy(
               Big(state.usdcAmountRaw),
               Big(state.squidRouterQuoteUsdc),
-              policy.deviationBps ?? 0,
-              policy.config,
+              opportunisticFallbackContext.deviationBps,
+              opportunisticFallbackContext.config,
               {
-                opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
+                opportunisticMaxCostBps: opportunisticFallbackContext.opportunisticMaxCostBps,
                 requireOpportunisticCost: true,
-                requireProfit: policy.dailyLimitDecision?.reason === "profitable_quote"
+                requireProfit: opportunisticFallbackContext.requireProfit
               }
             );
             if (!fallbackPolicy.shouldExecute) {

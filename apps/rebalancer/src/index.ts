@@ -227,7 +227,7 @@ async function executeUsdcToBrlaRebalance(
   coverageDeviationBps: number,
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>,
   options: { opportunistic?: boolean } = {}
-) {
+): Promise<boolean> {
   const config = getConfig();
   const dailyLimitDecision = evaluateDailyBridgeLimit(
     bridgedToday,
@@ -236,7 +236,7 @@ async function executeUsdcToBrlaRebalance(
     policyDecision.profitable
   );
   logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
-  if (dailyLimitDecision.shouldSkip) return;
+  if (dailyLimitDecision.shouldSkip) return false;
 
   await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
   await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun, {
@@ -247,6 +247,7 @@ async function executeUsdcToBrlaRebalance(
     opportunistic: options.opportunistic,
     preflightQuotes: policyDecision.routeQuotes
   });
+  return true;
 }
 
 async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
@@ -266,8 +267,7 @@ async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
 
   console.log(`Opportunistic USDC->BRLA rebalance triggered at ${policyDecision.decision.costBps} bps projected cost.`);
   const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
-  await executeUsdcToBrlaRebalance(amountUsdcRaw, bridgedToday, dailyLimitRaw, 0, policyDecision, { opportunistic: true });
-  return true;
+  return executeUsdcToBrlaRebalance(amountUsdcRaw, bridgedToday, dailyLimitRaw, 0, policyDecision, { opportunistic: true });
 }
 
 async function evaluateBrlaToUsdcPolicy(
