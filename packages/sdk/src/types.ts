@@ -92,18 +92,19 @@ export type AnyAdditionalData =
   | EurOnrampAdditionalData
   | AlfredpayOnrampAdditionalData;
 
-export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
-  ? BrlOnrampAdditionalData
-  : Q extends EurOnrampQuote
-    ? EurOnrampAdditionalData
-    : Q extends AlfredpayOnrampQuote
-      ? AlfredpayOnrampAdditionalData
-      : Q extends BrlOfframpQuote
-        ? BrlOfframpAdditionalData
-        : Q extends EurOfframpQuote
-          ? EurOfframpAdditionalData
-          : Q extends AlfredpayOfframpQuote
-            ? AlfredpayOfframpAdditionalData
+// Branch order mirrors ExtendedQuoteResponse (Alfredpay first per direction). Keys are mutually exclusive, so order is cosmetic here.
+export type RegisterRampAdditionalData<Q extends QuoteResponse> = Q extends AlfredpayOnrampQuote
+  ? AlfredpayOnrampAdditionalData
+  : Q extends BrlOnrampQuote
+    ? BrlOnrampAdditionalData
+    : Q extends EurOnrampQuote
+      ? EurOnrampAdditionalData
+      : Q extends AlfredpayOfframpQuote
+        ? AlfredpayOfframpAdditionalData
+        : Q extends BrlOfframpQuote
+          ? BrlOfframpAdditionalData
+          : Q extends EurOfframpQuote
+            ? EurOfframpAdditionalData
             : AnyAdditionalData;
 
 export interface BrlOnrampAdditionalData {
@@ -146,18 +147,18 @@ export type AnyUpdateAdditionalData =
   | EurOfframpUpdateAdditionalData
   | AlfredpayOfframpUpdateAdditionalData;
 
-export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends BrlOnrampQuote
-  ? never // No additional data required from the user for this type of ramp.
-  : Q extends EurOnrampQuote
-    ? EurOnrampUpdateAdditionalData
-    : Q extends AlfredpayOnrampQuote
-      ? never // Alfredpay onramp settles fiat off-chain; no user transactions to update.
-      : Q extends BrlOfframpQuote
-        ? BrlOfframpUpdateAdditionalData
-        : Q extends EurOfframpQuote
-          ? EurOfframpUpdateAdditionalData
-          : Q extends AlfredpayOfframpQuote
-            ? AlfredpayOfframpUpdateAdditionalData
+export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends AlfredpayOnrampQuote
+  ? never // Alfredpay onramp settles fiat off-chain; no user transactions to update.
+  : Q extends BrlOnrampQuote
+    ? never // No additional data required from the user for this type of ramp.
+    : Q extends EurOnrampQuote
+      ? EurOnrampUpdateAdditionalData
+      : Q extends AlfredpayOfframpQuote
+        ? AlfredpayOfframpUpdateAdditionalData
+        : Q extends BrlOfframpQuote
+          ? BrlOfframpUpdateAdditionalData
+          : Q extends EurOfframpQuote
+            ? EurOfframpUpdateAdditionalData
             : AnyUpdateAdditionalData;
 
 export interface EurOnrampUpdateAdditionalData {
