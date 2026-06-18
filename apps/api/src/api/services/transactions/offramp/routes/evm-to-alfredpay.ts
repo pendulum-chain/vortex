@@ -70,7 +70,7 @@ export function getRelayerAddress(network: EvmNetworks): `0x${string}` {
  * Supports three formats:
  *   - Standard (OZ ERC20Permit): name, version, chainId, verifyingContract
  *   - Salt-based (e.g. USDT on Polygon): name, version, verifyingContract, salt
- *   - Minimal (e.g. Morpho VaultV2): chainId, verifyingContract
+ *   - Minimal: chainId, verifyingContract
  */
 export async function resolvePermitDomain(
   publicClient: PublicClient,

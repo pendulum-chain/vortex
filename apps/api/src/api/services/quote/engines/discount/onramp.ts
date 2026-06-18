@@ -123,9 +123,9 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     if (!toNetwork) {
       return null;
     }
-    // Trivial case: USDC/Morpho Vault on Base is also the requested output. No bridge runs, so the
+    // Trivial case: USDC on Base is also the requested output. No bridge runs, so the
     // conversion rate is exactly 1:1 - skip the Squid call.
-    if (toNetwork === Networks.Base && (req.outputCurrency === EvmToken.USDC || req.outputCurrency === EvmToken.MORPHO_VAULT)) {
+    if (toNetwork === Networks.Base && req.outputCurrency === EvmToken.USDC) {
       return new Big(1);
     }
 

@@ -13,7 +13,6 @@ import {
   CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
-  EvmToken,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -61,7 +60,6 @@ import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
-import { prepareMykoboToEvmMorphoOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm-morpho";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
@@ -1172,31 +1170,17 @@ export class RampService extends BaseRampService {
 
     let unsignedTxs;
     let stateMeta;
-    if (quote.outputCurrency === EvmToken.MORPHO_VAULT) {
-      const result = await prepareMykoboToEvmMorphoOnrampTransactions({
-        destinationAddress: additionalData.destinationAddress,
-        ipAddress: additionalData.ipAddress,
-        mykoboEmail: additionalData.email,
-        mykoboTransactionId: intent.transaction.id,
-        mykoboTransactionReference: intent.transaction.reference,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      });
-      unsignedTxs = result.unsignedTxs;
-      stateMeta = result.stateMeta;
-    } else {
-      const result = await prepareMykoboToEvmOnrampTransactions({
-        destinationAddress: additionalData.destinationAddress,
-        ipAddress: additionalData.ipAddress,
-        mykoboEmail: additionalData.email,
-        mykoboTransactionId: intent.transaction.id,
-        mykoboTransactionReference: intent.transaction.reference,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      });
-      unsignedTxs = result.unsignedTxs;
-      stateMeta = result.stateMeta;
-    }
+    const result = await prepareMykoboToEvmOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      ipAddress: additionalData.ipAddress,
+      mykoboEmail: additionalData.email,
+      mykoboTransactionId: intent.transaction.id,
+      mykoboTransactionReference: intent.transaction.reference,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    });
+    unsignedTxs = result.unsignedTxs;
+    stateMeta = result.stateMeta;
 
     const ibanPaymentData: IbanPaymentData = {
       bic: "",
@@ -1294,15 +1278,12 @@ export class RampService extends BaseRampService {
           status: httpStatus.BAD_REQUEST
         });
       } else if (rampState.from !== Networks.AssetHub) {
-        const isMorpho = rampState.unsignedTxs.some(tx => tx.phase === "morphoPermitExecute" || tx.phase === "morphoRedeem");
-        if (!isMorpho) {
-          const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
-          if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
-            throw new APIError({
-              message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
-              status: httpStatus.BAD_REQUEST
-            });
-          }
+        const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
+        if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
+          throw new APIError({
+            message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
+            status: httpStatus.BAD_REQUEST
+          });
         }
       }
     }

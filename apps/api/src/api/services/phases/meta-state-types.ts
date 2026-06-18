@@ -80,21 +80,4 @@ export interface StateMetadata {
   // Explicit phase flow for this ramp (set at registration by route builder).
   // When present, the PhaseProcessor follows this sequence instead of handler-driven routing.
   phaseFlow?: RampPhase[];
-  // Morpho vault deposit
-  morphoVaultAddress?: string;
-  morphoShareTokenAddress?: string;
-  morphoDepositAssetAddress?: string;
-  morphoDepositAmountRaw?: string;
-  morphoDepositTxHash?: `0x${string}`;
-  // Morpho vault redeem (offramp)
-  morphoRedeemVaultAddress?: string;
-  morphoRedeemShareTokenAddress?: string;
-  morphoRedeemAssetAddress?: string;
-  morphoRedeemSharesAmountRaw?: string;
-  morphoRedeemMinOutputRaw?: string;
-  morphoRedeemTxHash?: `0x${string}`;
-  morphoRedeemActualOutputRaw?: string;
-  morphoPermitTxHash?: `0x${string}`;
-  morphoPermitTransferFromTxHash?: `0x${string}`;
-  morphoNetwork?: Networks;
 }

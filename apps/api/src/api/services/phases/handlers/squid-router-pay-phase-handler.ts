@@ -505,8 +505,8 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Resolve the actual destination network of the Squid bridge.
    *
    * For onramps, `quote.to` is the EVM network the bridge delivers to. For offramps to a
-   * payment method (e.g. Morpho -> SEPA via Mykobo), `quote.to` is a PaymentMethod enum
-   * value, so we fall back to the bridge metadata recorded at quote time.
+   * payment method, `quote.to` is a PaymentMethod enum value, so we fall back to the bridge
+   * metadata recorded at quote time.
    */
   private resolveBridgeToChain(quote: QuoteTicket): Networks | undefined {
     const directNetwork = getNetworkFromDestination(quote.to);

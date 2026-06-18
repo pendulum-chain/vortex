@@ -460,8 +460,7 @@ export class PriceFeedService {
       ETH: "ethereum",
       GLMR: "moonbeam",
       HDX: "hydradx",
-      MATIC: "polygon-ecosystem-token",
-      "MORPHO VAULT": "usd-coin"
+      MATIC: "polygon-ecosystem-token"
     };
 
     return tokenIdMap[currency.toUpperCase()] || null;

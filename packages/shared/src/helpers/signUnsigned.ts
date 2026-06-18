@@ -223,9 +223,7 @@ export async function signUnsignedTransactions(
       (tx.phase === "destinationTransfer" ||
         tx.phase === "backupSquidRouterApprove" ||
         tx.phase === "backupSquidRouterSwap" ||
-        tx.phase === "backupApprove" ||
-        tx.phase === "morphoApprove" ||
-        tx.phase === "morphoDeposit") &&
+        tx.phase === "backupApprove") &&
       tx.network !== Networks.Polygon &&
       tx.network !== Networks.PolygonAmoy &&
       tx.network !== Networks.Base

@@ -12,9 +12,6 @@ import hydrationToAssethubXcmPhaseHandler from "./handlers/hydration-to-assethub
 import initialPhaseHandler from "./handlers/initial-phase-handler";
 import moonbeamToPendulumPhaseHandler from "./handlers/moonbeam-to-pendulum-handler";
 import moonbeamToPendulumXcmHandler from "./handlers/moonbeam-to-pendulum-xcm-handler";
-import morphoDepositHandler from "./handlers/morpho-deposit-handler";
-import morphoPermitExecuteHandler from "./handlers/morpho-permit-execute-handler";
-import morphoRedeemHandler from "./handlers/morpho-redeem-handler";
 import mykoboOnrampDepositHandler from "./handlers/mykobo-onramp-deposit-handler";
 import mykoboPayoutHandler from "./handlers/mykobo-payout-handler";
 import nablaApproveHandler from "./handlers/nabla-approve-handler";
@@ -61,9 +58,6 @@ export function registerPhaseHandlers(): void {
   phaseRegistry.registerHandler(finalSettlementSubsidy);
   phaseRegistry.registerHandler(destinationTransferHandler);
   phaseRegistry.registerHandler(squidRouterPermitExecutionHandler);
-  phaseRegistry.registerHandler(morphoDepositHandler);
-  phaseRegistry.registerHandler(morphoPermitExecuteHandler);
-  phaseRegistry.registerHandler(morphoRedeemHandler);
 
   logger.info("Phase handlers registered");
 }

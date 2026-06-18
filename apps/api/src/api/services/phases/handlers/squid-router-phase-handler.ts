@@ -61,8 +61,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
     if (state.type === RampDirection.SELL) {
       // SELL with a squidRouterSwap unsigned tx means an offramp that bridges between EVM
-      // chains (e.g. Morpho offramp: vault on Arbitrum -> USDC bridged to Base). The
-      // ephemeral broadcasts approve+swap; the same bridge logic as onramp applies.
+      // chains. The ephemeral broadcasts approve+swap; the same bridge logic as onramp applies.
     }
 
     // Alfredpay mints USDT directly on Polygon. Skip the swap ONLY when the requested

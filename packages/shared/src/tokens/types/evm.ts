@@ -13,8 +13,7 @@ export enum EvmToken {
   USDCE = "USDC.E",
   ETH = "ETH",
   BRLA = "BRLA",
-  EURC = "EURC",
-  MORPHO_VAULT = "MORPHO VAULT"
+  EURC = "EURC"
 }
 
 export enum UsdLikeEvmToken {

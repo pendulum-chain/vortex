@@ -26,9 +26,6 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
     if (rampState.quote?.inputCurrency === FiatToken.BRL) {
       return "onramp_brl";
     }
-    if (rampState.quote?.outputCurrency === "MORPHO VAULT") {
-      return "onramp_eur_morpho";
-    }
     return "onramp_eur_evm";
   }
 
@@ -37,9 +34,6 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
   }
 
   if (rampState.quote?.outputCurrency === FiatToken.EURC) {
-    if (rampState.quote?.inputCurrency === "MORPHO VAULT") {
-      return "offramp_eur_morpho";
-    }
     return "offramp_eur_evm";
   }
 

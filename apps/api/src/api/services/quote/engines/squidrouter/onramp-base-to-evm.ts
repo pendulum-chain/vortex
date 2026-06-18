@@ -108,12 +108,9 @@ export class OnRampSquidRouterToBaseEngine extends BaseSquidRouterEngine {
 
     const usdcBaseTokenDetails = getTokenDetailsForEvmDestination(EvmToken.USDC, Networks.Base);
 
-    // Trivial case: nabla output (USDC on Base) is already the requested output or is Morpho Vault.
+    // Trivial case: nabla output (USDC on Base) is already the requested output.
     // Skip the Squid route fetch but still emit bridge meta so downstream stages have a 1:1 passthrough record.
-    if (
-      ctx.to === Networks.Base &&
-      (ctx.request.outputCurrency === EvmToken.USDC || ctx.request.outputCurrency === EvmToken.MORPHO_VAULT)
-    ) {
+    if (ctx.to === Networks.Base && ctx.request.outputCurrency === EvmToken.USDC) {
       const targetTokenDetails = getTokenDetailsForEvmDestination(ctx.request.outputCurrency as OnChainToken, Networks.Base);
       return {
         data: {

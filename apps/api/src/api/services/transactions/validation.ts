@@ -231,10 +231,6 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "baseCleanupAxlUsdc":
     case "alfredOnrampMintFallback":
     case "alfredpayOfframpTransferFallback":
-    case "morphoApprove":
-    case "morphoDeposit":
-    case "morphoPermitExecute":
-    case "morphoRedeem":
     case "ethereumCleanupUsdc":
       return EphemeralAccountType.EVM;
     default:

@@ -85,13 +85,6 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
     return false;
   }
 
-  protected getRequiresMorphoNetworkFunding(state: RampState): boolean {
-    const meta = state.state as StateMetadata;
-    if (!meta.morphoNetwork) return false;
-    if (!isNetworkEVM(meta.morphoNetwork as EvmNetworks)) return false;
-    return true;
-  }
-
   protected getRequiresDestinationEvmFunding(state: RampState): boolean {
     // Required for onramps where the destination is an EVM network (not AssetHub)
     if (isOnramp(state) && state.to !== Networks.AssetHub) {
@@ -222,15 +215,7 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
         logger.info("Polygon ephemeral address already funded.");
       }
 
-      // Deduplicate morpho + destination EVM networks: a single network can appear
-      // in both sets (e.g. onramp Morpho on Arbitrum, where the destination ==
-      // morpho network). Funding twice for the same address on the same chain
-      // would over-fund the ephemeral.
       const evmNetworksToFund = new Set<EvmNetworks>();
-      const morphoNetwork = (state.state as StateMetadata).morphoNetwork as EvmNetworks | undefined;
-      if (morphoNetwork && this.getRequiresMorphoNetworkFunding(state)) {
-        evmNetworksToFund.add(morphoNetwork);
-      }
       const destinationNetwork = getNetworkFromDestination(state.to);
       if (isOnramp(state) && destinationNetwork && isNetworkEVM(destinationNetwork) && requiresDestinationEvmFunding) {
         evmNetworksToFund.add(destinationNetwork);

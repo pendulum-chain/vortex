@@ -23,10 +23,6 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   initial: 0,
   moonbeamToPendulum: 40,
   moonbeamToPendulumXcm: 30,
-  morphoApprove: 0,
-  morphoDeposit: 30,
-  morphoPermitExecute: 30,
-  morphoRedeem: 30,
   mykoboOnrampDeposit: 5 * 60,
   mykoboPayoutOnBase: 60,
   nablaApprove: 24,
@@ -71,22 +67,6 @@ export const PHASE_FLOWS = {
     "complete"
   ] as RampPhase[],
 
-  offramp_eur_morpho: [
-    "initial",
-    "morphoPermitExecute",
-    "morphoRedeem",
-    "squidRouterApprove",
-    "squidRouterSwap",
-    "fundEphemeral",
-    "distributeFees",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "subsidizePostSwap",
-    "mykoboPayoutOnBase",
-    "complete"
-  ] as RampPhase[],
-
   onramp_brl: [
     "initial",
     "brlaOnrampMint",
@@ -111,28 +91,13 @@ export const PHASE_FLOWS = {
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
+    "distributeFees",
     "subsidizePostSwap",
     "squidRouterApprove",
     "squidRouterSwap",
     "squidRouterPay",
     "distributeFees",
     "destinationTransfer",
-    "complete"
-  ] as RampPhase[],
-
-  onramp_eur_morpho: [
-    "initial",
-    "mykoboOnrampDeposit",
-    "fundEphemeral",
-    "subsidizePreSwap",
-    "nablaApprove",
-    "nablaSwap",
-    "distributeFees",
-    "subsidizePostSwap",
-    "squidRouterSwap",
-    "squidRouterPay",
-    "finalSettlementSubsidy",
-    "morphoDeposit",
     "complete"
   ] as RampPhase[]
 };
