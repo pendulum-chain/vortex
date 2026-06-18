@@ -2,6 +2,7 @@ import {
   AccountMeta,
   EphemeralAccount,
   EphemeralAccountType,
+  PresignedTx,
   RampProcess,
   RegisterRampRequest,
   UnsignedTx,
@@ -30,7 +31,7 @@ export class AlfredpayHandler implements RampHandler {
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
-  ) => Promise<any[]>;
+  ) => Promise<PresignedTx[]>;
 
   constructor(
     apiService: ApiService,
@@ -45,7 +46,7 @@ export class AlfredpayHandler implements RampHandler {
         substrateEphemeral?: EphemeralAccount;
         evmEphemeral?: EphemeralAccount;
       }
-    ) => Promise<any[]>
+    ) => Promise<PresignedTx[]>
   ) {
     this.apiService = apiService;
     this.context = context;
