@@ -59,13 +59,46 @@ export const ComparisonSlider: React.FC<ComparisonSliderProps> = ({
 
   const handleMouseDown = () => setIsDragging(true);
   const handleTouchStart = () => setIsDragging(true);
+  const updateSliderPosition = (delta: number) => {
+    setSliderPosition(position => Math.min(Math.max(position + delta, 0), 100));
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    switch (event.key) {
+      case "ArrowLeft":
+      case "ArrowDown":
+        event.preventDefault();
+        updateSliderPosition(-5);
+        break;
+      case "ArrowRight":
+      case "ArrowUp":
+        event.preventDefault();
+        updateSliderPosition(5);
+        break;
+      case "Home":
+        event.preventDefault();
+        setSliderPosition(0);
+        break;
+      case "End":
+        event.preventDefault();
+        setSliderPosition(100);
+        break;
+    }
+  };
 
   return (
     <div
+      aria-label="Image comparison slider"
+      aria-valuemax={100}
+      aria-valuemin={0}
+      aria-valuenow={sliderPosition}
       className={`group relative h-full touch-none select-none overflow-hidden ${className}`}
+      onKeyDown={handleKeyDown}
       onMouseDown={handleMouseDown}
       onTouchStart={handleTouchStart}
       ref={containerRef}
+      role="slider"
+      tabIndex={0}
     >
       <img
         alt={beforeAlt}

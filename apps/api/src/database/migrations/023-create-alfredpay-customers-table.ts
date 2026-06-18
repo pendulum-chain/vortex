@@ -1,5 +1,13 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
+async function dropEnumType(queryInterface: QueryInterface, enumName: string): Promise<void> {
+  try {
+    await queryInterface.sequelize.query(`DROP TYPE IF EXISTS "${enumName}";`);
+  } catch (error) {
+    console.warn(`Failed to drop enum ${enumName}:`, error);
+  }
+}
+
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.createTable("alfredpay_customers", {
     alfred_pay_id: {
@@ -84,7 +92,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.dropTable("alfredpay_customers");
 
   // Drop enums
-  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_alfredpay_customers_country";').catch(() => {});
-  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_alfredpay_customers_status";').catch(() => {});
-  await queryInterface.sequelize.query('DROP TYPE IF EXISTS "enum_alfredpay_customers_type";').catch(() => {});
+  await dropEnumType(queryInterface, "enum_alfredpay_customers_country");
+  await dropEnumType(queryInterface, "enum_alfredpay_customers_status");
+  await dropEnumType(queryInterface, "enum_alfredpay_customers_type");
 }

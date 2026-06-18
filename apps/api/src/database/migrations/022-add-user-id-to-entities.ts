@@ -1,5 +1,14 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
+function getDatabaseErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("original" in error)) {
+    return undefined;
+  }
+
+  const { original } = error as { original?: unknown };
+  return original && typeof original === "object" && "code" in original ? String(original.code) : undefined;
+}
+
 export async function up(queryInterface: QueryInterface): Promise<void> {
   // Add user_id to kyc_level_2
   await queryInterface.addColumn("kyc_level_2", "user_id", {
@@ -90,7 +99,7 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   const safeRemoveIndex = async (tableName: string, indexName: string) => {
     try {
       await queryInterface.removeIndex(tableName, indexName);
-    } catch (error: any) {
+    } catch (error) {
       console.warn(`Failed to remove index ${indexName} from ${tableName}:`, error);
     }
   };
@@ -98,9 +107,9 @@ export async function down(queryInterface: QueryInterface): Promise<void> {
   const safeRemoveColumn = async (tableName: string, columnName: string) => {
     try {
       await queryInterface.removeColumn(tableName, columnName);
-    } catch (error: any) {
+    } catch (error) {
       // Ignore undefined_column error (code 42703)
-      if (error?.original?.code === "42703") {
+      if (getDatabaseErrorCode(error) === "42703") {
         console.warn(`Column ${columnName} does not exist in ${tableName}, skipping removal.`);
       } else {
         throw error;

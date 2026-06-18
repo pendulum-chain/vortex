@@ -26,7 +26,11 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart
 
   const isResuming = !forceRestart && state && state.currentPhase !== RebalancePhase.Idle;
   if (isResuming) {
-    console.log(`Resuming rebalance from phase: ${state!.currentPhase}`);
+    const currentState = state;
+    if (!currentState) {
+      throw new Error("State is undefined while resuming rebalance.");
+    }
+    console.log(`Resuming rebalance from phase: ${currentState.currentPhase}`);
   } else {
     // Forcing reset state, to ensure a clean one.
     state = await stateManager.startNewRebalance(amountAxlUsdc);
@@ -106,8 +110,7 @@ export async function rebalanceBrlaToUsdcAxl(amountAxlUsdc: string, forceRestart
 
     const result = await transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw, pendulumAccount.address);
     const squidRouterReceiverId = result.squidRouterReceiverId;
-    const amountUsd = result.amountUsd;
-    console.log(`Swapped BRLA to USDC.axl on Polygon, receiver ID: ${squidRouterReceiverId}`);
+    console.log(`Swapped ${result.amountUsd} USDC.axl on Polygon, receiver ID: ${squidRouterReceiverId}`);
     state = { ...state, currentPhase: RebalancePhase.TriggerXcmFromMoonbeam, squidRouterReceiverId, usdcAmountRaw };
     await stateManager.saveState(state);
   }

@@ -1,5 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import type Partner from "./partner.model";
 
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
@@ -50,7 +51,7 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
   declare updatedAt: Date;
 
   // Association helper - partners with this name
-  declare partners?: any[];
+  declare partners?: Partner[];
 }
 
 // Initialize the model

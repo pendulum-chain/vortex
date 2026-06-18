@@ -36,19 +36,6 @@ const erc20Abi = [
   { inputs: [], name: "name", outputs: [{ name: "", type: "string" }], stateMutability: "view", type: "function" }
 ];
 
-const transferAbi = [
-  {
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" }
-    ],
-    name: "transfer",
-    outputs: [{ name: "", type: "bool" }],
-    stateMutability: "nonpayable",
-    type: "function"
-  }
-];
-
 const tokenRelayerAbi = [
   {
     inputs: [
@@ -290,8 +277,8 @@ async function main() {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log("Transaction hash:", hash);
     console.log("Gas used:", receipt.gasUsed.toString());
-  } catch (error: any) {
-    console.error("Execution failed:", error.message);
+  } catch (error) {
+    console.error("Execution failed:", error instanceof Error ? error.message : String(error));
     return;
   }
 }

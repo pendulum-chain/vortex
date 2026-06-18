@@ -29,6 +29,15 @@ import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
 
+function getEthereumUsdcAddressForFallback(): `0x${string}` {
+  const ethereumUsdc = evmTokenConfig.ethereum.USDC;
+  if (!ethereumUsdc) {
+    throw new Error("Ethereum USDC token config is required for Alfredpay EVM onramp fallback swap");
+  }
+
+  return ethereumUsdc.erc20AddressSourceChain;
+}
+
 /**
  * Prepares all transactions for Alfredpay (USD) onramp to EVM chain.
  * This route handles: USD → Polygon (USDC/USDT) → EVM (final transfer)
@@ -248,14 +257,13 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
   const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
   const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+    toNetwork === Networks.Ethereum ? getEthereumUsdcAddressForFallback() : destinationAxlUsdcDetails.erc20AddressSourceChain;
+  const bridgedTokenAddress = bridgedTokenForFallback as `0x${string}`;
 
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
     destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
-    fromToken: bridgedTokenForFallback,
+    fromToken: bridgedTokenAddress,
     network: toNetwork as EvmNetworks,
     rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
@@ -287,7 +295,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     amountRaw: maxUint256.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
     spenderAddress: fundingAccount.address,
-    tokenAddress: bridgedTokenForFallback
+    tokenAddress: bridgedTokenAddress
   });
 
   // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached
