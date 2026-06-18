@@ -1,7 +1,6 @@
 import { Keyring } from "@polkadot/api";
 import {
   ApiManager,
-  StellarTokenConfig,
   SubsidizeErrorResponse,
   SubsidizePostSwapRequest,
   SubsidizePostSwapResponse,
@@ -42,7 +41,7 @@ const validateSubsidyAmount = (amount: string, maxAmount: string) => {
   }
 };
 
-const getPendulumCurrencyConfig = (token: string): StellarTokenConfig | XCMTokenConfig => {
+const getPendulumCurrencyConfig = (token: string): XCMTokenConfig => {
   const normalizedToken = token.toUpperCase() as keyof typeof TOKEN_CONFIG;
   const config = TOKEN_CONFIG[normalizedToken];
 

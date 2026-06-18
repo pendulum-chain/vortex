@@ -2,11 +2,13 @@ import { RampErrorLog } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
+import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
 import phaseProcessor from "../services/phases/phase-processor";
 import rampService from "../services/ramp/ramp.service";
 
 const TEN_MINUTES_IN_MS = 10 * 60 * 1000;
+const DISABLED_HYDRATION_PHASES = ["pendulumToHydrationXcm", "hydrationSwap", "hydrationToAssethubXcm"];
 
 /**
  * Worker to recover failed ramp states
@@ -56,8 +58,9 @@ class RampRecoveryWorker {
       const staleStates = await RampState.findAll({
         where: {
           currentPhase: {
-            [Op.notIn]: ["complete", "failed", "initial"]
+            [Op.notIn]: ["complete", "failed", "initial", ...DISABLED_HYDRATION_PHASES]
           },
+          flowVariant: config.flowVariant,
           presignedTxs: { [Op.not]: null },
           updatedAt: {
             [Op.lt]: new Date(Date.now() - TEN_MINUTES_IN_MS) // 10 minutes ago

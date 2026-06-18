@@ -6,6 +6,8 @@ import { LoadingScreen } from "../../components/Alfredpay/LoadingScreen";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
 import { AveniaKYBForm } from "../../components/Avenia/AveniaKYBForm";
 import { AveniaKYCForm } from "../../components/Avenia/AveniaKYCForm";
+import { DoneScreen } from "../../components/DoneScreen";
+import { MykoboKycFlow } from "../../components/Mykobo/MykoboKycFlow";
 import { HistoryMenu } from "../../components/menus/HistoryMenu";
 import { SettingsMenu } from "../../components/menus/SettingsMenu";
 import { AuthEmailStep } from "../../components/widget-steps/AuthEmailStep";
@@ -13,8 +15,8 @@ import { AuthOTPStep } from "../../components/widget-steps/AuthOTPStep";
 import { DetailsStep } from "../../components/widget-steps/DetailsStep";
 import { ErrorStep } from "../../components/widget-steps/ErrorStep";
 import { InitialQuoteFailedStep } from "../../components/widget-steps/InitialQuoteFailedStep";
-import { MoneriumRedirectStep } from "../../components/widget-steps/MoneriumRedirectStep";
 import { RampFollowUpRedirectStep } from "../../components/widget-steps/RampFollowUpRedirectStep";
+import { RegionSelectStep } from "../../components/widget-steps/RegionSelectStep";
 import { SummaryStep } from "../../components/widget-steps/SummaryStep";
 import { FiatAccountMachineContext, useFiatAccountSelector } from "../../contexts/FiatAccountMachineContext";
 import {
@@ -22,7 +24,7 @@ import {
   useAlfredpayKycSelector,
   useAveniaKycActor,
   useAveniaKycSelector,
-  useMoneriumKycActor,
+  useMykoboKycActor,
   useRampActor
 } from "../../contexts/rampState";
 import { cn } from "../../helpers/cn";
@@ -52,9 +54,9 @@ export const Widget = ({ className }: WidgetProps) => (
 const WidgetContent = () => {
   const rampActor = useRampActor();
   const aveniaKycActor = useAveniaKycActor();
-  const moneriumKycActor = useMoneriumKycActor();
   const aveniaState = useAveniaKycSelector();
   const alfredpayKycActor = useAlfredpayKycActor();
+  const mykoboKycActor = useMykoboKycActor();
 
   const showFiatAccountRegistration = useFiatAccountSelector(s => s.matches("Open"));
   const fiatRegistrationCountry = useFiatAccountSelector(s => s.context.fiatRegistrationCountry);
@@ -62,32 +64,32 @@ const WidgetContent = () => {
   // Enable session persistence and auto-refresh
   useAuthTokens(rampActor);
 
-  const { rampState, isRedirectCallback, isError } = useSelector(rampActor, state => ({
+  const {
+    rampState,
+    isRedirectCallback,
+    isError,
+    isInitialQuoteFailed,
+    isAuthEmail,
+    isLoadingAuthEmail,
+    isAuthOTP,
+    isSelectRegion,
+    isKybComplete,
+    isKybLinkMode
+  } = useSelector(rampActor, state => ({
+    isAuthEmail: state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP"),
+    isAuthOTP: state.matches("EnterOTP") || state.matches("VerifyingOTP"),
     isError: state.matches("Error"),
+    isInitialQuoteFailed: state.matches("InitialFetchFailed"),
+    isKybComplete: state.matches("KybLinkComplete"),
+    isKybLinkMode: !!state.context.kybLink,
+    isLoadingAuthEmail: state.matches("CheckAuth"),
     isRedirectCallback: state.matches("RedirectCallback"),
+    isSelectRegion: state.matches("SelectRegion"),
     rampState: state.value
   }));
 
   const rampSummaryVisible =
     rampState === "KycComplete" || rampState === "RegisterRamp" || rampState === "UpdateRamp" || rampState === "StartRamp";
-
-  const isMoneriumRedirect = useSelector(moneriumKycActor, state => {
-    if (state) {
-      return state.value === "Redirect";
-    }
-    return false;
-  });
-
-  const isInitialQuoteFailed = useSelector(rampActor, state => state.matches("InitialFetchFailed"));
-
-  const isAuthEmail = useSelector(
-    rampActor,
-    state => state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP")
-  );
-
-  const isLoadingAuthEmail = useSelector(rampActor, state => state.matches("CheckAuth"));
-
-  const isAuthOTP = useSelector(rampActor, state => state.matches("EnterOTP") || state.matches("VerifyingOTP"));
 
   if (isLoadingAuthEmail) {
     return <LoadingScreen />;
@@ -95,6 +97,10 @@ const WidgetContent = () => {
 
   if (isError) {
     return <ErrorStep />;
+  }
+
+  if (isKybComplete) {
+    return <DoneScreen kycOrKyb="KYB" onContinue={() => rampActor.send({ type: "RESET_RAMP" })} />;
   }
 
   if (isRedirectCallback) {
@@ -109,8 +115,8 @@ const WidgetContent = () => {
     return <AuthOTPStep />;
   }
 
-  if (isMoneriumRedirect) {
-    return <MoneriumRedirectStep />;
+  if (isSelectRegion) {
+    return <RegionSelectStep />;
   }
 
   if (rampSummaryVisible) {
@@ -122,18 +128,24 @@ const WidgetContent = () => {
 
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
+    // A KYB deep link has no quote-supplied taxId yet, so route to the company (KYB) flow regardless of CNPJ.
+    const treatAsKyb = isCnpj || isKybLinkMode;
 
-    const isInKybFlow = isCnpj && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
+    const isInKybFlow = treatAsKyb && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
 
     if (isInKybFlow) {
       return <AveniaKYBFlow />;
     }
 
-    return isCnpj ? <AveniaKYBForm /> : <AveniaKYCForm />;
+    return treatAsKyb ? <AveniaKYBForm /> : <AveniaKYCForm />;
   }
 
   if (alfredpayKycActor) {
     return <AlfredpayKycFlow />;
+  }
+
+  if (mykoboKycActor) {
+    return <MykoboKycFlow />;
   }
 
   if (isInitialQuoteFailed) {

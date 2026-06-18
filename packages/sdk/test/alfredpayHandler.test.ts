@@ -40,13 +40,11 @@ function setup(overrides: { unsignedTxs?: any[]; currentPhase?: string } = {}) {
 
   const generateEphemerals = async () => ({
     accountMetas: [
-      { address: "GSTELLAR", type: "Stellar" },
       { address: "5SUBSTRATE", type: "Substrate" },
       { address: "0xEVM", type: "EVM" }
     ],
     ephemerals: {
       EVM: { address: "0xEVM", secret: "s" },
-      Stellar: { address: "GSTELLAR", secret: "s" },
       Substrate: { address: "5SUBSTRATE", secret: "s" }
     }
   });
@@ -61,14 +59,14 @@ function setup(overrides: { unsignedTxs?: any[]; currentPhase?: string } = {}) {
 }
 
 describe("isAlfredpayToken routing", () => {
-  test("USD/MXN/COP route to Alfredpay", () => {
-    for (const t of [FiatToken.USD, FiatToken.MXN, FiatToken.COP]) {
+  test("USD/MXN/COP/ARS route to Alfredpay", () => {
+    for (const t of [FiatToken.USD, FiatToken.MXN, FiatToken.COP, FiatToken.ARS]) {
       expect(isAlfredpayToken(t)).toBe(true);
     }
   });
 
-  test("BRL/EURC/ARS do not route to Alfredpay", () => {
-    for (const t of [FiatToken.BRL, FiatToken.EURC, FiatToken.ARS]) {
+  test("BRL/EURC do not route to Alfredpay", () => {
+    for (const t of [FiatToken.BRL, FiatToken.EURC]) {
       expect(isAlfredpayToken(t)).toBe(false);
     }
   });
@@ -91,7 +89,7 @@ describe("AlfredpayHandler onramp", () => {
     expect(reg.quoteId).toBe("quote_1");
     expect(reg.additionalData.destinationAddress).toBe(WALLET);
     expect(reg.additionalData.fiatAccountId).toBe(FIAT_ACCOUNT);
-    expect(reg.signingAccounts).toHaveLength(3);
+    expect(reg.signingAccounts).toHaveLength(2);
 
     const upd = calls.find(c => c.method === "updateRamp")!.payload;
     expect(upd.presignedTxs).toHaveLength(1);
@@ -105,11 +103,15 @@ describe("AlfredpayHandler onramp", () => {
     ).rejects.toBeInstanceOf(MissingAlfredpayOnrampParametersError);
   });
 
-  test("throws when fiatAccountId missing", async () => {
-    const { handler } = setup();
-    await expect(
-      handler.registerAlfredpayOnramp("q", { destinationAddress: WALLET, fiatAccountId: "" } as any)
-    ).rejects.toBeInstanceOf(MissingAlfredpayOnrampParametersError);
+  test("registers without fiatAccountId (backend only requires destinationAddress for onramp)", async () => {
+    const { calls, handler } = setup();
+
+    const result = await handler.registerAlfredpayOnramp("quote_1", { destinationAddress: WALLET });
+
+    expect(result.id).toBe("ramp_1");
+    const reg = calls.find(c => c.method === "registerRamp")!.payload;
+    expect(reg.additionalData.destinationAddress).toBe(WALLET);
+    expect(reg.additionalData.fiatAccountId).toBeUndefined();
   });
 });
 

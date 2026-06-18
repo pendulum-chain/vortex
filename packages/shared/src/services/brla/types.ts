@@ -98,9 +98,11 @@ export interface OnchainSwapQuoteParams {
   inputCurrency: BrlaCurrency;
   inputAmount: string;
   outputCurrency: BrlaCurrency;
+  outputPaymentMethod?: AveniaPaymentMethod;
 }
 
 export enum AveniaTicketStatus {
+  ON_HOLD = "ON-HOLD",
   PENDING = "PENDING",
   PAID = "PAID",
   FAILED = "FAILED"
@@ -219,8 +221,10 @@ export interface AveniaPayoutTicket extends BaseTicket {
 
 export interface AveniaPayinTicket extends BaseTicket {
   brazilianFiatSenderInfo: {
-    id: string;
-    ticketId: string;
+    id?: string;
+    ticketId?: string;
+    referenceLabel?: string;
+    additionalData?: string;
     name: string;
     taxId: string;
     bankCode: string;
@@ -237,7 +241,7 @@ export interface AveniaPayinTicket extends BaseTicket {
     walletMemo: string;
     txHash: string;
   };
-  brlPixInputInfo: {
+  brlPixInputInfo?: {
     id: string;
     ticketId: string;
     referenceLabel: string;

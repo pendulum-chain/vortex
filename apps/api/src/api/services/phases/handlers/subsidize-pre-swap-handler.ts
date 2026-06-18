@@ -21,7 +21,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../config/logger";
-import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../constants/constants";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
@@ -47,7 +47,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSubsidize(state, quote);
     }
 
@@ -243,11 +243,12 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const subsidyCapUsd = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const subsidyCapUsd = Big(quoteOutputUsd).mul(subsidyCapFraction);
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (${subsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 

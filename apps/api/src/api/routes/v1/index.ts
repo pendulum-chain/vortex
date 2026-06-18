@@ -1,8 +1,9 @@
 import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
-import { sendStatusWithPk as sendStellarStatusWithPk } from "../../controllers/stellar.controller";
+import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import alfredpayRoutes from "./alfredpay.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
@@ -13,7 +14,7 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
-import moneriumRoutes from "./monerium.route";
+import mykoboRoutes from "./mykobo.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
@@ -22,12 +23,10 @@ import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
 import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
-import stellarRoutes from "./stellar.route";
 import storageRoutes from "./storage.route";
 import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
-  stellar: unknown;
   pendulum: unknown;
   moonbeam: unknown;
 };
@@ -37,8 +36,7 @@ const router: Router = Router({ mergeParams: true });
 async function sendStatusWithPk(_: Request, res: Response): Promise<void> {
   const chainStatus: ChainStatus = {
     moonbeam: await sendMoonbeamStatusWithPk(),
-    pendulum: await sendPendulumStatusWithPk(),
-    stellar: await sendStellarStatusWithPk()
+    pendulum: await sendPendulumStatusWithPk()
   };
 
   res.json(chainStatus);
@@ -64,11 +62,6 @@ router.use("/prices", priceRoutes);
  * POST v1/quotes
  */
 router.use("/quotes", quoteRoutes);
-
-/**
- * POST v1/stellar
- */
-router.use("/stellar", stellarRoutes);
 
 /**
  * POST v1/storage
@@ -153,9 +146,10 @@ router.use("/auth", authRoutes);
 router.use("/alfredpay", alfredpayRoutes);
 
 /**
- * GET v1/monerium
+ * GET v1/mykobo/profiles
+ * POST v1/mykobo/profiles
  */
-router.use("/monerium", moneriumRoutes);
+router.use("/mykobo", mykoboRoutes);
 
 /**
  * POST v1/webhook
@@ -181,6 +175,20 @@ router.use("/metrics", metricsRoutes);
  * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
 router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+
+/**
+ * Admin routes for profile partner pricing assignments
+ * POST /v1/admin/profile-partner-assignments
+ * GET /v1/admin/profile-partner-assignments
+ * DELETE /v1/admin/profile-partner-assignments/:assignmentId
+ */
+router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes);
+
+/**
+ * Admin routes for API client observability dashboards
+ * GET /v1/admin/api-client-events
+ */
+router.use("/admin/api-client-events", apiClientEventsRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);

@@ -4,22 +4,19 @@ import {
   EvmAddress,
   Networks,
   PaymentMethod,
-  PermitSignature,
   RampCurrency,
-  RampDirection,
-  Signature
+  RampDirection
 } from "../index";
 import { TransactionStatus } from "./webhook.endpoints";
 
+export type Signature = { v: number; r: `0x${string}`; s: `0x${string}`; deadline: number };
+
 export type RampPhase =
   | "initial"
-  | "moneriumOnrampSelfTransfer"
-  | "moneriumOnrampMint"
   | "squidRouterPermitExecute"
   | "squidRouterNoPermitTransfer"
   | "squidRouterNoPermitApprove"
   | "squidRouterNoPermitSwap"
-  | "stellarCreateAccount"
   | "squidRouterApprove"
   | "squidRouterSwap"
   | "squidRouterPay"
@@ -35,8 +32,6 @@ export type RampPhase =
   | "pendulumToHydrationXcm"
   | "assethubToPendulum"
   | "pendulumToAssethubXcm"
-  | "spacewalkRedeem"
-  | "stellarPayment"
   | "subsidizePreSwap"
   | "subsidizePostSwap"
   | "distributeFees"
@@ -45,7 +40,10 @@ export type RampPhase =
   | "alfredpayOfframpTransfer"
   | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
+  | "onHoldForComplianceCheck"
   | "brlaPayoutOnBase"
+  | "mykoboOnrampDeposit"
+  | "mykoboPayoutOnBase"
   | "baseTransfer"
   | "failed"
   | "timedOut"
@@ -59,17 +57,16 @@ export type RampPhase =
 export type CleanupPhase =
   | "moonbeamCleanup"
   | "pendulumCleanup"
-  | "stellarCleanup"
   | "polygonCleanup"
   | "polygonCleanupAxlUsdc"
   | "hydrationCleanup"
   | "assetHubCleanup"
   | "baseCleanupUsdc"
   | "baseCleanupBrla"
+  | "baseCleanupEurc"
   | "baseCleanupAxlUsdc";
 
 export enum EphemeralAccountType {
-  Stellar = "Stellar",
   Substrate = "Substrate",
   EVM = "EVM"
 }
@@ -133,7 +130,7 @@ export function isSignedTypedData(
 export function isSignedTypedDataArray(
   data: string | EvmTransactionData | SignedTypedData | SignedTypedData[]
 ): data is SignedTypedData[] {
-  return Array.isArray(data) && data.length > 0 && data.every(item => isSignedTypedData(item as any));
+  return Array.isArray(data) && data.length > 0 && data.every(item => isSignedTypedData(item as unknown as SignedTypedData));
 }
 
 export interface UnsignedTx {
@@ -162,13 +159,14 @@ export interface PaymentData {
   amount: string;
   memo: string;
   memoType: "text" | "hash" | "id";
-  anchorTargetAccount: string; // The account of the Stellar anchor where the payment is sent
 }
 
 export interface IbanPaymentData {
   receiverName: string;
   iban: string;
   bic: string;
+  /** Optional payment reference (e.g. Mykobo deposit SCOR). Caller should include it in the SEPA transfer. */
+  reference?: string;
 }
 
 export interface RegisterRampRequest {
@@ -179,13 +177,13 @@ export interface RegisterRampRequest {
     fiatAccountId?: string; // For determine the correct payment method for AlfredPay flows
     walletAddress?: string;
     destinationAddress?: string;
-    moneriumWalletAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;
     taxId?: string;
-    moneriumAuthToken?: string | null; // Monerium authentication code for Monerium offramps.
     sessionId?: string;
+    email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
+    ipAddress?: string; // Required for Mykobo EUR ramps (user IP for fraud checks; auto-filled from req.ip if omitted)
     [key: string]: unknown;
   };
 }
@@ -209,8 +207,6 @@ export interface UpdateRampRequest {
     squidRouterNoPermitApproveHash?: string;
     squidRouterNoPermitSwapHash?: string;
     assethubToPendulumHash?: string;
-    moneriumOfframpSignature?: string; // Required to trigger Monerium offramp
-    moneriumOnrampPermit?: PermitSignature;
     [key: string]: unknown;
   };
 }

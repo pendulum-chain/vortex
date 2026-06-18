@@ -1,28 +1,43 @@
-import { FiatToken, isAlfredpayToken, KycFailureReason, RampDirection } from "@vortexfi/shared";
+import { FiatToken, KycFailureReason } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { KycStatus } from "../services/signingService";
 import {
+  AlfredpayKycFormData,
   AlfredpayKycMachineError,
   KybBusinessFiles,
   KybFormData,
   KybPersonFiles,
-  MxnKycFiles,
-  MxnKycFormData
+  MxnKycFiles
 } from "./alfredpayKyc.machine";
 import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
-import { MoneriumKycMachineError, MoneriumKycMachineErrorType } from "./moneriumKyc.machine";
-import { RampContext, SelectedAveniaData } from "./types";
+import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
+import { RampContext } from "./types";
 
-// Extended context types for child KYC machines
+type KycChildId = "aveniaKyc" | "alfredpayKyc" | "mykoboKyc";
+
+const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
+  [FiatToken.EURC]: "mykoboKyc",
+  [FiatToken.BRL]: "aveniaKyc",
+  [FiatToken.ARS]: "alfredpayKyc",
+  [FiatToken.USD]: "alfredpayKyc",
+  [FiatToken.MXN]: "alfredpayKyc",
+  [FiatToken.COP]: "alfredpayKyc"
+};
+
+// In the normal flow the fiat token comes from the quote (executionInput); in the quote-less
+// KYB deep-link flow it comes from the region the user picked (kybLink.fiatToken).
+const resolveKycFiatToken = (context: RampContext): FiatToken | undefined =>
+  context.executionInput?.fiatToken ?? context.kybLink?.fiatToken;
+
 export interface AlfredpayKycContext extends RampContext {
   verificationUrl?: string;
   submissionId?: string;
   country: string;
   error?: AlfredpayKycMachineError;
   business?: boolean;
-  mxnFormData?: MxnKycFormData;
+  mxnFormData?: AlfredpayKycFormData;
   mxnFiles?: MxnKycFiles;
   kybFormData?: KybFormData;
   kybBusinessFiles?: KybBusinessFiles;
@@ -40,7 +55,7 @@ export interface AveniaKycContext extends RampContext {
   rejectReason?: KycFailureReason | string;
   documentUploadIds?: UploadIds;
   error?: AveniaKycMachineError;
-  isCompany?: boolean; // Flag to identify if the user is a business (CNPJ) or individual (CPF)
+  isCompany?: boolean;
   kybAttemptId?: string;
   kybUrls?: {
     authorizedRepresentativeUrl: string;
@@ -51,58 +66,49 @@ export interface AveniaKycContext extends RampContext {
   representativeVerificationStarted?: boolean;
 }
 
-export interface MoneriumKycContext extends RampContext {
-  authCode?: string;
-  authUrl?: string;
-  codeVerifier?: string;
-  error?: MoneriumKycMachineError;
-  redirectReady?: boolean;
+export interface MykoboKycContext extends RampContext {
+  formData?: MykoboKycFormData;
+  files?: MykoboKycFiles;
+  profileApproved?: boolean;
+  error?: MykoboKycMachineError;
 }
 
-export interface StellarKycContext extends RampContext {
-  token?: string;
-  sep10Account?: any;
-  redirectUrl?: string;
-  tomlValues?: any;
-  id?: string;
-  error?: any;
-  sep24IntervalId?: NodeJS.Timeout;
-}
+type MykoboKycOutput = { profileApproved?: boolean; error?: MykoboKycMachineError };
 
-// Logic of the KYC node:
-// The node attempts to abstract the generic "Started" -> "Verifying" -> "Done" flow of any KYC process.
-// The "Verifying" state will invoke child actors based on the particula ramp.
-// The output of these state-machine actors will always be assigned to the RampContext's `kycResponse` property.
+const clearSigningPhase = assign({
+  rampSigningPhase: undefined,
+  rampSigningPhaseCurrent: undefined,
+  rampSigningPhaseMax: undefined
+});
+
 export const kycStateNode = {
-  entry: ({ context }: { context: RampContext }) =>
-    console.log("DEBUG: Entering KYC state node. RampContext kycFormData:", context.kycFormData),
   initial: "Deciding",
   on: {
-    GO_BACK: {
-      actions: [assign({ rampSigningPhase: undefined })],
-      target: "#ramp.QuoteReady"
-    },
+    GO_BACK: [
+      {
+        // `?kybLocked=` pins the region — leaving and re-entering KYC would restart the child flow, so back does nothing.
+        guard: ({ context }: { context: RampContext }) => !!context.kybLink?.regionLocked
+      },
+      {
+        // KYB deep link has no quote to return to — go back to the region selector instead.
+        actions: [clearSigningPhase],
+        guard: ({ context }: { context: RampContext }) => !!context.kybLink,
+        target: "#ramp.SelectRegion"
+      },
+      {
+        actions: [clearSigningPhase],
+        target: "#ramp.QuoteReady"
+      }
+    ],
     SummaryConfirm: {
       actions: [
-        // TODO I would prefer to have this uncoupled from the specific implementations, and based on active child.
         sendTo(
-          ({ context }) => {
-            if (context.executionInput?.fiatToken === FiatToken.BRL) {
-              return "aveniaKyc";
-            }
-            if (context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY) {
-              return "moneriumKyc";
-            }
-            if (context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken)) {
-              return "alfredpayKyc";
-            }
-            return "stellarKyc";
+          ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
+            return fiatToken ? KYC_CHILD_BY_FIAT[fiatToken] : "aveniaKyc";
           },
           { type: "SummaryConfirm" }
-        ),
-        ({ event }: any) => {
-          console.log("SummaryConfirm event:", event);
-        }
+        )
       ]
     }
   },
@@ -111,29 +117,25 @@ export const kycStateNode = {
       invoke: {
         id: "alfredpayKyc",
         input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
-          console.log("Invoking Alfredpay KYC actor with RampContext input:", context);
-          const fiatToken = context.executionInput?.fiatToken;
+          const fiatToken = resolveKycFiatToken(context);
           const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
             ...context,
+            // A KYB deep link is business verification by definition; preselect the business customer type.
+            business: context.kybLink ? true : undefined,
             country
           };
         },
         onDone: [
           {
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) =>
-                (event.output.error as AlfredpayKycMachineError)?.message || "An unknown error occurred"
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) =>
+                event.output.error?.message || "An unknown error occurred"
             }),
-            guard: ({ event }: { event: any }) => !!event.output.error,
+            guard: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) => !!event.output.error,
             target: "#ramp.KycFailure"
           },
           {
-            actions: assign(({ context }: { context: RampContext }) => {
-              return {
-                ...context
-              };
-            }),
             target: "VerificationComplete"
           }
         ],
@@ -150,11 +152,11 @@ export const kycStateNode = {
       invoke: {
         id: "aveniaKyc",
         input: ({ context }: { context: RampContext }): AveniaKycContext => {
-          console.log("Invoking Avenia KYC actor with RampContext input:", context);
           return {
             ...context,
-            kycFormData: context.kycFormData, // Pass kycFormData from parent RampContext to AveniaKycContext
-            taxId: context.executionInput?.taxId!
+            kycFormData: context.kycFormData,
+            // KYB deep link has no quote-supplied taxId; the CNPJ is collected on the Avenia company form instead.
+            taxId: context.executionInput?.taxId ?? ""
           };
         },
         onDone: [
@@ -168,7 +170,7 @@ export const kycStateNode = {
           {
             actions: assign({
               initializeFailedMessage: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) =>
-                (event.output.error as AveniaKycMachineError).message
+                event.output.error?.message || "An unknown error occurred"
             }),
             target: "#ramp.KycFailure"
           }
@@ -185,116 +187,73 @@ export const kycStateNode = {
     Deciding: {
       always: [
         {
-          guard: ({ context }: { context: RampContext }) =>
-            !!context.executionInput?.fiatToken && isAlfredpayToken(context.executionInput.fiatToken),
+          guard: ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
+            return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "alfredpayKyc";
+          },
           target: "Alfredpay"
         },
         {
-          guard: ({ context }: { context: RampContext }) => context.executionInput?.fiatToken === FiatToken.BRL,
+          guard: ({ context }: { context: RampContext }) => {
+            const fiatToken = resolveKycFiatToken(context);
+            return !!fiatToken && KYC_CHILD_BY_FIAT[fiatToken] === "mykoboKyc";
+          },
+          target: "Mykobo"
+        },
+        {
           target: "Avenia"
-        },
-        {
-          guard: ({ context }: { context: RampContext }) =>
-            context.executionInput?.fiatToken === FiatToken.EURC && context.rampDirection === RampDirection.BUY,
-          target: "Monerium"
-        },
-        {
-          target: "Stellar"
         }
       ]
     },
-    Monerium: {
+    Mykobo: {
       invoke: {
-        id: "moneriumKyc",
-        input: ({ context }: { context: RampContext }): MoneriumKycContext => ({
+        id: "mykoboKyc",
+        input: ({ context }: { context: RampContext }): MykoboKycContext => ({
           ...context
         }),
         onDone: [
           {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
-              console.log("Monerium KYC completed with response:", event.output);
-              return {
-                ...context,
-                authToken: event.output.authToken
-              };
-            }),
-            guard: ({ event }: { event: any }) => !!event.output.authToken,
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) => !!event.output.profileApproved,
             target: "VerificationComplete"
           },
           {
-            actions: [assign({ rampSigningPhase: undefined }), { type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) =>
-              (event.output.error as MoneriumKycMachineError)?.type === MoneriumKycMachineErrorType.UserRejected,
+            actions: assign({
+              rampSigningPhase: undefined,
+              rampSigningPhaseCurrent: undefined,
+              rampSigningPhaseMax: undefined
+            }),
+            guard: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+              event.output.error?.type === MykoboKycMachineErrorType.UserRejected,
             target: "#ramp.QuoteReady"
           },
           {
             actions: assign({
-              initializeFailedMessage: ({ event }) =>
-                (event.output.error as MoneriumKycMachineError)?.message || "An unknown error occurred"
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<MykoboKycOutput> }) =>
+                event.output.error?.message || "An unknown error occurred"
             }),
             target: "#ramp.KycFailure"
           }
         ],
         onError: {
           actions: assign({
-            initializeFailedMessage: "Monerium KYC verification failed. Please retry."
+            initializeFailedMessage: "Mykobo KYC verification failed. Please retry."
           }),
           target: "#ramp.KycFailure"
         },
-        src: "moneriumKyc"
-      }
-    },
-    Stellar: {
-      invoke: {
-        id: "stellarKyc",
-        input: ({ context }: { context: RampContext }) => context,
-        onDone: [
-          {
-            actions: assign(({ context, event }: { context: RampContext; event: any }) => {
-              console.log("Stellar KYC completed with response:", event.output);
-              return {
-                ...context,
-                paymentData: event.output.paymentData
-              };
-            }),
-            guard: ({ event }: { event: any }) => !!event.output.paymentData,
-            target: "VerificationComplete"
-          },
-          {
-            actions: [{ type: "showSigningRejectedErrorToast" }],
-            guard: ({ event }: { event: any }) => event.output?.error.includes("User rejected"), // TODO improve to error classes, as in moneriumKyc state machine.
-            target: "#ramp.QuoteReady"
-          },
-          {
-            // TODO we probably want to parse the KYC sub-process error before assigning it to the parent ramp state machine.
-            actions: assign({
-              initializeFailedMessage: ({ event }: { event: any }) => event.output.error
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        onError: [
-          {
-            actions: assign({
-              initializeFailedMessage: "Stellar KYC verification failed. Please retry."
-            }),
-            target: "#ramp.KycFailure"
-          }
-        ],
-        src: "stellarKyc"
+        src: "mykoboKyc"
       }
     },
     VerificationComplete: {
-      always: {
-        target: "#ramp.KycComplete"
-      },
-      entry: {
-        actions: [
-          ({ context }: any) => {
-            console.log("KYC verification completed successfully:", context.kycResponse);
-          }
-        ]
-      }
+      always: [
+        {
+          // KYB deep-link flow has no quote/summary to return to — go straight to the success screen.
+          guard: ({ context }: { context: RampContext }) => !!context.kybLink,
+          target: "#ramp.KybLinkComplete"
+        },
+        {
+          target: "#ramp.KycComplete"
+        }
+      ]
     }
   }
 };

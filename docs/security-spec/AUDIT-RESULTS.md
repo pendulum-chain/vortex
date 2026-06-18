@@ -29,7 +29,7 @@ Clients send `signingAccounts` (addresses only). No private keys in request/resp
 Fresh `RampState.findByPk(rampId)` on every `processRamp()` call. Lock mechanism prevents concurrent modification (though non-atomic — F-003).
 
 #### 5. `[FAIL]` All external API calls have timeout configuration
-Most external `fetch()` calls (Monerium, BRLA, CoinGecko, Moonpay, Transak, AlchemyPay, Slack, Subscan) lack `AbortController`/timeout. Only `webhook-delivery.service.ts` has a 30s timeout. → [F-014](FINDINGS.md)
+Most external `fetch()` calls (Mykobo, BRLA, CoinGecko, Moonpay, Transak, AlchemyPay, Slack, Subscan) lack `AbortController`/timeout. Only `webhook-delivery.service.ts` has a 30s timeout. → [F-014](FINDINGS.md)
 
 #### 6. `[PARTIAL]` Error responses never leak internal state, stack traces, or secret material
 Stack traces stripped in production. However, raw `err.message` from internal errors passed to API responses in some paths. → [F-015](FINDINGS.md)
@@ -627,9 +627,11 @@ No new findings. All 12 prior findings verified fixed. OZ caret range is a minor
 
 ---
 
-### 5.2 Monerium Integration
+### 5.2 Monerium Integration (DEPRECATED — replaced by Mykobo)
 
-**Spec:** `05-integrations/monerium.md`
+**Spec:** `05-integrations/monerium.md` (deprecated; see `05-integrations/mykobo.md` for the active EUR rail)
+
+> Monerium is no longer used. Active EUR on/off-ramp goes through Mykobo on Base. The checks below describe the historical Monerium audit state and are retained for traceability of F-023 / F-024 lineage.
 
 | # | Check | Result |
 |---|---|---|
@@ -645,6 +647,38 @@ No new findings. All 12 prior findings verified fixed. OZ caret range is a minor
 | 10 | No credentials/IBAN in logs | ⚠️ PARTIAL — error responses could contain data |
 | 11 | Timeout on API calls | 🔴 FAIL — F-014 |
 | 12 | Concurrent SEPA ramp limit | 🔴 FAIL — no per-user throttle. → [F-024](FINDINGS.md) |
+
+---
+
+### 5.2b Mykobo Integration (ACTIVE EUR RAIL)
+
+**Spec:** `05-integrations/mykobo.md`
+
+Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both directions now flow on Base, mirroring the BRLA-on-Base architecture.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Mykobo access/secret keys + base URL from env vars | ✅ PASS — loaded via `packages/shared` config; `MykoboApiService` throws on missing config |
+| 2 | `MYKOBO_BASE_URL` HTTPS and `/v<digits>` enforced | ✅ PASS — F-070 fixed: `assertSecureMykoboBaseUrl` enforces HTTPS at construction (localhost permitted in non-production) |
+| 3 | On-ramp `mykoboOnrampDeposit` polls Base RPC for EURC arrival | ✅ PASS — `checkEvmBalancePeriodically` against `evmEphemeralAddress` until `mykoboMint.outputAmountRaw` arrives |
+| 4 | 24h outer payment timeout; on expiry → `failed` | ✅ PASS — `PAYMENT_TIMEOUT_MS = 24h`, transition to `failed` enforced in handler |
+| 5 | 5% recovery tolerance scoped to pre-funded shortcut only | ✅ PASS — `EPHEMERAL_FUNDED_TOLERANCE_FACTOR=0.95` applies only to `ephemeralAlreadyFunded` pre-check; live polling uses full `expectedAmountRaw` |
+| 6 | On-ramp intent `wallet_address` = Base ephemeral (not user destination) | ✅ PASS — `prepareMykoboOnrampTransactions` passes `evmEphemeralEntry.address` |
+| 7 | Off-ramp intent `wallet_address` = Base ephemeral | ✅ PASS — `prepareEvmToMykoboOfframpTransactions` passes `evmEphemeralEntry.address` |
+| 8 | Off-ramp `receivables` address sourced server-side from intent response | ✅ PASS — `mykoboReceivablesAddress = intent.instructions.address` |
+| 9 | Off-ramp EURC transfer amount equals `nablaSwapEvm.outputAmountRaw` | ✅ PASS — encoded into the `mykoboPayoutOnBase` presigned tx at registration time |
+| 10 | `mykoboPayoutOnBase` advances to `complete` only after on-chain + Mykobo `COMPLETED` | ✅ PASS — `sendMykoboPayoutTransaction` waits for receipt; `pollMykoboUntilCompleted` blocks on `COMPLETED` |
+| 11 | `FAILED` / `CANCELLED` / `EXPIRED` → unrecoverable error | ✅ PASS — `createUnrecoverableError` for all three terminal statuses |
+| 12 | Recovery: `mykoboPayoutTxHash` short-circuits re-broadcast | ✅ PASS — waits for prior receipt; re-sends only if prior tx reverted |
+| 13 | `MykoboApiError` mapped to recoverable/unrecoverable at handler boundary | ✅ PASS — payout handler wraps send failures in `createRecoverableError`; status terminal → unrecoverable |
+| 14 | Bearer-token refresh debounced (no thundering-herd on 401) | ✅ PASS — F-071 fixed: `authFailurePromise` debounce added to `handleAuthFailure`, mirroring `tokenPromise` pattern |
+| 15 | Token / access / secret keys absent from logs | ⚠️ PARTIAL — `MykoboApiError.body` may carry raw response bodies into logs; no explicit redaction |
+| 16 | IBAN payment details surfaced only after presigned-tx validation | ✅ PASS — `ibanPaymentData` returned from `prepareRampTransactions` only after `validatePresignedTxs` succeeds upstream |
+| 17 | `/v1/mykobo/profiles` endpoints require Supabase OTP auth | ✅ PASS — F-068 fixed: `requireAuth` added to both GET and POST routes |
+| 18 | Mykobo KYC documents not persisted by Vortex | ✅ PASS — multipart form-data streamed through to Mykobo; no local persistence of files or PII beyond the email→profile linkage |
+| 19 | HTTPS enforced for all Mykobo API calls | ✅ PASS — F-070 fixed: `assertSecureMykoboBaseUrl` rejects non-HTTPS schemes at construction (localhost permitted in non-production) |
+| 20 | Timeout / AbortController on Mykobo HTTP client | 🔴 FAIL — F-014 (cross-cutting; Mykobo `fetch` calls lack explicit `AbortController`, same gap as BRLA/Monerium/CoinGecko/etc.) |
+| 21 | Phase handlers never call Mykobo API without explicit recoverable/unrecoverable mapping | ✅ PASS — `mykobo-payout-handler.ts` catches `PhaseError` directly and wraps non-PhaseError exceptions |
 
 ---
 
@@ -713,11 +747,15 @@ No new findings. All 12 prior findings verified fixed. OZ caret range is a minor
 
 | ID | Severity | Finding | Module |
 |---|---|---|---|
-| F-023 | 🟡 Medium | Monerium SEPA timeout (30min) may be too short for SEPA settlement | Monerium |
-| F-024 | 🟡 Medium | No concurrent SEPA ramp limit per user | Monerium |
+| F-023 | ⚪ Superseded | (Historical) Monerium 30-min SEPA timeout — Monerium removed; Mykobo uses 24h | Monerium → Mykobo |
+| F-024 | 🟡 Medium | No concurrent SEPA ramp limit per user (now applies to Mykobo) | Mykobo |
 | F-025 | 🔵 Low | `HORIZON_URL` import inconsistency between modules | Stellar |
 | F-026 | 🔵 Low | `@ts-ignore` on `.nonce.toNumber()` hides potential API incompatibility | Stellar |
 | F-027 | 🟡 Medium | `squidRouterPermitExecutionValue` used as `msg.value` without validation | Squid Router |
+| F-068 | 🔴 Critical | Mykobo `/v1/mykobo/profiles` GET/POST have no `requireAuth` — anonymous KYC ingestion | Mykobo |
+| F-069 | 🟠 High | EUR off-ramp `fundEphemeral.nextPhaseSelector` falls through to `moonbeamToPendulum` (latent stuck-phase bug) | Mykobo / Ramp Engine |
+| F-070 | 🟡 Medium | `MYKOBO_BASE_URL` accepts any URL scheme — no HTTPS enforcement | Mykobo |
+| F-071 | 🔵 Low | `MykoboApiService.handleAuthFailure` is not debounced — concurrent-401 thundering herd | Mykobo |
 
 ---
 
@@ -819,7 +857,7 @@ Hardcoded `0.95` multiplier. Reasonable for default small amounts ($1 USD).
 Aggressive but ensures inclusion on Polygon. Gas is typically cheap.
 
 #### 5. `[PASS]` Coverage ratio threshold
-`1 + 0.25` threshold. Configurable via env var. Only rebalances when genuine surplus/deficit.
+Default Base flow uses asymmetric bounds around 1.0: `1 - REBALANCING_THRESHOLD_BRLA_TO_USDC` for the low-coverage correction and `1 + REBALANCING_THRESHOLD_USDC_TO_BRLA` for the high-coverage flow. Both route-specific thresholds fall back to `REBALANCING_THRESHOLD` and default to `0.01`.
 
 #### 6. `[PASS]` Rebalancer keys distinct from API keys
 Different env var names. Actual isolation is operational.
@@ -828,10 +866,10 @@ Different env var names. Actual isolation is operational.
 Steps 2, 3, 5, 6, 7 have crash windows between execution and `saveState()` causing double-spend on re-execution. No tx hash guards or nonce guards. → [F-033](FINDINGS.md)
 
 #### 8. `[PARTIAL]` BRLA→USDC swap amount validation
-Verifies USDC arrives on-chain but doesn't compare arrived amount to quoted amount.
+Legacy BRLA→USDC trusts the BRLA API response. Base high-coverage routes use provider quotes and delta-based arrival checks; Base low-coverage is a Base-only two-swap loop with final balance verification.
 
 #### 9. `[FAIL]` SquidRouter swap amount validation
-Never validates received amount matches estimate. Axelar polling has no timeout (infinite loop risk). → [F-034](FINDINGS.md)
+Legacy SquidRouter never validates received amount matches estimate and its Axelar polling has no timeout (infinite loop risk). The Base SquidRouter route has a 30-minute Axelar timeout and delta-based Base USDC arrival check. → [F-034](FINDINGS.md)
 
 #### 10. `[PASS]` Storage write errors handled
 Errors thrown and propagated. Process exits with code 1.
@@ -1034,7 +1072,7 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 | 02 — Signing Keys | Ephemeral Accounts, Server-Side Signing | 23 |
 | 03 — Ramp Engine | State Machine, Quote Lifecycle, Fee Integrity | 39 |
 | 04 — Smart Contracts | Token Relayer | 18 |
-| 05 — Integrations | BRLA, Monerium, Alfredpay, Stellar Anchors, Squid Router | 60 |
+| 05 — Integrations | BRLA, Mykobo (active EUR), Monerium (deprecated), Alfredpay, Stellar Anchors, Squid Router | 60 |
 | 06 — Cross-chain | XCM Transfers, Bridge Security, Fund Routing | 40 |
 | 07 — Operations | Rebalancer, Secret Management, API Surface | 44 |
 | **Total** | **22 sub-modules** | **~266 checklist items** |
@@ -1043,11 +1081,13 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 
 | Severity | Fixed | Accepted | Deferred | Open | Total |
 |---|---|---|---|---|---|
-| 🔴 Critical | 5 | 0 | 0 | 0 | 5 |
-| 🟠 High | 11 | 3 | 3 | 0 | 17 |
-| 🟡 Medium | 25 | 3 | 6 | 0 | 34 |
-| 🔵 Low / ⚪ Info | 8 | 3 | 0 | 0 | 11 |
-| **Total** | **49** | **9** | **9** | **0** | **67** |
+| 🔴 Critical | 6 | 0 | 0 | 0 | 6 |
+| 🟠 High | 12 | 3 | 3 | 0 | 18 |
+| 🟡 Medium | 26 | 3 | 6 | 0 | 35 |
+| 🔵 Low / ⚪ Info | 9 | 3 | 0 | 0 | 12 |
+| **Total** | **53** | **9** | **9** | **0** | **71** |
+
+Findings F-068 through F-071 from the Mykobo integration audit (2026-05-22) were resolved in the same audit cycle; see `FINDINGS.md` Phase 5 section for full descriptions and resolutions. A companion fix wired `fundEphemeral` into the EUR (Mykobo) onramp flow — the EUR ephemeral on Base previously had no source of native ETH, which would have caused `nablaApprove`/`nablaSwap`/squid txs to fail with insufficient gas had any Mykobo onramp progressed past deposit.
 
 ### Recommended Remediation Order
 
@@ -1064,7 +1104,7 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 
 **Week 3 — Integration Hardening:**
 8. Add output amount validation to SquidRouter swaps (F-027, F-030, F-034)
-9. Add Monerium webhook signature verification (F-024)
+9. Add concurrent SEPA ramp limit per user (F-024, now applies to Mykobo flows)
 10. Add pre-balance checks to subsidy handlers (F-032)
 
 **Month 2 — Architectural Improvements:**
@@ -1072,6 +1112,12 @@ Full security audit covering all 8 modules (00–07) across 23 specification fil
 12. Unify fee systems (F-002)
 13. Add structured audit logging (F-015)
 14. Implement proper admin auth (F-020)
+
+**Mykobo Integration Audit (2026-05-22) — Open:**
+15. ✅ Done — Added `requireAuth` to `/v1/mykobo/profiles` GET/POST (F-068, Critical). The GET endpoint now identifies profiles by the authenticated user's email (`req.userEmail`) via `MykoboApiService.getProfileByEmail`, and rejects requests whose `email` query parameter does not match the authenticated user. POST profile creation continues to bind `wallet_address` to the user's ephemeral, so no separate wallet-ownership check is required there.
+16. ✅ Done — Added explicit EURC SELL branch to `fund-ephemeral-handler.nextPhaseSelector` returning `distributeFees`; also added the missing EURC BUY branch returning `subsidizePreSwap` and wired `fundEphemeral` into the Mykobo onramp flow via `mykobo-onramp-deposit-handler` and `getRequiresBaseEphemeralAddress` (F-069, High)
+17. ✅ Done — Enforced HTTPS scheme on `MYKOBO_BASE_URL` at `MykoboApiService` construction via `assertSecureMykoboBaseUrl` (F-070, Medium)
+18. ✅ Done — Debounced `MykoboApiService.handleAuthFailure` with `authFailurePromise` mirroring `getToken`'s `tokenPromise` (F-071, Low)
 
 ### Files Reference
 

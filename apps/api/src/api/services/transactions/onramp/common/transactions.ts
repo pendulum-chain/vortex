@@ -9,6 +9,7 @@ import {
   EvmNetworks,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
+  getNablaBasePool,
   getNetworkId,
   Networks,
   PendulumTokenDetails,
@@ -260,10 +261,19 @@ export async function addNablaSwapTransactionsOnBase(
 
   // The input amount for the swap was already calculated in the quote.
   const inputAmountForNablaSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
+  // For offramps, outputAmountRaw may include a partner subsidy (merged in
+  // OffRampMergeSubsidyEvmEngine). Use the AMM-only amount when available so
+  // the on-chain minimum reflects what the AMM can actually deliver.
+  const minOutputBaseRaw = quote.metadata.nablaSwapEvm.ammOutputAmountRaw ?? quote.metadata.nablaSwapEvm.outputAmountRaw;
+  // biome-ignore lint/correctness/noUnusedVariables: retained to keep the downstream interface stable while min-output uses the AMM-only amount
   const outputAmountRaw = Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
 
-  const nablaSoftMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN).toFixed(0, 0);
-  const nablaHardMinimumOutputRaw = outputAmountRaw.mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN).toFixed(0, 0);
+  const nablaSoftMinimumOutputRaw = Big(minOutputBaseRaw)
+    .mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN)
+    .toFixed(0, 0);
+  const nablaHardMinimumOutputRaw = Big(minOutputBaseRaw)
+    .mul(1 - AMM_MINIMUM_OUTPUT_HARD_MARGIN)
+    .toFixed(0, 0);
 
   const { approve, swap } = await createNablaTransactionsForOnrampOnEVM(
     inputAmountForNablaSwapRaw,
@@ -271,7 +281,8 @@ export async function addNablaSwapTransactionsOnBase(
     inputTokenAddress,
     outputTokenAddress,
     nablaHardMinimumOutputRaw,
-    config.swap.deadlineMinutes
+    config.swap.deadlineMinutes,
+    getNablaBasePool(inputTokenAddress, outputTokenAddress).router
   );
 
   unsignedTxs.push({

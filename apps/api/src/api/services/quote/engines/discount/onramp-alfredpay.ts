@@ -51,7 +51,7 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 
     const actualSubsidyDecimal =
-      targetDiscount > 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
+      targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
 
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 

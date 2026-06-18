@@ -196,6 +196,13 @@
             "$ref": "#/components/schemas/RampCurrency",
             "description": "The currency type for the input amount."
           },
+          "networks": {
+            "description": "Optional whitelist of networks to evaluate when searching for the best quote. If omitted or empty, all eligible networks for the corridor are considered.",
+            "items": {
+              "$ref": "#/components/schemas/Networks"
+            },
+            "type": "array"
+          },
           "outputCurrency": {
             "$ref": "#/components/schemas/RampCurrency",
             "description": "The desired currency type for the output amount."
@@ -292,6 +299,10 @@
           "phone": {
             "type": "string"
           },
+          "quoteId": {
+            "description": "Optional. The quote that triggered onboarding. Omit it for the quote-less KYB deep link (`?kyb` / `?kybLocked` widget entry), where business verification starts before any quote exists. Stored only as onboarding provenance; it is not an authorization input.",
+            "type": ["string", "null"]
+          },
           "startDate": {
             "description": "Date must be in format YYYY-MMM-DD.",
             "format": "date",
@@ -355,8 +366,27 @@
       },
       "ErrorResponse": {
         "properties": {
+          "code": {
+            "description": "HTTP status code returned by the API error handler.",
+            "type": "integer"
+          },
+          "errors": {
+            "description": "Validation error details, when the request fails schema or input validation.",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
           "message": {
             "description": "A human-readable error message.",
+            "type": "string"
+          },
+          "statusCode": {
+            "description": "HTTP status code included by selected provider-style error responses.",
+            "type": "integer"
+          },
+          "type": {
+            "description": "Provider-style error category, when available.",
             "type": "string"
           }
         },
@@ -857,6 +887,7 @@
           "subsidizePreSwap",
           "subsidizePostSwap",
           "brlaTeleport",
+          "onHoldForComplianceCheck",
           "brlaPayoutOnMoonbeam",
           "failed"
         ],
@@ -1236,7 +1267,7 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "createSubaccount",
         "parameters": [],
         "requestBody": {
@@ -1951,32 +1982,43 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
-                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                      "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   }
                 },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
-                "example": {
-                  "message": "An unexpected error occurred."
+                "examples": {
+                  "internal": {
+                    "summary": "Unexpected internal failure",
+                    "value": {
+                      "code": 500,
+                      "message": "Internal server error"
+                    }
+                  },
+                  "lowLiquidity": {
+                    "summary": "Low-liquidity route failure",
+                    "value": {
+                      "code": 500,
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
+                    }
+                  }
                 },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Internal Server Error.",
+            "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message; unexpected internal failures remain masked.",
             "headers": {}
           }
         },
@@ -2070,7 +2112,7 @@
                   "3": {
                     "summary": "Example of invalid ramp type error",
                     "value": {
-                      "message": "Invalid ramp type, must be \"on\" or \"off\""
+                      "message": "Invalid ramp type, must be \"BUY\" or \"SELL\""
                     }
                   },
                   "4": {
@@ -2182,24 +2224,31 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"on\" or \"off\")",
+            "description": "Bad Request. Possible reasons:\n- Missing required fields (rampType, from, to, inputAmount, inputCurrency, outputCurrency)\n- Invalid ramp type (must be \"BUY\" or \"SELL\")",
             "headers": {}
           },
           "500": {
             "content": {
               "application/json": {
+                "examples": {
+                  "lowLiquidity": {
+                    "summary": "Low-liquidity route failure",
+                    "value": {
+                      "code": 500,
+                      "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
+                    }
+                  }
+                },
                 "schema": {
-                  "properties": {},
-                  "type": "object"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Internal Server Error.",
+            "description": "Internal Server Error. Low-liquidity route failures use this status with a safe user-facing message when every eligible route cannot serve the requested amount; unexpected internal failures remain masked.",
             "headers": {}
           }
         },

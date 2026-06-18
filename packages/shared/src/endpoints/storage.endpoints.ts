@@ -1,7 +1,5 @@
 // Flow types for storage
 export enum OfframpHandlerType {
-  EVM_TO_STELLAR = "evm-to-stellar",
-  ASSETHUB_TO_STELLAR = "assethub-to-stellar",
   EVM_TO_BRLA = "evm-to-brla",
   ASSETHUB_TO_BRLA = "assethub-to-brla"
 }
@@ -24,23 +22,6 @@ export interface StorageRequestBase {
   inputTokenType: string;
   outputAmount: string;
   outputTokenType: string;
-}
-
-// Specific fields for each flow type
-export interface EvmToStellarStorageRequest extends StorageRequestBase {
-  flowType: OfframpHandlerType.EVM_TO_STELLAR;
-  offramperAddress: string;
-  squidRouterReceiverId: string;
-  squidRouterReceiverHash: string;
-}
-
-export interface AssethubToStellarStorageRequest extends StorageRequestBase {
-  flowType: OfframpHandlerType.ASSETHUB_TO_STELLAR;
-  offramperAddress: string;
-  stellarEphemeralPublicKey: string;
-  spacewalkRedeemTx: string;
-  stellarOfframpTx: string;
-  stellarCleanupTx: string;
 }
 
 export interface EvmToBrlaStorageRequest extends StorageRequestBase {
@@ -73,8 +54,6 @@ export interface BrlaToAssethubStorageRequest extends StorageRequestBase {
 
 // Union type for all storage requests
 export type StoreDataRequest =
-  | EvmToStellarStorageRequest
-  | AssethubToStellarStorageRequest
   | EvmToBrlaStorageRequest
   | AssethubToBrlaStorageRequest
   | BrlaToEvmStorageRequest

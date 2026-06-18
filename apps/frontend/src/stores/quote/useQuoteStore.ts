@@ -54,6 +54,7 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.MissingToField]: "pages.swap.error.missingToField",
   [QuoteError.MissingFromField]: "pages.swap.error.missingFromField",
   [QuoteError.InvalidRampType]: "pages.swap.error.invalidRampType",
+  [QuoteError.InvalidNetworks]: "pages.swap.error.invalidNetworks",
   [QuoteError.QuoteNotFound]: "pages.swap.error.quoteNotFound",
   [QuoteError.AssetHubNotSupportedForAlfredPay]: "pages.swap.error.assetHubNotSupportedForAlfredPay",
 
@@ -62,8 +63,11 @@ const friendlyErrorMessages: Record<QuoteError, string> = {
   [QuoteError.InputAmountForSwapMustBeGreaterThanZero]: "pages.swap.error.tryLargerAmount",
   [QuoteError.InputAmountTooLow]: "pages.swap.error.tryLargerAmount",
   [QuoteError.InputAmountTooLowToCoverCalculatedFees]: "pages.swap.error.tryLargerAmount",
-  [QuoteError.BelowLowerLimitSell]: QuoteError.BelowLowerLimitSell, // We leave this as-is, as the replacement string depends on the context
-  [QuoteError.BelowLowerLimitBuy]: QuoteError.BelowLowerLimitBuy, // We leave this as-is, as the replacement string depends on the context
+  // Limit errors pass through; useRampValidation rewrites them with the actual min/max.
+  [QuoteError.BelowLowerLimitSell]: QuoteError.BelowLowerLimitSell,
+  [QuoteError.BelowLowerLimitBuy]: QuoteError.BelowLowerLimitBuy,
+  [QuoteError.AboveUpperLimitSell]: QuoteError.AboveUpperLimitSell,
+  [QuoteError.AboveUpperLimitBuy]: QuoteError.AboveUpperLimitBuy,
   [QuoteError.LowLiquidity]: "pages.swap.error.lowLiquidity",
   // Calculation failures - suggest different amount
   [QuoteError.UnableToGetPendulumTokenDetails]: "pages.swap.error.tryDifferentAmount",
@@ -145,7 +149,7 @@ export const useQuoteStore = create<QuoteState & QuoteActions>()(
           const { inputAmount, partnerId, apiKey } = params;
 
           if (!inputAmount || inputAmount.eq(0)) {
-            set({ error: "pages.swap.error.invalidInputAmount", loading: false, outputAmount: Big(0), quote: undefined });
+            set({ error: null, loading: false, outputAmount: Big(0), quote: undefined });
             return;
           }
 

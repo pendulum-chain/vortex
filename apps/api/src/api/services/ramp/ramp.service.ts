@@ -10,12 +10,9 @@ import {
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  CreateAlfredpayOfframpRequest,
+  CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
-  ERC20_EURE_POLYGON_TOKEN_NAME,
-  ERC20_EURE_POLYGON_V2,
-  EvmNetworks,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
@@ -23,7 +20,9 @@ import {
   IbanPaymentData,
   isAlfredpayToken,
   Limit,
-  MoneriumErrors,
+  MykoboApiService,
+  MykoboCurrency,
+  MykoboTransactionType,
   Networks,
   normalizeTaxId,
   QuoteError,
@@ -44,39 +43,39 @@ import {
 import Big from "big.js";
 import httpStatus from "http-status";
 import { Op, Transaction, WhereOptions } from "sequelize";
-import { StrKey } from "stellar-sdk";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
-import { SEQUENCE_TIME_WINDOW_IN_SECONDS } from "../../../constants/constants";
+import { config } from "../../../config/vars";
 import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { createEpcQrCodeData, getIbanForAddress } from "../monerium";
+import { syncMykoboCustomerKyc } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams, MoneriumOnrampTransactionParams } from "../transactions/onramp/common/types";
+import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
+import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
-import { getFinalTransactionHashForRamp } from "./helpers";
-import { validateMoneriumOnrampPermit } from "./monerium-permit";
+import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
+import { getFinalTransactionHashForRampV2 } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
-const RAMP_START_EXPIRATION_TIME_SECONDS = SEQUENCE_TIME_WINDOW_IN_SECONDS * 0.8;
+const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
   unsignedTxs: UnsignedTx[],
-  ephemerals: { evm?: string; substrate?: string; stellar?: string }
+  ephemerals: { evm?: string; substrate?: string }
 ): { ephemeralTxs: UnsignedTx[]; userWalletTxs: UnsignedTx[] } {
   const ephemeralSigners = new Set(
-    [ephemerals.evm, ephemerals.substrate, ephemerals.stellar].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
+    [ephemerals.evm, ephemerals.substrate].filter((v): v is string => Boolean(v)).map(s => s.toLowerCase())
   );
 
   const ephemeralTxs: UnsignedTx[] = [];
@@ -100,7 +99,6 @@ function filterUnsignedTxsForResponse(rampState: RampState, ephemeralPresignChec
 
   const { ephemeralTxs } = partitionUnsignedTxs(rampState.unsignedTxs, {
     evm: rampState.state.evmEphemeralAddress,
-    stellar: rampState.state.stellarEphemeralAccountId,
     substrate: rampState.state.substrateEphemeralAddress
   });
   return ephemeralTxs;
@@ -116,12 +114,6 @@ function validateAddressFormat(address: string, type: EphemeralAccountType): voi
   }
 
   switch (type) {
-    case EphemeralAccountType.Stellar:
-      if (!StrKey.isValidEd25519PublicKey(address)) {
-        throw new Error(`Invalid Stellar address format: "${address}". Expected a valid Ed25519 public key.`);
-      }
-      break;
-
     case EphemeralAccountType.Substrate:
       try {
         decodeAddress(address);
@@ -140,18 +132,12 @@ function validateAddressFormat(address: string, type: EphemeralAccountType): voi
 
 export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
   const normalizedSigningAccounts: AccountMeta[] = [];
-  const allowedNetworks = new Set(Object.values(EphemeralAccountType).map(network => network.toLowerCase()));
-
   const ephemerals: { [key in EphemeralAccountType]?: string } = {};
 
   accounts.forEach(account => {
-    if (!allowedNetworks.has(account.type.toLowerCase())) {
-      throw new Error(`Invalid network: "${account.type}" provided.`);
-    }
-
     const type = Object.values(EphemeralAccountType).find(type => type.toLowerCase() === account.type.toLowerCase());
     if (!type) {
-      throw new Error(`Invalid ephemeral type: "${account.type}" provided.`);
+      return;
     }
 
     validateAddressFormat(account.address, type);
@@ -168,6 +154,16 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
 }
 
 export class RampService extends BaseRampService {
+  // Two backends share one database; each must only touch ramps/quotes for its own flow.
+  // We return 404 on mismatch so the wrong backend looks indistinguishable from "not found".
+  private static assertOwnedByThisFlow(entity: { flowVariant: string; id: string }, kind: "Ramp" | "Quote"): void {
+    if (entity.flowVariant !== config.flowVariant) {
+      throw new APIError({
+        message: `${kind} not found`,
+        status: httpStatus.NOT_FOUND
+      });
+    }
+  }
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -184,6 +180,8 @@ export class RampService extends BaseRampService {
           status: httpStatus.NOT_FOUND
         });
       }
+
+      RampService.assertOwnedByThisFlow(quote, "Quote");
 
       if (quote.status !== "pending") {
         throw new APIError({
@@ -203,11 +201,14 @@ export class RampService extends BaseRampService {
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
+      await validateEphemeralAccountsFresh(ephemerals);
+
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
         signingAccounts,
+        transaction,
         request.userId // will be undefined if not logged in. registerRamp is optional.
       );
 
@@ -219,9 +220,10 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const pricingPartnerId = quote.pricingPartnerId ?? quote.partnerId;
       let partner: ActivePartner = null;
-      if (quote.partnerId) {
-        partner = await Partner.findByPk(quote.partnerId);
+      if (pricingPartnerId) {
+        partner = await Partner.findByPk(pricingPartnerId);
       }
 
       handleQuoteConsumptionForDiscountState(partner);
@@ -230,6 +232,7 @@ export class RampService extends BaseRampService {
       const rampState = await this.createRampState(
         {
           currentPhase: "initial" as RampPhase,
+          flowVariant: quote.flowVariant,
           from: quote.from,
           paymentMethod: quote.paymentMethod,
           postCompleteState: {
@@ -243,7 +246,6 @@ export class RampService extends BaseRampService {
             depositQrCode,
             evmEphemeralAddress: ephemerals.EVM,
             ibanPaymentData,
-            stellarEphemeralAccountId: ephemerals.Stellar,
             substrateEphemeralAddress: ephemerals.Substrate,
             ...request.additionalData,
             ...stateMeta
@@ -297,6 +299,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
       if (!quote) {
@@ -317,7 +321,6 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
-        Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
       if (presignedTxs && presignedTxs.length > 0) {
@@ -413,6 +416,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
       if (!quote) {
@@ -423,6 +428,18 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
+
+      const rampStateCreationTime = new Date(rampState.createdAt);
+      const currentTime = new Date();
+      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
+
+      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+        await this.cancelRamp(rampState.id);
+        throw new APIError({
+          message: "Maximum time window to start process exceeded. Ramp invalidated.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
@@ -435,23 +452,9 @@ export class RampService extends BaseRampService {
       // Validate presigned transactions
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
-        Stellar: rampState.state.stellarEphemeralAccountId,
         Substrate: rampState.state.substrateEphemeralAddress
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals, rampState.unsignedTxs);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      // We leave 20% of the time window for to reach the stellar creation operation.
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        this.cancelRamp(rampState.id);
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
 
       logger.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
       webhookDeliveryService
@@ -508,6 +511,10 @@ export class RampService extends BaseRampService {
       return null;
     }
 
+    if (rampState.flowVariant !== config.flowVariant) {
+      return null;
+    }
+
     // Fetch associated quote for fee data
     const quote = await QuoteTicket.findByPk(rampState.quoteId);
 
@@ -531,26 +538,26 @@ export class RampService extends BaseRampService {
     const processingFeeFiat = new Big(fiatFees.anchor).plus(fiatFees.vortex).toFixed();
     const processingFeeUsd = new Big(usdFees.anchor).plus(usdFees.vortex).toFixed();
 
+    const isOnHoldForComplianceCheck = rampState.currentPhase === "brlaOnrampMint" && rampState.state.onHold;
+
     // Never return 'failed' as current phase, instead return last known phase
-    const currentPhase =
-      rampState.currentPhase !== "failed"
+    const currentPhase: RampPhase = isOnHoldForComplianceCheck
+      ? "onHoldForComplianceCheck"
+      : rampState.currentPhase !== "failed"
         ? rampState.currentPhase
         : // Find second-last entry in phase history or show 'initial' if not available
           rampState.phaseHistory && rampState.phaseHistory.length > 1
           ? rampState.phaseHistory[rampState.phaseHistory.length - 2].phase
           : "initial";
 
-    // Get or compute final transaction hash and explorer link
-    let transactionHash = rampState.state.finalTransactionHash;
-    let transactionExplorerLink = rampState.state.finalTransactionExplorerLink;
+    // Get or compute the V2 final transaction hash and explorer link. The legacy field intentionally used the
+    // second-last network for older clients, so status/history responses ignore it here.
+    let transactionHash = rampState.state.finalTransactionHashV2;
+    let transactionExplorerLink = rampState.state.finalTransactionExplorerLinkV2;
 
     // If not stored yet and ramp is complete, compute and store them
-    if (
-      rampState.type === RampDirection.BUY &&
-      rampState.currentPhase === "complete" &&
-      (!transactionHash || !transactionExplorerLink)
-    ) {
-      const result = await getFinalTransactionHashForRamp(rampState, quote);
+    if (rampState.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+      const result = getFinalTransactionHashForRampV2(rampState, quote);
       transactionHash = result.transactionHash;
       transactionExplorerLink = result.transactionExplorerLink;
 
@@ -559,8 +566,8 @@ export class RampService extends BaseRampService {
         await rampState.update({
           state: {
             ...rampState.state,
-            finalTransactionExplorerLink: transactionExplorerLink,
-            finalTransactionHash: transactionHash
+            finalTransactionExplorerLinkV2: transactionExplorerLink,
+            finalTransactionHashV2: transactionHash
           }
         });
       }
@@ -619,6 +626,10 @@ export class RampService extends BaseRampService {
       return null;
     }
 
+    if (rampState.flowVariant !== config.flowVariant) {
+      return null;
+    }
+
     return rampState.errorLogs;
   }
 
@@ -635,7 +646,8 @@ export class RampService extends BaseRampService {
       [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
       currentPhase: {
         [Op.ne]: "initial"
-      }
+      },
+      flowVariant: config.flowVariant
     };
 
     let where: WhereOptions<RampStateAttributes>;
@@ -678,17 +690,14 @@ export class RampService extends BaseRampService {
           });
         }
 
-        // Get or compute final transaction hash and explorer link (similar to getRampStatus)
-        let transactionHash = ramp.state.finalTransactionHash;
-        let transactionExplorerLink = ramp.state.finalTransactionExplorerLink;
+        // Get or compute the V2 final transaction hash and explorer link (similar to getRampStatus).
+        // Do not fall back to the legacy finalTransactionExplorerLink because that may point to Squid/Axelar.
+        let transactionHash = ramp.state.finalTransactionHashV2;
+        let transactionExplorerLink = ramp.state.finalTransactionExplorerLinkV2;
 
         // If not stored yet and ramp is complete, compute and store them
-        if (
-          ramp.type === RampDirection.BUY &&
-          ramp.currentPhase === "complete" &&
-          (!transactionHash || !transactionExplorerLink)
-        ) {
-          const result = await getFinalTransactionHashForRamp(ramp, quote);
+        if (ramp.currentPhase === "complete" && (!transactionHash || !transactionExplorerLink)) {
+          const result = getFinalTransactionHashForRampV2(ramp, quote);
           transactionHash = result.transactionHash;
           transactionExplorerLink = result.transactionExplorerLink;
 
@@ -697,8 +706,8 @@ export class RampService extends BaseRampService {
             await ramp.update({
               state: {
                 ...ramp.state,
-                finalTransactionExplorerLink: transactionExplorerLink,
-                finalTransactionHash: transactionHash
+                finalTransactionExplorerLinkV2: transactionExplorerLink,
+                finalTransactionHashV2: transactionHash
               }
             });
           }
@@ -749,6 +758,8 @@ export class RampService extends BaseRampService {
         status: httpStatus.NOT_FOUND
       });
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     // Limit the number of error logs to 100
     const updatedErrorLogs = [...(rampState.errorLogs || []), errorLog].slice(-100);
@@ -1005,7 +1016,6 @@ export class RampService extends BaseRampService {
       quote,
       receiverTaxId: additionalData.receiverTaxId,
       signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData.paymentData,
       taxId: additionalData.taxId,
       userAddress: additionalData.walletAddress
     });
@@ -1017,13 +1027,22 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
+    transaction: Transaction,
     userId?: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
+    // We refresh the quote. It will be used in the transaction creation process, right after this.
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
+      const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
+      await this.refreshAlfredpayOfframpQuoteIfMatching(quote, quote.metadata.alfredpayOfframp, toCurrency, transaction);
+    }
+
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
+      destinationAddress: additionalData?.destinationAddress,
+      email: additionalData?.email,
       fiatAccountId: additionalData?.fiatAccountId as string | undefined,
+      ipAddress: additionalData?.ipAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      stellarPaymentData: additionalData?.paymentData,
       userAddress: additionalData?.walletAddress,
       userId
     });
@@ -1092,87 +1111,71 @@ export class RampService extends BaseRampService {
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
-  private async prepareMoneriumOnrampTransactions(
+  private async prepareMykoboOnrampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
-    depositQrCode: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (
-      !additionalData ||
-      !additionalData.moneriumAuthToken ||
-      !additionalData.destinationAddress ||
-      !additionalData.moneriumWalletAddress
-    ) {
+    if (!additionalData?.destinationAddress || !additionalData?.email || !additionalData?.ipAddress) {
       throw new APIError({
-        message: "Parameters moneriumAuthToken, destinationAddress and moneriumWalletAddress are required for Monerium onramp",
+        message: "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
 
-    try {
-      // Validate the user mint address
-      const ibanData = await getIbanForAddress(
-        additionalData.moneriumWalletAddress,
-        additionalData.moneriumAuthToken,
-        quote.to as EvmNetworks // Fixme: assethub network type issue.
-      );
-
-      const params: MoneriumOnrampTransactionParams = {
-        destinationAddress: additionalData.destinationAddress,
-        moneriumWalletAddress: additionalData.moneriumWalletAddress,
-        quote,
-        signingAccounts: normalizedSigningAccounts
-      };
-
-      const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
-
-      const ibanPaymentData = {
-        bic: ibanData.bic,
-        iban: ibanData.iban,
-        receiverName: ibanData.name
-      };
-
-      const ibanCode = createEpcQrCodeData({
-        amount: quote.inputAmount,
-        bic: ibanData.bic,
-        iban: ibanData.iban,
-        name: ibanData.name
-      });
-      return { depositQrCode: ibanCode, ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes(MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND)) {
-        throw new APIError({
-          message: MoneriumErrors.USER_MINT_ADDRESS_NOT_FOUND,
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      throw error;
-    }
-  }
-
-  private async prepareMoneriumOfframpTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    if (!additionalData || additionalData.walletAddress === undefined || !additionalData.moneriumAuthToken) {
+    const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
+    if (!evmEphemeralEntry) {
       throw new APIError({
-        message: "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp",
+        message: "EVM ephemeral account is required for Mykobo EUR onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      moneriumAuthToken: additionalData.moneriumAuthToken,
-      quote,
-      signingAccounts: [],
-      userAddress: additionalData.walletAddress
+
+    const mykobo = MykoboApiService.getInstance();
+    const intent = await mykobo.createTransactionIntent({
+      currency: MykoboCurrency.EURC,
+      email_address: additionalData.email,
+      ip_address: additionalData.ipAddress,
+      transaction_type: MykoboTransactionType.DEPOSIT,
+      value: new Big(quote.inputAmount).toFixed(2, 0),
+      wallet_address: evmEphemeralEntry.address
     });
-    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+
+    const instructions = intent.instructions;
+    if (!instructions || !("iban" in instructions)) {
+      throw new APIError({
+        message: "Mykobo deposit intent did not return IBAN instructions",
+        status: httpStatus.BAD_GATEWAY
+      });
+    }
+
+    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
+      destinationAddress: additionalData.destinationAddress,
+      ipAddress: additionalData.ipAddress,
+      mykoboEmail: additionalData.email,
+      mykoboTransactionId: intent.transaction.id,
+      mykoboTransactionReference: intent.transaction.reference,
+      quote,
+      signingAccounts: normalizedSigningAccounts
+    });
+
+    const ibanPaymentData: IbanPaymentData = {
+      bic: "",
+      iban: instructions.iban,
+      receiverName: instructions.bank_account_name,
+      reference: intent.transaction.reference
+    };
+
+    if (userId) {
+      await syncMykoboCustomerKyc(userId, additionalData.email);
+    }
+
+    return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareRampTransactions(
@@ -1180,6 +1183,7 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
+    transaction: Transaction,
     userId?: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
@@ -1192,14 +1196,11 @@ export class RampService extends BaseRampService {
       case RampTransactionPreparationKind.OfframpBrl:
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
 
-      case RampTransactionPreparationKind.OfframpMonerium:
-        return this.prepareMoneriumOfframpTransactions(quote, normalizedSigningAccounts, additionalData);
-
       case RampTransactionPreparationKind.OfframpNonBrl:
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
 
-      case RampTransactionPreparationKind.OnrampMonerium:
-        return this.prepareMoneriumOnrampTransactions(quote, normalizedSigningAccounts, additionalData);
+      case RampTransactionPreparationKind.OnrampMykobo:
+        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
@@ -1212,7 +1213,6 @@ export class RampService extends BaseRampService {
   private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       EVM: rampState.state.evmEphemeralAddress,
-      Stellar: rampState.state.stellarEphemeralAccountId,
       Substrate: rampState.state.substrateEphemeralAddress
     };
 
@@ -1229,7 +1229,6 @@ export class RampService extends BaseRampService {
 
     const ephemerals: { [key in EphemeralAccountType]: string } = {
       EVM: rampState.state.evmEphemeralAddress,
-      Stellar: rampState.state.stellarEphemeralAccountId,
       Substrate: rampState.state.substrateEphemeralAddress
     };
 
@@ -1260,42 +1259,15 @@ export class RampService extends BaseRampService {
           message: `Missing required additional data 'assethubToPendulumHash' for ${rampState.type} ramp. Cannot proceed.`,
           status: httpStatus.BAD_REQUEST
         });
-      } else if (rampState.from !== Networks.AssetHub && !rampState.state.squidRouterSwapHash) {
-        throw new APIError({
-          message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
-          status: httpStatus.BAD_REQUEST
-        });
+      } else if (rampState.from !== Networks.AssetHub) {
+        const requiresSquidSwapHash = rampState.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
+        if (requiresSquidSwapHash && !rampState.state.squidRouterSwapHash) {
+          throw new APIError({
+            message: `Missing required additional data 'squidRouterSwapHash' for ${rampState.type} ramp. Cannot proceed.`,
+            status: httpStatus.BAD_REQUEST
+          });
+        }
       }
-    }
-
-    if (rampState.type === RampDirection.BUY && quote.inputCurrency === FiatToken.EURC) {
-      if (!rampState.state.moneriumOnrampPermit) {
-        throw new APIError({
-          message: "Missing moneriumOnrampPermit in state. Cannot proceed.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      if (!quote.metadata.moneriumMint?.outputAmountRaw) {
-        throw new APIError({
-          message: "Missing moneriumMint.outputAmountRaw in quote metadata. Cannot validate Monerium onramp permit.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-      if (!rampState.state.moneriumWalletAddress || !rampState.state.evmEphemeralAddress) {
-        throw new APIError({
-          message: "Missing Monerium wallet or EVM ephemeral address in state. Cannot validate Monerium onramp permit.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      validateMoneriumOnrampPermit(rampState.state.moneriumOnrampPermit, {
-        expectedOwner: rampState.state.moneriumWalletAddress,
-        expectedSpender: rampState.state.evmEphemeralAddress,
-        expectedTokenAddress: ERC20_EURE_POLYGON_V2,
-        expectedTokenName: ERC20_EURE_POLYGON_TOKEN_NAME,
-        expectedValueRaw: quote.metadata.moneriumMint.outputAmountRaw,
-        network: Networks.Polygon
-      });
     }
   }
 
@@ -1311,6 +1283,8 @@ export class RampService extends BaseRampService {
     if (!rampState) {
       throw new Error("Ramp not found.");
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     await this.updateRampState(id, {
       currentPhase: "timedOut"
@@ -1336,6 +1310,8 @@ export class RampService extends BaseRampService {
     if (!rampState) {
       throw new Error(`RampState with id ${id} not found`);
     }
+
+    RampService.assertOwnedByThisFlow(rampState, "Ramp");
 
     const oldPhase = rampState.currentPhase;
 
@@ -1491,6 +1467,61 @@ export class RampService extends BaseRampService {
     }
   }
 
+  private async refreshAlfredpayOfframpQuoteIfMatching(
+    quote: QuoteTicket,
+    originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
+    toCurrency: AlfredpayFiatCurrency,
+    transaction: Transaction
+  ): Promise<string> {
+    const alfredpayService = AlfredpayApiService.getInstance();
+    const originalQuoteId = originalAlfredpayOfframp.quoteId;
+
+    const freshQuote = await alfredpayService.createOfframpQuote({
+      chain: AlfredpayChain.MATIC,
+      fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
+      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+      metadata: { businessId: "vortex", customerId: quote.userId || "unknown" },
+      paymentMethodType: AlfredpayPaymentMethodType.BANK,
+      toCurrency
+    } satisfies CreateAlfredpayOfframpQuoteRequest);
+
+    const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
+    const freshToAmount = new Big(freshQuote.toAmount);
+
+    const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
+    const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
+
+    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
+      throw new APIError({
+        message:
+          `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
+          `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
+          `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
+          "Cannot proceed with offramp order.",
+        status: httpStatus.INTERNAL_SERVER_ERROR
+      });
+    }
+
+    await quote.update(
+      {
+        metadata: {
+          ...quote.metadata,
+          alfredpayOfframp: {
+            ...originalAlfredpayOfframp,
+            expirationDate: new Date(freshQuote.expiration),
+            quoteId: freshQuote.quoteId
+          }
+        }
+      },
+      { transaction }
+    );
+
+    logger.info(
+      `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: swapped Alfredpay offramp quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
+    );
+    return freshQuote.quoteId;
+  }
+
   private async processAlfredpayOfframpStart(
     rampState: RampState,
     quote: QuoteTicket,
@@ -1500,7 +1531,6 @@ export class RampService extends BaseRampService {
       return;
     }
 
-    const alfredpayService = AlfredpayApiService.getInstance();
     const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
 
     if (!alfredpayQuoteId) {

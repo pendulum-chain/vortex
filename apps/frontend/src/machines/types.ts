@@ -1,14 +1,13 @@
 import { WalletAccount } from "@talismn/connect-wallets";
-import { PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
-import { ActorRef, ActorRefFrom, SnapshotFrom } from "xstate";
+import { FiatToken, PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import { ActorRef, ActorRefFrom, Snapshot, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
-import { AlfredpayKycContext, AveniaKycContext, MoneriumKycContext, StellarKycContext } from "./kyc.states";
-import { moneriumKycMachine } from "./moneriumKyc.machine";
-import { stellarKycMachine } from "./stellarKyc.machine";
+import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "./kyc.states";
+import { mykoboKycMachine } from "./mykoboKyc.machine";
 
 export type { RampState } from "../types/phases";
 export type GetMessageSignatureCallback = (message: string) => Promise<`0x${string}`>;
@@ -29,6 +28,8 @@ export interface RampContext {
   rampDirection: RampDirection | undefined;
   rampPaymentConfirmed: boolean;
   rampSigningPhase: RampSigningPhase | undefined;
+  rampSigningPhaseCurrent: number | undefined;
+  rampSigningPhaseMax: number | undefined;
   rampState: RampState | undefined;
   substrateWalletAccount: WalletAccount | undefined;
   walletLocked?: string;
@@ -43,8 +44,15 @@ export interface RampContext {
   userId?: string;
   isAuthenticated: boolean;
   isAuthLoading?: boolean;
-  alfredpayCustomer?: any;
-  postAuthTarget?: "QuoteReady" | "RegisterRamp";
+  alfredpayCustomer?: unknown;
+  postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
+  // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
+  kybLink?: {
+    // Drives KYC provider routing when there is no quote (set from the region selector).
+    fiatToken?: FiatToken;
+    // `?kybLocked=` pins the region; going back to the selector is disabled.
+    regionLocked?: boolean;
+  };
 }
 
 export type RampMachineEvents =
@@ -55,7 +63,7 @@ export type RampMachineEvents =
   | { type: "SET_GET_MESSAGE_SIGNATURE"; getMessageSignature: GetMessageSignatureCallback | undefined }
   | { type: "SubmitLevel1"; formData: KYCFormData } // TODO: We should allow by default all child events
   | { type: "SummaryConfirm" }
-  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined }
+  | { type: "SIGNING_UPDATE"; phase: RampSigningPhase | undefined; current?: number; max?: number }
   | { type: "PAYMENT_CONFIRMED" }
   | { type: "SET_RAMP_STATE"; rampState: RampState }
   | { type: "RESET_RAMP"; skipUrlCleaner?: boolean }
@@ -80,16 +88,12 @@ export type RampMachineEvents =
   | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
-  | { type: "GO_BACK" };
+  | { type: "GO_BACK" }
+  | { type: "START_KYB_LINK"; region?: string; locked?: boolean }
+  | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
-export type RampMachineActor = ActorRef<any, RampMachineEvents>;
+export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;
-
-export type StellarKycActorRef = ActorRefFrom<typeof stellarKycMachine>;
-export type StellarKycSnapshot = SnapshotFrom<typeof stellarKycMachine>;
-
-export type MoneriumKycActorRef = ActorRefFrom<typeof moneriumKycMachine>;
-export type MoneriumKycSnapshot = SnapshotFrom<typeof moneriumKycMachine>;
 
 export type AveniaKycActorRef = ActorRefFrom<typeof aveniaKycMachine>;
 export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
@@ -97,19 +101,17 @@ export type AveniaKycSnapshot = SnapshotFrom<typeof aveniaKycMachine>;
 export type AlfredpayKycActorRef = ActorRefFrom<typeof alfredpayKycMachine>;
 export type AlfredpayKycSnapshot = SnapshotFrom<typeof alfredpayKycMachine>;
 
-export type SelectedStellarData = {
-  stateValue: StellarKycSnapshot["value"];
-  context: StellarKycContext;
-};
-
-export type SelectedMoneriumData = {
-  stateValue: MoneriumKycSnapshot["value"];
-  context: MoneriumKycContext;
-};
+export type MykoboKycActorRef = ActorRefFrom<typeof mykoboKycMachine>;
+export type MykoboKycSnapshot = SnapshotFrom<typeof mykoboKycMachine>;
 
 export type SelectedAveniaData = {
   stateValue: AveniaKycSnapshot["value"];
   context: AveniaKycContext;
+};
+
+export type SelectedMykoboData = {
+  stateValue: MykoboKycSnapshot["value"];
+  context: MykoboKycContext;
 };
 
 /**

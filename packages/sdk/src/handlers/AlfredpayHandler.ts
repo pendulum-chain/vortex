@@ -27,7 +27,6 @@ export class AlfredpayHandler implements RampHandler {
   private signTransactions: (
     unsignedTxs: UnsignedTx[],
     ephemerals: {
-      stellarEphemeral?: EphemeralAccount;
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
@@ -43,7 +42,6 @@ export class AlfredpayHandler implements RampHandler {
     signTransactions: (
       unsignedTxs: UnsignedTx[],
       ephemerals: {
-        stellarEphemeral?: EphemeralAccount;
         substrateEphemeral?: EphemeralAccount;
         evmEphemeral?: EphemeralAccount;
       }
@@ -56,7 +54,7 @@ export class AlfredpayHandler implements RampHandler {
   }
 
   async registerAlfredpayOnramp(quoteId: string, additionalData: AlfredpayOnrampAdditionalData): Promise<RampProcess> {
-    if (!additionalData.destinationAddress || !additionalData.fiatAccountId) {
+    if (!additionalData.destinationAddress) {
       throw new MissingAlfredpayOnrampParametersError();
     }
 
@@ -79,7 +77,6 @@ export class AlfredpayHandler implements RampHandler {
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
-      stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate
     });
 
@@ -115,7 +112,6 @@ export class AlfredpayHandler implements RampHandler {
 
     const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
       evmEphemeral: ephemerals.EVM,
-      stellarEphemeral: ephemerals.Stellar,
       substrateEphemeral: ephemerals.Substrate
     });
 

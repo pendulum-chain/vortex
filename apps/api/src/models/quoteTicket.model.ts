@@ -2,6 +2,7 @@ import { DestinationType, Networks, PaymentMethod, RampCurrency, RampDirection }
 import { DataTypes, Model, Optional } from "sequelize";
 import { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import sequelize from "../config/database";
+import { FlowVariant } from "../config/vars";
 
 // Define the attributes of the QuoteTicket model
 export interface QuoteTicketAttributes {
@@ -15,6 +16,7 @@ export interface QuoteTicketAttributes {
   outputAmount: string;
   outputCurrency: RampCurrency;
   partnerId: string | null;
+  pricingPartnerId: string | null;
   apiKey: string | null;
   expiresAt: Date;
   status: "pending" | "consumed" | "expired";
@@ -22,6 +24,7 @@ export interface QuoteTicketAttributes {
   paymentMethod: PaymentMethod;
   countryCode: string | null;
   network: Networks;
+  flowVariant: FlowVariant;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +54,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
 
   declare partnerId: string | null;
 
+  declare pricingPartnerId: string | null;
+
   declare apiKey: string | null;
 
   declare expiresAt: Date;
@@ -64,6 +69,8 @@ class QuoteTicket extends Model<QuoteTicketAttributes, QuoteTicketCreationAttrib
   declare countryCode: string | null;
 
   declare network: Networks;
+
+  declare flowVariant: FlowVariant;
 
   declare createdAt: Date;
 
@@ -94,6 +101,11 @@ QuoteTicket.init(
       defaultValue: () => new Date(Date.now() + 10 * 60 * 1000), // 10 minutes from now
       field: "expires_at",
       type: DataTypes.DATE
+    },
+    flowVariant: {
+      allowNull: false,
+      field: "flow_variant",
+      type: DataTypes.STRING(16)
     },
     from: {
       allowNull: false,
@@ -148,6 +160,17 @@ QuoteTicket.init(
       field: "payment_method",
       type: DataTypes.STRING(20)
     },
+    pricingPartnerId: {
+      allowNull: true,
+      field: "pricing_partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     rampType: {
       allowNull: false,
       field: "ramp_type",
@@ -192,6 +215,25 @@ QuoteTicket.init(
       {
         fields: ["partner_id"],
         name: "idx_quote_tickets_partner"
+      },
+      {
+        fields: ["pricing_partner_id"],
+        name: "idx_quote_tickets_pricing_partner"
+      },
+      {
+        fields: ["flow_variant"],
+        name: "idx_quote_tickets_flow_variant"
+      },
+      {
+        fields: ["expires_at"],
+        name: "idx_quote_tickets_expired_expires_at",
+        where: {
+          status: "expired"
+        }
+      },
+      {
+        fields: [{ name: "created_at", order: "DESC" }],
+        name: "idx_quote_tickets_created_at"
       }
     ],
     modelName: "QuoteTicket",

@@ -227,22 +227,6 @@ export function PrivacyPolicyPage() {
             </a>
           </li>
           <li>
-            <strong>{t("pages.privacyPolicy.sections.7.partners.monerium.name")}</strong> –{" "}
-            {t("pages.privacyPolicy.sections.7.partners.monerium.website.label")}{" "}
-            <a className="text-blue-600 hover:underline" href="https://monerium.com/" rel="noopener noreferrer" target="_blank">
-              https://monerium.com/
-            </a>{" "}
-            – {t("pages.privacyPolicy.sections.7.partners.monerium.privacyTos.label")}{" "}
-            <a
-              className="text-blue-600 hover:underline"
-              href="https://monerium.com/policies/personal-terms-of-service-2025-05-20/"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              https://monerium.com/policies/personal-terms-of-service-2025-05-20/
-            </a>
-          </li>
-          <li>
             <strong>{t("pages.privacyPolicy.sections.7.partners.mykobo.name")}</strong> –{" "}
             {t("pages.privacyPolicy.sections.7.partners.mykobo.website.label")}{" "}
             <a className="text-blue-600 hover:underline" href="https://mykobo.io/" rel="noopener noreferrer" target="_blank">

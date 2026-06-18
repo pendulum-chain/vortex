@@ -82,12 +82,13 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: outputAssetSymbol
     }),
     initial: t("pages.progress.initial"),
-    moneriumOnrampMint: t("pages.progress.moneriumOnrampMint"),
-    moneriumOnrampSelfTransfer: t("pages.progress.moneriumOnrampSelfTransfer"),
     moonbeamToPendulum: getMoonbeamToPendulumMessage(),
     moonbeamToPendulumXcm: getMoonbeamToPendulumMessage(),
+    mykoboOnrampDeposit: t("pages.progress.mykoboOnrampDeposit"),
+    mykoboPayoutOnBase: getTransferringMessage(),
     nablaApprove: getSwappingMessage(),
     nablaSwap: getSwappingMessage(),
+    onHoldForComplianceCheck: t("pages.progress.onHoldForComplianceCheck"),
     pendulumToAssethubXcm: t("pages.progress.pendulumToAssethubXcm", {
       assetSymbol: outputAssetSymbol
     }),
@@ -95,9 +96,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
       assetSymbol: "USDC" // Always USDC because of the logic of our flow
     }),
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
-      assetSymbol: outputAssetSymbol
-    }),
-    spacewalkRedeem: t("pages.progress.executeSpacewalkRedeem", {
       assetSymbol: outputAssetSymbol
     }),
     squidRouterApprove: getSquidRouterSwapMessage(),
@@ -115,10 +113,6 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     squidRouterPay: getSquidRouterSwapMessage(),
     squidRouterPermitExecute: getSquidRouterPermitMessage(),
     squidRouterSwap: getSquidRouterSwapMessage(),
-    stellarCreateAccount: t("pages.progress.createStellarAccount"),
-    stellarPayment: t("pages.progress.stellarPayment", {
-      assetSymbol: outputAssetSymbol
-    }),
     subsidizePostSwap: getSwappingMessage(), // Not relevant for progress page
     subsidizePreSwap: getSwappingMessage(),
     timedOut: ""

@@ -12,9 +12,7 @@
       "title": "Oferta especial até 27 Maio"
     },
     "alfredpayKycFlow": {
-      "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
       "cancel": "Cancelar",
-      "completed": "{{kycOrKyb}} Concluído!",
       "completeInNewWindow": "Por favor, complete o processo {{kycOrKyb}} na nova janela. Quando terminar, clique no botão abaixo.",
       "completeProcess": "Para continuar, complete o processo {{kycOrKyb}} com nosso parceiro AlfredPay.",
       "continue": "Continuar",
@@ -32,6 +30,33 @@
       "verifyingCompletion": "Verificando conclusão",
       "verifyingStatus": "Verificando Status {{kycOrKyb}}",
       "verifyingStatusDescription": "Isso pode levar alguns momentos. Por favor, não feche esta janela."
+    },
+    "arDocumentUpload": {
+      "backLabel": "Verso do DNI",
+      "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
+      "fileTooLarge": "O arquivo excede o limite de 5 MB.",
+      "frontLabel": "Frente do DNI",
+      "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
+      "submit": "Enviar Documentos",
+      "subtitle": "Por favor, envie uma foto ou digitalização do seu DNI (frente e verso) e uma selfie. Máx. 5 MB por arquivo.",
+      "tapToSelect": "Toque para selecionar o arquivo",
+      "title": "Enviar Documentos de Identidade"
+    },
+    "arKycForm": {
+      "continue": "Continuar",
+      "cuit": "CUIT",
+      "cuitPlaceholder": "CUIT",
+      "dni": "Número do DNI",
+      "dniPlaceholder": "Número do DNI",
+      "documentType": "Tipo de Documento",
+      "options": {
+        "dni": "DNI (Documento Nacional de Identidad)"
+      },
+      "pepLabel": "Sou uma Pessoa Politicamente Exposta (PEP)",
+      "phoneNumber": "Número de Telefone",
+      "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
+      "title": "Verificação de Identidade"
     },
     "authEmailStep": {
       "buttons": {
@@ -223,6 +248,7 @@
           "required": "Rua é obrigatória"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "Tax Id inválido",
           "required": "Tax Id é obrigatório"
         }
@@ -235,6 +261,7 @@
       }
     },
     "colKycForm": {
+      "continue": "Continuar",
       "dni": "Número de Documento",
       "dniPlaceholderCc": "Número CC de 10 dígitos",
       "dniPlaceholderCe": "Número CE de 6 a 10 dígitos",
@@ -393,12 +420,14 @@
       "descriptions": {
         "ACH": "1 a 2 dias úteis",
         "ACH_COL": "Transferência bancária colombiana",
+        "COELSA": "Transferência bancária argentina",
         "SPEI": "Transferência interbancária instantânea via número CLABE",
         "WIRE": "No mesmo dia"
       },
       "labels": {
         "ACH": "Transferência ACH",
         "ACH_COL": "ACH Colômbia",
+        "COELSA": "COELSA",
         "SPEI": "SPEI",
         "WIRE": "Transferência Internacional"
       },
@@ -458,7 +487,6 @@
         "avenia": "Avenia",
         "careers": "Carreiras",
         "licences": "Licenças",
-        "monerium": "Monerium",
         "mykobo": "MyKobo",
         "privacyPolicy": "Política de Privacidade",
         "termsAndConditions": "Termos e Condições",
@@ -515,6 +543,12 @@
       "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
       "title": "Documento do Representante ({{current}} de {{total}})"
     },
+    "kycDoneScreen": {
+      "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
+      "completed": "{{kycOrKyb}} Concluído!",
+      "continue": "Continuar",
+      "documentVerifiedAlt": "Documento verificado"
+    },
     "kycLevel2Toggle": {
       "temporarilyDisabled": "Temporariamente desativado"
     },
@@ -526,26 +560,13 @@
       },
       "button": "Modo de Manutenção"
     },
-    "moneriumFormStep": {
-      "description": {
-        "1": "Por favor, insira o endereço onde deseja receber os ativos no AssetHub.",
-        "2": "Em seguida, autentique-se com nosso parceiro de stablecoin <a>Monerium</a> conectando sua carteira EVM."
-      },
-      "field": {
-        "label": "Endereço da Carteira AssetHub"
-      }
-    },
-    "moneriumRedirect": {
-      "cancel": "Cancelar",
-      "description": "Você foi redirecionado para nosso parceiro...",
-      "goToPartner": "Ir para o parceiro"
-    },
     "mxnDocumentUpload": {
       "backLabel": "Verso do Documento",
       "fileHint": "Formatos aceitos: JPG, PNG, PDF — máx. 5 MB cada",
       "fileTooLarge": "O arquivo excede o limite de 5 MB.",
       "frontLabel": "Frente do Documento",
       "invalidType": "Somente arquivos JPG, PNG ou PDF são aceitos.",
+      "selfieLabel": "Selfie",
       "submit": "Enviar Documentos",
       "subtitle": "Por favor, envie uma foto ou digitalização do seu documento. Máx. 5 MB por arquivo (JPG, PNG, PDF).",
       "tapToSelect": "Toque para selecionar o arquivo",
@@ -571,6 +592,51 @@
       "subtitle": "Por favor, forneça suas informações pessoais para concluir o KYC.",
       "title": "Verificação de Identidade",
       "zipCode": "CEP"
+    },
+    "mykoboKycFlow": {
+      "checkingProfile": "Verificando o status da sua verificação...",
+      "failure": "Falha na verificação",
+      "form": {
+        "addressLine1": "Endereço linha 1",
+        "backOfId": "Verso do documento",
+        "bankAccountNumber": "IBAN",
+        "city": "Cidade",
+        "documents": "Documentos",
+        "emailAddress": "Endereço de e-mail",
+        "errors": {
+          "backRequired": "O verso do documento é obrigatório para carteiras de identidade e carteiras de motorista.",
+          "requiredFields": "Por favor, preencha todos os campos obrigatórios.",
+          "requiredFiles": "Frente do documento, selfie e comprovante de residência são obrigatórios."
+        },
+        "filePlaceholder": "PNG, JPG ou PDF",
+        "firstName": "Nome",
+        "frontOfId": "Frente do documento",
+        "idCountryCode": "País (ISO alpha-2)",
+        "idType": "Tipo de documento",
+        "idTypeOptions": {
+          "DRIVERS_LICENSE": "Carteira de motorista",
+          "ID_CARD": "Carteira de identidade",
+          "PASSPORT": "Passaporte"
+        },
+        "lastName": "Sobrenome",
+        "selfie": "Selfie",
+        "sourceOfFunds": "Origem dos fundos",
+        "sourceOfFundsOptions": {
+          "EMPLOYMENT": "Emprego",
+          "INHERITANCE": "Herança",
+          "INVESTMENT": "Investimento",
+          "LOANS": "Empréstimos",
+          "SAVINGS": "Poupança"
+        },
+        "submit": "Enviar",
+        "taxCountry": "País de tributação (ISO alpha-2)",
+        "title": "Verificação KYC",
+        "utilityBill": "Comprovante de residência"
+      },
+      "rejected": "Sua verificação foi rejeitada.",
+      "startOver": "Começar de novo",
+      "submitting": "Enviando sua verificação...",
+      "verifying": "Verificando sua identidade. Isso pode levar alguns minutos..."
     },
     "navbar": {
       "api": "API",
@@ -612,7 +678,29 @@
       "thankYou": "Obrigado!",
       "title": "Sua opinião é importante!"
     },
+    "regionSelectStep": {
+      "continue": "Continuar",
+      "description": "Selecione a região para a qual deseja verificar sua empresa.",
+      "label": "Região",
+      "placeholder": "Selecione uma região",
+      "regions": {
+        "BR": "Brasil",
+        "CO": "Colômbia",
+        "MX": "México",
+        "US": "Estados Unidos"
+      },
+      "title": "Selecione sua região"
+    },
     "SummaryPage": {
+      "ARSOnrampDetails": {
+        "aliasLabel": "Alias",
+        "cvuLabel": "CBU/CVU",
+        "expiresAt": "Expira",
+        "instruction": "Transfira os fundos para a conta bancária abaixo",
+        "qrCodeDescription": "Uma vez concluído, clique em <strong>\"Eu fiz o pagamento\"</strong>",
+        "reference": "Referência",
+        "title": "Pagar via Transferência Bancária"
+      },
       "BRLOnrampDetails": {
         "copyCode": "Ou copie o código PIX abaixo, selecione PIX no app do seu banco e cole o código fornecido.",
         "pixCode": "Código PIX",
@@ -640,12 +728,14 @@
         "hint": "Escaneie este QR code no seu aplicativo bancário para iniciar o pagamento instantaneamente.",
         "iban": "IBAN",
         "receiver": "Nome do Beneficiário",
+        "reference": "Referência",
         "title": "Faça uma transferência bancária instantânea com os seguintes detalhes"
       },
       "headerText": {
         "buy": "Resumo do pagamento",
         "sell": "Resumo do pagamento"
       },
+      "iban": "IBAN",
       "MXNOnrampDetails": {
         "expiresAt": "Expira",
         "instruction": "Transfira os fundos via SPEI para o CLABE abaixo",
@@ -721,6 +811,7 @@
           "required": "Chave PIX é obrigatória para transferências em BRL"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
         },
@@ -755,8 +846,7 @@
   "hooks": {
     "useGetRampRegistrationErrorMessage": {
       "default": "Algo deu errado",
-      "quoteNotFound": "A cotação expirou. Por favor, tente novamente.",
-      "userMintAddressNotFound": "Sua conta está sendo criada, por favor tente novamente em alguns minutos."
+      "quoteNotFound": "A cotação expirou. Por favor, tente novamente."
     },
     "useSubmitOfframp": {
       "cnpjUserDoesntExist": "Entre em contato com nossa equipe de suporte em support@vortexfinance.co para começar como usuário empresarial.",
@@ -867,12 +957,13 @@
         "submit": "Enviar"
       },
       "info": {
-        "integrationHelp": "Obter ajuda de integração",
-        "onboardingHelp": "Obter ajuda de onboarding",
+        "integrationHelp": "Integre com sua plataforma",
+        "onboardingHelp": "Receba suporte de onboarding",
+        "requestCommercials": "Solicitar condições comerciais",
         "requestDemo": "Solicitar uma demonstração",
         "supportLink": "Contatar suporte",
         "technicalQuestions": "Problemas técnicos ou dúvidas sobre o produto?",
-        "title": "Fale com vendas"
+        "title": "Escale seus pagamentos em stablecoins"
       },
       "success": "Obrigado! Entraremos em contato em breve.",
       "title": "Conte-nos como podemos ajudar",
@@ -1076,15 +1167,6 @@
                 "label": "Website:"
               }
             },
-            "monerium": {
-              "name": "Monerium EMI ehf. (EEA/Islândia)",
-              "privacyTos": {
-                "label": "Privacidade/ToS:"
-              },
-              "website": {
-                "label": "Website:"
-              }
-            },
             "mykobo": {
               "name": "MYKOBO UAB (UE/Lituânia)",
               "privacy": {
@@ -1186,9 +1268,9 @@
       "hydrationSwap": "Trocando {{inputAssetSymbol}} por {{outputAssetSymbol}} no Hydration DEX",
       "hydrationToAssethubXcm": "Transferindo {{assetSymbol}} de Hydration --> AssetHub",
       "initial": "Iniciando processo",
-      "moneriumOnrampMint": "Aguardando pagamento",
-      "moneriumOnrampSelfTransfer": "Transferindo EUR.e para a conta efêmera",
       "moonbeamToPendulum": "Transferindo {{assetSymbol}} de Moonbeam --> Pendulum",
+      "mykoboOnrampDeposit": "Aguardando recebimento do pagamento",
+      "onHoldForComplianceCheck": "Seu pagamento está em espera para uma verificação de compliance. A Vortex continuará automaticamente quando a Avenia liberar.",
       "pendulumToAssethubXcm": "Transferindo {{assetSymbol}} de Pendulum --> AssetHub",
       "pendulumToHydrationXcm": "Transferindo {{assetSymbol}} de Pendulum --> Hydration",
       "pendulumToMoonbeamXcm": "Transferindo {{assetSymbol}} de Pendulum --> Moonbeam",
@@ -1247,12 +1329,13 @@
         "insufficientFunds": "Saldo insuficiente. Seu saldo é {{userInputTokenBalance}} {{assetSymbol}}",
         "insufficientLiquidity": "O valor está temporariamente indisponível. Por favor, tente com um valor menor.",
         "invalidInputAmount": "Valor de entrada inválido",
+        "invalidNetworks": "Redes inválidas. Por favor, forneça uma lista válida de redes suportadas.",
         "invalidRampType": "Tipo de rampa inválido",
         "lessThanMinimumWithdrawal": {
           "buy": "O valor mínimo de compra é {{minAmountUnits}} {{assetSymbol}}.",
           "sell": "O valor mínimo de venda é {{minAmountUnits}} {{assetSymbol}}."
         },
-        "lowLiquidity": "Baixa liquidez para esta rota. Por favor, tente um valor menor.",
+        "lowLiquidity": "Esta rota está temporariamente indisponível devido à baixa liquidez. Tente um valor menor ou volte em breve.",
         "MXN_tokenUnavailable": "Construa seu trilho MXN - disponível em breve!",
         "missingFields": "Campos obrigatórios ausentes",
         "moreThanMaximumWithdrawal": {
@@ -1397,13 +1480,17 @@
       "title": "Compre e Venda <1>Stablecoins</1> - <br class='hidden sm:block' /> diretamente com sua conta bancária"
     },
     "popularTokens": {
+      "countries": {
+        "description": "Faça on e off-ramp nestas moedas fiduciárias populares",
+        "title": "Países Suportados"
+      },
+      "cryptocurrencies": {
+        "description": "criptomoedas suportadas",
+        "title": "Criptomoedas Suportadas"
+      },
       "networks": {
         "description": "Negocie em várias redes blockchain",
         "title": "Redes Suportadas"
-      },
-      "tokens": {
-        "description": "Negocie estas stablecoins populares",
-        "title": "Tokens Suportados"
       }
     },
     "popularTokensPartners": {

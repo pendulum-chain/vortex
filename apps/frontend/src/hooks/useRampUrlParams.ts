@@ -2,7 +2,6 @@ import { useSearch } from "@tanstack/react-router";
 import {
   AssetHubToken,
   DestinationType,
-  EPaymentMethod,
   type EvmNetworks,
   EvmToken,
   FiatToken,
@@ -21,6 +20,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { isFrontendNetworkEnabled } from "../config/networkAvailability";
 import { getFirstEnabledFiatToken, isFiatTokenEnabled } from "../config/tokenAvailability";
 import { useNetwork } from "../contexts/network";
 import { useRampActor } from "../contexts/rampState";
@@ -40,7 +40,6 @@ interface RampUrlParams {
   apiKey?: string;
   partnerId?: string;
   providedQuoteId?: string;
-  moneriumCode?: string;
   fiat?: FiatToken;
   countryCode?: string;
   cryptoLocked?: OnChainTokenSymbol;
@@ -48,6 +47,9 @@ interface RampUrlParams {
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
+  kybMode?: boolean;
+  region?: string;
+  kybRegionLocked?: boolean;
 }
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
@@ -108,7 +110,7 @@ function findOnChainToken(
 function getNetworkFromParam(param?: string): Networks | undefined {
   if (param) {
     const matchedNetwork = Object.values(Networks).find(network => network.toLowerCase() === param);
-    return matchedNetwork;
+    return matchedNetwork && isFrontendNetworkEnabled(matchedNetwork) ? matchedNetwork : undefined;
   }
   return undefined;
 }
@@ -170,7 +172,6 @@ export enum RampUrlParamsKeys {
   CALLBACK_URL = "callbackUrl",
   EXTERNAL_SESSION_ID = "externalSessionId",
   COUNTRY_CODE = "countryCode",
-  MONERIUM_CODE = "code",
   PROVIDED_QUOTE_ID = "quoteId"
 }
 
@@ -185,8 +186,14 @@ export const useRampUrlParams = (): RampUrlParams => {
     const fiatParam = searchParams.fiat?.toUpperCase();
     const cryptoLockedParam = searchParams.cryptoLocked?.toUpperCase();
     const countryCodeParam = searchParams.countryCode?.toUpperCase();
+    // `kyb` or `kybLocked` present (any value, including a bare flag) enables KYB mode; a string value is the region code.
+    // `kybLocked` additionally pins the region and skips the selector.
+    const kybRegionLocked = searchParams.kybLocked !== undefined;
+    const kybMode = searchParams.kyb !== undefined || kybRegionLocked;
+    const lockedRegion = typeof searchParams.kybLocked === "string" ? searchParams.kybLocked.toUpperCase() : undefined;
+    const kybRegion = typeof searchParams.kyb === "string" ? searchParams.kyb.toUpperCase() : undefined;
+    const regionParam = lockedRegion || kybRegion;
 
-    const moneriumCode = searchParams.code?.toLowerCase();
     const networkParam = searchParams.network?.toLowerCase();
     const providedQuoteId = searchParams.quoteId?.toLowerCase();
     const paymentMethodParam = searchParams.paymentMethod?.toLowerCase() as PaymentMethod | undefined;
@@ -218,12 +225,14 @@ export const useRampUrlParams = (): RampUrlParams => {
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
-      moneriumCode,
+      kybMode,
+      kybRegionLocked,
       network,
       partnerId: partnerIdParam || undefined,
       paymentMethod: paymentMethodParam || undefined,
       providedQuoteId,
       rampDirection,
+      region: regionParam || undefined,
       walletLocked: walletLockedParam || undefined
     };
     // evmTokensLoaded: triggers re-evaluation of cryptoLocked when dynamic tokens (e.g. WETH, WBTC) finish loading from SquidRouter
@@ -247,7 +256,9 @@ export const useSetRampUrlParams = () => {
     walletLocked,
     callbackUrl,
     externalSessionId,
-    moneriumCode
+    kybMode,
+    region,
+    kybRegionLocked
   } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
@@ -282,6 +293,19 @@ export const useSetRampUrlParams = () => {
     // effect to read params when at /widget path
     if (!isWidget) return;
     if (hasInitialized.current) return;
+
+    // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
+    // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.
+    if (kybMode) {
+      if (externalSessionId) {
+        rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+      }
+      setPartnerIdFn(partnerId || null);
+      setApiKeyFn(apiKey || null);
+      rampActor.send({ locked: kybRegionLocked, region, type: "START_KYB_LINK" });
+      hasInitialized.current = true;
+      return;
+    }
 
     // Modify the ramp state machine accordingly
     if (providedQuoteId) {
@@ -384,13 +408,6 @@ export const useSetRampUrlParams = () => {
       setApiKeyFn(null);
     }
 
-    const persistState = moneriumCode !== undefined;
-
-    if (persistState) {
-      hasInitialized.current = true;
-      return;
-    }
-
     resetRampForm();
 
     onToggle(rampDirection);
@@ -422,8 +439,7 @@ export const useSetRampUrlParams = () => {
     setApiKeyFn,
     setPartnerIdFn,
     onToggle,
-    handleFiatToken,
-    moneriumCode
+    handleFiatToken
   ]);
 
   useEffect(() => {

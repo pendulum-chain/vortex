@@ -37,11 +37,9 @@ async function createApiComponents(socketUrl: string, autoReconnect = true): Pro
 
 class MoonbeamApiService {
   private static instance: MoonbeamApiService;
-  private apiComponents: Promise<ApiComponents>;
+  private apiComponents?: Promise<ApiComponents>;
 
-  private constructor() {
-    this.apiComponents = createApiComponents(MOONBEAM_WSS);
-  }
+  private constructor() {}
 
   public static getInstance(): MoonbeamApiService {
     if (!MoonbeamApiService.instance) {
@@ -51,6 +49,10 @@ class MoonbeamApiService {
   }
 
   public getApi(): Promise<ApiComponents> {
+    if (!this.apiComponents) {
+      this.apiComponents = createApiComponents(MOONBEAM_WSS);
+    }
+
     return this.apiComponents;
   }
 }

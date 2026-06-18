@@ -10,6 +10,7 @@ export interface EvmNetworkConfig {
 }
 
 const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
+const NON_RETRYABLE_READ_CONTRACT_REVERTS = ["EXCEEDS_MAX_COVERAGE_RATIO"];
 
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
@@ -49,6 +50,10 @@ function getRpcCacheKey(rpcUrl: string): string {
 function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transport {
   const targetRpcUrl = rpcUrl ?? network.rpcUrls[0];
   return targetRpcUrl === "" ? http() : http(targetRpcUrl);
+}
+
+function isNonRetryableReadContractError(error: Error): boolean {
+  return NON_RETRYABLE_READ_CONTRACT_REVERTS.some(revertReason => error.message.includes(revertReason));
 }
 
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
@@ -161,7 +166,8 @@ export class EvmClientManager {
     operation: (rpcUrl: string) => Promise<T>,
     operationName: string,
     maxRetries = 3,
-    initialDelayMs = 1000
+    initialDelayMs = 1000,
+    shouldRetry: (error: Error) => boolean = () => true
   ): Promise<T> {
     const network = this.getNetworkConfig(networkName);
     const rpcUrls = network.rpcUrls;
@@ -186,6 +192,12 @@ export class EvmClientManager {
         logger.current.warn(
           `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
         );
+
+        if (!shouldRetry(lastError)) {
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizeRpcErrorMessage(lastError.message)}`, {
+            cause: lastError
+          });
+        }
 
         if (attempt < maxRetries) {
           const delayMs = initialDelayMs * Math.pow(2, attempt); // Exponential backoff
@@ -327,7 +339,8 @@ export class EvmClientManager {
       },
       "read contract",
       maxRetries,
-      initialDelayMs
+      initialDelayMs,
+      error => !isNonRetryableReadContractError(error)
     );
   }
 

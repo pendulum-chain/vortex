@@ -1,10 +1,8 @@
 import {
   AssethubToBrlaStorageRequest,
-  AssethubToStellarStorageRequest,
   BrlaToAssethubStorageRequest,
   BrlaToEvmStorageRequest,
   EvmToBrlaStorageRequest,
-  EvmToStellarStorageRequest,
   OfframpHandlerType,
   OnrampHandlerType,
   StoreDataRequest,
@@ -25,38 +23,6 @@ export class StorageService {
    */
   static async storeData(request: StoreDataRequest): Promise<StoreDataResponse> {
     return apiRequest<StoreDataResponse>("post", `${this.BASE_PATH}/create`, request);
-  }
-
-  /**
-   * Store data for EVM to Stellar flow
-   * @param data The EVM to Stellar flow data
-   * @returns Success message
-   */
-  static async storeEvmToStellarData(
-    data: Omit<EvmToStellarStorageRequest, "flowType" | "timestamp">
-  ): Promise<StoreDataResponse> {
-    const request: EvmToStellarStorageRequest = {
-      ...data,
-      flowType: OfframpHandlerType.EVM_TO_STELLAR,
-      timestamp: new Date().toISOString()
-    };
-    return this.storeData(request);
-  }
-
-  /**
-   * Store data for Assethub to Stellar flow
-   * @param data The Assethub to Stellar flow data
-   * @returns Success message
-   */
-  static async storeAssethubToStellarData(
-    data: Omit<AssethubToStellarStorageRequest, "flowType" | "timestamp">
-  ): Promise<StoreDataResponse> {
-    const request: AssethubToStellarStorageRequest = {
-      ...data,
-      flowType: OfframpHandlerType.ASSETHUB_TO_STELLAR,
-      timestamp: new Date().toISOString()
-    };
-    return this.storeData(request);
   }
 
   /**

@@ -27,25 +27,6 @@ import ptTranslations from "./translations/pt.json";
 
 const queryClient = new QueryClient();
 
-// Boilerplate code for Sentry
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
-if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    enabled: !window.location.hostname.includes("localhost"), // Disable sentry entirely when testing locally
-    environment: config.isProd ? "production" : "development",
-    integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()],
-    replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur. //  Capture 100% of the transactions
-    // Session Replay
-    replaysSessionSampleRate: 1.0,
-    // Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled
-    // We allow all to account for different Netlify URLs which are dependant on the branch name
-    tracePropagationTargets: ["*"], // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
-    // Tracing
-    tracesSampleRate: 1.0
-  });
-}
-
 // Initialize i18n with browser language as default
 // The actual language will be set by the route's beforeLoad
 const lng = getBrowserLanguage();
@@ -71,6 +52,24 @@ declare module "@tanstack/react-router" {
   }
 }
 
+// Sentry must initialize before the app renders. The TanStack Router tracing
+// integration needs the router instance, so init runs after the router is created.
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    enabled: !window.location.hostname.includes("localhost"), // Disable sentry entirely when testing locally
+    environment: config.isProd ? "production" : "development",
+    integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router), Sentry.replayIntegration()],
+    // Capture 100% of sessions where an error occurs; sample plain sessions only in prod.
+    replaysOnErrorSampleRate: 1.0,
+    replaysSessionSampleRate: config.isProd ? 0.1 : 1.0,
+    // Allow all targets to account for different Netlify URLs which depend on the branch name.
+    tracePropagationTargets: ["*"],
+    tracesSampleRate: config.isProd ? 0.2 : 1.0
+  });
+}
+
 const root = document.getElementById("app");
 
 if (!root) {
@@ -80,7 +79,11 @@ if (!root) {
 // Initialize dynamic EVM tokens from SquidRouter API (falls back to static config on failure)
 initializeEvmTokens();
 
-createRoot(root).render(
+createRoot(root, {
+  onCaughtError: Sentry.reactErrorHandler(),
+  onRecoverableError: Sentry.reactErrorHandler(),
+  onUncaughtError: Sentry.reactErrorHandler()
+}).render(
   <QueryClientProvider client={queryClient}>
     <ReactQueryDevtools initialIsOpen={false} />
     <WagmiProvider config={wagmiConfig}>

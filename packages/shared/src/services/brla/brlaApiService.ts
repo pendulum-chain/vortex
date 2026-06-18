@@ -283,7 +283,7 @@ export class BrlaApiService {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL, // Fixed. We know it comes from the our balance
       inputThirdParty: String(false),
       outputCurrency: quoteParams.outputCurrency,
-      outputPaymentMethod: AveniaPaymentMethod.POLYGON,
+      outputPaymentMethod: quoteParams.outputPaymentMethod ?? AveniaPaymentMethod.POLYGON,
       outputThirdParty: String(false) // Fixed. We know it goes to our Moonbeam account.
     }).toString();
     const cacheKey = `onchainSwap:${query}`;
@@ -395,7 +395,9 @@ export class BrlaApiService {
     const aveniaTicketsQueryResponse = await this.sendRequest(Endpoint.Tickets, "GET", query, undefined);
 
     if ("tickets" in aveniaTicketsQueryResponse) {
-      return aveniaTicketsQueryResponse.tickets.filter((ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket);
+      return aveniaTicketsQueryResponse.tickets.filter(
+        (ticket): ticket is AveniaPayinTicket => "brlPixInputInfo" in ticket || "brazilianFiatSenderInfo" in ticket
+      );
     }
     throw new Error("Invalid response from Avenia API for getAveniaPayinTickets");
   }

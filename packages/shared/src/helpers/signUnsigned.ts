@@ -2,7 +2,6 @@ import { ApiPromise, Keyring } from "@polkadot/api";
 import { AddressOrPair } from "@polkadot/api/types";
 import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
-import { Keypair, Networks as StellarNetworks, Transaction } from "stellar-sdk";
 import { createWalletClient, fallback, http, WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
@@ -15,7 +14,6 @@ import {
   Networks,
   NUMBER_OF_PRESIGNED_TXS,
   PresignedTx,
-  SANDBOX_ENABLED,
   UnsignedTx
 } from "../index";
 import logger from "../logger";
@@ -39,37 +37,6 @@ export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSig
     ...primaryTx,
     meta: { ...primaryTx.meta, additionalTxs }
   };
-}
-
-/**
- * Signs multiple Stellar transactions with increasing sequence numbers
- */
-async function signMultipleStellarTransactions(
-  tx: UnsignedTx,
-  keypair: Keypair,
-  networkPassphrase: string
-): Promise<PresignedTx> {
-  const transaction = new Transaction(tx.txData as string, networkPassphrase);
-  transaction.sign(keypair);
-
-  const primarySignedTxData = transaction.toEnvelope().toXDR().toString("base64");
-
-  const signedTx: PresignedTx = {
-    ...tx,
-    txData: primarySignedTxData
-  };
-  // iterate objects of array meta
-  for (const key in signedTx.meta.additionalTxs) {
-    if (!key.includes(tx.phase)) continue;
-
-    const extraTransactionUnsigned = signedTx.meta.additionalTxs[key].txData;
-    const extraTransaction = new Transaction(extraTransactionUnsigned as string, networkPassphrase);
-    extraTransaction.sign(keypair);
-
-    const extraTransactionSigned = extraTransaction.toEnvelope().toXDR().toString("base64");
-    signedTx.meta.additionalTxs[key].txData = extraTransactionSigned;
-  }
-  return signedTx;
 }
 
 /**
@@ -225,13 +192,12 @@ async function signMultipleEvmTransactions(
 export async function signUnsignedTransactions(
   unsignedTxs: UnsignedTx[],
   ephemerals: {
-    stellarEphemeral?: EphemeralAccount;
     substrateEphemeral?: EphemeralAccount;
     evmEphemeral?: EphemeralAccount;
   },
-  pendulumApi: ApiPromise,
-  moonbeamApi: ApiPromise,
-  hydrationApi: ApiPromise,
+  pendulumApi?: ApiPromise,
+  moonbeamApi?: ApiPromise,
+  hydrationApi?: ApiPromise,
   alchemyApiKey?: string
 ): Promise<PresignedTx[]> {
   // Wait for initialization of crypto libraries
@@ -247,34 +213,17 @@ export async function signUnsignedTransactions(
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
   const destinationNetworkTxs = unsignedTxs.filter(
     tx =>
-      tx.phase === "destinationTransfer" ||
-      tx.phase === "backupSquidRouterApprove" ||
-      tx.phase === "backupSquidRouterSwap" ||
-      tx.phase === "backupApprove"
+      (tx.phase === "destinationTransfer" ||
+        tx.phase === "backupSquidRouterApprove" ||
+        tx.phase === "backupSquidRouterSwap" ||
+        tx.phase === "backupApprove") &&
+      tx.network !== Networks.Polygon &&
+      tx.network !== Networks.PolygonAmoy &&
+      tx.network !== Networks.Base
   );
 
   try {
-    const stellarTxs = unsignedTxs.filter(tx => tx.network === "stellar").sort((a, b) => a.nonce - b.nonce);
     const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");
-
-    // Process Stellar transactions first in sequence order
-    if (stellarTxs.length > 0) {
-      if (!ephemerals.stellarEphemeral) {
-        throw new Error("Missing Stellar ephemeral account");
-      }
-
-      const keypair = Keypair.fromSecret(ephemerals.stellarEphemeral.secret);
-
-      for (const tx of stellarTxs) {
-        if (isEvmTransactionData(tx.txData) || isSignedTypedData(tx.txData)) {
-          throw new Error("Invalid Stellar transaction data format");
-        }
-
-        const networkPassphrase = SANDBOX_ENABLED ? StellarNetworks.TESTNET : StellarNetworks.PUBLIC;
-        const txWithMeta = await signMultipleStellarTransactions(tx, keypair, networkPassphrase);
-        signedTxs.push(txWithMeta);
-      }
-    }
 
     for (const tx of hydrationTxs) {
       if (!ephemerals.substrateEphemeral) {
@@ -337,6 +286,10 @@ export async function signUnsignedTransactions(
 
         signedTxs.push(txWithMeta);
       } else if (!isSignedTypedData(tx.txData) && !isSignedTypedDataArray(tx.txData)) {
+        if (!moonbeamApi) {
+          throw new Error("Moonbeam API is required for signing Substrate-format Moonbeam transactions");
+        }
+
         // Handle Moonbeam Substrate transactions
         const keyring = new Keyring({ type: "ethereum" });
         const privateKey = ephemerals.evmEphemeral.secret as `0x${string}`;

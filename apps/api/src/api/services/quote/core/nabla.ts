@@ -2,10 +2,9 @@ import {
   ApiManager,
   EvmClientManager,
   EvmTokenDetails,
+  getNablaBasePool,
   getTokenOutAmount,
   multiplyByPowerOfTen,
-  NABLA_QUOTER_BASE,
-  NABLA_ROUTER_BASE,
   Networks,
   PendulumTokenDetails,
   parseContractBalanceResponse,
@@ -17,6 +16,7 @@ import { Big } from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
+import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./errors";
 
 export interface NablaSwapRequest {
   inputAmountForSwap: string;
@@ -78,16 +78,14 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
         }
       ];
 
+      const inputAddr = inputTokenPendulumDetails.erc20WrapperAddress as `0x${string}`;
+      const outputAddr = outputTokenPendulumDetails.erc20WrapperAddress as `0x${string}`;
+      const { router } = getNablaBasePool(inputAddr, outputAddr);
+
       const result = await evmClientManager.readContractWithRetry<[bigint, bigint]>(Networks.Base, {
         abi: swapAbi,
-        address: NABLA_ROUTER_BASE,
-        args: [
-          BigInt(amountIn),
-          [
-            inputTokenPendulumDetails.erc20WrapperAddress as `0x${string}`,
-            outputTokenPendulumDetails.erc20WrapperAddress as `0x${string}`
-          ]
-        ],
+        address: router,
+        args: [BigInt(amountIn), [inputAddr, outputAddr]],
         functionName: "getAmountOut"
       });
 
@@ -125,6 +123,10 @@ export async function calculateNablaSwapOutput(request: NablaSwapRequest): Promi
     }
   } catch (error) {
     logger.error("Error calculating Nabla swap output:", error);
+    if (isLowLiquidityQuoteError(error)) {
+      throw createLowLiquidityQuoteError();
+    }
+
     throw new APIError({
       message: QuoteError.FailedToCalculateQuote,
       status: httpStatus.INTERNAL_SERVER_ERROR
@@ -167,17 +169,14 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
       }
     ];
 
+    const inputAddr = inputTokenDetails.erc20AddressSourceChain as `0x${string}`;
+    const outputAddr = outputTokenDetails.erc20AddressSourceChain as `0x${string}`;
+    const { router, quoter } = getNablaBasePool(inputAddr, outputAddr);
+
     const result = await evmClientManager.readContractWithRetry<bigint>(Networks.Base, {
       abi: swapAbi,
-      address: NABLA_QUOTER_BASE,
-      args: [
-        BigInt(amountIn),
-        [
-          inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
-          outputTokenDetails.erc20AddressSourceChain as `0x${string}`
-        ],
-        [NABLA_ROUTER_BASE]
-      ],
+      address: quoter,
+      args: [BigInt(amountIn), [inputAddr, outputAddr], [router]],
       functionName: "quoteSwapExactTokensForTokens"
     });
 
@@ -196,6 +195,10 @@ export async function calculateNablaSwapOutputEvm(request: NablaSwapEvmRequest):
     };
   } catch (error) {
     logger.error("Error calculating EVM Nabla swap output:", error);
+    if (isLowLiquidityQuoteError(error)) {
+      throw createLowLiquidityQuoteError();
+    }
+
     throw new APIError({
       message: QuoteError.FailedToCalculateQuote,
       status: httpStatus.INTERNAL_SERVER_ERROR

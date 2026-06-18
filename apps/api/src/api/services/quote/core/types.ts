@@ -63,15 +63,6 @@ export interface XcmMeta {
   xcmFees: XcmFees;
 }
 
-export interface StellarMeta {
-  inputAmountDecimal: Big;
-  inputAmountRaw: string;
-  outputAmountDecimal: Big;
-  outputAmountRaw: string;
-  fee: Big;
-  currency: RampCurrency;
-}
-
 // Partner info shared type
 export interface PartnerInfo {
   id: string | null;
@@ -81,6 +72,8 @@ export interface PartnerInfo {
   maxDynamicDifference?: number;
   minDynamicDifference?: number;
 }
+
+export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";
 
 // Strategy for a specific route/path
 export interface IRouteStrategy {
@@ -97,11 +90,17 @@ export interface IRouteStrategy {
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest & { userId?: string };
+  readonly request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
   readonly now: Date;
 
   // Partner info (if any)
   partner: PartnerInfo | null;
+
+  // Quote ownership and pricing provenance. `partnerOwnerId` is used for
+  // partner-principal ownership; `pricingPartnerId` is used for custom rates.
+  partnerOwnerId?: string | null;
+  pricingPartnerId?: string | null;
+  partnerPricingSource?: PartnerPricingSource;
 
   // The fiat currency used for displaying fee breakdown (per helpers.getTargetFiatCurrency)
   targetFeeFiatCurrency: RampCurrency;
@@ -140,6 +139,8 @@ export interface QuoteContext {
     inputDecimals: number;
     outputAmountRaw: string;
     outputAmountDecimal: Big;
+    ammOutputAmountRaw?: string;
+    ammOutputAmountDecimal?: Big;
     outputCurrency: EvmToken;
     outputDecimals: number;
     outputToken: string; // ERC20 address
@@ -157,15 +158,6 @@ export interface QuoteContext {
     inputAsset: string; // Hydration Asset ID
     outputAsset: string; // Hydration Asset ID
     slippagePercent: number;
-  };
-
-  moneriumMint?: {
-    inputAmountDecimal: Big;
-    inputAmountRaw: string;
-    outputAmountDecimal: Big;
-    outputAmountRaw: string;
-    fee: Big;
-    currency: RampCurrency;
   };
 
   alfredpayMint?: {
@@ -208,6 +200,15 @@ export interface QuoteContext {
     currency: RampCurrency;
   };
 
+  mykoboMint?: {
+    inputAmountDecimal: Big;
+    inputAmountRaw: string;
+    outputAmountDecimal: Big;
+    outputAmountRaw: string;
+    fee: Big;
+    currency: RampCurrency;
+  };
+
   assethubToPendulumXcm?: XcmMeta;
 
   evmToEvm?: BridgeMeta;
@@ -227,8 +228,6 @@ export interface QuoteContext {
   pendulumToAssethubXcm?: XcmMeta;
 
   pendulumToMoonbeamXcm?: XcmMeta;
-
-  pendulumToStellar?: StellarMeta;
 
   // Fees in baseline and display currency
   fees?: {

@@ -22,6 +22,12 @@ BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, acces
 5. `subsidizePostSwap` (if needed) → `distributeFees` (Multicall3 batch on Base, see `fee-integrity.md`).
 6. If destination is Base + USDC → direct `destinationTransfer` (Squid skipped — see `squid-router.md`). Otherwise → `squidRouterApprove` / `squidRouterSwap` → bridge to user's supported destination EVM chain → optional fallback `backupSquidRouter*` swap on the destination chain → `destinationTransfer`. BRL→AssetHub is temporarily disabled at quote eligibility and should not reach registration.
 
+For non-Base EVM destinations, the final quote output is the Squid destination-token amount. `quote.outputAmount` MUST be stored with the destination token's decimals (for example, 18 decimals for BSC USDT) because `avenia-to-evm-base.ts` derives the final `destinationTransfer` raw amount by multiplying the stored quote output by the destination token decimals. Truncating all BRL on-ramp outputs to 6 decimals would create tiny but real under-delivery for 18-decimal destination tokens and would make `evmToEvm.outputAmountRaw` disagree with the destination-token raw amount returned by Squid.
+
+#### Degenerate BRL→BRLA-on-Base route (direct bypass)
+
+When the user on-ramps BRL and asks for **BRLA delivered on Base** (input BRL, output BRLA, network Base), the generic pipeline would pointlessly swap BRLA→USDC on Nabla and then bridge/swap USDC→BRLA back to itself — burning two swaps of slippage and fees, and inviting the over-subsidy race documented in `06-cross-chain/fund-routing.md`. Avenia already mints BRLA directly on the Base ephemeral, so the route builder detects this case via `isBrlToBrlaBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)` (`api/services/quote/utils.ts`) and emits a **single** `destinationTransfer` of the quoted output amount straight from the ephemeral to the user — no `nablaApprove`/`nablaSwap`, no `distributeFees`, no `squidRouter*`, no `finalSettlementSubsidy`, no Base cleanup. `stateMeta.isDirectTransfer = true` is set so the downstream `squidRouterSwap` and `finalSettlementSubsidy` handlers also short-circuit defensively if ever reached (`avenia-to-evm-base.ts`). The destination-transfer nonce is `0` (the ephemeral has signed nothing else on this corridor). This mirrors the EUR→EURC-on-Base bypass (`mykobo.md`).
+
 ### Off-ramp flow (User EVM → Base USDC → BRLA → PIX)
 
 1. User signs Squid permit / no-permit fallback / direct transfer (depending on source chain) → tokens arrive on Base ephemeral as USDC.
@@ -36,7 +42,9 @@ BRLA is the Brazilian Real stablecoin used for BRL on/off-ramp operations, acces
 
 ### Subaccount model
 
-Avenia requires a subaccount per user, identified by tax ID (CPF). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
+Avenia requires a subaccount per user, identified by tax ID (CPF for individuals, CNPJ for businesses). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
+
+`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in the **quote-less KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) it is omitted. The controller stores it as the nullable `TaxId.initialQuoteId` — a provenance field only. It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and `optionalAuth` user context gate subaccount creation independently of whether a quote is present.
 
 ### The three-amount model (off-ramp)
 
@@ -65,6 +73,8 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 11. **Recovery on resumed on-chain transfer MUST detect existing tx hashes** — If `brlaPayoutTxHash` is in state, the handler waits for that receipt rather than re-broadcasting (prevents double on-chain BRLA transfer).
 12. **PIX deposit details (QR code) MUST be generated server-side** — Returned via API response only after presigned transactions are validated, never client-modifiable.
 13. **BRL↔AssetHub MUST stay disabled while the Base BRL rail is active-only** — The quote engine should return no quote for BRL→AssetHub or AssetHub→BRL, preventing users from registering legacy Moonbeam/Pendulum BRL routes.
+14. **The BRL→BRLA-on-Base on-ramp MUST take the direct-transfer bypass** — When `inputCurrency === BRL`, `outputCurrency === BRLA`, and `network === Base`, `isBrlToBrlaBaseDirect` MUST short-circuit the route to a single `destinationTransfer` from the ephemeral to the user, with `stateMeta.isDirectTransfer = true`. The Nabla swap, `distributeFees`, SquidRouter, `finalSettlementSubsidy`, and Base cleanup phases MUST NOT run — routing BRLA through USDC and back would burn double-swap slippage/fees against the user and expose the over-subsidy race (`06-cross-chain/fund-routing.md`). The `squidRouterSwap` and `finalSettlementSubsidy` handlers MUST also honor `isDirectTransfer`/`isBrlToBrlaBaseDirect` defensively and skip to `destinationTransfer` if reached.
+15. **BRL→EVM quote output precision MUST match the destination token** — For supported EVM destinations, `quote.outputAmount` MUST preserve the destination token's decimal precision, and `evmToEvm.outputAmountRaw` MUST represent the destination token's raw units. The Squid bridge input remains Base USDC raw (`evmToEvm.inputAmountRaw`), but final delivery uses destination-token decimals.
 
 ## Threat Vectors & Mitigations
 
@@ -78,8 +88,10 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **Amount manipulation between quote and payout** | Attacker modifies the payout amount between quote and execution | `quote.outputAmount` read from DB at execution time; quote is immutable post-creation. |
 | **Avenia service outage** | Avenia API is unreachable mid-ramp | `RecoverablePhaseError` → phase processor retries; off-ramp fails to payout but BRLA is held on the Avenia subaccount, not lost. |
 | **Subaccount data leak** | Avenia subaccount details exposed via API | Only `subAccountId`, EVM wallet address, and balances are stored locally; no PII beyond CPF (which is itself a regulatory requirement). |
-| **Underdelivery from Nabla** | Nabla swap returns less BRLA than quoted, balance poll times out, ramp stuck | Balance-poll timeout (5min) fails the phase as recoverable; `subsidizePostSwap` (EVM branch) tops up shortfalls subject to the quote-relative EVM subsidy cap documented in `fund-routing.md`. |
+| **Underdelivery from Nabla** | Nabla swap returns less BRLA than quoted, balance poll times out, ramp stuck | Balance-poll timeout (5min) fails the phase as recoverable; `subsidizePostSwap` (EVM branch) tops up eligible shortfalls subject to the env-configured split quote-relative EVM subsidy caps documented in `fund-routing.md`. The actual-vs-quoted swap discrepancy uses `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`; the discount component uses `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION`. Both default to `0.05`. |
 | **Disabled AssetHub corridor accidentally re-enabled** | Legacy BRL↔AssetHub route files are selected and a user registers a route that the Base BRL rail no longer supports | Quote eligibility must return no quote for BRL→AssetHub and AssetHub→BRL. Treat any successful quote for those corridors as a regression until the corridor is intentionally re-enabled. |
+| **BRL→BRLA-Base self-swap drain** | The generic pipeline swaps the user's already-minted BRLA to USDC and back, charging two swaps of slippage/fees and triggering `finalSettlementSubsidy` against bridge-less dust (over-subsidy + strand) | `isBrlToBrlaBaseDirect` collapses the corridor to a single `destinationTransfer` with `isDirectTransfer = true`; Nabla/distributeFees/Squid/finalSettlementSubsidy/cleanup are skipped at both route-build and handler level. |
+| **Destination-token decimal under-delivery** | A BRL on-ramp targets an 18-decimal token such as BSC USDT, but the quote output is truncated to 6 decimals before `destinationTransfer` raw amount construction. | On-ramp finalization uses destination-token decimals for BRL EVM outputs; Squid metadata preserves destination raw output from `route.estimate.toAmount`. |
 
 ## Audit Checklist
 
@@ -101,8 +113,11 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
 - [PARTIAL] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
 - [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requireAuth`.
+- [x] BRL→BRLA-on-Base on-ramps (`isBrlToBrlaBaseDirect`) emit a single `destinationTransfer` with `isDirectTransfer = true` — no Nabla swap, `distributeFees`, SquidRouter, `finalSettlementSubsidy`, or Base cleanup phases. **PASS** — `avenia-to-evm-base.ts` early direct branch (single tx at nonce 0).
+- [x] `squidRouterSwap` and `finalSettlementSubsidy` honor `isDirectTransfer` / `isBrlToBrlaBaseDirect` and short-circuit to `destinationTransfer` if ever reached on a direct route. **PASS** — `squid-router-phase-handler.ts`, `final-settlement-subsidy.ts`.
+- [x] BRL→EVM destination-token precision preserved. **PASS** — `OnRampFinalizeEngine` stores BRL/EVM `quote.outputAmount` using destination token decimals, and `BaseSquidRouterEngine` preserves Squid's destination raw output in `evmToEvm.outputAmountRaw`.
 
 ## Remediation Notes
 
 - **Hardcoded BRL offramp validation amount:** Resolved in the remediation pass; BRL offramp validation now derives the pre-anchor amount from quote metadata instead of a literal placeholder.
-- **EVM subsidy USD cap:** Resolved for the Base EVM subsidy handlers via `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION`. Over-cap cases are intentionally recoverable retries: no subsidy transfer is submitted, and the ramp remains waiting for operator action rather than becoming unrecoverably failed.
+- **EVM subsidy USD caps:** Resolved for the Base EVM subsidy handlers via env-configured quote-relative cap fractions. `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` and `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` both default to `0.05` and can be overridden through environment variables. Over-cap cases are intentionally recoverable retries: no subsidy transfer is submitted, and the ramp remains waiting for operator action rather than becoming unrecoverably failed.

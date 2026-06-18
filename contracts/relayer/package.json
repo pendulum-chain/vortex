@@ -19,9 +19,12 @@
   "scripts": {
     "compile": "hardhat compile",
     "deploy:amoy": "hardhat ignition deploy ignition/modules/Relayer.ts --network amoy",
-    "deploy:base": "hardhat ignition deploy ignition/modules/Relayer.ts --network base",
-    "deploy:polygon": "hardhat ignition deploy ignition/modules/Relayer.ts --network polygon",
     "deploy:arbitrum": "hardhat ignition deploy ignition/modules/Relayer.ts --network arbitrum",
+    "deploy:avalanche": "hardhat ignition deploy ignition/modules/Relayer.ts --network avalanche",
+    "deploy:base": "hardhat ignition deploy ignition/modules/Relayer.ts --network base",
+    "deploy:bsc": "hardhat ignition deploy ignition/modules/Relayer.ts --network bsc",
+    "deploy:ethereum": "hardhat ignition deploy ignition/modules/Relayer.ts --network ethereum",
+    "deploy:polygon": "hardhat ignition deploy ignition/modules/Relayer.ts --network polygon",
     "node": "hardhat node",
     "test": "hardhat test",
     "test:local": "hardhat run test/local-flow.ts --network hardhat"

@@ -18,10 +18,14 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
 | `CLIENT_DOMAIN_SECRET` | SEP-10 domain signing for Stellar anchors | Impersonation of Vortex in Stellar anchor authentication |
 | `ADMIN_SECRET` | Admin endpoint bearer token | Full admin access — can modify ramps, trigger operations |
+| `METRICS_DASHBOARD_SECRET` | Read-only observability API bearer token | Read-only access to sanitized API client event data |
 | `WEBHOOK_PRIVATE_KEY` | RSA key for webhook signatures | Forge webhook signatures — could trick consumers into accepting fake events. **If missing, ephemeral RSA keys are generated at startup (non-persistent across restarts).** |
 | `SUPABASE_SERVICE_KEY` | Supabase admin access (bypasses RLS) | Full database read/write — all ramp data, user data, keys |
 | `SUPABASE_ANON_KEY` | Supabase public access (subject to RLS) | Limited by RLS policies — lower blast radius than service key |
 | `DB_PASSWORD` | Direct PostgreSQL access | Full database read/write — bypasses Supabase entirely |
+| `MYKOBO_ACCESS_KEY` / `MYKOBO_SECRET_KEY` | Mykobo API authentication (HMAC-style; exchanged for bearer token) | Forge Mykobo SEPA payout requests on Base — could redirect EUR off-ramp payouts; also enables submission of arbitrary KYC profiles under the Vortex client domain |
+| `MYKOBO_BASE_URL` | Mykobo API endpoint (`/v1` suffix normalized by client) | Not a secret; misconfiguration could route requests to an attacker-controlled host if env is tampered with |
+| `MYKOBO_CLIENT_DOMAIN` | Vortex's registered client identifier with Mykobo; sent as `client_domain` on every Mykobo API call and selects the negotiated fee tier | Not a secret. **Operationally critical:** loaded via `getEnvVar` with no default — if unset, Mykobo silently falls back to its default fee tier (~5x higher than the negotiated rate, observed: ~0.31 EUR vs ~0.06 EUR fixed deposit fee). Quote engine fee defaults (`defaultDepositFee` / `defaultWithdrawFee`) will not match what Mykobo actually charges, corrupting fee accounting. Treat as required in production. |
 | `ALCHEMYPAY_APP_ID` / `ALCHEMYPAY_SECRET_KEY` | AlchemyPay price provider | Access to AlchemyPay API — price manipulation, data access |
 | `TRANSAK_API_KEY` | Transak price provider | Access to Transak API |
 | `MOONPAY_API_KEY` | MoonPay price provider | Access to MoonPay API |
@@ -31,9 +35,8 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Secret | Purpose | Blast Radius |
 |---|---|---|
-| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account | Drain of rebalancer Pendulum funds |
-| `MOONBEAM_ACCOUNT_SECRET` | Rebalancer's Moonbeam account | Drain of rebalancer Moonbeam funds |
-| `POLYGON_ACCOUNT_SECRET` | Rebalancer's Polygon account | Drain of rebalancer Polygon funds |
+| `EVM_ACCOUNT_SECRET` | Single BIP-39 mnemonic for all EVM chains (Base, Polygon, Moonbeam). Used by both Base and legacy flows. | Drain of rebalancer funds on ALL EVM chains — Base, Polygon, and Moonbeam. Single point of failure for all EVM-based rebalancing. |
+| `PENDULUM_ACCOUNT_SECRET` | Rebalancer's Pendulum account (sr25519 seed). Only required for legacy flow (`--legacy` flag). | Drain of rebalancer Pendulum funds. Not needed for the default Base flow. |
 
 ### Shared
 
@@ -47,10 +50,12 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 2. **Secrets MUST NOT appear in logs** — Error handlers, debug logging, and request/response logging must not include secret values, private keys, or seeds.
 3. **`WEBHOOK_PRIVATE_KEY` MUST be set in production** — If missing, `CryptoService` generates an ephemeral RSA keypair at startup. This key is non-persistent: webhook signatures generated before a restart cannot be verified after a restart, and vice versa. Consumers would see signature validation failures.
 4. **`ADMIN_SECRET` MUST be a high-entropy value** — Used as a bearer token for admin endpoints. Compared via `safeCompare()` which has a known timing leak on length (see `01-auth/admin-auth.md`).
-5. **Rebalancer keys MUST be isolated from API service keys** — The three rebalancer chain keys operate separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
+5. **Rebalancer keys MUST be isolated from API service keys** — The rebalancer's `EVM_ACCOUNT_SECRET` mnemonic and legacy `PENDULUM_ACCOUNT_SECRET` operate separate accounts from the API's funding keys. Compromise of one set should not grant access to the other.
 6. **`SUPABASE_SERVICE_KEY` MUST NOT be exposed to clients** — This key bypasses Row Level Security. It must only be used server-side.
 7. **Database credentials (`DB_*`) MUST NOT be accessible from the public internet** — Direct PostgreSQL access should be restricted to the application server's network.
 8. **No secret MUST be passed as a URL query parameter** — Query parameters are logged by proxies, CDNs, and web servers. Secrets must only travel in headers or request bodies.
+9. **`MYKOBO_CLIENT_DOMAIN` MUST be set in production** — Not a secret, but operationally critical: when unset, Mykobo silently applies its default fee tier (~5x worse than the negotiated rate). Quote-engine fee defaults will then diverge from what Mykobo actually charges. Deployment automation MUST treat a missing `MYKOBO_CLIENT_DOMAIN` as a hard failure rather than letting it fall through to default-tier fees.
+10. **Observability MUST follow the same no-secret rule as logs** — API client events, request correlation logs, metrics, and observability data must not contain full API keys, bearer tokens, provider credentials, private keys, seeds, raw request headers, or raw request bodies. Sanitized request summaries may be stored only when they are allowlisted, scalar, and stripped of secrets or sensitive payment/user data. See `07-operations/client-observability.md`.
 
 ## Threat Vectors & Mitigations
 
@@ -63,6 +68,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 | **Lateral movement from price provider keys** — Compromise of AlchemyPay/Transak/MoonPay keys | Limited blast radius — these keys access price data, not funds. However, an attacker could manipulate prices shown to users (if the provider API allows it) or access transaction data. |
 | **Google Sheets credentials** — Access to fee logging spreadsheet | Could expose fee data and ramp metadata. Could manipulate fee records. Lower severity than financial keys but still a data leak. |
 | **`SUPABASE_SERVICE_KEY` used for all database operations** — No principle of least privilege | The service key bypasses all RLS. If any code path leaks this key, the attacker has unrestricted database access. A more secure approach would use the anon key with RLS for read operations and the service key only for privileged writes. |
+| **Observability event leak** — Operational telemetry captures secret values or payment/KYC data | Client observability uses a sanitized event schema, 16-character key prefixes only, allowlisted scalar request summaries, scalar metadata filtering, and explicit exclusion of raw headers/bodies, tax IDs, PIX data, KYC data, and private material. |
 
 ## Audit Checklist
 
@@ -81,3 +87,4 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 - [x] Check whether `GOOGLE_PRIVATE_KEY` contains newlines that might be mis-parsed — a common issue with PEM keys in env vars. **PASS** — PEM key handling present; standard env var parsing.
 - [x] Map the full blast radius: if the API server is compromised, list every account, service, and database that becomes accessible. **PASS (comprehensive)** — full blast radius documented in the Secret Inventory table above.
 - [x] **FINDING F-062 (MEDIUM)**: Verify SDK does not log API keys or secrets to console. **PASS (FIXED)** — removed `console.log("Creating quote with request:", request)` from `ApiService.ts` that was leaking the full request object including API key.
+- [ ] Verify API client event persistence stores only 16-character key prefixes and never stores full `X-API-Key`, bearer tokens, raw auth headers, or request bodies.

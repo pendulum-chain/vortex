@@ -70,8 +70,8 @@ const quote = await sdk.createQuote({
 
 const { rampProcess } = await sdk.registerRamp(quote, {
   destinationAddress: "0x1234567890123456789012345678901234567890",
-  fiatAccountId: "<the user's Alfredpay fiat account id>",
   walletAddress: "0x1234567890123456789012345678901234567890"
+  // fiatAccountId is optional for onramp — the backend only requires destinationAddress.
 });
 
 // Inspect off-chain fiat payment instructions before starting.
@@ -107,7 +107,7 @@ const updated = await sdk.updateRamp(quote, rampProcess.id, {
 const startedRamp = await sdk.startRamp(updated.id);
 ```
 
-> `fiatAccountId` is opaque to the SDK. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
+> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
 
 ## Core Features
 - **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
@@ -142,6 +142,31 @@ Submits route-specific transaction hashes after off-chain steps complete. Used f
 
 ##### `startRamp(rampId: string): Promise<RampProcess>`
 Starts a registered ramp process.
+
+## Error Handling
+
+### Ephemeral Account Freshness
+
+`registerRamp` will throw `EphemeralNotFreshError` if the SDK-generated ephemeral address already has on-chain history (non-zero nonce or balance on Substrate/EVM, or a pre-existing account on Stellar) on any chain the ramp route uses. This should not happen during normal operation because the SDK generates fresh keypairs on every call, but it can occur on environments where ephemeral storage is reused across processes or if the same keys are imported elsewhere.
+
+`EphemeralFreshnessCheckError` (HTTP 503) is thrown when the backend cannot reach an RPC endpoint to verify freshness. This is a transient failure.
+
+Both errors are recoverable by simply re-invoking `registerRamp` — the SDK generates new ephemerals on every call:
+
+```typescript
+import { EphemeralNotFreshError, EphemeralFreshnessCheckError } from "@vortexfi/sdk";
+
+try {
+  const { rampProcess } = await sdk.registerRamp(quote, additionalData);
+} catch (err) {
+  if (err instanceof EphemeralNotFreshError || err instanceof EphemeralFreshnessCheckError) {
+    // The SDK regenerates ephemerals on every call - retry once.
+    const { rampProcess } = await sdk.registerRamp(quote, additionalData);
+  } else {
+    throw err;
+  }
+}
+```
 
 ## Configuration
 

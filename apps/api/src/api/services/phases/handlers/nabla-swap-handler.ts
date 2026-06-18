@@ -8,17 +8,18 @@ import {
   EvmClientManager,
   EvmTokenDetails,
   evmTokenConfig,
-  FiatToken,
   NABLA_ROUTER,
   Networks,
   RampDirection,
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { parseTransaction, recoverTransactionAddress } from "viem";
 import logger from "../../../../config/logger";
 import { routerAbi } from "../../../../contracts/Router";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
@@ -36,12 +37,14 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     const { substrateEphemeralAddress } = state.state as StateMetadata;
 
-    if (quote.inputCurrency === FiatToken.BRL || quote.outputCurrency === FiatToken.BRL) {
+    if (quote.metadata.nablaSwapEvm) {
       return this.executeEvmSwap(state, quote);
     } else if (substrateEphemeralAddress) {
       return this.executeSubstrateSwap(state, quote);
     } else {
-      throw new Error("NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-BRL quote.");
+      throw new Error(
+        "NablaSwapPhaseHandler: Invalid state. Missing substrate ephemeral address for a non-EVM-ephemeral quote."
+      );
     }
   }
 
@@ -192,6 +195,8 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
         throw new Error("NablaSwapPhaseHandler: Invalid EVM transaction data. This is a bug.");
       }
 
+      await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`, evmEphemeralAddress as `0x${string}`);
+
       const txHash = await baseClient.sendRawTransaction({
         serializedTransaction: nablaSwapTransaction as `0x${string}`
       });
@@ -207,6 +212,10 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       logger.info(`NablaSwapPhaseHandler: EVM swap transaction successful: ${txHash}`);
     } catch (e) {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
+      if (e instanceof PhaseError) {
+        throw e;
+      }
+
       // unrecoverable by default.
       // TODO do we want to add automatic recovery? Issue is, invalid swaps now revert.
       // We can add a retry with up to 1 or 2 backups. Or try to differentiate based on the revert message.
@@ -217,6 +226,72 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
     return this.transitionToNextPhase(state, nextPhase);
+  }
+
+  private async dryRunEvmSwap(serializedTransaction: `0x${string}`, expectedSenderAddress: `0x${string}`): Promise<void> {
+    const evmClientManager = EvmClientManager.getInstance();
+    const baseClient = evmClientManager.getClient(Networks.Base);
+    const transaction = parseTransaction(serializedTransaction);
+    type RecoverTransactionAddressParams = Parameters<typeof recoverTransactionAddress>[0];
+    const transactionSender = await recoverTransactionAddress({
+      serializedTransaction: serializedTransaction as RecoverTransactionAddressParams["serializedTransaction"]
+    });
+
+    if (transactionSender.toLowerCase() !== expectedSenderAddress.toLowerCase()) {
+      throw new Error(
+        `NablaSwapPhaseHandler: EVM swap transaction sender mismatch. Expected ${expectedSenderAddress}, got ${transactionSender}`
+      );
+    }
+
+    if (!transaction.to) {
+      throw new Error("NablaSwapPhaseHandler: Cannot dry-run EVM swap transaction without a recipient address.");
+    }
+
+    try {
+      const callParameters = {
+        account: transactionSender,
+        blockTag: "pending" as const,
+        data: transaction.data,
+        gas: transaction.gas,
+        to: transaction.to,
+        value: transaction.value
+      };
+
+      if (transaction.type === "legacy" || transaction.type === undefined) {
+        await baseClient.call({
+          ...callParameters,
+          gasPrice: transaction.gasPrice,
+          type: "legacy"
+        });
+      } else if (transaction.type === "eip2930") {
+        await baseClient.call({
+          ...callParameters,
+          accessList: transaction.accessList,
+          gasPrice: transaction.gasPrice,
+          type: "eip2930"
+        });
+      } else if (transaction.type === "eip1559") {
+        await baseClient.call({
+          ...callParameters,
+          accessList: transaction.accessList,
+          maxFeePerGas: transaction.maxFeePerGas,
+          maxPriorityFeePerGas: transaction.maxPriorityFeePerGas,
+          type: "eip1559"
+        });
+      } else {
+        throw new Error(`Unsupported EVM swap transaction type for dry-run: ${transaction.type}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        const recoverableError = this.createRecoverableError(
+          `NablaSwapPhaseHandler: EVM swap dry-run failed: ${error.message}`
+        );
+        recoverableError.stack = error.stack;
+        throw recoverableError;
+      }
+
+      throw this.createRecoverableError(`NablaSwapPhaseHandler: EVM swap dry-run failed: ${String(error)}`);
+    }
   }
 }
 

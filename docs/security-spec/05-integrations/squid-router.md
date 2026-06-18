@@ -5,8 +5,12 @@
 Squid Router is a cross-chain swap/routing protocol built on Axelar's General Message Passing (GMP). Vortex uses it for:
 - **BRL on-ramp**: Base USDC → user's destination EVM chain (any token).
 - **BRL off-ramp**: User's source EVM chain → Base USDC.
-- **EUR on-ramp (Monerium)**: Polygon EURe → Moonbeam.
+- **EUR on-ramp (Mykobo on Base)**: Base USDC → user's destination EVM chain (after EURC→USDC Nabla swap).
+- **EUR off-ramp (Mykobo on Base)**: User's source EVM chain → Base USDC (client-side user-signed).
+- **Alfredpay on-ramp**: Polygon Alfredpay token → user's destination EVM chain/token, except for Polygon same-token passthrough.
 - **Off-ramp permit acquisition (Alfredpay)**: User EVM → Moonbeam via `TokenRelayer.execute()` with EIP-2612 permit.
+
+> **Removed:** the previous Monerium-EUR Squid usage (Polygon EURe → Moonbeam) is no longer active; Monerium is deprecated (see `monerium.md`).
 
 It handles cross-chain swap execution, Axelar bridge status monitoring, and gas subsidization on the destination chain.
 
@@ -25,6 +29,8 @@ It handles cross-chain swap execution, Axelar bridge status monitoring, and gas 
 4. `squidRouterPay`: poll Axelar GMP status + ephemeral balance on destination chain via `Promise.any` race; fund Axelar gas with `addNativeGas`; arrival is bounded by a finite timeout.
 5. Optional `backupSquidRouterApprove` / `backupSquidRouterSwap` on the destination chain if the bridged token (axlUSDC / USDC) needs further conversion to the user's requested output token. **F-054: these `backup*` presigned txs have no registered phase handler.**
 6. `destinationTransfer` to the user.
+
+For quote metadata, Squid's `route.estimate.toAmount` is already denominated in the **destination token's raw units**. The bridge metadata (`evmToEvm.outputAmountRaw`, `moonbeamToEvm.outputAmountRaw`, etc.) MUST preserve that raw value directly instead of rebuilding it from the human-readable decimal amount with source-token decimals. This matters for routes like Base USDC (6 decimals) → BSC USDT (18 decimals), where using the source decimals would under-scale the metadata by 12 decimal places. The same invariant applies to routed Alfredpay onramps: even when the Squid source is the Polygon-minted Alfredpay token, `route.estimate.toAmount` remains authoritative for the destination token's raw units and `quote.outputAmount` must retain destination-token precision.
 
 ### Off-ramp flow (user EVM source → Base USDC)
 
@@ -55,6 +61,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 10. **No-permit fallback MUST NOT advance to `fundEphemeral` until BOTH approve and swap (or the direct transfer) have confirmed** — Sequential `waitForUserHash` calls in `executeNoPermitFallback` enforce this.
 11. **Transaction hashes MUST be persisted to state before waiting** — `squidRouterApproveHash`, `squidRouterSwapHash`, `squidRouterPayTxHash`, `squidRouterPermitExecutionHash`, `squidRouterNoPermitApproveHash`, `squidRouterNoPermitSwapHash`, `squidRouterNoPermitTransferHash` all enable crash recovery.
 12. **Skip-Squid path MUST NOT lose destination validation** — Quote engine `validate()` runs regardless of `skipRouteCalculation`; `destinationTransfer` is the only on-chain step that fires.
+13. **Squid output raw metadata MUST use destination-token raw units** — `route.estimate.toAmount` is the authoritative destination raw output; `evmToEvm.outputAmountRaw` MUST NOT be recomputed with the source token's decimals. For same-chain same-token passthrough, `inputAmountRaw` is also the destination raw amount and is safe to mirror. Routed Alfredpay onramps follow the same rule; only direct Polygon same-token passthrough keeps the minted source-token precision.
 
 ## Threat Vectors & Mitigations
 
@@ -71,6 +78,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 | **No-permit fallback hash spoofing** | User reports tx hash → backend calls `waitForTransactionReceipt(hash)`. Hash is verified against actual chain state, not trusted blindly. The worst the user can do is report a hash that doesn't exist (handler errors recoverably) or a hash for a different transaction (receipt's `to`/`value` are not currently re-checked — see open question below). |
 | **No-permit allowance window attack** | The `squidRouterNoPermitApprove` grants Squid an allowance from the user's wallet; if the swap hash never confirms, the allowance lingers. The user wallet, not Vortex, retains the risk. UX should remind the user to revoke unused allowances; backend cannot revoke on the user's behalf. |
 | **Skip-Squid trivial-case manipulation** | The skip path triggers only when destination is Base+USDC, validated server-side by the quote engine before any presigned tx is generated. Attacker cannot force the skip path on non-Base/non-USDC routes. |
+| **Destination decimal under-scaling** | A quote route bridges from a 6-decimal source token to an 18-decimal destination token (for example Base USDC → BSC USDT), but metadata reconstructs the destination raw output using source decimals. Displayed decimals look correct while raw metadata is under-scaled. | Preserve Squid's `route.estimate.toAmount` directly as destination-token raw metadata, and persist `quote.outputAmount` with destination-token precision before building the final transfer. |
 
 **⚠️ FINDING F-CARRIED**: In `squid-router-phase-handler.ts` line 147, `getPublicClient()` defaults to Moonbeam if `inputCurrency` doesn't match any known case and logs "This is a bug." Same handler also catches errors and silently defaults to Moonbeam (line 151-152). This fallback could cause transactions to be submitted to the wrong network.
 
@@ -92,6 +100,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 - [x] **FINDING F-063 (MEDIUM)**: SquidRouter slippage rejection (>2.5%) enforced. **PASS (FIXED)**.
 - [x] **No-permit fallback receipt validation**: `waitForUserHash` verifies receipt `from`, receipt `to`, and transaction `input` against the expected user address and presigned EVM transaction payload before advancing.
 - [x] **Skip-Squid trivial path**: emits passthrough bridge meta in `BaseSquidRouterEngine` and short-circuits discount/fee engines. Destination address validated by quote engine `validate()`. **PASS** — no security checks bypassed.
+- [x] **Destination-token raw output metadata**: `evmToEvm.outputAmountRaw` preserves Squid's `route.estimate.toAmount` in destination raw units, including routed Alfredpay onramps. **PASS** — prevents Base/Polygon 6-decimal source → BSC USDT-style 18-decimal destination under-scaling.
 - [x] **Squid 429 rate-limit retry**: exponential backoff. **PASS — verify backoff cap.**
 - [x] **Arrival timeout**: `waitUntilTrue` accepts a timeout argument. **PASS** — verify all callers pass a finite value.
 - [EXISTING FINDING F-054]: `backupSquidRouterApprove`/`backupSquidRouterSwap`/`backupApprove` presigned txs have no registered phase handler. Either dead code or missing implementation.

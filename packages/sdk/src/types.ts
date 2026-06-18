@@ -34,7 +34,7 @@ export type AnyQuote =
   | EurOfframpQuote
   | AlfredpayOfframpQuote;
 
-export type AlfredpayCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP;
+export type AlfredpayCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP | FiatToken.ARS;
 
 export type BrlOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
@@ -66,18 +66,22 @@ export type AlfredpayOfframpQuote = QuoteResponse & {
   outputCurrency: AlfredpayCurrency;
 };
 
-export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends { rampType: RampDirection.BUY; from: "pix" }
-  ? BrlOnrampQuote
-  : T extends { rampType: RampDirection.BUY; from: "sepa" }
-    ? EurOnrampQuote
-    : T extends { rampType: RampDirection.BUY; inputCurrency: AlfredpayCurrency }
-      ? AlfredpayOnrampQuote
-      : T extends { rampType: RampDirection.SELL; to: "pix" }
-        ? BrlOfframpQuote
-        : T extends { rampType: RampDirection.SELL; to: "sepa" }
-          ? EurOfframpQuote
-          : T extends { rampType: RampDirection.SELL; outputCurrency: AlfredpayCurrency }
-            ? AlfredpayOfframpQuote
+// Alfredpay branches are checked before the pix/sepa branches to mirror the runtime routing in VortexSdk.registerRamp().
+export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends {
+  rampType: RampDirection.BUY;
+  inputCurrency: AlfredpayCurrency;
+}
+  ? AlfredpayOnrampQuote
+  : T extends { rampType: RampDirection.BUY; from: "pix" }
+    ? BrlOnrampQuote
+    : T extends { rampType: RampDirection.BUY; from: "sepa" }
+      ? EurOnrampQuote
+      : T extends { rampType: RampDirection.SELL; outputCurrency: AlfredpayCurrency }
+        ? AlfredpayOfframpQuote
+        : T extends { rampType: RampDirection.SELL; to: "pix" }
+          ? BrlOfframpQuote
+          : T extends { rampType: RampDirection.SELL; to: "sepa" }
+            ? EurOfframpQuote
             : AnyQuote;
 
 export type AnyAdditionalData =
@@ -113,7 +117,7 @@ export interface EurOnrampAdditionalData {
 
 export interface AlfredpayOnrampAdditionalData {
   destinationAddress: string;
-  fiatAccountId: string;
+  fiatAccountId?: string;
   walletAddress?: string;
   sessionId?: string;
 }
@@ -182,7 +186,6 @@ export interface RampState {
   rampId: string;
   quoteId: string;
   ephemerals: {
-    stellarEphemeral?: EphemeralAccount;
     substrateEphemeral?: EphemeralAccount;
     evmEphemeral?: EphemeralAccount;
   };

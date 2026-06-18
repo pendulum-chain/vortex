@@ -16,6 +16,7 @@ import {
   getOnChainTokenDetailsOrDefault,
   isEvmToken,
   isOnChainToken,
+  multiplyByPowerOfTen,
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
@@ -76,7 +77,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
     [FiatToken.USD]: AlfredPayCountry.US,
     [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO
+    [FiatToken.COP]: AlfredPayCountry.CO,
+    [FiatToken.ARS]: AlfredPayCountry.AR
   };
   const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
   if (!customerCountry) {
@@ -108,7 +110,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
-      amountRaw: quote.metadata.evmToEvm.outputAmountRaw,
+      amountRaw: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
       destinationNetwork: toNetwork as EvmNetworks,
       toAddress: destinationAddress,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
@@ -167,6 +169,49 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(swapData) as EvmTransactionData
   });
 
+  // Same-chain Polygon: destinationTransfer must be the next executable nonce after the swap. The cleanup
+  // approval runs post-complete, so it follows the transfer. Backup re-swap txs are omitted here (no handler
+  // executes them, and on a shared nonce sequence they would push destinationTransfer beyond the live nonce).
+  if (toNetwork === Networks.Polygon) {
+    const sameChainTransferTxData = await addOnrampDestinationChainTransactions({
+      amountRaw: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
+      destinationNetwork: Networks.Polygon,
+      toAddress: destinationAddress,
+      toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: polygonAccountNonce++,
+      phase: "destinationTransfer",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(sameChainTransferTxData) as EvmTransactionData
+    });
+
+    const sameChainCleanupApproval = await preparePolygonCleanupApproval(
+      ERC20_USDC_POLYGON,
+      fundingAccount.address,
+      Networks.Polygon
+    );
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: polygonAccountNonce++,
+      phase: "polygonCleanup",
+      signer: evmEphemeralEntry.address,
+      txData: encodeEvmTransactionData(sameChainCleanupApproval) as EvmTransactionData
+    });
+
+    stateMeta = {
+      ...stateMeta,
+      squidRouterQuoteId,
+      squidRouterReceiverHash,
+      squidRouterReceiverId
+    };
+
+    return { stateMeta, unsignedTxs };
+  }
+
   const polygonCleanupApproval = await preparePolygonCleanupApproval(
     ERC20_USDC_POLYGON,
     fundingAccount.address,
@@ -182,13 +227,14 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   });
 
   const finalTransferTxData = await addOnrampDestinationChainTransactions({
-    amountRaw: quote.metadata.alfredpayMint.outputAmountRaw,
+    amountRaw: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
     destinationNetwork: toNetwork as EvmNetworks,
     toAddress: destinationAddress,
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 
-  let destinationNonce = toNetwork === Networks.Polygon ? polygonAccountNonce++ : 0; // If the destination is Polygon, we need to use the same nonce sequence. Otherwise, we start fresh on the new chain.
+  let destinationNonce = 0;
+  const destinationStartingNonce = destinationNonce;
 
   unsignedTxs.push({
     meta: {},
@@ -211,7 +257,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: bridgedTokenForFallback,
     network: toNetwork as EvmNetworks,
-    rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
+    rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 
@@ -244,8 +290,8 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     tokenAddress: bridgedTokenForFallback
   });
 
-  // We set this to 0 on purpose because we don't want to risk that the required nonce is never reached
-  const backupApproveNonce = 0;
+  // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached
+  const backupApproveNonce = destinationStartingNonce;
   unsignedTxs.push({
     meta: {},
     network: toNetwork,

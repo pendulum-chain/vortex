@@ -1,0 +1,121 @@
+import {describe, expect, test} from "bun:test";
+import Big from "big.js";
+import {
+  calculateMinimumDelta,
+  calculateProjectedCostBps,
+  calculateTargetBalanceRaw,
+  evaluateDailyBridgeLimit,
+  evaluateRebalancingCostPolicy,
+  getRebalancingUrgencyBand,
+  isProjectedProfit,
+  type RebalancingCostPolicyConfig,
+  wouldExceedDailyBridgeLimit
+} from "./guards.ts";
+
+const policyConfig: RebalancingCostPolicyConfig = {
+  hardMaxCostBps: 1_000,
+  maxCostBpsMild: 25,
+  maxCostBpsModerate: 75,
+  maxCostBpsSevere: 250,
+  mode: "auto",
+  moderateDeviationBps: 200,
+  severeDeviationBps: 500
+};
+
+describe("USDC Base rebalance guards", () => {
+  test("calculates arrival target from the starting balance plus expected delta", () => {
+    expect(calculateTargetBalanceRaw("500000000", "100000000", "1")).toBe("600000000");
+  });
+
+  test("supports tolerated delta checks without treating the total balance as the received amount", () => {
+    expect(calculateMinimumDelta(Big("100"), "0.998").toString()).toBe("99.8");
+  });
+
+  test("allows small Base USDC arrival shortfalls with the default tolerance", () => {
+    expect(calculateTargetBalanceRaw("13148408", "999225918", "0.998")).toBe("1010375874");
+  });
+
+  test("daily bridge limit includes the amount about to be rebalanced", () => {
+    expect(wouldExceedDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"))).toBe(true);
+    expect(wouldExceedDailyBridgeLimit(Big("9000000000"), Big("1000000000"), Big("10000000000"))).toBe(false);
+  });
+
+  test("detects profitable projected rebalances", () => {
+    expect(isProjectedProfit(Big("100000000"), Big("101000000"))).toBe(true);
+    expect(isProjectedProfit(Big("100000000"), Big("100000000"))).toBe(false);
+    expect(isProjectedProfit(Big("100000000"), Big("99000000"))).toBe(false);
+  });
+
+  test("evaluates daily bridge limit decisions", () => {
+    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+      reason: "under_limit",
+      shouldSkip: false
+    });
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+      reason: "daily_limit_reached",
+      shouldSkip: true
+    });
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), true)).toMatchObject({
+      reason: "profitable_quote",
+      shouldSkip: false
+    });
+  });
+
+  test("calculates projected rebalancing cost in basis points", () => {
+    expect(calculateProjectedCostBps(Big("100000000"), Big("99000000"))).toBe(100);
+    expect(calculateProjectedCostBps(Big("100000000"), Big("101000000"))).toBe(-100);
+  });
+
+  test("selects urgency bands from coverage deviation", () => {
+    expect(getRebalancingUrgencyBand(50, policyConfig)).toBe("mild");
+    expect(getRebalancingUrgencyBand(200, policyConfig)).toBe("moderate");
+    expect(getRebalancingUrgencyBand(500, policyConfig)).toBe("severe");
+  });
+
+  test("skips mild rebalances when projected cost exceeds the mild limit", () => {
+    const decision = evaluateRebalancingCostPolicy(Big("100000000"), Big("99000000"), 50, policyConfig);
+
+    expect(decision.shouldExecute).toBe(false);
+    expect(decision.band).toBe("mild");
+    expect(decision.costBps).toBe(100);
+  });
+
+  test("allows severe rebalances at a higher configured cost", () => {
+    const decision = evaluateRebalancingCostPolicy(Big("100000000"), Big("99000000"), 600, policyConfig);
+
+    expect(decision.shouldExecute).toBe(true);
+    expect(decision.band).toBe("severe");
+    expect(decision.allowedCostBps).toBe(250);
+  });
+
+  test("dry-run evaluates but never executes", () => {
+    const decision = evaluateRebalancingCostPolicy(Big("100000000"), Big("99900000"), 50, {
+      ...policyConfig,
+      mode: "dry-run"
+    });
+
+    expect(decision.shouldExecute).toBe(false);
+    expect(decision.dryRun).toBe(true);
+    expect(decision.reason).toContain("Dry-run");
+  });
+
+  test("off mode never executes", () => {
+    const decision = evaluateRebalancingCostPolicy(Big("100000000"), Big("100000000"), 600, {
+      ...policyConfig,
+      mode: "off"
+    });
+
+    expect(decision.shouldExecute).toBe(false);
+    expect(decision.reason).toBe("Rebalancing policy mode is off.");
+  });
+
+  test("hard max cost cap blocks even always mode", () => {
+    const decision = evaluateRebalancingCostPolicy(Big("100000000"), Big("80000000"), 600, {
+      ...policyConfig,
+      mode: "always"
+    });
+
+    expect(decision.shouldExecute).toBe(false);
+    expect(decision.reason).toContain("hard cap");
+  });
+});

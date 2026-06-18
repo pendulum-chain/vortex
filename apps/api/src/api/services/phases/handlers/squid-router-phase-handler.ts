@@ -1,12 +1,15 @@
 import {
+  ALFREDPAY_EVM_TOKEN,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
+  EvmTokenDetails,
+  evmTokenConfig,
   FiatToken,
-  getEvmTokenDetailsByAddress,
-  getNetworkFromDestination,
-  getNetworkId,
+  getEvmBalance,
+  getOnChainTokenDetails,
   isAlfredpayToken,
+  isEvmTokenDetails,
   Networks,
   RampDirection,
   RampPhase
@@ -15,22 +18,15 @@ import { PublicClient } from "viem";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
+import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 
 /**
  * Handler for the squidRouter phase
  */
 export class SquidRouterPhaseHandler extends BasePhaseHandler {
-  private moonbeamClient: PublicClient;
-  private polygonClient: PublicClient;
-  private baseClient: PublicClient;
-
-  constructor() {
-    super();
-    const evmClientManager = EvmClientManager.getInstance();
-    this.moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
-    this.polygonClient = evmClientManager.getClient(Networks.Polygon);
-    this.baseClient = evmClientManager.getClient(Networks.Base);
+  private getClient(network: EvmNetworks): PublicClient {
+    return EvmClientManager.getInstance().getClient(network);
   }
 
   /**
@@ -48,9 +44,19 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   protected async executePhase(state: RampState): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
+    if (state.state.isDirectTransfer === true) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for direct-transfer ramp ${state.id}`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
+    }
+
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
+    }
+
+    if (isFiatToOwnStablecoinBaseDirect(quote.inputCurrency, quote.outputCurrency, quote.network)) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Base direct-transfer route (ramp ${state.id})`);
+      return this.transitionToNextPhase(state, "destinationTransfer");
     }
 
     if (state.type === RampDirection.SELL) {
@@ -58,13 +64,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       return state;
     }
 
-    // Alfredpay onramps mint directly to Polygon in the alfredpay token (e.g. USDT),
-    // so no squidRouter swap is needed — skip straight to destination transfer.
+    // Alfredpay mints USDT directly on Polygon. Skip the swap ONLY when the requested
+    // output is that direct token; metadata.to is the destination network, not the output
+    // token, so other Polygon outputs (e.g. USDC) still need a real USDT→output swap.
     const isAlfredpayOnramp =
       state.type === RampDirection.BUY && isAlfredpayToken(quote.inputCurrency as FiatToken) && !!quote.metadata.alfredpayMint;
 
-    if (isAlfredpayOnramp && quote.metadata.to === Networks.Polygon) {
-      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay onramp (ramp ${state.id})`);
+    if (isAlfredpayOnramp && quote.metadata.request.to === Networks.Polygon && quote.outputCurrency === ALFREDPAY_EVM_TOKEN) {
+      logger.info(`SquidRouterPhaseHandler: Skipping squidRouter for Alfredpay direct-token onramp (ramp ${state.id})`);
       return this.transitionToNextPhase(state, "finalSettlementSubsidy");
     }
 
@@ -93,7 +100,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     const sourceNetwork = bridgeMeta.fromNetwork as EvmNetworks;
-    const sourceTokenDetails = getEvmTokenDetailsByAddress(sourceNetwork, bridgeMeta.fromToken);
+    const sourceTokenDetails = Object.values(evmTokenConfig[sourceNetwork] || {}).find(
+      token => token.erc20AddressSourceChain.toLowerCase() === bridgeMeta.fromToken.toLowerCase()
+    ) as EvmTokenDetails | undefined;
 
     if (!sourceTokenDetails) {
       throw new Error(
@@ -128,21 +137,15 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       let approveHash = state.state.squidRouterApproveHash;
       // Check if the approve transaction has already been sent
       if (!approveHash) {
-        const accountNonce = await this.getNonce(state, approveTransaction.signer as `0x${string}`);
+        const accountNonce = await this.getNonce(sourceNetwork, approveTransaction.signer as `0x${string}`);
         if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
           logger.warn(
             `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`
           );
         }
 
-        const destinationNetwork = getNetworkFromDestination(state.to);
-        const chainId = destinationNetwork ? getNetworkId(destinationNetwork) : null;
-        if (!chainId) {
-          throw new Error("Invalid destination network");
-        }
-
         // Execute the approve transaction
-        approveHash = await this.executeTransaction(state, approveTransaction.txData as string);
+        approveHash = await this.executeTransaction(sourceNetwork, approveTransaction.txData as string);
         logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
         // Update the state with the approve hash immediately after sending the transaction
@@ -155,15 +158,15 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       }
 
       // Wait for the approve transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, approveHash);
+      await this.waitForTransactionConfirmation(sourceNetwork, approveHash);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       // Execute the swap transaction
-      const swapHash = await this.executeTransaction(state, swapTransaction.txData as string);
+      const swapHash = await this.executeTransaction(sourceNetwork, swapTransaction.txData as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Update the state with the transaction hashes
-      const updatedState = await state.update({
+      let updatedState = await state.update({
         state: {
           ...state.state,
           squidRouterSwapHash: swapHash
@@ -171,8 +174,37 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       });
 
       // Wait for the swap transaction to be confirmed
-      await this.waitForTransactionConfirmation(state, swapHash);
+      await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
+
+      let preSettlementBalance = "0";
+      try {
+        const destinationNetwork = quote.network as EvmNetworks;
+        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency);
+
+        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
+          throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
+        }
+
+        preSettlementBalance = (
+          await getEvmBalance({
+            chain: destinationNetwork,
+            ownerAddress: state.state.evmEphemeralAddress as `0x${string}`,
+            tokenDetails: outTokenDetails
+          })
+        ).toString();
+      } catch (error) {
+        logger.warn(
+          `SquidRouterPhaseHandler: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
+        );
+      }
+
+      updatedState = await updatedState.update({
+        state: {
+          ...updatedState.state,
+          preSettlementBalance
+        }
+      });
 
       // Transition to the next phase
       return this.transitionToNextPhase(updatedState, "squidRouterPay");
@@ -182,44 +214,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  /**
-   * Get the appropriate public client based on the input token
-   * Monerium's EUR uses polygon, BRL uses Base
-   * @param state The current ramp state
-   * @returns The appropriate public client
-   */
-  private async getPublicClient(state: RampState): Promise<PublicClient> {
+  private async executeTransaction(network: EvmNetworks, txData: string): Promise<string> {
     try {
-      const quote = await QuoteTicket.findByPk(state.quoteId);
-      if (!quote) {
-        throw new Error(`Quote not found for ramp ${state.id}`);
-      }
-
-      if (quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-        return this.polygonClient;
-      } else if (quote.inputCurrency === FiatToken.BRL) {
-        return this.baseClient;
-      } else {
-        logger.info(
-          `SquidRouterPhaseHandler: Using Moonbeam client as default for input currency: ${quote.inputCurrency}. This is a bug.`
-        );
-        return this.moonbeamClient;
-      }
-    } catch (error) {
-      logger.error("SquidRouterPhaseHandler: Error determining public client, defaulting to moonbeam", error);
-      return this.moonbeamClient;
-    }
-  }
-
-  /**
-   * Execute a transaction
-   * @param state The current ramp state
-   * @param txData The transaction data
-   * @returns The transaction hash
-   */
-  private async executeTransaction(state: RampState, txData: string): Promise<string> {
-    try {
-      const publicClient = await this.getPublicClient(state);
+      const publicClient = this.getClient(network);
       const txHash = await publicClient.sendRawTransaction({
         serializedTransaction: txData as `0x${string}`
       });
@@ -230,19 +227,14 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  /**
-   * Wait for a transaction to be confirmed with exponential backoff
-   * @param state The current ramp state
-   * @param txHash The transaction hash
-   */
-  private async waitForTransactionConfirmation(state: RampState, txHash: string): Promise<void> {
+  private async waitForTransactionConfirmation(network: EvmNetworks, txHash: string): Promise<void> {
     const maxRetries = 3;
     const baseDelay = 5000; // 5 seconds
     const maxDelay = 30000; // 30 seconds
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const publicClient = await this.getPublicClient(state);
+        const publicClient = this.getClient(network);
         const receipt = await publicClient.waitForTransactionReceipt({
           hash: txHash as `0x${string}`
         });
@@ -282,10 +274,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
   }
 
-  private async getNonce(state: RampState, address: `0x${string}`): Promise<number> {
+  private async getNonce(network: EvmNetworks, address: `0x${string}`): Promise<number> {
     try {
-      const publicClient = await this.getPublicClient(state);
-      // List all transactions for the address to get the nonce
+      const publicClient = this.getClient(network);
       return await publicClient.getTransactionCount({ address });
     } catch (error) {
       logger.error("Error getting nonce", error);
