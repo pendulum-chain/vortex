@@ -1,4 +1,5 @@
 import type { RampPhase } from "@vortexfi/shared";
+import { computeFees } from "./fees";
 import { requestToIO } from "./io";
 import type { Flow, Phase, PhaseCtx, PhaseIO } from "./types";
 
@@ -22,6 +23,7 @@ export class FlowBuilder<I extends PhaseIO, O extends PhaseIO> {
       name,
       phases,
       async simulate(ctx: PhaseCtx): Promise<PhaseIO> {
+        await computeFees(ctx);
         let current: PhaseIO = requestToIO(ctx);
         for (const phase of phaseList) {
           current = await phase.simulate(current, ctx);

@@ -47,11 +47,21 @@ export function NablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, 
       );
 
       return evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw, {
-        effectiveExchangeRate: result.effectiveExchangeRate,
-        inputAmountForSwapRaw,
-        inputToken: inToken,
-        oraclePrice: oraclePrice?.price,
-        outputToken: outToken
+        ...input.meta,
+        nablaSwapEvm: {
+          effectiveExchangeRate: result.effectiveExchangeRate,
+          inputAmountForSwapDecimal: inputAmountForSwap,
+          inputAmountForSwapRaw,
+          inputCurrency: inToken,
+          inputDecimals: inputTokenDetails.decimals,
+          inputToken: inputTokenDetails.erc20AddressSourceChain,
+          oraclePrice: oraclePrice?.price,
+          outputAmountDecimal: result.nablaOutputAmountDecimal,
+          outputAmountRaw: result.nablaOutputAmountRaw,
+          outputCurrency: outToken,
+          outputDecimals: outputTokenDetails.decimals,
+          outputToken: outputTokenDetails.erc20AddressSourceChain
+        }
       });
     }
   };

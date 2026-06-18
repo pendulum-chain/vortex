@@ -8,7 +8,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { evmIO } from "../core/io";
-import type { Phase, PhaseIO } from "../core/types";
+import type { Phase, PhaseCtx, PhaseIO } from "../core/types";
 
 export const MykoboMint: Phase<PhaseIO<typeof FiatToken.EURC, "fiat">, PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>> = {
   name: "MykoboMint",
@@ -36,8 +36,16 @@ export const MykoboMint: Phase<PhaseIO<typeof FiatToken.EURC, "fiat">, PhaseIO<t
     );
 
     return evmIO(EvmToken.EURC, Networks.Base, deliveredEurcDecimal, deliveredEurcRaw, {
-      inputAmountRaw: input.amountRaw,
-      mykoboFee: mykoboFeeDecimal
+      ...input.meta,
+      fees: ctx.fees,
+      mykoboMint: {
+        currency: FiatToken.EURC,
+        fee: mykoboFeeDecimal,
+        inputAmountDecimal,
+        inputAmountRaw: input.amountRaw,
+        outputAmountDecimal: deliveredEurcDecimal,
+        outputAmountRaw: deliveredEurcRaw
+      }
     });
   }
 };

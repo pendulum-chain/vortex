@@ -55,9 +55,13 @@ export function MorphoMint<Chain extends ChainBrand>(): Phase<
       ctx.addNote(`MorphoMint: ${input.amount} USDC -> ${sharesDecimal.toFixed()} vault shares on ${network}`);
 
       return evmIO(EvmToken.MORPHO_VAULT, input.chain as Chain, sharesDecimal, sharesRaw.toString(), {
-        depositAssetAddress: vault.depositAssetAddress,
-        expectedUsdcRaw: input.amountRaw,
-        vaultAddress: vault.vaultAddress
+        ...input.meta,
+        morphoDeposit: {
+          depositAssetAddress: vault.depositAssetAddress,
+          expectedUsdcRaw: input.amountRaw,
+          sharesAmountRaw: sharesRaw.toString(),
+          vaultAddress: vault.vaultAddress
+        }
       });
     }
   };

@@ -52,12 +52,19 @@ export function SquidRouterSwap<FromChain extends ChainBrand, ToChain extends Ch
       );
 
       return evmIO(token, toChain, bridgeResult.finalGrossOutputAmountDecimal, outputAmountRaw, {
-        effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
-        fromToken,
-        inputAmountDecimal,
-        inputAmountRaw,
-        networkFeeUSD: bridgeResult.networkFeeUSD,
-        toToken
+        ...input.meta,
+        evmToEvm: {
+          effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
+          fromNetwork: fromChain as Networks,
+          fromToken,
+          inputAmountDecimal,
+          inputAmountRaw,
+          networkFeeUSD: bridgeResult.networkFeeUSD,
+          outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
+          outputAmountRaw,
+          toNetwork: toChain as Networks,
+          toToken
+        }
       });
     }
   };
