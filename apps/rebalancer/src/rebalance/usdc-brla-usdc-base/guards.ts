@@ -28,7 +28,7 @@ export interface RebalancingCostPolicyDecision {
 
 export interface DailyBridgeLimitDecision {
   projectedTotalRaw: string;
-  reason: "under_limit" | "profitable_quote" | "daily_limit_reached";
+  reason: "under_limit" | "daily_limit_reached";
   shouldSkip: boolean;
 }
 
@@ -60,17 +60,12 @@ export function isProjectedProfit(inputAmountRaw: Big, projectedOutputRaw: Big):
 export function evaluateDailyBridgeLimit(
   bridgedTodayRaw: Big,
   requestedAmountRaw: Big,
-  dailyLimitRaw: Big,
-  profitable: boolean
+  dailyLimitRaw: Big
 ): DailyBridgeLimitDecision {
   const projectedTotalRaw = bridgedTodayRaw.plus(requestedAmountRaw).toFixed(0, 0);
 
   if (!wouldExceedDailyBridgeLimit(bridgedTodayRaw, requestedAmountRaw, dailyLimitRaw)) {
     return { projectedTotalRaw, reason: "under_limit", shouldSkip: false };
-  }
-
-  if (profitable) {
-    return { projectedTotalRaw, reason: "profitable_quote", shouldSkip: false };
   }
 
   return { projectedTotalRaw, reason: "daily_limit_reached", shouldSkip: true };
@@ -115,7 +110,7 @@ export function evaluateFallbackRoutePolicy(
     return {
       decision,
       profitable,
-      reason: "Fallback route is not profitable, but the original route bypassed the daily bridge limit as profitable.",
+      reason: "Fallback route is not profitable, but the original route was projected profitable.",
       shouldExecute: false
     };
   }

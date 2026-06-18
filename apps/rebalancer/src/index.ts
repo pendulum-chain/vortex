@@ -6,9 +6,9 @@ import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.t
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
+import { evaluatePaidRunDailyLimit, sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
 import {
   type DailyBridgeLimitDecision,
-  evaluateDailyBridgeLimit,
   evaluateRebalancingCostPolicy,
   isProjectedProfit,
   type RebalancingCostPolicyDecision,
@@ -94,9 +94,7 @@ async function getTodayBridgedUsdRaw(): Promise<Big> {
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
 
-  return [...usdcHistory, ...brlaHistory]
-    .filter(e => new Date(e.startingTime) >= todayStart)
-    .reduce((sum, e) => sum.plus(Big(e.initialAmount)), Big(0));
+  return sumTodayBridgedUsdRaw(usdcHistory, brlaHistory, todayStart);
 }
 
 async function getDailyBridgeLimitContext(): Promise<{ bridgedToday: Big; dailyLimitRaw: Big }> {
@@ -114,12 +112,25 @@ function logDailyLimitDecision(decision: DailyBridgeLimitDecision, dailyLimitUsd
   if (decision.reason === "under_limit") return;
 
   const projectedTotalUsd = Big(decision.projectedTotalRaw).div(1e6).toFixed(2);
-  if (decision.reason === "profitable_quote") {
-    console.log(`Daily bridge limit bypassed (profitable quote): projected $${projectedTotalUsd}, limit $${dailyLimitUsd}.`);
-    return;
+  console.log(`Daily bridge limit reached: projected $${projectedTotalUsd}, limit $${dailyLimitUsd}. Skipping.`);
+}
+
+async function evaluateCurrentRunDailyLimit(
+  amountUsdcRaw: string,
+  profitable: boolean
+): Promise<DailyBridgeLimitDecision | undefined> {
+  const config = getConfig();
+  if (profitable) {
+    console.log(
+      `Daily bridge limit bypassed: projected profitable quote for ${Big(amountUsdcRaw).div(1e6).toFixed(6)} USDC. No limit applies.`
+    );
+    return undefined;
   }
 
-  console.log(`Daily bridge limit reached: projected $${projectedTotalUsd}, limit $${dailyLimitUsd}. Skipping.`);
+  const dailyLimitDecision = await evaluatePaidRunDailyLimit(amountUsdcRaw, profitable, getDailyBridgeLimitContext);
+  if (!dailyLimitDecision) return undefined;
+  logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
+  return dailyLimitDecision;
 }
 
 function calculateCoverageDeviationBps(coverageRatio: number, triggerBound: number): number {
@@ -222,21 +233,13 @@ async function evaluateUsdcToBrlaPolicy(
 
 async function executeUsdcToBrlaRebalance(
   amountUsdcRaw: string,
-  bridgedToday: Big,
-  dailyLimitRaw: Big,
   coverageDeviationBps: number,
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>,
   options: { opportunistic?: boolean } = {}
 ): Promise<boolean> {
   const config = getConfig();
-  const dailyLimitDecision = evaluateDailyBridgeLimit(
-    bridgedToday,
-    Big(amountUsdcRaw),
-    dailyLimitRaw,
-    policyDecision.profitable
-  );
-  logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
-  if (dailyLimitDecision.shouldSkip) return false;
+  const dailyLimitDecision = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
+  if (dailyLimitDecision?.shouldSkip) return false;
 
   await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
   await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun, {
@@ -244,6 +247,7 @@ async function executeUsdcToBrlaRebalance(
     dailyLimitDecision,
     decision: policyDecision.decision,
     deviationBps: coverageDeviationBps,
+    fallbackRequiresProfit: policyDecision.profitable,
     opportunistic: options.opportunistic,
     preflightQuotes: policyDecision.routeQuotes
   });
@@ -266,8 +270,7 @@ async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
   }
 
   console.log(`Opportunistic USDC->BRLA rebalance triggered at ${policyDecision.decision.costBps} bps projected cost.`);
-  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
-  return executeUsdcToBrlaRebalance(amountUsdcRaw, bridgedToday, dailyLimitRaw, 0, policyDecision, { opportunistic: true });
+  return executeUsdcToBrlaRebalance(amountUsdcRaw, 0, policyDecision, { opportunistic: true });
 }
 
 async function evaluateBrlaToUsdcPolicy(
@@ -302,7 +305,7 @@ async function evaluateBrlaToUsdcPolicy(
   };
 }
 
-async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big, coverageDeviationBps: number) {
+async function runUsdcToBrla(coverageDeviationBps: number) {
   const config = getConfig();
   const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
@@ -314,14 +317,14 @@ async function runUsdcToBrla(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
   if (!isResuming) {
     const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, coverageDeviationBps);
     if (!policyDecision.shouldExecute) return;
-    await executeUsdcToBrlaRebalance(amountUsdcRaw, bridgedToday, dailyLimitRaw, coverageDeviationBps, policyDecision);
+    await executeUsdcToBrlaRebalance(amountUsdcRaw, coverageDeviationBps, policyDecision);
     return;
   }
 
   await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, forcedRoute);
 }
 
-async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDeviationBps: number) {
+async function runBrlaToUsdc(coverageDeviationBps: number) {
   const config = getConfig();
   const amountUsdc = manualAmount || config.rebalancingBrlToUsdAmount;
   const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
@@ -334,14 +337,8 @@ async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
     const policyDecision = await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps);
     if (!policyDecision.shouldExecute) return;
 
-    const dailyLimitDecision = evaluateDailyBridgeLimit(
-      bridgedToday,
-      Big(amountUsdcRaw),
-      dailyLimitRaw,
-      policyDecision.profitable
-    );
-    logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
-    if (dailyLimitDecision.shouldSkip) return;
+    const dailyLimitDecision = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
+    if (dailyLimitDecision?.shouldSkip) return;
 
     const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
     if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
@@ -351,8 +348,10 @@ async function runBrlaToUsdc(bridgedToday: Big, dailyLimitRaw: Big, coverageDevi
     }
     await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart, {
       config: config.rebalancingCostPolicy,
+      dailyLimitDecision,
       decision: policyDecision.decision,
-      deviationBps: coverageDeviationBps
+      deviationBps: coverageDeviationBps,
+      fallbackRequiresProfit: policyDecision.profitable
     });
     return;
   }
@@ -375,14 +374,12 @@ async function checkForRebalancing() {
     return;
   }
 
-  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
-
   if (coverage.brlaCoverageRatio < lowerBound) {
     const deviationBps = calculateCoverageDeviationBps(coverage.brlaCoverageRatio, lowerBound);
     console.log(
       `BRLA coverage ${coverage.brlaCoverageRatio} < ${lowerBound}. Evaluating BRLA->USDC (${deviationBps} bps deviation).`
     );
-    await runBrlaToUsdc(bridgedToday, dailyLimitRaw, deviationBps);
+    await runBrlaToUsdc(deviationBps);
     return;
   }
 
@@ -390,7 +387,7 @@ async function checkForRebalancing() {
   console.log(
     `BRLA coverage ${coverage.brlaCoverageRatio} > ${upperBound}. Evaluating USDC->BRLA (${deviationBps} bps deviation).`
   );
-  await runUsdcToBrla(bridgedToday, dailyLimitRaw, deviationBps);
+  await runUsdcToBrla(deviationBps);
 }
 
 const rebalanceFn = useLegacy ? checkForRebalancingLegacy : checkForRebalancing;

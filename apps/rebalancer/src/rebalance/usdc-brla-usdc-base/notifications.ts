@@ -7,6 +7,7 @@ export interface RebalancePolicySummary {
   dailyLimitDecision?: DailyBridgeLimitDecision;
   decision?: RebalancingCostPolicyDecision;
   deviationBps?: number;
+  fallbackRequiresProfit?: boolean;
   opportunistic?: boolean;
   preflightQuotes?: {
     aveniaQuoteUsdc: string | null;

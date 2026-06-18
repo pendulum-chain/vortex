@@ -45,7 +45,7 @@ function getOpportunisticFallbackContext(
       config: policy.config,
       deviationBps: policy.deviationBps ?? 0,
       opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
-      requireProfit: policy.dailyLimitDecision?.reason === "profitable_quote"
+      requireProfit: policy.fallbackRequiresProfit ?? false
     };
   }
 
@@ -76,19 +76,16 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (isResuming) {
     console.log(`Resuming rebalance from phase: ${state?.currentPhase}`);
   } else {
-    state = await stateManager.startNewRebalance(usdcAmountRaw);
+    state = await stateManager.startNewRebalance(usdcAmountRaw, {
+      opportunisticDeviationBps: policy?.opportunistic ? (policy.deviationBps ?? 0) : undefined,
+      opportunisticMaxCostBps: policy?.opportunistic ? policy.config.opportunisticUsdcToBrlaMaxCostBps : undefined,
+      opportunisticRequiresProfit: policy?.opportunistic ? (policy.fallbackRequiresProfit ?? false) : undefined,
+      opportunisticUsdcToBrla: policy?.opportunistic ?? false
+    });
   }
 
   if (!state) {
     throw new Error("State is undefined after initialization.");
-  }
-
-  if (policy?.opportunistic) {
-    state.opportunisticUsdcToBrla = true;
-    state.opportunisticMaxCostBps = policy.config.opportunisticUsdcToBrlaMaxCostBps;
-    state.opportunisticRequiresProfit = policy.dailyLimitDecision?.reason === "profitable_quote";
-    state.opportunisticDeviationBps = policy.deviationBps ?? 0;
-    await stateManager.saveState(state);
   }
 
   const { publicClient: basePublicClient, walletClient: baseWalletClient } = getBaseEvmClients();

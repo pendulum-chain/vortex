@@ -233,7 +233,18 @@ export interface UsdcBaseRebalanceContainer {
   history: RebalanceHistoryEntry[];
 }
 
-function createFreshState(): UsdcBaseRebalanceState {
+export interface UsdcBaseRebalanceStartOptions {
+  opportunisticDeviationBps?: number;
+  opportunisticMaxCostBps?: number;
+  opportunisticRequiresProfit?: boolean;
+  opportunisticUsdcToBrla?: boolean;
+}
+
+export function createUsdcBaseRebalanceState(
+  usdcAmountRaw: string | null,
+  currentPhase: UsdcBaseRebalancePhase,
+  options: UsdcBaseRebalanceStartOptions = {}
+): UsdcBaseRebalanceState {
   return {
     aveniaBrlaBalanceBeforeTransfer: null,
     aveniaQuoteUsdc: null,
@@ -244,7 +255,7 @@ function createFreshState(): UsdcBaseRebalanceState {
     brlaAmountRaw: null,
     brlaBalanceBeforeNablaRaw: null,
     brlaTransferHash: null,
-    currentPhase: UsdcBaseRebalancePhase.Idle,
+    currentPhase,
     finalUsdcBalance: null,
     initialUsdcBalance: null,
     mainNablaApproveHash: null,
@@ -253,18 +264,22 @@ function createFreshState(): UsdcBaseRebalanceState {
     mainNablaUsdcBalanceBeforeRaw: null,
     nablaApproveHash: null,
     nablaSwapHash: null,
-    opportunisticDeviationBps: null,
-    opportunisticMaxCostBps: null,
-    opportunisticRequiresProfit: false,
-    opportunisticUsdcToBrla: false,
+    opportunisticDeviationBps: options.opportunisticDeviationBps ?? null,
+    opportunisticMaxCostBps: options.opportunisticMaxCostBps ?? null,
+    opportunisticRequiresProfit: options.opportunisticRequiresProfit ?? false,
+    opportunisticUsdcToBrla: options.opportunisticUsdcToBrla ?? false,
     polygonBrlaBalanceBeforeTransferRaw: null,
     squidRouterQuoteUsdc: null,
     squidRouterSwapHash: null,
     startingTime: new Date().toISOString(),
     updatedTime: new Date().toISOString(),
-    usdcAmountRaw: null,
+    usdcAmountRaw,
     winningRoute: null
   };
+}
+
+function createFreshState(): UsdcBaseRebalanceState {
+  return createUsdcBaseRebalanceState(null, UsdcBaseRebalancePhase.Idle);
 }
 
 export class UsdcBaseStateManager {
@@ -315,41 +330,11 @@ export class UsdcBaseStateManager {
     await this.inner.saveState(existing);
   }
 
-  async startNewRebalance(usdcAmountRaw: string): Promise<UsdcBaseRebalanceState> {
+  async startNewRebalance(usdcAmountRaw: string, options: UsdcBaseRebalanceStartOptions = {}): Promise<UsdcBaseRebalanceState> {
     const existing = await this.getContainer();
     const history = existing?.history ?? [];
 
-    const state: UsdcBaseRebalanceState = {
-      aveniaBrlaBalanceBeforeTransfer: null,
-      aveniaQuoteUsdc: null,
-      aveniaTicketId: null,
-      baseUsdcBalanceBeforeAveniaSwapRaw: null,
-      baseUsdcBalanceBeforeSquidSwapRaw: null,
-      brlaAmountDecimal: null,
-      brlaAmountRaw: null,
-      brlaBalanceBeforeNablaRaw: null,
-      brlaTransferHash: null,
-      currentPhase: UsdcBaseRebalancePhase.CheckInitialUsdcBalance,
-      finalUsdcBalance: null,
-      initialUsdcBalance: null,
-      mainNablaApproveHash: null,
-      mainNablaQuoteUsdc: null,
-      mainNablaSwapHash: null,
-      mainNablaUsdcBalanceBeforeRaw: null,
-      nablaApproveHash: null,
-      nablaSwapHash: null,
-      opportunisticDeviationBps: null,
-      opportunisticMaxCostBps: null,
-      opportunisticRequiresProfit: false,
-      opportunisticUsdcToBrla: false,
-      polygonBrlaBalanceBeforeTransferRaw: null,
-      squidRouterQuoteUsdc: null,
-      squidRouterSwapHash: null,
-      startingTime: new Date().toISOString(),
-      updatedTime: new Date().toISOString(),
-      usdcAmountRaw,
-      winningRoute: null
-    };
+    const state = createUsdcBaseRebalanceState(usdcAmountRaw, UsdcBaseRebalancePhase.CheckInitialUsdcBalance, options);
     await this.inner.saveState({ history, state });
     return state;
   }

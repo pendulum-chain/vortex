@@ -49,18 +49,14 @@ describe("USDC Base rebalance guards", () => {
     expect(isProjectedProfit(Big("100000000"), Big("99000000"))).toBe(false);
   });
 
-  test("evaluates daily bridge limit decisions", () => {
-    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+  test("evaluates daily bridge limit decisions for paid rebalances", () => {
+    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"))).toMatchObject({
       reason: "under_limit",
       shouldSkip: false
     });
-    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"))).toMatchObject({
       reason: "daily_limit_reached",
       shouldSkip: true
-    });
-    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), true)).toMatchObject({
-      reason: "profitable_quote",
-      shouldSkip: false
     });
   });
 
@@ -95,7 +91,7 @@ describe("USDC Base rebalance guards", () => {
     ).toBe(false);
   });
 
-  test("requires fallback route profit when the original route bypassed the daily limit as profitable", () => {
+  test("requires fallback route profit when the original route was projected profitable", () => {
     expect(
       evaluateFallbackRoutePolicy(Big("100000000"), Big("100100000"), 0, policyConfig, {
         opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
