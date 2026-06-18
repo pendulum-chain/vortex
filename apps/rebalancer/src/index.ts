@@ -91,10 +91,7 @@ async function getTodayBridgedUsdRaw(): Promise<Big> {
 
   const [usdcHistory, brlaHistory] = await Promise.all([usdcStateManager.getHistory(), brlaStateManager.getHistory()]);
 
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-
-  return sumTodayBridgedUsdRaw(usdcHistory, brlaHistory, todayStart);
+  return sumTodayBridgedUsdRaw(usdcHistory, brlaHistory);
 }
 
 async function getDailyBridgeLimitContext(): Promise<{ bridgedToday: Big; dailyLimitRaw: Big }> {
