@@ -1,5 +1,9 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { getRebalancingCostPolicyConfig, parseRebalancingDailyBridgeLimitUsd, parseRebalancingPolicyMode } from "./config.ts";
+import {afterEach, beforeEach, describe, expect, test} from "bun:test";
+import {
+  getRebalancingCostPolicyConfig,
+  parseRebalancingDailyBridgeLimitUsd,
+  parseRebalancingPolicyMode
+} from "./config.ts";
 
 const policyEnvVars = [
   "REBALANCING_POLICY_MODE",
@@ -8,7 +12,8 @@ const policyEnvVars = [
   "REBALANCING_MAX_COST_BPS_MILD",
   "REBALANCING_MAX_COST_BPS_MODERATE",
   "REBALANCING_MAX_COST_BPS_SEVERE",
-  "REBALANCING_HARD_MAX_COST_BPS"
+  "REBALANCING_HARD_MAX_COST_BPS",
+  "REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS"
 ];
 
 const originalPolicyEnv = new Map(policyEnvVars.map(name => [name, process.env[name]]));
@@ -80,8 +85,23 @@ describe("getRebalancingCostPolicyConfig", () => {
       maxCostBpsSevere: 250,
       mode: "auto",
       moderateDeviationBps: 200,
+      opportunisticUsdcToBrlaMaxCostBps: 10,
       severeDeviationBps: 500
     });
+  });
+
+  test("allows configuring the opportunistic USDC to BRLA max cost", () => {
+    process.env.REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS = "7.5";
+
+    expect(getRebalancingCostPolicyConfig().opportunisticUsdcToBrlaMaxCostBps).toBe(7.5);
+  });
+
+  test("rejects invalid opportunistic USDC to BRLA max cost", () => {
+    process.env.REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS = "not-a-number";
+
+    expect(() => getRebalancingCostPolicyConfig()).toThrow(
+      "REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS must be a non-negative number."
+    );
   });
 
   test("rejects non-monotonic deviation thresholds", () => {

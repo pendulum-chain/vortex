@@ -9,6 +9,7 @@ const policyConfig = {
   maxCostBpsSevere: 250,
   mode: "auto" as const,
   moderateDeviationBps: 200,
+  opportunisticUsdcToBrlaMaxCostBps: 10,
   severeDeviationBps: 500
 };
 

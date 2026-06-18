@@ -1,11 +1,19 @@
 import Big from "big.js";
 import type { WinningRoute } from "../../services/stateManager.ts";
-import type { RebalancingCostPolicyConfig, RebalancingCostPolicyDecision } from "./guards.ts";
+import type { DailyBridgeLimitDecision, RebalancingCostPolicyConfig, RebalancingCostPolicyDecision } from "./guards.ts";
 
 export interface RebalancePolicySummary {
   config: RebalancingCostPolicyConfig;
+  dailyLimitDecision?: DailyBridgeLimitDecision;
   decision?: RebalancingCostPolicyDecision;
   deviationBps?: number;
+  fallbackRequiresProfit?: boolean;
+  opportunistic?: boolean;
+  preflightQuotes?: {
+    aveniaQuoteUsdc: string | null;
+    mainNablaQuoteUsdc: string | null;
+    squidRouterQuoteUsdc: string | null;
+  };
 }
 
 interface BaseRebalanceCompletionMessageParams {

@@ -1,9 +1,15 @@
 import { BrlaApiService, multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
-import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from "../../services/stateManager.ts";
+import {
+  UsdcBaseRebalancePhase,
+  type UsdcBaseRebalanceState,
+  UsdcBaseStateManager,
+  usdcBasePhaseOrder
+} from "../../services/stateManager.ts";
 import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
+import { evaluateFallbackRoutePolicy } from "./guards.ts";
 import { formatBaseRebalanceCompletionMessage, type RebalancePolicySummary } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
@@ -23,6 +29,37 @@ import {
   waitUsdcOnBase
 } from "./steps.ts";
 
+interface OpportunisticFallbackContext {
+  config: RebalancePolicySummary["config"];
+  deviationBps: number;
+  opportunisticMaxCostBps: number;
+  requireProfit: boolean;
+}
+
+function getOpportunisticFallbackContext(
+  state: UsdcBaseRebalanceState,
+  policy: RebalancePolicySummary | undefined
+): OpportunisticFallbackContext | null {
+  if (policy?.opportunistic) {
+    return {
+      config: policy.config,
+      deviationBps: policy.deviationBps ?? 0,
+      opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
+      requireProfit: policy.fallbackRequiresProfit ?? false
+    };
+  }
+
+  if (!state.opportunisticUsdcToBrla) return null;
+
+  const config = getConfig().rebalancingCostPolicy;
+  return {
+    config,
+    deviationBps: state.opportunisticDeviationBps ?? 0,
+    opportunisticMaxCostBps: state.opportunisticMaxCostBps ?? config.opportunisticUsdcToBrlaMaxCostBps,
+    requireProfit: state.opportunisticRequiresProfit
+  };
+}
+
 export async function rebalanceUsdcBrlaUsdcBase(
   usdcAmountRaw: string,
   forceRestart = false,
@@ -39,7 +76,12 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (isResuming) {
     console.log(`Resuming rebalance from phase: ${state?.currentPhase}`);
   } else {
-    state = await stateManager.startNewRebalance(usdcAmountRaw);
+    state = await stateManager.startNewRebalance(usdcAmountRaw, {
+      opportunisticDeviationBps: policy?.opportunistic ? (policy.deviationBps ?? 0) : undefined,
+      opportunisticMaxCostBps: policy?.opportunistic ? policy.config.opportunisticUsdcToBrlaMaxCostBps : undefined,
+      opportunisticRequiresProfit: policy?.opportunistic ? (policy.fallbackRequiresProfit ?? false) : undefined,
+      opportunisticUsdcToBrla: policy?.opportunistic ?? false
+    });
   }
 
   if (!state) {
@@ -70,6 +112,9 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (forcedRoute) {
       console.log(`Forced route: ${forcedRoute}. Skipping full comparison.`);
       state.winningRoute = forcedRoute;
+      state.squidRouterQuoteUsdc = policy?.preflightQuotes?.squidRouterQuoteUsdc ?? null;
+      state.aveniaQuoteUsdc = policy?.preflightQuotes?.aveniaQuoteUsdc ?? null;
+      state.mainNablaQuoteUsdc = policy?.preflightQuotes?.mainNablaQuoteUsdc ?? null;
     } else {
       const comparison = await compareRoutesUpfront(state.usdcAmountRaw);
       state.winningRoute = comparison.winningRoute;
@@ -177,6 +222,30 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         } catch (error) {
           console.error("Avenia swap ticket creation failed. Falling back to SquidRouter route.", error);
+          const opportunisticFallbackContext = getOpportunisticFallbackContext(state, policy);
+          if (opportunisticFallbackContext) {
+            if (!state.usdcAmountRaw)
+              throw new Error("State corrupted: usdcAmountRaw missing for opportunistic fallback check");
+            if (!state.squidRouterQuoteUsdc) {
+              throw new Error("Opportunistic Avenia fallback blocked: SquidRouter was not quoted before execution.");
+            }
+
+            const fallbackPolicy = evaluateFallbackRoutePolicy(
+              Big(state.usdcAmountRaw),
+              Big(state.squidRouterQuoteUsdc),
+              opportunisticFallbackContext.deviationBps,
+              opportunisticFallbackContext.config,
+              {
+                opportunisticMaxCostBps: opportunisticFallbackContext.opportunisticMaxCostBps,
+                requireOpportunisticCost: true,
+                requireProfit: opportunisticFallbackContext.requireProfit
+              }
+            );
+            if (!fallbackPolicy.shouldExecute) {
+              throw new Error(`Opportunistic Avenia fallback blocked: ${fallbackPolicy.reason}`);
+            }
+          }
+
           state.winningRoute = "squidrouter";
           state.currentPhase = UsdcBaseRebalancePhase.AveniaTransferToPolygon;
           await stateManager.saveState(state);
