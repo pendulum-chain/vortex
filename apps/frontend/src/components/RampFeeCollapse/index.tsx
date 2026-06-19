@@ -116,7 +116,7 @@ export function RampFeeCollapse() {
   }
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden">
+    <div className="flex flex-col gap-2 overflow-visible">
       <div className="flex items-center justify-center px-4">
         <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
         <QuoteRefreshProgress />
@@ -128,7 +128,7 @@ export function RampFeeCollapse() {
             <p>{t("components.feeCollapse.details")}</p>
           </div>
         </div>
-        <div className="collapse-content text-[15px]">
+        <div className="collapse-content overflow-visible text-[15px]">
           {feeItems.map((item, index) => (
             <div className="mt-2 flex justify-between" key={index}>
               <div className="flex items-center">
