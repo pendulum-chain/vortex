@@ -1,4 +1,5 @@
 import { FiatTokenDetails, isFiatTokenDetails, OnChainTokenDetails, QuoteFeeStructure, RampDirection } from "@vortexfi/shared";
+import Big from "big.js";
 import { FC } from "react";
 import { useTranslation } from "react-i18next";
 import { InterbankExchangeRate } from "../../InterbankExchangeRate";
@@ -6,6 +7,10 @@ import { InterbankExchangeRate } from "../../InterbankExchangeRate";
 interface FeeDetailsProps {
   feesCost: QuoteFeeStructure;
   exchangeRate: string;
+  discount?: {
+    amount: string;
+    currency: string;
+  };
   fromToken: OnChainTokenDetails | FiatTokenDetails;
   toToken: OnChainTokenDetails | FiatTokenDetails;
   partnerUrl: string;
@@ -19,6 +24,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   fromToken,
   toToken,
   exchangeRate,
+  discount,
   partnerUrl,
   direction,
   destinationAddress,
@@ -34,6 +40,9 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   }
   const inputCurrency = isOfframp ? fromToken.assetSymbol : fiatToken.fiat.symbol;
   const outputCurrency = isOfframp ? fiatToken.fiat.symbol : toToken.assetSymbol;
+  const effectiveTotalFee = Big(feesCost.total || "0")
+    .minus(discount?.amount || "0")
+    .toFixed(2);
 
   return (
     <section className="mt-6">
@@ -41,10 +50,20 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
         <p>{isOfframp ? t("components.SummaryPage.offrampFee") : t("components.SummaryPage.onrampFee")} </p>
         <p className="flex items-center gap-2">
           <strong>
-            {feesCost.total} {feesCost.currency.toUpperCase()}
+            {effectiveTotalFee} {feesCost.currency.toUpperCase()}
           </strong>
         </p>
       </div>
+      {discount && (
+        <div className="mb-2 flex justify-between">
+          <p>{t("components.feeCollapse.discount.label")}</p>
+          <p className="flex items-center gap-2">
+            <strong>
+              + {discount.amount} {discount.currency.toUpperCase()}
+            </strong>
+          </p>
+        </div>
+      )}
       <div className="mb-2 flex justify-between">
         <p>{t("components.SummaryPage.quote")}</p>
         <p>
