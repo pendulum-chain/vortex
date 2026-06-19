@@ -261,6 +261,12 @@ export interface QuoteContext {
     targetOutputAmountRaw: string;
   };
 
+  subsidyDisplay?: {
+    fiat: string;
+    usd: string;
+    currency: RampCurrency;
+  };
+
   // Accumulated logs/notes for debugging (optional)
   notes?: string[];
   // Allow engines to supply a ready response (used by special-case engine and finalize stage)

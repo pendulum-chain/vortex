@@ -1,9 +1,10 @@
-import { getPaymentMethodFromDestinations, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import { EvmToken, getPaymentMethodFromDestinations, QuoteResponse, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
 import { config } from "../../../../../config/vars";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import { APIError } from "../../../../errors/api-error";
+import { priceFeedService } from "../../../priceFeed.service";
 import { trimTrailingZeros } from "../../core/helpers";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
@@ -26,6 +27,41 @@ function getExpirationDate(ctx: QuoteContext): Date {
     return ctx.alfredpayOfframp.expirationDate;
   }
   return new Date(Date.now() + 10 * 60 * 1000);
+}
+
+function getSubsidySourceCurrency(ctx: QuoteContext): RampCurrency | null {
+  return (
+    ctx.nablaSwapEvm?.outputCurrency ??
+    ctx.nablaSwap?.outputCurrency ??
+    ctx.alfredpayMint?.currency ??
+    ctx.alfredpayOfframp?.currency ??
+    null
+  );
+}
+
+async function assignSubsidyDisplay(ctx: QuoteContext): Promise<void> {
+  const subsidy = ctx.subsidy;
+  if (!subsidy?.applied || subsidy.subsidyAmountInOutputTokenDecimal.lte(0)) {
+    ctx.subsidyDisplay = undefined;
+    return;
+  }
+
+  const sourceCurrency = getSubsidySourceCurrency(ctx);
+  if (!sourceCurrency) {
+    throw new APIError({ message: "Missing subsidy currency", status: httpStatus.INTERNAL_SERVER_ERROR });
+  }
+
+  const subsidyAmount = subsidy.subsidyAmountInOutputTokenDecimal.toString();
+  const [discountFiat, discountUsd] = await Promise.all([
+    priceFeedService.convertCurrency(subsidyAmount, sourceCurrency, ctx.targetFeeFiatCurrency),
+    priceFeedService.convertCurrency(subsidyAmount, sourceCurrency, EvmToken.USDC as RampCurrency)
+  ]);
+
+  ctx.subsidyDisplay = {
+    currency: ctx.targetFeeFiatCurrency,
+    fiat: new Big(discountFiat).toFixed(2),
+    usd: new Big(discountUsd).toFixed(6)
+  };
 }
 
 export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
@@ -62,6 +98,13 @@ export function buildQuoteResponse(quoteTicket: QuoteTicket): QuoteResponse {
     processingFeeFiat,
     processingFeeUsd,
     rampType: quoteTicket.rampType,
+    ...(quoteTicket.metadata.subsidyDisplay
+      ? {
+          discountCurrency: quoteTicket.metadata.subsidyDisplay.currency,
+          discountFiat: quoteTicket.metadata.subsidyDisplay.fiat,
+          discountUsd: quoteTicket.metadata.subsidyDisplay.usd
+        }
+      : {}),
     to: quoteTicket.to,
     totalFeeFiat: fiatFees.total,
     totalFeeUsd: usdFees.total,
@@ -92,6 +135,7 @@ export abstract class BaseFinalizeEngine implements Stage {
     await this.validate(ctx, computation);
 
     const outputAmountStr = computation.amount.toFixed(computation.decimals, 0);
+    await assignSubsidyDisplay(ctx);
 
     const paymentMethod = getPaymentMethodFromDestinations(request.from, request.to);
 
@@ -132,6 +176,13 @@ export abstract class BaseFinalizeEngine implements Stage {
         processingFeeFiat,
         processingFeeUsd,
         rampType: request.rampType,
+        ...(ctx.subsidyDisplay
+          ? {
+              discountCurrency: ctx.subsidyDisplay.currency,
+              discountFiat: ctx.subsidyDisplay.fiat,
+              discountUsd: ctx.subsidyDisplay.usd
+            }
+          : {}),
         to: request.to,
         totalFeeFiat: fiatFees.total,
         totalFeeUsd: usdFees.total,
