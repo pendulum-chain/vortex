@@ -44,6 +44,10 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
   return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
 }
 
+function formatFeeAmount(amount: Big): string {
+  return amount.toFixed(2);
+}
+
 export function RampFeeCollapse() {
   const { t } = useTranslation();
 
@@ -57,6 +61,8 @@ export function RampFeeCollapse() {
     ? availableQuote
     : {
         anchorFeeFiat: "0",
+        discountCurrency: fiatToken,
+        discountFiat: "0",
         feeCurrency: fiatToken,
         inputAmount: 0,
         inputCurrency: rampDirection === RampDirection.BUY ? fiatToken : onChainToken,
@@ -79,6 +85,7 @@ export function RampFeeCollapse() {
     quote.totalFeeFiat || "0"
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
+  const effectiveTotalFee = Big(quote.totalFeeFiat || "0").minus(quote.discountFiat || "0");
 
   // Generate fee items for display
   const feeItems: FeeItem[] = [];
@@ -89,6 +96,14 @@ export function RampFeeCollapse() {
       label: t("components.feeCollapse.processingFee.label"),
       tooltip: t("components.feeCollapse.processingFee.tooltip"),
       value: `${Big(quote.processingFeeFiat).toFixed(2)} ${(quote.feeCurrency || fiatToken).toUpperCase()}`
+    });
+  }
+
+  if (Big(quote.discountFiat || "0").gt(0)) {
+    feeItems.push({
+      label: t("components.feeCollapse.discount.label"),
+      tooltip: t("components.feeCollapse.discount.tooltip"),
+      value: `+ ${Big(quote.discountFiat || "0").toFixed(2)} ${(quote.discountCurrency || quote.feeCurrency || fiatToken).toUpperCase()}`
     });
   }
 
@@ -116,7 +131,7 @@ export function RampFeeCollapse() {
         <div className="collapse-content text-[15px]">
           {feeItems.map((item, index) => (
             <div className="mt-2 flex justify-between" key={index}>
-              <div className="flex items-center ">
+              <div className="flex items-center">
                 {item.label}{" "}
                 {item.tooltip && (
                   <div className="tooltip tooltip-primary tooltip-top tooltip-sm" data-tip={item.tooltip}>
@@ -134,7 +149,7 @@ export function RampFeeCollapse() {
             <strong className="font-bold">{t("components.feeCollapse.totalFee")}</strong>
             <div className="flex">
               <span>
-                {quote.totalFeeFiat} {(quote.feeCurrency || fiatToken).toUpperCase()}
+                {formatFeeAmount(effectiveTotalFee)} {(quote.feeCurrency || fiatToken).toUpperCase()}
               </span>
             </div>
           </div>

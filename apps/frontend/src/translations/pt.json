@@ -353,6 +353,10 @@
     },
     "feeCollapse": {
       "details": "Detalhes",
+      "discount": {
+        "label": "Desconto",
+        "tooltip": "A Vortex está melhorando esta cotação com um desconto. Isso é separado das taxas."
+      },
       "finalAmount": "Valor final",
       "netRate": {
         "label": "Câmbio Efetiva",

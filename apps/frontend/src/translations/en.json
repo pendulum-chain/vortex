@@ -350,6 +350,10 @@
     },
     "feeCollapse": {
       "details": "Details",
+      "discount": {
+        "label": "Discount",
+        "tooltip": "Vortex is improving this quote with a discount. This is separate from fees."
+      },
       "finalAmount": "Final Amount",
       "netRate": {
         "label": "Effective Rate",
