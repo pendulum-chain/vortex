@@ -355,7 +355,7 @@
       "details": "Detalhes",
       "discount": {
         "label": "Desconto",
-        "tooltip": "A Vortex está melhorando esta cotação com um desconto. Isso é separado das taxas."
+        "tooltip": "A Vortex está dando um desconto nesta cotação. Isso é separado das taxas."
       },
       "finalAmount": "Valor final",
       "netRate": {
@@ -370,7 +370,7 @@
         "label": "Taxa de processamento",
         "tooltip": "Essa taxa cobre os custos do parceiro e da plataforma Vortex."
       },
-      "totalFee": "Taxa total",
+      "totalFee": "Taxa efetiva",
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {
