@@ -30,6 +30,35 @@ export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 
+function buildRecoveredBrlaOutput(brlaReceivedRaw: bigint) {
+  const brlaAmountRaw = brlaReceivedRaw.toString();
+  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+  return { brlaAmountDecimal, brlaAmountRaw };
+}
+
+async function recoverNablaBrlaOutputFromBalance(
+  brlaBalanceBefore: bigint,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
+): Promise<{ brlaAmountRaw: string; brlaAmountDecimal: Big } | null> {
+  const brlaBalanceAfter = BigInt(await getBrlaBalanceOnBaseRaw());
+  const brlaReceivedRaw = brlaBalanceAfter - brlaBalanceBefore;
+
+  if (brlaReceivedRaw <= 0n) return null;
+
+  const recovered = buildRecoveredBrlaOutput(brlaReceivedRaw);
+  state.brlaAmountRaw = recovered.brlaAmountRaw;
+  state.brlaAmountDecimal = recovered.brlaAmountDecimal.toString();
+  await stateManager.saveState(state);
+
+  console.log(
+    `Recovered Nabla BRLA output from Base balance delta: ${recovered.brlaAmountDecimal.toFixed(4)} BRLA ` +
+      `(pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter})`
+  );
+
+  return recovered;
+}
+
 export async function getUsdcBalanceOnBaseRaw(): Promise<string> {
   const { publicClient, walletClient } = getBaseEvmClients();
   const balance = await publicClient.readContract({
@@ -99,8 +128,8 @@ export async function nablaApproveAndSwapOnBase(
 ): Promise<{
   brlaAmountRaw: string;
   brlaAmountDecimal: Big;
-  approveHash: string;
-  swapHash: string;
+  approveHash: string | null;
+  swapHash: string | null;
 }> {
   console.log(`Starting Nabla swap of ${usdcAmountRaw} USDC (raw) to BRLA on Base...`);
 
@@ -129,6 +158,17 @@ export async function nablaApproveAndSwapOnBase(
   }
 
   const brlaBalanceBefore = BigInt(state.brlaBalanceBeforeNablaRaw);
+
+  const recoveredBeforeSend = await recoverNablaBrlaOutputFromBalance(brlaBalanceBefore, state, stateManager);
+  if (recoveredBeforeSend) {
+    console.log("Existing BRLA balance delta detected before sending a new Nabla swap. Continuing recovered rebalance.");
+    return {
+      approveHash: state.nablaApproveHash,
+      brlaAmountDecimal: recoveredBeforeSend.brlaAmountDecimal,
+      brlaAmountRaw: recoveredBeforeSend.brlaAmountRaw,
+      swapHash: state.nablaSwapHash
+    };
+  }
 
   let approveHash = state.nablaApproveHash;
   let swapHash = state.nablaSwapHash;
@@ -222,8 +262,23 @@ export async function nablaApproveAndSwapOnBase(
     throw new Error("State corrupted: Nabla transaction hash missing after swap step.");
   }
 
-  await waitForTransactionConfirmation(swapHash, publicClient);
-  console.log("Nabla swap confirmed.");
+  try {
+    await waitForTransactionConfirmation(swapHash, publicClient);
+    console.log("Nabla swap confirmed.");
+  } catch (error) {
+    const recovered = await recoverNablaBrlaOutputFromBalance(brlaBalanceBefore, state, stateManager);
+    if (recovered) {
+      console.warn(`Nabla swap confirmation failed, but BRLA balance delta proves completion. Continuing. ${error}`);
+      return {
+        approveHash,
+        brlaAmountDecimal: recovered.brlaAmountDecimal,
+        brlaAmountRaw: recovered.brlaAmountRaw,
+        swapHash
+      };
+    }
+
+    throw error;
+  }
 
   // Delay to let the RPC sync the post-swap state before reading the balance
   await new Promise(resolve => setTimeout(resolve, 5_000));
@@ -244,8 +299,7 @@ export async function nablaApproveAndSwapOnBase(
   if (brlaReceivedRaw === 0n) {
     throw new Error(`No BRLA balance delta detected after Nabla swap (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter}).`);
   }
-  const brlaAmountRaw = brlaReceivedRaw.toString();
-  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+  const { brlaAmountRaw, brlaAmountDecimal } = buildRecoveredBrlaOutput(brlaReceivedRaw);
   console.log(`Received ${brlaAmountDecimal.toFixed(4)} BRLA on Base (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter})`);
 
   return {
