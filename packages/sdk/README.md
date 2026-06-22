@@ -51,7 +51,7 @@ console.log("Please do the pix transfer using the following code: ", depositQrCo
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
-### Alfredpay (USD / MXN / COP) onramp
+### Alfredpay (USD / MXN / COP / ARS) onramp
 
 ```typescript
 import { VortexSdk, FiatToken, EvmToken, EPaymentMethod, Networks, RampDirection } from "@vortexfi/sdk";
@@ -79,7 +79,7 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
-### Alfredpay (USD / MXN / COP) offramp
+### Alfredpay (USD / MXN / COP / ARS) offramp
 
 ```typescript
 const quote = await sdk.createQuote({
@@ -97,14 +97,29 @@ const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
   walletAddress: "0x1234567890123456789012345678901234567890"
 });
 
-// Sign and submit the user-side EVM transactions (squidRouter approve/swap, etc.)
-// then push the resulting hashes back to Vortex:
-const updated = await sdk.updateRamp(quote, rampProcess.id, {
-  squidRouterApproveHash: "0x...",
-  squidRouterSwapHash: "0x..."
-});
+// Sign and submit each user-side transaction before starting the ramp.
+for (const tx of unsignedTransactions) {
+  const txType = sdk.getUserTransactionType(tx);
 
-const startedRamp = await sdk.startRamp(updated.id);
+  if (txType === "evm-typed-data") {
+    const payloads = sdk.getTypedDataToSign(tx);
+    const signatures = [];
+
+    for (const payload of payloads) {
+      signatures.push(await walletClient.signTypedData(payload));
+    }
+
+    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
+  } else if (txType === "evm-transaction") {
+    const evmTx = sdk.getTransactionToBroadcast(tx);
+    const hash = await walletClient.sendTransaction(evmTx);
+    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
+  } else {
+    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
+  }
+}
+
+const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
 > `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
@@ -135,13 +150,28 @@ Retrieves an existing quote by ID.
 Gets the current status of a ramp process.
 
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
-Registers a new ramp process. Creates fresh ephemeral accounts on Stellar, Pendulum, and Moonbeam, submits the quote and ephemeral addresses to the API, then signs and submits the returned unsigned transactions. Returns the ramp process and the list of unsigned transactions returned by the API for the caller's reference.
+Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
 ##### `updateRamp<Q extends QuoteResponse>(quote: Q, rampId: string, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess>`
 Submits route-specific transaction hashes after off-chain steps complete. Used for sell flows. Buy flows do not require a separate update call.
 
 ##### `startRamp(rampId: string): Promise<RampProcess>`
 Starts a registered ramp process.
+
+##### `getUserTransactionType(tx: UnsignedTx): "evm-typed-data" | "evm-transaction" | "unsupported"`
+Classifies a user-owned transaction returned by `registerRamp`. Unsupported transactions require a network-specific wallet flow outside the SDK helpers.
+
+##### `getTypedDataToSign(tx: UnsignedTx, options?: { includeDomainType?: boolean }): SignedTypedData[]`
+Returns the EIP-712 payloads to sign for an `"evm-typed-data"` transaction. Sign every payload in order and submit the signatures with `submitUserSignature`.
+
+##### `submitUserSignature(rampId: string, tx: UnsignedTx, signatures: string | string[]): Promise<RampProcess>`
+Attaches user EIP-712 signatures to the original unsigned transaction and submits them to Vortex.
+
+##### `getTransactionToBroadcast(tx: UnsignedTx): EvmTransactionData`
+Returns the EVM transaction data for an `"evm-transaction"` transaction. Throws for typed-data or unsupported transaction shapes.
+
+##### `submitUserTxHash(rampId: string, tx: UnsignedTx, hash: string): Promise<RampProcess>`
+Submits the on-chain transaction hash for a user-broadcast EVM transaction.
 
 ## Error Handling
 

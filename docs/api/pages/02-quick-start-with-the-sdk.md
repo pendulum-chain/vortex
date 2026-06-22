@@ -76,13 +76,14 @@ const quote = await sdk.createQuote({
   outputCurrency: FiatToken.BRL
 });
 
-const { rampProcess, userTransactions } = await sdk.registerRamp(quote, {
-  userAddress: "0xUSER...",
-  pixKey: "user@example.com",
-  taxId: "12345678900"
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  pixDestination: "user@example.com",
+  receiverTaxId: "12345678900",
+  taxId: "12345678900",
+  walletAddress: "0xUSER..."
 });
 
-// userTransactions contains the transactions the SDK could not sign on the
+// unsignedTransactions contains the transactions the SDK could not sign on the
 // user's behalf. Route them to the user's wallet (see below).
 ```
 
@@ -93,13 +94,24 @@ The user-owned transactions are EVM typed-data payloads. With wagmi:
 ```js
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
-for (const tx of userTransactions) {
-  if (tx.type === "evm-typed-data") {
-    const signature = await signTypedData(wagmiConfig, tx.payload);
-    await sdk.submitUserSignature(rampProcess.id, tx.id, signature);
-  } else if (tx.type === "evm-transaction") {
-    const hash = await sendTransaction(wagmiConfig, tx.payload);
-    await sdk.submitUserTxHash(rampProcess.id, tx.id, hash);
+for (const tx of unsignedTransactions) {
+  const txType = sdk.getUserTransactionType(tx);
+
+  if (txType === "evm-typed-data") {
+    const payloads = sdk.getTypedDataToSign(tx);
+    const signatures = [];
+
+    for (const payload of payloads) {
+      signatures.push(await signTypedData(wagmiConfig, payload));
+    }
+
+    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
+  } else if (txType === "evm-transaction") {
+    const evmTx = sdk.getTransactionToBroadcast(tx);
+    const hash = await sendTransaction(wagmiConfig, evmTx);
+    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
+  } else {
+    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
   }
 }
 
@@ -110,7 +122,7 @@ Validate every field before signing: `chainId`, `verifyingContract`, `value`, `t
 
 ## MXN Onramp (Buy)
 
-MXN settles via SPEI through. The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
+MXN settles via SPEI through Alfredpay. The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
 
 ```js
 import { EPaymentMethod } from "@vortexfi/sdk";
@@ -170,7 +182,9 @@ Use the SDK helpers to classify, sign, and submit each entry in `unsignedTransac
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
 for (const tx of unsignedTransactions) {
-  if (sdk.getUserTransactionType(tx) === "evm-typed-data") {
+  const txType = sdk.getUserTransactionType(tx);
+
+  if (txType === "evm-typed-data") {
     // A single tx may carry several typed-data payloads (e.g. permit + relayer). Sign each in order.
     const payloads = sdk.getTypedDataToSign(tx); // wagmi / viem signTypedData-ready
     const signatures = [];
@@ -180,10 +194,12 @@ for (const tx of unsignedTransactions) {
     }
 
     await sdk.submitUserSignature(rampProcess.id, tx, signatures);
-  } else {
+  } else if (txType === "evm-transaction") {
     const evmTx = sdk.getTransactionToBroadcast(tx);
     const hash = await sendTransaction(wagmiConfig, evmTx);
     await sdk.submitUserTxHash(rampProcess.id, tx, hash);
+  } else {
+    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
   }
 }
 
