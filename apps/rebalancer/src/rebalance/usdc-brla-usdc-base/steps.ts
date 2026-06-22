@@ -98,6 +98,36 @@ export async function getAveniaBrlaBalanceDecimal(): Promise<string> {
   return String(balanceResponse?.balances?.BRLA ?? "0");
 }
 
+async function recoverBrlaTransferToAveniaFromBalance(
+  expectedBrlaAmountDecimal: Big,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
+): Promise<boolean> {
+  if (!state.aveniaBrlaBalanceBeforeTransfer) return false;
+
+  const currentAveniaBrlaBalance = Big(await getAveniaBrlaBalanceDecimal());
+  const receivedDelta = currentAveniaBrlaBalance.minus(Big(state.aveniaBrlaBalanceBeforeTransfer));
+  const minimumReceived = calculateMinimumDelta(expectedBrlaAmountDecimal, "0.95");
+
+  if (receivedDelta.lt(minimumReceived)) {
+    console.log(
+      `Avenia BRLA transfer not recoverable yet. Needed: ${minimumReceived.toFixed(12)}, ` +
+        `received: ${receivedDelta.toFixed(12)}.`
+    );
+    return false;
+  }
+
+  state.brlaAmountDecimal = receivedDelta.toString();
+  state.brlaAmountRaw = multiplyByPowerOfTen(receivedDelta, 18).toFixed(0, 0);
+  await stateManager.saveState(state);
+
+  console.log(
+    `Recovered BRLA transfer to Avenia from balance delta: ${receivedDelta.toString()} BRLA ` +
+      `(baseline: ${state.aveniaBrlaBalanceBeforeTransfer}, current: ${currentAveniaBrlaBalance.toString()})`
+  );
+  return true;
+}
+
 export async function checkInitialUsdcBalanceOnBase(usdcAmountRaw: string): Promise<Big> {
   const { publicClient, walletClient } = getBaseEvmClients();
   const address = walletClient.account.address;
@@ -315,13 +345,28 @@ export async function transferBrlaToAveniaOnBase(
   baseNonce: NonceManager,
   state: UsdcBaseRebalanceState,
   stateManager: UsdcBaseStateManager
-): Promise<string> {
+): Promise<string | null> {
   const { brlaBusinessAccountAddress } = getConfig();
   const { walletClient, publicClient } = getBaseEvmClients();
+  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+
+  if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+    console.log("Existing Avenia BRLA balance delta detected before sending a new transfer. Continuing recovered rebalance.");
+    return state.brlaTransferHash;
+  }
 
   if (state.brlaTransferHash) {
     console.log(`Resuming BRLA transfer with existing tx: ${state.brlaTransferHash}. Verifying on-chain...`);
-    await waitForTransactionConfirmation(state.brlaTransferHash, publicClient);
+    try {
+      await waitForTransactionConfirmation(state.brlaTransferHash, publicClient);
+    } catch (error) {
+      if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+        console.warn(`BRLA transfer confirmation failed, but Avenia balance delta proves completion. Continuing. ${error}`);
+        return state.brlaTransferHash;
+      }
+
+      throw error;
+    }
     return state.brlaTransferHash;
   }
 
@@ -350,7 +395,16 @@ export async function transferBrlaToAveniaOnBase(
   state.brlaTransferHash = txHash;
   await stateManager.saveState(state);
   console.log(`BRLA transfer tx sent: ${txHash}`);
-  await waitForTransactionConfirmation(txHash, publicClient);
+  try {
+    await waitForTransactionConfirmation(txHash, publicClient);
+  } catch (error) {
+    if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+      console.warn(`BRLA transfer confirmation failed, but Avenia balance delta proves completion. Continuing. ${error}`);
+      return txHash;
+    }
+
+    throw error;
+  }
   console.log("BRLA transfer to Avenia confirmed on Base.");
 
   return txHash;
