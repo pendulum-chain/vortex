@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 // Manual end-to-end example for the Mexico (MXN) Alfredpay flow, both directions.
 // MXN settles via SPEI (EPaymentMethod.SPEI). Mirrors the README Alfredpay sections
 // Real SDK contract: createQuote -> registerRamp -> (onramp: startRamp) /
@@ -143,7 +141,9 @@ async function runMexicoOfframp(sdk: VortexSdk): Promise<void> {
   const localAccount = OFFRAMP_WALLET_PRIVATE_KEY ? privateKeyToAccount(OFFRAMP_WALLET_PRIVATE_KEY) : undefined;
 
   for (const tx of unsignedTransactions) {
-    if (sdk.getUserTransactionType(tx) === "evm-typed-data") {
+    const txType = sdk.getUserTransactionType(tx);
+
+    if (txType === "evm-typed-data") {
       // A typed-data tx may carry several payloads (e.g. permit + relayer payload). Sign each in order.
       const payloads = sdk.getTypedDataToSign(tx); // wagmi / viem signTypedData-ready
       const v4Payloads = sdk.getTypedDataToSign(tx, { includeDomainType: true }); // eth_signTypedData_v4-ready
@@ -151,7 +151,7 @@ async function runMexicoOfframp(sdk: VortexSdk): Promise<void> {
 
       for (let i = 0; i < payloads.length; i++) {
         if (localAccount) {
-          signatures.push(await localAccount.signTypedData(payloads[i]));
+          signatures.push(await localAccount.signTypedData(payloads[i] as Parameters<typeof localAccount.signTypedData>[0]));
           console.log(
             `     [${i + 1}/${payloads.length}] ${payloads[i].primaryType} signed locally by ${localAccount.address}`
           );
@@ -167,13 +167,15 @@ async function runMexicoOfframp(sdk: VortexSdk): Promise<void> {
       console.log(`📝 Submitting ${signatures.length} signature(s) for ${tx.phase}...`);
       await sdk.submitUserSignature(rampProcess.id, tx, signatures);
       console.log(`✅ Submitted signature(s) for ${tx.phase}.`);
-    } else {
+    } else if (txType === "evm-transaction") {
       // Broadcast path: user sends the EVM tx from their wallet, then pushes the hash back.
       const evmTx = sdk.getTransactionToBroadcast(tx);
       console.log(`\n🛑 Broadcast ${tx.phase} from your wallet: to=${evmTx.to} value=${evmTx.value} data=${evmTx.data}`);
       const hash = await askQuestion(`➡️  Tx hash for ${tx.phase}: `);
       await sdk.submitUserTxHash(rampProcess.id, tx, hash);
       console.log(`✅ Submitted hash for ${tx.phase}.`);
+    } else {
+      throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
     }
   }
 

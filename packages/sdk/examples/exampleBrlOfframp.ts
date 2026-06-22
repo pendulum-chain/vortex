@@ -1,7 +1,5 @@
-// @ts-nocheck
-
 import * as readline from "readline";
-import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "../src/index";
+import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
@@ -48,7 +46,7 @@ async function runBrlOfframpExample() {
       network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
       rampType: RampDirection.SELL,
-      to: "pix" as const
+      to: EPaymentMethod.PIX
     };
 
     const quote = await sdk.createQuote(quoteRequest);
@@ -74,7 +72,7 @@ async function runBrlOfframpExample() {
     // The unsignedTransactions object will always return the transactions the user must sign and broadcast, please check the docs for more information https://api-docs.vortexfinance.co/vortex-sdk-1289458m0.
     console.log("   Unsigned transactions:");
     unsignedTransactions.forEach(tx => {
-      const { to, data, value } = tx.txData as EvmTransactionData;
+      const { to, data, value } = sdk.getTransactionToBroadcast(tx);
       console.log(`     - ${tx.phase}: Send to ${to} data ${data} with value ${value}`);
     });
     console.log("");
