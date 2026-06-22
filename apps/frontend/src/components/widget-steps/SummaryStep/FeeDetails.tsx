@@ -47,7 +47,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
   return (
     <section className="mt-6">
       <div className="mb-2 flex justify-between">
-        <p>{isOfframp ? t("components.SummaryPage.offrampFee") : t("components.SummaryPage.onrampFee")} </p>
+        <p>{t("components.feeCollapse.totalFee")}</p>
         <p className="flex items-center gap-2">
           <strong>
             {effectiveTotalFee} {feesCost.currency.toUpperCase()}

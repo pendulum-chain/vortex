@@ -78,14 +78,14 @@ export function RampFeeCollapse() {
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
   const outputCurrency = quote.outputCurrency.toUpperCase();
+  const effectiveTotalFee = Big(quote.totalFeeFiat || "0").minus(quote.discountFiat || "0");
   const interbankExchangeRate = calculateInterbankExchangeRate(
     quote.rampType,
     quote.inputAmount,
     quote.outputAmount,
-    quote.totalFeeFiat || "0"
+    effectiveTotalFee
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
-  const effectiveTotalFee = Big(quote.totalFeeFiat || "0").minus(quote.discountFiat || "0");
 
   // Generate fee items for display
   const feeItems: FeeItem[] = [];
