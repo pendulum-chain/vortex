@@ -83,7 +83,7 @@ export function RampFeeCollapse() {
     quote.rampType,
     quote.inputAmount,
     quote.outputAmount,
-    effectiveTotalFee
+    effectiveTotalFee.toString()
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
 

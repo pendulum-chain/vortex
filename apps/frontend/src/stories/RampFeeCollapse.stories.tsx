@@ -12,7 +12,7 @@ const subsidizedQuote: QuoteResponse = {
   discountCurrency: FiatToken.BRL,
   discountFiat: "5.00",
   discountUsd: "1.000000",
-  expiresAt: new Date("2026-12-31T23:59:59Z"),
+  expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
   feeCurrency: FiatToken.BRL,
   from: EPaymentMethod.PIX,
   id: "quote_subsidized_brl_to_usdc",
