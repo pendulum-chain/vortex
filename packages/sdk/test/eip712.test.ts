@@ -19,10 +19,10 @@ describe("userTransactionType", () => {
     expect(userTransactionType(tx([saltPermit, saltPermit]))).toBe("evm-typed-data");
   });
   it("classifies a raw EVM transaction (object)", () => {
-    expect(userTransactionType(tx({ data: "0x", to: "0x1", value: "0" }))).toBe("evm-transaction");
+    expect(userTransactionType(tx({ data: "0x", gas: "21000", to: "0x1", value: "0" }))).toBe("evm-transaction");
   });
-  it("classifies a raw EVM transaction (string)", () => {
-    expect(userTransactionType(tx("0xdeadbeef"))).toBe("evm-transaction");
+  it("does not classify Substrate hex strings as EVM transactions", () => {
+    expect(userTransactionType(tx("0xdeadbeef"))).toBe("unsupported");
   });
 });
 
@@ -56,6 +56,28 @@ describe("typedDataToSign", () => {
       "version",
       "chainId",
       "verifyingContract"
+    ]);
+  });
+
+  it("overrides a non-canonical existing EIP712Domain entry", () => {
+    const withDomainType = {
+      ...saltPermit,
+      types: {
+        EIP712Domain: [
+          { name: "salt", type: "bytes32" },
+          { name: "name", type: "string" }
+        ],
+        Permit: [{ name: "owner", type: "address" }]
+      }
+    };
+
+    const [payload] = typedDataToSign(tx(withDomainType), { includeDomainType: true });
+
+    expect((payload.types.EIP712Domain as { name: string }[]).map(f => f.name)).toEqual([
+      "name",
+      "version",
+      "verifyingContract",
+      "salt"
     ]);
   });
 });

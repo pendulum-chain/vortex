@@ -20,7 +20,7 @@ import {
   signUnsignedTransactions,
   UnsignedTx
 } from "@vortexfi/shared";
-import { attachSignatures, typedDataToSign, userTransactionType } from "./eip712";
+import { attachSignatures, typedDataToSign, type UserTransactionType, userTransactionType } from "./eip712";
 import { TransactionSigningError } from "./errors";
 import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
 import { BrlHandler } from "./handlers/BrlHandler";
@@ -191,8 +191,9 @@ export class VortexSdk {
    * Classify a user transaction returned in `unsignedTransactions`:
    * - "evm-typed-data": sign it (e.g. an offramp permit) and submit via submitUserSignature.
    * - "evm-transaction": broadcast it from the user wallet and submit the hash via submitUserTxHash.
+   * - "unsupported": the SDK cannot broadcast this transaction type; handle it with a network-specific wallet flow.
    */
-  getUserTransactionType(tx: UnsignedTx): "evm-typed-data" | "evm-transaction" {
+  getUserTransactionType(tx: UnsignedTx): UserTransactionType {
     return userTransactionType(tx);
   }
 
@@ -213,10 +214,10 @@ export class VortexSdk {
    * Return the EVM transaction to broadcast for an "evm-transaction" user transaction.
    */
   getTransactionToBroadcast(tx: UnsignedTx): EvmTransactionData {
-    if (this.getUserTransactionType(tx) !== "evm-transaction") {
+    if (!isEvmTransactionData(tx.txData)) {
       throw new Error(`getTransactionToBroadcast: phase ${tx.phase} is not a broadcastable EVM transaction.`);
     }
-    return tx.txData as EvmTransactionData;
+    return tx.txData;
   }
 
   /**

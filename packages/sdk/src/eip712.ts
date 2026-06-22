@@ -1,4 +1,12 @@
-import type { SignedTypedData, UnsignedTx } from "@vortexfi/shared";
+import {
+  isEvmTransactionData,
+  isSignedTypedData,
+  isSignedTypedDataArray,
+  type SignedTypedData,
+  type UnsignedTx
+} from "@vortexfi/shared";
+
+export type UserTransactionType = "evm-typed-data" | "evm-transaction" | "unsupported";
 
 export const EIP712_DOMAIN_FIELD_TYPES: Record<string, string> = {
   chainId: "uint256",
@@ -14,12 +22,27 @@ export const EIP712_DOMAIN_FIELD_TYPES: Record<string, string> = {
 export const EIP712_DOMAIN_FIELD_ORDER = ["name", "version", "chainId", "verifyingContract", "salt"];
 
 export function isTypedDataItem(item: unknown): item is SignedTypedData {
-  return typeof item === "object" && item !== null && "primaryType" in item;
+  return (
+    typeof item === "object" &&
+    item !== null &&
+    !Array.isArray(item) &&
+    "domain" in item &&
+    "types" in item &&
+    "primaryType" in item &&
+    "message" in item
+  );
 }
 
-export function userTransactionType(tx: UnsignedTx): "evm-typed-data" | "evm-transaction" {
-  const first = Array.isArray(tx.txData) ? tx.txData[0] : tx.txData;
-  return isTypedDataItem(first) ? "evm-typed-data" : "evm-transaction";
+export function userTransactionType(tx: UnsignedTx): UserTransactionType {
+  if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
+    return "evm-typed-data";
+  }
+
+  if (isEvmTransactionData(tx.txData)) {
+    return "evm-transaction";
+  }
+
+  return "unsupported";
 }
 
 export function typedDataToSign(tx: UnsignedTx, options: { includeDomainType?: boolean } = {}): SignedTypedData[] {
@@ -30,11 +53,11 @@ export function typedDataToSign(tx: UnsignedTx, options: { includeDomainType?: b
   return items.map(item => ({
     ...item,
     types: {
+      ...item.types,
       EIP712Domain: EIP712_DOMAIN_FIELD_ORDER.filter(field => field in item.domain).map(field => ({
         name: field,
         type: EIP712_DOMAIN_FIELD_TYPES[field]
-      })),
-      ...item.types
+      }))
     }
   }));
 }
