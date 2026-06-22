@@ -352,7 +352,7 @@
       "details": "Details",
       "discount": {
         "label": "Discount",
-        "tooltip": "Vortex is giving a discount on this quote. This is separate from fees."
+        "tooltip": "Vortex is giving a discount on platform costs."
       },
       "finalAmount": "Final Amount",
       "netRate": {
