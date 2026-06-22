@@ -10,9 +10,9 @@ The cleanup process runs as a background worker (`cleanup.worker.ts`) on a 5-min
 
 Ephemeral accounts may be created on:
 - **Stellar** — For Spacewalk bridge operations and direct Stellar payments
-- **Pendulum** — For Nabla swaps (Substrate-side), Spacewalk redeems, XCM transfers. **Not created** for BRL (BRLA) or EUR (Mykobo) Base-EVM corridors: `getRequiresPendulumEphemeralAddress` returns `false` when the input or output token is BRL or EURC, and registration skips Pendulum ephemeral creation + funding for those corridors. Only the Pendulum-routed corridors (Stellar/ARS, AssetHub, Hydration) still allocate a Pendulum ephemeral.
-- **Moonbeam** — For legacy EVM operations (historical Monerium EUR → Moonbeam path is removed; still used for ARS-Stellar off-ramp's Moonbeam→Pendulum XCM hop, Alfredpay permit acquisition, and SquidRouter swaps), XCM to/from Pendulum
-- **Polygon** — (Legacy) For Monerium EURe operations; no active corridor uses Polygon anymore but the post-process handler remains for safety on any still-in-flight legacy ramps
+- **Pendulum** — For Nabla swaps (Substrate-side) and XCM transfers. **Not created** for BRL (BRLA), EUR (Mykobo), or Alfredpay Polygon/EVM corridors: `getRequiresPendulumEphemeralAddress` returns `false` when the route does not need Substrate-side movement, and registration skips Pendulum ephemeral creation + funding for those corridors. Only Pendulum-routed AssetHub/Hydration corridors allocate a Pendulum ephemeral.
+- **Moonbeam** — For legacy EVM operations and XCM to/from Pendulum. Historical Monerium EUR → Moonbeam and ARS-via-Stellar paths are removed; current Alfredpay and Base EVM corridors should use their route source network rather than assuming Moonbeam.
+- **Polygon** — Active for Alfredpay onramps/offramps. Alfredpay mints and receives `ALFREDPAY_EVM_TOKEN` on Polygon, and the Polygon post-process handler sweeps residual ERC-20 tokens after completion.
 - **AssetHub** — For XCM transfers to/from Pendulum and Hydration
 - **Hydration** — For Hydration DEX swaps and XCM transfers
 - **Base** — Hub for all BRL **and EUR** on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Mykobo EUR settlement (EURC on Base), Nabla-on-EVM swap (USDC↔BRLA, USDC↔EURC), and EVM fee distribution via Multicall3.
@@ -24,7 +24,7 @@ Post-process handlers registered in `apps/api/src/api/services/phases/post-proce
 - **StellarPostProcessHandler** — Submits the `stellarCleanup` XDR to merge the Stellar ephemeral account back to the funding account.
 - **PendulumPostProcessHandler** — Submits the `pendulumCleanup` extrinsic to sweep Pendulum ephemeral tokens.
 - **MoonbeamPostProcessHandler** — Waits 3 hours for SquidRouter refunds to land, then submits `moonbeamCleanup` to sweep Moonbeam ephemeral tokens.
-- **PolygonPostProcessHandler** — (Legacy Monerium support) On Monerium-onramp BUY ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero. **No active corridor produces new Polygon ephemerals; this handler exists for in-flight legacy ramps and can be retired once Monerium ramps are fully drained.**
+- **PolygonPostProcessHandler** — On Polygon-routed ramps with a `polygonCleanup` presigned tx, broadcasts the user's pre-signed `approve` and then runs `transferFrom(ephemeral, fundingAccount, balance)` from the funding key to sweep residual ERC-20 tokens. Skipped when ephemeral balance is zero. This is active for Alfredpay corridors and also protects any still-in-flight legacy Polygon ramps.
 - **HydrationPostProcessHandler** — On BUY ramps with a `hydrationCleanup` presigned extrinsic, submits the cleanup extrinsic.
 - **AssetHubPostProcessHandler** — Registered but inert. `shouldProcess` returns `false` unconditionally; `process` returns `[true, null]`. No on-chain action is performed. Effectively a placeholder for future AssetHub cleanup.
 
