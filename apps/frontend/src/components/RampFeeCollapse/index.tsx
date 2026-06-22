@@ -103,7 +103,7 @@ export function RampFeeCollapse() {
     feeItems.push({
       label: t("components.feeCollapse.discount.label"),
       tooltip: t("components.feeCollapse.discount.tooltip"),
-      value: `+ ${Big(quote.discountFiat || "0").toFixed(2)} ${(quote.discountCurrency || quote.feeCurrency || fiatToken).toUpperCase()}`
+      value: `- ${Big(quote.discountFiat || "0").toFixed(2)} ${(quote.discountCurrency || quote.feeCurrency || fiatToken).toUpperCase()}`
     });
   }
 

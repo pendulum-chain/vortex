@@ -59,7 +59,7 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
           <p>{t("components.feeCollapse.discount.label")}</p>
           <p className="flex items-center gap-2">
             <strong>
-              + {discount.amount} {discount.currency.toUpperCase()}
+              - {discount.amount} {discount.currency.toUpperCase()}
             </strong>
           </p>
         </div>
