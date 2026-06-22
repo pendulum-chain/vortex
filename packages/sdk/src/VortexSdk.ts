@@ -5,6 +5,7 @@ import {
   createPendulumEphemeral,
   EphemeralAccount,
   EphemeralAccountType,
+  EvmTransactionData,
   GetRampStatusResponse,
   isAlfredpayToken,
   isEvmTransactionData,
@@ -15,9 +16,11 @@ import {
   QuoteResponse,
   RampDirection,
   RampProcess,
+  SignedTypedData,
   signUnsignedTransactions,
   UnsignedTx
 } from "@vortexfi/shared";
+import { attachSignatures, typedDataToSign, userTransactionType } from "./eip712";
 import { TransactionSigningError } from "./errors";
 import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
 import { BrlHandler } from "./handlers/BrlHandler";
@@ -170,6 +173,58 @@ export class VortexSdk {
 
   async startRamp(rampId: string): Promise<RampProcess> {
     return this.brlHandler.startBrlRamp(rampId);
+  }
+
+  /**
+   * Submit a user signature for an EIP-712 typed-data transaction (e.g. an offramp permit) returned
+   * by registerRamp in `unsignedTransactions`. The user's wallet signs the typed data off-chain
+   * (e.g. eth_signTypedData_v4 / wagmi signTypedData); pass the resulting 65-byte hex signature here.
+   * The signature is attached to the transaction and submitted to Vortex.
+   */
+  async submitUserSignature(rampId: string, tx: UnsignedTx, signatures: string | string[]): Promise<RampProcess> {
+    const sigList = Array.isArray(signatures) ? signatures : [signatures];
+    const signedTxData = attachSignatures(tx, sigList);
+    return this.apiService.updateRamp({ additionalData: {}, presignedTxs: [{ ...tx, txData: signedTxData }], rampId });
+  }
+
+  /**
+   * Classify a user transaction returned in `unsignedTransactions`:
+   * - "evm-typed-data": sign it (e.g. an offramp permit) and submit via submitUserSignature.
+   * - "evm-transaction": broadcast it from the user wallet and submit the hash via submitUserTxHash.
+   */
+  getUserTransactionType(tx: UnsignedTx): "evm-typed-data" | "evm-transaction" {
+    return userTransactionType(tx);
+  }
+
+  /**
+   * Return the EIP-712 payload(s) to sign for a typed-data user transaction. A single transaction
+   * may carry more than one payload (e.g. a permit + a relayer payload) — sign each, in order, and
+   * pass the signatures to submitUserSignature in the same order.
+   *
+   * Default output is ready for wagmi / viem `signTypedData` (they derive EIP712Domain themselves).
+   * Pass { includeDomainType: true } to also emit the EIP712Domain type entry, as required by the
+   * low-level `eth_signTypedData_v4` JSON-RPC call.
+   */
+  getTypedDataToSign(tx: UnsignedTx, options: { includeDomainType?: boolean } = {}): SignedTypedData[] {
+    return typedDataToSign(tx, options);
+  }
+
+  /**
+   * Return the EVM transaction to broadcast for an "evm-transaction" user transaction.
+   */
+  getTransactionToBroadcast(tx: UnsignedTx): EvmTransactionData {
+    if (this.getUserTransactionType(tx) !== "evm-transaction") {
+      throw new Error(`getTransactionToBroadcast: phase ${tx.phase} is not a broadcastable EVM transaction.`);
+    }
+    return tx.txData as EvmTransactionData;
+  }
+
+  /**
+   * Submit the hash of a user-broadcast EVM transaction (e.g. squidRouter approve/swap) to Vortex.
+   * The hash is recorded against the transaction's phase (e.g. `squidRouterApproveHash`).
+   */
+  async submitUserTxHash(rampId: string, tx: UnsignedTx, hash: string): Promise<RampProcess> {
+    return this.apiService.updateRamp({ additionalData: { [`${tx.phase}Hash`]: hash }, presignedTxs: [], rampId });
   }
 
   public async storeEphemerals(
