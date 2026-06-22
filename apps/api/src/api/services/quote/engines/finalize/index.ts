@@ -48,14 +48,20 @@ async function assignSubsidyDisplay(ctx: QuoteContext): Promise<void> {
 
   const sourceCurrency = getSubsidySourceCurrency(ctx);
   if (!sourceCurrency) {
-    throw new APIError({ message: "Missing subsidy currency", status: httpStatus.INTERNAL_SERVER_ERROR });
+    ctx.subsidyDisplay = undefined;
+    return;
   }
 
   const subsidyAmount = subsidy.subsidyAmountInOutputTokenDecimal.toString();
   const [discountFiat, discountUsd] = await Promise.all([
-    priceFeedService.convertCurrency(subsidyAmount, sourceCurrency, ctx.targetFeeFiatCurrency),
-    priceFeedService.convertCurrency(subsidyAmount, sourceCurrency, EvmToken.USDC as RampCurrency)
+    priceFeedService.convertCurrencyOrNull(subsidyAmount, sourceCurrency, ctx.targetFeeFiatCurrency),
+    priceFeedService.convertCurrencyOrNull(subsidyAmount, sourceCurrency, EvmToken.USDC as RampCurrency)
   ]);
+
+  if (!discountFiat || !discountUsd) {
+    ctx.subsidyDisplay = undefined;
+    return;
+  }
 
   ctx.subsidyDisplay = {
     currency: ctx.targetFeeFiatCurrency,
