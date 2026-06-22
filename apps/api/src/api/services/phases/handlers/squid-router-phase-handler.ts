@@ -30,6 +30,40 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
   }
 
   /**
+   * Snapshot the ephemeral's destination-token balance BEFORE the swap. finalSettlementSubsidy
+   * computes delivered = balanceNow - preSettlementBalance, so this must be the pre-delivery
+   * baseline. Same-chain swaps deliver the output synchronously within the swap tx, so a post-swap
+   * snapshot would already include the delivered funds and net `delivered` to ~0 (over-subsidy).
+   * Idempotent: only snapshots on first entry so a retry after the swap cannot overwrite it.
+   */
+  private async snapshotPreSettlementBalance(state: RampState, quote: QuoteTicket, evmEphemeralAddress: string): Promise<void> {
+    if (state.state.preSettlementBalance !== undefined) {
+      return;
+    }
+
+    let preSettlementBalance = "0";
+    try {
+      const destinationNetwork = quote.network as EvmNetworks;
+      const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency);
+      if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
+        throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
+      }
+      preSettlementBalance = (
+        await getEvmBalance({
+          chain: destinationNetwork,
+          ownerAddress: evmEphemeralAddress as `0x${string}`,
+          tokenDetails: outTokenDetails
+        })
+      ).toString();
+    } catch (error) {
+      logger.warn(
+        `SquidRouterPhaseHandler: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
+      );
+    }
+    await state.update({ state: { ...state.state, preSettlementBalance } });
+  }
+
+  /**
    * Get the phase name
    */
   public getPhaseName(): RampPhase {
@@ -126,6 +160,9 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         );
       }
 
+      // Snapshot the destination-token balance BEFORE the swap (see snapshotPreSettlementBalance).
+      await this.snapshotPreSettlementBalance(state, quote, evmEphemeralAddress);
+
       // Get the presigned transactions for this phase
       const approveTransaction = this.getPresignedTransaction(state, "squidRouterApprove");
       const swapTransaction = this.getPresignedTransaction(state, "squidRouterSwap");
@@ -166,7 +203,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Update the state with the transaction hashes
-      let updatedState = await state.update({
+      const updatedState = await state.update({
         state: {
           ...state.state,
           squidRouterSwapHash: swapHash
@@ -177,35 +214,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
 
-      let preSettlementBalance = "0";
-      try {
-        const destinationNetwork = quote.network as EvmNetworks;
-        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency);
-
-        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
-          throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
-        }
-
-        preSettlementBalance = (
-          await getEvmBalance({
-            chain: destinationNetwork,
-            ownerAddress: state.state.evmEphemeralAddress as `0x${string}`,
-            tokenDetails: outTokenDetails
-          })
-        ).toString();
-      } catch (error) {
-        logger.warn(
-          `SquidRouterPhaseHandler: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
-        );
-      }
-
-      updatedState = await updatedState.update({
-        state: {
-          ...updatedState.state,
-          preSettlementBalance
-        }
-      });
-
+      // preSettlementBalance was captured before the swap (see above); do not re-snapshot here.
       // Transition to the next phase
       return this.transitionToNextPhase(updatedState, "squidRouterPay");
     } catch (error) {

@@ -31,6 +31,7 @@ import { priceFeedService } from "../../priceFeed.service";
 import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
+import { computeSubsidyRaw } from "./final-settlement-subsidy.helpers";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -178,10 +179,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     });
     logger.debug(`FinalSettlementSubsidyHandler: Funding account balance=${actualBalanceFundingAccount.toString()}`);
 
-    const subsidyAmountRaw = expectedAmountRaw.minus(delivered);
+    // Clamped to the true on-chain shortfall — see computeSubsidyRaw. This bounds any over-subsidy
+    // from a mis-timed preSettlementBalance snapshot (e.g. same-chain synchronous swaps).
+    const deliveredBasedSubsidy = expectedAmountRaw.minus(delivered);
+    const subsidyAmountRaw = computeSubsidyRaw(expectedAmountRaw, delivered, actualBalance);
     logger.debug(
       `FinalSettlementSubsidyHandler: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - delivered=${delivered.toString()}, actualBalance=${actualBalance.toString()}, preSettlementBalance=${preBalance.toString()})`
     );
+
+    if (subsidyAmountRaw.lt(deliveredBasedSubsidy)) {
+      logger.warn(
+        `FinalSettlementSubsidyHandler: Clamped subsidy ${deliveredBasedSubsidy.toString()} -> ${subsidyAmountRaw.toString()} ` +
+          `(actualBalance=${actualBalance.toString()}, expected=${expectedAmountRaw.toString()}, delivered=${delivered.toString()}). ` +
+          "delivered-calc disagrees with chain balance."
+      );
+    }
 
     if (subsidyAmountRaw.lte(0)) {
       logger.info(
