@@ -40,7 +40,7 @@ export const Widget = ({ className }: WidgetProps) => (
   <FiatAccountMachineContext.Provider>
     <div
       className={cn(
-        "relative mx-6 mt-8 mb-4 flex min-h-[var(--widget-min-height)] flex-col overflow-hidden rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
+        "relative mx-6 mt-8 mb-4 flex min-h-[var(--widget-min-height)] flex-col rounded-lg bg-white px-6 pt-4 pb-2 shadow-custom md:mx-auto md:w-96",
         className
       )}
     >

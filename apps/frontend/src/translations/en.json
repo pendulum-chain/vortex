@@ -350,6 +350,10 @@
     },
     "feeCollapse": {
       "details": "Details",
+      "discount": {
+        "label": "Discount",
+        "tooltip": "Vortex is giving a discount on platform costs."
+      },
       "finalAmount": "Final Amount",
       "netRate": {
         "label": "Effective Rate",
@@ -363,7 +367,7 @@
         "label": "Processing fee",
         "tooltip": "This fee covers partner and Vortex platform costs."
       },
-      "totalFee": "Total Fee",
+      "totalFee": "Effective Fee",
       "yourQuote": "Your quote"
     },
     "fiatAccountForms": {

@@ -48,6 +48,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 9. **Partner markup distribution MUST use pricing attribution** — When `pricing_partner_id` is present, partner markup payout MUST use that partner row instead of relying only on the quote owner `partner_id`; `partner_id` is only the backward-compatible fallback.
 10. **Rounding MUST be consistent and favor the platform** — On-ramp fees are rounded to 6 decimal places (round half up). Off-ramp fees are rounded to 2 decimal places (round half down). Rounding mode should never create a scenario where the user receives more than entitled.
 11. **Fee configuration changes MUST NOT affect in-flight ramps** — Once a quote is created with specific fees, those fees are locked. Changing fee configuration should only apply to new quotes.
+12. **Displayed discount MUST NOT hide charged fee components** — If a quote includes a subsidized rate improvement, clients may display the user benefit as a separate discount line and may show an effective total fee equal to charged fees minus discount. The underlying charged fee fields (`processingFeeFiat`, `networkFeeFiat`, `partnerFeeFiat`, and API `totalFeeFiat`) MUST remain unchanged; only the UI's effective total may become lower or negative. The discount is a platform-funded benefit, not negative revenue.
 
 ## Threat Vectors & Mitigations
 
