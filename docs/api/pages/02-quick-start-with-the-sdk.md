@@ -108,6 +108,90 @@ const started = await sdk.startRamp(rampProcess.id);
 
 Validate every field before signing: `chainId`, `verifyingContract`, `value`, `to`, and `data` must match what your application requested. Never sign payloads blindly.
 
+## MXN Onramp (Buy)
+
+MXN settles via SPEI through. The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
+
+```js
+import { EPaymentMethod } from "@vortexfi/sdk";
+
+const quote = await sdk.createQuote({
+  rampType: RampDirection.BUY,
+  from: EPaymentMethod.SPEI,
+  to: Networks.Polygon,
+  network: Networks.Polygon,
+  inputAmount: "201",            // 201 MXN
+  inputCurrency: FiatToken.MXN,
+  outputCurrency: EvmToken.USDC
+});
+
+const { rampProcess } = await sdk.registerRamp(quote, {
+  destinationAddress: "0x1234567890123456789012345678901234567890",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+  // fiatAccountId is optional for onramp
+});
+
+const started = await sdk.startRamp(rampProcess.id);
+
+// Show the user how to pay via SPEI
+console.log(started.achPaymentData);
+```
+
+No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
+
+## MXN Offramp (Sell)
+
+Selling crypto for MXN requires the user to sign one or more on-chain transactions with their own wallet. The SDK returns those transactions in `unsignedTransactions`.
+
+```js
+const quote = await sdk.createQuote({
+  rampType: RampDirection.SELL,
+  from: Networks.Polygon,
+  to: EPaymentMethod.SPEI,
+  network: Networks.Polygon,
+  inputAmount: "10",             // 10 USDC
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.MXN
+});
+
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  fiatAccountId: "00000000-0000-0000-0000-000000000000", // user's fiat account
+  walletAddress: "0xUSER..."
+});
+```
+
+`fiatAccountId` is opaque to the SDK. Create or look up the user's fiat account out-of-band and pass the ID here. It is required for offramp and optional for onramp.
+
+### Signing MXN Offramp User Transactions
+
+Use the SDK helpers to classify, sign, and submit each entry in `unsignedTransactions`:
+
+```js
+import { signTypedData, sendTransaction } from "@wagmi/core";
+
+for (const tx of unsignedTransactions) {
+  if (sdk.getUserTransactionType(tx) === "evm-typed-data") {
+    // A single tx may carry several typed-data payloads (e.g. permit + relayer). Sign each in order.
+    const payloads = sdk.getTypedDataToSign(tx); // wagmi / viem signTypedData-ready
+    const signatures = [];
+
+    for (const payload of payloads) {
+      signatures.push(await signTypedData(wagmiConfig, payload));
+    }
+
+    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
+  } else {
+    const evmTx = sdk.getTransactionToBroadcast(tx);
+    const hash = await sendTransaction(wagmiConfig, evmTx);
+    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
+  }
+}
+
+await sdk.startRamp(rampProcess.id);
+```
+
+For wallets that call `eth_signTypedData_v4` directly, pass `{ includeDomainType: true }` to `getTypedDataToSign`.
+
 ## Tracking Status
 
 Poll for user-facing screens, use webhooks for back-office reconciliation:
