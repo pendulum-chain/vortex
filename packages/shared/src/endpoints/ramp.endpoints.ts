@@ -264,7 +264,7 @@ export interface GetRampStatusResponse extends RampProcess {
   // User benefit from quote-time discount, displayed in feeCurrency when present
   discountFiat?: string;
   discountUsd?: string;
-  discountCurrency?: string;
+  discountCurrency?: RampCurrency;
 }
 
 export interface GetRampErrorLogsRequest {
