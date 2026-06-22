@@ -38,12 +38,12 @@ export type AlfredpayCurrency = FiatToken.USD | FiatToken.MXN | FiatToken.COP | 
 
 export type BrlOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
-  from: "pix";
+  from: EPaymentMethod.PIX;
 };
 
 export type EurOnrampQuote = QuoteResponse & {
   rampType: RampDirection.BUY;
-  from: "sepa";
+  from: EPaymentMethod.SEPA;
 };
 
 export type AlfredpayOnrampQuote = QuoteResponse & {
@@ -53,12 +53,12 @@ export type AlfredpayOnrampQuote = QuoteResponse & {
 
 export type BrlOfframpQuote = QuoteResponse & {
   rampType: RampDirection.SELL;
-  to: "pix";
+  to: EPaymentMethod.PIX;
 };
 
 export type EurOfframpQuote = QuoteResponse & {
   rampType: RampDirection.SELL;
-  to: "sepa";
+  to: EPaymentMethod.SEPA;
 };
 
 export type AlfredpayOfframpQuote = QuoteResponse & {
@@ -72,15 +72,15 @@ export type ExtendedQuoteResponse<T extends CreateQuoteRequest> = T extends {
   inputCurrency: AlfredpayCurrency;
 }
   ? AlfredpayOnrampQuote
-  : T extends { rampType: RampDirection.BUY; from: "pix" }
+  : T extends { rampType: RampDirection.BUY; from: EPaymentMethod.PIX }
     ? BrlOnrampQuote
-    : T extends { rampType: RampDirection.BUY; from: "sepa" }
+    : T extends { rampType: RampDirection.BUY; from: EPaymentMethod.SEPA }
       ? EurOnrampQuote
       : T extends { rampType: RampDirection.SELL; outputCurrency: AlfredpayCurrency }
         ? AlfredpayOfframpQuote
-        : T extends { rampType: RampDirection.SELL; to: "pix" }
+        : T extends { rampType: RampDirection.SELL; to: EPaymentMethod.PIX }
           ? BrlOfframpQuote
-          : T extends { rampType: RampDirection.SELL; to: "sepa" }
+          : T extends { rampType: RampDirection.SELL; to: EPaymentMethod.SEPA }
             ? EurOfframpQuote
             : AnyQuote;
 
