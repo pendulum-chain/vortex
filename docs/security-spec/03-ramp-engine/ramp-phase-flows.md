@@ -101,11 +101,10 @@ graph TD
     Backup -->|No| DestTransfer
     BackupSquid --> DestTransfer
 
-    %% --- Alfredpay branch: squidRouterSwap handler short-circuits to destinationTransfer ---
-    %% (squid-router-phase-handler.ts:72 detects isAlfredpayOnramp and skips squidRouterPay + finalSettlementSubsidy)
+    %% --- Alfredpay branch: direct-token Polygon case short-circuits the swap, then final settlement subsidy runs before destinationTransfer ---
     AfMint --> AfFund[fundEphemeral]
     AfFund --> AfSquidSwap[squidRouterSwap]
-    AfSquidSwap -.short-circuit.-> DestTransfer
+    AfSquidSwap -.direct-token short-circuit.-> FinalSubsidy
 
     %% --- Terminal ---
     DestTransfer --> Complete([complete])
@@ -115,7 +114,7 @@ graph TD
 > - **EUR onramp funds the ephemeral.** `mykoboOnrampDeposit` transitions to `fundEphemeral` (`mykobo-onramp-deposit-handler.ts`), which then transitions to `subsidizePreSwap` (`fund-ephemeral-handler.ts` `BUY && inputCurrency === EURC` branch). This matches BRL onramp behavior and ensures the Base ephemeral has ETH gas for `nablaApprove`/`nablaSwap`/squid txs.
 > - **EUR/BRL onramps skip Pendulum funding.** `getRequiresPendulumEphemeralAddress` returns `false` for EURC and BRL inputs, so the registration flow never creates or funds a Pendulum ephemeral for these corridors. All movement is Base-EVM only. See `ephemeral-accounts.md`.
 > - **SquidRouter RPC selection is sourced from `bridgeMeta.fromNetwork`, not the input currency.** `squid-router-phase-handler.ts` computes the source network from `bridgeMeta.fromNetwork` (set at registration time by the route builder) and passes it to `getClient(network)` for both approve and swap calls. The earlier heuristic that selected the RPC from `inputCurrency` was removed because EUR-onramp presigned transactions both carry `network: Networks.Base` (`mykobo-to-evm.ts`), which would have triggered a wrong-chain signer error on cross-chain destinations (e.g., `invalid chain id for signer: have 8453 want 137` for EUR → Polygon USDT).
-> - **Alfredpay onramp short-circuits.** `squid-router-phase-handler.ts:72` detects `isAlfredpayOnramp` and transitions directly to `destinationTransfer`, skipping `squidRouterPay` and `finalSettlementSubsidy`.
+> - **Alfredpay direct-token onramp short-circuits only the Squid swap.** When Alfredpay mints `ALFREDPAY_EVM_TOKEN` on Polygon and the requested output is that same token on Polygon, `squid-router-phase-handler.ts` transitions to `finalSettlementSubsidy`, then `destinationTransfer`. Other Alfredpay EVM outputs still use the routed Squid path.
 > - The Pendulum-side on-ramp swap chain (`subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `distributeFees` → `pendulumToAssethubXcm` / `pendulumToHydrationXcm` → `hydrationSwap` → `hydrationToAssethubXcm`) was used by the legacy Monerium-EUR-via-Pendulum corridor and by `avenia-to-assethub` BRL→AssetHub. Both corridors are **inactive**: Monerium was replaced by Mykobo-on-Base, and BRL↔AssetHub is temporarily disabled at quote eligibility. The Substrate-branch on-ramp handlers remain registered but are not reached by any active route.
 
 #### Off-Ramp Phase Flow
