@@ -20,8 +20,15 @@ describe("Base rebalance Slack notifications", () => {
       cost: Big("12.34"),
       finalUsdcBalance: Big("987.66"),
       initialUsdcBalance: Big("1000"),
+      edgeCaseFlags: ["OPP", "FB"],
       policy: {
         config: policyConfig,
+        dailyVolume: {
+          bypassedForProfit: false,
+          limitRaw: "10000000000",
+          projectedTotalRaw: "3500000000",
+          usedRaw: "2500000000"
+        },
         decision: {
           allowedCostBps: 75,
           band: "moderate",
@@ -45,6 +52,8 @@ describe("Base rebalance Slack notifications", () => {
     expect(message).toContain("*Policy*");
     expect(message).toContain("Mode  Decision  Band      Dev bps  Cost bps  Cap bps  Hard bps");
     expect(message).toContain("auto  execute   moderate  220      42        75       1000");
+    expect(message).toContain("Daily used/limit  Daily proj  Flags");
+    expect(message).toContain("2500.00/10000.00  3500.00     OPP+FB");
     expect(message).toContain("Bands bps: mod>=200 severe>=500 | caps bps: mild<=25 mod<=75 severe<=250");
   });
 });

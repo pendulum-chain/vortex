@@ -105,6 +105,16 @@ async function getDailyBridgeLimitContext(): Promise<{ bridgedToday: Big; dailyL
   return { bridgedToday, dailyLimitRaw };
 }
 
+interface CurrentRunDailyLimitEvaluation {
+  dailyVolume: {
+    bypassedForProfit: boolean;
+    limitRaw: string;
+    projectedTotalRaw: string;
+    usedRaw: string;
+  };
+  decision?: DailyBridgeLimitDecision;
+}
+
 function logDailyLimitDecision(decision: DailyBridgeLimitDecision, dailyLimitUsd: number) {
   if (decision.reason === "under_limit") return;
 
@@ -115,19 +125,30 @@ function logDailyLimitDecision(decision: DailyBridgeLimitDecision, dailyLimitUsd
 async function evaluateCurrentRunDailyLimit(
   amountUsdcRaw: string,
   profitable: boolean
-): Promise<DailyBridgeLimitDecision | undefined> {
+): Promise<CurrentRunDailyLimitEvaluation> {
   const config = getConfig();
+  const { bridgedToday, dailyLimitRaw } = await getDailyBridgeLimitContext();
+  const dailyVolume = {
+    bypassedForProfit: profitable,
+    limitRaw: dailyLimitRaw.toFixed(0, 0),
+    projectedTotalRaw: bridgedToday.plus(Big(amountUsdcRaw)).toFixed(0, 0),
+    usedRaw: bridgedToday.toFixed(0, 0)
+  };
+
   if (profitable) {
     console.log(
       `Daily bridge limit bypassed: projected profitable quote for ${Big(amountUsdcRaw).div(1e6).toFixed(6)} USDC. No limit applies.`
     );
-    return undefined;
+    return { dailyVolume };
   }
 
-  const dailyLimitDecision = await evaluatePaidRunDailyLimit(amountUsdcRaw, profitable, getDailyBridgeLimitContext);
-  if (!dailyLimitDecision) return undefined;
+  const dailyLimitDecision = await evaluatePaidRunDailyLimit(amountUsdcRaw, profitable, async () => ({
+    bridgedToday,
+    dailyLimitRaw
+  }));
+  if (!dailyLimitDecision) return { dailyVolume };
   logDailyLimitDecision(dailyLimitDecision, config.rebalancingDailyBridgeLimitUsd);
-  return dailyLimitDecision;
+  return { dailyVolume, decision: dailyLimitDecision };
 }
 
 function calculateCoverageDeviationBps(coverageRatio: number, triggerBound: number): number {
@@ -235,13 +256,14 @@ async function executeUsdcToBrlaRebalance(
   options: { opportunistic?: boolean } = {}
 ): Promise<boolean> {
   const config = getConfig();
-  const dailyLimitDecision = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
-  if (dailyLimitDecision?.shouldSkip) return false;
+  const dailyLimitEvaluation = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
+  if (dailyLimitEvaluation.decision?.shouldSkip) return false;
 
   await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
   await rebalanceUsdcBrlaUsdcBase(amountUsdcRaw, forceRestart, policyDecision.routeToRun, {
     config: config.rebalancingCostPolicy,
-    dailyLimitDecision,
+    dailyLimitDecision: dailyLimitEvaluation.decision,
+    dailyVolume: dailyLimitEvaluation.dailyVolume,
     decision: policyDecision.decision,
     deviationBps: coverageDeviationBps,
     fallbackRequiresProfit: policyDecision.profitable,
@@ -334,8 +356,8 @@ async function runBrlaToUsdc(coverageDeviationBps: number) {
     const policyDecision = await evaluateBrlaToUsdcPolicy(amountUsdcRaw, coverageDeviationBps);
     if (!policyDecision.shouldExecute) return;
 
-    const dailyLimitDecision = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
-    if (dailyLimitDecision?.shouldSkip) return;
+    const dailyLimitEvaluation = await evaluateCurrentRunDailyLimit(amountUsdcRaw, policyDecision.profitable);
+    if (dailyLimitEvaluation.decision?.shouldSkip) return;
 
     const rebalancerUsdcBalance = await checkInitialUsdcBalanceOnBase(amountUsdcRaw);
     if (config.rebalancingBrlToUsdMinBalance && rebalancerUsdcBalance.lt(config.rebalancingBrlToUsdMinBalance)) {
@@ -345,7 +367,8 @@ async function runBrlaToUsdc(coverageDeviationBps: number) {
     }
     await rebalanceBrlaToUsdcBase(amountUsdcRaw, forceRestart, {
       config: config.rebalancingCostPolicy,
-      dailyLimitDecision,
+      dailyLimitDecision: dailyLimitEvaluation.decision,
+      dailyVolume: dailyLimitEvaluation.dailyVolume,
       decision: policyDecision.decision,
       deviationBps: coverageDeviationBps,
       fallbackRequiresProfit: policyDecision.profitable

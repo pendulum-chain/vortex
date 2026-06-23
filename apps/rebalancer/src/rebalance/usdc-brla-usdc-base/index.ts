@@ -425,6 +425,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
   console.log(`Route taken: ${state.winningRoute}`);
   console.log(`Cost: absolute: ${cost.toFixed(6)} USDC | relative: ${costRelative}`);
 
+  const edgeCaseFlags = [
+    policy?.opportunistic || state.opportunisticUsdcToBrla ? "OPP" : null,
+    state.winningRoute === "squidrouter" && state.baseUsdcBalanceBeforeAveniaSwapRaw ? "FB" : null
+  ].filter(flag => flag !== null);
+
   await stateManager.addHistoryEntry({
     cost: cost.toFixed(6),
     costRelative,
@@ -438,6 +443,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
     text: formatBaseRebalanceCompletionMessage({
       brlaReceived: Big(state.brlaAmountDecimal),
       cost,
+      edgeCaseFlags,
       finalUsdcBalance: finalUsdcDecimal,
       initialUsdcBalance: initialUsdcDecimal,
       policy: policy ?? { config: getConfig().rebalancingCostPolicy },

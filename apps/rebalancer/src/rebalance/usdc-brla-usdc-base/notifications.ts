@@ -5,6 +5,12 @@ import type { DailyBridgeLimitDecision, RebalancingCostPolicyConfig, Rebalancing
 export interface RebalancePolicySummary {
   config: RebalancingCostPolicyConfig;
   dailyLimitDecision?: DailyBridgeLimitDecision;
+  dailyVolume?: {
+    bypassedForProfit: boolean;
+    limitRaw: string;
+    projectedTotalRaw: string;
+    usedRaw: string;
+  };
   decision?: RebalancingCostPolicyDecision;
   deviationBps?: number;
   fallbackRequiresProfit?: boolean;
@@ -21,6 +27,7 @@ interface BaseRebalanceCompletionMessageParams {
   cost: Big;
   finalUsdcBalance: Big;
   initialUsdcBalance: Big;
+  edgeCaseFlags?: string[];
   policy?: RebalancePolicySummary;
   requestedUsdc: Big;
   route: WinningRoute;
@@ -46,14 +53,15 @@ export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceComple
         ]
       ]
     ),
-    formatPolicySummary(params.policy)
+    formatPolicySummary(params.policy, params.edgeCaseFlags)
   ].join("\n");
 }
 
-export function formatPolicySummary(policy: RebalancePolicySummary | undefined): string {
+export function formatPolicySummary(policy: RebalancePolicySummary | undefined, edgeCaseFlags: string[] = []): string {
   if (!policy) return "```Policy decision unavailable (resumed or manual execution).```";
 
   const decision = policy.decision;
+  const contextRow = formatPolicyContext(policy, edgeCaseFlags);
   const decisionRow = decision
     ? [
         policy.config.mode,
@@ -62,15 +70,30 @@ export function formatPolicySummary(policy: RebalancePolicySummary | undefined):
         policy.deviationBps === undefined ? "N/A" : formatBps(policy.deviationBps),
         formatBps(decision.costBps),
         formatBps(decision.allowedCostBps),
-        formatBps(policy.config.hardMaxCostBps)
+        formatBps(policy.config.hardMaxCostBps),
+        ...contextRow
       ]
-    : [policy.config.mode, "unavailable", "N/A", "N/A", "N/A", "N/A", formatBps(policy.config.hardMaxCostBps)];
+    : [policy.config.mode, "unavailable", "N/A", "N/A", "N/A", "N/A", formatBps(policy.config.hardMaxCostBps), ...contextRow];
 
   return [
     "*Policy*",
-    formatCompactTable(["Mode", "Decision", "Band", "Dev bps", "Cost bps", "Cap bps", "Hard bps"], [decisionRow]),
+    formatCompactTable(
+      ["Mode", "Decision", "Band", "Dev bps", "Cost bps", "Cap bps", "Hard bps", "Daily used/limit", "Daily proj", "Flags"],
+      [decisionRow]
+    ),
     `Bands bps: mod>=${formatBps(policy.config.moderateDeviationBps)} severe>=${formatBps(policy.config.severeDeviationBps)} | caps bps: mild<=${formatBps(policy.config.maxCostBpsMild)} mod<=${formatBps(policy.config.maxCostBpsModerate)} severe<=${formatBps(policy.config.maxCostBpsSevere)}`
   ].join("\n");
+}
+
+function formatPolicyContext(policy: RebalancePolicySummary, edgeCaseFlags: string[]): string[] {
+  const dailyVolume = policy.dailyVolume;
+  const flags = [...edgeCaseFlags, dailyVolume?.bypassedForProfit ? "PB" : null].filter(flag => flag !== null);
+
+  return [
+    dailyVolume ? `${formatRawUsdc(dailyVolume.usedRaw)}/${formatRawUsdc(dailyVolume.limitRaw)}` : "N/A",
+    dailyVolume ? formatRawUsdc(dailyVolume.projectedTotalRaw) : "N/A",
+    flags.length > 0 ? flags.join("+") : "none"
+  ];
 }
 
 export function formatCompactTable(headers: string[], rows: string[][]): string {
@@ -90,6 +113,10 @@ export function formatCostBps(cost: Big, denominator: Big): string {
 
 function formatBps(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+function formatRawUsdc(valueRaw: string): string {
+  return Big(valueRaw).div(1e6).toFixed(2);
 }
 
 function formatRoute(route: WinningRoute): string {
