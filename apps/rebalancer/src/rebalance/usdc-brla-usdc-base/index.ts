@@ -6,7 +6,7 @@ import {
   UsdcBaseStateManager,
   usdcBasePhaseOrder
 } from "../../services/stateManager.ts";
-import { checkTicketStatusPaid } from "../../utils/brla.ts";
+import { checkTicketStatusPaid, RetryableAveniaTicketStatusError } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
 import { evaluateFallbackRoutePolicy } from "./guards.ts";
@@ -58,6 +58,17 @@ function getOpportunisticFallbackContext(
     opportunisticMaxCostBps: state.opportunisticMaxCostBps ?? config.opportunisticUsdcToBrlaMaxCostBps,
     requireProfit: state.opportunisticRequiresProfit
   };
+}
+
+async function calculateRemainingBrlaForPolygonTransfer(brlaAmountRaw: string, polygonBaselineRaw: string): Promise<Big> {
+  const currentPolygonBrlaRaw = Big(await getBrlaBalanceOnPolygonRaw());
+  const arrivedDeltaRaw = currentPolygonBrlaRaw.minus(Big(polygonBaselineRaw));
+  const alreadyArrivedRaw = arrivedDeltaRaw.gt(0) ? arrivedDeltaRaw : Big(0);
+  const remainingRaw = Big(brlaAmountRaw).minus(alreadyArrivedRaw);
+
+  if (remainingRaw.lte(0)) return Big(0);
+
+  return multiplyByPowerOfTen(remainingRaw, -18);
 }
 
 export async function rebalanceUsdcBrlaUsdcBase(
@@ -305,7 +316,37 @@ export async function rebalanceUsdcBrlaUsdcBase(
       }
 
       const brlaApiService = BrlaApiService.getInstance();
-      await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+      try {
+        await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+      } catch (error) {
+        if (!(error instanceof RetryableAveniaTicketStatusError)) {
+          throw error;
+        }
+
+        console.warn(
+          `Avenia transfer ticket ${error.ticketId} reached retryable status ${error.status}. Creating a replacement ticket.`
+        );
+        if (!state.brlaAmountRaw)
+          throw new Error("State corrupted: brlaAmountRaw missing while retrying Avenia Polygon ticket");
+        if (!state.polygonBrlaBalanceBeforeTransferRaw) {
+          throw new Error("State corrupted: polygonBrlaBalanceBeforeTransferRaw missing while retrying Avenia Polygon ticket");
+        }
+
+        const remainingBrlaDecimal = await calculateRemainingBrlaForPolygonTransfer(
+          state.brlaAmountRaw,
+          state.polygonBrlaBalanceBeforeTransferRaw
+        );
+        if (remainingBrlaDecimal.lte(0)) {
+          console.log(
+            "Avenia ticket failed after the full BRLA amount arrived on Polygon. Continuing to arrival confirmation."
+          );
+        } else {
+          console.warn(`Retrying Avenia transfer to Polygon for remaining ${remainingBrlaDecimal.toFixed(4)} BRLA.`);
+          state.aveniaTicketId = await aveniaTransferBrlaToPolygon(remainingBrlaDecimal);
+          await stateManager.saveState(state);
+          await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+        }
+      }
 
       console.log("BRLA transferred to Polygon via Avenia.");
       state.currentPhase = UsdcBaseRebalancePhase.WaitBrlaOnPolygon;
