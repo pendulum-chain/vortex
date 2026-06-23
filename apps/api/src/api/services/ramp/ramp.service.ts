@@ -1101,11 +1101,19 @@ export class RampService extends BaseRampService {
       });
     }
 
+    if (!userId) {
+      throw new APIError({
+        message:
+          "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists.",
+        status: httpStatus.UNAUTHORIZED
+      });
+    }
+
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      userId: userId as string
+      userId
     });
 
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };

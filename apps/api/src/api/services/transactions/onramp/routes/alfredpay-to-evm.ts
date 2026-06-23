@@ -20,8 +20,10 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import httpStatus from "http-status";
 import { isAddress } from "viem";
 import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
+import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { encodeEvmTransactionData } from "../../index";
@@ -99,11 +101,17 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   });
 
   if (!customer) {
-    throw new Error(`Alfredpay customer not found for userId ${userId}`);
+    throw new APIError({
+      message: `No completed Alfredpay KYC profile found for ${quote.inputCurrency}. Complete Alfredpay KYC before registering this onramp.`,
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (customer.status !== AlfredPayStatus.Success) {
-    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
+    throw new APIError({
+      message: `Alfredpay KYC status is ${customer.status}. Complete Alfredpay KYC before registering this onramp.`,
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   // Setup state metadata

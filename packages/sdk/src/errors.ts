@@ -178,6 +178,29 @@ export class MissingAlfredpayOnrampParametersError extends AlfredpayOnrampError 
   }
 }
 
+export class AlfredpayOnrampKycRequiredError extends AlfredpayOnrampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOnrampKycRequiredError";
+  }
+}
+
+function extractErrorStatus(response: Record<string, unknown>): number {
+  for (const key of ["status", "statusCode", "code"]) {
+    const value = response[key];
+    if (typeof value === "number") {
+      return value;
+    }
+  }
+
+  const nestedError = response.error;
+  if (nestedError && typeof nestedError === "object") {
+    return extractErrorStatus(nestedError as Record<string, unknown>);
+  }
+
+  return 500;
+}
+
 // Alfredpay Offramp specific errors
 export class AlfredpayOfframpError extends RegisterRampError {
   constructor(message: string, status = 400) {
@@ -375,8 +398,8 @@ function extractErrorMessage(value: unknown): string | undefined {
  */
 export function parseAPIError(response: unknown): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, status, errors } = response as Record<string, unknown>;
-    const normalizedStatus = typeof status === "number" ? status : 500;
+    const { message, error, errors } = response as Record<string, unknown>;
+    const normalizedStatus = extractErrorStatus(response as Record<string, unknown>);
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
 
     if (errorMessage) {
@@ -433,6 +456,14 @@ export function parseAPIError(response: unknown): VortexSdkError {
       }
       if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
         return new MissingAlfredpayOnrampParametersError();
+      }
+      if (
+        errorMessage ===
+          "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists." ||
+        errorMessage.startsWith("No completed Alfredpay KYC profile found") ||
+        errorMessage.startsWith("Alfredpay KYC status is")
+      ) {
+        return new AlfredpayOnrampKycRequiredError(errorMessage, normalizedStatus);
       }
       if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
         return new MissingAlfredpayOfframpParametersError(errorMessage);

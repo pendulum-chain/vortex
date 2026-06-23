@@ -56,7 +56,11 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 ```typescript
 import { VortexSdk, FiatToken, EvmToken, EPaymentMethod, Networks, RampDirection } from "@vortexfi/sdk";
 
-const sdk = new VortexSdk({ apiBaseUrl: "http://localhost:3000" });
+const sdk = new VortexSdk({
+  apiBaseUrl: "http://localhost:3000",
+  publicKey: process.env.VORTEX_PUBLIC_KEY,
+  secretKey: process.env.VORTEX_SECRET_KEY
+});
 
 const quote = await sdk.createQuote({
   from: EPaymentMethod.ACH, // USD and COP settle via ACH; MXN uses EPaymentMethod.SPEI
@@ -71,13 +75,15 @@ const quote = await sdk.createQuote({
 const { rampProcess } = await sdk.registerRamp(quote, {
   destinationAddress: "0x1234567890123456789012345678901234567890",
   walletAddress: "0x1234567890123456789012345678901234567890"
-  // fiatAccountId is optional for onramp — the backend only requires destinationAddress.
+  // fiatAccountId is optional for onramp.
 });
 
 // Inspect off-chain fiat payment instructions before starting.
 const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
+
+SDK/server integrations should authenticate with `publicKey` + `secretKey`, not a Supabase Bearer token. The current backend still needs a completed Alfredpay KYC customer context for this flow; partner-key-only registration will fail with `AlfredpayOnrampKycRequiredError` until a partner user-to-Alfredpay-customer mapping is supported.
 
 ### Alfredpay (USD / MXN / COP / ARS) offramp
 

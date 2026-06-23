@@ -14,17 +14,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 
-export {
-  CreateQuoteRequest,
-  EPaymentMethod,
-  EvmTransactionData,
-  EvmToken,
-  FiatToken,
-  Networks,
-  PaymentMethod,
-  QuoteResponse,
-  RampDirection
-};
+export type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse };
+export { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection };
 
 export type AnyQuote =
   | BrlOnrampQuote

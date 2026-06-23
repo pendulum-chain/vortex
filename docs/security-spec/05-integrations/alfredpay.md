@@ -17,7 +17,7 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 
 **On-ramp flow:**
 1. Quote stage emits `ctx.alfredpayOnramp` with provider `quoteId` (30s upstream TTL) and `ctx.subsidy` with the discount-engine target.
-2. User initiates on-ramp → receives Alfredpay payment instructions.
+2. API-key-authenticated integration initiates on-ramp for a user with completed Alfredpay KYC → receives Alfredpay payment instructions.
 3. User makes fiat payment.
 4. `alfredpayOnrampMint` phase: confirms Alfredpay payment, credits the Alfredpay on-chain token to the ephemeral on Polygon. If the provider quote is degraded or expired and the discount engine's `expectedOutput` exceeds the provider's, the phase emits `alfredOnrampMintFallback` to record the substitution.
 5. `subsidizePreSwap` phase: tops up the ephemeral's Alfredpay on-chain token balance to the subsidy target (Polygon, `ALFREDPAY_EVM_TOKEN`).
@@ -52,6 +52,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 13. **Offramp quote refresh at prep time MUST be strict and transactional** — `refreshAlfredpayOfframpQuoteIfMatching` (called during `prepareOfframpNonBrlTransactions`) re-fetches a provider quote and compares `toAmount` and `fee`. Any drift throws `INTERNAL_SERVER_ERROR`, aborting ramp registration. The quote metadata update (new `quoteId` + `expirationDate`) runs within the registration transaction, so a partial update cannot persist.
 14. **`finalSettlementSubsidy` MUST NOT be skipped for Alfredpay offramps** — The `FinalSettlementSubsidyHandler` direct-transfer skip explicitly excludes `SELL && isAlfredpayToken(outputCurrency)`. This ensures the ephemeral on Polygon is always topped up to the expected amount before `alfredpayOfframpTransfer`, preventing under-funded settlements.
 15. **Routed Alfredpay onramp quote output precision MUST match the destination token** — For Alfredpay USD/MXN/COP/ARS onramps that route through Squid, `quote.outputAmount` MUST preserve the final destination token's decimal precision, and `evmToEvm.outputAmountRaw` MUST represent the destination token's raw units. The Polygon-minted Alfredpay token is only the Squid source-side input. Direct Polygon same-token passthrough remains at the minted token's 6-decimal precision.
+16. **Alfredpay ramp registration MUST bind to a completed KYC/KYB customer** — Registration MUST reject Alfredpay onramps before customer lookup when no completed Alfredpay customer context is available, and MUST reject customer records whose Alfredpay status is not `Success`. This prevents ramps from reaching provider/customer queries with undefined `user_id` and ensures payment instructions are only issued for verified Alfredpay customers. SDK/server integrations authenticate with partner API keys (`pk_*`/`sk_*`); Supabase Bearer tokens are frontend/user-session auth.
 
 ## Threat Vectors & Mitigations
 
@@ -70,6 +71,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 | **Polygon passthrough rounding** | Same-chain same-token shortcut rounds the bridge output incorrectly, leaking dust or under-funding the destination | `toFixed(0, 0)` round-down in the squid-router finalize; downstream subsidy ensures the destination receives the quoted amount |
 | **Polygon wrong-token delivery** | A user on-ramps via Alfredpay and requests a non-USDT Polygon output (e.g. USDC); the handler skips the swap on destination-network alone and transfers the minted USDT, delivering the wrong asset | The `squidRouterSwap` short-circuit is gated on `quote.outputCurrency === ALFREDPAY_EVM_TOKEN` (not just `quote.metadata.request.to === Networks.Polygon`); non-USDT Polygon outputs run the real USDT→output swap. Matched in the quote engine's `skipRouteCalculation` branch. |
 | **Routed destination precision loss** | A USD/MXN/COP/ARS Alfredpay onramp mints a 6-decimal Polygon source token, routes to an 18-decimal destination token, and stores the final quote output with source precision. The final amount is truncated before destination-transfer expectations are calculated. | Finalize routed Alfredpay EVM quotes with the destination token's decimals when `evmToEvm` metadata exists; keep direct Polygon same-token passthrough at minted-token precision. |
+| **Anonymous Alfredpay registration** | An SDK caller registers an Alfredpay onramp without a completed KYC customer context, causing undefined `user_id` customer lookups or issuing instructions without KYC context | Alfredpay onramp registration fails with a public auth/KYC error unless a `Success` Alfredpay customer record is available. SDK/server callers authenticate with partner API keys. |
 
 ## Audit Checklist
 
@@ -94,3 +96,4 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 - [x] `FinalSettlementSubsidyHandler` does NOT skip subsidy for Alfredpay offramps (`SELL && isAlfredpayToken`). **PASS** — explicit exclusion in the direct-transfer skip condition.
 - [x] AlfredPay offramp order is created at prep time (`evm-to-alfredpay.ts:229`); `processAlfredpayOfframpStart` is a defensive validation-only no-op. **PASS** — verified.
 - [x] Routed Alfredpay onramp quote output precision follows destination token decimals when `evmToEvm` metadata exists; direct Polygon same-token passthrough remains at minted-token precision. **PASS** — verified in `finalize/onramp.ts`.
+- [x] Alfredpay onramp registration rejects missing customer context before customer lookup and requires a `Success` Alfredpay customer status. **PASS** — `ramp.service.ts` checks for the current user-backed customer context; `alfredpay-to-evm.ts` rejects missing/non-success customer records.
