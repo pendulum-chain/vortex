@@ -158,11 +158,6 @@ export class BrlHandler implements RampHandler {
     return updatedRampProcess;
   }
 
-  async startBrlRamp(rampId: string): Promise<RampProcess> {
-    const startRequest = { rampId };
-    return this.apiService.startRamp(startRequest);
-  }
-
   private async validateBrlKyc(taxId: string): Promise<void> {
     if (!taxId) {
       throw new BrlKycStatusError("Tax ID is required", 400);

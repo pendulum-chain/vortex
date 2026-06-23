@@ -173,7 +173,7 @@ export class VortexSdk {
   }
 
   async startRamp(rampId: string): Promise<RampProcess> {
-    return this.brlHandler.startBrlRamp(rampId);
+    return this.apiService.startRamp({ rampId });
   }
 
   /**
