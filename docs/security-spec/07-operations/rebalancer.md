@@ -76,11 +76,11 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 
 **Rate comparison phase:**
 5. Compare rates between SquidRouter, Avenia, and optional main Nabla for BRLA → USDC conversion
-   - If `--route=` is specified, execution is constrained to that route and the policy still requires a quote for that route before any swap
+   - If `--route=` is specified, execution is constrained to that route and the policy still requires a quote for that route before executing the selected return leg
    - Main Nabla route is available only when both `MAIN_NABLA_ROUTER` and `MAIN_NABLA_QUOTER` are set
    - If every enabled route quote fails, aborts
    - If one fails, uses the other
-   - The selected quote feeds both route selection and the cost-policy gate before the first Nabla swap
+   - The selected quote feeds both route selection and the cost-policy gate before any return-leg action
 
 **Route A: main Nabla (BRLA → USDC on Base, direct):**
 6a. Main Nabla approve + swap: BRLA → USDC on Base
@@ -97,6 +97,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 7c. Request Avenia to transfer BRLA from internal balance to Polygon
 8c. Poll ticket status until PAID (5-min timeout)
 9c. Wait for BRLA delta arrival on Polygon (balance polling, 10-min timeout)
+   - If the BRLA-to-Polygon Avenia ticket reaches `PARTIAL-FAILED`, reconcile any Polygon BRLA delta against the persisted baseline and create a replacement ticket only for the remaining amount.
 10c. SquidRouter approve + swap: BRLA on Polygon → USDC on Base
 11c. Wait for Axelar cross-chain execution (30-min timeout)
 12c. Wait for USDC delta arrival on Base (balance polling, 30-min timeout)
@@ -106,7 +107,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 13. Record history entry (amount, cost, cost-relative, timestamps)
 14. Send Slack notification with route, amount, and cost metrics
 
-**Fallback:** If Avenia ticket creation fails during Route A, the flow falls back to Route B (SquidRouter).
+**Fallback:** If Avenia ticket creation fails during Route B, the flow falls back to Route C (SquidRouter).
 
 **Key secrets:** `EVM_ACCOUNT_SECRET` (single BIP-39 mnemonic, derives accounts for Base + Polygon). `PENDULUM_ACCOUNT_SECRET` not required for this flow.
 
@@ -161,7 +162,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 20. **Axelar cross-chain execution MUST have a timeout** — SquidRouter's Axelar polling has a 30-minute timeout. If Axelar does not confirm execution within this window, the flow MUST throw (not poll indefinitely). This resolves F-034 for the Base flow.
 21. **Balance arrival checks MUST be delta-based** — The Base high-coverage flow persists pre-action balances before each arrival-producing operation and waits for `starting balance + expected delta` rather than checking absolute hot-wallet/provider balances. Avenia BRLA arrival checks allow a 95% tolerance for provider-side deductions, while Base/Polygon on-chain arrival checks use the default 99.8% tolerance for rounding, route deductions, and minor quote shortfalls without sweeping unrelated leftover balances into the current run. The actual received Base USDC delta is persisted before advancing to final verification.
 22. **`EVM_ACCOUNT_SECRET` derives the same address on all EVM chains** — A single BIP-39 mnemonic is used for Base, Polygon, and Moonbeam. This means compromise of this one secret drains the rebalancer on ALL EVM chains. `PENDULUM_ACCOUNT_SECRET` is separate and legacy-only.
-23. **Terminal Avenia ticket failures MUST abort immediately** — `checkTicketStatusPaid` treats `FAILED` as terminal and throws immediately instead of retrying until timeout.
+23. **Terminal Avenia ticket failures MUST NOT poll indefinitely** — `checkTicketStatusPaid` treats `FAILED` as terminal and throws immediately instead of retrying until timeout. `PARTIAL-FAILED` is surfaced as a retryable ticket-specific status so the SquidRouter BRLA-to-Polygon branch can reconcile partial arrival and create a replacement ticket only for the remaining amount.
 
 ## Threat Vectors & Mitigations
 
@@ -189,7 +190,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 | Threat | Mitigation |
 |---|---|
 | **Route comparison manipulation** — Avenia, SquidRouter, and optional main Nabla quotes are fetched and compared; an attacker could manipulate one provider's rate to force another route | The rebalancer trusts provider quotes without independent verification. However, since all high-coverage routes end with USDC on Base, the worst case is choosing a slightly worse rate, not direct fund loss. The `slippage: 4` parameter on SquidRouter provides some buffer. |
-| **Avenia ticket creation failure mid-flow** — Avenia API fails after the flow committed to the Avenia route | **Mitigated.** The flow catches ticket creation errors and falls back to SquidRouter by setting `winningRoute = "squidrouter"` and saving state. Avenia tickets that return `FAILED` after creation are terminal and abort immediately. |
+| **Avenia ticket creation or partial ticket failure mid-flow** — Avenia API fails after the flow committed to the Avenia route, or the SquidRouter branch's BRLA-to-Polygon transfer ticket reaches `PARTIAL-FAILED` | **Mitigated.** Direct Avenia ticket creation errors fall back to SquidRouter by setting `winningRoute = "squidrouter"` and saving state. Avenia tickets that return `FAILED` after creation are terminal and abort immediately. For SquidRouter BRLA-to-Polygon tickets, `PARTIAL-FAILED` triggers replacement-ticket creation for only the remaining BRLA after subtracting any Polygon balance delta from the persisted baseline. |
 | **Daily bridge limit bypass** — History entries are stored in Supabase Storage; an attacker who can modify the storage could clear history to bypass the daily limit. Separately, projected-profitable quotes intentionally bypass the daily cap. | **Weak mitigation.** The limit is enforced client-side by reading history from Supabase and adding the current requested amount before starting. The intentional profit bypass requires a quote with projected output greater than input and still writes history on completion. An attacker with Supabase access could also drain funds directly, so malicious history tampering is a secondary concern. |
 | **Cost-threshold misconfiguration** — Cost thresholds set too low can cause chronic under-rebalancing; thresholds set too high can cause repeated expensive rebalancing | Defaults are conservative and env parsing fails fast for non-monotonic values. Operators should first use `REBALANCING_POLICY_MODE=dry-run` to observe decisions before enabling tighter or looser production thresholds. |
 | **Always-mode misuse** — Operator leaves `REBALANCING_POLICY_MODE=always` enabled and accepts expensive routes repeatedly | `always` still respects `REBALANCING_HARD_MAX_COST_BPS` and the daily bridge limit for non-profitable quotes. Decision logs include band, projected cost, allowed cost, daily-limit decision, and reason so misuse is observable. |
@@ -234,7 +235,7 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 - [x] Verify route comparison handles partial failures — what happens if one provider's quote fails? **PASS** — if every enabled route fails, throws; otherwise uses the best available route. If `--route=` is specified, only fetches that quote.
 - [x] Verify NonceManager re-initialization on resume — does it fetch fresh nonce from chain? **PASS** — `NonceManager.create()` calls `getTransactionCount()` on each execution.
 - [x] Verify BRLA balance arrival tolerance is appropriate. **PASS** — Avenia BRLA uses a 95% threshold for provider-side deductions; on-chain Base/Polygon arrivals use 99.8% to account for rounding and minor route deductions while rejecting significant shortfalls.
-- [x] Verify `checkTicketStatusPaid` has a timeout and treats FAILED as terminal. **PASS** — 5-minute timeout with 5-second poll interval; FAILED tickets throw immediately.
+- [x] Verify `checkTicketStatusPaid` has a timeout and treats terminal/retryable ticket statuses explicitly. **PASS** — 5-minute timeout with 5-second poll interval; `FAILED` tickets throw immediately; `PARTIAL-FAILED` tickets surface a retryable status for route-specific handling instead of timing out.
 - [x] Verify `waitForBrlaOnAvenia` has a timeout. **PASS** — 10-minute timeout with 5-second poll interval.
 - [x] Verify `waitUsdcOnBase` has a timeout. **PASS** — 30-minute timeout via `checkEvmBalancePeriodically`.
 - [x] Verify `waitBrlaOnPolygon` has a timeout. **PASS** — 10-minute timeout via `checkEvmBalancePeriodically`.
