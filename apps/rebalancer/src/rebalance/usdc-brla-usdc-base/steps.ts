@@ -16,7 +16,7 @@ import {
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
 import { base, polygon } from "viem/chains";
 import { brlaMoonbeamTokenDetails } from "../../constants.ts";
 import { UsdcBaseRebalanceState, UsdcBaseStateManager, type WinningRoute } from "../../services/stateManager.ts";
@@ -584,6 +584,23 @@ export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalan
   return arrivedRaw;
 }
 
+export async function resetFailedSquidRouterSwapOnResume(
+  swapHash: string,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  polygonPublicClient: PublicClient
+): Promise<boolean> {
+  const receipt = await polygonPublicClient.getTransactionReceipt({ hash: swapHash as `0x${string}` });
+
+  if (receipt.status === "success") return false;
+
+  console.warn(`Persisted SquidRouter swap tx ${swapHash} failed on Polygon. Retrying with a fresh route.`);
+  state.squidRouterSwapHash = null;
+  state.squidRouterQuoteUsdc = null;
+  await stateManager.saveState(state);
+  return true;
+}
+
 export async function squidRouterApproveAndSwap(
   brlaAmountRaw: string,
   baseReceiverAddress: `0x${string}`,
@@ -594,6 +611,15 @@ export async function squidRouterApproveAndSwap(
   let swapHash = state.squidRouterSwapHash;
   let toAmountUsd = "0";
   let toAmountRaw = state.squidRouterQuoteUsdc ?? "0";
+
+  if (swapHash) {
+    const { publicClient: polygonPublicClient } = getPolygonEvmClients();
+
+    if (await resetFailedSquidRouterSwapOnResume(swapHash, state, stateManager, polygonPublicClient)) {
+      swapHash = null;
+      toAmountRaw = "0";
+    }
+  }
 
   if (!swapHash) {
     console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
