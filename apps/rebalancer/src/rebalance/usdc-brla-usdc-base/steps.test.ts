@@ -75,6 +75,25 @@ describe("USDC Base SquidRouter steps", () => {
     expect(savedStates).toEqual([{ squidRouterQuoteUsdc: "998500000" }]);
   });
 
+  test("recovers SquidRouter output with a missing Squid quote using the persisted Avenia quote", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
+    state.aveniaQuoteUsdc = "997124681";
+    state.squidRouterQuoteUsdc = null;
+
+    const savedStates: Array<{ squidRouterQuoteUsdc: string | null }> = [];
+    const stateManager = {
+      saveState: async () => {
+        savedStates.push({ squidRouterQuoteUsdc: state.squidRouterQuoteUsdc });
+      }
+    };
+
+    await expect(
+      recoverSquidUsdcOutputFromBaseBalance(null, "22337450", state, stateManager, async () => "1021377450")
+    ).resolves.toBe("999040000");
+    expect(state.squidRouterQuoteUsdc as string | null).toBe("999040000");
+    expect(savedStates).toEqual([{ squidRouterQuoteUsdc: "999040000" }]);
+  });
+
   test("does not recover SquidRouter output when Base USDC delta is below tolerance", async () => {
     const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
     state.squidRouterQuoteUsdc = "999000000";

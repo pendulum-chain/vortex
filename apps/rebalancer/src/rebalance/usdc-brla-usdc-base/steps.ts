@@ -611,11 +611,12 @@ export async function recoverSquidUsdcOutputFromBaseBalance(
   stateManager: Pick<UsdcBaseStateManager, "saveState">,
   getCurrentBaseUsdcRaw = getUsdcBalanceOnBaseRaw
 ): Promise<string | null> {
-  if (!expectedUsdcRaw || !startingUsdcBalanceRaw) return null;
+  const recoveryExpectedUsdcRaw = expectedUsdcRaw ?? state.squidRouterQuoteUsdc ?? state.aveniaQuoteUsdc ?? state.usdcAmountRaw;
+  if (!recoveryExpectedUsdcRaw || !startingUsdcBalanceRaw) return null;
 
   const currentBaseUsdcRaw = Big(await getCurrentBaseUsdcRaw());
   const receivedDeltaRaw = currentBaseUsdcRaw.minus(Big(startingUsdcBalanceRaw));
-  const minimumReceivedRaw = calculateMinimumDelta(Big(expectedUsdcRaw), DEFAULT_ARRIVAL_TOLERANCE);
+  const minimumReceivedRaw = calculateMinimumDelta(Big(recoveryExpectedUsdcRaw), DEFAULT_ARRIVAL_TOLERANCE);
 
   if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
 
