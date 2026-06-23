@@ -68,19 +68,17 @@ bun run start [amount] [--legacy] [--restart] [--route=squidrouter|avenia|nabla-
 
 **Urgency-band policy:** Before any state write or transaction, the flow quotes the expected round-trip USDC output. Projected cost is `(input USDC - projected output USDC) / input USDC` in basis points. `auto` mode executes only when the projected cost is within the configured limit for the current coverage-deviation band. `dry-run` logs the same decision but never starts a rebalance. `off` skips without quoting. `always` can execute above the band limit, but not above `REBALANCING_HARD_MAX_COST_BPS`; the daily bridge limit still applies unless the quote projects profit.
 
-**Rebalancing flow (linear phase):**
+**Rebalancing flow:**
 1. Check initial USDC balance on Base (sufficient for requested amount)
-2. Nabla approve + swap: USDC → BRLA on Base
-3. Transfer BRLA to Avenia business account on Base (ERC-20 transfer)
-4. Wait for BRLA delta to appear on Avenia internal balance (polling, 10-min timeout)
-
-**Rate comparison phase:**
-5. Compare rates between SquidRouter, Avenia, and optional main Nabla for BRLA → USDC conversion
-   - If `--route=` is specified, execution is constrained to that route and the policy still requires a quote for that route before executing the selected return leg
+2. Before any on-chain action, quote the first Nabla USDC → BRLA swap to estimate BRLA output, then compare rates between SquidRouter, Avenia, and optional main Nabla for BRLA → USDC conversion
+   - If `--route=` is specified, execution is constrained to that route and the policy still requires a quote for that route before executing the common first swap
    - Main Nabla route is available only when both `MAIN_NABLA_ROUTER` and `MAIN_NABLA_QUOTER` are set
    - If every enabled route quote fails, aborts
    - If one fails, uses the other
-   - The selected quote feeds both route selection and the cost-policy gate before any return-leg action
+   - The selected quote feeds both route selection and the cost-policy gate before any on-chain action
+3. Nabla approve + swap: USDC → BRLA on Base
+4. Transfer BRLA to Avenia business account on Base (ERC-20 transfer)
+5. Wait for BRLA delta to appear on Avenia internal balance (polling, 10-min timeout)
 
 **Route A: main Nabla (BRLA → USDC on Base, direct):**
 6a. Main Nabla approve + swap: BRLA → USDC on Base
