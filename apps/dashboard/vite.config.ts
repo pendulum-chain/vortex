@@ -1,0 +1,29 @@
+import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  // Served as a sub-app of the frontend at /dashboard, so it builds into the
+  // frontend's publish dir and the same Netlify preview serves both.
+  base: "/dashboard/",
+  build: {
+    emptyOutDir: true,
+    outDir: fileURLToPath(new URL("../frontend/dist/dashboard", import.meta.url))
+  },
+  plugins: [
+    // tanstackRouter() must be before react()
+    tanstackRouter({ autoCodeSplitting: true, target: "react" }),
+    tailwindcss(),
+    viteReact()
+  ],
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url))
+    }
+  },
+  server: {
+    port: 5174
+  }
+});
