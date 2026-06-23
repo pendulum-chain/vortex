@@ -128,9 +128,7 @@ export class AlfredpayHandler implements RampHandler {
   async updateAlfredpayOfframp(rampId: string, additionalData: AlfredpayOfframpUpdateAdditionalData): Promise<RampProcess> {
     const rampProcess = await this.apiService.getRampStatus(rampId);
     if (rampProcess.currentPhase !== "initial") {
-      throw new Error(
-        `Invalid ramp id. Ramp must be on initial phase to be updated. Current phase: ${rampProcess.currentPhase}`
-      );
+      throw new Error(`Ramp cannot be updated in its current phase. Expected initial phase, got: ${rampProcess.currentPhase}`);
     }
 
     const updateRequest: UpdateRampRequest = {

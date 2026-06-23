@@ -62,6 +62,22 @@ export function typedDataToSign(tx: UnsignedTx, options: { includeDomainType?: b
   }));
 }
 
+function typedDataDeadline(item: SignedTypedData, phase: string): number {
+  const deadline = item.message.deadline;
+  if (deadline === undefined || deadline === null) {
+    throw new Error(`attachSignatures: phase ${phase} typed-data payload is missing a deadline.`);
+  }
+
+  const numericDeadline = Number(deadline);
+  if (!Number.isFinite(numericDeadline) || !Number.isInteger(numericDeadline) || numericDeadline <= 0) {
+    throw new Error(
+      `attachSignatures: phase ${phase} typed-data deadline must be a positive integer, got ${String(deadline)}.`
+    );
+  }
+
+  return numericDeadline;
+}
+
 /**
  * Attach user signatures to the typed-data payload(s) of a transaction, producing the signed
  * txData to submit. A transaction may carry several payloads (e.g. permit + relayer payload);
@@ -77,7 +93,7 @@ export function attachSignatures(tx: UnsignedTx, signatures: string[]): SignedTy
   }
   return items.map((item, i) => {
     const { v, r, s } = splitSignature(signatures[i]);
-    const deadline = Number((item.message as Record<string, unknown>).deadline ?? 0);
+    const deadline = typedDataDeadline(item, tx.phase);
     return { ...item, signature: { deadline, r, s, v } };
   });
 }
@@ -88,7 +104,7 @@ export function splitSignature(signature: string): { v: number; r: `0x${string}`
   const cleaned = signature.trim().replace(/^['"]+|['"]+$/g, "");
   const hex = cleaned.startsWith("0x") ? cleaned.slice(2) : cleaned;
   if (hex.length !== 130) {
-    throw new Error(`Invalid signature: expected a 65-byte hex string, got ${cleaned.length} chars.`);
+    throw new Error(`Invalid signature: expected a 65-byte hex string, got ${hex.length} hex chars.`);
   }
   const r = `0x${hex.slice(0, 64)}` as `0x${string}`;
   const s = `0x${hex.slice(64, 128)}` as `0x${string}`;

@@ -199,7 +199,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (require.main === module) {
+if (import.meta.main) {
   main()
     .then(() => {
       console.log("\n✨ Example execution completed");

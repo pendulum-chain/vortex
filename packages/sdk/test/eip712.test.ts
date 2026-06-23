@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { attachSignatures, splitSignature, typedDataToSign, userTransactionType } from "../src/eip712";
+import {describe, expect, it} from "bun:test";
+import {attachSignatures, splitSignature, typedDataToSign, userTransactionType} from "../src/eip712";
 
 const tx = (txData: unknown) => ({ meta: {}, network: "polygon", nonce: 0, phase: "squidRouterPermitExecute", signer: "0xabc", txData }) as never;
 
@@ -101,6 +101,17 @@ describe("attachSignatures", () => {
   it("throws when the transaction has no typed-data payloads", () => {
     expect(() => attachSignatures(tx({ data: "0x", to: "0x1", value: "0" }), [sig])).toThrow();
   });
+
+  it("throws when a typed-data payload has no deadline", () => {
+    const { deadline: _deadline, ...messageWithoutDeadline } = saltPermit.message;
+    expect(() => attachSignatures(tx({ ...saltPermit, message: messageWithoutDeadline }), [sig])).toThrow(/missing a deadline/);
+  });
+
+  it("throws when a typed-data payload deadline is not numeric", () => {
+    expect(() => attachSignatures(tx({ ...saltPermit, message: { ...saltPermit.message, deadline: "soon" } }), [sig])).toThrow(
+      /positive integer/
+    );
+  });
 });
 
 describe("splitSignature", () => {
@@ -115,6 +126,6 @@ describe("splitSignature", () => {
     expect(splitSignature(`0x${"a".repeat(64)}${"b".repeat(64)}00`).v).toBe(27);
   });
   it("rejects a wrong-length signature", () => {
-    expect(() => splitSignature("0x1234")).toThrow();
+    expect(() => splitSignature("0x1234")).toThrow(/got 4 hex chars/);
   });
 });

@@ -3,7 +3,7 @@
 // RPC, KYC, or on-chain funds) to lock in routing, request payloads, and call
 // ordering. Run: cd packages/sdk && bun test
 
-import { describe, expect, test } from "bun:test";
+import {describe, expect, test} from "bun:test";
 import {
   EPaymentMethod,
   EphemeralAccountType,
@@ -15,13 +15,13 @@ import {
   RampDirection,
   RampProcess,
   RegisterRampRequest,
-  UpdateRampRequest,
-  UnsignedTx
+  UnsignedTx,
+  UpdateRampRequest
 } from "@vortexfi/shared";
-import { MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError } from "../src/errors";
-import { AlfredpayHandler } from "../src/handlers/AlfredpayHandler";
-import { ApiService } from "../src/services/ApiService";
-import type { VortexSdkContext } from "../src/types";
+import {MissingAlfredpayOfframpParametersError, MissingAlfredpayOnrampParametersError} from "../src/errors";
+import {AlfredpayHandler} from "../src/handlers/AlfredpayHandler";
+import {ApiService} from "../src/services/ApiService";
+import type {VortexSdkContext} from "../src/types";
 
 const WALLET = "0x1234567890123456789012345678901234567890";
 const FIAT_ACCOUNT = "fa_demo";
@@ -229,6 +229,6 @@ describe("AlfredpayHandler offramp update", () => {
 
   test("throws when ramp is not on the initial phase", async () => {
     const { handler } = setup({ currentPhase: "fundEphemeral" });
-    await expect(handler.updateAlfredpayOfframp("ramp_1", {})).rejects.toThrow(/initial phase/);
+    await expect(handler.updateAlfredpayOfframp("ramp_1", {})).rejects.toThrow(/current phase/);
   });
 });
