@@ -188,13 +188,21 @@ export class EvmClientManager {
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        const retryable = shouldRetry(lastError);
+        const sanitizedMessage = sanitizeRpcErrorMessage(lastError.message);
 
-        logger.current.warn(
-          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
-        );
+        if (retryable) {
+          logger.current.warn(
+            `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        } else {
+          logger.current.warn(
+            `${operationName} failed without retry on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        }
 
-        if (!shouldRetry(lastError)) {
-          throw new Error(`${operationName} failed on ${networkName}: ${sanitizeRpcErrorMessage(lastError.message)}`, {
+        if (!retryable) {
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizedMessage}`, {
             cause: lastError
           });
         }
