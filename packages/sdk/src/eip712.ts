@@ -1,4 +1,5 @@
 import {
+  type EvmTransactionData,
   isEvmTransactionData,
   isSignedTypedData,
   isSignedTypedDataArray,
@@ -21,18 +22,6 @@ export const EIP712_DOMAIN_FIELD_TYPES: Record<string, string> = {
 // A non-canonical order produces a different domain hash and breaks signature recovery.
 export const EIP712_DOMAIN_FIELD_ORDER = ["name", "version", "chainId", "verifyingContract", "salt"];
 
-export function isTypedDataItem(item: unknown): item is SignedTypedData {
-  return (
-    typeof item === "object" &&
-    item !== null &&
-    !Array.isArray(item) &&
-    "domain" in item &&
-    "types" in item &&
-    "primaryType" in item &&
-    "message" in item
-  );
-}
-
 export function userTransactionType(tx: UnsignedTx): UserTransactionType {
   if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
     return "evm-typed-data";
@@ -46,7 +35,10 @@ export function userTransactionType(tx: UnsignedTx): UserTransactionType {
 }
 
 export function typedDataToSign(tx: UnsignedTx, options: { includeDomainType?: boolean } = {}): SignedTypedData[] {
-  const items = (Array.isArray(tx.txData) ? tx.txData : [tx.txData]).filter(isTypedDataItem);
+  const txDataArray = Array.isArray(tx.txData) ? tx.txData : [tx.txData];
+  const items = txDataArray.filter((item): item is SignedTypedData =>
+    isSignedTypedData(item as string | EvmTransactionData | SignedTypedData | SignedTypedData[])
+  );
   if (!options.includeDomainType) {
     return items;
   }

@@ -187,8 +187,8 @@ export class AlfredpayOfframpError extends RegisterRampError {
 }
 
 export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpError {
-  constructor() {
-    super("Parameters fiatAccountId and walletAddress are required for Alfredpay offramp", 400);
+  constructor(message = "Parameters fiatAccountId and walletAddress are required for Alfredpay offramp") {
+    super(message, 400);
     this.name = "MissingAlfredpayOfframpParametersError";
   }
 }
@@ -435,7 +435,10 @@ export function parseAPIError(response: unknown): VortexSdkError {
         return new MissingAlfredpayOnrampParametersError();
       }
       if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
-        return new MissingAlfredpayOfframpParametersError();
+        return new MissingAlfredpayOfframpParametersError(errorMessage);
+      }
+      if (errorMessage === "User address must be provided for offramping.") {
+        return new MissingAlfredpayOfframpParametersError(errorMessage);
       }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();

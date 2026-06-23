@@ -208,6 +208,7 @@ export interface SubmitUserTransactionsHandlers {
   includeDomainType?: boolean;
   signTypedData?: (payload: SignedTypedData, context: UserTypedDataSigningContext) => Promise<string>;
   sendTransaction?: (transaction: EvmTransactionData, context: UserEvmTransactionContext) => Promise<string>;
+  handleUnsupported?: (tx: UnsignedTx) => Promise<void>;
 }
 
 export interface NetworkConfig {

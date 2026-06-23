@@ -183,6 +183,11 @@ export class VortexSdk {
    * The signature is attached to the transaction and submitted to Vortex.
    */
   async submitUserSignature(rampId: string, tx: UnsignedTx, signatures: string | string[]): Promise<RampProcess> {
+    if (userTransactionType(tx) !== "evm-typed-data") {
+      throw new Error(
+        `submitUserSignature: phase ${tx.phase} is not a typed-data transaction; use submitUserTxHash for evm-transaction types.`
+      );
+    }
     const sigList = Array.isArray(signatures) ? signatures : [signatures];
     const signedTxData = attachSignatures(tx, sigList);
     return this.apiService.updateRamp({ additionalData: {}, presignedTxs: [{ ...tx, txData: signedTxData }], rampId });
@@ -271,7 +276,12 @@ export class VortexSdk {
         const hash = await handlers.sendTransaction(transaction, { unsignedTransaction: tx });
         rampProcess = await this.submitUserTxHash(rampId, tx, hash);
       } else {
-        throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
+        if (!handlers.handleUnsupported) {
+          throw new Error(
+            `submitUserTransactions: no handler provided for unsupported transaction type at phase ${tx.phase} on ${tx.network}.`
+          );
+        }
+        await handlers.handleUnsupported(tx);
       }
     }
 
