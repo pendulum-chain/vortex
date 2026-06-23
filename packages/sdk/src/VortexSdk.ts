@@ -36,6 +36,7 @@ import type {
   BrlOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
+  SubmitUserTransactionsHandlers,
   UpdateRampAdditionalData,
   VortexSdkConfig
 } from "./types";
@@ -226,6 +227,55 @@ export class VortexSdk {
    */
   async submitUserTxHash(rampId: string, tx: UnsignedTx, hash: string): Promise<RampProcess> {
     return this.apiService.updateRamp({ additionalData: { [`${tx.phase}Hash`]: hash }, presignedTxs: [], rampId });
+  }
+
+  /**
+   * Process all user-owned transactions returned by registerRamp. The SDK classifies each entry,
+   * asks the caller's wallet callbacks to sign or broadcast it, then submits the result to Vortex.
+   */
+  async submitUserTransactions(
+    rampId: string,
+    unsignedTransactions: UnsignedTx[],
+    handlers: SubmitUserTransactionsHandlers
+  ): Promise<RampProcess> {
+    let rampProcess: RampProcess | undefined;
+
+    for (const tx of unsignedTransactions) {
+      const txType = this.getUserTransactionType(tx);
+
+      if (txType === "evm-typed-data") {
+        if (!handlers.signTypedData) {
+          throw new Error(`submitUserTransactions: signTypedData handler is required for phase ${tx.phase}.`);
+        }
+
+        const payloads = this.getTypedDataToSign(tx, { includeDomainType: handlers.includeDomainType });
+        const signatures: string[] = [];
+
+        for (let payloadIndex = 0; payloadIndex < payloads.length; payloadIndex++) {
+          signatures.push(
+            await handlers.signTypedData(payloads[payloadIndex], {
+              payloadCount: payloads.length,
+              payloadIndex,
+              unsignedTransaction: tx
+            })
+          );
+        }
+
+        rampProcess = await this.submitUserSignature(rampId, tx, signatures);
+      } else if (txType === "evm-transaction") {
+        if (!handlers.sendTransaction) {
+          throw new Error(`submitUserTransactions: sendTransaction handler is required for phase ${tx.phase}.`);
+        }
+
+        const transaction = this.getTransactionToBroadcast(tx);
+        const hash = await handlers.sendTransaction(transaction, { unsignedTransaction: tx });
+        rampProcess = await this.submitUserTxHash(rampId, tx, hash);
+      } else {
+        throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
+      }
+    }
+
+    return rampProcess ?? this.getRampStatus(rampId);
   }
 
   public async storeEphemerals(

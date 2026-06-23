@@ -106,11 +106,17 @@ export function splitSignature(signature: string): { v: number; r: `0x${string}`
   if (hex.length !== 130) {
     throw new Error(`Invalid signature: expected a 65-byte hex string, got ${hex.length} hex chars.`);
   }
+  if (!/^[0-9a-fA-F]+$/.test(hex)) {
+    throw new Error("Invalid signature: signature must contain only hex characters.");
+  }
   const r = `0x${hex.slice(0, 64)}` as `0x${string}`;
   const s = `0x${hex.slice(64, 128)}` as `0x${string}`;
   let v = Number.parseInt(hex.slice(128, 130), 16);
-  if (v < 27) {
+  if (v === 0 || v === 1) {
     v += 27;
+  }
+  if (v !== 27 && v !== 28) {
+    throw new Error(`Invalid signature: v must be 0, 1, 27, or 28, got ${v}.`);
   }
   return { r, s, v };
 }

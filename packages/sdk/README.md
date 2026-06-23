@@ -97,27 +97,11 @@ const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
   walletAddress: "0x1234567890123456789012345678901234567890"
 });
 
-// Sign and submit each user-side transaction before starting the ramp.
-for (const tx of unsignedTransactions) {
-  const txType = sdk.getUserTransactionType(tx);
-
-  if (txType === "evm-typed-data") {
-    const payloads = sdk.getTypedDataToSign(tx);
-    const signatures = [];
-
-    for (const payload of payloads) {
-      signatures.push(await walletClient.signTypedData(payload));
-    }
-
-    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
-  } else if (txType === "evm-transaction") {
-    const evmTx = sdk.getTransactionToBroadcast(tx);
-    const hash = await walletClient.sendTransaction(evmTx);
-    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
-  } else {
-    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
-  }
-}
+// Sign or broadcast each user-side transaction before starting the ramp.
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => walletClient.signTypedData(payload),
+  sendTransaction: tx => walletClient.sendTransaction(tx)
+});
 
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
@@ -172,6 +156,9 @@ Returns the EVM transaction data for an `"evm-transaction"` transaction. Throws 
 
 ##### `submitUserTxHash(rampId: string, tx: UnsignedTx, hash: string): Promise<RampProcess>`
 Submits the on-chain transaction hash for a user-broadcast EVM transaction.
+
+##### `submitUserTransactions(rampId: string, unsignedTransactions: UnsignedTx[], handlers: SubmitUserTransactionsHandlers): Promise<RampProcess>`
+Processes every user-owned transaction returned by `registerRamp`. The SDK classifies each entry, calls your `signTypedData` or `sendTransaction` callback, and submits the resulting signatures or hashes back to Vortex. Wallet prompts stay under your application's control; the SDK never receives a wallet object or private key.
 
 ## Error Handling
 

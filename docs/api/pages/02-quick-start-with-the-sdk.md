@@ -89,31 +89,15 @@ const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
 
 ### Signing The User Transaction With Wagmi
 
-The user-owned transactions are EVM typed-data payloads. With wagmi:
+The user-owned transactions are EVM typed-data payloads or EVM transactions. Keep wallet prompts in your application and let the SDK handle classification and submission:
 
 ```js
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
-for (const tx of unsignedTransactions) {
-  const txType = sdk.getUserTransactionType(tx);
-
-  if (txType === "evm-typed-data") {
-    const payloads = sdk.getTypedDataToSign(tx);
-    const signatures = [];
-
-    for (const payload of payloads) {
-      signatures.push(await signTypedData(wagmiConfig, payload));
-    }
-
-    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
-  } else if (txType === "evm-transaction") {
-    const evmTx = sdk.getTransactionToBroadcast(tx);
-    const hash = await sendTransaction(wagmiConfig, evmTx);
-    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
-  } else {
-    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
-  }
-}
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
 
 const started = await sdk.startRamp(rampProcess.id);
 ```
@@ -176,37 +160,20 @@ const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
 
 ### Signing MXN Offramp User Transactions
 
-Use the SDK helpers to classify, sign, and submit each entry in `unsignedTransactions`:
+Use the SDK helper to classify, sign, broadcast, and submit each entry in `unsignedTransactions`:
 
 ```js
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
-for (const tx of unsignedTransactions) {
-  const txType = sdk.getUserTransactionType(tx);
-
-  if (txType === "evm-typed-data") {
-    // A single tx may carry several typed-data payloads (e.g. permit + relayer). Sign each in order.
-    const payloads = sdk.getTypedDataToSign(tx); // wagmi / viem signTypedData-ready
-    const signatures = [];
-
-    for (const payload of payloads) {
-      signatures.push(await signTypedData(wagmiConfig, payload));
-    }
-
-    await sdk.submitUserSignature(rampProcess.id, tx, signatures);
-  } else if (txType === "evm-transaction") {
-    const evmTx = sdk.getTransactionToBroadcast(tx);
-    const hash = await sendTransaction(wagmiConfig, evmTx);
-    await sdk.submitUserTxHash(rampProcess.id, tx, hash);
-  } else {
-    throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
-  }
-}
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
 
 await sdk.startRamp(rampProcess.id);
 ```
 
-For wallets that call `eth_signTypedData_v4` directly, pass `{ includeDomainType: true }` to `getTypedDataToSign`.
+For wallets that call `eth_signTypedData_v4` directly, set `includeDomainType: true` on `submitUserTransactions` or pass `{ includeDomainType: true }` to `getTypedDataToSign` when using the lower-level helpers.
 
 ## Tracking Status
 

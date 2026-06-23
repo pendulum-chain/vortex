@@ -137,47 +137,38 @@ async function runMexicoOfframp(sdk: VortexSdk): Promise<void> {
   });
   console.log(`✅ Offramp registered. Ramp ID: ${rampProcess.id}`);
 
-  // Handle each user transaction with the SDK's helpers (no EIP-712 reconstruction needed here).
   const localAccount = OFFRAMP_WALLET_PRIVATE_KEY ? privateKeyToAccount(OFFRAMP_WALLET_PRIVATE_KEY) : undefined;
 
-  for (const tx of unsignedTransactions) {
-    const txType = sdk.getUserTransactionType(tx);
-
-    if (txType === "evm-typed-data") {
-      // A typed-data tx may carry several payloads (e.g. permit + relayer payload). Sign each in order.
-      const payloads = sdk.getTypedDataToSign(tx); // wagmi / viem signTypedData-ready
-      const v4Payloads = sdk.getTypedDataToSign(tx, { includeDomainType: true }); // eth_signTypedData_v4-ready
-      const signatures: string[] = [];
-
-      for (let i = 0; i < payloads.length; i++) {
-        if (localAccount) {
-          signatures.push(await localAccount.signTypedData(payloads[i] as Parameters<typeof localAccount.signTypedData>[0]));
-          console.log(
-            `     [${i + 1}/${payloads.length}] ${payloads[i].primaryType} signed locally by ${localAccount.address}`
-          );
-        } else {
-          console.log(
-            `\n----- sign payload ${i + 1}/${payloads.length}: ${payloads[i].primaryType} (account ${tx.signer}) -----`
-          );
-          console.log(JSON.stringify(v4Payloads[i], null, 2));
-          signatures.push(await askQuestion(`➡️  Signature for ${payloads[i].primaryType}: `));
-        }
+  await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+    sendTransaction: async (evmTx, { unsignedTransaction }) => {
+      console.log(
+        `\n🛑 Broadcast ${unsignedTransaction.phase} from your wallet: to=${evmTx.to} value=${evmTx.value} data=${evmTx.data}`
+      );
+      const hash = await askQuestion(`➡️  Tx hash for ${unsignedTransaction.phase}: `);
+      console.log(`✅ Received hash for ${unsignedTransaction.phase}.`);
+      return hash;
+    },
+    signTypedData: async (payload, { payloadCount, payloadIndex, unsignedTransaction }) => {
+      if (localAccount) {
+        const signature = await localAccount.signTypedData(payload as Parameters<typeof localAccount.signTypedData>[0]);
+        console.log(
+          `     [${payloadIndex + 1}/${payloadCount}] ${payload.primaryType} signed locally by ${localAccount.address}`
+        );
+        return signature;
       }
 
-      console.log(`📝 Submitting ${signatures.length} signature(s) for ${tx.phase}...`);
-      await sdk.submitUserSignature(rampProcess.id, tx, signatures);
-      console.log(`✅ Submitted signature(s) for ${tx.phase}.`);
-    } else if (txType === "evm-transaction") {
-      // Broadcast path: user sends the EVM tx from their wallet, then pushes the hash back.
-      const evmTx = sdk.getTransactionToBroadcast(tx);
-      console.log(`\n🛑 Broadcast ${tx.phase} from your wallet: to=${evmTx.to} value=${evmTx.value} data=${evmTx.data}`);
-      const hash = await askQuestion(`➡️  Tx hash for ${tx.phase}: `);
-      await sdk.submitUserTxHash(rampProcess.id, tx, hash);
-      console.log(`✅ Submitted hash for ${tx.phase}.`);
-    } else {
-      throw new Error(`Unsupported user transaction for phase ${tx.phase} on ${tx.network}`);
+      const [v4Payload] = sdk
+        .getTypedDataToSign(unsignedTransaction, { includeDomainType: true })
+        .slice(payloadIndex, payloadIndex + 1);
+      console.log(
+        `\n----- sign payload ${payloadIndex + 1}/${payloadCount}: ${payload.primaryType} (account ${unsignedTransaction.signer}) -----`
+      );
+      console.log(JSON.stringify(v4Payload, null, 2));
+      const signature = await askQuestion(`➡️  Signature for ${payload.primaryType}: `);
+      console.log(`✅ Received signature for ${unsignedTransaction.phase}.`);
+      return signature;
     }
-  }
+  });
 
   console.log("📝 Step 4: Starting offramp...");
   await sdk.startRamp(rampProcess.id);

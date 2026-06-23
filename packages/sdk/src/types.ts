@@ -1,6 +1,6 @@
 // Types re-exported used to create quotes.
 
-import type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse } from "@vortexfi/shared";
+import type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse, SignedTypedData } from "@vortexfi/shared";
 import {
   EPaymentMethod,
   EphemeralAccount,
@@ -15,15 +15,15 @@ import {
 } from "@vortexfi/shared";
 
 export {
+  CreateQuoteRequest,
   EPaymentMethod,
+  EvmTransactionData,
   EvmToken,
   FiatToken,
   Networks,
-  RampDirection,
   PaymentMethod,
   QuoteResponse,
-  CreateQuoteRequest,
-  EvmTransactionData
+  RampDirection
 };
 
 export type AnyQuote =
@@ -192,6 +192,22 @@ export interface RampState {
   };
   currentPhase: RampPhase;
   unsignedTxs: UnsignedTx[];
+}
+
+export interface UserTypedDataSigningContext {
+  unsignedTransaction: UnsignedTx;
+  payloadIndex: number;
+  payloadCount: number;
+}
+
+export interface UserEvmTransactionContext {
+  unsignedTransaction: UnsignedTx;
+}
+
+export interface SubmitUserTransactionsHandlers {
+  includeDomainType?: boolean;
+  signTypedData?: (payload: SignedTypedData, context: UserTypedDataSigningContext) => Promise<string>;
+  sendTransaction?: (transaction: EvmTransactionData, context: UserEvmTransactionContext) => Promise<string>;
 }
 
 export interface NetworkConfig {

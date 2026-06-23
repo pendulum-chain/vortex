@@ -1,5 +1,7 @@
 import {describe, expect, it} from "bun:test";
+import type {RampProcess} from "@vortexfi/shared";
 import {attachSignatures, splitSignature, typedDataToSign, userTransactionType} from "../src/eip712";
+import {VortexSdk} from "../src/VortexSdk";
 
 const tx = (txData: unknown) => ({ meta: {}, network: "polygon", nonce: 0, phase: "squidRouterPermitExecute", signer: "0xabc", txData }) as never;
 
@@ -127,5 +129,60 @@ describe("splitSignature", () => {
   });
   it("rejects a wrong-length signature", () => {
     expect(() => splitSignature("0x1234")).toThrow(/got 4 hex chars/);
+  });
+  it("rejects non-hex signature bytes", () => {
+    expect(() => splitSignature(`0x${"a".repeat(64)}${"b".repeat(64)}zz`)).toThrow(/only hex characters/);
+  });
+  it("rejects unsupported v values", () => {
+    expect(() => splitSignature(`0x${"a".repeat(64)}${"b".repeat(64)}02`)).toThrow(/v must be/);
+  });
+});
+
+describe("submitUserTransactions", () => {
+  function sdkWithCapturedUpdates(updates: unknown[]): VortexSdk {
+    const sdk = Object.create(VortexSdk.prototype) as VortexSdk;
+    Object.defineProperty(sdk, "apiService", {
+      value: {
+        getRampStatus: async () => ({ id: "ramp-1" }) as RampProcess,
+        updateRamp: async (request: unknown) => {
+          updates.push(request);
+          return { id: "ramp-1" } as RampProcess;
+        }
+      }
+    });
+    return sdk;
+  }
+
+  it("signs typed-data payloads in order and submits the signed tx data", async () => {
+    const updates: unknown[] = [];
+    const sdk = sdkWithCapturedUpdates(updates);
+    const sig = `0x${"a".repeat(64)}${"b".repeat(64)}1b`;
+
+    await sdk.submitUserTransactions("ramp-1", [tx([saltPermit, saltPermit])], {
+      signTypedData: async (payload, context) => {
+        expect(payload.primaryType).toBe("Permit");
+        expect(context.payloadIndex).toBeLessThan(context.payloadCount);
+        return sig;
+      }
+    });
+
+    const [request] = updates as Array<{ presignedTxs: Array<{ txData: Array<{ signature: { v: number } }> }> }>;
+    expect(request.presignedTxs[0].txData).toHaveLength(2);
+    expect(request.presignedTxs[0].txData[0].signature.v).toBe(27);
+  });
+
+  it("broadcasts EVM transactions and submits the resulting phase hash", async () => {
+    const updates: unknown[] = [];
+    const sdk = sdkWithCapturedUpdates(updates);
+
+    await sdk.submitUserTransactions("ramp-1", [tx({ data: "0x1234", to: "0x1", value: "0" })], {
+      sendTransaction: async transaction => {
+        expect(transaction.data).toBe("0x1234");
+        return "0xhash";
+      }
+    });
+
+    const [request] = updates as Array<{ additionalData: Record<string, string> }>;
+    expect(request.additionalData.squidRouterPermitExecuteHash).toBe("0xhash");
   });
 });
