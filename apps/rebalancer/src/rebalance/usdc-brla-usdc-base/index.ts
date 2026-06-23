@@ -121,7 +121,8 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 2");
 
     if (forcedRoute) {
-      console.log(`Forced route: ${forcedRoute}. Skipping full comparison.`);
+      const routeSelection = policy?.routeSelection === "forced" ? "Forced route" : "Preselected best-quote route";
+      console.log(`${routeSelection}: ${forcedRoute}. Reusing preflight quotes and skipping duplicate comparison.`);
       state.winningRoute = forcedRoute;
       state.squidRouterQuoteUsdc = policy?.preflightQuotes?.squidRouterQuoteUsdc ?? null;
       state.aveniaQuoteUsdc = policy?.preflightQuotes?.aveniaQuoteUsdc ?? null;

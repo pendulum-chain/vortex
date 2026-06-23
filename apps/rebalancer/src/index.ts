@@ -206,6 +206,7 @@ async function evaluateUsdcToBrlaPolicy(
     mainNablaQuoteUsdc: string | null;
     squidRouterQuoteUsdc: string | null;
   };
+  routeSelection?: "forced" | "best-quote";
   shouldExecute: boolean;
   routeToRun?: Exclude<WinningRoute, null>;
 }> {
@@ -226,7 +227,7 @@ async function evaluateUsdcToBrlaPolicy(
   if (!routeToRun) throw new Error("Route comparison did not select a route.");
 
   const projectedOutputRaw = getQuoteForRoute(routeToRun, comparison);
-  if (!projectedOutputRaw) throw new Error(`Forced route ${routeToRun} did not return a quote.`);
+  if (!projectedOutputRaw) throw new Error(`Selected route ${routeToRun} did not return a quote.`);
 
   const decision = evaluateRebalancingCostPolicy(
     Big(amountUsdcRaw),
@@ -244,6 +245,7 @@ async function evaluateUsdcToBrlaPolicy(
       mainNablaQuoteUsdc: comparison.mainNablaQuoteUsdc,
       squidRouterQuoteUsdc: comparison.squidRouterQuoteUsdc
     },
+    routeSelection: forcedRoute ? "forced" : "best-quote",
     routeToRun,
     shouldExecute: decision.shouldExecute
   };
@@ -268,7 +270,8 @@ async function executeUsdcToBrlaRebalance(
     deviationBps: coverageDeviationBps,
     fallbackRequiresProfit: policyDecision.profitable,
     opportunistic: options.opportunistic,
-    preflightQuotes: policyDecision.routeQuotes
+    preflightQuotes: policyDecision.routeQuotes,
+    routeSelection: policyDecision.routeSelection
   });
   return true;
 }

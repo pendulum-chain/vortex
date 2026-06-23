@@ -20,6 +20,7 @@ export interface RebalancePolicySummary {
     mainNablaQuoteUsdc: string | null;
     squidRouterQuoteUsdc: string | null;
   };
+  routeSelection?: "forced" | "best-quote";
 }
 
 interface BaseRebalanceCompletionMessageParams {
