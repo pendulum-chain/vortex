@@ -1,6 +1,10 @@
 import {describe, expect, test} from "bun:test";
 import {createUsdcBaseRebalanceState, UsdcBaseRebalancePhase} from "../../services/stateManager.ts";
-import {resetFailedSquidRouterSwapOnResume} from "./steps.ts";
+import {
+  ensurePolygonBrlaAvailableForSquidSwap,
+  recoverSquidUsdcOutputFromBaseBalance,
+  resetFailedSquidRouterSwapOnResume
+} from "./steps.ts";
 
 describe("USDC Base SquidRouter steps", () => {
   test("clears a persisted SquidRouter swap when the Polygon receipt failed", async () => {
@@ -15,7 +19,7 @@ describe("USDC Base SquidRouter steps", () => {
       }
     };
     const publicClient = {
-      getTransactionReceipt: async () => ({ status: "reverted" })
+      waitForTransactionReceipt: async () => ({ status: "reverted" })
     };
 
     await expect(
@@ -37,7 +41,7 @@ describe("USDC Base SquidRouter steps", () => {
       }
     };
     const publicClient = {
-      getTransactionReceipt: async () => ({ status: "success" })
+      waitForTransactionReceipt: async () => ({ status: "success" })
     };
 
     await expect(
@@ -45,5 +49,58 @@ describe("USDC Base SquidRouter steps", () => {
     ).resolves.toBe(false);
     expect(state.squidRouterSwapHash).toBe("0xsuccess");
     expect(state.squidRouterQuoteUsdc).toBe("999060253");
+  });
+
+  test("recovers SquidRouter output from Base USDC balance delta", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
+    state.squidRouterQuoteUsdc = "999000000";
+
+    const savedStates: Array<{ squidRouterQuoteUsdc: string | null }> = [];
+    const stateManager = {
+      saveState: async () => {
+        savedStates.push({ squidRouterQuoteUsdc: state.squidRouterQuoteUsdc });
+      }
+    };
+
+    await expect(
+      recoverSquidUsdcOutputFromBaseBalance(
+        "999000000",
+        "1000000",
+        state,
+        stateManager,
+        async () => "999500000"
+      )
+    ).resolves.toBe("998500000");
+    expect(state.squidRouterQuoteUsdc).toBe("998500000");
+    expect(savedStates).toEqual([{ squidRouterQuoteUsdc: "998500000" }]);
+  });
+
+  test("does not recover SquidRouter output when Base USDC delta is below tolerance", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
+    state.squidRouterQuoteUsdc = "999000000";
+
+    const stateManager = {
+      saveState: async () => {
+        throw new Error("insufficient recovery delta should not rewrite state");
+      }
+    };
+
+    await expect(
+      recoverSquidUsdcOutputFromBaseBalance(
+        "999000000",
+        "1000000",
+        state,
+        stateManager,
+        async () => "997000000"
+      )
+    ).resolves.toBeNull();
+    expect(state.squidRouterQuoteUsdc).toBe("999000000");
+  });
+
+  test("blocks SquidRouter swaps when Polygon BRLA is below the required input", () => {
+    expect(() => ensurePolygonBrlaAvailableForSquidSwap("499999999999999999999", "500000000000000000000")).toThrow(
+      "Insufficient Polygon BRLA"
+    );
+    expect(() => ensurePolygonBrlaAvailableForSquidSwap("500000000000000000000", "500000000000000000000")).not.toThrow();
   });
 });

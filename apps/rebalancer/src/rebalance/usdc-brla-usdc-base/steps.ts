@@ -590,7 +590,10 @@ export async function resetFailedSquidRouterSwapOnResume(
   stateManager: Pick<UsdcBaseStateManager, "saveState">,
   polygonPublicClient: PublicClient
 ): Promise<boolean> {
-  const receipt = await polygonPublicClient.getTransactionReceipt({ hash: swapHash as `0x${string}` });
+  const receipt = await polygonPublicClient.waitForTransactionReceipt({
+    confirmations: 1,
+    hash: swapHash as `0x${string}`
+  });
 
   if (receipt.status === "success") return false;
 
@@ -601,19 +604,61 @@ export async function resetFailedSquidRouterSwapOnResume(
   return true;
 }
 
+export async function recoverSquidUsdcOutputFromBaseBalance(
+  expectedUsdcRaw: string | null,
+  startingUsdcBalanceRaw: string | null,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  getCurrentBaseUsdcRaw = getUsdcBalanceOnBaseRaw
+): Promise<string | null> {
+  if (!expectedUsdcRaw || !startingUsdcBalanceRaw) return null;
+
+  const currentBaseUsdcRaw = Big(await getCurrentBaseUsdcRaw());
+  const receivedDeltaRaw = currentBaseUsdcRaw.minus(Big(startingUsdcBalanceRaw));
+  const minimumReceivedRaw = calculateMinimumDelta(Big(expectedUsdcRaw), DEFAULT_ARRIVAL_TOLERANCE);
+
+  if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
+
+  const recoveredUsdcRaw = receivedDeltaRaw.toFixed(0, 0);
+  state.squidRouterQuoteUsdc = recoveredUsdcRaw;
+  await stateManager.saveState(state);
+  console.log(
+    `Recovered SquidRouter Base USDC output from balance delta: ${multiplyByPowerOfTen(Big(recoveredUsdcRaw), -6).toFixed(6)} USDC ` +
+      `(pre: ${startingUsdcBalanceRaw}, post: ${currentBaseUsdcRaw.toFixed(0, 0)})`
+  );
+
+  return recoveredUsdcRaw;
+}
+
+export function ensurePolygonBrlaAvailableForSquidSwap(availableBrlaRaw: string, requiredBrlaRaw: string): void {
+  if (Big(availableBrlaRaw).gte(Big(requiredBrlaRaw))) return;
+
+  throw new Error(
+    `Insufficient Polygon BRLA for SquidRouter swap: required ${requiredBrlaRaw} raw, available ${availableBrlaRaw} raw.`
+  );
+}
+
 export async function squidRouterApproveAndSwap(
   brlaAmountRaw: string,
   baseReceiverAddress: `0x${string}`,
   polygonNonce: NonceManager,
   state: UsdcBaseRebalanceState,
   stateManager: UsdcBaseStateManager
-): Promise<{ swapHash: string; toAmountUsd: string; toAmountRaw: string }> {
+): Promise<{ swapHash: string | null; toAmountUsd: string; toAmountRaw: string }> {
   let swapHash = state.squidRouterSwapHash;
   let toAmountUsd = "0";
   let toAmountRaw = state.squidRouterQuoteUsdc ?? "0";
 
   if (swapHash) {
     const { publicClient: polygonPublicClient } = getPolygonEvmClients();
+
+    const recoveredUsdcRaw = await recoverSquidUsdcOutputFromBaseBalance(
+      state.squidRouterQuoteUsdc,
+      state.baseUsdcBalanceBeforeSquidSwapRaw,
+      state,
+      stateManager
+    );
+    if (recoveredUsdcRaw) return { swapHash, toAmountRaw: recoveredUsdcRaw, toAmountUsd };
 
     if (await resetFailedSquidRouterSwapOnResume(swapHash, state, stateManager, polygonPublicClient)) {
       swapHash = null;
@@ -626,6 +671,16 @@ export async function squidRouterApproveAndSwap(
 
     const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
     const polygonAddress = polygonWalletClient.account.address;
+
+    const recoveredUsdcRaw = await recoverSquidUsdcOutputFromBaseBalance(
+      state.squidRouterQuoteUsdc,
+      state.baseUsdcBalanceBeforeSquidSwapRaw,
+      state,
+      stateManager
+    );
+    if (recoveredUsdcRaw) return { swapHash, toAmountRaw: recoveredUsdcRaw, toAmountUsd };
+
+    ensurePolygonBrlaAvailableForSquidSwap(await getBrlaBalanceOnPolygonRaw(), brlaAmountRaw);
 
     const routeResult = await getRoute({
       bypassGuardrails: true,
@@ -643,6 +698,8 @@ export async function squidRouterApproveAndSwap(
     const route = routeResult.data.route;
     toAmountUsd = route.estimate.toAmountUSD;
     toAmountRaw = route.estimate.toAmount;
+    state.squidRouterQuoteUsdc = toAmountRaw;
+    await stateManager.saveState(state);
     console.log(`SquidRouter route obtained. Expected output: ${toAmountRaw} USDC (raw)`);
 
     const { approveData, swapData } = await createTransactionDataFromRoute({

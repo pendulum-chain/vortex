@@ -378,9 +378,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
       const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce, state, stateManager);
 
-      state.squidRouterSwapHash = result.swapHash;
+      if (result.swapHash) {
+        state.squidRouterSwapHash = result.swapHash;
+      }
       state.squidRouterQuoteUsdc = result.toAmountRaw;
-      console.log(`SquidRouter swap completed. Tx: ${result.swapHash}`);
+      console.log(`SquidRouter swap completed. Tx: ${result.swapHash ?? "recovered from Base balance"}`);
       state.currentPhase = UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid;
       await stateManager.saveState(state);
     }
