@@ -46,14 +46,6 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
 
   return (
     <section className="mt-6">
-      <div className="mb-2 flex justify-between">
-        <p>{t("components.feeCollapse.totalFee")}</p>
-        <p className="flex items-center gap-2">
-          <strong>
-            {effectiveTotalFee} {feesCost.currency.toUpperCase()}
-          </strong>
-        </p>
-      </div>
       {discount && (
         <div className="mb-2 flex justify-between">
           <p>{t("components.feeCollapse.discount.label")}</p>
@@ -64,6 +56,14 @@ export const FeeDetails: FC<FeeDetailsProps> = ({
           </p>
         </div>
       )}
+      <div className="mb-2 flex justify-between">
+        <p>{t("components.feeCollapse.totalFee")}</p>
+        <p className="flex items-center gap-2">
+          <strong>
+            {effectiveTotalFee} {feesCost.currency.toUpperCase()}
+          </strong>
+        </p>
+      </div>
       <div className="mb-2 flex justify-between">
         <p>{t("components.SummaryPage.quote")}</p>
         <p>
