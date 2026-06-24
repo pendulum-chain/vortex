@@ -1,11 +1,20 @@
 // eslint-disable-next-line import/no-unresolved
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 // Import the mocked function to check calls
-import {getTokenOutAmount as getTokenOutAmountMock} from "@vortexfi/shared";
+import {getTokenOutAmount as getTokenOutAmountMock, type RampCurrency} from "@vortexfi/shared";
 import {PriceFeedService, priceFeedService} from "./priceFeed.service";
 
 // Mock all external dependencies
-mock.module("shared", () => ({
+mock.module("@vortexfi/shared", () => ({
+  ApiManager: {
+    getInstance: mock(() => ({
+      getApi: mock(async () => ({
+        api: {},
+        decimals: 12,
+        ss58Format: 42
+      }))
+    }))
+  },
   EvmToken: {
     USDC: "USDC",
     USDCE: "USDC.e",
@@ -37,7 +46,29 @@ mock.module("shared", () => ({
       pendulumErc20WrapperAddress: "0x123"
     };
   }),
+  getTokenOutAmount: mock(async () => ({
+    effectiveExchangeRate: "1.25",
+    preciseQuotedAmountOut: {
+      preciseBigDecimal: {
+        toString: () => "1.25"
+      }
+    },
+    roundedDownQuotedAmountOut: {
+      toString: () => "1.25"
+    },
+    swapFee: {
+      toString: () => "0.01"
+    }
+  })),
+  getTokenUsdPrice: mock(() => undefined),
   isFiatToken: mock((currency: string) => ["BRL", "EUR", "ARS"].includes(currency)),
+  normalizeTokenSymbol: mock((currency: string) => currency),
+  PENDULUM_USDC_AXL: {
+    pendulumAssetSymbol: "USDC",
+    pendulumCurrencyId: { Token: "USDC" },
+    pendulumDecimals: 6,
+    pendulumErc20WrapperAddress: "0xUSDC"
+  },
   RampCurrency: {
     ARS: "ARS",
     AVAX: "AVAX",
@@ -48,6 +79,11 @@ mock.module("shared", () => ({
     GLMR: "GLMR",
     MATIC: "MATIC",
     USD: "USD",
+    USDC: "USDC",
+    USDCE: "USDC.e",
+    USDT: "USDT"
+  },
+  UsdLikeEvmToken: {
     USDC: "USDC",
     USDCE: "USDC.e",
     USDT: "USDT"
@@ -243,6 +279,7 @@ describe("PriceFeedService", () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const serviceInstance = PriceFeedService.getInstance(); // Get the new instance
+      Object.assign(serviceInstance, { cryptoCacheTtlMs: 100 });
 
       // Mock Date.now to return a fixed timestamp
       const startTime = 1000000;
@@ -390,7 +427,7 @@ describe("PriceFeedService", () => {
     beforeEach(() => {
       // Add validation to the mock implementation
       (getTokenOutAmountMock as any).mockImplementation(async (params: any) => {
-        if (!params.fromAmountString || !params.inputTokenDetails || !params.outputTokenDetails) {
+        if (!params.fromAmountString || !params.inputTokenPendulumDetails || !params.outputTokenPendulumDetails) {
           throw new Error("Missing required parameters");
         }
         return {
@@ -432,6 +469,7 @@ describe("PriceFeedService", () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
       const serviceInstance = PriceFeedService.getInstance(); // Get new instance
+      Object.assign(serviceInstance, { fiatCacheTtlMs: 100 });
 
       // Mock Date.now to return a fixed timestamp
       const startTime = 1000000;
@@ -481,7 +519,7 @@ describe("PriceFeedService", () => {
   describe("convertCurrency", () => {
     it("should return the original amount when currencies are the same", async () => {
       const result = await priceFeedService.convertCurrency("100", "USDC" as any, "USDC" as any);
-      expect(result).toBe("100");
+      expect(result).toBe("100.00000000");
     });
 
     it("should perform 1:1 conversion between USD-like stablecoins", async () => {
@@ -499,7 +537,7 @@ describe("PriceFeedService", () => {
       (getTokenOutAmountMock as any).mockClear();
 
       const result = await freshInstance.convertCurrency("100", "USDC" as any, "BRL" as any);
-      expect(result).toBe("125.000000"); // 100 * 1.25 = 125
+      expect(result).toBe("125.00"); // 100 * 1.25 = 125
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
     });
 
@@ -513,13 +551,13 @@ describe("PriceFeedService", () => {
       (getTokenOutAmountMock as any).mockClear();
 
       const result = await freshInstance.convertCurrency("125", "BRL" as any, "USDC" as any);
-      expect(result).toBe("100.000000"); // 125 / 1.25 = 100
+      expect(result).toBe("100.00000000"); // 125 / 1.25 = 100
       expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
     });
 
     it("should convert USD to crypto using getCryptoPrice", async () => {
       const result = await priceFeedService.convertCurrency("300", "USDC" as any, "ETH" as any);
-      expect(result).toBe("0.100000"); // 300 / 3000 = 0.1
+      expect(result).toBe("0.10000000"); // 300 / 3000 = 0.1
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
@@ -533,23 +571,19 @@ describe("PriceFeedService", () => {
       fetchMock.mockClear();
 
       const result = await freshInstance.convertCurrency("0.1", "ETH" as any, "USDC" as any);
-      expect(result).toBe("300.000000"); // 0.1 * 3000 = 300
+      expect(result).toBe("300.00000000"); // 0.1 * 3000 = 300
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it("should handle conversion errors by returning the original amount", async () => {
-      // Force an error by making getCoinGeckoTokenId return null
-      // @ts-expect-error - accessing private method for testing
-      const originalGetCoinGeckoTokenId = priceFeedService.getCoinGeckoTokenId;
-      // @ts-expect-error - overriding private method for testing
-      priceFeedService.getCoinGeckoTokenId = () => null;
+    it("should fail closed on conversion errors", async () => {
+      await expect(priceFeedService.convertCurrency("100", "USDC" as RampCurrency, "UNKNOWN" as RampCurrency)).rejects.toThrow(
+        "No CoinGecko token ID mapping for UNKNOWN"
+      );
+    });
 
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "UNKNOWN" as any);
-      expect(result).toBe("100"); // Should return original amount on error
-
-      // Restore the original method
-      // @ts-expect-error - restoring private method
-      priceFeedService.getCoinGeckoTokenId = originalGetCoinGeckoTokenId;
+    it("should return the original amount only through the explicit fallback helper", async () => {
+      const result = await priceFeedService.convertCurrencyOrOriginal("100", "USDC" as RampCurrency, "UNKNOWN" as RampCurrency);
+      expect(result).toBe("100");
     });
 
     it("should use specified decimal precision", async () => {
@@ -582,8 +616,8 @@ describe("PriceFeedService", () => {
       expect(instance.fiatCacheTtlMs).toBe(300000);
     });
 
-    it("should use environment variables when provided", () => {
-      // Set specific values for this test
+    it("should keep loaded configuration values when environment variables change after import", () => {
+      // Set specific values after the config module has already been imported
       process.env.COINGECKO_API_URL = "https://custom-api.example.com";
       process.env.CRYPTO_CACHE_TTL_MS = "60000";
       process.env.FIAT_CACHE_TTL_MS = "120000";
@@ -596,11 +630,11 @@ describe("PriceFeedService", () => {
       const instance = PriceFeedService.getInstance();
 
       // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe("https://custom-api.example.com");
+      expect(instance.coingeckoApiBaseUrl).toBe("https://pro-api.coingecko.com/api/v3");
       // @ts-expect-error - accessing private properties for testing
-      expect(instance.cryptoCacheTtlMs).toBe(60000);
+      expect(instance.cryptoCacheTtlMs).toBe(300000);
       // @ts-expect-error - accessing private properties for testing
-      expect(instance.fiatCacheTtlMs).toBe(120000);
+      expect(instance.fiatCacheTtlMs).toBe(300000);
     });
   });
 });
