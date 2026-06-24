@@ -20,8 +20,8 @@ interface DashboardState {
   activeAccountId: string;
   setActiveAccount: (id: string) => void;
   setOnboardingStatus: (accountId: string, corridorId: CorridorId, status: OnboardingStatus) => void;
-  /** Creates a new account from registration and returns its id. */
-  createAccount: (input: { name: string; type: AccountType; identifier: string; selectedCorridors: CorridorId[] }) => string;
+  /** Activates the account for this email, creating an empty one (→ onboarding CTA) if none exists. */
+  signInWithEmail: (email: string) => void;
   /** Adds a corridor to an account's tracked set (no-op if already present). */
   addCorridorToAccount: (accountId: string, corridorId: CorridorId) => void;
   /** Returns the new recipient id so callers can simulate async registration. */
@@ -30,6 +30,17 @@ interface DashboardState {
   /** Records a triggered on/off-ramp and returns its id so callers can settle it async. */
   addTransaction: (input: Omit<Transaction, "id" | "createdAt">) => string;
   setTransactionStatus: (id: string, status: Transaction["status"]) => void;
+}
+
+/** Derives a readable account name from an email handle (e.g. "ops.team" -> "Ops Team"). */
+function accountNameFromEmail(email: string): string {
+  const handle = email.split("@")[0] ?? "";
+  const name = handle
+    .split(/[.\-_]/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+  return name || "Your business";
 }
 
 function makeOnboarding(corridorId: CorridorId, accountType: AccountType): Onboarding {
@@ -79,23 +90,6 @@ export const useDashboardStore = create<DashboardState>()(
         set(state => ({ transactions: [transaction, ...state.transactions] }));
         return transaction.id;
       },
-      createAccount: input => {
-        const id = `acc_${crypto.randomUUID().slice(0, 8)}`;
-        const onboardings: SenderAccount["onboardings"] = {};
-        for (const corridorId of input.selectedCorridors) {
-          onboardings[corridorId] = makeOnboarding(corridorId, input.type);
-        }
-        const account: SenderAccount = {
-          id,
-          identifier: input.identifier,
-          name: input.name,
-          onboardings,
-          selectedCorridors: input.selectedCorridors,
-          type: input.type
-        };
-        set(state => ({ accounts: [...state.accounts, account], activeAccountId: id }));
-        return id;
-      },
       recipients: SEED_RECIPIENTS,
       setActiveAccount: id => set({ activeAccountId: id }),
       setOnboardingStatus: (accountId, corridorId, status) =>
@@ -127,6 +121,23 @@ export const useDashboardStore = create<DashboardState>()(
             transaction.id === id ? { ...transaction, status } : transaction
           )
         })),
+      signInWithEmail: email =>
+        set(state => {
+          const existing = state.accounts.find(account => account.identifier === email);
+          if (existing) {
+            return { activeAccountId: existing.id };
+          }
+          const id = `acc_${crypto.randomUUID().slice(0, 8)}`;
+          const account: SenderAccount = {
+            id,
+            identifier: email,
+            name: accountNameFromEmail(email),
+            onboardings: {},
+            selectedCorridors: [],
+            type: "company"
+          };
+          return { accounts: [...state.accounts, account], activeAccountId: id };
+        }),
       transactions: SEED_TRANSACTIONS
     }),
     {

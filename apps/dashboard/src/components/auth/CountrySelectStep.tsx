@@ -7,10 +7,12 @@ import type { CorridorId } from "@/domain/types";
 import { cn } from "@/lib/cn";
 
 export function CountrySelectStep({
-  defaultSelected,
+  defaultSelected = [],
+  submitLabel = "Continue",
   onSubmit
 }: {
-  defaultSelected: CorridorId[];
+  defaultSelected?: CorridorId[];
+  submitLabel?: string;
   onSubmit: (corridors: CorridorId[]) => void;
 }) {
   const [selected, setSelected] = useState<CorridorId[]>(defaultSelected);
@@ -64,7 +66,7 @@ export function CountrySelectStep({
       </div>
 
       <Button className="w-full" disabled={selected.length === 0} onClick={() => onSubmit(selected)}>
-        Create account
+        {submitLabel}
       </Button>
     </div>
   );

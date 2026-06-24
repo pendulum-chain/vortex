@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth.store";
+import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage
@@ -21,6 +22,7 @@ type FormValues = z.infer<typeof schema>;
 function LoginPage() {
   const user = useAuthStore(state => state.user);
   const login = useAuthStore(state => state.login);
+  const signInWithEmail = useDashboardStore(state => state.signInWithEmail);
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
 
@@ -38,9 +40,9 @@ function LoginPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">{email ? "Verify your email" : "Welcome back"}</CardTitle>
+            <CardTitle className="text-xl">{email ? "Verify your email" : "Connect with Vortex"}</CardTitle>
             <CardDescription>
-              {email ? "Enter the 6-digit code we sent you." : "Sign in to manage onboarding and recipients."}
+              {email ? "Enter the 6-digit code we sent you." : "Enter your email — we'll sign you in or create your account."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -49,6 +51,7 @@ function LoginPage() {
                 email={email}
                 onChangeEmail={() => setEmail(null)}
                 onVerify={() => {
+                  signInWithEmail(email);
                   login(email);
                   navigate({ to: "/overview" });
                 }}
@@ -72,18 +75,12 @@ function LoginPage() {
                   <Button className="w-full" type="submit">
                     Continue
                   </Button>
-                  <p className="text-center text-muted-foreground text-xs">Demo environment — any email signs you in.</p>
+                  <p className="text-center text-muted-foreground text-xs">Demo environment — any email works.</p>
                 </form>
               </Form>
             )}
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-muted-foreground text-sm">
-          New to Vortex?{" "}
-          <Link className="text-primary hover:underline" to="/register">
-            Create an account
-          </Link>
-        </p>
       </div>
     </div>
   );

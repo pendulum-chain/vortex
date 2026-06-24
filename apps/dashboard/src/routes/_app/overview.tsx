@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CircleCheck, Clock, Globe, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { CountrySelectStep } from "@/components/auth/CountrySelectStep";
 import { AddCorridorDropdown } from "@/components/onboarding/AddCorridorDropdown";
 import { CorridorCard } from "@/components/onboarding/CorridorCard";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { Card, CardContent } from "@/components/ui/card";
 import { CORRIDORS, isLive } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
+import type { CorridorId, SenderAccount } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage
@@ -19,6 +21,10 @@ function OverviewPage() {
 
   if (!account) {
     return null;
+  }
+
+  if (account.selectedCorridors.length === 0) {
+    return <ChooseCountriesCta account={account} />;
   }
 
   const corridors = account.selectedCorridors.map(id => CORRIDORS[id]);
@@ -74,6 +80,34 @@ function OverviewPage() {
           onClose={() => setActiveCorridor(null)}
         />
       )}
+    </div>
+  );
+}
+
+function ChooseCountriesCta({ account }: { account: SenderAccount }) {
+  const addCorridorToAccount = useDashboardStore(state => state.addCorridorToAccount);
+
+  return (
+    <div className="mx-auto grid max-w-xl gap-6">
+      <div className="text-center">
+        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <Globe className="size-6" />
+        </span>
+        <h1 className="font-semibold text-2xl tracking-tight">Welcome to Vortex</h1>
+        <p className="text-muted-foreground">Choose the countries you want to operate in to start your KYB/KYC onboarding.</p>
+      </div>
+      <Card>
+        <CardContent>
+          <CountrySelectStep
+            onSubmit={corridors => {
+              for (const id of corridors) {
+                addCorridorToAccount(account.id, id);
+              }
+            }}
+            submitLabel="Start onboarding"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
