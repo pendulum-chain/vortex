@@ -54,6 +54,19 @@ export class AlfredpayHandler implements RampHandler {
     this.signTransactions = signTransactions;
   }
 
+  private getEphemeralTransactions(
+    unsignedTxs: UnsignedTx[],
+    ephemerals: { [key in EphemeralAccountType]?: EphemeralAccount }
+  ): UnsignedTx[] {
+    const ephemeralSigners = new Set(
+      [ephemerals.EVM?.address, ephemerals.Substrate?.address]
+        .filter((address): address is string => Boolean(address))
+        .map(address => address.toLowerCase())
+    );
+
+    return unsignedTxs.filter(tx => ephemeralSigners.has(tx.signer.toLowerCase()));
+  }
+
   async registerAlfredpayOnramp(quoteId: string, additionalData: AlfredpayOnrampAdditionalData): Promise<RampProcess> {
     if (!additionalData.destinationAddress) {
       throw new MissingAlfredpayOnrampParametersError();
@@ -76,7 +89,8 @@ export class AlfredpayHandler implements RampHandler {
 
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
+    const ephemeralTxs = this.getEphemeralTransactions(rampProcess.unsignedTxs || [], ephemerals);
+    const signedTxs = await this.signTransactions(ephemeralTxs, {
       evmEphemeral: ephemerals.EVM,
       substrateEphemeral: ephemerals.Substrate
     });
@@ -111,7 +125,8 @@ export class AlfredpayHandler implements RampHandler {
 
     await this.context.storeEphemerals(ephemerals, rampProcess.id);
 
-    const signedTxs = await this.signTransactions(rampProcess.unsignedTxs || [], {
+    const ephemeralTxs = this.getEphemeralTransactions(rampProcess.unsignedTxs || [], ephemerals);
+    const signedTxs = await this.signTransactions(ephemeralTxs, {
       evmEphemeral: ephemerals.EVM,
       substrateEphemeral: ephemerals.Substrate
     });

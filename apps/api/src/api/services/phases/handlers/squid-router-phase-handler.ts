@@ -60,7 +60,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         `SquidRouterPhaseHandler: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
       );
     }
-    await state.update({ state: { ...state.state, preSettlementBalance } });
+    state.state = { ...state.state, preSettlementBalance };
+    await state.update({ state: state.state });
   }
 
   /**
@@ -186,12 +187,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
         logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
         // Update the state with the approve hash immediately after sending the transaction
-        await state.update({
-          state: {
-            ...state.state,
-            squidRouterApproveHash: approveHash
-          }
-        });
+        state.state = { ...state.state, squidRouterApproveHash: approveHash };
+        await state.update({ state: state.state });
       }
 
       // Wait for the approve transaction to be confirmed
@@ -203,12 +200,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
       // Update the state with the transaction hashes
-      const updatedState = await state.update({
-        state: {
-          ...state.state,
-          squidRouterSwapHash: swapHash
-        }
-      });
+      state.state = { ...state.state, squidRouterSwapHash: swapHash };
+      await state.update({ state: state.state });
 
       // Wait for the swap transaction to be confirmed
       await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
@@ -216,7 +209,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
 
       // preSettlementBalance was captured before the swap (see above); do not re-snapshot here.
       // Transition to the next phase
-      return this.transitionToNextPhase(updatedState, "squidRouterPay");
+      return this.transitionToNextPhase(state, "squidRouterPay");
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;

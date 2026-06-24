@@ -165,9 +165,9 @@ export interface OfframpUpdateAdditionalData {
 }
 
 // BRL, EUR, and Alfredpay offramps all push back the same on-chain tx hashes.
-export type BrlOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
-export type EurOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
-export type AlfredpayOfframpUpdateAdditionalData = OfframpUpdateAdditionalData;
+export interface BrlOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
+export interface EurOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
+export interface AlfredpayOfframpUpdateAdditionalData extends OfframpUpdateAdditionalData {}
 
 export interface BrlKycResponse {
   evmAddress: string;
