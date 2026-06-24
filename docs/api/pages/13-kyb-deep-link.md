@@ -18,7 +18,7 @@ After verification the user lands on a **KYB Completed** screen. *Continue* retu
 
 ## URL Parameters
 
-Append one of these to the widget URL (e.g. `https://widget.vortexfinance.co/en/widget?kyb`):
+Append one of these to the widget URL (e.g. `https://vortexfinance.co/widget?kyb`):
 
 | URL | Behavior |
 |---|---|
@@ -35,7 +35,7 @@ Query keys are case-sensitive: use `kyb` and `kybLocked` exactly. Region codes a
 `externalSessionId`, `partnerId`, and `apiKey` are forwarded in KYB mode exactly as in the quoted widget flow, so partner and session attribution work the same way:
 
 ```
-https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id&partnerId=my-partner&apiKey=pk_live_...
+https://vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id&partnerId=my-partner&apiKey=pk_live_...
 ```
 
 Pass your partner public key (`pk_live_*` / `pk_test_*`) as `apiKey` for attribution. `externalSessionId` is your own opaque identifier and is echoed back in [webhook payloads](https://api-docs.vortexfinance.co/webhooks).
@@ -46,7 +46,7 @@ The KYB deep link is a normal widget URL, so the same embed options apply:
 
 ```html
 <iframe
-  src="https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id"
+  src="https://vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id"
   allow="clipboard-write"
   style="width: 100%; height: 720px; border: 0;"
 ></iframe>
@@ -54,7 +54,7 @@ The KYB deep link is a normal widget URL, so the same embed options apply:
 
 ```js
 window.open(
-  "https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id",
+  "https://vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id",
   "vortex-kyb",
   "width=480,height=760"
 );
