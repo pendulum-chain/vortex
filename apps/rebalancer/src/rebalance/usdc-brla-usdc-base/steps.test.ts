@@ -2,6 +2,7 @@ import {describe, expect, test} from "bun:test";
 import {createUsdcBaseRebalanceState, UsdcBaseRebalancePhase} from "../../services/stateManager.ts";
 import {
   ensurePolygonBrlaAvailableForSquidSwap,
+  recoverAveniaPolygonTransferFromBalance,
   recoverSquidUsdcOutputFromBaseBalance,
   resetFailedSquidRouterSwapOnResume
 } from "./steps.ts";
@@ -121,5 +122,49 @@ describe("USDC Base SquidRouter steps", () => {
       "Insufficient Polygon BRLA"
     );
     expect(() => ensurePolygonBrlaAvailableForSquidSwap("500000000000000000000", "500000000000000000000")).not.toThrow();
+  });
+
+  test("recovers Avenia Polygon transfer from BRLA balance delta", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.AveniaTransferToPolygon);
+    const savedStates: Array<{ brlaAmountDecimal: string | null; brlaAmountRaw: string | null }> = [];
+    const stateManager = {
+      saveState: async () => {
+        savedStates.push({ brlaAmountDecimal: state.brlaAmountDecimal, brlaAmountRaw: state.brlaAmountRaw });
+      }
+    };
+
+    await expect(
+      recoverAveniaPolygonTransferFromBalance(
+        "5229427423000000000000",
+        "4045105000000000000",
+        state,
+        stateManager,
+        async () => "5233472528000000000000"
+      )
+    ).resolves.toBe("5229427423000000000000");
+    expect(state.brlaAmountRaw).toBe("5229427423000000000000");
+    expect(state.brlaAmountDecimal).toBe("5229.427423");
+    expect(savedStates).toEqual([{ brlaAmountDecimal: "5229.427423", brlaAmountRaw: "5229427423000000000000" }]);
+  });
+
+  test("does not recover Avenia Polygon transfer when BRLA delta is below tolerance", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.AveniaTransferToPolygon);
+    const stateManager = {
+      saveState: async () => {
+        throw new Error("insufficient recovery delta should not rewrite state");
+      }
+    };
+
+    await expect(
+      recoverAveniaPolygonTransferFromBalance(
+        "5229427423000000000000",
+        "4045105000000000000",
+        state,
+        stateManager,
+        async () => "4900000000000000000000"
+      )
+    ).resolves.toBeNull();
+    expect(state.brlaAmountRaw).toBeNull();
+    expect(state.brlaAmountDecimal).toBeNull();
   });
 });

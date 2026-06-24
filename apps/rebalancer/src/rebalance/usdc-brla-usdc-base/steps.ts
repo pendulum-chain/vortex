@@ -584,6 +584,31 @@ export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalan
   return arrivedRaw;
 }
 
+export async function recoverAveniaPolygonTransferFromBalance(
+  expectedBrlaRaw: string,
+  startingBrlaBalanceRaw: string,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  getCurrentPolygonBrlaRaw = getBrlaBalanceOnPolygonRaw
+): Promise<string | null> {
+  const currentPolygonBrlaRaw = Big(await getCurrentPolygonBrlaRaw());
+  const receivedDeltaRaw = currentPolygonBrlaRaw.minus(Big(startingBrlaBalanceRaw));
+  const minimumReceivedRaw = calculateMinimumDelta(Big(expectedBrlaRaw), "0.95");
+
+  if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
+
+  const recoveredBrlaRaw = receivedDeltaRaw.toFixed(0, 0);
+  state.brlaAmountRaw = recoveredBrlaRaw;
+  state.brlaAmountDecimal = multiplyByPowerOfTen(Big(recoveredBrlaRaw), -18).toString();
+  await stateManager.saveState(state);
+  console.log(
+    `Recovered Avenia Polygon BRLA transfer from balance delta: ${state.brlaAmountDecimal} BRLA ` +
+      `(pre: ${startingBrlaBalanceRaw}, post: ${currentPolygonBrlaRaw.toFixed(0, 0)})`
+  );
+
+  return recoveredBrlaRaw;
+}
+
 export async function resetFailedSquidRouterSwapOnResume(
   swapHash: string,
   state: UsdcBaseRebalanceState,
