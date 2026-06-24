@@ -15,12 +15,17 @@ export const AveniaKYBForm = () => {
     initialData: {
       fullName: aveniaState?.context.kycFormData?.fullName,
       taxId: aveniaState?.context.taxId
-    }
+    },
+    // No quote-supplied tax ID means the user types it on this form; KYB is business-only, so require a CNPJ.
+    requireCnpj: !aveniaState?.context.taxId
   });
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
-  if (!aveniaState.context.taxId) {
+  // Quoted flow pre-supplies the CNPJ from the quote; the KYB deep-link flow has no quote, so the CNPJ
+  // is entered here together with the company name. Render whenever either source applies.
+  const hasQuoteTaxId = !!aveniaState.context.taxId;
+  if (!hasQuoteTaxId && !aveniaState.context.kybLink) {
     return null;
   }
 
@@ -37,8 +42,8 @@ export const AveniaKYBForm = () => {
       id: ExtendedAveniaFieldOptions.TAX_ID,
       index: 1,
       label: "CNPJ",
-      placeholder: "",
-      readOnly: true,
+      placeholder: "00.000.000/0000-00",
+      readOnly: hasQuoteTaxId,
       required: true,
       type: "text"
     }

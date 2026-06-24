@@ -66,7 +66,7 @@ export function DropdownSelector({
         aria-haspopup="listbox"
         aria-label={triggerAriaLabel}
         className={cn(
-          "flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-3 rounded-xl border border-base-300 bg-base-200 px-3 py-2.5 text-left transition-colors active:scale-[0.98]",
+          "flex min-h-[44px] w-full cursor-pointer touch-manipulation items-center gap-3 rounded-xl border border-base-300 bg-base-200 px-3 py-2.5 text-left transition-[border-color,background-color,transform] active:scale-[0.96]",
           "[@media(hover:hover)]:hover:border-gray-300 [@media(hover:hover)]:hover:bg-neutral"
         )}
         onClick={() => onOpenChange(!open)}
@@ -85,7 +85,7 @@ export function DropdownSelector({
         </motion.div>
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {open && (
           <motion.div
             {...dropdownVariants}

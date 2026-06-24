@@ -7,7 +7,9 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    sourcemap: true,
+    // "hidden" uploads source maps to Sentry without leaving sourceMappingURL
+    // comments in the shipped bundles.
+    sourcemap: "hidden",
     target: "esnext"
   },
   define: {

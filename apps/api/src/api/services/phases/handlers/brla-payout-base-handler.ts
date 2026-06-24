@@ -16,6 +16,10 @@ import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "brlaPayoutOnBase";
@@ -66,7 +70,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       const pollInterval = 5000; // 5 seconds
       const timeout = 5 * 60 * 1000; // 5 minutes
       const startTime = Date.now();
-      let lastError: any;
+      let lastError: unknown;
 
       while (Date.now() - startTime < timeout) {
         try {
@@ -225,7 +229,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     const pollInterval = 5000; // 5 seconds
     const timeout = 5 * 60 * 1000; // 5 minutes
     const startTime = Date.now();
-    let lastError: any;
+    let lastError: unknown;
 
     while (Date.now() - startTime < timeout) {
       try {
@@ -252,7 +256,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     if (lastError) {
       logger.error("BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ", lastError);
       throw this.createUnrecoverableError(
-        `BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ${lastError.message}`
+        `BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ${getErrorMessage(lastError)}`
       );
     }
 

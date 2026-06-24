@@ -249,7 +249,10 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     fromNetwork === Networks.Polygon && inputTokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
 
   const publicClient = evmClientManager.getClient(fromNetwork);
-  const chainId = getNetworkId(fromNetwork)!;
+  const chainId = getNetworkId(fromNetwork);
+  if (chainId === undefined) {
+    throw new Error(`Unsupported EVM network for Alfredpay offramp: ${fromNetwork}`);
+  }
 
   // Probe EIP-2612 support: tokens that don't implement nonces() (e.g. USDT on Base) revert here.
   // Only treat contract-call failures as "no permit"; rethrow network/transport errors.
@@ -367,7 +370,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
       const payloadTypedData: SignedTypedData = {
         domain: {
-          chainId: getNetworkId(fromNetwork)!,
+          chainId,
           name: "TokenRelayer",
           verifyingContract: relayerAddress,
           version: "1"

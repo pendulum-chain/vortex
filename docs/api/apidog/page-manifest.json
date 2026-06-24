@@ -107,6 +107,12 @@
       "slug": "ai-agent-integration",
       "source": "docs/api/pages/12-ai-agent-integration.md",
       "title": "AI Agent Integration"
+    },
+    {
+      "order": 13,
+      "slug": "kyb-deep-link",
+      "source": "docs/api/pages/13-kyb-deep-link.md",
+      "title": "KYB Deep Link"
     }
   ],
   "publicDocsUrl": "https://api-docs.vortexfinance.co/"

@@ -245,6 +245,7 @@
           "required": "Street is required"
         },
         "taxId": {
+          "cnpjFormat": "Invalid CNPJ format",
           "format": "Invalid Tax ID format",
           "required": "Tax ID is required"
         }
@@ -349,6 +350,10 @@
     },
     "feeCollapse": {
       "details": "Details",
+      "discount": {
+        "label": "Discount",
+        "tooltip": "Vortex is giving a discount on platform costs."
+      },
       "finalAmount": "Final Amount",
       "netRate": {
         "label": "Effective Rate",
@@ -362,7 +367,7 @@
         "label": "Processing fee",
         "tooltip": "This fee covers partner and Vortex platform costs."
       },
-      "totalFee": "Total Fee",
+      "totalFee": "Effective Fee",
       "yourQuote": "Your quote"
     },
     "fiatAccountForms": {
@@ -673,6 +678,19 @@
       "thankYou": "Thank you!",
       "title": "Your opinion matters!"
     },
+    "regionSelectStep": {
+      "continue": "Continue",
+      "description": "Select the region you want to verify your business for.",
+      "label": "Region",
+      "placeholder": "Select a region",
+      "regions": {
+        "BR": "Brazil",
+        "CO": "Colombia",
+        "MX": "Mexico",
+        "US": "United States"
+      },
+      "title": "Select Your Region"
+    },
     "SummaryPage": {
       "ARSOnrampDetails": {
         "aliasLabel": "Alias",
@@ -793,6 +811,7 @@
           "required": "PIX key is required when transferring BRL"
         },
         "taxId": {
+          "cnpjFormat": "Invalid CNPJ format",
           "format": "Invalid CPF or CNPJ format",
           "required": "CPF or CNPJ is required when transferring BRL"
         },

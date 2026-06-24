@@ -248,6 +248,7 @@
           "required": "Rua é obrigatória"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "Tax Id inválido",
           "required": "Tax Id é obrigatório"
         }
@@ -352,6 +353,10 @@
     },
     "feeCollapse": {
       "details": "Detalhes",
+      "discount": {
+        "label": "Desconto",
+        "tooltip": "A Vortex está dando um desconto nos custos da plataforma."
+      },
       "finalAmount": "Valor final",
       "netRate": {
         "label": "Câmbio Efetiva",
@@ -365,7 +370,7 @@
         "label": "Taxa de processamento",
         "tooltip": "Essa taxa cobre os custos do parceiro e da plataforma Vortex."
       },
-      "totalFee": "Taxa total",
+      "totalFee": "Taxa efetiva",
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {
@@ -677,6 +682,19 @@
       "thankYou": "Obrigado!",
       "title": "Sua opinião é importante!"
     },
+    "regionSelectStep": {
+      "continue": "Continuar",
+      "description": "Selecione a região para a qual deseja verificar sua empresa.",
+      "label": "Região",
+      "placeholder": "Selecione uma região",
+      "regions": {
+        "BR": "Brasil",
+        "CO": "Colômbia",
+        "MX": "México",
+        "US": "Estados Unidos"
+      },
+      "title": "Selecione sua região"
+    },
     "SummaryPage": {
       "ARSOnrampDetails": {
         "aliasLabel": "Alias",
@@ -797,6 +815,7 @@
           "required": "Chave PIX é obrigatória para transferências em BRL"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
         },

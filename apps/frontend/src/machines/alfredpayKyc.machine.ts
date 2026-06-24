@@ -384,6 +384,11 @@ export const alfredpayKycMachine = setup({
             target: "FailureKyc"
           },
           {
+            // Business (KYB deep link) on API-based countries → company KYB form, not the individual KYC form.
+            guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
+            target: "FillingKybForm"
+          },
+          {
             // MXN, CO, and AR use API-based form, not iFrame link
             guard: ({ context }) => context.country === "MX" || context.country === "CO" || context.country === "AR",
             target: "FillingKycForm"
@@ -397,9 +402,10 @@ export const alfredpayKycMachine = setup({
           {
             // No customer found → show CustomerDefinition for all countries (individual or business choice)
             guard: ({ event }) => {
-              const error = event.error as any;
-              const message = (error?.message || error?.toString() || "").toLowerCase();
-              return error?.status === 404 || message.includes("404") || message.includes("not found");
+              const error = event.error;
+              const errorRecord = error && typeof error === "object" ? (error as Record<string, unknown>) : {};
+              const message = String(errorRecord.message ?? error).toLowerCase();
+              return errorRecord.status === 404 || message.includes("404") || message.includes("not found");
             },
             target: "CustomerDefinition"
           },

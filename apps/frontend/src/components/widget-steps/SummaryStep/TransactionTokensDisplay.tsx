@@ -134,6 +134,14 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <FeeDetails
         destinationAddress={destinationAddress}
         direction={rampDirection}
+        discount={
+          Big(quote.discountFiat || "0").gt(0)
+            ? {
+                amount: Big(quote.discountFiat || "0").toFixed(2),
+                currency: quote.discountCurrency || quote.feeCurrency
+              }
+            : undefined
+        }
         exchangeRate={Big(quote.outputAmount).div(quote.inputAmount).toFixed(4)}
         feesCost={{
           anchor: quote.anchorFeeFiat,

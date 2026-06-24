@@ -18,6 +18,19 @@ import { StateMetadata } from "../meta-state-types";
 const ALFREDPAY_POLL_INTERVAL_MS = 30000;
 const ALFREDPAY_OFFRAMP_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
+type AlfredpayFailedStatusError = {
+  failureReason?: string;
+  kind: "failed";
+};
+
+function isAlfredpayFailedStatusError(error: unknown): error is AlfredpayFailedStatusError {
+  return !!error && typeof error === "object" && "kind" in error && error.kind === "failed";
+}
+
+function getErrorName(error: unknown): string | undefined {
+  return error && typeof error === "object" && "name" in error ? String(error.name) : undefined;
+}
+
 export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "alfredpayOfframpTransfer";
@@ -85,8 +98,8 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
             `AlfredpayOfframpTransferHandler: Final transfer transaction ${alfredpayOfframpTransferTxHash} failed on chain.`
           );
         }
-      } catch (error: any) {
-        if (error?.name !== "TransactionReceiptNotFoundError") {
+      } catch (error) {
+        if (getErrorName(error) !== "TransactionReceiptNotFoundError") {
           throw error;
         }
       }
@@ -94,8 +107,8 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
 
     try {
       await this.pollAlfredpayOfframpStatus(alfredpayTx.transactionId, ALFREDPAY_POLL_INTERVAL_MS);
-    } catch (error: any) {
-      if (error?.kind === "failed") {
+    } catch (error) {
+      if (isAlfredpayFailedStatusError(error)) {
         logger.error(`AlfredpayOfframpTransferHandler: Alfredpay offramp FAILED. Reason: ${error.failureReason ?? "unknown"}`);
         return this.transitionToNextPhase(state, "failed");
       }
@@ -198,8 +211,10 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
           }
 
           logger.debug(`AlfredpayOfframpTransferHandler: Alfredpay offramp ${transactionId} status: ${status}`);
-        } catch (error: any) {
-          logger.warn(`AlfredpayOfframpTransferHandler: Error polling Alfredpay status for ${transactionId}: ${error}`);
+        } catch (error) {
+          logger.warn(
+            `AlfredpayOfframpTransferHandler: Error polling Alfredpay status for ${transactionId}: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
 
         setTimeout(poll, intervalMs);

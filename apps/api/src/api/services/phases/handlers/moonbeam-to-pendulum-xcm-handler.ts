@@ -32,7 +32,7 @@ export class MoonbeamToPendulumXcmPhaseHandler extends BasePhaseHandler {
       moonbeamNode = hasPreviousError
         ? await apiManager.getApiWithShuffling("moonbeam", state.id)
         : await apiManager.getApi("moonbeam");
-    } catch (e) {
+    } catch {
       throw new RecoverablePhaseError(
         "MoonbeamToPendulumXcmPhaseHandler: All RPC options exhausted.",
         MINIMUM_WAIT_SECONDS_FOR_EXHAUSTION

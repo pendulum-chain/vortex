@@ -96,6 +96,9 @@ router
  * @apiSuccess (Created 201) {String}  partnerFeeUsd     Partner fee in USD
  * @apiSuccess (Created 201) {String}  totalFeeUsd       Total fee in USD
  * @apiSuccess (Created 201) {String}  processingFeeUsd  Processing fee (anchor + vortex) in USD
+ * @apiSuccess (Created 201) {String}  [discountFiat]   Quote-time discount benefit in feeCurrency
+ * @apiSuccess (Created 201) {String}  [discountUsd]    Quote-time discount benefit in USD
+ * @apiSuccess (Created 201) {String}  [discountCurrency] Currency used for discount display
  * @apiSuccess (Created 201) {String}  paymentMethod     Payment method used for the quote
  * @apiSuccess (Created 201) {Date}    expiresAt         Expiration date
  *

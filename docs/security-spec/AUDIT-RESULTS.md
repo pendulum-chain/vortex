@@ -857,7 +857,7 @@ Hardcoded `0.95` multiplier. Reasonable for default small amounts ($1 USD).
 Aggressive but ensures inclusion on Polygon. Gas is typically cheap.
 
 #### 5. `[PASS]` Coverage ratio threshold
-`1 + 0.25` threshold. Configurable via env var. Only rebalances when genuine surplus/deficit.
+Default Base flow uses asymmetric bounds around 1.0: `1 - REBALANCING_THRESHOLD_BRLA_TO_USDC` for the low-coverage correction and `1 + REBALANCING_THRESHOLD_USDC_TO_BRLA` for the high-coverage flow. Both route-specific thresholds fall back to `REBALANCING_THRESHOLD` and default to `0.01`.
 
 #### 6. `[PASS]` Rebalancer keys distinct from API keys
 Different env var names. Actual isolation is operational.
@@ -866,10 +866,10 @@ Different env var names. Actual isolation is operational.
 Steps 2, 3, 5, 6, 7 have crash windows between execution and `saveState()` causing double-spend on re-execution. No tx hash guards or nonce guards. → [F-033](FINDINGS.md)
 
 #### 8. `[PARTIAL]` BRLA→USDC swap amount validation
-Verifies USDC arrives on-chain but doesn't compare arrived amount to quoted amount.
+Legacy BRLA→USDC trusts the BRLA API response. Base high-coverage routes use provider quotes and delta-based arrival checks; Base low-coverage is a Base-only two-swap loop with final balance verification.
 
 #### 9. `[FAIL]` SquidRouter swap amount validation
-Never validates received amount matches estimate. Axelar polling has no timeout (infinite loop risk). → [F-034](FINDINGS.md)
+Legacy SquidRouter never validates received amount matches estimate and its Axelar polling has no timeout (infinite loop risk). The Base SquidRouter route has a 30-minute Axelar timeout and delta-based Base USDC arrival check. → [F-034](FINDINGS.md)
 
 #### 10. `[PASS]` Storage write errors handled
 Errors thrown and propagated. Process exits with code 1.

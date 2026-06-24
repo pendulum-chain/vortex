@@ -13,10 +13,16 @@ Then, open the `.env` file and add your Alchemy API key.
 
 ```
 ALCHEMY_API_KEY=your_alchemy_api_key
+EVM_ACCOUNT_SECRET="your BIP-39 mnemonic (12/24 words)"
+
+# Only required for legacy flow (--legacy flag)
 PENDULUM_ACCOUNT_SECRET=xxx
-MOONBEAM_ACCOUNT_SECRET=xxx
-POLYGON_ACCOUNT_SECRET=xxx
 ```
+
+For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
+`REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.
+`REBALANCING_DAILY_BRIDGE_LIMIT_USD` caps paid Base rebalances only: projected-profitable current runs bypass the cap,
+but all completed Base runs are recorded in history and count toward later paid-run limit checks.
 
 ## Installation
 

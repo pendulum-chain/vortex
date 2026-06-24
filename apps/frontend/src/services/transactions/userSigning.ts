@@ -163,7 +163,7 @@ export async function signAndSubmitSubstrateTransaction(unsignedTx: UnsignedTx, 
 
             // Try to find a 'system.ExtrinsicFailed' event
             if (dispatchError) {
-              reject("Substrate transaction execution failed");
+              reject(new Error(`Substrate transaction execution failed: ${dispatchError.toString()}`));
             }
 
             resolve(hash);
@@ -173,7 +173,7 @@ export async function signAndSubmitSubstrateTransaction(unsignedTx: UnsignedTx, 
       .catch(error => {
         // Most likely, the user cancelled the signing process.
         console.error("Error signing and submitting transaction", error);
-        reject("Error signing and sending transaction:" + error);
+        reject(error instanceof Error ? error : new Error(`Error signing and submitting transaction: ${String(error)}`));
       });
   });
 }

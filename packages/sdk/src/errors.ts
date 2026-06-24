@@ -343,9 +343,9 @@ function extractErrorMessage(value: unknown): string | undefined {
 /**
  * Error parsing utilities
  */
-export function parseAPIError(response: any): VortexSdkError {
+export function parseAPIError(response: unknown): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, status, errors } = response;
+    const { message, error, status, errors } = response as Record<string, unknown>;
     const normalizedStatus = typeof status === "number" ? status : 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
 
@@ -422,7 +422,12 @@ export function parseAPIError(response: any): VortexSdkError {
       }
     }
 
-    return new VortexSdkError(errorMessage ?? "Unknown API error", normalizedStatus, true, errors);
+    return new VortexSdkError(
+      errorMessage ?? "Unknown API error",
+      normalizedStatus,
+      true,
+      Array.isArray(errors) ? errors : undefined
+    );
   }
 
   return new VortexSdkError("Unknown error occurred", 500);
@@ -430,7 +435,7 @@ export function parseAPIError(response: any): VortexSdkError {
 
 export async function handleAPIResponse<T>(response: Response, endpoint: string): Promise<T> {
   if (!response.ok) {
-    let errorData: any;
+    let errorData: unknown;
     try {
       errorData = await response.json();
     } catch {

@@ -1,5 +1,6 @@
 import { JWT } from "google-auth-library";
 import { GoogleSpreadsheet, GoogleSpreadsheetWorksheet } from "google-spreadsheet";
+import logger from "../../config/logger";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 
@@ -48,7 +49,10 @@ export const getOrCreateSheet = async (doc: GoogleSpreadsheet, headerValues: str
         if (doHeadersMatch(sheet.headerValues, headerValues)) {
           return sheet;
         }
-      } catch {}
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.debug(`Spreadsheet header check failed while searching for matching sheet: ${message}`);
+      }
     }
 
     // Create new sheet if no match found

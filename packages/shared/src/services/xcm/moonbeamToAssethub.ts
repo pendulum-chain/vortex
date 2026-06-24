@@ -203,5 +203,8 @@ export async function createMoonbeamToAssethubTransferWithSwapOnHydration(
 
   const maxWeight = { proofSize: "2222220", refTime: "220000000000" };
 
-  return moonbeamNode.api.tx.polkadotXcm.execute(xcmMessage as any, maxWeight);
+  return moonbeamNode.api.tx.polkadotXcm.execute(
+    xcmMessage as Parameters<typeof moonbeamNode.api.tx.polkadotXcm.execute>[0],
+    maxWeight
+  );
 }
