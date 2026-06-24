@@ -8,7 +8,6 @@ import type {
   Onboarding,
   OnboardingStatus,
   Recipient,
-  RecipientMethod,
   SenderAccount,
   Transaction
 } from "@/domain/types";
@@ -24,8 +23,8 @@ interface DashboardState {
   signInWithEmail: (email: string) => void;
   /** Adds a corridor to an account's tracked set (no-op if already present). */
   addCorridorToAccount: (accountId: string, corridorId: CorridorId) => void;
-  /** Returns the new recipient id so callers can simulate async registration. */
-  addRecipient: (input: { accountId: string; corridorId: CorridorId; name: string; destination: string }) => string;
+  /** Invites a recipient by email to complete KYB; returns the new recipient id. */
+  addRecipient: (input: { accountId: string; corridorId: CorridorId; email: string }) => string;
   setRecipientStatus: (id: string, status: Recipient["status"]) => void;
   /** Records a triggered on/off-ramp and returns its id so callers can settle it async. */
   addTransaction: (input: Omit<Transaction, "id" | "createdAt">) => string;
@@ -71,16 +70,13 @@ export const useDashboardStore = create<DashboardState>()(
           })
         })),
       addRecipient: input => {
-        const method: RecipientMethod = CORRIDORS[input.corridorId].recipientMethod;
         const recipient: Recipient = {
           accountId: input.accountId,
           corridorId: input.corridorId,
           createdAt: new Date().toISOString(),
-          destination: input.destination,
+          email: input.email,
           id: crypto.randomUUID(),
-          method,
-          name: input.name,
-          status: "pending"
+          status: "invited"
         };
         set(state => ({ recipients: [recipient, ...state.recipients] }));
         return recipient.id;
@@ -141,8 +137,8 @@ export const useDashboardStore = create<DashboardState>()(
       transactions: SEED_TRANSACTIONS
     }),
     {
-      // v2 reloads the seed so Nordwind's KYB-approved Brazil corridor (which unlocks
-      // international transfers) replaces any stale persisted onboarding state.
+      // Bumped to v3: recipients are now invited by email (no name/destination), so the
+      // migrate reloads the seed to replace any stale persisted recipient shape.
       migrate: () => ({
         accounts: SEED_ACCOUNTS,
         activeAccountId: SEED_ACCOUNTS[0]?.id ?? "",
@@ -156,7 +152,7 @@ export const useDashboardStore = create<DashboardState>()(
         recipients: state.recipients,
         transactions: state.transactions
       }),
-      version: 2
+      version: 3
     }
   )
 );

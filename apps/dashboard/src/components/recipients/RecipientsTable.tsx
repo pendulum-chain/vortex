@@ -9,8 +9,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Recipient</TableHead>
-          <TableHead>Corridor</TableHead>
-          <TableHead>Destination</TableHead>
+          <TableHead>Country</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Added</TableHead>
         </TableRow>
@@ -20,18 +19,15 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           const corridor = CORRIDORS[recipient.corridorId];
           return (
             <TableRow key={recipient.id}>
-              <TableCell className="font-medium">{recipient.name}</TableCell>
+              <TableCell className="font-medium">{recipient.email}</TableCell>
               <TableCell>
                 {corridor.flag} {corridor.name}
-              </TableCell>
-              <TableCell className="font-mono text-muted-foreground text-xs">
-                {corridor.recipientLabel}: {recipient.destination}
               </TableCell>
               <TableCell>
                 {recipient.status === "registered" ? (
                   <Badge variant="success">Registered</Badge>
                 ) : (
-                  <Badge variant="info">Pending</Badge>
+                  <Badge variant="info">Awaiting KYB</Badge>
                 )}
               </TableCell>
               <TableCell className="text-muted-foreground">

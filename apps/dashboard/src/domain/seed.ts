@@ -119,20 +119,16 @@ export const SEED_RECIPIENTS: Recipient[] = [
     accountId: "acc_nordwind",
     corridorId: "EU",
     createdAt: "2026-06-19T10:12:00.000Z",
-    destination: "DE89 3704 0044 0532 0130 00",
+    email: "treasury@hanseatic-trade.de",
     id: "rcp_eu_1",
-    method: "iban",
-    name: "Hanseatic Trade GmbH",
     status: "registered"
   },
   {
     accountId: "acc_nordwind",
     corridorId: "BR",
     createdAt: "2026-06-19T10:15:00.000Z",
-    destination: "financeiro@nordwind.com.br",
+    email: "financeiro@nordwind.com.br",
     id: "rcp_br_1",
-    method: "pix",
-    name: "Nordwind Folha de Pagamento",
     status: "registered"
   }
 ];

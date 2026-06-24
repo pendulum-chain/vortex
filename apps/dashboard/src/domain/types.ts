@@ -16,7 +16,7 @@ export type OnboardingKind = "kyb" | "kyc";
 
 export type AccountType = "company" | "individual";
 
-export type RecipientStatus = "pending" | "registered";
+export type RecipientStatus = "invited" | "registered";
 
 export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
 
@@ -81,10 +81,8 @@ export interface Recipient {
   id: string;
   accountId: string;
   corridorId: CorridorId;
-  name: string;
-  method: RecipientMethod;
-  /** PIX key, IBAN, etc. */
-  destination: string;
+  /** Recipient's email — they receive a KYB invite and onboard themselves. */
+  email: string;
   status: RecipientStatus;
   createdAt: string;
 }

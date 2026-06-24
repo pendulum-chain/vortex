@@ -107,7 +107,7 @@ export function TransferForm({ account, approvedCorridors }: { account: SenderAc
 
   function onSubmit(values: FormValues) {
     const recipient = payoutRecipients.find(item => item.id === values.recipientId);
-    const counterparty = isOnramp ? `Wallet ${shortenAddress(values.walletAddress)}` : (recipient?.name ?? "Recipient");
+    const counterparty = isOnramp ? `Wallet ${shortenAddress(values.walletAddress)}` : (recipient?.email ?? "Recipient");
 
     const id = addTransaction({
       accountId: account.id,
@@ -253,7 +253,7 @@ export function TransferForm({ account, approvedCorridors }: { account: SenderAc
                   <SelectContent>
                     {payoutRecipients.map(recipient => (
                       <SelectItem key={recipient.id} value={recipient.id}>
-                        {recipient.name} · {recipient.destination}
+                        {recipient.email}
                       </SelectItem>
                     ))}
                   </SelectContent>

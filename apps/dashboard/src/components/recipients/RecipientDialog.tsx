@@ -13,18 +13,17 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CORRIDORS } from "@/domain/corridors";
 import type { Corridor, SenderAccount } from "@/domain/types";
-import { notifyRecipientRegistered } from "@/lib/notify";
+import { notifyRecipientInvited, notifyRecipientRegistered } from "@/lib/notify";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
 const schema = z.object({
   corridorId: z.enum(["BR", "EU", "MX", "CO", "US", "AR"]),
-  destination: z.string().min(4, "Enter a valid destination"),
-  name: z.string().min(2, "Enter the recipient's name")
+  email: z.string().email("Enter a valid email")
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -35,26 +34,22 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
   const setRecipientStatus = useDashboardStore(state => state.setRecipientStatus);
 
   const form = useForm<FormValues>({
-    defaultValues: { corridorId: approvedCorridors[0]?.id ?? "BR", destination: "", name: "" },
+    defaultValues: { corridorId: approvedCorridors[0]?.id ?? "BR", email: "" },
     resolver: zodResolver(schema)
   });
 
-  const selectedCorridor = CORRIDORS[form.watch("corridorId")];
   const disabled = approvedCorridors.length === 0;
 
   function onSubmit(values: FormValues) {
-    const id = addRecipient({
-      accountId: account.id,
-      corridorId: values.corridorId,
-      destination: values.destination,
-      name: values.name
-    });
-    // Simulate the provider confirming the registration shortly after submission.
+    const corridorName = CORRIDORS[values.corridorId].name;
+    const id = addRecipient({ accountId: account.id, corridorId: values.corridorId, email: values.email });
+    notifyRecipientInvited(values.email, corridorName);
+    // Simulate the recipient completing their KYB after receiving the invite email.
     setTimeout(() => {
       setRecipientStatus(id, "registered");
-      notifyRecipientRegistered(values.name, CORRIDORS[values.corridorId].name);
-    }, 1500);
-    form.reset({ corridorId: values.corridorId, destination: "", name: "" });
+      notifyRecipientRegistered(values.email, corridorName);
+    }, 2500);
+    form.reset({ corridorId: values.corridorId, email: "" });
     setOpen(false);
   }
 
@@ -63,14 +58,14 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
       <DialogTrigger asChild>
         <Button disabled={disabled}>
           <Plus />
-          Register recipient
+          Invite recipient
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Register a recipient</DialogTitle>
+          <DialogTitle>Invite a recipient</DialogTitle>
           <DialogDescription>
-            Add a destination account for {account.name}. Only approved corridors are available.
+            We'll email a KYB invite to the recipient. They onboard themselves and can receive transfers once approved.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -80,11 +75,11 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
               name="corridorId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Corridor</FormLabel>
+                  <FormLabel>Country</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a corridor" />
+                        <SelectValue placeholder="Select a country" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -101,36 +96,13 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
             />
             <FormField
               control={form.control}
-              name="name"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Recipient name</FormLabel>
+                  <FormLabel>Recipient email</FormLabel>
                   <FormControl>
-                    <Input placeholder="Hanseatic Trade GmbH" {...field} />
+                    <Input autoComplete="email" placeholder="recipient@company.com" type="email" {...field} />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="destination"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{selectedCorridor.recipientLabel}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={
-                        selectedCorridor.recipientMethod === "pix" ? "user@bank.com.br" : "DE89 3704 0044 0532 0130 00"
-                      }
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {selectedCorridor.recipientMethod === "pix"
-                      ? "PIX key — email, phone, CPF/CNPJ or random key."
-                      : "International Bank Account Number."}
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -139,7 +111,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
               <Button onClick={() => setOpen(false)} type="button" variant="ghost">
                 Cancel
               </Button>
-              <Button type="submit">Register</Button>
+              <Button type="submit">Send invite</Button>
             </DialogFooter>
           </form>
         </Form>

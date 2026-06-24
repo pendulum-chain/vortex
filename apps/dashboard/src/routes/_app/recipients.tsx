@@ -29,7 +29,7 @@ function RecipientsPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="font-semibold text-2xl tracking-tight">Recipients</h1>
-          <p className="text-muted-foreground">Register destination accounts for {account.name}.</p>
+          <p className="text-muted-foreground">Invite recipients to receive transfers from {account.name}.</p>
         </div>
         <RecipientDialog account={account} approvedCorridors={approvedCorridors} />
       </div>
@@ -41,8 +41,7 @@ function RecipientsPage() {
               <Lock className="size-4" />
             </span>
             <p className="text-muted-foreground">
-              Recipient registration unlocks once a corridor's KYB/KYC is approved. Complete onboarding on the Overview page
-              first.
+              Inviting recipients unlocks once a corridor's KYB/KYC is approved. Complete onboarding on the Overview page first.
             </p>
           </CardContent>
         </Card>
@@ -55,8 +54,8 @@ function RecipientsPage() {
             <p className="font-medium">No recipients yet</p>
             <p className="text-muted-foreground text-sm">
               {approvedCorridors.length === 0
-                ? "Approve a corridor to start adding recipients."
-                : "Register your first recipient to start transferring."}
+                ? "Approve a corridor to start inviting recipients."
+                : "Invite your first recipient to start transferring."}
             </p>
           </CardContent>
         </Card>
