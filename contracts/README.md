@@ -14,4 +14,5 @@ This directory contains smart-contract projects managed as Bun workspaces.
 
 ## Current projects
 
+- `cctp-settlement/` - Hardhat proof of concept for per-user USDC CCTP settlement contracts
 - `relayer/` - Relayer contract project (Hardhat)
