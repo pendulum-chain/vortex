@@ -63,6 +63,7 @@ const EVM_DESTINATION_ADDRESS = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
 const TEST_INPUT_AMOUNT = "35";
 const TEST_EMAIL = "mail@test.com";
 const TEST_IP_ADDRESS = "203.0.113.42";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const filePath = path.join(__dirname, "lastRampStateMykoboEur.json");
 const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -291,7 +292,8 @@ describe("Mykobo EUR offramp contract test (real sandbox, no on-chain submission
     const registered = await rampService.registerRamp({
       additionalData,
       quoteId: quote.id,
-      signingAccounts: testSigningAccountsMeta
+      signingAccounts: testSigningAccountsMeta,
+      userId: TEST_USER_ID
     });
 
     if (!registered.unsignedTxs) {
