@@ -18,6 +18,18 @@ Three middleware components:
 
 A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET NULL`) lets an admin bind a secret key to a specific profile. The binding is propagated to the request as `req.apiKeyUserId` (set by `setApiKeyUserId` in the auth middleware). Controllers and services derive the **effective user id** with `getEffectiveUserId(req)`, which prefers `req.userId` (Supabase) and falls back to `req.apiKeyUserId`. Public keys never populate `req.apiKeyUserId`. Use of the effective user is required for provider-backed quote creation, ramp registration on Avenia/BRL or Alfredpay corridors, and the BRLA pre-flight endpoints.
 
+### User-scoped keys (`api_keys.partner_name` nullable)
+
+`api_keys.partner_name` is nullable (migration `035-make-api-key-partner-name-nullable`). A key with `partner_name = NULL` is a **user-scoped key**: it authenticates purely as the linked `user_id` and never resolves to an `AuthenticatedPartner`. The self-serve endpoints under `POST/GET/DELETE /v1/api-keys` (guarded by `requireAuth`) let any Supabase-authenticated user mint a public + secret pair bound to their own `req.userId` with `partner_name = NULL`. The admin endpoints under `/v1/admin/partners/:partnerName/api-keys` continue to require an active `Partner` row matching `partner_name`.
+
+### Self-serve API key endpoints
+
+`/v1/api-keys` is guarded by `requireAuth` (Supabase Bearer). The flow for a headless integrator is:
+1. `POST /v1/auth/request-otp` with `{ email }` — Supabase sends a one-time code.
+2. `POST /v1/auth/verify-otp` with `{ email, token }` — returns `{ access_token, refresh_token, user_id }`.
+3. `POST /v1/api-keys` with `Authorization: Bearer <access_token>` — creates a `pk_*`/`sk_*` pair bound to `user_id`, with `partner_name = NULL`. The secret key is returned once.
+4. Use `X-API-Key: <sk_*>` on quote/ramp endpoints. The request authenticates as the linked user (no partner attribution, no partner discount — defaults to the `vortex` partner fee configuration).
+
 ## Security Invariants
 
 1. **Secret keys MUST be transmitted via the `X-API-Key` header only** — Never in query parameters, request body, or URL path. The middleware reads exclusively from `req.headers["x-api-key"]`.
@@ -33,6 +45,9 @@ A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET N
 11. **Secret keys MAY carry a nullable `api_keys.user_id` to identify a delegated user context** — The binding is consumed by the `apiKeyUserId` request field and is the only path for partner secret keys to provide a non-Supabase user identity. Public keys never carry or surface a user binding.
 12. **`ON DELETE SET NULL` for `api_keys.user_id` is intentional** — Deleting a profile must not silently revoke partner keys; partner keys are operational assets and binding loss is a soft-state change.
 13. **Provider-backed quote and ramp operations MUST be rejected when no effective user is present** — Alfredpay and Avenia/BRL flows return `400 Invalid quote: this route requires an API key linked to a user or Supabase user authentication.` before any upstream provider call. Unlinked secret keys are not a valid identity for these corridors.
+14. **`api_keys.partner_name` is nullable; a NULL `partner_name` marks a user-scoped key** — `validateSecretApiKey` skips the `Partner` lookup entirely for keys with `partner_name = NULL` and `user_id` set, returning `{ partner: null, apiKeyUserId }`. The middleware leaves `req.authenticatedPartner` unset, so the request authenticates purely as the linked user. A secret key with neither `partner_name` nor `user_id` is unusable and rejected as invalid.
+15. **User-scoped keys MUST interpolate no partner pricing** — When `req.authenticatedPartner` is unset, `resolveQuotePartner` finds no partner (`source: "none"`), and `calculatePartnerAndVortexFees` falls through to the default `vortex` Partner fee rows. User-scoped keys never receive partner-specific discounts.
+16. **`POST/GET/DELETE /v1/api-keys` MUST require a Supabase user (`requireAuth`)** — The endpoints bind the created keys to `req.userId`; partner keys (with `partner_name`) remain admin-only under `/v1/admin/partners/:partnerName/api-keys` (`adminAuth`).
 
 ## Threat Vectors & Mitigations
 
@@ -44,7 +59,7 @@ A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET N
 | **Partner impersonation** | Attacker uses one partner's API key with another partner's `partnerId` | `enforcePartnerAuth` compares authenticated partner name against requested partner name; rejects mismatches with 403 |
 | **Stale/revoked key usage** | Partner's key is deactivated but still being used | `isActive` flag checked on every validation; expired keys rejected by `expiresAt` check |
 | **Key hash enumeration** | Attacker with DB read access tries to use key hashes | bcrypt hashes are one-way; raw keys cannot be recovered from hashes |
-| **Unlinked key creating provider resources anonymously** | Partner uses a generic (unbound) sk\_ key to mint an Alfredpay/Avenia estimate quote, then registers it with a linked secret key or Supabase session to claim the resulting real provider quote | Quote creation is anonymous-eligible (the Alfredpay engines short-circuit on no effective user and store a sentinel `ANONYMOUS_ALFREDPAY_QUOTE_ID`). `RampService.registerRamp` rejects with `403` when `isProviderBackedRampKind(quote) && quote.userId == null && request.userId != null`, so the anonymous estimate cannot be claimed by an authenticated caller. Alfredpay engines resolve the customer via `api_keys.user_id -> alfredpay_customers.user_id` whenever an effective user is present. |
+| **Unlinked key creating provider resources anonymously** | Partner uses a generic (unbound) sk\_ key to mint an Alfredpay/Avenia estimate quote, then registers it with a linked secret key or Supabase session to claim the resulting real provider quote | Quote creation is anonymous-eligible (the Alfredpay engines short-circuit on no effective user and store a sentinel `ANONYMOUS_ALFREDPAY_QUOTE_ID`). `RampService.registerRamp` rejects with `403` when `quote.userId == null && request.userId != null`, so the anonymous estimate cannot be claimed by an authenticated caller. Alfredpay engines resolve the customer via `api_keys.user_id -> alfredpay_customers.user_id` whenever an effective user is present. |
 | **One linked key operating on another user's quote/ramp** | Partner with a valid linked key targets a different linked user's provider-bound quote | `assertQuoteOwnership`/`assertRampOwnership` enforce `quote.userId === req.apiKeyUserId` when a linked key is in scope. The `RampService.registerRamp` cross-user check rejects the same scenario at registration time with `403`. |
 | **Anonymous subaccount creation DoS** | Unauthenticated caller hits `POST /v1/brla/createSubaccount` to spawn stranded Avenia subaccounts | The route now requires `requirePartnerOrUserAuth()`; controllers require an effective user id before calling the Avenia API. |
 
@@ -63,10 +78,14 @@ A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET N
 - [x] No endpoint accepts secret keys from query parameters or request body — **PASS**
 - [x] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats — **PARTIAL: `PARTNER_MISMATCH` leaks authenticated partner name in response details**
 - [x] `api_keys.user_id` migration (`034-add-user-id-to-api-keys`) added with `ON DELETE SET NULL`, `idx_api_keys_user_id`, and `idx_api_keys_active_user_lookup`. — **PASS**
-- [x] `validateSecretApiKey` returns `apiKeyId` and `apiKeyUserId` on the `AuthenticatedPartner` value. — **PASS**
-- [x] `apiKeyAuth` and `dualAuth` populate `req.apiKeyUserId` from the validated secret key. Public keys do not populate the field. — **PASS**
+- [x] `api_keys.partner_name` is nullable (migration `035-make-api-key-partner-name-nullable`); user-scoped keys have `partner_name = NULL` and authenticate purely as `user_id`. — **PASS**
+- [x] `validateSecretApiKey` returns a `ValidatedSecretKey` wrapper `{ apiKeyId, apiKeyUserId, partner: AuthenticatedPartner | null }`; `partner` is null for user-scoped keys. — **PASS**
+- [x] `validatePublicApiKey` returns a `ValidatedPublicKey` wrapper `{ partnerName: string | null }`; `partnerName` is null for user-scoped public keys. — **PASS**
+- [x] `apiKeyAuth` and `dualAuth` populate `req.apiKeyUserId` from the validated secret key; `req.authenticatedPartner` is left unset for user-scoped keys. Public keys do not populate `req.apiKeyUserId`. — **PASS**
 - [x] `getEffectiveUserId` returns `req.userId ?? req.apiKeyUserId`. — **PASS**
+- [x] User-scoped keys interpolate no partner pricing (`resolveQuotePartner` returns `source: "none"`, fee engine falls through to default `vortex` Partner rows). — **PASS**
+- [x] `POST/GET/DELETE /v1/api-keys` require `requireAuth` (Supabase Bearer); bind created keys to `req.userId` with `partner_name = NULL`. Admin partner-key endpoints still require `adminAuth`. — **PASS**
 - [x] Provider-backed quote creation is anonymous-eligible: Alfredpay engines short-circuit on no effective user and store `ANONYMOUS_ALFREDPAY_QUOTE_ID`; Avenia engines call upstream providers regardless of identity. — **PASS**
-- [x] `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`. — **PASS**
-- [x] `RampService.registerRamp` rejects anonymous provider-backed quotes from being claimed by an authenticated caller with `403` (`isProviderBackedRampKind(quote) && quote.userId == null && request.userId != null`). — **PASS**
+- [x] `RampService.registerRamp` rejects ramps without an effective user with `400 Invalid quote`. — **PASS**
+- [x] `RampService.registerRamp` rejects anonymous quotes from being claimed by an authenticated caller with `403` (`quote.userId == null && request.userId != null`). — **PASS**
 - [x] `assertQuoteOwnership` and `assertRampOwnership` reject linked-key callers who try to operate on a different linked user's quote/ramp. — **PASS**

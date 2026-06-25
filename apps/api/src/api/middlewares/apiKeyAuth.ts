@@ -79,9 +79,9 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
       }
 
       // Find and validate API key
-      const partner = await validateApiKey(apiKey);
+      const result = await validateApiKey(apiKey);
 
-      if (!partner) {
+      if (!result) {
         recordAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
         return res.status(401).json({
           error: {
@@ -92,9 +92,13 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
         });
       }
 
-      // Attach authenticated partner to request
-      req.authenticatedPartner = partner;
-      setApiKeyUserId(req, partner.apiKeyUserId);
+      const partner = result.partner;
+
+      // Attach authenticated partner to request (null for user-scoped keys, leaving the field unset).
+      if (partner) {
+        req.authenticatedPartner = partner;
+      }
+      setApiKeyUserId(req, result.apiKeyUserId);
 
       // If validatePartnerMatch enabled, check payload partnerId
       if (options.validatePartnerMatch && req.body?.partnerId) {
@@ -110,7 +114,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
           const requestedPartner = await Partner.findByPk(partnerIdOrName);
 
           if (!requestedPartner) {
-            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner);
+            recordAuthFailure(req, 404, "auth_partner_not_found", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
             return res.status(404).json({
               error: {
                 code: "PARTNER_NOT_FOUND",
@@ -127,13 +131,13 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
         }
 
         // Compare partner names since one API key works for all partners with same name
-        if (requestedPartnerName !== partner.name) {
-          recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner);
+        if (!partner || requestedPartnerName !== partner.name) {
+          recordAuthFailure(req, 403, "auth_partner_mismatch", getSafeApiKeyPrefix(apiKey, ["sk_"]), partner ?? undefined);
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
               details: {
-                authenticatedPartnerName: partner.name,
+                authenticatedPartnerName: partner?.name ?? null,
                 requestedPartnerName: requestedPartnerName
               },
               message: "The authenticated partner name does not match the requested partner's name",

@@ -15,7 +15,7 @@ declare global {
     interface Request {
       validatedPublicKey?: {
         apiKey: string;
-        partnerName: string;
+        partnerName: string | null;
       };
     }
   }
@@ -64,9 +64,9 @@ export function validatePublicKey() {
       }
 
       // Validate the public key exists and is active
-      const partnerName = await validatePublicApiKey(apiKey);
+      const result = await validatePublicApiKey(apiKey);
 
-      if (!partnerName) {
+      if (!result) {
         recordPublicKeyFailure(req, 401, getSafeApiKeyPrefix(apiKey));
         return res.status(401).json({
           error: {
@@ -80,7 +80,7 @@ export function validatePublicKey() {
       // Attach validated public key info to request
       req.validatedPublicKey = {
         apiKey,
-        partnerName
+        partnerName: result.partnerName
       };
 
       next();

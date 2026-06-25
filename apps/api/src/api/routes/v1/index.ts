@@ -5,6 +5,7 @@ import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import alfredpayRoutes from "./alfredpay.route";
+import apiKeysRoutes from "./api-keys.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
 import contactRoutes from "./contact.route";
@@ -166,6 +167,16 @@ router.use("/public-key", publicKeyRoutes);
  * GET v1/metrics
  */
 router.use("/metrics", metricsRoutes);
+
+/**
+ * Self-serve API key management for authenticated Supabase users.
+ * Keys created here are user-scoped (no partner binding) and authenticate
+ * via the X-API-Key header on quote/ramp endpoints as the linked user.
+ * POST /v1/api-keys
+ * GET /v1/api-keys
+ * DELETE /v1/api-keys/:keyId
+ */
+router.use("/api-keys", apiKeysRoutes);
 
 /**
  * Admin routes for partner API key management

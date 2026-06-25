@@ -52,8 +52,8 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        const partner = await validateSecretApiKey(apiKey);
-        if (!partner) {
+        const result = await validateSecretApiKey(apiKey);
+        if (!result) {
           recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
           return res.status(401).json({
             error: {
@@ -64,8 +64,10 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        req.authenticatedPartner = partner;
-        setApiKeyUserId(req, partner.apiKeyUserId);
+        if (result.partner) {
+          req.authenticatedPartner = result.partner;
+        }
+        setApiKeyUserId(req, result.apiKeyUserId);
         return next();
       }
 
