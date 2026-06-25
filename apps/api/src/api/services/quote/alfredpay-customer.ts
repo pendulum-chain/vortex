@@ -27,8 +27,7 @@ export function isAnonymousAlfredpayQuoteId(quoteId: string | undefined | null):
  * fiat side of the request determines the country; the user must own a
  * KYC-completed (`Success`) customer row.
  *
- * Ramp-register / start enforce a non-empty `userId` for provider-backed
- * flows (Alfredpay, Avenia/BRL).
+ * Ramp-register / start enforce a non-empty `userId` for every corridor.
  */
 export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: string): Promise<string> {
   if (!isAlfredpayToken(fiatCurrency as FiatToken)) {

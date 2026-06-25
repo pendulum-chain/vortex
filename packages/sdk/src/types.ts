@@ -123,12 +123,6 @@ export interface AlfredpayOnrampAdditionalData {
 export interface BrlOfframpAdditionalData {
   pixDestination: string;
   walletAddress: string;
-  /**
-   * @deprecated The BRL subaccount is now derived server-side from
-   * `api_keys.user_id -> tax_ids.user_id`. The SDK still accepts the field
-   * for one release of backward compatibility, but the server rejects
-   * mismatches against the derived taxId.
-   */
   receiverTaxId?: string;
   /**
    * @deprecated The BRL subaccount is now derived server-side from
