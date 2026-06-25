@@ -9,8 +9,7 @@ contract PerUserCctpSettlementFactory {
 
     event SettlementDeployed(
         address indexed settlement,
-        address indexed ethereumMintRecipient,
-        bytes32 destinationCaller
+        address indexed ethereumMintRecipient
     );
 
     constructor(address _usdc, address _tokenMessenger) {
@@ -21,9 +20,9 @@ contract PerUserCctpSettlementFactory {
         tokenMessenger = _tokenMessenger;
     }
 
-    function deploySettlement(address ethereumMintRecipient, bytes32 destinationCaller) external returns (address settlement) {
-        settlement = address(new PerUserCctpSettlement(usdc, tokenMessenger, ethereumMintRecipient, destinationCaller));
+    function deploySettlement(address ethereumMintRecipient) external returns (address settlement) {
+        settlement = address(new PerUserCctpSettlement(usdc, tokenMessenger, ethereumMintRecipient));
 
-        emit SettlementDeployed(settlement, ethereumMintRecipient, destinationCaller);
+        emit SettlementDeployed(settlement, ethereumMintRecipient);
     }
 }

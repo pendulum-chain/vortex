@@ -4,6 +4,7 @@ import { ethers } from "hardhat";
 const ETHEREUM_DOMAIN = 0;
 const STANDARD_FINALITY_THRESHOLD = 2000;
 const ZERO_BYTES32 = ethers.ZeroHash;
+const FORWARD_HOOK_DATA = "0x636374702d666f72776172640000000000000000000000000000000000000000";
 
 function addressToBytes32(address: string) {
   return ethers.zeroPadValue(address, 32);
@@ -18,8 +19,7 @@ describe("PerUserCctpSettlement", () => {
     const settlement = await ethers.deployContract("PerUserCctpSettlement", [
       await usdc.getAddress(),
       await tokenMessenger.getAddress(),
-      recipient.address,
-      ZERO_BYTES32
+      recipient.address
     ]);
 
     return { caller, deployer, otherRecipient, recipient, settlement, tokenMessenger, usdc };
@@ -32,8 +32,9 @@ describe("PerUserCctpSettlement", () => {
     expect(await settlement.tokenMessenger()).to.equal(await tokenMessenger.getAddress());
     expect(await settlement.ethereumMintRecipient()).to.equal(recipient.address);
     expect(await settlement.mintRecipientBytes32()).to.equal(addressToBytes32(recipient.address));
-    expect(await settlement.destinationCaller()).to.equal(ZERO_BYTES32);
+    expect(await settlement.DESTINATION_CALLER()).to.equal(ZERO_BYTES32);
     expect(await settlement.ETHEREUM_DESTINATION_DOMAIN()).to.equal(ETHEREUM_DOMAIN);
+    expect(await settlement.FORWARD_HOOK_DATA()).to.equal(FORWARD_HOOK_DATA);
   });
 
   it("reverts when there is no USDC balance", async () => {
@@ -42,7 +43,7 @@ describe("PerUserCctpSettlement", () => {
     await expect(settlement.sweepUsdc(0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWith("No USDC balance");
   });
 
-  it("sweeps the full USDC balance into CCTP with the immutable Ethereum recipient", async () => {
+  it("sweeps the full USDC balance into CCTP forwarding with the immutable Ethereum recipient", async () => {
     const { caller, recipient, settlement, tokenMessenger, usdc } = await deployFixture();
     const amount = 1_000_000n;
     const maxFee = 1_000n;
@@ -50,7 +51,7 @@ describe("PerUserCctpSettlement", () => {
     await usdc.mint(await settlement.getAddress(), amount);
 
     await expect(settlement.connect(caller).sweepUsdc(maxFee, STANDARD_FINALITY_THRESHOLD))
-      .to.emit(settlement, "UsdcSweptAndBurned")
+      .to.emit(settlement, "UsdcSweptAndForwarded")
       .withArgs(
         caller.address,
         amount,
@@ -58,7 +59,8 @@ describe("PerUserCctpSettlement", () => {
         addressToBytes32(recipient.address),
         ZERO_BYTES32,
         maxFee,
-        STANDARD_FINALITY_THRESHOLD
+        STANDARD_FINALITY_THRESHOLD,
+        FORWARD_HOOK_DATA
       )
       .and.to.emit(tokenMessenger, "DepositForBurn")
       .withArgs(
@@ -70,7 +72,7 @@ describe("PerUserCctpSettlement", () => {
         ZERO_BYTES32,
         maxFee,
         STANDARD_FINALITY_THRESHOLD,
-        "0x"
+        FORWARD_HOOK_DATA
       );
 
     expect(await usdc.balanceOf(await settlement.getAddress())).to.equal(0n);
@@ -84,6 +86,7 @@ describe("PerUserCctpSettlement", () => {
     expect(burnCall.destinationCaller).to.equal(ZERO_BYTES32);
     expect(burnCall.maxFee).to.equal(maxFee);
     expect(burnCall.minFinalityThreshold).to.equal(STANDARD_FINALITY_THRESHOLD);
+    expect(burnCall.hookData).to.equal(FORWARD_HOOK_DATA);
     expect(burnCall.depositor).to.equal(await settlement.getAddress());
   });
 
@@ -126,50 +129,38 @@ describe("PerUserCctpSettlement", () => {
     const { recipient, tokenMessenger, usdc } = await deployFixture();
 
     await expect(
-      ethers.deployContract("PerUserCctpSettlement", [
-        ethers.ZeroAddress,
-        await tokenMessenger.getAddress(),
-        recipient.address,
-        ZERO_BYTES32
-      ])
+      ethers.deployContract("PerUserCctpSettlement", [ethers.ZeroAddress, await tokenMessenger.getAddress(), recipient.address])
     ).to.be.revertedWith("Invalid USDC");
 
     await expect(
-      ethers.deployContract("PerUserCctpSettlement", [
-        await usdc.getAddress(),
-        ethers.ZeroAddress,
-        recipient.address,
-        ZERO_BYTES32
-      ])
+      ethers.deployContract("PerUserCctpSettlement", [await usdc.getAddress(), ethers.ZeroAddress, recipient.address])
     ).to.be.revertedWith("Invalid messenger");
 
     await expect(
       ethers.deployContract("PerUserCctpSettlement", [
         await usdc.getAddress(),
         await tokenMessenger.getAddress(),
-        ethers.ZeroAddress,
-        ZERO_BYTES32
+        ethers.ZeroAddress
       ])
     ).to.be.revertedWith("Invalid recipient");
   });
 
   it("deploys per-user settlement contracts through the factory", async () => {
     const { recipient, tokenMessenger, usdc } = await deployFixture();
-    const destinationCaller = addressToBytes32(recipient.address);
     const factory = await ethers.deployContract("PerUserCctpSettlementFactory", [
       await usdc.getAddress(),
       await tokenMessenger.getAddress()
     ]);
-    const settlementAddress = await factory.deploySettlement.staticCall(recipient.address, destinationCaller);
+    const settlementAddress = await factory.deploySettlement.staticCall(recipient.address);
 
-    await expect(factory.deploySettlement(recipient.address, destinationCaller))
+    await expect(factory.deploySettlement(recipient.address))
       .to.emit(factory, "SettlementDeployed")
-      .withArgs(settlementAddress, recipient.address, destinationCaller);
+      .withArgs(settlementAddress, recipient.address);
 
     const settlement = await ethers.getContractAt("PerUserCctpSettlement", settlementAddress);
     expect(await settlement.usdc()).to.equal(await usdc.getAddress());
     expect(await settlement.tokenMessenger()).to.equal(await tokenMessenger.getAddress());
     expect(await settlement.ethereumMintRecipient()).to.equal(recipient.address);
-    expect(await settlement.destinationCaller()).to.equal(destinationCaller);
+    expect(await settlement.DESTINATION_CALLER()).to.equal(ZERO_BYTES32);
   });
 });

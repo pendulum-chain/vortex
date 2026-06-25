@@ -15,6 +15,7 @@ contract MockTokenMessengerV2 {
         bytes32 destinationCaller;
         uint256 maxFee;
         uint32 minFinalityThreshold;
+        bytes hookData;
         address depositor;
     }
 
@@ -35,14 +36,15 @@ contract MockTokenMessengerV2 {
         bytes hookData
     );
 
-    function depositForBurn(
+    function depositForBurnWithHook(
         uint256 amount,
         uint32 destinationDomain,
         bytes32 mintRecipient,
         address burnToken,
         bytes32 destinationCaller,
         uint256 maxFee,
-        uint32 minFinalityThreshold
+        uint32 minFinalityThreshold,
+        bytes calldata hookData
     ) external {
         if (reenter) {
             (bool success, bytes memory returndata) = reenterTarget.call(reenterData);
@@ -63,6 +65,7 @@ contract MockTokenMessengerV2 {
             destinationCaller: destinationCaller,
             maxFee: maxFee,
             minFinalityThreshold: minFinalityThreshold,
+            hookData: hookData,
             depositor: msg.sender
         });
 
@@ -75,7 +78,7 @@ contract MockTokenMessengerV2 {
             destinationCaller,
             maxFee,
             minFinalityThreshold,
-            ""
+            hookData
         );
     }
 

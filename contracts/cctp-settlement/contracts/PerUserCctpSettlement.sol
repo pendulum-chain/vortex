@@ -11,24 +11,26 @@ contract PerUserCctpSettlement is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     uint32 public constant ETHEREUM_DESTINATION_DOMAIN = 0;
+    bytes32 public constant DESTINATION_CALLER = bytes32(0);
+    bytes32 public constant FORWARD_HOOK_DATA = 0x636374702d666f72776172640000000000000000000000000000000000000000;
 
     IERC20 public immutable usdc;
     ITokenMessengerV2 public immutable tokenMessenger;
     address public immutable ethereumMintRecipient;
     bytes32 public immutable mintRecipientBytes32;
-    bytes32 public immutable destinationCaller;
 
-    event UsdcSweptAndBurned(
+    event UsdcSweptAndForwarded(
         address indexed caller,
         uint256 usdcAmount,
         uint32 destinationDomain,
         bytes32 mintRecipient,
         bytes32 destinationCaller,
         uint256 maxFee,
-        uint32 minFinalityThreshold
+        uint32 minFinalityThreshold,
+        bytes32 forwardHookData
     );
 
-    constructor(address _usdc, address _tokenMessenger, address _ethereumMintRecipient, bytes32 _destinationCaller) {
+    constructor(address _usdc, address _tokenMessenger, address _ethereumMintRecipient) {
         require(_usdc != address(0), "Invalid USDC");
         require(_tokenMessenger != address(0), "Invalid messenger");
         require(_ethereumMintRecipient != address(0), "Invalid recipient");
@@ -37,7 +39,6 @@ contract PerUserCctpSettlement is ReentrancyGuard {
         tokenMessenger = ITokenMessengerV2(_tokenMessenger);
         ethereumMintRecipient = _ethereumMintRecipient;
         mintRecipientBytes32 = _addressToBytes32(_ethereumMintRecipient);
-        destinationCaller = _destinationCaller;
     }
 
     function sweepUsdc(uint256 maxFee, uint32 minFinalityThreshold) external nonReentrant {
@@ -46,26 +47,28 @@ contract PerUserCctpSettlement is ReentrancyGuard {
 
         usdc.forceApprove(address(tokenMessenger), usdcAmount);
 
-        tokenMessenger.depositForBurn(
+        tokenMessenger.depositForBurnWithHook(
             usdcAmount,
             ETHEREUM_DESTINATION_DOMAIN,
             mintRecipientBytes32,
             address(usdc),
-            destinationCaller,
+            DESTINATION_CALLER,
             maxFee,
-            minFinalityThreshold
+            minFinalityThreshold,
+            abi.encodePacked(FORWARD_HOOK_DATA)
         );
 
         usdc.forceApprove(address(tokenMessenger), 0);
 
-        emit UsdcSweptAndBurned(
+        emit UsdcSweptAndForwarded(
             msg.sender,
             usdcAmount,
             ETHEREUM_DESTINATION_DOMAIN,
             mintRecipientBytes32,
-            destinationCaller,
+            DESTINATION_CALLER,
             maxFee,
-            minFinalityThreshold
+            minFinalityThreshold,
+            FORWARD_HOOK_DATA
         );
     }
 
