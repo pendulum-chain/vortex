@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import {ITokenMessengerV2} from "./interfaces/ITokenMessengerV2.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-import {ITokenMessengerV2} from "./interfaces/ITokenMessengerV2.sol";
 
 contract PerUserCctpSettlement is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -41,9 +40,9 @@ contract PerUserCctpSettlement is ReentrancyGuard {
         mintRecipientBytes32 = _addressToBytes32(_ethereumMintRecipient);
     }
 
-    function sweepUsdc(uint256 maxFee, uint32 minFinalityThreshold) external nonReentrant {
-        uint256 usdcAmount = usdc.balanceOf(address(this));
-        require(usdcAmount > 0, "No USDC balance");
+    function sweepUsdc(uint256 usdcAmount, uint256 maxFee, uint32 minFinalityThreshold) external nonReentrant {
+        require(usdcAmount > 0, "Invalid amount");
+        require(usdc.balanceOf(address(this)) >= usdcAmount, "Insufficient USDC balance");
 
         usdc.forceApprove(address(tokenMessenger), usdcAmount);
 

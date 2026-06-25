@@ -40,17 +40,24 @@ describe("PerUserCctpSettlement", () => {
   it("reverts when there is no USDC balance", async () => {
     const { settlement } = await deployFixture();
 
-    await expect(settlement.sweepUsdc(0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWith("No USDC balance");
+    await expect(settlement.sweepUsdc(1n, 0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWith("Insufficient USDC balance");
   });
 
-  it("sweeps the full USDC balance into CCTP forwarding with the immutable Ethereum recipient", async () => {
+  it("reverts when the requested sweep amount is zero", async () => {
+    const { settlement } = await deployFixture();
+
+    await expect(settlement.sweepUsdc(0, 0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWith("Invalid amount");
+  });
+
+  it("sweeps the requested USDC amount into CCTP forwarding with the immutable Ethereum recipient", async () => {
     const { caller, recipient, settlement, tokenMessenger, usdc } = await deployFixture();
     const amount = 1_000_000n;
+    const remainingAmount = 500_000n;
     const maxFee = 1_000n;
 
-    await usdc.mint(await settlement.getAddress(), amount);
+    await usdc.mint(await settlement.getAddress(), amount + remainingAmount);
 
-    await expect(settlement.connect(caller).sweepUsdc(maxFee, STANDARD_FINALITY_THRESHOLD))
+    await expect(settlement.connect(caller).sweepUsdc(amount, maxFee, STANDARD_FINALITY_THRESHOLD))
       .to.emit(settlement, "UsdcSweptAndForwarded")
       .withArgs(
         caller.address,
@@ -75,7 +82,7 @@ describe("PerUserCctpSettlement", () => {
         FORWARD_HOOK_DATA
       );
 
-    expect(await usdc.balanceOf(await settlement.getAddress())).to.equal(0n);
+    expect(await usdc.balanceOf(await settlement.getAddress())).to.equal(remainingAmount);
     expect(await usdc.balanceOf(await tokenMessenger.getAddress())).to.equal(amount);
 
     const burnCall = await tokenMessenger.lastBurnCall();
@@ -90,11 +97,21 @@ describe("PerUserCctpSettlement", () => {
     expect(burnCall.depositor).to.equal(await settlement.getAddress());
   });
 
+  it("reverts when the requested sweep amount exceeds the USDC balance", async () => {
+    const { settlement, usdc } = await deployFixture();
+
+    await usdc.mint(await settlement.getAddress(), 1_000_000n);
+
+    await expect(settlement.sweepUsdc(1_000_001n, 0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWith(
+      "Insufficient USDC balance"
+    );
+  });
+
   it("revokes the TokenMessenger allowance after a successful burn", async () => {
     const { settlement, tokenMessenger, usdc } = await deployFixture();
 
     await usdc.mint(await settlement.getAddress(), 1_000_000n);
-    await settlement.sweepUsdc(0, STANDARD_FINALITY_THRESHOLD);
+    await settlement.sweepUsdc(1_000_000n, 0, STANDARD_FINALITY_THRESHOLD);
 
     expect(await usdc.allowance(await settlement.getAddress(), await tokenMessenger.getAddress())).to.equal(0n);
   });
@@ -105,10 +122,10 @@ describe("PerUserCctpSettlement", () => {
     await usdc.mint(await settlement.getAddress(), 1_000_000n);
     await tokenMessenger.setReenter(
       await settlement.getAddress(),
-      settlement.interface.encodeFunctionData("sweepUsdc", [0, STANDARD_FINALITY_THRESHOLD])
+      settlement.interface.encodeFunctionData("sweepUsdc", [1_000_000n, 0, STANDARD_FINALITY_THRESHOLD])
     );
 
-    await expect(settlement.sweepUsdc(0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWithCustomError(
+    await expect(settlement.sweepUsdc(1_000_000n, 0, STANDARD_FINALITY_THRESHOLD)).to.be.revertedWithCustomError(
       settlement,
       "ReentrancyGuardReentrantCall"
     );

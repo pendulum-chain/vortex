@@ -21,6 +21,8 @@
     "compile": "hardhat compile",
     "deploy:base": "hardhat ignition deploy ignition/modules/CctpSettlement.ts --network base",
     "deploy:base-sepolia": "hardhat ignition deploy ignition/modules/CctpSettlement.ts --network baseSepolia",
+    "deploy:settlement:base": "hardhat deploy-settlement --network base",
+    "deploy:settlement:base-sepolia": "hardhat deploy-settlement --network baseSepolia",
     "node": "hardhat node",
     "test": "hardhat test"
   },
