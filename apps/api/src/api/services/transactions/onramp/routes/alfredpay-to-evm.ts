@@ -1,7 +1,5 @@
 import {
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
-  AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_USDC_POLYGON,
@@ -10,7 +8,6 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
-  FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -22,10 +19,10 @@ import {
 } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
-import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
@@ -85,38 +82,11 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
-  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
-    [FiatToken.USD]: AlfredPayCountry.US,
-    [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO,
-    [FiatToken.ARS]: AlfredPayCountry.AR
-  };
-  const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
-  if (!customerCountry) {
-    throw new Error(`Unsupported Alfredpay input currency: ${quote.inputCurrency}`);
-  }
-
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country: customerCountry, userId }
-  });
-
-  if (!customer) {
-    throw new APIError({
-      message: `No completed Alfredpay KYC profile found for ${quote.inputCurrency}. Complete Alfredpay KYC before registering this onramp.`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
-
-  if (customer.status !== AlfredPayStatus.Success) {
-    throw new APIError({
-      message: `Alfredpay KYC status is ${customer.status}. Complete Alfredpay KYC before registering this onramp.`,
-      status: httpStatus.BAD_REQUEST
-    });
-  }
+  const alfredPayId = await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
 
   // Setup state metadata
   stateMeta = {
-    alfredpayUserId: customer.alfredPayId,
+    alfredpayUserId: alfredPayId,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address
   };

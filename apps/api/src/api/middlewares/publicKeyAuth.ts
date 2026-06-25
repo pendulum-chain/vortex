@@ -101,6 +101,6 @@ function recordPublicKeyFailure(req: Request, httpStatus: number, apiKeyPrefix: 
     operation: "auth_public_key",
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: req.userId || req.apiKeyUserId || null
   });
 }

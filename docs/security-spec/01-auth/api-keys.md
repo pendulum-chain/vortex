@@ -14,6 +14,10 @@ Three middleware components:
 - **`validatePublicKey()`** — Validates public keys from query params or body. For tracking only, not authentication.
 - **`enforcePartnerAuth()`** — When `partnerId` is in the request body, enforces that the request is authenticated and the partner matches.
 
+### Optional user binding (`api_keys.user_id`)
+
+A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET NULL`) lets an admin bind a secret key to a specific profile. The binding is propagated to the request as `req.apiKeyUserId` (set by `setApiKeyUserId` in the auth middleware). Controllers and services derive the **effective user id** with `getEffectiveUserId(req)`, which prefers `req.userId` (Supabase) and falls back to `req.apiKeyUserId`. Public keys never populate `req.apiKeyUserId`. Use of the effective user is required for provider-backed quote creation, ramp registration on Avenia/BRL or Alfredpay corridors, and the BRLA pre-flight endpoints.
+
 ## Security Invariants
 
 1. **Secret keys MUST be transmitted via the `X-API-Key` header only** — Never in query parameters, request body, or URL path. The middleware reads exclusively from `req.headers["x-api-key"]`.
@@ -26,6 +30,9 @@ Three middleware components:
 8. **`enforcePartnerAuth` MUST block unauthenticated requests when `partnerId` is present** — If a request includes `partnerId` but has no authenticated partner, it MUST be rejected with 403.
 9. **`lastUsedAt` updates MUST be fire-and-forget** — The `keyRecord.update({ lastUsedAt })` call is intentionally not awaited, with errors caught and logged. This MUST NOT block or fail the auth flow.
 10. **Key generation MUST use cryptographically secure randomness** — `crypto.randomBytes(32)` is the source. Base64 encoding with character stripping is used to produce the 32-char alphanumeric portion.
+11. **Secret keys MAY carry a nullable `api_keys.user_id` to identify a delegated user context** — The binding is consumed by the `apiKeyUserId` request field and is the only path for partner secret keys to provide a non-Supabase user identity. Public keys never carry or surface a user binding.
+12. **`ON DELETE SET NULL` for `api_keys.user_id` is intentional** — Deleting a profile must not silently revoke partner keys; partner keys are operational assets and binding loss is a soft-state change.
+13. **Provider-backed quote and ramp operations MUST be rejected when no effective user is present** — Alfredpay and Avenia/BRL flows return `400 Invalid quote: this route requires an API key linked to a user or Supabase user authentication.` before any upstream provider call. Unlinked secret keys are not a valid identity for these corridors.
 
 ## Threat Vectors & Mitigations
 
@@ -37,6 +44,9 @@ Three middleware components:
 | **Partner impersonation** | Attacker uses one partner's API key with another partner's `partnerId` | `enforcePartnerAuth` compares authenticated partner name against requested partner name; rejects mismatches with 403 |
 | **Stale/revoked key usage** | Partner's key is deactivated but still being used | `isActive` flag checked on every validation; expired keys rejected by `expiresAt` check |
 | **Key hash enumeration** | Attacker with DB read access tries to use key hashes | bcrypt hashes are one-way; raw keys cannot be recovered from hashes |
+| **Unlinked key creating provider resources anonymously** | Partner uses a generic (unbound) sk\_ key to mint an Alfredpay/Avenia estimate quote, then registers it with a linked secret key or Supabase session to claim the resulting real provider quote | Quote creation is anonymous-eligible (the Alfredpay engines short-circuit on no effective user and store a sentinel `ANONYMOUS_ALFREDPAY_QUOTE_ID`). `RampService.registerRamp` rejects with `403` when `isProviderBackedRampKind(quote) && quote.userId == null && request.userId != null`, so the anonymous estimate cannot be claimed by an authenticated caller. Alfredpay engines resolve the customer via `api_keys.user_id -> alfredpay_customers.user_id` whenever an effective user is present. |
+| **One linked key operating on another user's quote/ramp** | Partner with a valid linked key targets a different linked user's provider-bound quote | `assertQuoteOwnership`/`assertRampOwnership` enforce `quote.userId === req.apiKeyUserId` when a linked key is in scope. The `RampService.registerRamp` cross-user check rejects the same scenario at registration time with `403`. |
+| **Anonymous subaccount creation DoS** | Unauthenticated caller hits `POST /v1/brla/createSubaccount` to spawn stranded Avenia subaccounts | The route now requires `requirePartnerOrUserAuth()`; controllers require an effective user id before calling the Avenia API. |
 
 ## Audit Checklist
 
@@ -52,3 +62,11 @@ Three middleware components:
 - [x] Partner name comparison is case-sensitive and exact (no normalization that could be exploited) — **PASS**
 - [x] No endpoint accepts secret keys from query parameters or request body — **PASS**
 - [x] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats — **PARTIAL: `PARTNER_MISMATCH` leaks authenticated partner name in response details**
+- [x] `api_keys.user_id` migration (`034-add-user-id-to-api-keys`) added with `ON DELETE SET NULL`, `idx_api_keys_user_id`, and `idx_api_keys_active_user_lookup`. — **PASS**
+- [x] `validateSecretApiKey` returns `apiKeyId` and `apiKeyUserId` on the `AuthenticatedPartner` value. — **PASS**
+- [x] `apiKeyAuth` and `dualAuth` populate `req.apiKeyUserId` from the validated secret key. Public keys do not populate the field. — **PASS**
+- [x] `getEffectiveUserId` returns `req.userId ?? req.apiKeyUserId`. — **PASS**
+- [x] Provider-backed quote creation is anonymous-eligible: Alfredpay engines short-circuit on no effective user and store `ANONYMOUS_ALFREDPAY_QUOTE_ID`; Avenia engines call upstream providers regardless of identity. — **PASS**
+- [x] `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`. — **PASS**
+- [x] `RampService.registerRamp` rejects anonymous provider-backed quotes from being claimed by an authenticated caller with `403` (`isProviderBackedRampKind(quote) && quote.userId == null && request.userId != null`). — **PASS**
+- [x] `assertQuoteOwnership` and `assertRampOwnership` reject linked-key callers who try to operate on a different linked user's quote/ramp. — **PASS**

@@ -9,6 +9,7 @@ import type { AuthenticatedPartner } from "./apiKeyAuth.helpers";
 
 interface OwnershipRequest {
   authenticatedPartner?: AuthenticatedPartner;
+  apiKeyUserId?: string;
   body?: unknown;
   method?: string;
   params?: unknown;
@@ -29,6 +30,10 @@ async function ownsPartnerRecord(authenticatedPartner: AuthenticatedPartner, par
     return false;
   }
   return partnerId === authenticatedPartner.id || quotePartner.name === authenticatedPartner.name;
+}
+
+function effectiveRequestUserId(req: OwnershipRequest): string | undefined {
+  return req.userId ?? req.apiKeyUserId;
 }
 
 /**
@@ -56,11 +61,22 @@ export async function assertRampOwnership(req: OwnershipRequest, rampId: string)
         status: httpStatus.FORBIDDEN
       });
     }
+    // Enforce user consistency on the underlying
+    // quote so one partner key cannot operate on a different linked user's
+    // provider-backed ramp.
+    if (req.apiKeyUserId && quote.userId && quote.userId !== req.apiKeyUserId) {
+      recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId: ramp.quoteId, rampId });
+      throw new APIError({
+        message: "Authenticated API key user does not own this ramp",
+        status: httpStatus.FORBIDDEN
+      });
+    }
     return;
   }
 
-  if (req.userId) {
-    if (ramp.userId !== req.userId) {
+  const userId = effectiveRequestUserId(req);
+  if (userId) {
+    if (ramp.userId !== null && ramp.userId !== userId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId: ramp.quoteId, rampId });
       throw new APIError({
         message: "Authenticated user does not own this ramp",
@@ -106,10 +122,21 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
         status: httpStatus.FORBIDDEN
       });
     }
+    // Enforce user consistency on the quote so one
+    // partner key cannot operate on a different linked user's provider-bound
+    // quote.
+    if (req.apiKeyUserId && quote.userId && quote.userId !== req.apiKeyUserId) {
+      recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
+      throw new APIError({
+        message: "Authenticated API key user does not own this quote",
+        status: httpStatus.FORBIDDEN
+      });
+    }
     return;
   }
 
-  if (req.userId) {
+  const userId = effectiveRequestUserId(req);
+  if (userId) {
     if (quote.partnerId !== null) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
       throw new APIError({
@@ -117,7 +144,7 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
         status: httpStatus.FORBIDDEN
       });
     }
-    if (quote.userId !== null && quote.userId !== req.userId) {
+    if (quote.userId !== null && quote.userId !== userId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
       throw new APIError({
         message: "Authenticated user does not own this quote",
@@ -155,6 +182,6 @@ function recordOwnershipFailure(
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: effectiveRequestUserId(req) || null
   });
 }

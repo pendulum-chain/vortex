@@ -9,6 +9,7 @@ import {
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientErrorType } from "../observability/types";
 import { AuthenticatedPartner, getKeyType, isValidSecretKeyFormat, validateApiKey } from "./apiKeyAuth.helpers";
+import { setApiKeyUserId } from "./effectiveUser";
 
 // Extend Express Request type to include authenticatedPartner
 declare global {
@@ -93,6 +94,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
 
       // Attach authenticated partner to request
       req.authenticatedPartner = partner;
+      setApiKeyUserId(req, partner.apiKeyUserId);
 
       // If validatePartnerMatch enabled, check payload partnerId
       if (options.validatePartnerMatch && req.body?.partnerId) {
@@ -246,6 +248,6 @@ function recordAuthFailure(
     partnerName: partner?.name || req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: req.userId || req.apiKeyUserId || null
   });
 }

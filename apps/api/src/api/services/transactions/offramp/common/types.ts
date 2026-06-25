@@ -9,7 +9,7 @@ export interface OfframpTransactionParams {
   taxId?: string;
   receiverTaxId?: string;
   brlaEvmAddress?: string;
-  userId?: string;
+  userId: string;
   fiatAccountId?: string;
   email?: string;
   destinationAddress?: string;

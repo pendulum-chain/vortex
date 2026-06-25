@@ -8,6 +8,7 @@ import {
 import { getRequestDurationMs } from "../observability/requestContext";
 import { SupabaseAuthService } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
+import { setApiKeyUserId } from "./effectiveUser";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
@@ -64,6 +65,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
         }
 
         req.authenticatedPartner = partner;
+        setApiKeyUserId(req, partner.apiKeyUserId);
         return next();
       }
 
@@ -122,6 +124,6 @@ function recordDualAuthFailure(
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: req.userId || req.apiKeyUserId || null
   });
 }

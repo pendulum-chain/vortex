@@ -7,6 +7,17 @@ import Partner from "../../models/partner.model";
 export interface AuthenticatedPartner {
   id: string;
   name: string;
+  /**
+   * Database id of the API key that authenticated the request.
+   * Used by ownership and effective-user helpers for diagnostics.
+   */
+  apiKeyId?: string;
+  /**
+   * User id (profiles.id) bound to the API key via `api_keys.user_id`.
+   * Populated for secret keys that have been linked to a user; null/undefined
+   * for unlinked secret keys. Public API keys never populate this.
+   */
+  apiKeyUserId?: string | null;
 }
 
 /**
@@ -162,6 +173,8 @@ export async function validateSecretApiKey(apiKey: string): Promise<Authenticate
 
         // Return partner info (from any partner with this name)
         return {
+          apiKeyId: keyRecord.id,
+          apiKeyUserId: keyRecord.userId,
           id: partner.id,
           name: partner.name
         };

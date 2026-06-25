@@ -1,6 +1,6 @@
 import { RequestHandler, Router } from "express";
 import * as brlaController from "../../controllers/brla.controller";
-import { optionalPartnerOrUserAuth } from "../../middlewares/dualAuth";
+import { optionalPartnerOrUserAuth, requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { optionalAuth, requireAuth } from "../../middlewares/supabaseAuth";
 import { validateStartKyc2, validateSubaccountCreation } from "../../middlewares/validators";
 
@@ -12,8 +12,7 @@ const router: Router = Router({ mergeParams: true });
 //
 // /getUser, /getUserRemainingLimit, and /validatePixKey use optionalPartnerOrUserAuth so that SDK
 // clients without API keys can drive a BRL ramp pre-flight against fully-anonymous quotes. The
-// controllers themselves apply ownership scoping when req.userId is set; anonymous callers see
-// the same data surface a partner X-API-Key caller would (taxId is the lookup key in both cases).
+// controllers themselves apply ownership scoping using `getEffectiveUserId`;
 router.get("/getUser", optionalPartnerOrUserAuth(), brlaController.getAveniaUser as unknown as RequestHandler);
 
 router.get(
@@ -28,7 +27,9 @@ router.get("/getSelfieLivenessUrl", requireAuth, brlaController.getSelfieLivenes
 
 router.get("/validatePixKey", optionalPartnerOrUserAuth(), brlaController.validatePixKey as unknown as RequestHandler);
 
-router.route("/createSubaccount").post(validateSubaccountCreation, optionalAuth, brlaController.createSubaccount);
+router
+  .route("/createSubaccount")
+  .post(validateSubaccountCreation, requirePartnerOrUserAuth(), brlaController.createSubaccount as unknown as RequestHandler);
 
 router.route("/getUploadUrls").post(validateStartKyc2, requireAuth, brlaController.getUploadUrls);
 
