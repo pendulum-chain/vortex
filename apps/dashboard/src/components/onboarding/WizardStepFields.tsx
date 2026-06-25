@@ -12,7 +12,7 @@ export function WizardStepFields({ stepId }: { stepId: string }) {
       return (
         <div className="grid gap-4">
           <Field label="Legal company name" placeholder="Nordwind Logística Ltda" />
-          <Field label="CNPJ" placeholder="12.345.678/0001-90" />
+          <Field label="Registration number" placeholder="12.345.678/0001-90" />
           <Field label="Trade name" placeholder="Nordwind" />
         </div>
       );
@@ -20,7 +20,7 @@ export function WizardStepFields({ stepId }: { stepId: string }) {
       return (
         <div className="grid gap-4">
           <Field label="Representative full name" placeholder="João Pereira" />
-          <Field label="Representative CPF" placeholder="123.456.789-00" />
+          <Field label="Representative tax ID" placeholder="123.456.789-00" />
           <Field label="Role" placeholder="Director" />
         </div>
       );

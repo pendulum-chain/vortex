@@ -1,5 +1,4 @@
 import { Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,7 +31,7 @@ export function AddCorridorDropdown({ account }: { account: SenderAccount }) {
           <DropdownMenuItem className="gap-2" key={corridor.id} onClick={() => addCorridorToAccount(account.id, corridor.id)}>
             <span className="text-lg">{corridor.flag}</span>
             <span className="flex-1 font-medium text-sm">{corridor.name}</span>
-            {corridor.availability === "coming_soon" && <Badge variant="secondary">Soon</Badge>}
+            <span className="text-muted-foreground text-xs">{corridor.currency}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

@@ -49,16 +49,16 @@ export function notifyTransferCompleted(summary: string) {
 
 export function notifyRecipientInvited(recipientEmail: string, corridorName: string) {
   const email = currentEmail();
-  const title = "KYB invite sent";
-  const body = `We emailed a ${corridorName} KYB invite to ${recipientEmail}. They can receive transfers once approved.`;
+  const title = "Recipient invite sent";
+  const body = `We emailed a ${corridorName} KYC/KYB invite to ${recipientEmail}. They can receive transfers once approved.`;
   useNotificationsStore.getState().add({ body, email, title });
   toast.info(title, { description: `Invite sent to ${recipientEmail}` });
 }
 
-export function notifyRecipientRegistered(recipientEmail: string, corridorName: string) {
+export function notifyRecipientApproved(recipientEmail: string, corridorName: string) {
   const email = currentEmail();
   const title = "Recipient approved";
-  const body = `${recipientEmail} completed ${corridorName} KYB and is ready to receive transfers.`;
+  const body = `${recipientEmail} completed ${corridorName} KYC/KYB and is ready to receive transfers.`;
   useNotificationsStore.getState().add({ body, email, title });
   toast.success(title, { description: `${recipientEmail} is ready` });
 }

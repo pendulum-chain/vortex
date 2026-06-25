@@ -1,16 +1,15 @@
-import type { AccountType, Corridor, CorridorId, OnboardingKind } from "./types";
+import type { AccountType, Corridor, CorridorId, OnboardingKind, OnboardingRoute } from "./types";
 
 export const CORRIDORS: Record<CorridorId, Corridor> = {
   AR: {
-    availability: "coming_soon",
+    availability: "live",
     currency: "ARS",
     flag: "🇦🇷",
     id: "AR",
     name: "Argentina",
     provider: "alfredpay",
     recipientLabel: "CBU / CVU",
-    recipientMethod: "ach",
-    supportsKyb: false
+    recipientMethod: "ach"
   },
   BR: {
     availability: "live",
@@ -20,19 +19,17 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     name: "Brazil",
     provider: "avenia",
     recipientLabel: "PIX key",
-    recipientMethod: "pix",
-    supportsKyb: true
+    recipientMethod: "pix"
   },
   CO: {
-    availability: "coming_soon",
+    availability: "live",
     currency: "COP",
     flag: "🇨🇴",
     id: "CO",
     name: "Colombia",
     provider: "alfredpay",
     recipientLabel: "Account number",
-    recipientMethod: "ach",
-    supportsKyb: false
+    recipientMethod: "ach"
   },
   EU: {
     availability: "live",
@@ -42,30 +39,27 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     name: "Europe",
     provider: "mykobo",
     recipientLabel: "IBAN",
-    recipientMethod: "iban",
-    supportsKyb: false
+    recipientMethod: "iban"
   },
   MX: {
-    availability: "coming_soon",
+    availability: "live",
     currency: "MXN",
     flag: "🇲🇽",
     id: "MX",
     name: "Mexico",
     provider: "alfredpay",
     recipientLabel: "CLABE",
-    recipientMethod: "spei",
-    supportsKyb: false
+    recipientMethod: "spei"
   },
   US: {
-    availability: "coming_soon",
+    availability: "live",
     currency: "USD",
     flag: "🇺🇸",
     id: "US",
     name: "USA",
     provider: "alfredpay",
     recipientLabel: "ACH routing + account",
-    recipientMethod: "ach",
-    supportsKyb: false
+    recipientMethod: "ach"
   }
 };
 
@@ -77,11 +71,21 @@ export const PROVIDER_LABEL: Record<Corridor["provider"], string> = {
   mykobo: "Mykobo"
 };
 
-/** Avenia runs company KYB; everyone else (and all individuals) is individual KYC. */
-export function onboardingKindFor(corridor: Corridor, accountType: AccountType): OnboardingKind {
-  return corridor.supportsKyb && accountType === "company" ? "kyb" : "kyc";
+/** Companies run KYB, individuals run KYC — in every supported corridor. */
+export function onboardingKindFor(_corridor: Corridor, accountType: AccountType): OnboardingKind {
+  return accountType === "company" ? "kyb" : "kyc";
 }
 
-export function isLive(corridorId: CorridorId): boolean {
-  return CORRIDORS[corridorId].availability === "live";
+/**
+ * Routing method per the supported-onboarding matrix (§2): USA always redirects to a
+ * partner, EU company KYB uses an external Google Form, everything else is headless.
+ */
+export function routeFor(corridorId: CorridorId, kind: OnboardingKind): OnboardingRoute {
+  if (corridorId === "US") {
+    return "redirect";
+  }
+  if (corridorId === "EU" && kind === "kyb") {
+    return "google_form";
+  }
+  return "headless";
 }

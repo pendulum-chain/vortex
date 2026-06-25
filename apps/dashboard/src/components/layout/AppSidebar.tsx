@@ -1,12 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeftRight, LayoutDashboard, Send, Settings, Wallet } from "lucide-react";
+import { ArrowLeftRight, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -16,10 +14,10 @@ import {
 import { VortexLogo } from "./VortexLogo";
 
 const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Overview", to: "/overview" },
-  { icon: Wallet, label: "New transfer", to: "/transfer" },
+  { icon: ShieldCheck, label: "Onboarding", to: "/overview" },
+  { icon: Users, label: "Recipients", to: "/recipients" },
+  { icon: Send, label: "New transfer", to: "/transfer" },
   { icon: ArrowLeftRight, label: "Transactions", to: "/transactions" },
-  { icon: Send, label: "Recipients", to: "/recipients" },
   { icon: Settings, label: "Settings", to: "/settings" }
 ] as const;
 
@@ -35,7 +33,6 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Onboarding</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map(item => (
@@ -52,9 +49,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <p className="px-2 text-muted-foreground text-xs">Cross-border transfers, unlocked.</p>
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

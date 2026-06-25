@@ -47,11 +47,7 @@ export function CountrySelectStep({
                   {PROVIDER_LABEL[corridor.provider]} · {corridor.currency}
                 </span>
               </div>
-              {corridor.availability === "coming_soon" ? (
-                <Badge variant="secondary">Coming soon</Badge>
-              ) : (
-                <Badge variant="success">Available</Badge>
-              )}
+              <Badge variant="success">Available</Badge>
               <span
                 className={cn(
                   "flex size-5 items-center justify-center rounded-full border",

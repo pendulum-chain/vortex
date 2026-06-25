@@ -1,7 +1,18 @@
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowRight, RotateCcw, Send } from "lucide-react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CORRIDORS } from "@/domain/corridors";
+import { CORRIDORS, PROVIDER_LABEL } from "@/domain/corridors";
+import { RECIPIENT_STATUS_META } from "@/domain/status";
+import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { Recipient } from "@/domain/types";
+import { simulateRecipientOnboarding } from "@/lib/recipientFlow";
+import { useDashboardStore } from "@/stores/dashboard.store";
+
+const MotionRow = motion.create(TableRow);
 
 export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
   return (
@@ -10,33 +21,104 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
         <TableRow>
           <TableHead>Recipient</TableHead>
           <TableHead>Country</TableHead>
+          <TableHead>Payout</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Added</TableHead>
+          <TableHead className="text-right">Action</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {recipients.map(recipient => {
+        {recipients.map((recipient, i) => {
           const corridor = CORRIDORS[recipient.corridorId];
+          const status = RECIPIENT_STATUS_META[recipient.status];
           return (
-            <TableRow key={recipient.id}>
-              <TableCell className="font-medium">{recipient.email}</TableCell>
+            <MotionRow
+              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 8 }}
+              key={recipient.id}
+              transition={{ bounce: 0, delay: Math.min(i, 10) * 0.04, duration: 0.4, type: "spring" }}
+            >
+              <TableCell>
+                <div className="grid gap-0.5">
+                  <span className="font-medium">{recipient.email}</span>
+                  <span className="text-muted-foreground text-xs capitalize">{recipient.recipientType}</span>
+                </div>
+              </TableCell>
               <TableCell>
                 {corridor.flag} {corridor.name}
               </TableCell>
               <TableCell>
-                {recipient.status === "registered" ? (
-                  <Badge variant="success">Registered</Badge>
-                ) : (
-                  <Badge variant="info">Awaiting KYB</Badge>
-                )}
+                <div className="grid gap-0.5">
+                  <span className="font-medium">
+                    {recipient.amount} {recipient.payoutCurrency}
+                  </span>
+                  <span className="max-w-[14rem] truncate text-muted-foreground text-xs">
+                    {PAYMENT_METHOD_LABEL[recipient.bankDetails.method]} · {recipient.bankDetails.value}
+                  </span>
+                </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {new Date(recipient.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+              <TableCell>
+                <Badge variant={status.badgeVariant}>{status.label}</Badge>
               </TableCell>
-            </TableRow>
+              <TableCell className="text-right">
+                <RecipientAction
+                  corridorName={corridor.name}
+                  provider={PROVIDER_LABEL[corridor.provider]}
+                  recipient={recipient}
+                />
+              </TableCell>
+            </MotionRow>
           );
         })}
       </TableBody>
     </Table>
   );
+}
+
+function RecipientAction({
+  recipient,
+  corridorName,
+  provider
+}: {
+  recipient: Recipient;
+  corridorName: string;
+  provider: string;
+}) {
+  const navigate = useNavigate();
+  const setRecipientStatus = useDashboardStore(state => state.setRecipientStatus);
+
+  if (recipient.status === "approved") {
+    return (
+      <Button onClick={() => navigate({ search: { recipient: recipient.id }, to: "/transfer" })} size="sm">
+        Create transfer
+        <ArrowRight />
+      </Button>
+    );
+  }
+
+  if (recipient.status === "invite_sent") {
+    return (
+      <Button onClick={() => toast.success(`Invite re-sent to ${recipient.email}`)} size="sm" variant="outline">
+        <Send />
+        Resend invite
+      </Button>
+    );
+  }
+
+  if (recipient.status === "rejected") {
+    return (
+      <Button
+        onClick={() => {
+          setRecipientStatus(recipient.id, "pending");
+          simulateRecipientOnboarding(recipient.id, recipient.email, corridorName);
+        }}
+        size="sm"
+        variant="outline"
+      >
+        <RotateCcw />
+        Retry
+      </Button>
+    );
+  }
+
+  return <span className="text-muted-foreground text-xs">Awaiting {provider} review</span>;
 }

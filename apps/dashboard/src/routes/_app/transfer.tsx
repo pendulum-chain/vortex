@@ -1,53 +1,82 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Lock } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Lock } from "lucide-react";
+import { motion } from "motion/react";
+import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { TransferForm } from "@/components/transfer/TransferForm";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CORRIDORS } from "@/domain/corridors";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { popIn } from "@/lib/motion";
+import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/transfer")({
-  component: TransferPage
+  component: TransferPage,
+  validateSearch: (search: Record<string, unknown>): { recipient?: string } => ({
+    recipient: typeof search.recipient === "string" ? search.recipient : undefined
+  })
 });
 
 function TransferPage() {
   const account = useActiveAccount();
+  const { recipient } = Route.useSearch();
+  const allRecipients = useDashboardStore(state => state.recipients);
 
   if (!account) {
     return null;
   }
 
-  const approvedCorridors = account.selectedCorridors
-    .map(id => CORRIDORS[id])
-    .filter(corridor => corridor.availability === "live" && account.onboardings[corridor.id]?.status === "approved");
+  const recipients = allRecipients.filter(item => item.accountId === account.id);
+  const hasApproved = recipients.some(item => item.status === "approved");
+  const hasAnyRecipient = recipients.length > 0;
 
   return (
-    <div className="mx-auto grid max-w-xl gap-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">New transfer</h1>
-        <p className="text-muted-foreground">Trigger an on-ramp or off-ramp for {account.name}.</p>
-      </div>
+    <Stagger className="mx-auto grid max-w-xl gap-6">
+      <StaggerItem>
+        <h1 className="text-balance font-semibold text-2xl tracking-tight">New transfer</h1>
+        <p className="text-muted-foreground">Pay an approved recipient by funding your Vortex wallet.</p>
+      </StaggerItem>
 
-      {approvedCorridors.length === 0 ? (
-        <Card>
-          <CardContent className="flex items-center gap-3 text-sm">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <Lock className="size-4" />
-            </span>
-            <p className="text-muted-foreground">
-              Transfers unlock once a corridor's KYB/KYC is approved. Complete onboarding on the Overview page first.
-            </p>
-          </CardContent>
-        </Card>
+      {hasApproved ? (
+        <StaggerItem>
+          <Card>
+            <CardHeader>
+              <CardTitle>Transfer details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TransferForm account={account} preselectRecipientId={recipient} recipients={recipients} />
+            </CardContent>
+          </Card>
+        </StaggerItem>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Transfer details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TransferForm account={account} approvedCorridors={approvedCorridors} />
-          </CardContent>
-        </Card>
+        <StaggerItem>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+              <motion.span
+                animate="show"
+                className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                initial="hidden"
+                variants={popIn}
+              >
+                <Lock className="size-5" />
+              </motion.span>
+              <div className="grid gap-1">
+                <p className="font-medium">No approved recipient yet</p>
+                <p className="text-pretty text-muted-foreground text-sm">
+                  {hasAnyRecipient
+                    ? "A recipient is awaiting KYC/KYB approval. You can transfer to them once they're approved."
+                    : "Add a recipient and wait for KYC/KYB approval, then you can pay them here."}
+                </p>
+              </div>
+              <Button asChild>
+                <Link to="/recipients">
+                  Go to Recipients
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </StaggerItem>
       )}
-    </div>
+    </Stagger>
   );
 }

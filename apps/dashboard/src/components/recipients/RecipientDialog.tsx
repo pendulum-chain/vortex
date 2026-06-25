@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "lucide-react";
+import { Building2, Plus, User } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -13,17 +13,22 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDORS } from "@/domain/corridors";
-import type { Corridor, SenderAccount } from "@/domain/types";
-import { notifyRecipientInvited, notifyRecipientRegistered } from "@/lib/notify";
+import type { AccountType, Corridor, SenderAccount } from "@/domain/types";
+import { notifyRecipientInvited } from "@/lib/notify";
+import { simulateRecipientOnboarding } from "@/lib/recipientFlow";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
 const schema = z.object({
+  amount: z.string().refine(value => Number(value) > 0, "Enter an amount"),
+  bankValue: z.string().min(4, "Enter the payout details"),
   corridorId: z.enum(["BR", "EU", "MX", "CO", "US", "AR"]),
-  email: z.string().email("Enter a valid email")
+  email: z.string().email("Enter a valid email"),
+  recipientType: z.enum(["individual", "company"])
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -31,25 +36,36 @@ type FormValues = z.infer<typeof schema>;
 export function RecipientDialog({ account, approvedCorridors }: { account: SenderAccount; approvedCorridors: Corridor[] }) {
   const [open, setOpen] = useState(false);
   const addRecipient = useDashboardStore(state => state.addRecipient);
-  const setRecipientStatus = useDashboardStore(state => state.setRecipientStatus);
 
   const form = useForm<FormValues>({
-    defaultValues: { corridorId: approvedCorridors[0]?.id ?? "BR", email: "" },
+    defaultValues: {
+      amount: "",
+      bankValue: "",
+      corridorId: approvedCorridors[0]?.id ?? "BR",
+      email: "",
+      recipientType: "individual"
+    },
     resolver: zodResolver(schema)
   });
 
+  const corridorId = form.watch("corridorId");
+  const corridor = CORRIDORS[corridorId];
   const disabled = approvedCorridors.length === 0;
 
   function onSubmit(values: FormValues) {
-    const corridorName = CORRIDORS[values.corridorId].name;
-    const id = addRecipient({ accountId: account.id, corridorId: values.corridorId, email: values.email });
-    notifyRecipientInvited(values.email, corridorName);
-    // Simulate the recipient completing their KYB after receiving the invite email.
-    setTimeout(() => {
-      setRecipientStatus(id, "registered");
-      notifyRecipientRegistered(values.email, corridorName);
-    }, 2500);
-    form.reset({ corridorId: values.corridorId, email: "" });
+    const selected = CORRIDORS[values.corridorId];
+    const id = addRecipient({
+      accountId: account.id,
+      amount: Number(values.amount).toFixed(2),
+      bankDetails: { method: selected.recipientMethod, value: values.bankValue },
+      corridorId: values.corridorId,
+      email: values.email,
+      payoutCurrency: selected.currency,
+      recipientType: values.recipientType
+    });
+    notifyRecipientInvited(values.email, selected.name);
+    simulateRecipientOnboarding(id, values.email, selected.name);
+    form.reset({ amount: "", bankValue: "", corridorId: values.corridorId, email: "", recipientType: values.recipientType });
     setOpen(false);
   }
 
@@ -58,42 +74,40 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
       <DialogTrigger asChild>
         <Button disabled={disabled}>
           <Plus />
-          Invite recipient
+          Add recipient
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Invite a recipient</DialogTitle>
+          <DialogTitle>Add a recipient</DialogTitle>
           <DialogDescription>
-            We'll email a KYB invite to the recipient. They onboard themselves and can receive transfers once approved.
+            Enter the recipient's payout details. We'll email them a KYC/KYB invite — they can receive transfers once approved.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
             <FormField
               control={form.control}
-              name="corridorId"
+              name="recipientType"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Country</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a country" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {approvedCorridors.map(corridor => (
-                        <SelectItem key={corridor.id} value={corridor.id}>
-                          {corridor.flag} {corridor.name} · {corridor.currency}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
+                  <FormLabel>Recipient type</FormLabel>
+                  <Tabs onValueChange={value => field.onChange(value as AccountType)} value={field.value}>
+                    <TabsList className="w-full">
+                      <TabsTrigger value="individual">
+                        <User />
+                        Individual
+                      </TabsTrigger>
+                      <TabsTrigger value="company">
+                        <Building2 />
+                        Company
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="email"
@@ -107,6 +121,63 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                 </FormItem>
               )}
             />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="corridorId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a country" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {approvedCorridors.map(option => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.flag} {option.name} · {option.currency}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payout amount ({corridor.currency})</FormLabel>
+                    <FormControl>
+                      <Input inputMode="decimal" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormDescription>How much this recipient receives per transfer.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="bankValue"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{corridor.recipientLabel}</FormLabel>
+                  <FormControl>
+                    <Input placeholder={`Enter ${corridor.recipientLabel}`} {...field} />
+                  </FormControl>
+                  <FormDescription>{corridor.name} payouts settle to this account.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
               <Button onClick={() => setOpen(false)} type="button" variant="ghost">
                 Cancel

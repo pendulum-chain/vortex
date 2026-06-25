@@ -16,7 +16,10 @@ export type OnboardingKind = "kyb" | "kyc";
 
 export type AccountType = "company" | "individual";
 
-export type RecipientStatus = "invited" | "registered";
+/** How an onboarding is completed: inline wizard, an external Google Form, or a partner redirect. */
+export type OnboardingRoute = "headless" | "google_form" | "redirect";
+
+export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected";
 
 export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
 
@@ -31,8 +34,6 @@ export interface Corridor {
   flag: string;
   currency: string;
   provider: KycProvider;
-  /** Avenia supports company KYB; Mykobo/Alfredpay are individual KYC only. */
-  supportsKyb: boolean;
   availability: CorridorAvailability;
   recipientMethod: RecipientMethod;
   recipientLabel: string;
@@ -57,32 +58,49 @@ export interface SenderAccount {
   onboardings: Partial<Record<CorridorId, Onboarding>>;
 }
 
-/** On-ramp converts fiat into stablecoin; off-ramp pays a recipient in fiat. */
-export type TransactionDirection = "onramp" | "offramp";
-
-export type TransactionStatus = "completed" | "processing" | "failed";
+/** Wallet-to-fiat payout lifecycle: fund the payin wallet, then settle to the recipient bank. */
+export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | "failed";
 
 export interface Transaction {
   id: string;
   accountId: string;
+  recipientId: string;
+  /** Denormalized for display so the table doesn't have to resolve recipients. */
+  recipientEmail: string;
   corridorId: CorridorId;
-  direction: TransactionDirection;
-  fromCurrency: string;
-  fromAmount: string;
-  toCurrency: string;
-  toAmount: string;
-  /** On-ramp: the funding source; off-ramp: the paid recipient. */
-  counterparty: string;
+  /** Vortex-created (Privy) deposit address the sender pays into. */
+  payinWallet: string;
+  payinNetwork: string;
+  /** Crypto / stablecoin amount expected into the payin wallet. */
+  amountIn: string;
+  amountInToken: string;
+  /** Fiat amount paid out to the recipient bank account. */
+  fiatPayoutAmount: string;
+  payoutCurrency: string;
   status: TransactionStatus;
+  /** Populated only for failed payouts — the reason surfaced in the recovery action. */
+  failureReason?: string;
   createdAt: string;
+}
+
+/** Bank payout details the sender captures up-front; the recipient only completes KYC/KYB. */
+export interface RecipientBankDetails {
+  method: RecipientMethod;
+  /** Single rail value: PIX key, IBAN, CLABE, or ACH account number. */
+  value: string;
 }
 
 export interface Recipient {
   id: string;
   accountId: string;
-  corridorId: CorridorId;
-  /** Recipient's email — they receive a KYB invite and onboard themselves. */
+  /** Recipient's email — they receive a KYC/KYB invite and onboard themselves. */
   email: string;
+  recipientType: AccountType;
+  corridorId: CorridorId;
+  /** Payout amount the sender intends to send this recipient. */
+  amount: string;
+  payoutCurrency: string;
+  bankDetails: RecipientBankDetails;
   status: RecipientStatus;
   createdAt: string;
 }

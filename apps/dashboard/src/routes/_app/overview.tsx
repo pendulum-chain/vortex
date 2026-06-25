@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { CircleCheck, Clock, Globe, ShieldCheck } from "lucide-react";
+import { Building2, Globe, User } from "lucide-react";
+import { motion } from "motion/react";
 import { useState } from "react";
 import { CountrySelectStep } from "@/components/auth/CountrySelectStep";
+import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { AddCorridorDropdown } from "@/components/onboarding/AddCorridorDropdown";
 import { CorridorCard } from "@/components/onboarding/CorridorCard";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { Card, CardContent } from "@/components/ui/card";
-import { CORRIDORS, isLive } from "@/domain/corridors";
-import type { CorridorId, SenderAccount } from "@/domain/types";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CORRIDORS } from "@/domain/corridors";
+import type { AccountType, CorridorId, SenderAccount } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { popIn, spring } from "@/lib/motion";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/overview")({
@@ -28,51 +32,36 @@ function OverviewPage() {
   }
 
   const corridors = account.selectedCorridors.map(id => CORRIDORS[id]);
-  const liveCorridors = corridors.filter(corridor => corridor.availability === "live");
-  const approved = liveCorridors.filter(c => account.onboardings[c.id]?.status === "approved").length;
-  const inProgress = liveCorridors.filter(c => {
-    const status = account.onboardings[c.id]?.status;
-    return status === "pending" || status === "in_review";
-  }).length;
-  const comingSoon = corridors.length - liveCorridors.length;
-
-  const stats = [
-    { icon: Globe, label: "Corridors", tone: "text-primary", value: corridors.length },
-    { icon: CircleCheck, label: "Approved", tone: "text-success", value: approved },
-    { icon: ShieldCheck, label: "In progress", tone: "text-info", value: inProgress },
-    ...(comingSoon > 0 ? [{ icon: Clock, label: "Coming soon", tone: "text-muted-foreground", value: comingSoon }] : [])
-  ];
+  const approved = corridors.filter(c => account.onboardings[c.id]?.status === "approved").length;
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-6">
-      <div className="flex items-start justify-between gap-4">
+    <Stagger className="mx-auto grid max-w-5xl gap-6">
+      <StaggerItem className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-semibold text-2xl tracking-tight">Onboarding</h1>
+          <h1 className="text-balance font-semibold text-2xl tracking-tight">Onboarding</h1>
           <p className="text-muted-foreground">
-            Complete KYB/KYC for {account.name} to unlock cross-border transfers in each corridor.
+            Complete KYB/KYC for {account.name} to unlock transfers — {approved} of {corridors.length} corridor
+            {corridors.length === 1 ? "" : "s"} approved.
           </p>
         </div>
         <AddCorridorDropdown account={account} />
-      </div>
+      </StaggerItem>
 
-      <div className={stats.length === 4 ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4" : "grid gap-4 sm:grid-cols-3"}>
-        {stats.map(stat => (
-          <SummaryCard icon={stat.icon} key={stat.label} label={stat.label} tone={stat.tone} value={`${stat.value}`} />
-        ))}
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
+      <Stagger className="grid gap-4 md:grid-cols-2">
         {corridors.map(corridor => (
-          <CorridorCard
-            account={account}
-            corridor={corridor}
+          <StaggerItem
+            className="h-full"
             key={corridor.id}
-            onStart={() => setActiveCorridor(corridor.id)}
-          />
+            transition={spring}
+            whileHover={{ y: -4 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <CorridorCard account={account} corridor={corridor} onStart={() => setActiveCorridor(corridor.id)} />
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
-      {activeCorridor && isLive(activeCorridor) && (
+      {activeCorridor && (
         <OnboardingWizard
           account={account}
           corridor={CORRIDORS[activeCorridor]}
@@ -80,60 +69,61 @@ function OverviewPage() {
           onClose={() => setActiveCorridor(null)}
         />
       )}
-    </div>
+    </Stagger>
   );
 }
 
 function ChooseCountriesCta({ account }: { account: SenderAccount }) {
   const addCorridorToAccount = useDashboardStore(state => state.addCorridorToAccount);
+  const setAccountType = useDashboardStore(state => state.setAccountType);
+  const [type, setType] = useState<AccountType>(account.type);
 
   return (
-    <div className="mx-auto grid max-w-xl gap-6">
-      <div className="text-center">
-        <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <Stagger className="mx-auto grid max-w-xl gap-6">
+      <StaggerItem className="text-center">
+        <motion.span
+          animate="show"
+          className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary"
+          initial="hidden"
+          variants={popIn}
+        >
           <Globe className="size-6" />
-        </span>
-        <h1 className="font-semibold text-2xl tracking-tight">Welcome to Vortex</h1>
-        <p className="text-muted-foreground">Choose the countries you want to operate in to start your KYB/KYC onboarding.</p>
-      </div>
-      <Card>
-        <CardContent>
-          <CountrySelectStep
-            onSubmit={corridors => {
-              for (const id of corridors) {
-                addCorridorToAccount(account.id, id);
-              }
-            }}
-            submitLabel="Start onboarding"
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function SummaryCard({
-  icon: Icon,
-  label,
-  value,
-  tone
-}: {
-  icon: typeof ShieldCheck;
-  label: string;
-  value: string;
-  tone: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3">
-        <span className={`flex size-10 items-center justify-center rounded-lg bg-muted ${tone}`}>
-          <Icon className="size-5" />
-        </span>
-        <div>
-          <p className="font-semibold text-2xl leading-none">{value}</p>
-          <p className="text-muted-foreground text-sm">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
+        </motion.span>
+        <h1 className="text-balance font-semibold text-2xl tracking-tight">Welcome to Vortex</h1>
+        <p className="text-pretty text-muted-foreground">
+          Tell us who you are and choose the countries you operate in to start your KYB/KYC onboarding.
+        </p>
+      </StaggerItem>
+      <StaggerItem>
+        <Card>
+          <CardContent className="grid gap-5">
+            <div className="grid gap-2">
+              <p className="font-medium text-sm">I'm onboarding as</p>
+              <Tabs onValueChange={value => setType(value as AccountType)} value={type}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="individual">
+                    <User />
+                    Individual
+                  </TabsTrigger>
+                  <TabsTrigger value="company">
+                    <Building2 />
+                    Company
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+            <CountrySelectStep
+              onSubmit={corridors => {
+                setAccountType(account.id, type);
+                for (const id of corridors) {
+                  addCorridorToAccount(account.id, id);
+                }
+              }}
+              submitLabel="Start onboarding"
+            />
+          </CardContent>
+        </Card>
+      </StaggerItem>
+    </Stagger>
   );
 }

@@ -8,6 +8,7 @@ import type {
   Onboarding,
   OnboardingStatus,
   Recipient,
+  RecipientBankDetails,
   SenderAccount,
   Transaction
 } from "@/domain/types";
@@ -19,12 +20,22 @@ interface DashboardState {
   activeAccountId: string;
   setActiveAccount: (id: string) => void;
   setOnboardingStatus: (accountId: string, corridorId: CorridorId, status: OnboardingStatus) => void;
+  /** Sets Individual/Company for an account and recomputes any onboarding kinds. */
+  setAccountType: (accountId: string, type: AccountType) => void;
   /** Activates the account for this email, creating an empty one (→ onboarding CTA) if none exists. */
   signInWithEmail: (email: string) => void;
   /** Adds a corridor to an account's tracked set (no-op if already present). */
   addCorridorToAccount: (accountId: string, corridorId: CorridorId) => void;
-  /** Invites a recipient by email to complete KYB; returns the new recipient id. */
-  addRecipient: (input: { accountId: string; corridorId: CorridorId; email: string }) => string;
+  /** Invites a recipient (with payout details) to complete KYC/KYB; returns the new recipient id. */
+  addRecipient: (input: {
+    accountId: string;
+    corridorId: CorridorId;
+    email: string;
+    recipientType: AccountType;
+    amount: string;
+    payoutCurrency: string;
+    bankDetails: RecipientBankDetails;
+  }) => string;
   setRecipientStatus: (id: string, status: Recipient["status"]) => void;
   /** Records a triggered on/off-ramp and returns its id so callers can settle it async. */
   addTransaction: (input: Omit<Transaction, "id" | "createdAt">) => string;
@@ -72,11 +83,15 @@ export const useDashboardStore = create<DashboardState>()(
       addRecipient: input => {
         const recipient: Recipient = {
           accountId: input.accountId,
+          amount: input.amount,
+          bankDetails: input.bankDetails,
           corridorId: input.corridorId,
           createdAt: new Date().toISOString(),
           email: input.email,
           id: crypto.randomUUID(),
-          status: "invited"
+          payoutCurrency: input.payoutCurrency,
+          recipientType: input.recipientType,
+          status: "invite_sent"
         };
         set(state => ({ recipients: [recipient, ...state.recipients] }));
         return recipient.id;
@@ -87,6 +102,21 @@ export const useDashboardStore = create<DashboardState>()(
         return transaction.id;
       },
       recipients: SEED_RECIPIENTS,
+      setAccountType: (accountId, type) =>
+        set(state => ({
+          accounts: state.accounts.map(account => {
+            if (account.id !== accountId) {
+              return account;
+            }
+            const onboardings = Object.fromEntries(
+              Object.entries(account.onboardings).map(([id, onboarding]) => [
+                id,
+                onboarding ? { ...onboarding, kind: onboardingKindFor(CORRIDORS[id as CorridorId], type) } : onboarding
+              ])
+            ) as SenderAccount["onboardings"];
+            return { ...account, onboardings, type };
+          })
+        })),
       setActiveAccount: id => set({ activeAccountId: id }),
       setOnboardingStatus: (accountId, corridorId, status) =>
         set(state => ({
@@ -137,8 +167,8 @@ export const useDashboardStore = create<DashboardState>()(
       transactions: SEED_TRANSACTIONS
     }),
     {
-      // Bumped to v3: recipients are now invited by email (no name/destination), so the
-      // migrate reloads the seed to replace any stale persisted recipient shape.
+      // Bumped to v4: recipients now carry payout details + a 4-state compliance status and
+      // transactions are payout-centric, so the migrate reloads the seed to drop stale shapes.
       migrate: () => ({
         accounts: SEED_ACCOUNTS,
         activeAccountId: SEED_ACCOUNTS[0]?.id ?? "",
@@ -152,7 +182,7 @@ export const useDashboardStore = create<DashboardState>()(
         recipients: state.recipients,
         transactions: state.transactions
       }),
-      version: 3
+      version: 4
     }
   )
 );

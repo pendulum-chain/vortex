@@ -33,3 +33,27 @@ export function shortenAddress(address: string): string {
   }
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
+
+/**
+ * Deterministic mock of a Vortex-created (Privy) deposit address. Derived from a seed
+ * (recipient id) so the same recipient always sees the same payin wallet.
+ */
+export function mockPayinAddress(seed: string): string {
+  const hex = "0123456789abcdef";
+  // FNV-1a hash, then xorshift32 per nibble using the high bits (low bits cycle poorly).
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i += 1) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  let body = "";
+  for (let i = 0; i < 40; i += 1) {
+    h ^= (h << 13) >>> 0;
+    h = h >>> 0;
+    h ^= h >>> 17;
+    h ^= (h << 5) >>> 0;
+    h = h >>> 0;
+    body += hex[(h >>> 28) & 0xf];
+  }
+  return `0x${body}`;
+}

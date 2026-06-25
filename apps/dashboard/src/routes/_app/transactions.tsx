@@ -1,10 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ArrowDownToLine, ArrowUpFromLine, Inbox } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, Receipt } from "lucide-react";
+import { motion } from "motion/react";
+import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Transaction } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { popIn } from "@/lib/motion";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/transactions")({
@@ -14,6 +16,7 @@ export const Route = createFileRoute("/_app/transactions")({
 function TransactionsPage() {
   const account = useActiveAccount();
   const transactions = useDashboardStore(state => state.transactions);
+  const recipients = useDashboardStore(state => state.recipients);
 
   if (!account) {
     return null;
@@ -22,57 +25,55 @@ function TransactionsPage() {
   const accountTransactions = transactions
     .filter(tx => tx.accountId === account.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const onramps = accountTransactions.filter(tx => tx.direction === "onramp");
-  const offramps = accountTransactions.filter(tx => tx.direction === "offramp");
-
-  return (
-    <div className="mx-auto grid max-w-5xl gap-6">
-      <div>
-        <h1 className="font-semibold text-2xl tracking-tight">Transactions</h1>
-        <p className="text-muted-foreground">On-ramp and off-ramp history for {account.name}.</p>
-      </div>
-
-      <Tabs defaultValue="onramp">
-        <TabsList>
-          <TabsTrigger value="onramp">
-            <ArrowDownToLine />
-            On-ramp
-          </TabsTrigger>
-          <TabsTrigger value="offramp">
-            <ArrowUpFromLine />
-            Off-ramp
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="onramp">
-          <TransactionsPanel emptyHint="Fiat-to-stablecoin transfers will appear here." transactions={onramps} />
-        </TabsContent>
-        <TabsContent value="offramp">
-          <TransactionsPanel emptyHint="Stablecoin-to-fiat payouts will appear here." transactions={offramps} />
-        </TabsContent>
-      </Tabs>
-    </div>
+  const hasApprovedRecipient = recipients.some(
+    recipient => recipient.accountId === account.id && recipient.status === "approved"
   );
-}
-
-function TransactionsPanel({ transactions, emptyHint }: { transactions: Transaction[]; emptyHint: string }) {
-  if (transactions.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
-          <Inbox className="size-7 text-muted-foreground" />
-          <p className="font-medium">No transactions yet</p>
-          <p className="text-muted-foreground text-sm">{emptyHint}</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
-    <Card>
-      <CardContent>
-        <TransactionsTable transactions={transactions} />
-      </CardContent>
-    </Card>
+    <Stagger className="mx-auto grid max-w-5xl gap-6">
+      <StaggerItem>
+        <h1 className="text-balance font-semibold text-2xl tracking-tight">Transactions</h1>
+        <p className="text-muted-foreground">Wallet-to-fiat payout history for {account.name}.</p>
+      </StaggerItem>
+
+      {accountTransactions.length === 0 ? (
+        <StaggerItem>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+              <motion.span
+                animate="show"
+                className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                initial="hidden"
+                variants={popIn}
+              >
+                <Receipt className="size-5" />
+              </motion.span>
+              <div className="grid gap-1">
+                <p className="font-medium">No transactions yet</p>
+                <p className="text-pretty text-muted-foreground text-sm">
+                  {hasApprovedRecipient
+                    ? "Pay an approved recipient and the payout will appear here."
+                    : "Approve a recipient first, then your payouts will appear here."}
+                </p>
+              </div>
+              <Button asChild>
+                <Link to={hasApprovedRecipient ? "/transfer" : "/recipients"}>
+                  {hasApprovedRecipient ? "Start a transfer" : "Go to Recipients"}
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      ) : (
+        <StaggerItem>
+          <Card>
+            <CardContent>
+              <TransactionsTable transactions={accountTransactions} />
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      )}
+    </Stagger>
   );
 }
