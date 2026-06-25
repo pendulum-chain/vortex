@@ -24,6 +24,8 @@
     "deploy:settlement:base": "hardhat deploy-settlement --network base",
     "deploy:settlement:base-sepolia": "hardhat deploy-settlement --network baseSepolia",
     "node": "hardhat node",
+    "sweep:base": "hardhat sweep-usdc --network base",
+    "sweep:base-sepolia": "hardhat sweep-usdc --network baseSepolia",
     "test": "hardhat test"
   },
   "version": "0.1.0"

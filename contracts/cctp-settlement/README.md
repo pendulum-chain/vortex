@@ -73,10 +73,57 @@ bun run deploy:settlement:base-sepolia -- 0xUserEthereumRecipient
 
 ## Sweep USDC through CCTP forwarding
 
-After USDC is transferred to the per-user settlement contract, call:
+After USDC is transferred to the per-user settlement contract, add the settlement address to `.env`:
+
+```env
+SETTLEMENT_ADDRESS=0xYourSettlementAddress
+```
+
+Then run:
+
+```bash
+bun run sweep:base -- --amount 10.5
+```
+
+`--amount` is the total USDC amount to burn, in normal decimal USDC units. The recipient receives this amount minus the actual CCTP and Forwarding Service fees.
+
+By default the task uses:
+
+```text
+minFinalityThreshold = 2000
+feeTier = medium
+```
+
+and fetches `maxFee` from Circle's CCTP fee API with `forward=true` immediately before submitting the transaction.
+
+You can override those values:
+
+```bash
+bun run sweep:base -- --amount 10.5 --finality 1000 --fee-tier high
+```
+
+If you already have a fee quote, pass the raw USDC subunit value directly:
+
+```bash
+bun run sweep:base -- --amount 10.5 --max-fee 250000
+```
+
+You can also pass the settlement address as a positional argument instead of using `.env`:
+
+```bash
+bun run sweep:base -- 0xYourSettlementAddress --amount 10.5
+```
+
+The underlying contract call is:
 
 ```solidity
 sweepUsdc(usdcAmount, maxFee, minFinalityThreshold)
 ```
 
-For Base → Ethereum, `minFinalityThreshold` can be `2000` for standard finality. Fetch `maxFee` from Circle's CCTP fee API with `forward=true`; it must cover the CCTP protocol fee and Forwarding Service fee.
+For Base → Ethereum, `minFinalityThreshold` can be `2000` for standard finality or `1000` for fast transfer eligibility. Circle recommends using the `medium` fee tier or higher and querying the fee API immediately before sweeping because forwarding fees fluctuate with destination-chain gas.
+
+If you see `Error HH700: Artifact for contract "PerUserCctpSettlement" not found`, the local Hardhat artifacts are missing. The deployment and sweep tasks run `compile` automatically, so rerunning the same command should regenerate them. You can also run this manually:
+
+```bash
+bun run compile
+```
