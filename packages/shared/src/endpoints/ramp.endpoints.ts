@@ -179,7 +179,19 @@ export interface RegisterRampRequest {
     destinationAddress?: string;
     paymentData?: PaymentData;
     pixDestination?: string;
+    /**
+     * @deprecated Derived server-side from `api_keys.user_id -> tax_ids.user_id`
+     * for linked secret-key callers and Supabase-authenticated callers. The
+     * server accepts a value for one release of backward compatibility, but
+     * mismatches against the derived taxId are rejected.
+     */
     receiverTaxId?: string;
+    /**
+     * @deprecated Derived server-side from `api_keys.user_id -> tax_ids.user_id`
+     * for linked secret-key callers and Supabase-authenticated callers. The
+     * server accepts a value for one release of backward compatibility, but
+     * mismatches against the derived taxId are rejected.
+     */
     taxId?: string;
     sessionId?: string;
     email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
