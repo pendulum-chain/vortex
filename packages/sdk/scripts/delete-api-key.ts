@@ -1,5 +1,8 @@
-// Delete (revoke) a user API key (DELETE /v1/api-keys/:keyId).
+// Delete (revoke) a user API key pair (DELETE /v1/api-keys/:keyId).
 // Requires a valid auth token from scripts/login.ts.
+//
+// Select a key; if its paired counterpart (same base name, opposite type) exists,
+// the script asks whether to delete both together.
 //
 // Run:
 //   cd packages/sdk
@@ -28,6 +31,10 @@ interface ApiKeyEntry {
 
 interface ListApiKeysResponse {
   apiKeys: ApiKeyEntry[];
+}
+
+function stripSuffix(name: string): string {
+  return name.replace(/\s*\((Public|Secret)\)$/, "");
 }
 
 function askQuestion(query: string): Promise<string> {
@@ -79,17 +86,41 @@ async function main(): Promise<void> {
   }
 
   const selected = data.apiKeys[index];
-  console.log(`\n🗑️  Revoking key: ${selected.id} (${selected.type} — ${selected.name})`);
+  const baseName = stripSuffix(selected.name);
+  const paired = data.apiKeys.find(k => k.id !== selected.id && k.type !== selected.type && stripSuffix(k.name) === baseName);
 
-  const deleteResponse = await fetch(`${API_BASE_URL}/v1/api-keys/${selected.id}`, {
-    headers: { Authorization: `Bearer ${auth.accessToken}` },
+  let publicKeyId: string | undefined;
+  let keyId = selected.id;
+
+  if (paired) {
+    const typeLabel = paired.type === "public" ? "PUBLIC" : "SECRET";
+    console.log(`\n🔗 Found paired ${typeLabel} key: ${paired.id} (${paired.name})`);
+
+    const deleteBoth = await askQuestion("➡️  Delete both as a pair? (y/N): ");
+    if (deleteBoth.toLowerCase() === "y") {
+      publicKeyId = selected.type === "secret" ? paired.id : selected.id;
+      keyId = selected.type === "secret" ? selected.id : paired.id;
+      console.log(`\n🗑️  Revoking key pair: ${keyId} + ${publicKeyId}`);
+    }
+  }
+
+  if (!publicKeyId) {
+    console.log(`\n🗑️  Revoking key: ${selected.id} (${selected.type} — ${selected.name})`);
+  }
+
+  const deleteResponse = await fetch(`${API_BASE_URL}/v1/api-keys/${keyId}`, {
+    body: publicKeyId ? JSON.stringify({ publicKeyId }) : undefined,
+    headers: {
+      ...(publicKeyId ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${auth.accessToken}`
+    },
     method: "DELETE"
   });
   if (!deleteResponse.ok) {
     const errText = await deleteResponse.text();
-    throw new Error(`${deleteResponse.status} /v1/api-keys/${selected.id}: ${errText}`);
+    throw new Error(`${deleteResponse.status} /v1/api-keys/${keyId}: ${errText}`);
   }
-  console.log("✅ Key revoked.");
+  console.log(publicKeyId ? "✅ Key pair revoked." : "✅ Key revoked.");
 }
 
 if (import.meta.main) {

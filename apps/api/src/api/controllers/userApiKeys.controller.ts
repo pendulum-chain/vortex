@@ -160,6 +160,10 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
   }
 }
 
+function stripSuffix(name: string): string {
+  return name.replace(/\s*\((Public|Secret)\)$/, "");
+}
+
 export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Response): Promise<void> {
   const userId = req.userId;
   if (!userId) {
@@ -185,10 +189,11 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
     return;
   }
 
-  try {
-    const apiKey = await ApiKey.findOne({ where: { id: keyId, isActive: true, userId } });
+  const { publicKeyId } = req.body ?? {};
 
-    if (!apiKey) {
+  try {
+    const primaryKey = await ApiKey.findOne({ where: { id: keyId, isActive: true, userId } });
+    if (!primaryKey) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "API_KEY_NOT_FOUND",
@@ -199,7 +204,51 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
-    await apiKey.update({ isActive: false });
+    if (!publicKeyId) {
+      await primaryKey.update({ isActive: false });
+      res.status(httpStatus.NO_CONTENT).send();
+      return;
+    }
+
+    const pairedKey = await ApiKey.findOne({ where: { id: publicKeyId, isActive: true, userId } });
+    if (!pairedKey) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: {
+          code: "PAIRED_PUBLIC_KEY_NOT_FOUND",
+          message: "Paired public key not found or not owned by the authenticated user",
+          status: httpStatus.NOT_FOUND
+        }
+      });
+      return;
+    }
+
+    const types = new Set([primaryKey.keyType, pairedKey.keyType]);
+    if (!types.has("public") || !types.has("secret")) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_KEY_PAIR",
+          message:
+            "Both keys must be of different types (one public, one secret). A single key can be deleted without publicKeyId.",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    const baseName = stripSuffix(primaryKey.name ?? "");
+    const pairedBaseName = stripSuffix(pairedKey.name ?? "");
+    if (primaryKey.name && pairedKey.name && baseName !== pairedBaseName) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "KEY_PAIR_MISMATCH",
+          message: `Key names do not match: "${primaryKey.name}" and "${pairedKey.name}" appear to be from different pairs`,
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    await Promise.all([primaryKey.update({ isActive: false }), pairedKey.update({ isActive: false })]);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error revoking user API key:", error);
