@@ -24,6 +24,7 @@ import { attachSignatures, typedDataToSign, type UserTransactionType, userTransa
 import { TransactionSigningError } from "./errors";
 import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
 import { BrlHandler } from "./handlers/BrlHandler";
+import { MykoboHandler } from "./handlers/MykoboHandler";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import { storeEphemeralKeys } from "./storage";
@@ -34,6 +35,9 @@ import type {
   BrlOfframpAdditionalData,
   BrlOfframpUpdateAdditionalData,
   BrlOnrampAdditionalData,
+  EurOfframpAdditionalData,
+  EurOfframpUpdateAdditionalData,
+  EurOnrampAdditionalData,
   ExtendedQuoteResponse,
   RegisterRampAdditionalData,
   SubmitUserTransactionsHandlers,
@@ -47,6 +51,7 @@ export class VortexSdk {
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private alfredpayHandler: AlfredpayHandler;
+  private mykoboHandler: MykoboHandler;
   private initializationPromise: Promise<void>;
   private storeEphemeralKeys: boolean;
 
@@ -64,6 +69,13 @@ export class VortexSdk {
     );
 
     this.alfredpayHandler = new AlfredpayHandler(
+      this.apiService,
+      this,
+      this.generateEphemerals.bind(this),
+      this.signTransactions.bind(this)
+    );
+
+    this.mykoboHandler = new MykoboHandler(
       this.apiService,
       this,
       this.generateEphemerals.bind(this),
@@ -118,7 +130,8 @@ export class VortexSdk {
         rampProcess = await this.brlHandler.registerBrlOnramp(quote.id, additionalData as BrlOnrampAdditionalData);
         unsignedTransactions = [];
       } else if (quote.from === "sepa") {
-        throw new Error("Euro onramp handler not implemented yet");
+        rampProcess = await this.mykoboHandler.registerMykoboOnramp(quote.id, additionalData as EurOnrampAdditionalData);
+        unsignedTransactions = [];
       } else {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
@@ -132,7 +145,9 @@ export class VortexSdk {
         const userAddress = (additionalData as BrlOfframpAdditionalData).walletAddress;
         unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
       } else if (quote.to === "sepa") {
-        throw new Error("Euro offramp handler not implemented yet");
+        rampProcess = await this.mykoboHandler.registerMykoboOfframp(quote.id, additionalData as EurOfframpAdditionalData);
+        const userAddress = (additionalData as EurOfframpAdditionalData).walletAddress;
+        unsignedTransactions = await this.getUserTransactions(rampProcess, userAddress);
       } else {
         throw new Error(`Unsupported offramp to: ${quote.to}`);
       }
@@ -154,7 +169,7 @@ export class VortexSdk {
       } else if (quote.from === "pix") {
         throw new Error("Brl onramp does not require any further data");
       } else if (quote.from === "sepa") {
-        throw new Error("Euro onramp handler not implemented yet");
+        throw new Error("Euro onramp does not require any further data");
       }
     } else if (quote.rampType === RampDirection.SELL) {
       if (isAlfredpayToken(quote.outputCurrency)) {
@@ -165,7 +180,7 @@ export class VortexSdk {
       } else if (quote.to === "pix") {
         return this.brlHandler.updateBrlOfframp(rampId, additionalUpdateData as BrlOfframpUpdateAdditionalData);
       } else if (quote.to === "sepa") {
-        throw new Error("Euro offramp handler not implemented yet");
+        return this.mykoboHandler.updateMykoboOfframp(rampId, additionalUpdateData as EurOfframpUpdateAdditionalData);
       }
     }
 

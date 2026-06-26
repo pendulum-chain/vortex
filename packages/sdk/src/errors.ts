@@ -216,7 +216,7 @@ export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpErro
   }
 }
 
-// Monerium specific errors
+// Monerium specific errors (deprecated — replaced by Mykobo)
 export class MoneriumError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
@@ -235,6 +235,28 @@ export class MissingMoneriumOfframpParametersError extends MoneriumError {
   constructor() {
     super("Parameters walletAddress and moneriumAuthToken is required for Monerium onramp", 400);
     this.name = "MissingMoneriumOfframpParametersError";
+  }
+}
+
+// Mykobo EUR specific errors
+export class MykoboError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "MykoboError";
+  }
+}
+
+export class MissingMykoboOnrampParametersError extends MykoboError {
+  constructor() {
+    super("Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp", 400);
+    this.name = "MissingMykoboOnrampParametersError";
+  }
+}
+
+export class MissingMykoboOfframpParametersError extends MykoboError {
+  constructor() {
+    super("Parameters walletAddress, email, ipAddress and destinationAddress are required for Mykobo EUR offramp", 400);
+    this.name = "MissingMykoboOfframpParametersError";
   }
 }
 
@@ -476,6 +498,18 @@ export function parseAPIError(response: unknown): VortexSdkError {
       }
       if (errorMessage === "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp") {
         return new MissingMoneriumOfframpParametersError();
+      }
+      if (errorMessage === "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp") {
+        return new MissingMykoboOnrampParametersError();
+      }
+      if (errorMessage === "email must be provided for Mykobo (EUR) offramp") {
+        return new MissingMykoboOfframpParametersError();
+      }
+      if (errorMessage === "ipAddress must be provided for Mykobo (EUR) offramp") {
+        return new MissingMykoboOfframpParametersError();
+      }
+      if (errorMessage === "destinationAddress (user receiving wallet) must be provided for Mykobo offramp") {
+        return new MissingMykoboOfframpParametersError();
       }
 
       if (errorMessage === "Ramp not found") {

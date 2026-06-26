@@ -8,7 +8,6 @@ import {
   EvmToken,
   FiatToken,
   Networks,
-  PaymentData,
   RampDirection,
   RampPhase,
   UnsignedTx
@@ -110,7 +109,9 @@ export interface BrlOnrampAdditionalData {
 }
 
 export interface EurOnrampAdditionalData {
-  moneriumAuthToken: string;
+  destinationAddress: string;
+  email: string;
+  ipAddress: string;
 }
 
 export interface AlfredpayOnrampAdditionalData {
@@ -134,7 +135,9 @@ export interface BrlOfframpAdditionalData {
 }
 
 export interface EurOfframpAdditionalData {
-  paymentData: PaymentData;
+  destinationAddress: string;
+  email: string;
+  ipAddress: string;
   walletAddress: string;
 }
 
@@ -145,7 +148,6 @@ export interface AlfredpayOfframpAdditionalData {
 }
 
 export type AnyUpdateAdditionalData =
-  | EurOnrampUpdateAdditionalData
   | BrlOfframpUpdateAdditionalData
   | EurOfframpUpdateAdditionalData
   | AlfredpayOfframpUpdateAdditionalData;
@@ -155,7 +157,7 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends Alfred
   : Q extends BrlOnrampQuote
     ? never // No additional data required from the user for this type of ramp.
     : Q extends EurOnrampQuote
-      ? EurOnrampUpdateAdditionalData
+      ? never // No additional data required from the user for EUR onramp.
       : Q extends AlfredpayOfframpQuote
         ? AlfredpayOfframpUpdateAdditionalData
         : Q extends BrlOfframpQuote
@@ -163,12 +165,6 @@ export type UpdateRampAdditionalData<Q extends QuoteResponse> = Q extends Alfred
           : Q extends EurOfframpQuote
             ? EurOfframpUpdateAdditionalData
             : AnyUpdateAdditionalData;
-
-export interface EurOnrampUpdateAdditionalData {
-  squidRouterApproveHash: string;
-  squidRouterSwapHash: string;
-  moneriumOfframpSignature: string;
-}
 
 export interface OfframpUpdateAdditionalData {
   squidRouterApproveHash?: string;
