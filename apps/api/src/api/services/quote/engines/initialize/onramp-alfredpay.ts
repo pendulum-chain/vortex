@@ -10,6 +10,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { resolveAlfredpayCustomerId } from "../../alfredpay-customer";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";
 
@@ -24,8 +25,9 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
 
     const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     const inputAmountDecimal = new Big(req.inputAmount);
-
     const alfredpayService = AlfredpayApiService.getInstance();
+
+    const customerId = req.userId ? await resolveAlfredpayCustomerId(req.inputCurrency, req.userId) : "unknown";
 
     const quoteRequest: CreateAlfredpayOnrampQuoteRequest = {
       chain: AlfredpayChain.MATIC,
@@ -33,7 +35,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
       fromCurrency: req.inputCurrency as unknown as AlfredpayFiatCurrency,
       metadata: {
         businessId: "vortex",
-        customerId: req.userId || "unknown"
+        customerId
       }, // Mints hardcoded to Polygon.
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
@@ -61,7 +63,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
     };
 
     ctx.addNote?.(
-      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${toAmount.toString()} ${req.outputCurrency}`
+      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${toAmount.toString()} ${req.outputCurrency} (alfredpayCustomerId=${customerId})`
     );
   }
 }
