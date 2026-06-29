@@ -267,6 +267,10 @@ export interface GetRampStatusResponse extends RampProcess {
   vortexFeeUsd: string;
   totalFeeUsd: string;
   processingFeeUsd: string;
+  // User benefit from quote-time discount, displayed in feeCurrency when present
+  discountFiat?: string;
+  discountUsd?: string;
+  discountCurrency?: RampCurrency;
 }
 
 export interface GetRampErrorLogsRequest {

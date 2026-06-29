@@ -1,9 +1,15 @@
 import { BrlaApiService, multiplyByPowerOfTen, SlackNotifier } from "@vortexfi/shared";
 import Big from "big.js";
-import { UsdcBaseRebalancePhase, UsdcBaseStateManager, usdcBasePhaseOrder } from "../../services/stateManager.ts";
-import { checkTicketStatusPaid } from "../../utils/brla.ts";
+import {
+  UsdcBaseRebalancePhase,
+  type UsdcBaseRebalanceState,
+  UsdcBaseStateManager,
+  usdcBasePhaseOrder
+} from "../../services/stateManager.ts";
+import { checkTicketStatusPaid, RetryableAveniaTicketStatusError } from "../../utils/brla.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
+import { evaluateFallbackRoutePolicy } from "./guards.ts";
 import { formatBaseRebalanceCompletionMessage, type RebalancePolicySummary } from "./notifications.ts";
 import {
   aveniaCreateSwapToUsdcBaseTicket,
@@ -15,6 +21,7 @@ import {
   getUsdcBalanceOnBaseRaw,
   mainNablaApproveAndSwap,
   nablaApproveAndSwapOnBase,
+  recoverAveniaPolygonTransferFromBalance,
   squidRouterApproveAndSwap,
   transferBrlaToAveniaOnBase,
   verifyFinalUsdcBalanceOnBase,
@@ -22,6 +29,64 @@ import {
   waitForBrlaOnAvenia,
   waitUsdcOnBase
 } from "./steps.ts";
+
+interface OpportunisticFallbackContext {
+  config: RebalancePolicySummary["config"];
+  deviationBps: number;
+  opportunisticMaxCostBps: number;
+  requireProfit: boolean;
+}
+
+function getOpportunisticFallbackContext(
+  state: UsdcBaseRebalanceState,
+  policy: RebalancePolicySummary | undefined
+): OpportunisticFallbackContext | null {
+  if (policy?.opportunistic) {
+    return {
+      config: policy.config,
+      deviationBps: policy.deviationBps ?? 0,
+      opportunisticMaxCostBps: policy.config.opportunisticUsdcToBrlaMaxCostBps,
+      requireProfit: policy.fallbackRequiresProfit ?? false
+    };
+  }
+
+  if (!state.opportunisticUsdcToBrla) return null;
+
+  const config = getConfig().rebalancingCostPolicy;
+  return {
+    config,
+    deviationBps: state.opportunisticDeviationBps ?? 0,
+    opportunisticMaxCostBps: state.opportunisticMaxCostBps ?? config.opportunisticUsdcToBrlaMaxCostBps,
+    requireProfit: state.opportunisticRequiresProfit
+  };
+}
+
+async function calculateRemainingBrlaForPolygonTransfer(brlaAmountRaw: string, polygonBaselineRaw: string): Promise<Big> {
+  const currentPolygonBrlaRaw = Big(await getBrlaBalanceOnPolygonRaw());
+  const arrivedDeltaRaw = currentPolygonBrlaRaw.minus(Big(polygonBaselineRaw));
+  const alreadyArrivedRaw = arrivedDeltaRaw.gt(0) ? arrivedDeltaRaw : Big(0);
+  const remainingRaw = Big(brlaAmountRaw).minus(alreadyArrivedRaw);
+
+  if (remainingRaw.lte(0)) return Big(0);
+
+  return multiplyByPowerOfTen(remainingRaw, -18);
+}
+
+async function recoverCompletedAveniaPolygonTransfer(
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">
+): Promise<boolean> {
+  if (!state.brlaAmountRaw || !state.polygonBrlaBalanceBeforeTransferRaw) return false;
+
+  const recoveredBrlaRaw = await recoverAveniaPolygonTransferFromBalance(
+    state.brlaAmountRaw,
+    state.polygonBrlaBalanceBeforeTransferRaw,
+    state,
+    stateManager
+  );
+
+  return recoveredBrlaRaw !== null;
+}
 
 export async function rebalanceUsdcBrlaUsdcBase(
   usdcAmountRaw: string,
@@ -39,7 +104,12 @@ export async function rebalanceUsdcBrlaUsdcBase(
   if (isResuming) {
     console.log(`Resuming rebalance from phase: ${state?.currentPhase}`);
   } else {
-    state = await stateManager.startNewRebalance(usdcAmountRaw);
+    state = await stateManager.startNewRebalance(usdcAmountRaw, {
+      opportunisticDeviationBps: policy?.opportunistic ? (policy.deviationBps ?? 0) : undefined,
+      opportunisticMaxCostBps: policy?.opportunistic ? policy.config.opportunisticUsdcToBrlaMaxCostBps : undefined,
+      opportunisticRequiresProfit: policy?.opportunistic ? (policy.fallbackRequiresProfit ?? false) : undefined,
+      opportunisticUsdcToBrla: policy?.opportunistic ?? false
+    });
   }
 
   if (!state) {
@@ -68,8 +138,12 @@ export async function rebalanceUsdcBrlaUsdcBase(
     if (!state.usdcAmountRaw) throw new Error("State corrupted: usdcAmountRaw missing for step 2");
 
     if (forcedRoute) {
-      console.log(`Forced route: ${forcedRoute}. Skipping full comparison.`);
+      const routeSelection = policy?.routeSelection === "forced" ? "Forced route" : "Preselected best-quote route";
+      console.log(`${routeSelection}: ${forcedRoute}. Reusing preflight quotes and skipping duplicate comparison.`);
       state.winningRoute = forcedRoute;
+      state.squidRouterQuoteUsdc = policy?.preflightQuotes?.squidRouterQuoteUsdc ?? null;
+      state.aveniaQuoteUsdc = policy?.preflightQuotes?.aveniaQuoteUsdc ?? null;
+      state.mainNablaQuoteUsdc = policy?.preflightQuotes?.mainNablaQuoteUsdc ?? null;
     } else {
       const comparison = await compareRoutesUpfront(state.usdcAmountRaw);
       state.winningRoute = comparison.winningRoute;
@@ -177,6 +251,30 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         } catch (error) {
           console.error("Avenia swap ticket creation failed. Falling back to SquidRouter route.", error);
+          const opportunisticFallbackContext = getOpportunisticFallbackContext(state, policy);
+          if (opportunisticFallbackContext) {
+            if (!state.usdcAmountRaw)
+              throw new Error("State corrupted: usdcAmountRaw missing for opportunistic fallback check");
+            if (!state.squidRouterQuoteUsdc) {
+              throw new Error("Opportunistic Avenia fallback blocked: SquidRouter was not quoted before execution.");
+            }
+
+            const fallbackPolicy = evaluateFallbackRoutePolicy(
+              Big(state.usdcAmountRaw),
+              Big(state.squidRouterQuoteUsdc),
+              opportunisticFallbackContext.deviationBps,
+              opportunisticFallbackContext.config,
+              {
+                opportunisticMaxCostBps: opportunisticFallbackContext.opportunisticMaxCostBps,
+                requireOpportunisticCost: true,
+                requireProfit: opportunisticFallbackContext.requireProfit
+              }
+            );
+            if (!fallbackPolicy.shouldExecute) {
+              throw new Error(`Opportunistic Avenia fallback blocked: ${fallbackPolicy.reason}`);
+            }
+          }
+
           state.winningRoute = "squidrouter";
           state.currentPhase = UsdcBaseRebalancePhase.AveniaTransferToPolygon;
           await stateManager.saveState(state);
@@ -230,13 +328,61 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         }
 
-        const ticketId = await aveniaTransferBrlaToPolygon(Big(state.brlaAmountDecimal));
-        state.aveniaTicketId = ticketId;
-        await stateManager.saveState(state);
+        if (await recoverCompletedAveniaPolygonTransfer(state, stateManager)) {
+          console.log(
+            "Existing Polygon BRLA balance delta detected before creating a new Avenia ticket. Continuing recovered rebalance."
+          );
+          state.currentPhase = UsdcBaseRebalancePhase.WaitBrlaOnPolygon;
+          await stateManager.saveState(state);
+        } else {
+          const ticketId = await aveniaTransferBrlaToPolygon(Big(state.brlaAmountDecimal));
+          state.aveniaTicketId = ticketId;
+          await stateManager.saveState(state);
+        }
       }
 
       const brlaApiService = BrlaApiService.getInstance();
-      await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+      if (state.currentPhase === UsdcBaseRebalancePhase.AveniaTransferToPolygon) {
+        if (!state.aveniaTicketId) throw new Error("State corrupted: aveniaTicketId missing for Avenia Polygon transfer");
+
+        try {
+          await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+        } catch (error) {
+          if (await recoverCompletedAveniaPolygonTransfer(state, stateManager)) {
+            console.warn(
+              `Avenia transfer ticket ${state.aveniaTicketId} did not confirm, but Polygon BRLA balance delta proves completion. Continuing.`
+            );
+          } else if (error instanceof RetryableAveniaTicketStatusError) {
+            console.warn(
+              `Avenia transfer ticket ${error.ticketId} reached retryable status ${error.status}. Creating a replacement ticket.`
+            );
+            if (!state.brlaAmountRaw)
+              throw new Error("State corrupted: brlaAmountRaw missing while retrying Avenia Polygon ticket");
+            if (!state.polygonBrlaBalanceBeforeTransferRaw) {
+              throw new Error(
+                "State corrupted: polygonBrlaBalanceBeforeTransferRaw missing while retrying Avenia Polygon ticket"
+              );
+            }
+
+            const remainingBrlaDecimal = await calculateRemainingBrlaForPolygonTransfer(
+              state.brlaAmountRaw,
+              state.polygonBrlaBalanceBeforeTransferRaw
+            );
+            if (remainingBrlaDecimal.lte(0)) {
+              console.log(
+                "Avenia ticket failed after the full BRLA amount arrived on Polygon. Continuing to arrival confirmation."
+              );
+            } else {
+              console.warn(`Retrying Avenia transfer to Polygon for remaining ${remainingBrlaDecimal.toFixed(4)} BRLA.`);
+              state.aveniaTicketId = await aveniaTransferBrlaToPolygon(remainingBrlaDecimal);
+              await stateManager.saveState(state);
+              await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
 
       console.log("BRLA transferred to Polygon via Avenia.");
       state.currentPhase = UsdcBaseRebalancePhase.WaitBrlaOnPolygon;
@@ -268,9 +414,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
 
       const result = await squidRouterApproveAndSwap(state.brlaAmountRaw, baseAddress, polygonNonce, state, stateManager);
 
-      state.squidRouterSwapHash = result.swapHash;
+      if (result.swapHash) {
+        state.squidRouterSwapHash = result.swapHash;
+      }
       state.squidRouterQuoteUsdc = result.toAmountRaw;
-      console.log(`SquidRouter swap completed. Tx: ${result.swapHash}`);
+      console.log(`SquidRouter swap completed. Tx: ${result.swapHash ?? "recovered from Base balance"}`);
       state.currentPhase = UsdcBaseRebalancePhase.WaitUsdcOnBaseFromSquid;
       await stateManager.saveState(state);
     }
@@ -315,6 +463,11 @@ export async function rebalanceUsdcBrlaUsdcBase(
   console.log(`Route taken: ${state.winningRoute}`);
   console.log(`Cost: absolute: ${cost.toFixed(6)} USDC | relative: ${costRelative}`);
 
+  const edgeCaseFlags = [
+    policy?.opportunistic || state.opportunisticUsdcToBrla ? "OPP" : null,
+    state.winningRoute === "squidrouter" && state.baseUsdcBalanceBeforeAveniaSwapRaw ? "FB" : null
+  ].filter(flag => flag !== null);
+
   await stateManager.addHistoryEntry({
     cost: cost.toFixed(6),
     costRelative,
@@ -328,6 +481,7 @@ export async function rebalanceUsdcBrlaUsdcBase(
     text: formatBaseRebalanceCompletionMessage({
       brlaReceived: Big(state.brlaAmountDecimal),
       cost,
+      edgeCaseFlags,
       finalUsdcBalance: finalUsdcDecimal,
       initialUsdcBalance: initialUsdcDecimal,
       policy: policy ?? { config: getConfig().rebalancingCostPolicy },

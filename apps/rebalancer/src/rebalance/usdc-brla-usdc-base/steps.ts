@@ -16,7 +16,7 @@ import {
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
 import { base, polygon } from "viem/chains";
 import { brlaMoonbeamTokenDetails } from "../../constants.ts";
 import { UsdcBaseRebalanceState, UsdcBaseStateManager, type WinningRoute } from "../../services/stateManager.ts";
@@ -29,6 +29,35 @@ export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02
 export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`;
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
+
+function buildRecoveredBrlaOutput(brlaReceivedRaw: bigint) {
+  const brlaAmountRaw = brlaReceivedRaw.toString();
+  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+  return { brlaAmountDecimal, brlaAmountRaw };
+}
+
+async function recoverNablaBrlaOutputFromBalance(
+  brlaBalanceBefore: bigint,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
+): Promise<{ brlaAmountRaw: string; brlaAmountDecimal: Big } | null> {
+  const brlaBalanceAfter = BigInt(await getBrlaBalanceOnBaseRaw());
+  const brlaReceivedRaw = brlaBalanceAfter - brlaBalanceBefore;
+
+  if (brlaReceivedRaw <= 0n) return null;
+
+  const recovered = buildRecoveredBrlaOutput(brlaReceivedRaw);
+  state.brlaAmountRaw = recovered.brlaAmountRaw;
+  state.brlaAmountDecimal = recovered.brlaAmountDecimal.toString();
+  await stateManager.saveState(state);
+
+  console.log(
+    `Recovered Nabla BRLA output from Base balance delta: ${recovered.brlaAmountDecimal.toFixed(4)} BRLA ` +
+      `(pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter})`
+  );
+
+  return recovered;
+}
 
 export async function getUsdcBalanceOnBaseRaw(): Promise<string> {
   const { publicClient, walletClient } = getBaseEvmClients();
@@ -69,6 +98,36 @@ export async function getAveniaBrlaBalanceDecimal(): Promise<string> {
   return String(balanceResponse?.balances?.BRLA ?? "0");
 }
 
+async function recoverBrlaTransferToAveniaFromBalance(
+  expectedBrlaAmountDecimal: Big,
+  state: UsdcBaseRebalanceState,
+  stateManager: UsdcBaseStateManager
+): Promise<boolean> {
+  if (!state.aveniaBrlaBalanceBeforeTransfer) return false;
+
+  const currentAveniaBrlaBalance = Big(await getAveniaBrlaBalanceDecimal());
+  const receivedDelta = currentAveniaBrlaBalance.minus(Big(state.aveniaBrlaBalanceBeforeTransfer));
+  const minimumReceived = calculateMinimumDelta(expectedBrlaAmountDecimal, "0.95");
+
+  if (receivedDelta.lt(minimumReceived)) {
+    console.log(
+      `Avenia BRLA transfer not recoverable yet. Needed: ${minimumReceived.toFixed(12)}, ` +
+        `received: ${receivedDelta.toFixed(12)}.`
+    );
+    return false;
+  }
+
+  state.brlaAmountDecimal = receivedDelta.toString();
+  state.brlaAmountRaw = multiplyByPowerOfTen(receivedDelta, 18).toFixed(0, 0);
+  await stateManager.saveState(state);
+
+  console.log(
+    `Recovered BRLA transfer to Avenia from balance delta: ${receivedDelta.toString()} BRLA ` +
+      `(baseline: ${state.aveniaBrlaBalanceBeforeTransfer}, current: ${currentAveniaBrlaBalance.toString()})`
+  );
+  return true;
+}
+
 export async function checkInitialUsdcBalanceOnBase(usdcAmountRaw: string): Promise<Big> {
   const { publicClient, walletClient } = getBaseEvmClients();
   const address = walletClient.account.address;
@@ -99,8 +158,8 @@ export async function nablaApproveAndSwapOnBase(
 ): Promise<{
   brlaAmountRaw: string;
   brlaAmountDecimal: Big;
-  approveHash: string;
-  swapHash: string;
+  approveHash: string | null;
+  swapHash: string | null;
 }> {
   console.log(`Starting Nabla swap of ${usdcAmountRaw} USDC (raw) to BRLA on Base...`);
 
@@ -129,6 +188,17 @@ export async function nablaApproveAndSwapOnBase(
   }
 
   const brlaBalanceBefore = BigInt(state.brlaBalanceBeforeNablaRaw);
+
+  const recoveredBeforeSend = await recoverNablaBrlaOutputFromBalance(brlaBalanceBefore, state, stateManager);
+  if (recoveredBeforeSend) {
+    console.log("Existing BRLA balance delta detected before sending a new Nabla swap. Continuing recovered rebalance.");
+    return {
+      approveHash: state.nablaApproveHash,
+      brlaAmountDecimal: recoveredBeforeSend.brlaAmountDecimal,
+      brlaAmountRaw: recoveredBeforeSend.brlaAmountRaw,
+      swapHash: state.nablaSwapHash
+    };
+  }
 
   let approveHash = state.nablaApproveHash;
   let swapHash = state.nablaSwapHash;
@@ -222,8 +292,23 @@ export async function nablaApproveAndSwapOnBase(
     throw new Error("State corrupted: Nabla transaction hash missing after swap step.");
   }
 
-  await waitForTransactionConfirmation(swapHash, publicClient);
-  console.log("Nabla swap confirmed.");
+  try {
+    await waitForTransactionConfirmation(swapHash, publicClient);
+    console.log("Nabla swap confirmed.");
+  } catch (error) {
+    const recovered = await recoverNablaBrlaOutputFromBalance(brlaBalanceBefore, state, stateManager);
+    if (recovered) {
+      console.warn(`Nabla swap confirmation failed, but BRLA balance delta proves completion. Continuing. ${error}`);
+      return {
+        approveHash,
+        brlaAmountDecimal: recovered.brlaAmountDecimal,
+        brlaAmountRaw: recovered.brlaAmountRaw,
+        swapHash
+      };
+    }
+
+    throw error;
+  }
 
   // Delay to let the RPC sync the post-swap state before reading the balance
   await new Promise(resolve => setTimeout(resolve, 5_000));
@@ -244,8 +329,7 @@ export async function nablaApproveAndSwapOnBase(
   if (brlaReceivedRaw === 0n) {
     throw new Error(`No BRLA balance delta detected after Nabla swap (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter}).`);
   }
-  const brlaAmountRaw = brlaReceivedRaw.toString();
-  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+  const { brlaAmountRaw, brlaAmountDecimal } = buildRecoveredBrlaOutput(brlaReceivedRaw);
   console.log(`Received ${brlaAmountDecimal.toFixed(4)} BRLA on Base (pre: ${brlaBalanceBefore}, post: ${brlaBalanceAfter})`);
 
   return {
@@ -261,13 +345,28 @@ export async function transferBrlaToAveniaOnBase(
   baseNonce: NonceManager,
   state: UsdcBaseRebalanceState,
   stateManager: UsdcBaseStateManager
-): Promise<string> {
+): Promise<string | null> {
   const { brlaBusinessAccountAddress } = getConfig();
   const { walletClient, publicClient } = getBaseEvmClients();
+  const brlaAmountDecimal = multiplyByPowerOfTen(Big(brlaAmountRaw), -18);
+
+  if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+    console.log("Existing Avenia BRLA balance delta detected before sending a new transfer. Continuing recovered rebalance.");
+    return state.brlaTransferHash;
+  }
 
   if (state.brlaTransferHash) {
     console.log(`Resuming BRLA transfer with existing tx: ${state.brlaTransferHash}. Verifying on-chain...`);
-    await waitForTransactionConfirmation(state.brlaTransferHash, publicClient);
+    try {
+      await waitForTransactionConfirmation(state.brlaTransferHash, publicClient);
+    } catch (error) {
+      if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+        console.warn(`BRLA transfer confirmation failed, but Avenia balance delta proves completion. Continuing. ${error}`);
+        return state.brlaTransferHash;
+      }
+
+      throw error;
+    }
     return state.brlaTransferHash;
   }
 
@@ -296,7 +395,16 @@ export async function transferBrlaToAveniaOnBase(
   state.brlaTransferHash = txHash;
   await stateManager.saveState(state);
   console.log(`BRLA transfer tx sent: ${txHash}`);
-  await waitForTransactionConfirmation(txHash, publicClient);
+  try {
+    await waitForTransactionConfirmation(txHash, publicClient);
+  } catch (error) {
+    if (await recoverBrlaTransferToAveniaFromBalance(brlaAmountDecimal, state, stateManager)) {
+      console.warn(`BRLA transfer confirmation failed, but Avenia balance delta proves completion. Continuing. ${error}`);
+      return txHash;
+    }
+
+    throw error;
+  }
   console.log("BRLA transfer to Avenia confirmed on Base.");
 
   return txHash;
@@ -476,22 +584,129 @@ export async function waitBrlaOnPolygon(brlaAmountRaw: string, startingBrlaBalan
   return arrivedRaw;
 }
 
+export async function recoverAveniaPolygonTransferFromBalance(
+  expectedBrlaRaw: string,
+  startingBrlaBalanceRaw: string,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  getCurrentPolygonBrlaRaw = getBrlaBalanceOnPolygonRaw
+): Promise<string | null> {
+  const currentPolygonBrlaRaw = Big(await getCurrentPolygonBrlaRaw());
+  const receivedDeltaRaw = currentPolygonBrlaRaw.minus(Big(startingBrlaBalanceRaw));
+  const minimumReceivedRaw = calculateMinimumDelta(Big(expectedBrlaRaw), "0.95");
+
+  if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
+
+  const recoveredBrlaRaw = receivedDeltaRaw.toFixed(0, 0);
+  state.brlaAmountRaw = recoveredBrlaRaw;
+  state.brlaAmountDecimal = multiplyByPowerOfTen(Big(recoveredBrlaRaw), -18).toString();
+  await stateManager.saveState(state);
+  console.log(
+    `Recovered Avenia Polygon BRLA transfer from balance delta: ${state.brlaAmountDecimal} BRLA ` +
+      `(pre: ${startingBrlaBalanceRaw}, post: ${currentPolygonBrlaRaw.toFixed(0, 0)})`
+  );
+
+  return recoveredBrlaRaw;
+}
+
+export async function resetFailedSquidRouterSwapOnResume(
+  swapHash: string,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  polygonPublicClient: PublicClient
+): Promise<boolean> {
+  const receipt = await polygonPublicClient.waitForTransactionReceipt({
+    confirmations: 1,
+    hash: swapHash as `0x${string}`
+  });
+
+  if (receipt.status === "success") return false;
+
+  console.warn(`Persisted SquidRouter swap tx ${swapHash} failed on Polygon. Retrying with a fresh route.`);
+  state.squidRouterSwapHash = null;
+  state.squidRouterQuoteUsdc = null;
+  await stateManager.saveState(state);
+  return true;
+}
+
+export async function recoverSquidUsdcOutputFromBaseBalance(
+  expectedUsdcRaw: string | null,
+  startingUsdcBalanceRaw: string | null,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  getCurrentBaseUsdcRaw = getUsdcBalanceOnBaseRaw
+): Promise<string | null> {
+  const recoveryExpectedUsdcRaw = expectedUsdcRaw ?? state.squidRouterQuoteUsdc ?? state.aveniaQuoteUsdc ?? state.usdcAmountRaw;
+  if (!recoveryExpectedUsdcRaw || !startingUsdcBalanceRaw) return null;
+
+  const currentBaseUsdcRaw = Big(await getCurrentBaseUsdcRaw());
+  const receivedDeltaRaw = currentBaseUsdcRaw.minus(Big(startingUsdcBalanceRaw));
+  const minimumReceivedRaw = calculateMinimumDelta(Big(recoveryExpectedUsdcRaw), DEFAULT_ARRIVAL_TOLERANCE);
+
+  if (receivedDeltaRaw.lt(minimumReceivedRaw)) return null;
+
+  const recoveredUsdcRaw = receivedDeltaRaw.toFixed(0, 0);
+  state.squidRouterQuoteUsdc = recoveredUsdcRaw;
+  await stateManager.saveState(state);
+  console.log(
+    `Recovered SquidRouter Base USDC output from balance delta: ${multiplyByPowerOfTen(Big(recoveredUsdcRaw), -6).toFixed(6)} USDC ` +
+      `(pre: ${startingUsdcBalanceRaw}, post: ${currentBaseUsdcRaw.toFixed(0, 0)})`
+  );
+
+  return recoveredUsdcRaw;
+}
+
+export function ensurePolygonBrlaAvailableForSquidSwap(availableBrlaRaw: string, requiredBrlaRaw: string): void {
+  if (Big(availableBrlaRaw).gte(Big(requiredBrlaRaw))) return;
+
+  throw new Error(
+    `Insufficient Polygon BRLA for SquidRouter swap: required ${requiredBrlaRaw} raw, available ${availableBrlaRaw} raw.`
+  );
+}
+
 export async function squidRouterApproveAndSwap(
   brlaAmountRaw: string,
   baseReceiverAddress: `0x${string}`,
   polygonNonce: NonceManager,
   state: UsdcBaseRebalanceState,
   stateManager: UsdcBaseStateManager
-): Promise<{ swapHash: string; toAmountUsd: string; toAmountRaw: string }> {
+): Promise<{ swapHash: string | null; toAmountUsd: string; toAmountRaw: string }> {
   let swapHash = state.squidRouterSwapHash;
   let toAmountUsd = "0";
   let toAmountRaw = state.squidRouterQuoteUsdc ?? "0";
+
+  if (swapHash) {
+    const { publicClient: polygonPublicClient } = getPolygonEvmClients();
+
+    const recoveredUsdcRaw = await recoverSquidUsdcOutputFromBaseBalance(
+      state.squidRouterQuoteUsdc,
+      state.baseUsdcBalanceBeforeSquidSwapRaw,
+      state,
+      stateManager
+    );
+    if (recoveredUsdcRaw) return { swapHash, toAmountRaw: recoveredUsdcRaw, toAmountUsd };
+
+    if (await resetFailedSquidRouterSwapOnResume(swapHash, state, stateManager, polygonPublicClient)) {
+      swapHash = null;
+      toAmountRaw = "0";
+    }
+  }
 
   if (!swapHash) {
     console.log("Executing SquidRouter swap: Polygon BRLA -> Base USDC...");
 
     const { walletClient: polygonWalletClient, publicClient: polygonPublicClient } = getPolygonEvmClients();
     const polygonAddress = polygonWalletClient.account.address;
+
+    const recoveredUsdcRaw = await recoverSquidUsdcOutputFromBaseBalance(
+      state.squidRouterQuoteUsdc,
+      state.baseUsdcBalanceBeforeSquidSwapRaw,
+      state,
+      stateManager
+    );
+    if (recoveredUsdcRaw) return { swapHash, toAmountRaw: recoveredUsdcRaw, toAmountUsd };
+
+    ensurePolygonBrlaAvailableForSquidSwap(await getBrlaBalanceOnPolygonRaw(), brlaAmountRaw);
 
     const routeResult = await getRoute({
       bypassGuardrails: true,
@@ -509,6 +724,8 @@ export async function squidRouterApproveAndSwap(
     const route = routeResult.data.route;
     toAmountUsd = route.estimate.toAmountUSD;
     toAmountRaw = route.estimate.toAmount;
+    state.squidRouterQuoteUsdc = toAmountRaw;
+    await stateManager.saveState(state);
     console.log(`SquidRouter route obtained. Expected output: ${toAmountRaw} USDC (raw)`);
 
     const { approveData, swapData } = await createTransactionDataFromRoute({

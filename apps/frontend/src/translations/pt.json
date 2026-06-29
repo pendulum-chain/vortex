@@ -353,6 +353,10 @@
     },
     "feeCollapse": {
       "details": "Detalhes",
+      "discount": {
+        "label": "Desconto",
+        "tooltip": "A Vortex está dando um desconto nos custos da plataforma."
+      },
       "finalAmount": "Valor final",
       "netRate": {
         "label": "Câmbio Efetiva",
@@ -366,7 +370,7 @@
         "label": "Taxa de processamento",
         "tooltip": "Essa taxa cobre os custos do parceiro e da plataforma Vortex."
       },
-      "totalFee": "Taxa total",
+      "totalFee": "Taxa efetiva",
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {

@@ -12,6 +12,7 @@ export interface RebalancingCostPolicyConfig {
   maxCostBpsSevere: number;
   mode: RebalancingPolicyMode;
   moderateDeviationBps: number;
+  opportunisticUsdcToBrlaMaxCostBps: number;
   severeDeviationBps: number;
 }
 
@@ -27,8 +28,15 @@ export interface RebalancingCostPolicyDecision {
 
 export interface DailyBridgeLimitDecision {
   projectedTotalRaw: string;
-  reason: "under_limit" | "profitable_quote" | "daily_limit_reached";
+  reason: "under_limit" | "daily_limit_reached";
   shouldSkip: boolean;
+}
+
+export interface FallbackRoutePolicyDecision {
+  decision: RebalancingCostPolicyDecision;
+  profitable: boolean;
+  reason: string;
+  shouldExecute: boolean;
 }
 
 export function calculateMinimumDelta(expectedDelta: Big, tolerance = DEFAULT_ARRIVAL_TOLERANCE): Big {
@@ -52,17 +60,12 @@ export function isProjectedProfit(inputAmountRaw: Big, projectedOutputRaw: Big):
 export function evaluateDailyBridgeLimit(
   bridgedTodayRaw: Big,
   requestedAmountRaw: Big,
-  dailyLimitRaw: Big,
-  profitable: boolean
+  dailyLimitRaw: Big
 ): DailyBridgeLimitDecision {
   const projectedTotalRaw = bridgedTodayRaw.plus(requestedAmountRaw).toFixed(0, 0);
 
   if (!wouldExceedDailyBridgeLimit(bridgedTodayRaw, requestedAmountRaw, dailyLimitRaw)) {
     return { projectedTotalRaw, reason: "under_limit", shouldSkip: false };
-  }
-
-  if (profitable) {
-    return { projectedTotalRaw, reason: "profitable_quote", shouldSkip: false };
   }
 
   return { projectedTotalRaw, reason: "daily_limit_reached", shouldSkip: true };
@@ -71,6 +74,48 @@ export function evaluateDailyBridgeLimit(
 export function calculateProjectedCostBps(inputAmountRaw: Big, projectedOutputRaw: Big): number {
   if (inputAmountRaw.lte(0)) throw new Error("inputAmountRaw must be greater than zero.");
   return Number(inputAmountRaw.minus(projectedOutputRaw).div(inputAmountRaw).mul(10_000).toFixed(2));
+}
+
+export function shouldTriggerOpportunisticUsdcToBrla(costBps: number, maxCostBps: number): boolean {
+  return costBps < maxCostBps;
+}
+
+export function evaluateFallbackRoutePolicy(
+  inputAmountRaw: Big,
+  fallbackOutputRaw: Big,
+  deviationBps: number,
+  config: RebalancingCostPolicyConfig,
+  options: { opportunisticMaxCostBps: number; requireOpportunisticCost: boolean; requireProfit: boolean }
+): FallbackRoutePolicyDecision {
+  const decision = evaluateRebalancingCostPolicy(inputAmountRaw, fallbackOutputRaw, deviationBps, config);
+  const profitable = isProjectedProfit(inputAmountRaw, fallbackOutputRaw);
+
+  if (!decision.shouldExecute) {
+    return { decision, profitable, reason: decision.reason, shouldExecute: false };
+  }
+
+  if (
+    options.requireOpportunisticCost &&
+    !shouldTriggerOpportunisticUsdcToBrla(decision.costBps, options.opportunisticMaxCostBps)
+  ) {
+    return {
+      decision,
+      profitable,
+      reason: `Fallback route cost ${decision.costBps} bps is not below opportunistic cap ${options.opportunisticMaxCostBps} bps.`,
+      shouldExecute: false
+    };
+  }
+
+  if (options.requireProfit && !profitable) {
+    return {
+      decision,
+      profitable,
+      reason: "Fallback route is not profitable, but the original route was projected profitable.",
+      shouldExecute: false
+    };
+  }
+
+  return { decision, profitable, reason: "Fallback route satisfies the required policy checks.", shouldExecute: true };
 }
 
 export function getRebalancingUrgencyBand(

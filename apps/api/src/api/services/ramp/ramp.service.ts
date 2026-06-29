@@ -625,6 +625,13 @@ export class RampService extends BaseRampService {
       quoteId: rampState.quoteId,
       sessionId: rampState.state.sessionId,
       status: this.mapPhaseToStatus(rampState.currentPhase),
+      ...(quote.metadata.subsidyDisplay
+        ? {
+            discountCurrency: quote.metadata.subsidyDisplay.currency,
+            discountFiat: quote.metadata.subsidyDisplay.fiat,
+            discountUsd: quote.metadata.subsidyDisplay.usd
+          }
+        : {}),
       to: rampState.to,
       totalFeeFiat: fiatFees.total,
       totalFeeUsd: usdFees.total,

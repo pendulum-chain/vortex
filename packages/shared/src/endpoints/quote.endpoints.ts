@@ -71,6 +71,11 @@ export interface QuoteResponse {
   totalFeeUsd: string;
   processingFeeUsd: string;
 
+  // User benefit from quote-time discount, displayed in feeCurrency when present
+  discountFiat?: string;
+  discountUsd?: string;
+  discountCurrency?: RampCurrency;
+
   paymentMethod: PaymentMethod;
   expiresAt: Date;
   createdAt: Date;

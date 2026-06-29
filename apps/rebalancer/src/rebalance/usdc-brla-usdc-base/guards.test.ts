@@ -5,10 +5,12 @@ import {
   calculateProjectedCostBps,
   calculateTargetBalanceRaw,
   evaluateDailyBridgeLimit,
+  evaluateFallbackRoutePolicy,
   evaluateRebalancingCostPolicy,
   getRebalancingUrgencyBand,
   isProjectedProfit,
   type RebalancingCostPolicyConfig,
+  shouldTriggerOpportunisticUsdcToBrla,
   wouldExceedDailyBridgeLimit
 } from "./guards.ts";
 
@@ -19,6 +21,7 @@ const policyConfig: RebalancingCostPolicyConfig = {
   maxCostBpsSevere: 250,
   mode: "auto",
   moderateDeviationBps: 200,
+  opportunisticUsdcToBrlaMaxCostBps: 10,
   severeDeviationBps: 500
 };
 
@@ -46,24 +49,65 @@ describe("USDC Base rebalance guards", () => {
     expect(isProjectedProfit(Big("100000000"), Big("99000000"))).toBe(false);
   });
 
-  test("evaluates daily bridge limit decisions", () => {
-    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+  test("evaluates daily bridge limit decisions for paid rebalances", () => {
+    expect(evaluateDailyBridgeLimit(Big("9000000000"), Big("600000000"), Big("10000000000"))).toMatchObject({
       reason: "under_limit",
       shouldSkip: false
     });
-    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), false)).toMatchObject({
+    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"))).toMatchObject({
       reason: "daily_limit_reached",
       shouldSkip: true
-    });
-    expect(evaluateDailyBridgeLimit(Big("9500000000"), Big("600000000"), Big("10000000000"), true)).toMatchObject({
-      reason: "profitable_quote",
-      shouldSkip: false
     });
   });
 
   test("calculates projected rebalancing cost in basis points", () => {
     expect(calculateProjectedCostBps(Big("100000000"), Big("99000000"))).toBe(100);
     expect(calculateProjectedCostBps(Big("100000000"), Big("101000000"))).toBe(-100);
+  });
+
+  test("triggers opportunistic USDC to BRLA rebalances only below the route cost cap", () => {
+    const maxCostBps = 7.5;
+
+    expect(shouldTriggerOpportunisticUsdcToBrla(-1, maxCostBps)).toBe(true);
+    expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps - 0.01, maxCostBps)).toBe(true);
+    expect(shouldTriggerOpportunisticUsdcToBrla(maxCostBps, maxCostBps)).toBe(false);
+  });
+
+  test("allows fallback routes only when they satisfy opportunistic policy checks", () => {
+    expect(
+      evaluateFallbackRoutePolicy(Big("100000000"), Big("99910000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
+        requireOpportunisticCost: true,
+        requireProfit: false
+      }).shouldExecute
+    ).toBe(true);
+
+    expect(
+      evaluateFallbackRoutePolicy(Big("100000000"), Big("99900000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
+        requireOpportunisticCost: true,
+        requireProfit: false
+      }).shouldExecute
+    ).toBe(false);
+  });
+
+  test("requires fallback route profit when the original route was projected profitable", () => {
+    expect(
+      evaluateFallbackRoutePolicy(Big("100000000"), Big("100100000"), 0, policyConfig, {
+        opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
+        requireOpportunisticCost: true,
+        requireProfit: true
+      }).shouldExecute
+    ).toBe(true);
+
+    const decision = evaluateFallbackRoutePolicy(Big("100000000"), Big("99910000"), 0, policyConfig, {
+      opportunisticMaxCostBps: policyConfig.opportunisticUsdcToBrlaMaxCostBps,
+      requireOpportunisticCost: true,
+      requireProfit: true
+    });
+
+    expect(decision.shouldExecute).toBe(false);
+    expect(decision.reason).toContain("not profitable");
   });
 
   test("selects urgency bands from coverage deviation", () => {

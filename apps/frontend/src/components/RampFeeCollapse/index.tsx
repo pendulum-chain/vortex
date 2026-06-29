@@ -44,6 +44,10 @@ function calculateNetExchangeRate(inputAmountString: Big.BigSource, outputAmount
   return inputAmount.gt(0) ? outputAmount.div(inputAmount).toNumber() : 0;
 }
 
+function formatFeeAmount(amount: Big): string {
+  return amount.toFixed(2);
+}
+
 export function RampFeeCollapse() {
   const { t } = useTranslation();
 
@@ -57,6 +61,8 @@ export function RampFeeCollapse() {
     ? availableQuote
     : {
         anchorFeeFiat: "0",
+        discountCurrency: fiatToken,
+        discountFiat: "0",
         feeCurrency: fiatToken,
         inputAmount: 0,
         inputCurrency: rampDirection === RampDirection.BUY ? fiatToken : onChainToken,
@@ -72,11 +78,12 @@ export function RampFeeCollapse() {
 
   const inputCurrency = quote.inputCurrency.toUpperCase();
   const outputCurrency = quote.outputCurrency.toUpperCase();
+  const effectiveTotalFee = Big(quote.totalFeeFiat || "0").minus(quote.discountFiat || "0");
   const interbankExchangeRate = calculateInterbankExchangeRate(
     quote.rampType,
     quote.inputAmount,
     quote.outputAmount,
-    quote.totalFeeFiat || "0"
+    effectiveTotalFee.toString()
   );
   const netExchangeRate = calculateNetExchangeRate(quote.inputAmount, quote.outputAmount);
 
@@ -92,6 +99,14 @@ export function RampFeeCollapse() {
     });
   }
 
+  if (Big(quote.discountFiat || "0").gt(0)) {
+    feeItems.push({
+      label: t("components.feeCollapse.discount.label"),
+      tooltip: t("components.feeCollapse.discount.tooltip"),
+      value: `- ${Big(quote.discountFiat || "0").toFixed(2)} ${(quote.discountCurrency || quote.feeCurrency || fiatToken).toUpperCase()}`
+    });
+  }
+
   if (Big(quote.networkFeeFiat || "0").gt(0)) {
     feeItems.push({
       label: t("components.feeCollapse.networkFee.label"),
@@ -101,7 +116,7 @@ export function RampFeeCollapse() {
   }
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden">
+    <div className="flex flex-col gap-2 overflow-visible">
       <div className="flex items-center justify-center px-4">
         <InterbankExchangeRate inputCurrency={inputCurrency} outputCurrency={outputCurrency} rate={interbankExchangeRate} />
         <QuoteRefreshProgress />
@@ -113,10 +128,10 @@ export function RampFeeCollapse() {
             <p>{t("components.feeCollapse.details")}</p>
           </div>
         </div>
-        <div className="collapse-content text-[15px]">
+        <div className="collapse-content overflow-visible text-[15px]">
           {feeItems.map((item, index) => (
             <div className="mt-2 flex justify-between" key={index}>
-              <div className="flex items-center ">
+              <div className="flex items-center">
                 {item.label}{" "}
                 {item.tooltip && (
                   <div className="tooltip tooltip-primary tooltip-top tooltip-sm" data-tip={item.tooltip}>
@@ -134,7 +149,7 @@ export function RampFeeCollapse() {
             <strong className="font-bold">{t("components.feeCollapse.totalFee")}</strong>
             <div className="flex">
               <span>
-                {quote.totalFeeFiat} {(quote.feeCurrency || fiatToken).toUpperCase()}
+                {formatFeeAmount(effectiveTotalFee)} {(quote.feeCurrency || fiatToken).toUpperCase()}
               </span>
             </div>
           </div>

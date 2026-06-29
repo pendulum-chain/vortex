@@ -2,6 +2,20 @@ import { AveniaSwapTicket, AveniaTicketStatus, BrlaApiService } from "@vortexfi/
 
 type AveniaTicketReader = Pick<BrlaApiService, "getAveniaSwapTicket">;
 
+export class RetryableAveniaTicketStatusError extends Error {
+  constructor(
+    readonly ticketId: string,
+    readonly status: AveniaTicketStatus
+  ) {
+    super(`Ticket ${ticketId} status is ${status}`);
+    this.name = "RetryableAveniaTicketStatusError";
+  }
+}
+
+function normalizeAveniaTicketStatus(status: string): AveniaTicketStatus | string {
+  return status.trim().toUpperCase().replaceAll("_", "-");
+}
+
 export async function checkTicketStatusPaid(brlaApiService: AveniaTicketReader, ticketId: string): Promise<AveniaSwapTicket> {
   const pollInterval = 5000;
   const timeout = 5 * 60 * 1000;
@@ -19,10 +33,15 @@ export async function checkTicketStatusPaid(brlaApiService: AveniaTicketReader, 
       continue;
     }
 
-    if (ticket?.status === AveniaTicketStatus.PAID) {
+    const normalizedStatus = ticket?.status ? normalizeAveniaTicketStatus(ticket.status) : undefined;
+
+    if (normalizedStatus === AveniaTicketStatus.PAID) {
       return ticket;
     }
-    if (ticket?.status === AveniaTicketStatus.FAILED) {
+    if (normalizedStatus === AveniaTicketStatus.PARTIAL_FAILED) {
+      throw new RetryableAveniaTicketStatusError(ticketId, AveniaTicketStatus.PARTIAL_FAILED);
+    }
+    if (normalizedStatus === AveniaTicketStatus.FAILED) {
       throw new Error(`Ticket ${ticketId} status is FAILED`);
     }
 
