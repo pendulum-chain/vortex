@@ -35,6 +35,8 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 
 **Request validation:** Alfredpay middleware (`alfredpay.middleware.ts`) validates the `country` parameter against the `AlfredPayCountry` enum for all Alfredpay-related requests.
 
+**Fiat account routes:** `POST/GET/DELETE /v1/alfredpay/fiatAccounts` accept either a Supabase Bearer token (frontend/user-session) or a user-scoped secret API key (SDK/server integration) via `requirePartnerOrUserAuth()`. The controller resolves the operating user via `getEffectiveUserId(req)` so that `AlfredPayCustomer.findOne({ where: { userId, country } })` returns the linked customer regardless of which credential was presented. The remaining Alfredpay routes (KYC/KYB/customer creation/status) continue to require a Supabase Bearer session via `requireAuth` because KYC/KYB submission is a browser-mediated flow.
+
 ## Security Invariants
 
 1. **Alfredpay API credentials MUST be stored as environment variables** — Never hardcoded or in database.

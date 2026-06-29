@@ -1,5 +1,7 @@
 import {
   AccountMeta,
+  AlfredPayCountry,
+  AlfredpayFiatAccount,
   CreateQuoteRequest,
   createMoonbeamEphemeral,
   createPendulumEphemeral,
@@ -93,6 +95,10 @@ export class VortexSdk {
 
   async getQuote(quoteId: string): Promise<QuoteResponse> {
     return this.apiService.getQuote(quoteId);
+  }
+
+  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
+    return this.apiService.listAlfredpayFiatAccounts(country);
   }
 
   async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {

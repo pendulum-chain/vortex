@@ -24,6 +24,7 @@ import {
 import { Request, Response } from "express";
 import logger from "../../config/logger";
 import AlfredPayCustomer from "../../models/alfredPayCustomer.model";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 
 export class AlfredpayController {
   private static getRequiredUserId(req: Request): string {
@@ -32,6 +33,14 @@ export class AlfredpayController {
     }
 
     return req.userId;
+  }
+
+  private static getFiatAccountUserId(req: Request): string {
+    const userId = getEffectiveUserId(req);
+    if (!userId) {
+      throw new Error("Authenticated user id not available");
+    }
+    return userId;
   }
 
   private static getErrorMessage(error: unknown): string {
@@ -788,7 +797,7 @@ export class AlfredpayController {
         documentNumber,
         isExternal = false
       } = req.body as AlfredpayAddFiatAccountRequest;
-      const userId = AlfredpayController.getRequiredUserId(req);
+      const userId = AlfredpayController.getFiatAccountUserId(req);
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
         order: [["updatedAt", "DESC"]],
@@ -874,7 +883,7 @@ export class AlfredpayController {
   static async listFiatAccounts(req: Request, res: Response) {
     try {
       const { country } = req.query as { country: string };
-      const userId = AlfredpayController.getRequiredUserId(req);
+      const userId = AlfredpayController.getFiatAccountUserId(req);
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
         order: [["updatedAt", "DESC"]],
@@ -899,7 +908,7 @@ export class AlfredpayController {
     try {
       const { fiatAccountId } = req.params as { fiatAccountId: string };
       const { country } = req.query as { country: string };
-      const userId = AlfredpayController.getRequiredUserId(req);
+      const userId = AlfredpayController.getFiatAccountUserId(req);
 
       const alfredPayCustomer = await AlfredPayCustomer.findOne({
         order: [["updatedAt", "DESC"]],

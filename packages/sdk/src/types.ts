@@ -1,7 +1,16 @@
 // Types re-exported used to create quotes.
 
-import type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse, SignedTypedData } from "@vortexfi/shared";
+import type {
+  AlfredpayFiatAccount,
+  CreateQuoteRequest,
+  EvmTransactionData,
+  PaymentMethod,
+  QuoteResponse,
+  SignedTypedData
+} from "@vortexfi/shared";
 import {
+  AlfredPayCountry,
+  AlfredpayFiatAccountType,
   EPaymentMethod,
   EphemeralAccount,
   EphemeralAccountType,
@@ -13,8 +22,8 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 
-export type { CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse };
-export { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection };
+export type { AlfredpayFiatAccount, CreateQuoteRequest, EvmTransactionData, PaymentMethod, QuoteResponse };
+export { AlfredPayCountry, AlfredpayFiatAccountType, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection };
 
 export type AnyQuote =
   | BrlOnrampQuote

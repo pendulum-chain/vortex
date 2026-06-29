@@ -1,4 +1,6 @@
 import type {
+  AlfredPayCountry,
+  AlfredpayFiatAccount,
   CreateQuoteRequest,
   GetRampStatusResponse,
   QuoteResponse,
@@ -126,5 +128,17 @@ export class ApiService {
     });
 
     return handleAPIResponse<{ valid: boolean }>(response, "/v1/brla/validatePixKey");
+  }
+
+  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
+    const url = new URL(`${this.apiBaseUrl}/v1/alfredpay/fiatAccounts`);
+    url.searchParams.append("country", country);
+
+    const response = await fetch(url.toString(), {
+      headers: this.buildHeaders(),
+      method: "GET"
+    });
+
+    return handleAPIResponse<AlfredpayFiatAccount[]>(response, `/v1/alfredpay/fiatAccounts?country=${country}`);
   }
 }
