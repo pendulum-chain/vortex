@@ -55,7 +55,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       keyPrefix: publicKeyPrefix,
       keyType: "public",
       keyValue: publicKey,
-      name: name ? `${name} (Public)` : "Public Key",
+      name: `${name || "API Key"} (Public)`,
       partnerName: null,
       userId
     });
@@ -67,7 +67,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       keyPrefix: secretKeyPrefix,
       keyType: "secret",
       keyValue: null,
-      name: name ? `${name} (Secret)` : "Secret Key",
+      name: `${name || "API Key"} (Secret)`,
       partnerName: null,
       userId
     });
@@ -164,6 +164,14 @@ function stripSuffix(name: string): string {
   return name.replace(/\s*\((Public|Secret)\)$/, "");
 }
 
+function keyPairBaseName(name: string): string {
+  const stripped = stripSuffix(name);
+  if (stripped === "Public Key" || stripped === "Secret Key") {
+    return "API Key";
+  }
+  return stripped;
+}
+
 export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Response): Promise<void> {
   const userId = req.userId;
   if (!userId) {
@@ -235,8 +243,8 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
-    const baseName = stripSuffix(primaryKey.name ?? "");
-    const pairedBaseName = stripSuffix(pairedKey.name ?? "");
+    const baseName = keyPairBaseName(primaryKey.name ?? "");
+    const pairedBaseName = keyPairBaseName(pairedKey.name ?? "");
     if (primaryKey.name && pairedKey.name && baseName !== pairedBaseName) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {

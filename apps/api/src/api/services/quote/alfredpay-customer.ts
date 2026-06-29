@@ -10,16 +10,18 @@ const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
   [FiatToken.ARS]: AlfredPayCountry.AR
 };
 
-/**
- * Sentinel `quoteId` value used by the Alfredpay quote engines when the quote
- * was created without an authenticated user (anonymous quote). Real Alfredpay
- * quote creation requires a KYC-completed customer id, so anonymous quotes
- * cannot mint a real upstream `quoteId` here.
- */
-export const ANONYMOUS_ALFREDPAY_QUOTE_ID = "__anonymous_alfredpay_quote__";
+export const ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE =
+  "Alfredpay quote creation requires an API key linked to a user or Supabase user authentication.";
 
-export function isAnonymousAlfredpayQuoteId(quoteId: string | undefined | null): boolean {
-  return quoteId === ANONYMOUS_ALFREDPAY_QUOTE_ID;
+export function requireAlfredpayEffectiveUserId(userId: string | undefined | null): string {
+  if (!userId) {
+    throw new APIError({
+      message: ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE,
+      status: httpStatus.BAD_REQUEST
+    });
+  }
+
+  return userId;
 }
 
 /**

@@ -10,7 +10,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { resolveAlfredpayCustomerId } from "../../alfredpay-customer";
+import { requireAlfredpayEffectiveUserId, resolveAlfredpayCustomerId } from "../../alfredpay-customer";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";
 
@@ -22,12 +22,13 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
+    const effectiveUserId = requireAlfredpayEffectiveUserId(req.userId);
 
     const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     const inputAmountDecimal = new Big(req.inputAmount);
     const alfredpayService = AlfredpayApiService.getInstance();
 
-    const customerId = req.userId ? await resolveAlfredpayCustomerId(req.inputCurrency, req.userId) : "unknown";
+    const customerId = await resolveAlfredpayCustomerId(req.inputCurrency, effectiveUserId);
 
     const quoteRequest: CreateAlfredpayOnrampQuoteRequest = {
       chain: AlfredpayChain.MATIC,

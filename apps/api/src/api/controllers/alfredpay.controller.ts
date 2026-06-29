@@ -22,9 +22,11 @@ import {
   SubmitKycInformationRequest
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
+import httpStatus from "http-status";
 import logger from "../../config/logger";
 import AlfredPayCustomer from "../../models/alfredPayCustomer.model";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE } from "../services/quote/alfredpay-customer";
 
 export class AlfredpayController {
   private static getRequiredUserId(req: Request): string {
@@ -38,9 +40,19 @@ export class AlfredpayController {
   private static getFiatAccountUserId(req: Request): string {
     const userId = getEffectiveUserId(req);
     if (!userId) {
-      throw new Error("Authenticated user id not available");
+      throw new Error(ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE);
     }
     return userId;
+  }
+
+  private static handleFiatAccountError(operation: string, error: unknown, res: Response) {
+    logger.error(`Error ${operation} fiat account:`, error);
+    if (error instanceof Error && error.message === ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE) {
+      return res.status(httpStatus.BAD_REQUEST).json({
+        error: "This endpoint requires an API key linked to a user or Supabase user authentication."
+      });
+    }
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
   }
 
   private static getErrorMessage(error: unknown): string {
@@ -875,8 +887,7 @@ export class AlfredpayController {
 
       res.json(result);
     } catch (error) {
-      logger.error("Error adding fiat account:", error);
-      res.status(500).json({ error: "Internal server error" });
+      AlfredpayController.handleFiatAccountError("adding", error, res);
     }
   }
 
@@ -899,8 +910,7 @@ export class AlfredpayController {
 
       res.json(accounts);
     } catch (error) {
-      logger.error("Error listing fiat accounts:", error);
-      res.status(500).json({ error: "Internal server error" });
+      AlfredpayController.handleFiatAccountError("listing", error, res);
     }
   }
 
@@ -924,8 +934,7 @@ export class AlfredpayController {
 
       res.status(204).send();
     } catch (error) {
-      logger.error("Error deleting fiat account:", error);
-      res.status(500).json({ error: "Internal server error" });
+      AlfredpayController.handleFiatAccountError("deleting", error, res);
     }
   }
 }
