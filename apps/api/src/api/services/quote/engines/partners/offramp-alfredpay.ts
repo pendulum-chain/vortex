@@ -82,7 +82,7 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
     };
 
     ctx.addNote?.(
-      `OfframpTransactionAlfredpayEngine: ${inputAmountDecimal.toString()} ${ALFREDPAY_ONCHAIN_CURRENCY} -> ${toAmount.toString()} ${req.outputCurrency} (fee ${alfredpayFee.toString()}, rate ${effectiveRate.toString()}, alfredpayCustomerId=${customerId})`
+      `OfframpTransactionAlfredpayEngine: ${inputAmountDecimal.toString()} ${ALFREDPAY_ONCHAIN_CURRENCY} -> ${toAmount.toString()} ${req.outputCurrency} (fee ${alfredpayFee.toString()}, rate ${effectiveRate.toString()})`
     );
   }
 }

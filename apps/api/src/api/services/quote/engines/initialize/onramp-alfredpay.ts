@@ -64,7 +64,7 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
     };
 
     ctx.addNote?.(
-      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${toAmount.toString()} ${req.outputCurrency} (alfredpayCustomerId=${customerId})`
+      `Initialized: ${inputAmountDecimal.toString()} ${req.inputCurrency} -> ${toAmount.toString()} ${req.outputCurrency}`
     );
   }
 }
