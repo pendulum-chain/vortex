@@ -6,6 +6,7 @@ import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import type { AuthenticatedPartner } from "./apiKeyAuth.helpers";
+import { getEffectiveUserId } from "./effectiveUser";
 
 interface OwnershipRequest {
   authenticatedPartner?: AuthenticatedPartner;
@@ -30,10 +31,6 @@ async function ownsPartnerRecord(authenticatedPartner: AuthenticatedPartner, par
     return false;
   }
   return partnerId === authenticatedPartner.id || quotePartner.name === authenticatedPartner.name;
-}
-
-function effectiveRequestUserId(req: OwnershipRequest): string | undefined {
-  return req.userId ?? req.apiKeyUserId;
 }
 
 /**
@@ -74,8 +71,11 @@ export async function assertRampOwnership(req: OwnershipRequest, rampId: string)
     return;
   }
 
-  const userId = effectiveRequestUserId(req);
+  const userId = getEffectiveUserId(req);
   if (userId) {
+    // A ramp with `userId === null` is fully anonymous: it carries no privileged owner and is
+    // already reachable by unauthenticated callers below, so an authenticated principal driving it
+    // is not an escalation. Only reject when the ramp is owned by a *different* user.
     if (ramp.userId !== null && ramp.userId !== userId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId: ramp.quoteId, rampId });
       throw new APIError({
@@ -135,7 +135,7 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
     return;
   }
 
-  const userId = effectiveRequestUserId(req);
+  const userId = getEffectiveUserId(req);
   if (userId) {
     if (quote.partnerId !== null) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
@@ -182,6 +182,6 @@ function recordOwnershipFailure(
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: effectiveRequestUserId(req) || null
+    userId: getEffectiveUserId(req) || null
   });
 }
