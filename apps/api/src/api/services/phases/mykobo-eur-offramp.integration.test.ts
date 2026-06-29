@@ -28,6 +28,15 @@ mock.module("../quote/core/nabla", () => {
     }
   };
 });
+
+// The Mykobo email is now derived from the user's profile and gated on an APPROVED Mykobo customer
+// (resolveMykoboCustomerForUser). This contract test focuses on the Mykobo intent/transaction path,
+// so stub the resolver to return the test email instead of standing up profile + KYC-mirror rows.
+mock.module("../mykobo/mykobo-customer.service", () => ({
+  resolveMykoboCustomerForUser: async () => ({ email: "mail@test.com" }),
+  syncMykoboCustomerKyc: async () => {},
+  upsertMykoboCustomerFromProfile: async () => {}
+}));
 import {
   AccountMeta,
   BrlaApiService,

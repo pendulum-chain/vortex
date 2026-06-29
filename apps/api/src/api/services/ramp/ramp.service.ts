@@ -53,7 +53,7 @@ import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
 import { resolveAveniaAccountForUser } from "../avena-account";
-import { syncMykoboCustomerKyc } from "../mykobo/mykobo-customer.service";
+import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
@@ -1181,12 +1181,16 @@ export class RampService extends BaseRampService {
     stateMeta: Partial<StateMetadata>;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (!additionalData?.destinationAddress || !additionalData?.email || !additionalData?.ipAddress) {
+    if (!additionalData?.destinationAddress || !additionalData?.ipAddress) {
       throw new APIError({
-        message: "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp",
+        message: "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    // The Mykobo email is derived from the effective user's profile (and KYC must be approved);
+    // a client-supplied email is accepted only if it matches. See resolveMykoboCustomerForUser.
+    const { email } = await resolveMykoboCustomerForUser(userId, additionalData.email);
 
     const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
     if (!evmEphemeralEntry) {
@@ -1199,7 +1203,7 @@ export class RampService extends BaseRampService {
     const mykobo = MykoboApiService.getInstance();
     const intent = await mykobo.createTransactionIntent({
       currency: MykoboCurrency.EURC,
-      email_address: additionalData.email,
+      email_address: email,
       ip_address: additionalData.ipAddress,
       transaction_type: MykoboTransactionType.DEPOSIT,
       value: new Big(quote.inputAmount).toFixed(2, 0),
@@ -1217,7 +1221,7 @@ export class RampService extends BaseRampService {
     const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
       ipAddress: additionalData.ipAddress,
-      mykoboEmail: additionalData.email,
+      mykoboEmail: email,
       mykoboTransactionId: intent.transaction.id,
       mykoboTransactionReference: intent.transaction.reference,
       quote,
@@ -1230,8 +1234,6 @@ export class RampService extends BaseRampService {
       receiverName: instructions.bank_account_name,
       reference: intent.transaction.reference
     };
-
-    await syncMykoboCustomerKyc(userId, additionalData.email);
 
     return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
