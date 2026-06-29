@@ -197,7 +197,10 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
     return;
   }
 
-  const { publicKeyId } = req.body ?? {};
+  // The paired key may be either the public or secret half — the type check below enforces the
+  // pair is one of each. Accept the legacy `publicKeyId` alias for backward compatibility.
+  const { pairedKeyId, publicKeyId } = req.body ?? {};
+  const otherKeyId = pairedKeyId ?? publicKeyId;
 
   try {
     const primaryKey = await ApiKey.findOne({ where: { id: keyId, isActive: true, userId } });
@@ -212,18 +215,18 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
-    if (!publicKeyId) {
+    if (!otherKeyId) {
       await primaryKey.update({ isActive: false });
       res.status(httpStatus.NO_CONTENT).send();
       return;
     }
 
-    const pairedKey = await ApiKey.findOne({ where: { id: publicKeyId, isActive: true, userId } });
+    const pairedKey = await ApiKey.findOne({ where: { id: otherKeyId, isActive: true, userId } });
     if (!pairedKey) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PAIRED_PUBLIC_KEY_NOT_FOUND",
-          message: "Paired public key not found or not owned by the authenticated user",
+          message: "Paired key not found or not owned by the authenticated user",
           status: httpStatus.NOT_FOUND
         }
       });
@@ -236,7 +239,7 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
         error: {
           code: "INVALID_KEY_PAIR",
           message:
-            "Both keys must be of different types (one public, one secret). A single key can be deleted without publicKeyId.",
+            "Both keys must be of different types (one public, one secret). A single key can be deleted without pairedKeyId.",
           status: httpStatus.BAD_REQUEST
         }
       });

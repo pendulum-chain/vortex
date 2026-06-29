@@ -28,7 +28,7 @@ describe("revokeUserApiKey", () => {
     ApiKey.findOne = originalFindOne;
   });
 
-  it("revokes default-named public and secret keys as one pair", async () => {
+  function stubKeyPair() {
     const updates: Array<{ id: string; changes: unknown }> = [];
     const secretKey = {
       id: "secret-key-id",
@@ -53,6 +53,34 @@ describe("revokeUserApiKey", () => {
       return null;
     }) as unknown as typeof ApiKey.findOne;
 
+    return updates;
+  }
+
+  const expectedPairUpdates = [
+    { changes: { isActive: false }, id: "secret-key-id" },
+    { changes: { isActive: false }, id: "public-key-id" }
+  ];
+
+  it("revokes default-named public and secret keys as one pair via pairedKeyId", async () => {
+    const updates = stubKeyPair();
+
+    const res = createResponse();
+    await revokeUserApiKey(
+      {
+        body: { pairedKeyId: "public-key-id" },
+        params: { keyId: "secret-key-id" },
+        userId: "user-1"
+      } as never,
+      res as never
+    );
+
+    expect(res.statusCode).toBe(httpStatus.NO_CONTENT);
+    expect(updates).toEqual(expectedPairUpdates);
+  });
+
+  it("still accepts the legacy publicKeyId alias", async () => {
+    const updates = stubKeyPair();
+
     const res = createResponse();
     await revokeUserApiKey(
       {
@@ -64,9 +92,6 @@ describe("revokeUserApiKey", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.NO_CONTENT);
-    expect(updates).toEqual([
-      { changes: { isActive: false }, id: "secret-key-id" },
-      { changes: { isActive: false }, id: "public-key-id" }
-    ]);
+    expect(updates).toEqual(expectedPairUpdates);
   });
 });

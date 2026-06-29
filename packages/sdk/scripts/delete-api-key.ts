@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   const baseName = stripSuffix(selected.name);
   const paired = data.apiKeys.find(k => k.id !== selected.id && k.type !== selected.type && stripSuffix(k.name) === baseName);
 
-  let publicKeyId: string | undefined;
+  let pairedKeyId: string | undefined;
   let keyId = selected.id;
 
   if (paired) {
@@ -98,20 +98,20 @@ async function main(): Promise<void> {
 
     const deleteBoth = await askQuestion("➡️  Delete both as a pair? (y/N): ");
     if (deleteBoth.toLowerCase() === "y") {
-      publicKeyId = selected.type === "secret" ? paired.id : selected.id;
+      pairedKeyId = selected.type === "secret" ? paired.id : selected.id;
       keyId = selected.type === "secret" ? selected.id : paired.id;
-      console.log(`\n🗑️  Revoking key pair: ${keyId} + ${publicKeyId}`);
+      console.log(`\n🗑️  Revoking key pair: ${keyId} + ${pairedKeyId}`);
     }
   }
 
-  if (!publicKeyId) {
+  if (!pairedKeyId) {
     console.log(`\n🗑️  Revoking key: ${selected.id} (${selected.type} — ${selected.name})`);
   }
 
   const deleteResponse = await fetch(`${API_BASE_URL}/v1/api-keys/${keyId}`, {
-    body: publicKeyId ? JSON.stringify({ publicKeyId }) : undefined,
+    body: pairedKeyId ? JSON.stringify({ pairedKeyId }) : undefined,
     headers: {
-      ...(publicKeyId ? { "Content-Type": "application/json" } : {}),
+      ...(pairedKeyId ? { "Content-Type": "application/json" } : {}),
       Authorization: `Bearer ${auth.accessToken}`
     },
     method: "DELETE"
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
     const errText = await deleteResponse.text();
     throw new Error(`${deleteResponse.status} /v1/api-keys/${keyId}: ${errText}`);
   }
-  console.log(publicKeyId ? "✅ Key pair revoked." : "✅ Key revoked.");
+  console.log(pairedKeyId ? "✅ Key pair revoked." : "✅ Key revoked.");
 }
 
 if (import.meta.main) {

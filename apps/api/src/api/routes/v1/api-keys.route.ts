@@ -21,8 +21,9 @@ router.get("/", listUserApiKeys as unknown as (req: Request, res: Response) => v
 /**
  * DELETE /v1/api-keys/:keyId
  * Revoke (soft delete) one or both keys of a pair.
- * Body: { publicKeyId?: string } — if provided, both keys of the pair are revoked together.
- * The public+secret keys must be opposite types and share the same base name.
+ * Body: { pairedKeyId?: string } — if provided, both keys of the pair are revoked together
+ * (the legacy `publicKeyId` alias is still accepted). The two keys must be opposite types
+ * (one public, one secret) and share the same base name.
  */
 router.delete("/:keyId", revokeUserApiKey as unknown as (req: Request<{ keyId: string }>, res: Response) => void);
 
