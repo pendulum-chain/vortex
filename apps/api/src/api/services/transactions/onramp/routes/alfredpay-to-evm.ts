@@ -17,9 +17,7 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
-import httpStatus from "http-status";
 import { isAddress } from "viem";
-import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";

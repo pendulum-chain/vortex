@@ -65,7 +65,7 @@ export class InvalidAdditionalDataError extends RegisterRampError {
   }
 }
 
-export type EphemeralChain = "Substrate" | "EVM" | "Stellar";
+export type EphemeralChain = "Substrate" | "EVM";
 
 export class EphemeralNotFreshError extends RegisterRampError {
   public readonly chain: EphemeralChain;
@@ -440,15 +440,15 @@ export function parseAPIError(response: unknown): VortexSdkError {
         return new InvalidNetworkError(network);
       }
 
-      const freshnessMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral (\S+) (?:is not fresh|already exists)/);
+      const freshnessMatch = errorMessage.match(/^(Substrate|EVM) ephemeral (\S+) (?:is not fresh|already exists)/);
       if (freshnessMatch) {
         return new EphemeralNotFreshError(errorMessage, freshnessMatch[1] as EphemeralChain, freshnessMatch[2]);
       }
-      const freshnessCheckMatch = errorMessage.match(/^Could not verify freshness of (Substrate|EVM|Stellar) ephemeral (\S+)/);
+      const freshnessCheckMatch = errorMessage.match(/^Could not verify freshness of (Substrate|EVM) ephemeral (\S+)/);
       if (freshnessCheckMatch) {
         return new EphemeralFreshnessCheckError(errorMessage, freshnessCheckMatch[1] as EphemeralChain, freshnessCheckMatch[2]);
       }
-      const missingEphemeralMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral address is required/);
+      const missingEphemeralMatch = errorMessage.match(/^(Substrate|EVM) ephemeral address is required/);
       if (missingEphemeralMatch) {
         return new EphemeralNotFreshError(errorMessage, missingEphemeralMatch[1] as EphemeralChain, "");
       }
