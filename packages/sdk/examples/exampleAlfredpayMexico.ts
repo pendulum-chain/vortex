@@ -4,7 +4,12 @@
 //                    (offramp: sign user txs via submitUserSignature/submitUserTxHash) -> startRamp.
 //
 // Requires a running backend (default http://localhost:3000) with Alfredpay enabled.
-// Replace the placeholder addresses / fiatAccountId before running.
+//
+// Prerequisites: authenticate with the user's own user-linked secretKey (their sk_* key), and that
+// same user must have completed Alfredpay MXN KYC. Onboard the user through the Vortex app first;
+// the SDK cannot mint keys or run KYC. Offramp also needs that user's FIAT_ACCOUNT_ID below.
+//
+// Env: VORTEX_API_URL, VORTEX_PUBLIC_KEY, VORTEX_SECRET_KEY (user-linked), OFFRAMP_WALLET_PRIVATE_KEY.
 //
 // Run:
 //   cd packages/sdk
@@ -41,9 +46,11 @@ function askQuestion(query: string): Promise<string> {
 
 function buildSdk(): VortexSdk {
   const config: VortexSdkConfig = {
-    apiBaseUrl: "<Vortex_API_URL>",
+    apiBaseUrl: process.env.VORTEX_API_URL ?? "http://localhost:3000",
     autoReconnect: true,
-    publicKey: "<Vortex_Public_Key>",
+    publicKey: process.env.VORTEX_PUBLIC_KEY ?? "<Vortex_Public_Key>",
+    // Must be the user's user-linked sk_* key, not a partner-only key.
+    secretKey: process.env.VORTEX_SECRET_KEY ?? "<Vortex_Secret_Key>",
     storeEphemeralKeys: true
   };
   return new VortexSdk(config);

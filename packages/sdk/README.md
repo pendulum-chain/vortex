@@ -83,7 +83,9 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
-SDK/server integrations should authenticate with `publicKey` + `secretKey`, not a Supabase Bearer token. The current backend still needs a completed Alfredpay KYC customer context for this flow; partner-key-only registration will fail with `AlfredpayOnrampKycRequiredError` until a partner user-to-Alfredpay-customer mapping is supported.
+Alfredpay requires the user to be onboarded first. Authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), not a `publicKey` alone, a partner-scoped key, or a Supabase Bearer token. The same user must have completed Alfredpay KYC for the country — the key and the KYC record belong to the same account, so a quote created with that key resolves to the user's Alfredpay customer automatically.
+
+> The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation) with the SDK.
 
 ### Alfredpay (USD / MXN / COP / ARS) offramp
 

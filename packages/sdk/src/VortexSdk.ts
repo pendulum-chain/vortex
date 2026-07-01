@@ -50,6 +50,7 @@ import type {
 export class VortexSdk {
   private apiService: ApiService;
   private publicKey: string | undefined;
+  private secretKey: string | undefined;
   private networkManager: NetworkManager;
   private brlHandler: BrlHandler;
   private alfredpayHandler: AlfredpayHandler;
@@ -62,6 +63,7 @@ export class VortexSdk {
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
     this.publicKey = config.publicKey;
+    this.secretKey = config.secretKey;
 
     this.brlHandler = new BrlHandler(
       this.apiService,
@@ -88,6 +90,12 @@ export class VortexSdk {
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
+    if ((isAlfredpayToken(request.inputCurrency) || isAlfredpayToken(request.outputCurrency)) && !this.secretKey) {
+      throw new Error(
+        "Alfredpay ramps require the user's user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
+      );
+    }
+
     const apiRequest = { ...request, api: true, apiKey: this.publicKey };
     const baseQuote = await this.apiService.createQuote(apiRequest);
     return baseQuote as ExtendedQuoteResponse<T>;
