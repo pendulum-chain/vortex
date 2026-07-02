@@ -105,6 +105,9 @@ export function getConfig() {
     rebalancingBrlToUsdMinBalance: process.env.REBALANCING_BRL_TO_USD_MIN_BALANCE || undefined,
     rebalancingCostPolicy: getRebalancingCostPolicyConfig(),
     rebalancingDailyBridgeLimitUsd: parseRebalancingDailyBridgeLimitUsd(),
+    /// The larger USDC amount to use for USDC→BRLA→USDC runs when the standard amount is projected profitable.
+    rebalancingProfitableUsdToBrlAmount:
+      process.env.REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT || process.env.REBALANCING_USD_TO_BRL_AMOUNT || "1",
 
     /// The threshold above and below the optimal coverage ratio at which the rebalancing will be triggered.
     rebalancingThreshold: Number(process.env.REBALANCING_THRESHOLD) || 0.01,
