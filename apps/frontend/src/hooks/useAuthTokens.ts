@@ -49,12 +49,6 @@ export function useAuthTokens(actorRef: ActorRefFrom<typeof rampMachine>) {
     }
   }, [actorRef]);
 
-  // Setup auto-refresh on mount
-  useEffect(() => {
-    const cleanup = AuthService.setupAutoRefresh();
-    return cleanup;
-  }, []);
-
   // Restore session from localStorage on mount
   useEffect(() => {
     // Only restore once on initial mount to avoid infinite loops
