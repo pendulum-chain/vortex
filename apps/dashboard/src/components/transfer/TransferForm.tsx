@@ -1,25 +1,41 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Copy, Lock, TriangleAlert, Wallet } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CORRIDORS } from "@/domain/corridors";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
-import { mockPayinAddress, PAYMENT_METHOD_LABEL, shortenAddress, TRANSFER_NETWORKS, USDC_RATES } from "@/domain/transfer";
+import { PAYMENT_METHOD_LABEL, TRANSFER_NETWORKS } from "@/domain/transfer";
 import type { Recipient, SenderAccount } from "@/domain/types";
-import { springSnappy } from "@/lib/motion";
 import { notifyTransferCompleted } from "@/lib/notify";
+import { useOfframpQuote, useRegisterRamp, useStartRamp } from "@/services/api/hooks";
+import { mapPhaseToStatus, pollRampStatus } from "@/services/api/ramp.service";
+import { extractBackendLimit, QuoteError } from "@/services/api/types";
 import { useDashboardStore } from "@/stores/dashboard.store";
+import { FundingMethods, type FundingSubmit } from "./FundingMethods";
+import { QuoteSummary } from "./QuoteSummary";
 
 interface TransferFormProps {
   account: SenderAccount;
   recipients: Recipient[];
   preselectRecipientId?: string;
+}
+
+function friendlyQuoteError(message: string): string {
+  const limit = extractBackendLimit(message);
+  const suffix = limit ? ` of ${limit.value} ${limit.currency}` : "";
+  if (message.includes(QuoteError.BelowLowerLimitSell)) {
+    return `This amount is below the minimum${suffix}. Try a larger payout.`;
+  }
+  if (message.includes(QuoteError.AboveUpperLimitSell)) {
+    return `This amount is above the maximum${suffix}. Try a smaller payout.`;
+  }
+  if (message.includes(QuoteError.LowLiquidity)) {
+    return QuoteError.LowLiquidity;
+  }
+  return "We couldn't fetch a quote right now. Please try again.";
 }
 
 export function TransferForm({ account, recipients, preselectRecipientId }: TransferFormProps) {
@@ -30,63 +46,71 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const firstApproved = recipients.find(recipient => recipient.status === "approved");
   const [recipientId, setRecipientId] = useState(preselectRecipientId ?? firstApproved?.id ?? "");
   const [network, setNetwork] = useState<string>(TRANSFER_NETWORKS[0].id);
-  const [confirming, setConfirming] = useState(false);
 
   const selected = recipients.find(recipient => recipient.id === recipientId);
   const isApproved = selected?.status === "approved";
   const corridor = selected ? CORRIDORS[selected.corridorId] : undefined;
-
-  const amountIn = selected ? Number(selected.amount) / USDC_RATES[selected.corridorId] : 0;
   const networkLabel = TRANSFER_NETWORKS.find(item => item.id === network)?.label ?? network;
-  const payinWallet = selected ? mockPayinAddress(`${selected.id}-${network}`) : "";
 
-  function copyAddress() {
-    navigator.clipboard?.writeText(payinWallet);
-    toast.success("Payin address copied");
-  }
+  const registerRamp = useRegisterRamp();
+  const startRamp = useStartRamp();
+  const submitting = registerRamp.isPending || startRamp.isPending;
 
-  function onConfirm() {
-    if (!selected || !isApproved) {
+  const quoteParams =
+    selected && isApproved ? { corridorId: selected.corridorId, network, payoutAmount: Number(selected.amount) } : null;
+  const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
+
+  async function submitTransfer(submit: FundingSubmit) {
+    if (!selected || !isApproved || !quote) {
       return;
     }
-    const id = addTransaction({
-      accountId: account.id,
-      amountIn: amountIn.toFixed(2),
-      amountInToken: "USDC",
-      corridorId: selected.corridorId,
-      fiatPayoutAmount: selected.amount,
-      payinNetwork: network,
-      payinWallet,
-      payoutCurrency: selected.payoutCurrency,
-      recipientEmail: selected.email,
-      recipientId: selected.id,
-      status: "awaiting_payin"
-    });
-    const summary = `${selected.amount} ${selected.payoutCurrency} to ${selected.email}`;
-    toast.success("Transfer initiated", {
-      description: `Watching for your ${amountIn.toFixed(2)} USDC deposit — we'll pay out ${summary} once it lands.`
-    });
-    // Mock the payin landing in the wallet, then the provider settling the fiat payout.
-    // Staged over a few seconds so the awaiting → processing → completed lifecycle is visible.
-    setTimeout(() => setTransactionStatus(id, "processing"), 2500);
-    setTimeout(() => {
-      setTransactionStatus(id, "completed");
-      notifyTransferCompleted(`Payout of ${summary}`);
-    }, 6000);
-    navigate({ to: "/transactions" });
+    const summary = `${quote.outputAmount} ${selected.payoutCurrency} to ${selected.email}`;
+    try {
+      const { rampProcess } = await registerRamp.mutateAsync({
+        additionalData: {
+          destinationAddress: selected.bankDetails.value,
+          email: selected.email,
+          walletAddress: submit.destAddress
+        },
+        quote
+      });
+      const txId = addTransaction({
+        accountId: account.id,
+        amountIn: quote.inputAmount,
+        amountInToken: "USDC",
+        corridorId: selected.corridorId,
+        fiatPayoutAmount: quote.outputAmount,
+        payinNetwork: network,
+        payinWallet: rampProcess.walletAddress ?? submit.destAddress,
+        payoutCurrency: selected.payoutCurrency,
+        recipientEmail: selected.email,
+        recipientId: selected.id,
+        status: "awaiting_payin"
+      });
+      toast.success("Transfer initiated", {
+        description: `Funding via ${submit.label} — we'll pay out ${summary} once your ${quote.inputAmount} USDC lands.`
+      });
+      await startRamp.mutateAsync(rampProcess.id);
+      pollRampStatus(rampProcess.id, status => {
+        const domainStatus = mapPhaseToStatus(status.currentPhase);
+        setTransactionStatus(txId, domainStatus);
+        if (domainStatus === "completed") {
+          notifyTransferCompleted(`Payout of ${summary}`);
+        }
+      });
+      navigate({ to: "/transactions" });
+    } catch (submitError) {
+      toast.error("Could not start transfer", {
+        description: submitError instanceof Error ? submitError.message : undefined
+      });
+    }
   }
 
   return (
     <div className="grid gap-5">
       <div className="grid gap-2">
         <Label>Recipient</Label>
-        <Select
-          onValueChange={value => {
-            setRecipientId(value);
-            setConfirming(false);
-          }}
-          value={recipientId}
-        >
+        <Select onValueChange={setRecipientId} value={recipientId}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a recipient" />
           </SelectTrigger>
@@ -131,13 +155,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
 
           <div className="grid gap-2">
             <Label>Payin network</Label>
-            <Select
-              onValueChange={value => {
-                setNetwork(value);
-                setConfirming(false);
-              }}
-              value={network}
-            >
+            <Select onValueChange={setNetwork} value={network}>
               <SelectTrigger className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -149,90 +167,31 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-muted-foreground text-xs">
-              The network your wallet sends from. The payin address below is specific to {networkLabel}.
-            </p>
           </div>
 
-          <div className="surface-raised grid gap-3 rounded-lg bg-muted/30 p-4">
-            <div className="flex items-center gap-2">
-              <Wallet className="size-4 text-primary" />
-              <span className="font-medium text-sm">Vortex wallet payin</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge className="cursor-help" variant="secondary">
-                    Privy
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>A wallet Vortex creates and secures for you via Privy. No setup needed.</TooltipContent>
-              </Tooltip>
+          {error ? (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
+              <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
+              <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
             </div>
-            <p className="text-muted-foreground text-sm">
-              Send <span className="font-medium text-foreground tabular-nums">≈ {amountIn.toFixed(2)} USDC</span> on{" "}
-              <span className="font-medium text-foreground">{networkLabel}</span> to this address. We pay{" "}
-              {selected.payoutCurrency} to the recipient's bank once it lands.
-            </p>
-            <div className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Send on {networkLabel} to</span>
-              <div className="flex items-center gap-2 rounded-md border bg-background p-2">
-                <code className="flex-1 truncate font-mono text-xs">{payinWallet}</code>
-                <Button onClick={copyAddress} size="sm" type="button" variant="ghost">
-                  <Copy />
-                  Copy
-                </Button>
-              </div>
+          ) : quote ? (
+            <>
+              <QuoteSummary isFetching={isFetching} quote={quote} />
+              <FundingMethods
+                network={network}
+                networkLabel={networkLabel}
+                onSubmit={submitTransfer}
+                quote={quote}
+                recipient={selected}
+                submitting={submitting}
+              />
+            </>
+          ) : (
+            <div className="grid gap-3">
+              <Skeleton className="h-28 w-full rounded-lg" />
+              <Skeleton className="h-40 w-full rounded-lg" />
             </div>
-            <p className="flex items-start gap-2 text-muted-foreground text-xs">
-              <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
-              Crypto transfers are irreversible. Confirm your wallet is on {networkLabel} and the address matches before
-              sending.
-            </p>
-          </div>
-
-          <AnimatePresence initial={false} mode="wait">
-            {confirming ? (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                className="grid gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4"
-                exit={{ opacity: 0, y: -6 }}
-                initial={{ opacity: 0, y: 8 }}
-                key="confirm"
-                transition={springSnappy}
-              >
-                <p className="font-medium text-sm">Confirm you've sent the payin</p>
-                <Row label="You send">
-                  <span className="tabular-nums">≈ {amountIn.toFixed(2)}</span> USDC on {networkLabel}
-                </Row>
-                <Row label="To address">
-                  <code className="font-mono">{shortenAddress(payinWallet)}</code>
-                </Row>
-                <Row label="Recipient gets">
-                  {selected.amount} {selected.payoutCurrency} · {selected.email}
-                </Row>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button onClick={() => setConfirming(false)} type="button" variant="outline">
-                    <ChevronLeft />
-                    Back
-                  </Button>
-                  <Button onClick={onConfirm} type="button">
-                    Confirm — I've sent it
-                  </Button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                initial={{ opacity: 0, y: 8 }}
-                key="review"
-                transition={springSnappy}
-              >
-                <Button className="w-full" disabled={!recipientId} onClick={() => setConfirming(true)} type="button">
-                  Review &amp; confirm
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          )}
         </>
       )}
     </div>

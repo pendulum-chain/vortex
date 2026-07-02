@@ -3,6 +3,7 @@ import { ArrowLeftRight, Send, Settings, ShieldCheck, Users } from "lucide-react
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -11,6 +12,7 @@ import {
   SidebarMenuItem,
   SidebarRail
 } from "@/components/ui/sidebar";
+import { ConnectWalletButton } from "./ConnectWalletButton";
 import { VortexLogo } from "./VortexLogo";
 
 const NAV_ITEMS = [
@@ -49,6 +51,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <ConnectWalletButton />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
