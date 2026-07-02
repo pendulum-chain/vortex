@@ -90,12 +90,8 @@ export class VortexSdk {
   }
 
   async createQuote<T extends CreateQuoteRequest>(request: T): Promise<ExtendedQuoteResponse<T>> {
-    if ((isAlfredpayToken(request.inputCurrency) || isAlfredpayToken(request.outputCurrency)) && !this.secretKey) {
-      throw new Error(
-        "Alfredpay ramps require the user's user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
-      );
-    }
-
+    // Quotes are anonymous-eligible for every corridor (rate discovery); the user-linked
+    // secretKey is only required at registerRamp.
     const apiRequest = { ...request, api: true, apiKey: this.publicKey };
     const baseQuote = await this.apiService.createQuote(apiRequest);
     return baseQuote as ExtendedQuoteResponse<T>;
@@ -128,6 +124,12 @@ export class VortexSdk {
     rampProcess: RampProcess;
     unsignedTransactions: UnsignedTx[];
   }> {
+    if (!this.secretKey) {
+      throw new Error(
+        "Ramp registration requires a user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
+      );
+    }
+
     await this.ensureInitialized();
 
     let rampProcess: RampProcess;

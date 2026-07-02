@@ -12,7 +12,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
-import { requireAlfredpayEffectiveUserId, resolveAlfredpayCustomerId } from "../../alfredpay-customer";
+import { resolveAlfredpayQuoteCustomerId } from "../../alfredpay-customer";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./../initialize/index";
 
@@ -24,7 +24,6 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
-    const effectiveUserId = requireAlfredpayEffectiveUserId(req.userId);
 
     if (!ctx.evmToEvm) {
       throw new Error("OfframpTransactionAlfredpayEngine: No evmToEvm quote");
@@ -47,7 +46,9 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
       ? ctx.subsidy.targetOutputAmountDecimal.div(effectiveRate).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown)
       : ctx.evmToEvm.outputAmountDecimal.minus(deductibleFee).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
 
-    const customerId = await resolveAlfredpayCustomerId(req.outputCurrency, effectiveUserId);
+    // Quotes stay anonymous-eligible: metadata.customerId is tracking-only on Alfredpay quote
+    // requests. KYC is enforced at ramp registration via resolveAlfredpayCustomerId.
+    const customerId = await resolveAlfredpayQuoteCustomerId(req.outputCurrency, req.userId);
 
     const alfredpayService = AlfredpayApiService.getInstance();
     const quoteRequest: CreateAlfredpayOfframpQuoteRequest = {

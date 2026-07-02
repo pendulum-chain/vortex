@@ -1,5 +1,7 @@
 import {
   AlfredpayApiService,
+  CreateAlfredpayOfframpQuoteRequest,
+  CreateAlfredpayOnrampQuoteRequest,
   EPaymentMethod,
   EvmToken,
   FiatToken,
@@ -8,10 +10,21 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { afterEach, describe, expect, it, mock } from "bun:test";
+import { ALFREDPAY_ANONYMOUS_CUSTOMER_ID } from "../alfredpay-customer";
 import { priceFeedService } from "../../priceFeed.service";
 import { createQuoteContext } from "../core/quote-context";
 import { OnRampInitializeAlfredpayEngine } from "./initialize/onramp-alfredpay";
 import { OfframpTransactionAlfredpayEngine } from "./partners/offramp-alfredpay";
+
+function stubAlfredpayQuote() {
+  return {
+    expiration: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+    fees: [],
+    fromAmount: "100",
+    quoteId: "alfredpay-quote-1",
+    toAmount: "99"
+  };
+}
 
 describe("Alfredpay quote auth", () => {
   const originalGetInstance = AlfredpayApiService.getInstance;
@@ -22,10 +35,14 @@ describe("Alfredpay quote auth", () => {
     priceFeedService.convertCurrency = originalConvertCurrency;
   });
 
-  it("rejects anonymous Alfredpay onramp quotes before calling Alfredpay", async () => {
-    AlfredpayApiService.getInstance = mock(() => {
-      throw new Error("Alfredpay upstream should not be called");
-    }) as typeof AlfredpayApiService.getInstance;
+  it("serves anonymous Alfredpay onramp quotes with the sentinel customer id in metadata", async () => {
+    let capturedRequest: CreateAlfredpayOnrampQuoteRequest | undefined;
+    AlfredpayApiService.getInstance = mock(() => ({
+      createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest) => {
+        capturedRequest = request;
+        return stubAlfredpayQuote();
+      }
+    })) as unknown as typeof AlfredpayApiService.getInstance;
 
     const ctx = createQuoteContext({
       partner: null,
@@ -41,16 +58,21 @@ describe("Alfredpay quote auth", () => {
       targetFeeFiatCurrency: FiatToken.USD
     });
 
-    await expect(new OnRampInitializeAlfredpayEngine().execute(ctx)).rejects.toThrow(
-      "Alfredpay quote creation requires an API key linked to a user or Supabase user authentication."
-    );
+    await new OnRampInitializeAlfredpayEngine().execute(ctx);
+
+    expect(capturedRequest?.metadata.customerId).toBe(ALFREDPAY_ANONYMOUS_CUSTOMER_ID);
+    expect(ctx.alfredpayMint?.quoteId).toBe("alfredpay-quote-1");
   });
 
-  it("rejects anonymous Alfredpay off-ramp quotes before calling Alfredpay", async () => {
+  it("serves anonymous Alfredpay off-ramp quotes with the sentinel customer id in metadata", async () => {
     priceFeedService.convertCurrency = mock(async () => "20") as typeof priceFeedService.convertCurrency;
-    AlfredpayApiService.getInstance = mock(() => {
-      throw new Error("Alfredpay upstream should not be called");
-    }) as typeof AlfredpayApiService.getInstance;
+    let capturedRequest: CreateAlfredpayOfframpQuoteRequest | undefined;
+    AlfredpayApiService.getInstance = mock(() => ({
+      createOfframpQuote: async (request: CreateAlfredpayOfframpQuoteRequest) => {
+        capturedRequest = request;
+        return stubAlfredpayQuote();
+      }
+    })) as unknown as typeof AlfredpayApiService.getInstance;
 
     const ctx = createQuoteContext({
       partner: null,
@@ -92,8 +114,9 @@ describe("Alfredpay quote auth", () => {
       targetOutputAmountRaw: "10000000"
     };
 
-    await expect(new OfframpTransactionAlfredpayEngine().execute(ctx)).rejects.toThrow(
-      "Alfredpay quote creation requires an API key linked to a user or Supabase user authentication."
-    );
+    await new OfframpTransactionAlfredpayEngine().execute(ctx);
+
+    expect(capturedRequest?.metadata.customerId).toBe(ALFREDPAY_ANONYMOUS_CUSTOMER_ID);
+    expect(ctx.alfredpayOfframp?.quoteId).toBe("alfredpay-quote-1");
   });
 });

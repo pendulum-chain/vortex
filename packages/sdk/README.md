@@ -83,7 +83,7 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
-Alfredpay requires the user to be onboarded first. Authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), not a `publicKey` alone, a partner-scoped key, or a Supabase Bearer token. The same user must have completed Alfredpay KYC for the country — the key and the KYC record belong to the same account, so a quote created with that key resolves to the user's Alfredpay customer automatically.
+Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), not a `publicKey` alone, a partner-scoped key, or a Supabase Bearer token. The same user must have completed Alfredpay KYC for the country — the key and the KYC record belong to the same account, so registration resolves to the user's Alfredpay customer automatically.
 
 > The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation) with the SDK.
 

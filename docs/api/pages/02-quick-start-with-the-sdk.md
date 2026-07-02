@@ -135,7 +135,7 @@ console.log(started.achPaymentData);
 
 No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
 
-Alfredpay (MXN) requires the user to be onboarded first. Authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed Alfredpay MXN KYC. The key and the KYC record belong to the same account, so a quote created with that key resolves to the user's Alfredpay customer automatically. A `publicKey`-only request, or a partner-scoped `sk_*` with no user, is rejected.
+Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed Alfredpay MXN KYC. The key and the KYC record belong to the same account, so registration resolves to the user's Alfredpay customer automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
 
 Partner `sk_*` keys cannot drive Alfredpay KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation). This applies to both MXN onramp and offramp below.
 

@@ -10,7 +10,7 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { requireAlfredpayEffectiveUserId, resolveAlfredpayCustomerId } from "../../alfredpay-customer";
+import { resolveAlfredpayQuoteCustomerId } from "../../alfredpay-customer";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./index";
 
@@ -22,13 +22,14 @@ export class OnRampInitializeAlfredpayEngine extends BaseInitializeEngine {
 
   protected async executeInternal(ctx: QuoteContext): Promise<void> {
     const req = ctx.request;
-    const effectiveUserId = requireAlfredpayEffectiveUserId(req.userId);
 
     const usdTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     const inputAmountDecimal = new Big(req.inputAmount);
     const alfredpayService = AlfredpayApiService.getInstance();
 
-    const customerId = await resolveAlfredpayCustomerId(req.inputCurrency, effectiveUserId);
+    // Quotes stay anonymous-eligible: metadata.customerId is tracking-only on Alfredpay quote
+    // requests. KYC is enforced at ramp registration via resolveAlfredpayCustomerId.
+    const customerId = await resolveAlfredpayQuoteCustomerId(req.inputCurrency, req.userId);
 
     const quoteRequest: CreateAlfredpayOnrampQuoteRequest = {
       chain: AlfredpayChain.MATIC,
