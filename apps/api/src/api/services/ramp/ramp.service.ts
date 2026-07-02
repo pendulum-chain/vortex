@@ -52,7 +52,7 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { resolveAveniaAccountForUser } from "../avena-account";
+import { resolveAveniaAccountForRamp } from "../avenia-account";
 import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
@@ -1042,16 +1042,9 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const aveniaAccount = await resolveAveniaAccountForUser(userId);
+    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
     const derivedTaxId = aveniaAccount.taxId;
     const derivedReceiverTaxId = normalizeTaxId(additionalData.receiverTaxId || derivedTaxId);
-
-    if (additionalData.taxId && normalizeTaxId(additionalData.taxId) !== derivedTaxId) {
-      throw new APIError({
-        message: "Provided taxId does not match the Avenia profile bound to the authenticated user.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
 
     const subaccount = await this.validateBrlaOfframpRequest(
       derivedTaxId,
@@ -1129,7 +1122,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const aveniaAccount = await resolveAveniaAccountForUser(userId);
+    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
     const derivedTaxId = aveniaAccount.taxId;
 
     const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(derivedTaxId, quote, quote.inputAmount);

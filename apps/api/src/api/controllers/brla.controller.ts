@@ -38,7 +38,7 @@ import logger from "../../config/logger";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
-import { resolveAveniaAccountForUser } from "../services/avena-account";
+import { resolveAveniaAccountForUser } from "../services/avenia-account";
 
 // Helper functions for TaxId updates
 
