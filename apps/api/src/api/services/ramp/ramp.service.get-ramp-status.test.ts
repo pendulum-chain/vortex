@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { EPaymentMethod, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -51,7 +52,7 @@ function makeRampState(onHold: boolean, currentPhase: RampPhase = "brlaOnrampMin
     createdAt,
     currentPhase,
     errorLogs: [],
-    flowVariant: "monerium",
+    flowVariant: config.flowVariant,
     from: EPaymentMethod.PIX,
     id: "ramp-1",
     paymentMethod: EPaymentMethod.PIX,
