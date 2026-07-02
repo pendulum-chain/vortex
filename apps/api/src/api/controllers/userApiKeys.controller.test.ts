@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import httpStatus from "http-status";
 import ApiKey from "../../models/apiKey.model";
-import { revokeUserApiKey } from "./userApiKeys.controller";
+import { createUserApiKey, MAX_ACTIVE_KEYS_PER_USER, revokeUserApiKey } from "./userApiKeys.controller";
 
 function createResponse() {
   const res = {
@@ -20,6 +20,24 @@ function createResponse() {
 
   return res;
 }
+
+describe("createUserApiKey", () => {
+  const originalCount = ApiKey.count;
+
+  afterEach(() => {
+    ApiKey.count = originalCount;
+  });
+
+  it("rejects creation with 409 when the per-user active key cap is reached", async () => {
+    ApiKey.count = mock(async () => MAX_ACTIVE_KEYS_PER_USER) as unknown as typeof ApiKey.count;
+
+    const res = createResponse();
+    await createUserApiKey({ body: {}, userId: "user-1" } as never, res as never);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect((res.body as { error: { code: string } }).error.code).toBe("API_KEY_LIMIT_REACHED");
+  });
+});
 
 describe("revokeUserApiKey", () => {
   const originalFindOne = ApiKey.findOne;

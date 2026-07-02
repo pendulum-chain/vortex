@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import ApiKey from "../../models/apiKey.model";
@@ -9,6 +10,14 @@ interface CreateApiKeyBody {
   expiresAt?: string;
   name?: string;
 }
+
+// Secret-key validation bcrypt-compares against every active key sharing the constant
+// 8-char prefix (e.g. "sk_live_"), so the total number of active keys directly bounds
+// auth latency. Cap what a single user can mint.
+export const MAX_ACTIVE_KEYS_PER_USER = 10;
+
+// Keys must expire; cap client-supplied expiry at 2 years (default is 1 year).
+const MAX_EXPIRY_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 
 export async function createUserApiKey(req: Request, res: Response): Promise<void> {
   const userId = req.userId;
@@ -27,6 +36,18 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
 
   try {
     const environment = config.sandboxEnabled ? "test" : "live";
+
+    const activeKeyCount = await ApiKey.count({ where: { isActive: true, userId } });
+    if (activeKeyCount + 2 > MAX_ACTIVE_KEYS_PER_USER) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "API_KEY_LIMIT_REACHED",
+          message: `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_USER} keys). Revoke unused keys before creating new ones.`,
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
 
     const publicKey = generateApiKey("public", environment);
     const publicKeyPrefix = getKeyPrefix(publicKey);
@@ -48,28 +69,50 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const publicKeyRecord = await ApiKey.create({
-      expiresAt: expirationDate,
-      isActive: true,
-      keyHash: null,
-      keyPrefix: publicKeyPrefix,
-      keyType: "public",
-      keyValue: publicKey,
-      name: `${name || "API Key"} (Public)`,
-      partnerName: null,
-      userId
-    });
+    if (expiresAt && expirationDate.getTime() > Date.now() + MAX_EXPIRY_MS) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_EXPIRES_AT",
+          message: "expiresAt must be at most 2 years from now",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
 
-    const secretKeyRecord = await ApiKey.create({
-      expiresAt: expirationDate,
-      isActive: true,
-      keyHash: secretKeyHash,
-      keyPrefix: secretKeyPrefix,
-      keyType: "secret",
-      keyValue: null,
-      name: `${name || "API Key"} (Secret)`,
-      partnerName: null,
-      userId
+    // Create the pair atomically so a failure cannot leave an orphaned half.
+    const { publicKeyRecord, secretKeyRecord } = await sequelize.transaction(async transaction => {
+      const createdPublicKey = await ApiKey.create(
+        {
+          expiresAt: expirationDate,
+          isActive: true,
+          keyHash: null,
+          keyPrefix: publicKeyPrefix,
+          keyType: "public",
+          keyValue: publicKey,
+          name: `${name || "API Key"} (Public)`,
+          partnerName: null,
+          userId
+        },
+        { transaction }
+      );
+
+      const createdSecretKey = await ApiKey.create(
+        {
+          expiresAt: expirationDate,
+          isActive: true,
+          keyHash: secretKeyHash,
+          keyPrefix: secretKeyPrefix,
+          keyType: "secret",
+          keyValue: null,
+          name: `${name || "API Key"} (Secret)`,
+          partnerName: null,
+          userId
+        },
+        { transaction }
+      );
+
+      return { publicKeyRecord: createdPublicKey, secretKeyRecord: createdSecretKey };
     });
 
     res.status(httpStatus.CREATED).json({
