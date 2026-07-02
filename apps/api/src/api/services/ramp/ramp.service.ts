@@ -223,7 +223,7 @@ export class RampService extends BaseRampService {
       if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
         throw new APIError({
           message: "EUR ramps are currently disabled",
-          status: httpStatus.BAD_REQUEST
+          status: httpStatus.SERVICE_UNAVAILABLE
         });
       }
 

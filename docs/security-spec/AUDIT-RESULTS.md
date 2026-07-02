@@ -629,9 +629,9 @@ No new findings. All 12 prior findings verified fixed. OZ caret range is a minor
 
 ### 5.2 Monerium Integration (DEPRECATED — replaced by Mykobo)
 
-**Spec:** `05-integrations/monerium.md` (deprecated; see `05-integrations/mykobo.md` for the active EUR rail)
+**Spec:** `05-integrations/monerium.md` (deprecated; see `05-integrations/mykobo.md` for the current registration-gated EUR rail)
 
-> Monerium is no longer used. Active EUR on/off-ramp goes through Mykobo on Base. The checks below describe the historical Monerium audit state and are retained for traceability of F-023 / F-024 lineage.
+> Monerium is no longer used. EUR on/off-ramp registration is currently gated before provider side effects; when re-enabled, the EUR flow goes through Mykobo on Base. The checks below describe the historical Monerium audit state and are retained for traceability of F-023 / F-024 lineage.
 
 | # | Check | Result |
 |---|---|---|
@@ -650,11 +650,11 @@ No new findings. All 12 prior findings verified fixed. OZ caret range is a minor
 
 ---
 
-### 5.2b Mykobo Integration (ACTIVE EUR RAIL)
+### 5.2b Mykobo Integration (REGISTRATION-GATED EUR RAIL)
 
 **Spec:** `05-integrations/mykobo.md`
 
-Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. Both directions now flow on Base, mirroring the BRLA-on-Base architecture.
+Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. EUR registration is currently gated before Mykobo side effects; when re-enabled, both directions flow on Base, mirroring the BRLA-on-Base architecture.
 
 | # | Check | Result |
 |---|---|---|

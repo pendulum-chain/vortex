@@ -3385,7 +3385,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..."
+                  "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&quoteId=quote_01HXY..."
                 },
                 "schema": {
                   "properties": {
@@ -3405,7 +3405,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
+                  "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
                 },
                 "schema": {
                   "properties": {
