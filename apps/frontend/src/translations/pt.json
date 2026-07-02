@@ -1414,7 +1414,7 @@
         "buttons": {
           "next": "Próximo"
         },
-        "eurRampUnavailable": "Estamos melhorando a sua rampa de EUR, ela voltará em breve",
+        "eurRampUnavailable": "Estamos melhorando a sua rampa de EUR. Ela voltará em breve.",
         "quoteChangedWarning": "Sua cotação foi alterada. Por favor, confirme o novo valor de saída antes de continuar.",
         "title": "Insira os detalhes"
       }

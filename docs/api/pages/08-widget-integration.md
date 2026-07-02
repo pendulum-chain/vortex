@@ -46,7 +46,7 @@ The quote does **not refresh automatically**. If it expires before the user comp
 Response: `200 OK`
 
 ```json
-{ "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..." }
+{ "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&quoteId=quote_01HXY..." }
 ```
 
 ## Mode B: Auto-Refresh
@@ -95,7 +95,7 @@ Vortex validates the route on session creation by attempting to create a probe q
 Response: `201 Created`
 
 ```json
-{ "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix" }
+{ "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix" }
 ```
 
 ## Which Mode Goes With Which Fields
@@ -112,7 +112,7 @@ Open the returned URL in a popup, iframe, or top-level redirect.
 
 ```html
 <iframe
-  src="https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..."
+  src="https://www.vortexfinance.co/widget?externalSessionId=my-session-id&quoteId=quote_01HXY..."
   allow="clipboard-write; payment"
   style="width: 100%; height: 720px; border: 0;"
 ></iframe>
@@ -120,7 +120,7 @@ Open the returned URL in a popup, iframe, or top-level redirect.
 
 ```js
 window.open(
-  "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY...",
+  "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&quoteId=quote_01HXY...",
   "vortex-widget",
   "width=480,height=760"
 );

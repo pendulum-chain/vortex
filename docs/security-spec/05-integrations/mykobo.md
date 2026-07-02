@@ -4,6 +4,8 @@
 
 Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Stellar, Pendulum, or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
 
+EUR ramp registration is currently disabled at `RampService.registerRamp`: any quote whose input or output currency is `FiatToken.EURC` is rejected with `503 SERVICE_UNAVAILABLE` before Mykobo intents or phase transactions are prepared. The flow details below describe the intended Mykobo behavior for when the EUR rail is re-enabled.
+
 Mykobo replaces two earlier EUR rails:
 
 - The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed for EUR. See `stellar-anchors.md` for the deprecation note.
@@ -88,6 +90,7 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 20. **`MYKOBO_CLIENT_DOMAIN` MUST be set in every deployment** — The constant is sent as `client_domain` on every Mykobo API call and selects the negotiated fee tier. Because it is loaded via `getEnvVar` with no default, a missing value silently falls back to Mykobo's default tier (worse fees, observed ~5x higher). Deploy-time checks MUST treat an unset `MYKOBO_CLIENT_DOMAIN` as a hard failure.
 21. **Mykobo intent `value` MUST be floored to 2 decimal places** — Mykobo silently truncates anything beyond 2 dp, which would otherwise cause the on-chain transfer amount and the Mykobo-credited amount to diverge. Both the on-ramp `DEPOSIT` intent and the off-ramp `WITHDRAW` intent MUST send a 2dp-floored `value`, and the off-ramp on-chain transfer MUST be derived from that same floored value (not from the unrounded Nabla output). The sub-cent EURC remainder on the ephemeral MUST be swept by `baseCleanupEurc`.
 22. **The EUR→EURC-on-Base on-ramp MUST take the direct-transfer bypass** — When `inputCurrency === EURC`, `outputCurrency === EURC`, and `network === Base`, `isEurToEurcBaseDirect` MUST short-circuit the route to a single `destinationTransfer` from the ephemeral to the user, with `stateMeta.isDirectTransfer = true`. The Nabla swap, SquidRouter, `finalSettlementSubsidy`, and Base cleanup phases MUST NOT run — routing EURC through USDC and back would burn double-swap slippage/fees against the user and expose the over-subsidy race (`06-cross-chain/fund-routing.md`). The `finalSettlementSubsidy` handler MUST also honor `isDirectTransfer`/`isEurToEurcBaseDirect` defensively and skip to `destinationTransfer` if reached.
+23. **Disabled EUR registration MUST fail before provider side effects** — While EUR ramps are disabled, `registerRamp` MUST reject any quote with `inputCurrency === FiatToken.EURC` or `outputCurrency === FiatToken.EURC` using `503 SERVICE_UNAVAILABLE` before Mykobo intent creation, presigned transaction preparation, quote consumption, or ramp-state creation.
 
 ## Threat Vectors & Mitigations
 
@@ -141,3 +144,4 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 - [ ] No Mykobo API call is invoked from a phase handler without an explicit recoverable/unrecoverable mapping
 - [ ] EUR→EURC-on-Base on-ramps (`isEurToEurcBaseDirect`) emit a single `destinationTransfer` with `isDirectTransfer = true` — no Nabla swap, SquidRouter, `finalSettlementSubsidy`, or Base cleanup phases
 - [ ] `finalSettlementSubsidy` honors `isDirectTransfer` / `isEurToEurcBaseDirect` and short-circuits to `destinationTransfer` if ever reached on a direct route
+- [ ] While EUR ramps are disabled, `registerRamp` rejects EURC input/output quotes with `503 SERVICE_UNAVAILABLE` before any Mykobo or ramp-state side effects
