@@ -261,6 +261,17 @@ export class MissingMykoboOfframpParametersError extends MykoboError {
 }
 
 /**
+ * The effective user's Mykobo KYC is missing/not approved, or the supplied email does not
+ * match the profile bound to the authenticated user. Complete Mykobo KYC before EUR ramps.
+ */
+export class MykoboKycRequiredError extends MykoboError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "MykoboKycRequiredError";
+  }
+}
+
+/**
  * Update Ramp Error Types
  */
 export class UpdateRampError extends VortexSdkError {
@@ -499,17 +510,21 @@ export function parseAPIError(response: unknown): VortexSdkError {
       if (errorMessage === "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp") {
         return new MissingMoneriumOfframpParametersError();
       }
-      if (errorMessage === "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp") {
+      if (errorMessage === "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp") {
         return new MissingMykoboOnrampParametersError();
-      }
-      if (errorMessage === "email must be provided for Mykobo (EUR) offramp") {
-        return new MissingMykoboOfframpParametersError();
       }
       if (errorMessage === "ipAddress must be provided for Mykobo (EUR) offramp") {
         return new MissingMykoboOfframpParametersError();
       }
       if (errorMessage === "destinationAddress (user receiving wallet) must be provided for Mykobo offramp") {
         return new MissingMykoboOfframpParametersError();
+      }
+      if (
+        errorMessage.startsWith("Mykobo KYC is not approved for this user") ||
+        errorMessage === "Provided email does not match the profile bound to the authenticated user." ||
+        errorMessage === "No profile found for this user; cannot resolve the Mykobo customer."
+      ) {
+        return new MykoboKycRequiredError(errorMessage, normalizedStatus);
       }
 
       if (errorMessage === "Ramp not found") {
