@@ -62,7 +62,7 @@ export async function resolveAveniaAccountForRamp(userId: string, providedTaxId?
 
   if (providedTaxId && normalizeTaxId(providedTaxId) !== resolved.taxId) {
     throw new APIError({
-      message: "Provided taxId does not match the Avenia profile bound to the authenticated user.",
+      message: "taxId does not match existing records",
       status: httpStatus.BAD_REQUEST
     });
   }

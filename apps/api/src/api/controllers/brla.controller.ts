@@ -293,7 +293,7 @@ export const getAveniaUserRemainingLimit = async (
       taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
       if (!taxIdRecord) {
         throw new APIError({
-          message: "Ramp disabled",
+          message: "taxId does not match existing records",
           status: httpStatus.BAD_REQUEST
         });
       }

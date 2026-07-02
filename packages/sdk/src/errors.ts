@@ -185,7 +185,7 @@ export class AlfredpayOnrampKycRequiredError extends AlfredpayOnrampError {
   }
 }
 
-function extractErrorStatus(response: Record<string, unknown>): number {
+function extractErrorStatus(response: Record<string, unknown>): number | undefined {
   for (const key of ["status", "statusCode", "code"]) {
     const value = response[key];
     if (typeof value === "number") {
@@ -198,7 +198,7 @@ function extractErrorStatus(response: Record<string, unknown>): number {
     return extractErrorStatus(nestedError as Record<string, unknown>);
   }
 
-  return 500;
+  return undefined;
 }
 
 // Alfredpay Offramp specific errors
@@ -429,10 +429,10 @@ function extractErrorMessage(value: unknown): string | undefined {
 /**
  * Error parsing utilities
  */
-export function parseAPIError(response: unknown): VortexSdkError {
+export function parseAPIError(response: unknown, fallbackStatus?: number): VortexSdkError {
   if (response && typeof response === "object") {
     const { message, error, errors } = response as Record<string, unknown>;
-    const normalizedStatus = extractErrorStatus(response as Record<string, unknown>);
+    const normalizedStatus = extractErrorStatus(response as Record<string, unknown>) ?? fallbackStatus ?? 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
 
     if (errorMessage) {
@@ -561,7 +561,7 @@ export async function handleAPIResponse<T>(response: Response, endpoint: string)
       throw new APIResponseError(endpoint, response.status, response.statusText);
     }
 
-    throw parseAPIError(errorData);
+    throw parseAPIError(errorData, response.status);
   }
 
   try {
