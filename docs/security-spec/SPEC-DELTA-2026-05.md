@@ -290,7 +290,7 @@ The dual-track auth model — partner SDK key OR Supabase user session — is th
 |---|---|---|
 | `POST /v1/ramp/quotes` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Partner key, if present, must match `partnerId` in body |
 | `POST /v1/ramp/quotes/best` | `apiKeyAuth({required: false})` + `enforcePartnerAuth()` | Same as above |
-| `POST /v1/ramp/register` | `requirePartnerOrUserAuth()` | `assertQuoteOwnership(req, quoteId)` + service effective-user check; anonymous quotes must be re-quoted with the registering principal |
+| `POST /v1/ramp/register` | `requirePartnerOrUserAuth()` | `assertQuoteOwnership(req, quoteId)` + service effective-user check; anonymous quotes may be claimed by the registering principal (provider identity derives from the claimer's KYC records) |
 | `POST /v1/ramp/update` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` — anonymous caller allowed iff ramp has `userId === null` AND its quote has `partnerId === null` |
 | `POST /v1/ramp/start` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` — same condition as update |
 | `GET /v1/ramp/:id` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, id)` — same condition as update |
@@ -302,4 +302,4 @@ The dual-track auth model — partner SDK key OR Supabase user session — is th
 
 `optionalPartnerOrUserAuth()` accepts a request with no credentials, but a request that *presents* invalid credentials (malformed `X-API-Key` or expired/forged Bearer) is still rejected with 401. The downstream ownership checks then decide whether the resource is reachable: anonymous callers are admitted only for legacy fully-anonymous ramps on the optional endpoints. Ramp registration itself is credential-gated.
 
-Frontend uses `Authorization: Bearer` (Supabase). SDK partners use `X-API-Key: sk_*`. SDK clients without keys may request anonymous quote estimates only on corridors that explicitly support them, but must authenticate before registering a ramp. Both authenticated principals grant equal access subject to per-principal ownership scoping.
+Frontend uses `Authorization: Bearer` (Supabase). SDK partners use `X-API-Key: sk_*`. SDK clients without keys may request anonymous quote estimates on every corridor (Alfredpay quotes carry only a tracking-metadata customer id), but must authenticate before registering a ramp. Both authenticated principals grant equal access subject to per-principal ownership scoping.

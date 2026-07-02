@@ -1,6 +1,6 @@
 # ADR: User-Gated Ramp Registration (Anonymous Quotes, Authenticated Ramps)
 
-Last updated: 2026-06-29
+Last updated: 2026-07-02
 
 Status: Accepted
 
@@ -28,25 +28,29 @@ can preview rates before signing up with Vortex.
 
 Split the trust boundary between quoting and ramping:
 
-1. **Quotes stay anonymous-eligible.** `POST /v1/quotes` and `/quotes/best` accept anonymous
-   callers (and partner keys with or without a user binding) for corridors that support public
-   estimates (e.g. BRL/Avenia). Alfredpay quote creation is the exception: it is user-gated in
-   the quote engine because the upstream provider call requires a real customer context — no
-   `customerId: "unknown"` call is ever made.
+1. **Quotes stay anonymous-eligible, for every corridor.** `POST /v1/quotes` and `/quotes/best`
+   accept anonymous callers (and partner keys with or without a user binding). For Alfredpay
+   corridors the `customerId` sent on *quote* requests lives in the tracking-only `metadata`
+   object — Alfredpay validates the top-level `customerId` only on order creation. Anonymous
+   or non-KYC'd callers get the sentinel `"anonymous"` in quote metadata
+   (`resolveAlfredpayQuoteCustomerId`); KYC-completed users get their real customer id. This
+   keeps the web-app funnel working (quote before login, KYC after quote confirm).
 
 2. **Ramp registration requires an effective user, for every corridor.** `RampService.registerRamp`
    derives an **effective user** (`req.userId` from Supabase, else `api_keys.user_id` from a linked
    secret key) and rejects when none is present:
    - `400 Invalid quote` when no effective user can be resolved.
-   - `403` when an authenticated caller tries to claim an anonymous quote (`quote.userId == null && request.userId != null`).
    - `403` when a linked user tries to register a quote owned by a different user.
+   - An **anonymous quote may be claimed** by any authenticated caller: it carries no owner, so
+     claiming is not an escalation, and provider identity is still derived from the claimer's
+     own KYC records. This is the normal web-app flow (anonymous quote → login → register).
 
 3. **Provider identity is derived server-side, never trusted from the body.** The sender `taxId`
    (Avenia) and `alfredPayId` (Alfredpay) are resolved from the effective user's KYC records
-   (`resolveAveniaAccountForUser`, `resolveAlfredpayCustomerId`). A client-supplied `taxId` is
-   accepted only when it matches the derived value; mismatches return `400`. (The PIX
-   `receiverTaxId`, which may legitimately differ from the sender, stays client-supplied and is
-   validated downstream against the PIX key owner.)
+   (`resolveAveniaAccountForRamp`, `resolveAlfredpayCustomerId`). A client-supplied `taxId` is
+   accepted only when it matches the derived value (enforced on both the BRL onramp and offramp
+   paths); mismatches return `400`. (The PIX `receiverTaxId`, which may legitimately differ from
+   the sender, stays client-supplied and is validated downstream against the PIX key owner.)
 
 ## Identity model
 
@@ -70,9 +74,15 @@ endpoint. There is intentionally no "one partner key acts for any user" path.
   can no longer register ramps. Existing production keys must be bound to a profile (admin
   `POST /v1/admin/partners/:partnerName/api-keys` accepts an optional `userId`) or callers must
   switch to per-user authentication. This requires partner communication ahead of deploy.
-- **Anonymous rate discovery is preserved**, which keeps the pre-signup funnel working.
-- **Provider fraud surface shrinks**: no arbitrary `taxId`, no `"unknown"` customer, no claiming
-  another user's quote/subaccount.
+- **Anonymous rate discovery is preserved for all corridors**, which keeps the pre-signup funnel
+  working (including the web app's anonymous quote form for Alfredpay currencies).
+- **Provider fraud surface shrinks**: no arbitrary `taxId`, no placeholder customer on order
+  creation, no claiming another user's quote/subaccount. (The `"anonymous"` sentinel appears
+  only in tracking metadata on quote requests, never on orders.)
+- **Self-serve key creation is capped** (`MAX_ACTIVE_KEYS_PER_USER` in
+  `userApiKeys.controller.ts`): secret-key validation bcrypt-compares against every active key
+  sharing the constant 8-char prefix, so unbounded key creation would degrade auth latency
+  system-wide.
 - `ON DELETE SET NULL` on `api_keys.user_id` is deliberate: deleting a profile must not silently
   revoke a partner's operational keys; the binding is soft state.
 

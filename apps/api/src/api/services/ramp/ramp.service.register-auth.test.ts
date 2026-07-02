@@ -45,9 +45,19 @@ describe("RampService.registerRamp user gating", () => {
     QuoteTicket.findByPk = originalFindByPk;
   });
 
-  it("rejects an authenticated caller claiming an anonymous quote with 403", async () => {
+  it("lets an authenticated caller claim an anonymous quote (passes the user-gating guards)", async () => {
     stubQuote({ userId: null });
-    await expectRegisterError("user-a", httpStatus.FORBIDDEN);
+    const service = new TestRampService();
+    try {
+      await service.registerRamp({ additionalData: {}, quoteId: "quote-1", signingAccounts: [], userId: "user-a" } as never);
+      throw new Error("registerRamp did not reject");
+    } catch (error) {
+      // The stubbed quote has no currencies/signing accounts, so registration fails later
+      // (missing destinationAddress) — but it must get past the gating guards.
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).not.toBe(httpStatus.FORBIDDEN);
+      expect((error as APIError).message).not.toContain("Invalid quote");
+    }
   });
 
   it("rejects a user registering a quote owned by a different user with 403", async () => {

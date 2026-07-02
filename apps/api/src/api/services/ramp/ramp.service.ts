@@ -208,13 +208,9 @@ export class RampService extends BaseRampService {
         });
       }
 
-      if (quote.userId == null && request.userId != null) {
-        throw new APIError({
-          message: "This anonymous quote cannot be registered by an authenticated caller.",
-          status: httpStatus.FORBIDDEN
-        });
-      }
-
+      // An anonymous quote (userId == null) carries no owner, so an authenticated caller
+      // claiming it is not an escalation — this is the normal web-app funnel (quote before
+      // login, register after). Provider identity is still derived from the effective user.
       const effectiveUserId = request.userId || quote.userId || undefined;
 
       if (!effectiveUserId) {
