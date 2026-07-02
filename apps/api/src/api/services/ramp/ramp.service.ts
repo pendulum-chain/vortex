@@ -199,6 +199,13 @@ export class RampService extends BaseRampService {
         });
       }
 
+      if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
+        throw new APIError({
+          message: "EUR ramps are currently disabled",
+          status: httpStatus.SERVICE_UNAVAILABLE
+        });
+      }
+
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
       await validateEphemeralAccountsFresh(ephemerals);

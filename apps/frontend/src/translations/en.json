@@ -1409,6 +1409,7 @@
         "buttons": {
           "next": "Next"
         },
+        "eurRampUnavailable": "We are improving your EUR ramp. It will be back soon.",
         "quoteChangedWarning": "Your quote has changed. Please confirm the new output amount before proceeding.",
         "title": "Enter Details"
       }

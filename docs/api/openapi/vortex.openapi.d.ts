@@ -588,7 +588,7 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&quoteId=quote_01HXY..."
+             *       "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&quoteId=quote_01HXY..."
              *     }
              */
             "application/json": {
@@ -605,7 +605,7 @@ export interface paths {
           content: {
             /**
              * @example {
-             *       "url": "https://widget.vortexfinance.co/?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
+             *       "url": "https://www.vortexfinance.co/widget?externalSessionId=my-session-id&rampType=BUY&network=polygon&inputAmount=150&fiat=BRL&cryptoLocked=USDC&paymentMethod=pix"
              *     }
              */
             "application/json": {
