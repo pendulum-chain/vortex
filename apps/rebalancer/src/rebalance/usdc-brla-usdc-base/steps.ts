@@ -31,6 +31,10 @@ const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 const STALE_PERSISTED_TX_MINUTES = 15;
 
+interface TransactionReceiptStatusReader {
+  getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ status: "success" | "reverted" }>;
+}
+
 function isPersistedTransactionStale(updatedTime: string): boolean {
   const updatedAt = Date.parse(updatedTime);
   if (Number.isNaN(updatedAt)) return false;
@@ -356,9 +360,9 @@ export async function resetFailedNablaSwapOnResume(
   swapHash: string,
   state: UsdcBaseRebalanceState,
   stateManager: Pick<UsdcBaseStateManager, "saveState">,
-  publicClient: Pick<PublicClient, "getTransactionReceipt">
+  publicClient: TransactionReceiptStatusReader
 ): Promise<boolean> {
-  let receipt: Awaited<ReturnType<PublicClient["getTransactionReceipt"]>>;
+  let receipt: { status: "success" | "reverted" };
   try {
     receipt = await publicClient.getTransactionReceipt({
       hash: swapHash as `0x${string}`
