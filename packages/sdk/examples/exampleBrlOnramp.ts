@@ -2,19 +2,27 @@ import { CreateQuoteRequest, EPaymentMethod, EvmToken, FiatToken, Networks, Quot
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env var: ${name}. Copy .env.example to .env and set it.`);
+  }
+  return value;
+}
+
 async function runBrlOnrampExample() {
   try {
     console.log("Starting BRL Onramp Example...\n");
 
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
-      apiBaseUrl: "http://localhost:3000",
+      apiBaseUrl: process.env.VORTEX_API_URL ?? "http://localhost:3000",
       autoReconnect: true,
       // Optional: provide custom WebSocket URLs
       moonbeamWsUrl: undefined,
       pendulumWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
-      publicKey: "pk_live_REPLACEME", // 'wss://custom-pendulum-rpc.com',
-      secretKey: "sk_live_REPLACEME", // default is `true`
+      publicKey: requireEnv("VORTEX_PUBLIC_KEY"), // 'wss://custom-pendulum-rpc.com',
+      secretKey: requireEnv("VORTEX_SECRET_KEY"), // default is `true`
       // Optional: store ephemeral keys for later use
       storeEphemeralKeys: true // default is `true`
     };
@@ -45,8 +53,8 @@ async function runBrlOnrampExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOnrampData = {
-      destinationAddress: "0x1234567890123456789012345678901234567890",
-      taxId: "123.456.789-00"
+      destinationAddress: requireEnv("DESTINATION_ADDRESS"),
+      taxId: requireEnv("BRL_TAX_ID")
     };
 
     const { rampProcess } = await sdk.registerRamp(quote, brlOnrampData);

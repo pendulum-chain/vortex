@@ -3,6 +3,14 @@ import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "..
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env var: ${name}. Copy .env.example to .env and set it.`);
+  }
+  return value;
+}
+
 async function runEurOfframpExample() {
   const askQuestion = (query: string): Promise<string> => {
     const rl = readline.createInterface({
@@ -23,10 +31,10 @@ async function runEurOfframpExample() {
 
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
-      apiBaseUrl: "http://localhost:3000",
+      apiBaseUrl: process.env.VORTEX_API_URL ?? "http://localhost:3000",
       autoReconnect: true,
-      publicKey: "pk_live_REPLACEME",
-      secretKey: "sk_live_REPLACEME",
+      publicKey: requireEnv("VORTEX_PUBLIC_KEY"),
+      secretKey: requireEnv("VORTEX_SECRET_KEY"),
       storeEphemeralKeys: true
     };
 
@@ -53,10 +61,10 @@ async function runEurOfframpExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const eurOfframpData = {
-      destinationAddress: "0x1234567890123456789012345678901234567890",
-      email: "user@example.com",
-      ipAddress: "203.0.113.1",
-      walletAddress: "0x1234567890123456789012345678901234567890"
+      destinationAddress: requireEnv("DESTINATION_ADDRESS"),
+      email: process.env.USER_EMAIL ?? "user@example.com",
+      ipAddress: process.env.USER_IP_ADDRESS ?? "203.0.113.1",
+      walletAddress: requireEnv("WALLET_ADDRESS")
     };
 
     console.log("📝 Step 3: Registering EUR offramp...");

@@ -13,7 +13,7 @@ dist-ssr
 *.local
 
 # Environment files (any package, any name)
-**/.env
+packages/sdk/.env
 **/.env.local
 **/.env.*.local
 **/.env.development
