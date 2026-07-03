@@ -35,13 +35,12 @@ async function runBrlOnrampExample() {
     console.log("📝 Step 2: Creating quote for BRL onramp...");
     const quoteRequest: CreateQuoteRequest = {
       from: EPaymentMethod.PIX,
-      inputAmount: "100",
+      inputAmount: "5",
       inputCurrency: FiatToken.BRL,
       network: Networks.Polygon,
       outputCurrency: EvmToken.USDC,
       rampType: RampDirection.BUY,
       to: Networks.Polygon
-      //partnerId: "example-partner"
     };
 
     const quote = (await sdk.createQuote(quoteRequest)) as QuoteResponse;

@@ -65,7 +65,7 @@ async function runMxnOnrampExample() {
     console.log("📝 Step 2: Creating quote for MXN onramp (MXN -> USDC via SPEI)...");
     const quoteRequest: CreateQuoteRequest = {
       from: EPaymentMethod.SPEI,
-      inputAmount: "201",
+      inputAmount: "150",
       inputCurrency: FiatToken.MXN,
       network: Networks.Polygon,
       outputCurrency: EvmToken.USDC,

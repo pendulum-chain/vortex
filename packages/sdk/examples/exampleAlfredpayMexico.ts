@@ -30,9 +30,11 @@ const OFFRAMP_WALLET_PRIVATE_KEY = process.env.OFFRAMP_WALLET_PRIVATE_KEY as `0x
 const OFFRAMP_WALLET_ADDRESS = OFFRAMP_WALLET_PRIVATE_KEY
   ? privateKeyToAccount(OFFRAMP_WALLET_PRIVATE_KEY).address
   : "0xYOUR_WALLET_ADDRESS";
-const DESTINATION_ADDRESS = "0xYOUR_WALLET_ADDRESS";
-const WALLET_ADDRESS = "0xYOUR_WALLET_ADDRESS";
-const FIAT_ACCOUNT_ID = "00000000-0000-0000-0000-000000000000";
+const DESTINATION_ADDRESS = "0x69183DDa3112c5F45201c579A26f605e60ba5741";
+const WALLET_ADDRESS = "0x69183DDa3112c5F45201c579A26f605e60ba5741";
+const FIAT_ACCOUNT_ID = "c7be4dbd-5bac-448e-8f98-12601d5fa590";
+const VORTEX_PUBLIC_KEY = process.env.VORTEX_PUBLIC_KEY;
+const VORTEX_SECRET_KEY = process.env.VORTEX_SECRET_KEY;
 
 function askQuestion(query: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -46,7 +48,8 @@ function askQuestion(query: string): Promise<string> {
 
 function buildSdk(): VortexSdk {
   const config: VortexSdkConfig = {
-    apiBaseUrl: process.env.VORTEX_API_URL ?? "http://localhost:3000",
+    // apiBaseUrl: "api.vortexfinance.co",
+    apiBaseUrl: "http://localhost:3000",
     autoReconnect: true,
     publicKey: process.env.VORTEX_PUBLIC_KEY ?? "<Vortex_Public_Key>",
     // Must be the user's user-linked sk_* key, not a partner-only key.
@@ -80,7 +83,13 @@ function readEphemeralEvmAddress(rampId: string): string | undefined {
 
 // Onramp: MXN -> USDC. User pays SPEI instructions; crypto lands at destinationAddress.
 // No user-signed transactions; fiatAccountId is NOT required for onramp.
+// SDK/API clients should authenticate with VORTEX_PUBLIC_KEY/VORTEX_SECRET_KEY.
+// Note: the current backend still needs a completed Alfredpay KYC customer context for registration.
 async function runMexicoOnramp(sdk: VortexSdk): Promise<void> {
+  if (!VORTEX_PUBLIC_KEY || !VORTEX_SECRET_KEY) {
+    throw new Error("VORTEX_PUBLIC_KEY and VORTEX_SECRET_KEY are required for SDK API-client examples.");
+  }
+
   console.log("📝 Step 1: Creating quote for MXN onramp (MXN -> USDC via SPEI)...");
   const quoteRequest: CreateQuoteRequest = {
     from: EPaymentMethod.SPEI,
