@@ -21,9 +21,10 @@ PENDULUM_ACCOUNT_SECRET=xxx
 
 For Base rebalancing, the in-range opportunistic USDC→BRLA→USDC trigger is controlled by
 `REBALANCING_OPPORTUNISTIC_USDC_TO_BRLA_MAX_COST_BPS` and defaults to `10` bps when unset.
-USDC→BRLA→USDC runs use `REBALANCING_USD_TO_BRL_AMOUNT` by default. If that standard amount is projected
-profitable, the rebalancer evaluates `REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT` with fresh quotes and uses it only if
-the larger amount is also projected profitable. When unset, it defaults to the standard amount.
+USDC→BRLA→USDC runs quote `REBALANCING_USD_TO_BRL_AMOUNT` by default. When
+`REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT` is set to a different value, the rebalancer also evaluates that larger
+amount with fresh quotes and uses it only if the larger amount is projected profitable. When unset, it defaults to the
+standard amount.
 `REBALANCING_DAILY_BRIDGE_LIMIT_USD` caps paid Base rebalances only: projected-profitable current runs bypass the cap,
 but all completed Base runs are recorded in history and count toward later paid-run limit checks.
 

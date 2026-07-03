@@ -6,7 +6,7 @@ import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.t
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
-import { selectUsdcToBrlaAmount } from "./rebalance/usdc-brla-usdc-base/amountPolicy.ts";
+import { selectEvaluatedUsdcToBrlaAmount, selectUsdcToBrlaAmount } from "./rebalance/usdc-brla-usdc-base/amountPolicy.ts";
 import { evaluatePaidRunDailyLimit, sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
 import {
   type DailyBridgeLimitDecision,
@@ -295,31 +295,31 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   const standardAmountRaw = toUsdcRaw(standardAmountSelection.amountUsdc);
   const standardPolicyDecision = await evaluateUsdcToBrlaPolicy(standardAmountRaw, coverageDeviationBps);
 
-  const profitableAmountSelection = selectUsdcToBrlaAmount(
-    config.rebalancingUsdToBrlAmount,
-    config.rebalancingProfitableUsdToBrlAmount,
-    standardPolicyDecision.profitable,
-    manualAmount
-  );
-
-  if (profitableAmountSelection.reason !== "profitable") {
+  if (standardAmountSelection.reason === "manual") {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
-  const profitableAmountRaw = toUsdcRaw(profitableAmountSelection.amountUsdc);
+  const profitableAmountRaw = toUsdcRaw(config.rebalancingProfitableUsdToBrlAmount);
   if (profitableAmountRaw === standardAmountRaw) {
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
   }
 
   console.log(
-    `Standard USDC->BRLA rebalance amount ${standardAmountSelection.amountUsdc} USDC is projected profitable. ` +
-      `Evaluating profitable amount ${profitableAmountSelection.amountUsdc} USDC.`
+    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountSelection.amountUsdc} USDC, ` +
+      `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
   );
 
   const profitablePolicyDecision = await evaluateUsdcToBrlaPolicy(profitableAmountRaw, coverageDeviationBps);
-  if (!profitablePolicyDecision.profitable) {
+
+  const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
+    { amountUsdc: standardAmountSelection.amountUsdc, projectedProfitable: standardPolicyDecision.profitable },
+    { amountUsdc: config.rebalancingProfitableUsdToBrlAmount, projectedProfitable: profitablePolicyDecision.profitable },
+    manualAmount
+  );
+
+  if (selectedAmount.reason !== "profitable") {
     console.log(
-      `Configured profitable amount ${profitableAmountSelection.amountUsdc} USDC is not projected profitable. ` +
+      `Configured profitable amount ${config.rebalancingProfitableUsdToBrlAmount} USDC is not projected profitable. ` +
         `Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
     );
     return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
