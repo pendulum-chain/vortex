@@ -68,6 +68,8 @@ async function apiFetch<T>(
   let response = await doFetch(initialTokens?.accessToken);
 
   if (response.status === 401 && initialTokens?.accessToken) {
+    // A confirmed-invalid refresh clears stored tokens inside refreshAccessToken() but does not
+    // notify the ramp machine from here; the app-root scheduler reconciles that to a LOGOUT.
     const refreshed = await refreshTokenOnce();
     if (refreshed?.accessToken) {
       response = await doFetch(refreshed.accessToken);

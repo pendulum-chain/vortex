@@ -155,8 +155,17 @@ const TokenRefreshEffect = () => {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const scheduleNext = () => {
+      if (cancelled) return;
+      if (!AuthService.getTokens()) {
+        // Session was cleared out-of-band (e.g. a confirmed-invalid refresh during an API 401):
+        // end it cleanly instead of retrying forever against a dead session.
+        rampActor.send({ type: "LOGOUT" });
+        return;
+      }
       const expiryMs = AuthService.getAccessTokenExpiryMs();
       if (expiryMs === null) {
+        // Token present but expiry couldn't be decoded: retry soon rather than stopping the loop.
+        timer = setTimeout(scheduleNext, TOKEN_REFRESH_RETRY_MS);
         return;
       }
       const delay = Math.max(expiryMs - Date.now() - TOKEN_REFRESH_SKEW_MS, 0);

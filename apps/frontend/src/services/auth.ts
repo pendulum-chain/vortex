@@ -65,7 +65,7 @@ export class AuthService {
     if (!tokens) {
       return false;
     }
-    const expiryMs = this.getAccessTokenExpiryMs();
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
     return expiryMs === null || expiryMs > Date.now();
   }
 
@@ -86,7 +86,9 @@ export class AuthService {
       if (!payload) {
         return null;
       }
-      const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const decoded = JSON.parse(atob(padded)) as { exp?: number };
       return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
     } catch {
       return null;

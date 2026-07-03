@@ -78,8 +78,8 @@ export async function checkAndRefreshTokenActor() {
     if (refreshedTokens) {
       return { success: true, tokens: refreshedTokens };
     }
-    // A null result means the refresh token is confirmed invalid: the session is dead.
-    AuthService.clearTokens();
+    // A null result means the refresh token is confirmed invalid: refreshAccessToken() has
+    // already cleared the session, so the caller just needs to route to logout.
     return { success: false, tokens: null };
   } catch {
     // Transient refresh failure (network/5xx): keep the session rather than forcing a
