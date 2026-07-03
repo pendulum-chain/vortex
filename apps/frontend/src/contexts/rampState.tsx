@@ -155,6 +155,7 @@ const TokenRefreshEffect = () => {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const scheduleNext = () => {
+      if (cancelled) return;
       const expiryMs = AuthService.getAccessTokenExpiryMs();
       // If the expiry can't be decoded, don't kill the loop permanently — retry shortly so a
       // later (decodable) token re-establishes the schedule.

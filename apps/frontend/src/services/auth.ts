@@ -65,7 +65,7 @@ export class AuthService {
     if (!tokens) {
       return false;
     }
-    const expiryMs = this.getAccessTokenExpiryMs();
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
     return expiryMs === null || expiryMs > Date.now();
   }
 
