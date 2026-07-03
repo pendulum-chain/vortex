@@ -10,7 +10,7 @@ The flow:
 3. Supabase verifies OTP and issues a JWT access token
 4. Frontend includes JWT in `Authorization: Bearer <token>` header on API requests
 5. API middleware (`supabaseAuth.ts`) verifies the JWT via `SupabaseAuthService.verifyToken()` and attaches `userId` to the request
-6. Access tokens are short-lived. The frontend refreshes them via `POST /v1/auth/refresh` (`SupabaseAuthService.refreshToken()` → Supabase `refreshSession`), scheduled just before expiry and also triggered on a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key.
+6. Access tokens are short-lived. The frontend refreshes them via `POST /v1/auth/refresh` (`SupabaseAuthService.refreshToken()` → Supabase `refreshSession`), scheduled just before expiry and also triggered on a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures (Supabase unreachable / 5xx) return `503` so the frontend keeps the session and retries.
 
 Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
@@ -26,7 +26,7 @@ Two middleware variants exist:
 6. **Auth errors MUST NOT leak token content** — Error responses must use generic messages ("Invalid or expired token"). Tokens must be truncated in logs (as implemented: first 15 + last 4 chars).
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
-9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved.
+9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
 
 ## Threat Vectors & Mitigations
 
@@ -51,4 +51,5 @@ Two middleware variants exist:
 - [x] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at startup — empty strings are treated as missing — **FAIL: All default to "" with no startup validation (F-019)**
 - [x] Token expiry is enforced by the verification call (not just signature validity) — **PASS**
 - [x] Frontend refresh goes through `/v1/auth/refresh` (not the anon-key client) and clears the session only on a `401`, retrying transient failures — **PASS**
+- [x] `/v1/auth/refresh` returns `401` only for a confirmed-invalid refresh token and `503` for transient/unexpected failures (so an outage cannot force logout) — **PASS**
 - [x] No endpoint that should require auth is using `optionalAuth` as a shortcut — **PARTIAL: BRLA KYC endpoints use optionalAuth but create user-specific resources**
