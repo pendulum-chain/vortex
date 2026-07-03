@@ -156,10 +156,13 @@ const TokenRefreshEffect = () => {
 
     const scheduleNext = () => {
       const expiryMs = AuthService.getAccessTokenExpiryMs();
+      // If the expiry can't be decoded, don't kill the loop permanently — retry shortly so a
+      // later (decodable) token re-establishes the schedule.
+      const delay = expiryMs === null ? TOKEN_REFRESH_RETRY_MS : Math.max(expiryMs - Date.now() - TOKEN_REFRESH_SKEW_MS, 0);
       if (expiryMs === null) {
+        timer = setTimeout(scheduleNext, delay);
         return;
       }
-      const delay = Math.max(expiryMs - Date.now() - TOKEN_REFRESH_SKEW_MS, 0);
       timer = setTimeout(async () => {
         if (cancelled) return;
         try {
