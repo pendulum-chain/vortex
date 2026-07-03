@@ -33,7 +33,9 @@ function stripQueryString(url: string): string {
 
 // Client errors that are user-driven or expected (auth, rate-limit, not-found) rather than bugs.
 // 400/422 are kept — they usually mean we sent a bad request, which is worth reporting.
-const EXPECTED_CLIENT_STATUSES = new Set([401, 403, 404, 409, 429]);
+// 409 is kept too: ramp conflicts ("Quote already consumed", "Ramp is not in a state that allows
+// updates") are genuine money-flow failures that captureActorError intentionally reports.
+const EXPECTED_CLIENT_STATUSES = new Set([401, 403, 404, 429]);
 
 function hasDomain(error: unknown): error is DomainError {
   return typeof error === "object" && error !== null && typeof (error as DomainError).domain === "string";

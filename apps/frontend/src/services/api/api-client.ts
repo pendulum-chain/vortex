@@ -61,10 +61,12 @@ const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
 };
 
 // Map an endpoint path to a business domain for Sentry tagging. Unmapped endpoints fall
-// through to their raw path segment.
+// through to their raw path segment. Strip any query string first so params (which can carry
+// ids/addresses) never leak into the domain tag when a caller inlines them in the path.
 function getApiDomain(path: string): string {
-  if (path.toLowerCase().includes("kyb")) return SentryDomain.Kyb;
-  const segment = path.split("/").filter(Boolean)[0]?.toLowerCase() ?? "api";
+  const pathWithoutQuery = path.split("?")[0];
+  if (pathWithoutQuery.toLowerCase().includes("kyb")) return SentryDomain.Kyb;
+  const segment = pathWithoutQuery.split("/").filter(Boolean)[0]?.toLowerCase() ?? "api";
   return DOMAIN_BY_SEGMENT[segment] ?? segment;
 }
 
