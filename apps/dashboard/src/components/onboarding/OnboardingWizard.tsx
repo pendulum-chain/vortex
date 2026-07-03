@@ -15,12 +15,17 @@ interface OnboardingWizardProps {
 
 export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizardProps) {
   const setOnboardingStatus = useDashboardStore(state => state.setOnboardingStatus);
+  const ensureSelfRecipient = useDashboardStore(state => state.ensureSelfRecipient);
   const kind = onboardingKindFor(corridor, account.type);
   const route = routeFor(corridor.id, kind);
 
   const onStatusChange = (status: OnboardingStatus) => {
     setOnboardingStatus(account.id, corridor.id, status);
     notifyOnboardingStatus(corridor.name, kind, status);
+    // Once a corridor is approved, add the account holder as a recipient so they can send to themselves.
+    if (status === "approved") {
+      ensureSelfRecipient(account.id, corridor.id, account.name);
+    }
   };
 
   return (

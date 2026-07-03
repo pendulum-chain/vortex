@@ -34,7 +34,7 @@ function RecipientsPage() {
         <div>
           <h1 className="text-balance font-semibold text-2xl tracking-tight">Recipients</h1>
           <p className="text-muted-foreground">
-            Add recipients with their payout details and invite them to complete KYC/KYB for {account.name}.
+            Add recipients and share an invite link so they complete KYC/KYB for {account.name}.
           </p>
         </div>
         <RecipientDialog account={account} approvedCorridors={approvedCorridors} />
@@ -82,7 +82,8 @@ function RecipientsPage() {
               <div className="grid gap-1">
                 <p className="font-medium">No recipients yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
-                  Add a recipient and their payout details — we'll email them a KYC/KYB invite so they can receive transfers.
+                  Add a recipient and share their invite link — they complete KYC/KYB and add payout details to receive
+                  transfers.
                 </p>
               </div>
               <RecipientDialog account={account} approvedCorridors={approvedCorridors} />

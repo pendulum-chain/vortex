@@ -7,7 +7,7 @@ export function ConnectWalletButton() {
     <ConnectKitButton.Custom>
       {({ isConnected, isConnecting, show, truncatedAddress, ensName }) => (
         <Button
-          className="w-full justify-start gap-2"
+          className="gap-2"
           disabled={isConnecting}
           onClick={show}
           type="button"

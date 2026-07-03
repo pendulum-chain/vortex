@@ -1,6 +1,7 @@
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { AccountSwitcher } from "./AccountSwitcher";
+import { ConnectWalletButton } from "./ConnectWalletButton";
 import { NotificationsBell } from "./NotificationsBell";
 import { UserMenu } from "./UserMenu";
 
@@ -11,6 +12,7 @@ export function Topbar() {
       <Separator className="mr-1 h-5" orientation="vertical" />
       <AccountSwitcher />
       <div className="ml-auto flex items-center gap-2">
+        <ConnectWalletButton />
         <NotificationsBell />
         <UserMenu />
       </div>

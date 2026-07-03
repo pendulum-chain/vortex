@@ -93,15 +93,24 @@ export interface RecipientBankDetails {
 export interface Recipient {
   id: string;
   accountId: string;
-  /** Recipient's email — they receive a KYC/KYB invite and onboard themselves. */
+  /** Recipient's email — empty for invite-link recipients until they onboard themselves. */
   email: string;
+  /** Recipient's name once they complete onboarding via the invite link (mocked). */
+  name?: string;
   recipientType: AccountType;
   corridorId: CorridorId;
   /** Payout amount the sender intends to send this recipient. */
   amount: string;
   payoutCurrency: string;
+  /** Bank details the recipient provides during onboarding — value is empty until approved. */
   bankDetails: RecipientBankDetails;
   status: RecipientStatus;
+  /** Shareable invite token the sender copies and sends out themselves. */
+  inviteCode: string;
+  /** How many times the invite link was copied — tracked per product request. */
+  copyCount: number;
+  /** The account holder's own "send to myself" recipient, auto-created on onboarding approval. */
+  isSelf?: boolean;
   createdAt: string;
 }
 

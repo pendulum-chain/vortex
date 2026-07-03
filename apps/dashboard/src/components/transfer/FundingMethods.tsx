@@ -1,5 +1,5 @@
 import { ConnectKitButton } from "connectkit";
-import { Building2, Check, Copy, Landmark, Loader2, TriangleAlert, Wallet } from "lucide-react";
+import { ArrowDownToLine, Check, Copy, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAccount } from "wagmi";
@@ -10,7 +10,7 @@ import type { Recipient } from "@/domain/types";
 import { cn } from "@/lib/cn";
 import type { QuoteResponse } from "@/services/api/types";
 
-export type FundingSource = "wallet" | "crypto" | "bank";
+export type FundingSource = "wallet" | "crypto";
 type WalletDestination = "embedded" | "self";
 
 export interface FundingSubmit {
@@ -44,12 +44,8 @@ export function FundingMethods({ quote, recipient, network, networkLabel, submit
             Connect wallet
           </TabsTrigger>
           <TabsTrigger className="flex-1" value="crypto">
-            <Building2 className="size-4" />
+            <ArrowDownToLine className="size-4" />
             Send crypto
-          </TabsTrigger>
-          <TabsTrigger className="flex-1" value="bank">
-            <Landmark className="size-4" />
-            Pay by bank
           </TabsTrigger>
         </TabsList>
 
@@ -76,24 +72,6 @@ export function FundingMethods({ quote, recipient, network, networkLabel, submit
                 source: "crypto"
               })
             }
-            submitting={submitting}
-            usdcAmount={usdcAmount}
-          />
-        </TabsContent>
-
-        <TabsContent value="bank">
-          <BankTab
-            connectedAddress={address}
-            embeddedAddress={embeddedAddress}
-            isConnected={isConnected}
-            onConfirm={destAddress =>
-              onSubmit({
-                destAddress,
-                label: destAddress === embeddedAddress ? "Bank pay-in → embedded wallet" : "Bank pay-in → self-custodial",
-                source: "bank"
-              })
-            }
-            recipientId={recipient.id}
             submitting={submitting}
             usdcAmount={usdcAmount}
           />
@@ -140,7 +118,7 @@ function ConnectTab({
       </div>
       <Button disabled={submitting} onClick={onSend} type="button">
         {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-        Send ≈ {usdcAmount} USDC
+        Send ≈ <span className="tabular-nums">{usdcAmount}</span> USDC
       </Button>
     </div>
   );
@@ -211,11 +189,13 @@ function CryptoTab({
     >
       {(destination, destAddress) => (
         <>
-          <p className="text-muted-foreground text-sm">
-            Send <span className="font-medium text-foreground tabular-nums">≈ {usdcAmount} USDC</span> on{" "}
-            <span className="font-medium text-foreground">{networkLabel}</span> to your{" "}
-            {destination === "embedded" ? "embedded" : "self-custodial"} wallet.
-          </p>
+          <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+            <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">What to do</p>
+            <p className="mt-1 text-pretty font-semibold text-lg leading-snug">
+              Send ≈ <span className="tabular-nums">{usdcAmount}</span> USDC on {networkLabel} to your{" "}
+              {destination === "embedded" ? "embedded" : "self-custodial"} wallet.
+            </p>
+          </div>
           <AddressCard
             address={destAddress}
             label={`Send on ${networkLabel} to`}
@@ -224,7 +204,7 @@ function CryptoTab({
               toast.success("Address copied");
             }}
           />
-          <p className="flex items-start gap-2 text-muted-foreground text-xs">
+          <p className="flex items-start gap-2 text-pretty text-muted-foreground text-xs">
             <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
             Crypto transfers are irreversible. Confirm the network and address before sending.
           </p>
@@ -234,66 +214,7 @@ function CryptoTab({
   );
 }
 
-function BankTab({
-  embeddedAddress,
-  connectedAddress,
-  isConnected,
-  usdcAmount,
-  recipientId,
-  submitting,
-  onConfirm
-}: {
-  embeddedAddress: string;
-  connectedAddress?: string;
-  isConnected: boolean;
-  usdcAmount: string;
-  recipientId: string;
-  submitting: boolean;
-  onConfirm: (destAddress: string) => void;
-}) {
-  const reference = `VTX-${recipientId.slice(0, 8).toUpperCase()}`;
-  return (
-    <TabWithDestination
-      confirmLabel="I've sent the bank transfer"
-      connectedAddress={connectedAddress}
-      embeddedAddress={embeddedAddress}
-      isConnected={isConnected}
-      onConfirm={onConfirm}
-      submitting={submitting}
-    >
-      {destination => (
-        <>
-          <p className="text-muted-foreground text-sm">
-            Send <span className="font-medium text-foreground tabular-nums">≈ {usdcAmount} USD</span> by bank transfer. We
-            convert it to USDC into your {destination === "embedded" ? "embedded" : "self-custodial"} wallet, then pay the
-            recipient.
-          </p>
-          <div className="grid gap-2 rounded-md border bg-background p-3 text-sm">
-            <BankRow label="Beneficiary" value="Vortex Technologies Ltd" />
-            <BankRow label="IBAN" value="GB29 VORT 6016 1331 9268 19" />
-            <BankRow label="BIC" value="VORTGB2L" />
-            <BankRow label="Reference" value={reference} />
-          </div>
-          <p className="flex items-start gap-2 text-muted-foreground text-xs">
-            <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
-            Include the reference exactly so we can match your pay-in.
-          </p>
-        </>
-      )}
-    </TabWithDestination>
-  );
-}
-
-function BankRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <span className="font-medium font-mono text-xs">{value}</span>
-    </div>
-  );
-}
-
-/** Shared shell for the crypto/bank tabs: destination toggle → content → confirm (with connect gate). */
+/** Shared shell for the crypto tab: destination toggle → content → confirm (with connect gate). */
 function TabWithDestination({
   embeddedAddress,
   connectedAddress,
@@ -319,7 +240,7 @@ function TabWithDestination({
     <div className="surface-raised grid gap-3 rounded-lg p-4">
       <DestinationToggle onChange={setDestination} value={destination} />
       {needsConnect ? (
-        <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
+        <div className="grid gap-3 rounded-md border border-dashed p-4 text-center">
           <p className="text-muted-foreground text-sm">Connect your self-custodial wallet to use it as the destination.</p>
           <ConnectKitButton.Custom>
             {({ show }) => (

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CORRIDORS, onboardingKindFor } from "@/domain/corridors";
+import { makeInviteCode, mockRecipientProfile } from "@/domain/recipient";
 import { SEED_ACCOUNTS, SEED_RECIPIENTS, SEED_TRANSACTIONS } from "@/domain/seed";
 import type {
   AccountType,
@@ -8,7 +9,6 @@ import type {
   Onboarding,
   OnboardingStatus,
   Recipient,
-  RecipientBankDetails,
   SenderAccount,
   Transaction
 } from "@/domain/types";
@@ -26,17 +26,21 @@ interface DashboardState {
   signInWithEmail: (email: string) => void;
   /** Adds a corridor to an account's tracked set (no-op if already present). */
   addCorridorToAccount: (accountId: string, corridorId: CorridorId) => void;
-  /** Invites a recipient (with payout details) to complete KYC/KYB; returns the new recipient id. */
+  /** Creates an invite-link recipient the sender shares themselves; returns the new recipient id. */
   addRecipient: (input: {
     accountId: string;
     corridorId: CorridorId;
-    email: string;
     recipientType: AccountType;
     amount: string;
     payoutCurrency: string;
-    bankDetails: RecipientBankDetails;
   }) => string;
   setRecipientStatus: (id: string, status: Recipient["status"]) => void;
+  /** Marks a recipient approved and fills the name + payout details they submitted via the invite. */
+  completeRecipientOnboarding: (id: string) => void;
+  /** Records that the sender copied a recipient's invite link (tracked per product request). */
+  trackInviteCopy: (id: string) => void;
+  /** Ensures a pre-approved "send to myself" recipient exists for this account + corridor. */
+  ensureSelfRecipient: (accountId: string, corridorId: CorridorId, accountName: string) => void;
   /** Records a triggered on/off-ramp and returns its id so callers can settle it async. */
   addTransaction: (input: Omit<Transaction, "id" | "createdAt">) => string;
   setTransactionStatus: (id: string, status: Transaction["status"]) => void;
@@ -84,11 +88,13 @@ export const useDashboardStore = create<DashboardState>()(
         const recipient: Recipient = {
           accountId: input.accountId,
           amount: input.amount,
-          bankDetails: input.bankDetails,
+          bankDetails: { method: CORRIDORS[input.corridorId].recipientMethod, value: "" },
+          copyCount: 0,
           corridorId: input.corridorId,
           createdAt: new Date().toISOString(),
-          email: input.email,
+          email: "",
           id: crypto.randomUUID(),
+          inviteCode: makeInviteCode(),
           payoutCurrency: input.payoutCurrency,
           recipientType: input.recipientType,
           status: "invite_sent"
@@ -101,6 +107,49 @@ export const useDashboardStore = create<DashboardState>()(
         set(state => ({ transactions: [transaction, ...state.transactions] }));
         return transaction.id;
       },
+      completeRecipientOnboarding: id =>
+        set(state => ({
+          recipients: state.recipients.map(recipient => {
+            if (recipient.id !== id) {
+              return recipient;
+            }
+            const profile = mockRecipientProfile(recipient);
+            return {
+              ...recipient,
+              bankDetails: { ...recipient.bankDetails, value: recipient.bankDetails.value || profile.bankValue },
+              name: recipient.name ?? profile.name,
+              status: "approved"
+            };
+          })
+        })),
+      ensureSelfRecipient: (accountId, corridorId, accountName) =>
+        set(state => {
+          const exists = state.recipients.some(
+            recipient => recipient.accountId === accountId && recipient.isSelf && recipient.corridorId === corridorId
+          );
+          if (exists) {
+            return state;
+          }
+          const corridor = CORRIDORS[corridorId];
+          const account = state.accounts.find(item => item.id === accountId);
+          const self: Recipient = {
+            accountId,
+            amount: "0.00",
+            bankDetails: { method: corridor.recipientMethod, value: `Your ${corridor.name} ${corridor.recipientLabel}` },
+            copyCount: 0,
+            corridorId,
+            createdAt: new Date().toISOString(),
+            email: "",
+            id: crypto.randomUUID(),
+            inviteCode: makeInviteCode(),
+            isSelf: true,
+            name: `${accountName} (You)`,
+            payoutCurrency: corridor.currency,
+            recipientType: account?.type ?? "company",
+            status: "approved"
+          };
+          return { recipients: [self, ...state.recipients] };
+        }),
       recipients: SEED_RECIPIENTS,
       setAccountType: (accountId, type) =>
         set(state => ({
@@ -164,11 +213,17 @@ export const useDashboardStore = create<DashboardState>()(
           };
           return { accounts: [...state.accounts, account], activeAccountId: id };
         }),
+      trackInviteCopy: id =>
+        set(state => ({
+          recipients: state.recipients.map(recipient =>
+            recipient.id === id ? { ...recipient, copyCount: recipient.copyCount + 1 } : recipient
+          )
+        })),
       transactions: SEED_TRANSACTIONS
     }),
     {
-      // Bumped to v4: recipients now carry payout details + a 4-state compliance status and
-      // transactions are payout-centric, so the migrate reloads the seed to drop stale shapes.
+      // Bumped to v5: recipients are now invite-link based (inviteCode/copyCount, optional
+      // name, self flag), so the migrate reloads the seed to drop the old email-invite shape.
       migrate: () => ({
         accounts: SEED_ACCOUNTS,
         activeAccountId: SEED_ACCOUNTS[0]?.id ?? "",
@@ -182,7 +237,7 @@ export const useDashboardStore = create<DashboardState>()(
         recipients: state.recipients,
         transactions: state.transactions
       }),
-      version: 4
+      version: 5
     }
   )
 );

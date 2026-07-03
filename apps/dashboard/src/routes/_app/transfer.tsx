@@ -33,7 +33,7 @@ function TransferPage() {
     <Stagger className="mx-auto grid max-w-xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">New transfer</h1>
-        <p className="text-muted-foreground">Pay an approved recipient by funding your Vortex wallet.</p>
+        <p className="text-pretty text-muted-foreground">Pay an approved recipient by funding your Vortex wallet.</p>
       </StaggerItem>
 
       {hasApproved ? (
@@ -43,7 +43,13 @@ function TransferPage() {
               <CardTitle>Transfer details</CardTitle>
             </CardHeader>
             <CardContent>
-              <TransferForm account={account} preselectRecipientId={recipient} recipients={recipients} />
+              {/* Re-key on the recipient param so navigating to a fresh "New transfer" resets the form. */}
+              <TransferForm
+                account={account}
+                key={recipient ?? "new"}
+                preselectRecipientId={recipient}
+                recipients={recipients}
+              />
             </CardContent>
           </Card>
         </StaggerItem>

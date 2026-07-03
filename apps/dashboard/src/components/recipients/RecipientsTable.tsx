@@ -1,14 +1,15 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, RotateCcw, Send } from "lucide-react";
+import { ArrowRight, Copy, RotateCcw } from "lucide-react";
 import { motion } from "motion/react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CORRIDORS, PROVIDER_LABEL } from "@/domain/corridors";
+import { inviteUrl, recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { Recipient } from "@/domain/types";
+import { notifyInviteCopied } from "@/lib/notify";
 import { simulateRecipientOnboarding } from "@/lib/recipientFlow";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
@@ -39,8 +40,10 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
             >
               <TableCell>
                 <div className="grid gap-0.5">
-                  <span className="font-medium">{recipient.email}</span>
-                  <span className="text-muted-foreground text-xs capitalize">{recipient.recipientType}</span>
+                  <span className="font-medium">{recipientLabel(recipient)}</span>
+                  <span className="text-muted-foreground text-xs capitalize">
+                    {recipient.isSelf ? "Yourself" : recipient.recipientType}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
@@ -52,7 +55,9 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
                     {recipient.amount} {recipient.payoutCurrency}
                   </span>
                   <span className="max-w-[14rem] truncate text-muted-foreground text-xs">
-                    {PAYMENT_METHOD_LABEL[recipient.bankDetails.method]} · {recipient.bankDetails.value}
+                    {recipient.bankDetails.value
+                      ? `${PAYMENT_METHOD_LABEL[recipient.bankDetails.method]} · ${recipient.bankDetails.value}`
+                      : "Awaiting recipient details"}
                   </span>
                 </div>
               </TableCell>
@@ -85,6 +90,7 @@ function RecipientAction({
 }) {
   const navigate = useNavigate();
   const setRecipientStatus = useDashboardStore(state => state.setRecipientStatus);
+  const trackInviteCopy = useDashboardStore(state => state.trackInviteCopy);
 
   if (recipient.status === "approved") {
     return (
@@ -97,9 +103,17 @@ function RecipientAction({
 
   if (recipient.status === "invite_sent") {
     return (
-      <Button onClick={() => toast.success(`Invite re-sent to ${recipient.email}`)} size="sm" variant="outline">
-        <Send />
-        Resend invite
+      <Button
+        onClick={() => {
+          navigator.clipboard?.writeText(inviteUrl(recipient.inviteCode));
+          trackInviteCopy(recipient.id);
+          notifyInviteCopied();
+        }}
+        size="sm"
+        variant="outline"
+      >
+        <Copy />
+        Copy invite link
       </Button>
     );
   }
@@ -109,7 +123,7 @@ function RecipientAction({
       <Button
         onClick={() => {
           setRecipientStatus(recipient.id, "pending");
-          simulateRecipientOnboarding(recipient.id, recipient.email, corridorName);
+          simulateRecipientOnboarding(recipient.id, corridorName);
         }}
         size="sm"
         variant="outline"

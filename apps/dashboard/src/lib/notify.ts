@@ -47,18 +47,21 @@ export function notifyTransferCompleted(summary: string) {
   toast.success(title, { description: summary });
 }
 
-export function notifyRecipientInvited(recipientEmail: string, corridorName: string) {
+export function notifyInviteLinkReady(corridorName: string) {
   const email = currentEmail();
-  const title = "Recipient invite sent";
-  const body = `We emailed a ${corridorName} KYC/KYB invite to ${recipientEmail}. They can receive transfers once approved.`;
+  const title = "Invite link ready";
+  const body = `Share this ${corridorName} invite link with your recipient — they can receive transfers once they complete KYC/KYB.`;
   useNotificationsStore.getState().add({ body, email, title });
-  toast.info(title, { description: `Invite sent to ${recipientEmail}` });
 }
 
-export function notifyRecipientApproved(recipientEmail: string, corridorName: string) {
+export function notifyInviteCopied() {
+  toast.success("Invite link copied", { description: "Send it to your recipient to start their onboarding." });
+}
+
+export function notifyRecipientApproved(corridorName: string) {
   const email = currentEmail();
   const title = "Recipient approved";
-  const body = `${recipientEmail} completed ${corridorName} KYC/KYB and is ready to receive transfers.`;
+  const body = `A recipient completed ${corridorName} KYC/KYB and is ready to receive transfers.`;
   useNotificationsStore.getState().add({ body, email, title });
-  toast.success(title, { description: `${recipientEmail} is ready` });
+  toast.success(title, { description: "Your recipient is ready" });
 }

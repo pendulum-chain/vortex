@@ -2,10 +2,12 @@ import { useNavigate } from "@tanstack/react-router";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CORRIDORS } from "@/domain/corridors";
+import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL, TRANSFER_NETWORKS } from "@/domain/transfer";
 import type { Recipient, SenderAccount } from "@/domain/types";
@@ -44,27 +46,36 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const setTransactionStatus = useDashboardStore(state => state.setTransactionStatus);
 
   const firstApproved = recipients.find(recipient => recipient.status === "approved");
-  const [recipientId, setRecipientId] = useState(preselectRecipientId ?? firstApproved?.id ?? "");
+  const initialId = preselectRecipientId ?? firstApproved?.id ?? "";
+  const [recipientId, setRecipientId] = useState(initialId);
   const [network, setNetwork] = useState<string>(TRANSFER_NETWORKS[0].id);
+  const [amount, setAmount] = useState(() => recipients.find(recipient => recipient.id === initialId)?.amount ?? "");
 
   const selected = recipients.find(recipient => recipient.id === recipientId);
   const isApproved = selected?.status === "approved";
   const corridor = selected ? CORRIDORS[selected.corridorId] : undefined;
   const networkLabel = TRANSFER_NETWORKS.find(item => item.id === network)?.label ?? network;
+  const payoutAmount = Number(amount);
+
+  function selectRecipient(id: string) {
+    setRecipientId(id);
+    setAmount(recipients.find(recipient => recipient.id === id)?.amount ?? "");
+  }
 
   const registerRamp = useRegisterRamp();
   const startRamp = useStartRamp();
   const submitting = registerRamp.isPending || startRamp.isPending;
 
   const quoteParams =
-    selected && isApproved ? { corridorId: selected.corridorId, network, payoutAmount: Number(selected.amount) } : null;
+    selected && isApproved && payoutAmount > 0 ? { corridorId: selected.corridorId, network, payoutAmount } : null;
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
   async function submitTransfer(submit: FundingSubmit) {
     if (!selected || !isApproved || !quote) {
       return;
     }
-    const summary = `${quote.outputAmount} ${selected.payoutCurrency} to ${selected.email}`;
+    const label = recipientLabel(selected);
+    const summary = `${quote.outputAmount} ${selected.payoutCurrency} to ${label}`;
     try {
       const { rampProcess } = await registerRamp.mutateAsync({
         additionalData: {
@@ -83,7 +94,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
         payinNetwork: network,
         payinWallet: rampProcess.walletAddress ?? submit.destAddress,
         payoutCurrency: selected.payoutCurrency,
-        recipientEmail: selected.email,
+        recipientEmail: label,
         recipientId: selected.id,
         status: "awaiting_payin"
       });
@@ -110,14 +121,14 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     <div className="grid gap-5">
       <div className="grid gap-2">
         <Label>Recipient</Label>
-        <Select onValueChange={setRecipientId} value={recipientId}>
+        <Select onValueChange={selectRecipient} value={recipientId}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a recipient" />
           </SelectTrigger>
           <SelectContent>
             {recipients.map(recipient => (
               <SelectItem disabled={recipient.status !== "approved"} key={recipient.id} value={recipient.id}>
-                {recipient.email} · {CORRIDORS[recipient.corridorId].name}
+                {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name}
                 {recipient.status !== "approved" && ` — ${RECIPIENT_STATUS_META[recipient.status].label}`}
               </SelectItem>
             ))}
@@ -130,8 +141,8 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
         <div className="flex items-center gap-3 rounded-lg border border-dashed p-3 text-sm">
           <Lock className="size-4 text-muted-foreground" />
           <p className="text-muted-foreground">
-            {selected.email} is {RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked until this
-            recipient is approved.
+            {recipientLabel(selected)} is {RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked
+            until this recipient is approved.
           </p>
         </div>
       )}
@@ -139,11 +150,20 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
       {selected && isApproved && corridor && (
         <>
           <div className="surface-raised grid gap-3 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground text-sm">Recipient gets</span>
-              <span className="font-semibold text-lg">
-                {selected.amount} {selected.payoutCurrency}
-              </span>
+            <div className="grid gap-1.5">
+              <Label htmlFor="payout-amount">Recipient gets ({selected.payoutCurrency})</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  className="text-lg tabular-nums"
+                  id="payout-amount"
+                  inputMode="decimal"
+                  onChange={event => setAmount(event.target.value)}
+                  placeholder="0.00"
+                  value={amount}
+                />
+                <span className="font-medium text-muted-foreground text-sm">{selected.payoutCurrency}</span>
+              </div>
+              <p className="text-muted-foreground text-xs">Edit the amount anytime — the quote updates automatically.</p>
             </div>
             <Row label="Country">
               {corridor.flag} {corridor.name}
@@ -174,6 +194,10 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
               <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
               <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
             </div>
+          ) : payoutAmount <= 0 ? (
+            <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
+              Enter an amount to see the quote.
+            </p>
           ) : quote ? (
             <>
               <QuoteSummary isFetching={isFetching} quote={quote} />
