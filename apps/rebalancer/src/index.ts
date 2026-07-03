@@ -288,7 +288,7 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   const config = getConfig();
   const standardAmountSelection = selectUsdcToBrlaAmount(
     config.rebalancingUsdToBrlAmount,
-    config.rebalancingProfitableUsdToBrlAmount,
+    config.rebalancingUsdToBrlAmount,
     false,
     manualAmount
   );
@@ -314,7 +314,7 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
   const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
     { amountUsdc: standardAmountSelection.amountUsdc, projectedProfitable: standardPolicyDecision.profitable },
     { amountUsdc: config.rebalancingProfitableUsdToBrlAmount, projectedProfitable: profitablePolicyDecision.profitable },
-    manualAmount
+    null
   );
 
   if (selectedAmount.reason !== "profitable") {
