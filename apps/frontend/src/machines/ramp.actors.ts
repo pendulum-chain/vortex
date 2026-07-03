@@ -78,12 +78,14 @@ export async function checkAndRefreshTokenActor() {
     if (refreshedTokens) {
       return { success: true, tokens: refreshedTokens };
     }
+    // A null result means the refresh token was confirmed invalid; refreshAccessToken()
+    // has already cleared the stored session, so we just report failure here.
+    return { success: false, tokens: null };
   } catch {
-    // If refreshing fails, continue to the shared cleanup path below.
+    // Transient refresh failure (network/5xx): keep the session rather than forcing a
+    // logout. Proceed with the current tokens; request-level 401 retry will recover later.
+    return { success: true, tokens };
   }
-
-  AuthService.clearTokens();
-  return { success: false, tokens: null };
 }
 
 export async function loadQuoteActor({ input }: { input: { quoteId: string } }) {

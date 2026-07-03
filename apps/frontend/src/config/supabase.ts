@@ -9,8 +9,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    persistSession: true
+    // The app owns token storage and refresh (backend /auth/refresh + a single scheduler).
+    // Keep the client passive so it doesn't run a competing background refresh.
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    persistSession: false
   }
 });

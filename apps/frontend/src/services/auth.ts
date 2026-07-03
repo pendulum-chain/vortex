@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase";
+import { SIGNING_SERVICE_URL } from "../constants/constants";
 
 export interface AuthTokens {
   accessToken: string;
@@ -60,7 +61,39 @@ export class AuthService {
    * Check if user is authenticated
    */
   static isAuthenticated(): boolean {
-    return this.getTokens() !== null;
+    const tokens = this.getTokens();
+    if (!tokens) {
+      return false;
+    }
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    return expiryMs === null || expiryMs > Date.now();
+  }
+
+  /**
+   * Returns the access token expiry as epoch milliseconds, or null if it can't be decoded.
+   */
+  static getAccessTokenExpiryMs(): number | null {
+    const tokens = this.getTokens();
+    if (!tokens) {
+      return null;
+    }
+    return this.decodeJwtExpiryMs(tokens.accessToken);
+  }
+
+  private static decodeJwtExpiryMs(token: string): number | null {
+    try {
+      const payload = token.split(".")[1];
+      if (!payload) {
+        return null;
+      }
+      // JWT segments are base64url and usually unpadded; convert to base64 and re-pad before decoding.
+      const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+      const decoded = JSON.parse(atob(padded)) as { exp?: number };
+      return typeof decoded.exp === "number" ? decoded.exp * 1000 : null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -89,7 +122,12 @@ export class AuthService {
   }
 
   /**
-   * Refresh access token
+   * Refresh the access token via the backend `/auth/refresh` endpoint.
+   *
+   * Returns the new tokens on success, or `null` when the refresh token is confirmed
+   * invalid/revoked (a 401 from the backend) — in which case the session is cleared.
+   * Transient failures (network errors, timeouts, 5xx) throw so callers can retry
+   * without destroying a still-valid session.
    */
   static async refreshAccessToken(): Promise<AuthTokens | null> {
     const tokens = this.getTokens();
@@ -97,45 +135,36 @@ export class AuthService {
       return null;
     }
 
-    try {
-      const { data, error } = await supabase.auth.refreshSession({
-        refresh_token: tokens.refreshToken
-      });
+    const response = await fetch(`${SIGNING_SERVICE_URL}/v1/auth/refresh`, {
+      body: JSON.stringify({ refresh_token: tokens.refreshToken }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+      signal: AbortSignal.timeout(30000)
+    });
 
-      if (error || !data.session || !data.user) {
-        this.clearTokens();
-        return null;
-      }
-
-      const newTokens: AuthTokens = {
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        userEmail: data.user.email,
-        userId: data.user.id
-      };
-
-      this.storeTokens(newTokens);
-      return newTokens;
-    } catch (error) {
-      console.error("Token refresh failed:", error);
+    // A 401 means the refresh token itself is invalid/revoked: the session is dead.
+    if (response.status === 401) {
       this.clearTokens();
       return null;
     }
-  }
 
-  /**
-   * Setup auto-refresh (refresh 5 minutes before expiry)
-   */
-  static setupAutoRefresh(): () => void {
-    const REFRESH_INTERVAL = 55 * 60 * 1000; // 55 minutes
+    // Any other non-OK status is transient — keep the session and let the caller retry.
+    if (!response.ok) {
+      throw new Error(`Token refresh failed with status ${response.status}`);
+    }
 
-    const intervalId = setInterval(async () => {
-      if (this.isAuthenticated()) {
-        await this.refreshAccessToken();
-      }
-    }, REFRESH_INTERVAL);
+    const data = (await response.json()) as { access_token: string; refresh_token: string };
 
-    return () => clearInterval(intervalId);
+    // The refresh endpoint does not return identity; it is unchanged across a refresh.
+    const newTokens: AuthTokens = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      userEmail: tokens.userEmail,
+      userId: tokens.userId
+    };
+
+    this.storeTokens(newTokens);
+    return newTokens;
   }
 
   /**
