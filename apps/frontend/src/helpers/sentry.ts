@@ -41,8 +41,8 @@ function hasDomain(error: unknown): error is DomainError {
 
 // Tag events by business domain (when the originating error carries one), drop expected
 // client errors, and strip PII from URLs before the event leaves the browser.
-export function sentryBeforeSend(event: ErrorEvent, hint: EventHint): ErrorEvent | null {
-  const original = hint.originalException;
+export function sentryBeforeSend(event: ErrorEvent, hint?: EventHint): ErrorEvent | null {
+  const original = hint?.originalException;
 
   // Don't report expected client errors (auth/rate-limit/not-found) — user-driven, not bugs.
   if (isApiError(original) && EXPECTED_CLIENT_STATUSES.has(original.status)) {

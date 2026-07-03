@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { supabase } from "../config/supabase";
 
 export interface AuthTokens {
@@ -28,6 +29,9 @@ export class AuthService {
     if (tokens.userEmail) {
       localStorage.setItem(this.USER_EMAIL_KEY, tokens.userEmail);
     }
+    // Attach the pseudonymous Supabase user id for issue-impact counts. Deliberately no email/IP
+    // so Sentry can count affected users without storing PII.
+    Sentry.setUser({ id: tokens.userId });
   }
 
   /**
@@ -54,6 +58,7 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_EMAIL_KEY);
+    Sentry.setUser(null);
   }
 
   /**

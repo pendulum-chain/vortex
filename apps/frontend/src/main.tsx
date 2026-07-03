@@ -17,6 +17,7 @@ import { config } from "./config";
 import { PolkadotNodeProvider } from "./contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
 import { SENTRY_DENY_URLS, SENTRY_IGNORE_ERRORS, sentryBeforeSend } from "./helpers/sentry";
+import { AuthService } from "./services/auth";
 import { initializeEvmTokens } from "./services/tokens";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
@@ -79,6 +80,13 @@ if (sentryDsn) {
     tracePropagationTargets: [window.location.origin],
     tracesSampleRate: config.isProd ? 0.2 : 1.0
   });
+
+  // On a page reload the session is restored from localStorage without calling storeTokens, so
+  // seed the Sentry user here too (pseudonymous id only). Runtime login/logout keeps it in sync.
+  const restoredUserId = AuthService.getUserId();
+  if (restoredUserId) {
+    Sentry.setUser({ id: restoredUserId });
+  }
 }
 
 const root = document.getElementById("app");

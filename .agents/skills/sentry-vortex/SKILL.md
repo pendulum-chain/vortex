@@ -42,6 +42,7 @@ Check each rule. Report a finding only when violated.
 - `ignoreErrors` covers wallet user-rejections, `ResizeObserver` loops, extension-context errors, `AbortError`. **IMPORTANT**: keep `TimeoutError` reportable — a timeout can mean a slow backend.
 - `beforeSend` drops expected client 4xx (`401/403/404/409/429`); `400/422` and all `5xx` are kept.
 - No PII in query params, tags, contexts, or messages — `beforeSend` strips query strings, but new code must not route PII somewhere it can't reach.
+- **User context**: `Sentry.setUser` is set/cleared only in `AuthService` (plus a startup seed in `main.tsx`) and carries the **pseudonymous Supabase id only** (`{ id: userId }`) — **NEVER** email, wallet, or IP. New auth code must keep this invariant.
 
 ## Generate Report
 

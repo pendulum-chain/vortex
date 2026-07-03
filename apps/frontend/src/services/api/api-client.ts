@@ -39,10 +39,15 @@ export function isApiError(error: unknown): error is ApiError {
 // so Sentry groups errors by endpoint instead of creating one issue per id. Also keeps
 // addresses out of issue titles.
 function normalizePath(path: string): string {
-  return path
+  // Split off any query string first so the last path segment is followed by end-of-string
+  // (the `(?=\/|$)` lookaheads wouldn't match a segment trailed by "?"), and so query params —
+  // which can carry ids/addresses — never reach the error message or Sentry issue title.
+  const [rawPath, query] = path.split("?");
+  const normalized = rawPath
     .replace(/\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=\/|$)/g, "/:id")
     .replace(/\/\d+(?=\/|$)/g, "/:id")
     .replace(/\/[A-Za-z0-9]{20,}(?=\/|$)/g, "/:id");
+  return query === undefined ? normalized : `${normalized}?[Filtered]`;
 }
 
 const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
