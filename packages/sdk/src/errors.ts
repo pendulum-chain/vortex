@@ -65,6 +65,16 @@ export class InvalidAdditionalDataError extends RegisterRampError {
   }
 }
 
+export class InsufficientBalanceError extends RegisterRampError {
+  constructor(requiredAmount: string, currency: string, network: string, walletAddress: string) {
+    super(
+      `Wallet ${walletAddress} holds less than the required ${requiredAmount} ${currency} on ${network} for this offramp`,
+      400
+    );
+    this.name = "InsufficientBalanceError";
+  }
+}
+
 export type EphemeralChain = "Substrate" | "EVM";
 
 export class EphemeralNotFreshError extends RegisterRampError {

@@ -27,6 +27,7 @@ import { TransactionSigningError } from "./errors";
 import { AlfredpayHandler } from "./handlers/AlfredpayHandler";
 import { BrlHandler } from "./handlers/BrlHandler";
 import { MykoboHandler } from "./handlers/MykoboHandler";
+import { assertSufficientOfframpBalance } from "./preflight";
 import { ApiService } from "./services/ApiService";
 import { NetworkManager } from "./services/NetworkManager";
 import { storeEphemeralKeys } from "./storage";
@@ -152,6 +153,10 @@ export class VortexSdk {
         throw new Error(`Unsupported onramp from: ${quote.from}`);
       }
     } else if (quote.rampType === RampDirection.SELL) {
+      // Every offramp corridor moves quote.inputAmount out of the user's wallet on-chain. Check
+      // the balance up front so we never register a ramp whose user transactions can only revert
+      // (or request a single-use permit the backend cannot execute).
+      await assertSufficientOfframpBalance(quote, (additionalData as { walletAddress?: string }).walletAddress);
       if (isAlfredpayToken(quote.outputCurrency)) {
         const offrampData = additionalData as AlfredpayOfframpAdditionalData;
         rampProcess = await this.alfredpayHandler.registerAlfredpayOfframp(quote.id, offrampData);
