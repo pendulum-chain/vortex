@@ -1,1 +1,1 @@
-export { SupabaseAuthService } from "./supabase.service";
+export { RefreshTokenError, SupabaseAuthService } from "./supabase.service";

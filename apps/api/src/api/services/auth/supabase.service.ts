@@ -1,6 +1,21 @@
-import type { User } from "@supabase/supabase-js";
+import { isAuthRetryableFetchError, type User } from "@supabase/supabase-js";
 import logger from "../../../config/logger";
 import { supabase, supabaseAdmin } from "../../../config/supabase";
+
+/**
+ * Thrown by `refreshToken` to distinguish a confirmed-invalid refresh token (the session is
+ * over) from a transient failure (Supabase unreachable / 5xx). Callers must only end the
+ * session on `transient === false`; transient failures are retryable.
+ */
+export class RefreshTokenError extends Error {
+  constructor(
+    message: string,
+    readonly transient: boolean
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
 
 // Supported BCP 47 locale values and their canonical forms.
 // The Supabase email templates branch on `.Data.locale` using these values.
@@ -170,8 +185,17 @@ export class SupabaseAuthService {
       refresh_token: refreshToken
     });
 
-    if (error || !data.session) {
-      throw new Error("Failed to refresh token");
+    if (error) {
+      // Network/transport failures and upstream 5xx are transient: the refresh token may still
+      // be valid, so callers must retry rather than tear down the session. Only a definite 4xx
+      // auth error means the refresh token itself is invalid/revoked.
+      const status = error.status ?? 0;
+      const transient = isAuthRetryableFetchError(error) || status === 0 || status >= 500;
+      throw new RefreshTokenError(error.message, transient);
+    }
+
+    if (!data.session) {
+      throw new RefreshTokenError("No session returned from refresh", false);
     }
 
     return {

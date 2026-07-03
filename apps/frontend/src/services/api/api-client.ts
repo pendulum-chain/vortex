@@ -1,5 +1,21 @@
 import { SIGNING_SERVICE_URL } from "../../constants/constants";
-import { AuthService } from "../auth";
+import { AuthService, type AuthTokens } from "../auth";
+
+// Single-flight token refresh: concurrent 401s share one refresh instead of each firing
+// their own (which would race the refresh-token rotation and fail).
+let refreshPromise: Promise<AuthTokens | null> | null = null;
+
+function refreshTokenOnce(): Promise<AuthTokens | null> {
+  if (!refreshPromise) {
+    refreshPromise = AuthService.refreshAccessToken()
+      // A transient refresh failure shouldn't reject every waiting request; treat as "no new token".
+      .catch(() => null)
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -26,8 +42,6 @@ async function apiFetch<T>(
     signal?: AbortSignal;
   } = {}
 ): Promise<T> {
-  const tokens = AuthService.getTokens();
-
   const url = new URL(`${SIGNING_SERVICE_URL}/v1${path}`, window.location.origin);
   if (options.params) {
     for (const [key, value] of Object.entries(options.params)) {
@@ -36,17 +50,29 @@ async function apiFetch<T>(
   }
 
   const isFormData = options.data instanceof FormData;
+  const body = isFormData ? (options.data as FormData) : options.data !== undefined ? JSON.stringify(options.data) : undefined;
 
-  const response = await fetch(url.toString(), {
-    body: isFormData ? (options.data as FormData) : options.data !== undefined ? JSON.stringify(options.data) : undefined,
-    headers: {
-      ...(tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
-      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
-      ...options.headers
-    },
-    method,
-    signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
-  });
+  const doFetch = (accessToken: string | undefined) =>
+    fetch(url.toString(), {
+      body,
+      headers: {
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(!isFormData ? { "Content-Type": "application/json" } : {}),
+        ...options.headers
+      },
+      method,
+      signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000)
+    });
+
+  const initialTokens = AuthService.getTokens();
+  let response = await doFetch(initialTokens?.accessToken);
+
+  if (response.status === 401 && initialTokens?.accessToken) {
+    const refreshed = await refreshTokenOnce();
+    if (refreshed?.accessToken) {
+      response = await doFetch(refreshed.accessToken);
+    }
+  }
 
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
