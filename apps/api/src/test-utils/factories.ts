@@ -1,4 +1,5 @@
 import {
+  AveniaAccountType,
   type DestinationType,
   EPaymentMethod,
   EvmToken,
@@ -15,6 +16,7 @@ import ApiKey from "../models/apiKey.model";
 import Partner from "../models/partner.model";
 import QuoteTicket, { type QuoteTicketAttributes } from "../models/quoteTicket.model";
 import RampState, { type RampStateAttributes } from "../models/rampState.model";
+import TaxId, { TaxIdInternalStatus } from "../models/taxId.model";
 import User from "../models/user.model";
 
 let sequence = 0;
@@ -76,10 +78,18 @@ export async function createTestApiKey(
   return { plaintextKey, record };
 }
 
+/** Minimal complete fee structure so status/fee readers work; override per test. */
+export function defaultQuoteFees(currency: FiatToken = FiatToken.EURC): NonNullable<QuoteTicketMetadata["fees"]> {
+  return {
+    displayFiat: { anchor: "1", currency, network: "0", partnerMarkup: "0", total: "1", vortex: "0" },
+    usd: { anchor: "1", network: "0", partnerMarkup: "0", total: "1", vortex: "0" }
+  };
+}
+
 /**
  * A pending EUR→USDC-on-Base onramp quote by default; override anything.
- * Metadata is intentionally minimal — pass a realistic `metadata` override for
- * tests that exercise ramp registration.
+ * Metadata carries a minimal fee structure — pass a realistic `metadata`
+ * override for tests that exercise ramp registration.
  */
 export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> = {}): Promise<QuoteTicket> {
   return QuoteTicket.create({
@@ -90,7 +100,7 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
     from: EPaymentMethod.SEPA as DestinationType,
     inputAmount: "100",
     inputCurrency: FiatToken.EURC,
-    metadata: (overrides.metadata ?? {}) as QuoteTicketMetadata,
+    metadata: { fees: defaultQuoteFees(), ...(overrides.metadata ?? {}) } as QuoteTicketMetadata,
     network: Networks.Base,
     outputAmount: "105",
     outputCurrency: EvmToken.USDC,
@@ -102,6 +112,36 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
     to: Networks.Base as DestinationType,
     userId: null,
     ...overrides
+  });
+}
+
+/**
+ * Baseline configuration the quote pipeline expects in every environment:
+ * the "vortex" partner rows carrying the default platform fee (zero here;
+ * tests that assert fee math override via createTestPartner).
+ */
+export async function seedVortexPartners(): Promise<void> {
+  for (const rampType of [RampDirection.BUY, RampDirection.SELL]) {
+    await createTestPartner({ displayName: "Vortex", name: "vortex", rampType });
+  }
+}
+
+/** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
+export async function createTestTaxId(userId: string, overrides: Partial<{ taxId: string; subAccountId: string }> = {}) {
+  const seq = nextSeq();
+  return TaxId.create({
+    accountType: AveniaAccountType.INDIVIDUAL,
+    finalQuoteId: null,
+    finalSessionId: null,
+    finalTimestamp: null,
+    initialQuoteId: null,
+    initialSessionId: null,
+    internalStatus: TaxIdInternalStatus.Accepted,
+    kycAttempt: null,
+    requestedDate: new Date(),
+    subAccountId: overrides.subAccountId ?? "test-subaccount-id",
+    taxId: overrides.taxId ?? `1234567890${seq}`,
+    userId
   });
 }
 

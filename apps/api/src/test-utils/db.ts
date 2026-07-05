@@ -37,6 +37,16 @@ export async function setupTestDatabase(): Promise<void> {
 }
 
 /**
+ * Standard between-test reset: empty all tables, then re-seed the baseline
+ * configuration rows (vortex fee partners) the application expects.
+ */
+export async function resetTestDatabase(): Promise<void> {
+  await truncateAllTables();
+  const { seedVortexPartners } = await import("./factories");
+  await seedVortexPartners();
+}
+
+/**
  * Empties all application tables between tests while keeping the schema and
  * migration bookkeeping intact.
  */

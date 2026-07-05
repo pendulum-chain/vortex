@@ -10,6 +10,9 @@ import { priceFeedService } from "../../api/services/priceFeed.service";
 export class FakePrices {
   /** CoinGecko-style token id → USD price. */
   cryptoUsd: Record<string, number> = {
+    ethereum: 2500,
+    moonbeam: 0.08,
+    "polygon-ecosystem-token": 0.5,
     "usd-coin": 1
   };
   /** Fiat/RampCurrency code (lowercased) → units of that currency per 1 USD. */

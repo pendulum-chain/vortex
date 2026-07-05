@@ -2,9 +2,10 @@ import { ApiManager } from "@vortexfi/shared";
 import { type FakeAlfredpay, type FakeBrla, type FakeMykobo, installFakeAnchors } from "./fake-anchors";
 import { type FakeEvm, installFakeEvm } from "./fake-evm";
 import { type FakePrices, installFakePrices } from "./fake-prices";
+import { type FakeSquidRouter, installFakeSquidRouter } from "./fake-squidrouter";
 import { installFetchGuard, uninstallFetchGuard } from "./fetch-guard";
 
-export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMykobo, FakePrices };
+export type { FakeAlfredpay, FakeBrla, FakeEvm, FakeMykobo, FakePrices, FakeSquidRouter };
 export { installFetchGuard, uninstallFetchGuard };
 
 export interface FakeWorld {
@@ -13,6 +14,7 @@ export interface FakeWorld {
   brla: FakeBrla;
   alfredpay: FakeAlfredpay;
   prices: FakePrices;
+  squidRouter: FakeSquidRouter;
   restore: () => void;
 }
 
@@ -27,6 +29,7 @@ export function installFakeWorld(): FakeWorld {
   const { fakeEvm, restore: restoreEvm } = installFakeEvm();
   const { fakeAlfredpay, fakeBrla, fakeMykobo, restore: restoreAnchors } = installFakeAnchors();
   const { fakePrices, restore: restorePrices } = installFakePrices();
+  const { fakeSquidRouter, restore: restoreSquidRouter } = installFakeSquidRouter();
 
   // Substrate/Pendulum flows are not faked yet; fail loudly if a code path
   // unexpectedly needs them so the gap is explicit rather than a hang.
@@ -55,10 +58,12 @@ export function installFakeWorld(): FakeWorld {
     prices: fakePrices,
     restore: () => {
       ApiManager.getInstance = originalGetApiManager;
+      restoreSquidRouter();
       restorePrices();
       restoreAnchors();
       restoreEvm();
       uninstallFetchGuard();
-    }
+    },
+    squidRouter: fakeSquidRouter
   };
 }

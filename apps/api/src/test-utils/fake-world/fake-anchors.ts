@@ -142,9 +142,18 @@ export class FakeBrla {
     },
     getSubaccountUsedLimit: async () => ({
       limitInfo: {
-        limitBurn: "10000000",
-        limitMint: "10000000",
-        usedLimit: "0"
+        blocked: false,
+        createdAt: new Date().toISOString(),
+        limits: [
+          {
+            currency: "BRL",
+            maxChainIn: "10000000",
+            maxChainOut: "10000000",
+            maxFiatIn: "10000000",
+            maxFiatOut: "10000000",
+            usedLimit: { usedChainIn: "0", usedChainOut: "0", usedFiatIn: "0", usedFiatOut: "0" }
+          }
+        ]
       }
     }),
     subaccountInfo: async () => ({
