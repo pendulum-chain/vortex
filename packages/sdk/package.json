@@ -46,7 +46,7 @@
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "bun run build",
-    "test": "bun run build && node -e \"require('./dist/index.js')\"",
+    "test": "bun test && bun run build && node -e \"require('./dist/index.js')\"",
     "typecheck": "bun x --bun tsc"
   },
   "type": "module",
