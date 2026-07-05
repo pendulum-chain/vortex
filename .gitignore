@@ -59,3 +59,7 @@ contracts/*/artifacts
 contracts/*/cache
 
 .mcp.json
+
+# Playwright E2E artifacts
+apps/frontend/test-results/
+apps/frontend/playwright-report/

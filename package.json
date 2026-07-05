@@ -126,6 +126,7 @@
     "test:contracts:relayer": "bun run --cwd contracts/relayer test",
     "test:db:start": "bun run --cwd apps/api test:db:start",
     "test:db:stop": "bun run --cwd apps/api test:db:stop",
+    "test:e2e": "cd apps/frontend && bun run test:e2e",
     "test:frontend": "cd apps/frontend && bunx vitest run",
     "test:rebalancer": "cd apps/rebalancer && bun test",
     "test:sdk": "bun run --cwd packages/sdk test",

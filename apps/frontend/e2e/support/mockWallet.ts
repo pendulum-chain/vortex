@@ -1,0 +1,70 @@
+import { Page } from "@playwright/test";
+
+export const MOCK_WALLET_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+export const MOCK_WALLET_NAME = "E2E Mock Wallet";
+
+// Injects a minimal EIP-1193 provider announced via EIP-6963 before the app loads.
+// AppKit is configured with enableEIP6963, so the provider shows up in the connect
+// modal as an installed browser wallet — no app code changes needed.
+export async function injectMockWallet(page: Page) {
+  await page.addInitScript(
+    ({ address, name }) => {
+      const chainIdHex = "0x2105"; // Base
+
+      // biome-ignore lint/suspicious/noExplicitAny: minimal EIP-1193 stub
+      const listeners: Record<string, Array<(...args: any[]) => void>> = {};
+      const provider = {
+        isMetaMask: false,
+        // biome-ignore lint/suspicious/noExplicitAny: minimal EIP-1193 stub
+        on: (event: string, cb: (...args: any[]) => void) => {
+          (listeners[event] ??= []).push(cb);
+        },
+        // biome-ignore lint/suspicious/noExplicitAny: minimal EIP-1193 stub
+        removeListener: (event: string, cb: (...args: any[]) => void) => {
+          listeners[event] = (listeners[event] ?? []).filter(l => l !== cb);
+        },
+        request: async ({ method }: { method: string }) => {
+          switch (method) {
+            case "eth_requestAccounts":
+            case "eth_accounts":
+              return [address];
+            case "eth_chainId":
+              return chainIdHex;
+            case "net_version":
+              return String(Number(chainIdHex));
+            case "wallet_switchEthereumChain":
+            case "wallet_addEthereumChain":
+              return null;
+            case "wallet_requestPermissions":
+              return [{ parentCapability: "eth_accounts" }];
+            case "personal_sign":
+            case "eth_signTypedData_v4":
+              return `0x${"ab".repeat(65)}`;
+            case "eth_getBalance":
+              return "0xde0b6b3a7640000"; // 1 ETH
+            case "eth_blockNumber":
+              return "0x1";
+            default:
+              return null;
+          }
+        }
+      };
+
+      const info = Object.freeze({
+        icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSIzMiIvPg==",
+        name,
+        rdns: "co.vortexfinance.e2e",
+        uuid: "e2e00000-0000-4000-8000-000000000001"
+      });
+      const announce = () =>
+        window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
+      window.addEventListener("eip6963:requestProvider", announce);
+      announce();
+
+      // Also expose as the legacy injected provider for connectors that look for it.
+      // biome-ignore lint/suspicious/noExplicitAny: window.ethereum has no typed slot here
+      (window as any).ethereum = provider;
+    },
+    { address: MOCK_WALLET_ADDRESS, name: MOCK_WALLET_NAME }
+  );
+}

@@ -74,6 +74,22 @@ what we test. Unit tests may still mock models where the DB is incidental.
 (per corridor/phase), and presigned-tx fixtures. Never hand-write these objects or copy JSON
 snapshots into tests; extend the factory instead.
 
+### Playwright E2E (`apps/frontend/e2e/`)
+
+A handful of critical journeys (quote form → quote displayed, quote error surfaced, wallet
+gate on offramps) run against the real frontend in Chromium, hermetically:
+
+- The API origin (`http://localhost:3000`) is intercepted per-test with `page.route`
+  (`e2e/support/mockBackend.ts`) — no backend, database, or chain access.
+- A mock wallet (`e2e/support/mockWallet.ts`) is injected as an EIP-6963-announced
+  EIP-1193 provider before the app loads; wagmi/AppKit picks it up like any installed
+  browser wallet.
+- Third-party endpoints (SquidRouter token list, WalletConnect config) are blocked; the
+  app's built-in fallbacks cover them.
+
+They run nightly via `.github/workflows/e2e.yml` (never PR-blocking) and locally with
+`bun test:e2e`.
+
 ### Live tests
 
 Tests that hit real RPCs or sandboxes (e.g. XCM dry-runs in `packages/shared`) are gated behind
@@ -120,6 +136,10 @@ bun test:frontend
 bun test:shared
 bun test:rebalancer
 bun test:sdk
+
+# Playwright E2E journeys (non-blocking; starts its own Vite dev server)
+# One-time per machine: cd apps/frontend && bunx playwright install chromium
+bun test:e2e
 
 # Opt-in live tests (real RPCs / sandboxes; needs credentials in .env)
 cd apps/api && RUN_LIVE_TESTS=1 bun test src/api/services/phases/
