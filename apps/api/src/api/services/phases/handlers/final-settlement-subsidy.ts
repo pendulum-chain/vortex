@@ -34,6 +34,10 @@ import { getEvmFundingAccount } from "../evm-funding";
 import { computeSubsidyRaw } from "./final-settlement-subsidy.helpers";
 
 const BALANCE_POLLING_TIME_MS = 5000;
+// Backoff between failed subsidy-transfer attempts. Overridable so hermetic
+// tests don't wait 20s per scripted failure (same pattern as
+// PHASE_PROCESSOR_RETRY_DELAY_MS).
+const SETTLEMENT_RETRY_BACKOFF_MS = parseInt(process.env.PHASE_SETTLEMENT_RETRY_BACKOFF_MS || "20000", 10);
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
 const MIN_BRIDGE_DELIVERY_RATIO = 0.9;
@@ -361,7 +365,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         if (!receipt || receipt.status !== "success") {
           logger.error(`FinalSettlementSubsidyHandler: Transaction ${txHash} failed or was not found. Retrying...`);
           attempt++;
-          await new Promise(resolve => setTimeout(resolve, 20000));
+          await new Promise(resolve => setTimeout(resolve, SETTLEMENT_RETRY_BACKOFF_MS));
         }
       }
 

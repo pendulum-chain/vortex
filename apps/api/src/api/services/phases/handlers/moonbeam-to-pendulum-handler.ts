@@ -21,6 +21,10 @@ import { RecoverablePhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 
+// Backoff between failed transaction attempts. Overridable so hermetic tests
+// don't wait 20s per scripted failure (same pattern as PHASE_PROCESSOR_RETRY_DELAY_MS).
+const SETTLEMENT_RETRY_BACKOFF_MS = parseInt(process.env.PHASE_SETTLEMENT_RETRY_BACKOFF_MS || "20000", 10);
+
 export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "moonbeamToPendulum";
@@ -121,8 +125,8 @@ export class MoonbeamToPendulumPhaseHandler extends BasePhaseHandler {
             if (!receipt || receipt.status !== "success") {
               logger.error(`MoonbeamToPendulumPhaseHandler: Transaction ${obtainedHash} failed or was not found`);
               attempt++;
-              // Wait for 20 seconds to allow the network to settle the squidRouter transaction
-              await new Promise(resolve => setTimeout(resolve, 20000));
+              // Allow the network to settle the squidRouter transaction
+              await new Promise(resolve => setTimeout(resolve, SETTLEMENT_RETRY_BACKOFF_MS));
             }
           }
 

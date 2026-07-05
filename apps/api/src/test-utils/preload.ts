@@ -54,8 +54,10 @@ if (!process.env.RUN_LIVE_TESTS) {
 
   // Fast retries so recoverable-error scenarios don't wait 30s per attempt.
   process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "25";
-  // The fake EVM ledger settles instantly; skip the 15s settlement wait.
+  // The fake EVM ledger settles instantly; skip the 15s settlement waits and
+  // the 20s backoffs between scripted transaction failures.
   process.env.SUBSIDY_SETTLEMENT_DELAY_MS = "25";
+  process.env.PHASE_SETTLEMENT_RETRY_BACKOFF_MS = "25";
 
   // Close the shared Sequelize pool after the whole run so lingering pg
   // connections don't surface as unhandled "Connection terminated" errors.
