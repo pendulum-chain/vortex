@@ -17,10 +17,10 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 
 | Layer | What | Where | Runner |
 |---|---|---|---|
-| 1. Unit | Pure logic: helpers, token configs, quote/fee golden tests, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
-| 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world | `apps/api/src/tests/corridors/` | `bun test` |
-| 4. SDK contract | Real SDK against the real API in-process | `packages/sdk/test/contract/` | `bun test` |
+| 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
+| 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) | `apps/api/src/tests/` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world (BRL pix→BRLA-on-Base, MXN spei→USDT-on-Polygon) | `apps/api/src/tests/corridors/` | `bun test` |
+| 4. SDK contract | Real SDK against the real API in-process | `apps/api/src/tests/sdk-contract.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
@@ -55,7 +55,8 @@ code already goes through:
 - **Chains**: faked at the `EvmClientManager` and Pendulum `apiManager` seams with an in-memory
   balance ledger. Phase handlers genuinely poll balances and observe transfers; tests script the
   ledger ("EURC arrives on the ephemeral after the 2nd poll").
-- **Clock**: quote expiry and timeout logic accept an injected clock in tests.
+- **Clock**: there is no injected clock; expiry tests stay deterministic by writing
+  `expiresAt` timestamps in the past instead of faking timers.
 
 Decision: we deliberately do **not** run Anvil/fork-based EVM tests in CI. Fork mode depends on an
 upstream RPC (flaky public endpoints or a paid key as a CI secret). If calldata-level fidelity ever
@@ -70,9 +71,9 @@ what we test. Unit tests may still mock models where the DB is incidental.
 
 ### Factories
 
-`apps/api/src/test-utils/factories/` builds `Partner`, `ApiKey`, `QuoteTicket`, `RampState`
-(per corridor/phase), and presigned-tx fixtures. Never hand-write these objects or copy JSON
-snapshots into tests; extend the factory instead.
+`apps/api/src/test-utils/factories.ts` builds `User`, `Partner`, `ApiKey`, `QuoteTicket`,
+`RampState`, `TaxId` (Avenia KYC) and `AlfredPayCustomer` (Alfredpay KYC) rows. Never
+hand-write these objects or copy JSON snapshots into tests; extend the factory instead.
 
 ### Playwright E2E (`apps/frontend/e2e/`)
 
@@ -102,8 +103,10 @@ never PR-blocking.
   workspace. Postgres is provided as a GitHub Actions service container.
 - **Non-blocking / nightly**: Playwright E2E journeys and any live smoke tests. Failures alert;
   they don't block merges.
-- No coverage-percentage gate for now. Coverage may be reported for visibility; ratchets can come
-  later once the suite is trusted.
+- The api suite carries a coverage ratchet: CI runs `bun run test:coverage` (in `apps/api`),
+  which produces an LCOV report and enforces the aggregate line/function floors in
+  `apps/api/scripts/check-coverage.ts`. Raise the floors when you add tested code; never lower
+  them to make CI pass. The other workspaces have no gate yet.
 
 ## How to extend
 
@@ -112,14 +115,15 @@ never PR-blocking.
 - **New corridor or phase** → add a scenario in `apps/api/src/tests/corridors/` using the
   factories and fake world. Cover: happy path, one transient failure + recovery, one unrecoverable
   failure → `failed`.
-- **New external integration** → add a fake for it in `test-utils/fakes/` with the standard
+- **New external integration** → add a fake for it in `test-utils/fake-world/` with the standard
   configurable behaviors (success / malformed / timeout / fail-then-succeed).
-- **SDK-visible API change** → the SDK contract tests in `packages/sdk/test/contract/` must pass
-  unchanged, or the change is breaking and needs an SDK release note.
+- **SDK-visible API change** → the SDK contract tests in `apps/api/src/tests/sdk-contract.test.ts`
+  must pass unchanged, or the change is breaking and needs an SDK release note.
 - **New frontend flow** → machine test first (transitions incl. rejection/error paths), component
   test if there's meaningful rendering logic, E2E only if it's a top-level critical journey.
-- **Quote/fee logic change** → the golden quote tests will diff; update the snapshots consciously
-  and mention the fee impact in the PR description.
+- **Quote/fee logic change** → the pricing goldens in
+  `apps/api/src/tests/quote-pricing.golden.test.ts` will diff; update the expected values
+  consciously and mention the fee impact in the PR description.
 
 ## Commands
 
@@ -127,8 +131,10 @@ never PR-blocking.
 # One-time per machine: dedicated test Postgres (Docker, port 54329)
 bun test:db:start         # bun test:db:stop to remove it
 
-# Everything hermetic (what CI runs)
-bun test                  # shared + sdk + rebalancer + api + frontend
+# Everything hermetic (what CI runs). NOTE: `bun run test`, not `bun test` —
+# a bare `bun test` at the root invokes bun's own runner (the root bunfig.toml
+# makes it a no-op instead of letting it pick up stray files).
+bun run test              # shared + sdk + rebalancer + api + frontend
 
 # Individual workspaces
 bun test:api              # unit + integration (needs the test db)
