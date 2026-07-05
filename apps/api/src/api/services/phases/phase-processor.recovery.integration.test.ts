@@ -10,7 +10,10 @@ const RAMP_STATE_RECOVERY = {
   // ...
 };
 
+// Module-level patching only when the live suite is enabled — bun runs all
+// test files in one process, so unconditional patches leak into other files.
 // Mock the RampRecoveryWorker
+if (process.env.RUN_LIVE_TESTS)
 mock.module("../../workers/ramp-recovery.worker", () => ({
   default: class MockRampRecoveryWorker {
     start = mock(() => {
@@ -43,6 +46,8 @@ beforeAll(() => {
   } as unknown as RampState;
 });
 
+// Guarded for the same leak reason as the mock.module call above.
+if (process.env.RUN_LIVE_TESTS) {
 // Mock RampState.update - static method returns [affectedCount, affectedRows]
 RampState.update = mock(async function (updateData: RampStateUpdateData, _options?: unknown) {
   rampState = { ...rampState, ...updateData } as unknown as RampState;
@@ -80,6 +85,7 @@ RampState.create = mock(async (data: RampStateCreationAttributes) => {
   } as unknown as RampState;
   return rampState;
 }) as typeof RampState.create;
+}
 
 // Live test: replays a persisted failed ramp state against real services.
 // Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).

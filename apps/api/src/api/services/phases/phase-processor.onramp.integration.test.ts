@@ -98,6 +98,10 @@ console.log("Test Signing Accounts:", testSigningAccountsMeta);
 let rampState: RampState;
 let quoteTicket: QuoteTicket;
 
+// bun runs every test file of this package in one process: module-level
+// patching would leak into unrelated test files, so it only happens when the
+// live suite is actually enabled.
+if (process.env.RUN_LIVE_TESTS) {
 RampState.update = mock(async function (updateData: any, _options?: any) {
   // Merge the update into the current instance.
   rampState = { ...rampState, ...updateData, updatedAt: new Date() };
@@ -160,6 +164,7 @@ mock.module("../brla/helpers", () => {
     verifyReferenceLabel: mockVerifyReferenceLabel
   };
 });
+}
 
 // Live test: drives real chain/anchor interactions and needs TAX_ID plus funded accounts.
 // Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).

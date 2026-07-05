@@ -5,8 +5,11 @@ import Big from "big.js";
 import { Keyring } from "@polkadot/api";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 
+// Module-level patching only when the live suite is enabled — bun runs all
+// test files in one process, so unconditional patches leak into other files.
 // Mock the EVM Nabla swap quote function before importing QuoteService so the
 // quote engine does not hit Base RPC for the (currently illiquid) EURC<->USDC pool.
+if (process.env.RUN_LIVE_TESTS)
 mock.module("../quote/core/nabla", () => {
   return {
     calculateNablaSwapOutputEvm: async (request: {
@@ -32,6 +35,7 @@ mock.module("../quote/core/nabla", () => {
 // The Mykobo email is now derived from the user's profile and gated on an APPROVED Mykobo customer
 // (resolveMykoboCustomerForUser). This contract test focuses on the Mykobo intent/transaction path,
 // so stub the resolver to return the test email instead of standing up profile + KYC-mirror rows.
+if (process.env.RUN_LIVE_TESTS)
 mock.module("../mykobo/mykobo-customer.service", () => ({
   resolveMykoboCustomerForUser: async () => ({ email: "mail@test.com" }),
   syncMykoboCustomerKyc: async () => {},
@@ -114,6 +118,8 @@ let quoteTicket: QuoteTicket;
 type RampStateUpdateData = Partial<RampStateAttributes>;
 type QuoteTicketUpdateData = Partial<QuoteTicketAttributes>;
 
+// Guarded for the same leak reason as the mock.module calls above.
+if (process.env.RUN_LIVE_TESTS) {
 RampState.update = mock(async function (updateData: RampStateUpdateData) {
   rampState = { ...rampState, ...updateData, updatedAt: new Date() } as RampState;
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -189,6 +195,7 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
   // worker disabled in test
 });
+}
 
 // Live test: hits the real Mykobo sandbox and needs MYKOBO_ACCESS_KEY/MYKOBO_SECRET_KEY.
 // Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
