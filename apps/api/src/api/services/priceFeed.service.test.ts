@@ -1,11 +1,24 @@
 // eslint-disable-next-line import/no-unresolved
-import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 // Import the mocked function to check calls
 import {getTokenOutAmount as getTokenOutAmountMock, type RampCurrency} from "@vortexfi/shared";
+import * as sharedNamespace from "@vortexfi/shared";
+import * as loggerNamespace from "../../config/logger";
 import {PriceFeedService, priceFeedService} from "./priceFeed.service";
+
+// Value copies taken before mock.module runs — bun module mocks are
+// process-wide, so afterAll below restores the real modules for later files.
+const sharedReal = { ...sharedNamespace };
+const loggerReal = { ...loggerNamespace };
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../config/logger", () => ({ ...loggerReal }));
+});
 
 // Mock all external dependencies
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   ApiManager: {
     getInstance: mock(() => ({
       getApi: mock(async () => ({
@@ -89,42 +102,6 @@ mock.module("@vortexfi/shared", () => ({
     USDT: "USDT"
   }
 }));
-
-// Keep the existing mock structure for Nabla, but we'll use the imported mock for checks
-mock.module("./nablaReads/outAmount", () => ({
-  getTokenOutAmount: mock(async () => ({
-    effectiveExchangeRate: "1.25", // Rate for 1 USD -> BRL
-    preciseQuotedAmountOut: {
-      preciseBigDecimal: {
-        toString: () => "1.25"
-      }
-    },
-    roundedDownQuotedAmountOut: {
-      toString: () => "1.25"
-    },
-    swapFee: {
-      toString: () => "0.01"
-    }
-  }))
-}));
-
-mock.module("./pendulum/apiManager", () => {
-  const mockApiInstance = {
-    api: {}, // Mock Polkadot API object if needed for deeper tests
-    decimals: 12,
-    ss58Format: 42
-  };
-
-  const mockApiManager = {
-    getInstance: mock(() => ({
-      getApi: mock(async () => mockApiInstance)
-    }))
-  };
-
-  return {
-    ApiManager: mockApiManager
-  };
-});
 
 mock.module("../../config/logger", () => ({
   default: {

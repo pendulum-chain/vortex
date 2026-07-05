@@ -1,2 +1,5 @@
 [test]
+# Only discover tests under src/ — the swc build in dist/ contains compiled
+# copies of test files that would otherwise run (stale) a second time.
+root = "src"
 preload = ["./src/test-utils/preload.ts"]

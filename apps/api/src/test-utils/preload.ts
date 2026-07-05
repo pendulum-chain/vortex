@@ -29,8 +29,8 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.ALFREDPAY_BASE_URL = "http://alfredpay.invalid";
   process.env.ALFREDPAY_API_KEY = "test-alfredpay-api-key";
   process.env.ALFREDPAY_API_SECRET = "test-alfredpay-api-secret";
-  process.env.COINGECKO_API_URL = "http://coingecko.invalid";
-  process.env.COINGECKO_API_KEY = "";
+  // COINGECKO_API_URL is deliberately NOT overridden: priceFeed config tests
+  // assert its default, and the fetch guard blocks real calls anyway.
   process.env.ALCHEMY_API_KEY = "";
   process.env.SUPABASE_URL = "http://supabase.invalid";
   process.env.SUPABASE_ANON_KEY = "test-anon-key";
@@ -51,4 +51,14 @@ if (!process.env.RUN_LIVE_TESTS) {
 
   // Fast retries so recoverable-error scenarios don't wait 30s per attempt.
   process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "25";
+
+  // Close the shared Sequelize pool after the whole run so lingering pg
+  // connections don't surface as unhandled "Connection terminated" errors.
+  const { afterAll } = await import("bun:test");
+  afterAll(async () => {
+    const { default: sequelize } = await import("../config/database");
+    await sequelize.close().catch(() => {});
+  });
 }
+
+export {};

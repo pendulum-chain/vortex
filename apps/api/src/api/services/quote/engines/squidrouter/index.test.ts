@@ -1,11 +1,22 @@
-import {describe, expect, it, mock} from "bun:test";
+import {afterAll, describe, expect, it, mock} from "bun:test";
 import {EvmToken, Networks, RampDirection} from "@vortexfi/shared";
 import Big from "big.js";
 import {QuoteContext} from "../../core/types";
 
 const BSC_USDT_OUTPUT_RAW = "4817805726163073314321";
 
+import * as coreSquidrouterNamespace from "../../core/squidrouter";
+
+// Value copy taken before mock.module runs; restored in afterAll because bun
+// module mocks are process-wide.
+const coreSquidrouterReal = { ...coreSquidrouterNamespace };
+
+afterAll(() => {
+  mock.module("../../core/squidrouter", () => ({ ...coreSquidrouterReal }));
+});
+
 mock.module("../../core/squidrouter", () => ({
+  ...coreSquidrouterReal,
   calculateEvmBridgeAndNetworkFee: mock(async () => ({
     finalEffectiveExchangeRate: "1",
     finalGrossOutputAmountDecimal: new Big("4817.805726163073314321"),

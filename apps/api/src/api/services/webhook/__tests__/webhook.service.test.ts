@@ -1,6 +1,23 @@
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, afterAll, beforeEach } from 'bun:test';
 import { mock } from 'bun:test';
+import * as webhookModelNamespace from '../../../../models/webhook.model';
+import * as quoteTicketModelNamespace from '../../../../models/quoteTicket.model';
+import * as loggerNamespace from '../../../../config/logger';
 import { WebhookService } from '../webhook.service';
+
+// Value copies taken before the mock.module calls below; restored in afterAll
+// because bun module mocks are process-wide and would poison later test files.
+const restorableModules: Array<[string, Record<string, unknown>]> = [
+  ['../../../../models/webhook.model', { ...webhookModelNamespace }],
+  ['../../../../models/quoteTicket.model', { ...quoteTicketModelNamespace }],
+  ['../../../../config/logger', { ...loggerNamespace }]
+];
+
+afterAll(() => {
+  for (const [path, real] of restorableModules) {
+    mock.module(path, () => real);
+  }
+});
 import { APIError } from '../../../errors/api-error';
 import { WebhookEventType, RegisterWebhookRequest, RegisterWebhookResponse } from '@vortexfi/shared';
 import Webhook, { WebhookAttributes } from '../../../../models/webhook.model';
@@ -37,17 +54,10 @@ const destroyMock = mock(async (): Promise<any> => true);
 const updateMock = mock(async (): Promise<any> => ({}));
 
 // Mock RampState
-const rampStateFindByPkMock = mock(async (): Promise<any> => ({}));
+const quoteTicketFindByPkMock = mock(async (): Promise<any> => ({}));
 
 // Mock crypto
 const randomBytesMock = mock(() => Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'));
-
-mock.module('crypto', () => ({
-  default: {
-    randomBytes: randomBytesMock
-  },
-  randomBytes: randomBytesMock
-}));
 
 // Mock modules
 mock.module('../../../../models/webhook.model', () => ({
@@ -58,9 +68,10 @@ mock.module('../../../../models/webhook.model', () => ({
   }
 }));
 
-mock.module('../../../../models/rampState.model', () => ({
+// Production validates quoteId via QuoteTicket (webhook.service.ts), not RampState.
+mock.module('../../../../models/quoteTicket.model', () => ({
   default: {
-    findByPk: rampStateFindByPkMock
+    findByPk: quoteTicketFindByPkMock
   }
 }));
 
@@ -83,11 +94,9 @@ describe('WebhookService', () => {
     findAllMock.mockReset();
     destroyMock.mockReset();
     updateMock.mockReset();
-    rampStateFindByPkMock.mockReset();
-    randomBytesMock.mockReset();
+    quoteTicketFindByPkMock.mockReset();
 
     // Setup default crypto mock
-    randomBytesMock.mockReturnValue(Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'));
   });
 
   describe('registerWebhook', () => {
@@ -95,7 +104,7 @@ describe('WebhookService', () => {
       const mockWebhook = createMockWebhook();
 
       // Setup mocks
-      rampStateFindByPkMock.mockResolvedValue(createMockRampState()); // Quote exists
+      quoteTicketFindByPkMock.mockResolvedValue(createMockRampState()); // Quote exists
       createMock.mockResolvedValue(mockWebhook);
 
       // Execute
@@ -105,7 +114,7 @@ describe('WebhookService', () => {
       });
 
       // Verify
-      expect(rampStateFindByPkMock).toHaveBeenCalledWith('quote-123');
+      expect(quoteTicketFindByPkMock).toHaveBeenCalledWith('quote-123');
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
@@ -244,7 +253,7 @@ describe('WebhookService', () => {
 
     it('should reject when quoteId does not exist', async () => {
       // Setup mocks - quote not found
-      rampStateFindByPkMock.mockResolvedValue(null);
+      quoteTicketFindByPkMock.mockResolvedValue(null);
 
       // Execute and verify
       await expect(webhookService.registerWebhook({

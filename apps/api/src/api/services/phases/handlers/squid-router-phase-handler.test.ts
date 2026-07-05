@@ -1,6 +1,15 @@
 // eslint-disable-next-line import/no-unresolved
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
+// Captured before mock.module so afterAll can restore the real package —
+// bun module mocks are process-wide and would poison later test files.
+import * as sharedNamespace from "@vortexfi/shared";
+import * as rampServiceNamespace from "../../ramp/ramp.service";
+
+// Value copies taken before mock.module runs — the namespaces themselves are
+// live bindings that would reflect the mocks once installed.
+const sharedReal = { ...sharedNamespace };
+const rampServiceReal = { ...rampServiceNamespace };
 
 const Networks = {
   Base: "base",
@@ -60,6 +69,7 @@ const getOnChainTokenDetails = mock((network: string, token: string) => ({
 const isEvmTokenDetails = mock(() => true);
 
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   checkEvmBalanceForToken,
   EvmClientManager: {
     getInstance: () => ({
@@ -107,6 +117,14 @@ mock.module("../../ramp/ramp.service", () => ({
 
 const { default: QuoteTicket } = await import("../../../../models/quoteTicket.model");
 const { SquidRouterPhaseHandler } = await import("./squid-router-phase-handler");
+
+const realQuoteTicketFindByPk = QuoteTicket.findByPk;
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../ramp/ramp.service", () => ({ ...rampServiceReal }));
+  QuoteTicket.findByPk = realQuoteTicketFindByPk;
+});
 
 let quote: {
   inputCurrency: string;
