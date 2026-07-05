@@ -37,6 +37,9 @@ if (!process.env.RUN_LIVE_TESTS) {
   process.env.SUPABASE_SERVICE_KEY = "test-service-key";
   process.env.ADMIN_SECRET = "test-admin-secret";
   process.env.METRICS_DASHBOARD_SECRET = "test-metrics-secret";
+  // Empty → cryptoService generates a throwaway RSA pair; a real operator key
+  // in a local .env must never sign test webhook deliveries.
+  process.env.WEBHOOK_PRIVATE_KEY = "";
 
   // Dummy signing keys (well-known dev keys, no real funds) so code that
   // derives accounts works without ever using the operator's real seeds.
@@ -51,13 +54,15 @@ if (!process.env.RUN_LIVE_TESTS) {
 
   // Fast retries so recoverable-error scenarios don't wait 30s per attempt.
   process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "25";
+  // The fake EVM ledger settles instantly; skip the 15s settlement wait.
+  process.env.SUBSIDY_SETTLEMENT_DELAY_MS = "25";
 
   // Close the shared Sequelize pool after the whole run so lingering pg
   // connections don't surface as unhandled "Connection terminated" errors.
   const { afterAll } = await import("bun:test");
   afterAll(async () => {
     const { default: sequelize } = await import("../config/database");
-    await sequelize.close().catch(() => {});
+    await sequelize.close().catch(() => undefined);
   });
 }
 
