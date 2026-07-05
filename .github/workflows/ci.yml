@@ -75,17 +75,17 @@ jobs:
       - name: 🔨 Build shared package
         run: bun run build:shared
 
-      - name: 🧪 Shared tests
-        run: bun run test:shared
+      - name: 🧪 Shared tests (coverage-gated)
+        run: cd packages/shared && bun run test:coverage
 
       - name: 🧪 SDK tests
         run: bun run test:sdk
 
-      - name: 🧪 Rebalancer tests
-        run: bun run test:rebalancer
+      - name: 🧪 Rebalancer tests (coverage-gated)
+        run: cd apps/rebalancer && bun run test:coverage
 
       - name: 🧪 API tests (unit + integration, coverage-gated)
         run: cd apps/api && bun run test:coverage
 
-      - name: 🧪 Frontend tests
-        run: bun run test:frontend
+      - name: 🧪 Frontend tests (coverage-gated)
+        run: cd apps/frontend && bun run test:coverage

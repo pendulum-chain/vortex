@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Coverage reports (any workspace; bun/vitest lcov output)
+coverage
+
 # Environment files (any package, any name)
 packages/sdk/.env
 **/.env.local
