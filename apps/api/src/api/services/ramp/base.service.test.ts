@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import {Op} from "sequelize";
 import sequelize from "../../../config/database";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -31,11 +31,27 @@ const updateMock = mock(async (_values: unknown, _options: QuoteCleanupOptions) 
 const findAllMock = mock(async (_options: QuoteCleanupOptions) => [{ id: "expired-quote-1" }, { id: "expired-quote-2" }]);
 const destroyMock = mock(async (_options: QuoteCleanupOptions) => 2);
 
+// bun runs all test files in one process — restore the patched singletons in
+// afterAll so later files don't run against these fakes.
+const originalTransaction = sequelize.transaction;
+const originalQuery = sequelize.query;
+const originalUpdate = QuoteTicket.update;
+const originalFindAll = QuoteTicket.findAll;
+const originalDestroy = QuoteTicket.destroy;
+
 sequelize.transaction = transactionMock as unknown as typeof sequelize.transaction;
 sequelize.query = queryMock as unknown as typeof sequelize.query;
 QuoteTicket.update = updateMock as unknown as typeof QuoteTicket.update;
 QuoteTicket.findAll = findAllMock as unknown as typeof QuoteTicket.findAll;
 QuoteTicket.destroy = destroyMock as unknown as typeof QuoteTicket.destroy;
+
+afterAll(() => {
+  sequelize.transaction = originalTransaction;
+  sequelize.query = originalQuery;
+  QuoteTicket.update = originalUpdate;
+  QuoteTicket.findAll = originalFindAll;
+  QuoteTicket.destroy = originalDestroy;
+});
 
 describe("BaseRampService.cleanupExpiredQuotes", () => {
   let service: BaseRampService;
