@@ -1,433 +1,232 @@
-import {afterEach, beforeEach, describe, expect, it, mock} from 'bun:test';
-import {WebhookDeliveryService} from '../webhook-delivery.service';
-import {RampDirection, WebhookEventType} from '@vortexfi/shared';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { RampDirection, TransactionStatus, WebhookEventType } from "@vortexfi/shared";
+import cryptoService from "../../../../config/crypto";
+import { WebhookDeliveryService } from "../webhook-delivery.service";
+import webhookService from "../webhook.service";
 
-// Mock factory functions
-const createMockWebhook = (overrides: Partial<any> = {}) => ({
-  id: 'webhook-1',
-  url: 'https://example.com/webhook1',
-  secret: 'secret1',
-  ...overrides
-});
+// The service signs payloads with the real cryptoService singleton (RSA-PSS,
+// raw base64 in X-Vortex-Signature) and uses the webhookService singleton for
+// lookup/deactivation. No mock.module here — bun module mocks are process-wide
+// and leak into other test files. Instead: real keys initialized once, the two
+// webhookService methods patched on the instance (originals captured below and
+// restored in afterAll), and globalThis.fetch stubbed per test.
 
-const createMockWebhookArray = (webhooks: Partial<any>[] = []) =>
-  webhooks.length > 0 ? webhooks.map(webhook => createMockWebhook(webhook)) : [
-    createMockWebhook({ id: 'webhook-1', url: 'https://example.com/webhook1', secret: 'secret1' })
-  ];
+const originalFetch = globalThis.fetch;
+const originalFindWebhooksForEvent = webhookService.findWebhooksForEvent;
+const originalDeactivateWebhook = webhookService.deactivateWebhook;
 
-const createMockResponse = (overrides: Partial<Response> = {}) => ({
-  ok: true,
-  status: 200,
-  ...overrides
-} as Response);
-
-// Create mock functions first
-const findWebhooksForEventMock = mock(async (): Promise<any[]> => []);
-const getWebhookByIdMock = mock(async (): Promise<any> => ({}));
+const findWebhooksForEventMock = mock(async (): Promise<unknown[]> => []);
 const deactivateWebhookMock = mock(async (): Promise<boolean> => true);
 
-// Mock fetch globally
-const originalFetch = global.fetch;
-const fetchMock = mock(async (url: string, options?: RequestInit): Promise<Response> => ({
-  ok: true,
-  status: 200
-} as Response));
+const fakeWebhook = (overrides: Record<string, unknown> = {}) => ({
+  id: "webhook-1",
+  url: "https://example.com/hook",
+  ...overrides
+});
 
-// Mock AbortController
-const abortMock = mock(() => {});
-const originalAbortController = global.AbortController;
-const mockAbortController = class MockAbortController {
-  signal = { aborted: false };
-  abort = abortMock;
+// Real timers, but backoff shrunk from 1s..16s to 1ms per attempt so the
+// retry tests finish instantly. timeoutMs is shrunk so the per-attempt abort
+// timer left dangling on rejected fetches fires (harmlessly) right away.
+const createService = () => {
+  const service = new WebhookDeliveryService();
+  (service as unknown as { retryDelays: number[] }).retryDelays = [1, 1, 1, 1, 1];
+  (service as unknown as { timeoutMs: number }).timeoutMs = 50;
+  return service;
 };
 
-// Mock setTimeout and clearTimeout
-const originalSetTimeout = global.setTimeout;
-const originalClearTimeout = global.clearTimeout;
-const setTimeoutMock = mock((callback: Function, ms: number) => {
-  // For testing, we can call the callback immediately or return a dummy timeout ID
-  return 123 as any;
-});
-const clearTimeoutMock = mock(() => {});
+let fetchMock: ReturnType<typeof mock>;
+const stubFetch = (impl: () => Promise<Response>) => {
+  fetchMock = mock(impl);
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+  return fetchMock;
+};
 
-// Mock crypto
-const createHmacMock = mock(() => ({
-  update: mock(() => ({
-    digest: mock(() => 'test-signature-hash')
-  }))
-}));
+const fetchCall = (index: number) => {
+  const [url, init] = fetchMock.mock.calls[index] as unknown as [string, RequestInit];
+  return { body: init.body as string, headers: init.headers as Record<string, string>, init, url };
+};
 
-// NOTE: the module mocks that used to live here (node 'crypto',
-// '../webhook.service', config/logger) were removed together with the
-// quarantine: bun module mocks are process-wide and they poisoned every
-// later test file even though this suite is skipped.
+describe("WebhookDeliveryService", () => {
+  let service: WebhookDeliveryService;
 
-// QUARANTINED: this suite predates the RSA-PSS webhook signing rewrite (it
-// still mocks HMAC + webhook `secret`), asserts stale payload shapes, and its
-// global setTimeout mock never fires callbacks, which makes several tests
-// hang/time out. See docs/test-audit-findings.md (webhook-delivery entries)
-// — the suite needs a rewrite against current production behavior.
-describe.skip('WebhookDeliveryService', () => {
-  let webhookDeliveryService: WebhookDeliveryService;
+  beforeAll(() => {
+    cryptoService.initializeKeys();
+    (webhookService as { findWebhooksForEvent: unknown }).findWebhooksForEvent = findWebhooksForEventMock;
+    (webhookService as { deactivateWebhook: unknown }).deactivateWebhook = deactivateWebhookMock;
+  });
+
+  afterAll(() => {
+    webhookService.findWebhooksForEvent = originalFindWebhooksForEvent;
+    webhookService.deactivateWebhook = originalDeactivateWebhook;
+    globalThis.fetch = originalFetch;
+  });
 
   beforeEach(() => {
-    webhookDeliveryService = new WebhookDeliveryService();
-
-    // Setup global mocks
-    global.fetch = fetchMock as any;
-    global.AbortController = mockAbortController as any;
-    global.setTimeout = setTimeoutMock as any;
-    global.clearTimeout = clearTimeoutMock as any;
-
-    // Reset all mocks
+    service = createService();
     findWebhooksForEventMock.mockReset();
-    getWebhookByIdMock.mockReset();
+    findWebhooksForEventMock.mockResolvedValue([]);
     deactivateWebhookMock.mockReset();
-    fetchMock.mockReset();
-    abortMock.mockReset();
-    setTimeoutMock.mockReset();
-    clearTimeoutMock.mockReset();
-    createHmacMock.mockReset();
-
-    // Setup default mock return values
-    createHmacMock.mockReturnValue({
-      update: mock(() => ({
-        digest: mock(() => 'test-signature-hash')
-      }))
-    });
+    deactivateWebhookMock.mockResolvedValue(true);
   });
 
   afterEach(() => {
-    // Restore globals
-    global.fetch = originalFetch;
-    global.AbortController = originalAbortController;
-    global.setTimeout = originalSetTimeout;
-    global.clearTimeout = originalClearTimeout;
+    globalThis.fetch = originalFetch;
   });
 
-  describe('triggerTransactionCreated', () => {
-    it('should trigger webhooks for transaction created event', async () => {
-      // Use mock factory
-      const mockWebhooks = createMockWebhookArray([
-        { id: 'webhook-1', url: 'https://example.com/webhook1', secret: 'secret1' },
-        { id: 'webhook-2', url: 'https://example.com/webhook2', secret: 'secret2' }
+  describe("triggerTransactionCreated", () => {
+    it("delivers the signed payload to every matching webhook", async () => {
+      findWebhooksForEventMock.mockResolvedValue([
+        fakeWebhook({ id: "webhook-1", url: "https://example.com/hook1" }),
+        fakeWebhook({ id: "webhook-2", url: "https://example.com/hook2" })
       ]);
+      stubFetch(async () => new Response(null, { status: 200 }));
 
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue(createMockResponse());
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
 
-      // Execute
-      await webhookDeliveryService.triggerTransactionCreated(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        RampDirection.BUY
-      );
-
-      // Verify
-      expect(findWebhooksForEventMock).toHaveBeenCalledWith(
-        WebhookEventType.TRANSACTION_CREATED,
-        'tx-123',
-        'session-456'
-      );
-
+      expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.TRANSACTION_CREATED, "quote-123", "session-456");
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchMock.mock.calls[0][0]).toBe('https://example.com/webhook1');
-      expect(fetchMock.mock.calls[1][0]).toBe('https://example.com/webhook2');
+      expect(fetchCall(0).url).toBe("https://example.com/hook1");
+      expect(fetchCall(1).url).toBe("https://example.com/hook2");
 
-      // Check payload structure
-      const firstCallPayload = JSON.parse(fetchMock.mock.calls[0][1]!.body as string);
-      expect(firstCallPayload).toEqual({
+      const payload = JSON.parse(fetchCall(0).body);
+      expect(payload).toEqual({
         eventType: WebhookEventType.TRANSACTION_CREATED,
-        timestamp: expect.any(String),
         payload: {
-          sessionId: 'session-456',
-          transactionId: 'tx-123',
-          transactionStatus: 'PENDING',
+          quoteId: "quote-123",
+          sessionId: "session-456",
+          transactionId: "tx-789",
+          transactionStatus: TransactionStatus.PENDING,
           transactionType: RampDirection.BUY
-        }
+        },
+        timestamp: expect.any(String)
       });
+      expect(Number.isNaN(Date.parse(payload.timestamp))).toBe(false);
+      // Both webhooks receive the identical payload
+      expect(fetchCall(1).body).toBe(fetchCall(0).body);
     });
 
-    it('should do nothing when no webhooks are found', async () => {
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue([]);
+    it("does nothing when no webhooks match", async () => {
+      stubFetch(async () => new Response(null, { status: 200 }));
 
-      // Execute
-      await webhookDeliveryService.triggerTransactionCreated(
-        'tx-123',
-        'session-456',
-      'tx-id',
-        RampDirection.BUY
-      );
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
 
-      // Verify
-      expect(findWebhooksForEventMock).toHaveBeenCalledWith(
-        WebhookEventType.TRANSACTION_CREATED,
-        'tx-123',
-        'session-456'
-      );
+      expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.TRANSACTION_CREATED, "quote-123", "session-456");
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('should handle webhook delivery failures', async () => {
-      // Use mock factory
-      const mockWebhooks = createMockWebhookArray([
-        { id: 'webhook-1', url: 'https://example.com/webhook1', secret: 'secret1' }
-      ]);
+    it("resolves without throwing when the webhook lookup fails", async () => {
+      findWebhooksForEventMock.mockRejectedValue(new Error("db down"));
+      stubFetch(async () => new Response(null, { status: 200 }));
 
-      // Setup mocks - webhook delivery fails
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue(createMockResponse({ ok: false, status: 500 }));
-
-      // Execute
-      await webhookDeliveryService.triggerTransactionCreated(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        RampDirection.BUY
-      );
-
-      // Verify that fetch was called multiple times (retries)
-      expect(fetchMock).toHaveBeenCalled();
-      // Should eventually deactivate webhook after max retries
-      expect(deactivateWebhookMock).toHaveBeenCalledWith('webhook-1');
-    });
-  });
-
-  describe('triggerStatusChange', () => {
-    it('should trigger webhooks for status change event with complete status', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'secret1'
-        }
-      ];
-
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200
-      } as Response);
-
-      // Execute
-      await webhookDeliveryService.triggerStatusChange(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        'complete',
-        RampDirection.SELL
-      );
-
-      // Verify
-      expect(findWebhooksForEventMock).toHaveBeenCalledWith(
-        WebhookEventType.STATUS_CHANGE,
-        'tx-123',
-        'session-456'
-      );
-
-      expect(fetchMock).toHaveBeenCalled();
-
-      // Check payload contains correct status mapping
-      const fetchCall = fetchMock.mock.calls[0];
-      const payload = JSON.parse(fetchCall[1]!.body as string);
-      expect(payload.eventType).toBe(WebhookEventType.STATUS_CHANGE);
-      expect(payload.payload.transactionStatus).toBe('COMPLETE');
-      expect(payload.payload.transactionType).toBe(RampDirection.SELL);
-      expect(payload.payload.transactionId).toBe('tx-123');
-      expect(payload.payload.sessionId).toBe('session-456');
-    });
-
-    it('should trigger webhooks for status change event with failed status', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'secret1'
-        }
-      ];
-
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200
-      } as Response);
-
-      // Execute
-      await webhookDeliveryService.triggerStatusChange(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        'failed',
-        RampDirection.BUY
-      );
-
-      // Verify
-      const fetchCall = fetchMock.mock.calls[0];
-      const payload = JSON.parse(fetchCall[1]!.body as string);
-      expect(payload.payload.transactionStatus).toBe('FAILED');
-    });
-
-    it('should trigger webhooks for status change event with timedOut status', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'secret1'
-        }
-      ];
-
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200
-      } as Response);
-
-      // Execute
-      await webhookDeliveryService.triggerStatusChange(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        'timedOut',
-        RampDirection.BUY
-      );
-
-      // Verify
-      const fetchCall = fetchMock.mock.calls[0];
-      const payload = JSON.parse(fetchCall[1]!.body as string);
-      expect(payload.payload.transactionStatus).toBe('FAILED');
-    });
-
-    it('should trigger webhooks for status change event with pending status', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'secret1'
-        }
-      ];
-
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200
-      } as Response);
-
-      // Execute
-      await webhookDeliveryService.triggerStatusChange(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        'someOtherPhase',
-        RampDirection.BUY
-      );
-
-      // Verify
-      const fetchCall = fetchMock.mock.calls[0];
-      const payload = JSON.parse(fetchCall[1]!.body as string);
-      expect(payload.payload.transactionStatus).toBe('PENDING');
-    });
-
-    it('should do nothing when no webhooks are found', async () => {
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue([]);
-
-      // Execute
-      await webhookDeliveryService.triggerStatusChange(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        'complete',
-        RampDirection.SELL
-      );
-
-      // Verify
-      expect(findWebhooksForEventMock).toHaveBeenCalledWith(
-        WebhookEventType.STATUS_CHANGE,
-        'tx-123',
-        'session-456'
-      );
+      await expect(
+        service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY)
+      ).resolves.toBeUndefined();
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
-  describe('webhook delivery', () => {
-    it('should include correct headers in webhook requests', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'webhook-secret'
-        }
-      ];
+  describe("retry and deactivation", () => {
+    it("retries up to maxRetries on HTTP failures, then deactivates the webhook", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      stubFetch(async () => new Response(null, { status: 500 }));
 
-      // Setup mocks
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockResolvedValue({
-        ok: true,
-        status: 200
-      } as Response);
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
 
-      // Execute
-      await webhookDeliveryService.triggerTransactionCreated(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        RampDirection.BUY
-      );
-
-      // Verify headers
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://example.com/webhook1',
-        expect.objectContaining({
-          method: 'POST',
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            'User-Agent': 'Vortex-Webhooks/1.0',
-            'X-Vortex-Signature': expect.stringMatching(/^sha256=/),
-            'X-Vortex-Timestamp': expect.any(String)
-          }),
-          body: expect.any(String),
-          signal: expect.any(Object)
-        })
-      );
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(deactivateWebhookMock).toHaveBeenCalledWith("webhook-1");
     });
 
-    it('should handle network errors gracefully', async () => {
-      // Mock data
-      const mockWebhooks = [
-        {
-          id: 'webhook-1',
-          url: 'https://example.com/webhook1',
-          secret: 'secret1'
-        }
+    it("stops retrying once a delivery succeeds", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      let attempts = 0;
+      stubFetch(async () => {
+        attempts++;
+        return new Response(null, { status: attempts < 3 ? 502 : 200 });
+      });
+
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
+
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(deactivateWebhookMock).not.toHaveBeenCalled();
+    });
+
+    it("treats network errors like failures and deactivates after maxRetries without throwing", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      stubFetch(async () => {
+        throw new Error("connection refused");
+      });
+
+      await expect(
+        service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY)
+      ).resolves.toBeUndefined();
+
+      expect(fetchMock).toHaveBeenCalledTimes(5);
+      expect(deactivateWebhookMock).toHaveBeenCalledWith("webhook-1");
+    });
+  });
+
+  describe("triggerStatusChange", () => {
+    it("maps ramp phases to transaction statuses in the payload", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      stubFetch(async () => new Response(null, { status: 200 }));
+
+      const cases: [string, TransactionStatus][] = [
+        ["complete", TransactionStatus.COMPLETE],
+        ["failed", TransactionStatus.FAILED],
+        ["timedOut", TransactionStatus.FAILED],
+        ["pendulumCleanup", TransactionStatus.PENDING]
       ];
 
-      // Setup mocks - network error
-      findWebhooksForEventMock.mockResolvedValue(mockWebhooks);
-      fetchMock.mockRejectedValue(new Error('Network error'));
+      for (const [index, [phase, expectedStatus]] of cases.entries()) {
+        await service.triggerStatusChange("quote-123", "session-456", "tx-789", phase, RampDirection.SELL);
 
-      // Execute - should not throw
-      await expect(webhookDeliveryService.triggerTransactionCreated(
-        'tx-123',
-        'session-456',
-        'tx-id',
-        RampDirection.BUY
-      )).resolves.toBeUndefined();
+        const payload = JSON.parse(fetchCall(index).body);
+        expect(payload.eventType).toBe(WebhookEventType.STATUS_CHANGE);
+        expect(payload.payload).toEqual({
+          quoteId: "quote-123",
+          sessionId: "session-456",
+          transactionId: "tx-789",
+          transactionStatus: expectedStatus,
+          transactionType: RampDirection.SELL
+        });
+      }
 
-      // Should eventually deactivate webhook after max retries
-      expect(deactivateWebhookMock).toHaveBeenCalledWith('webhook-1');
+      expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.STATUS_CHANGE, "quote-123", "session-456");
+      expect(fetchMock).toHaveBeenCalledTimes(cases.length);
+    });
+
+    it("does nothing when no webhooks match", async () => {
+      stubFetch(async () => new Response(null, { status: 200 }));
+
+      await service.triggerStatusChange("quote-123", "session-456", "tx-789", "complete", RampDirection.SELL);
+
+      expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.STATUS_CHANGE, "quote-123", "session-456");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("request format", () => {
+    it("sends a POST with JSON headers, a unix timestamp, and a verifiable RSA-PSS signature", async () => {
+      findWebhooksForEventMock.mockResolvedValue([fakeWebhook()]);
+      stubFetch(async () => new Response(null, { status: 200 }));
+
+      await service.triggerTransactionCreated("quote-123", "session-456", "tx-789", RampDirection.BUY);
+
+      const { body, headers, init } = fetchCall(0);
+      expect(init.method).toBe("POST");
+      expect(headers["Content-Type"]).toBe("application/json");
+      expect(headers["User-Agent"]).toBe("Vortex-Webhooks/1.0");
+
+      // Freshness timestamp: unix seconds, close to now
+      expect(headers["X-Vortex-Timestamp"]).toMatch(/^\d+$/);
+      expect(Math.abs(Number(headers["X-Vortex-Timestamp"]) - Date.now() / 1000)).toBeLessThan(60);
+
+      // Raw base64 RSA-PSS signature over the exact body — no "sha256=" prefix
+      // (that belonged to the removed HMAC scheme)
+      const signature = headers["X-Vortex-Signature"];
+      expect(signature.startsWith("sha256=")).toBe(false);
+      expect(cryptoService.verifySignature(body, signature)).toBe(true);
+      expect(cryptoService.verifySignature(`${body} `, signature)).toBe(false);
     });
   });
 });
