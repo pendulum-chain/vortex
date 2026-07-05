@@ -33,9 +33,33 @@ export function installFakeWorld(): FakeWorld {
 
   // Substrate/Pendulum flows are not faked yet; fail loudly if a code path
   // unexpectedly needs them so the gap is explicit rather than a hang.
-  // Exception: getApi succeeds and returns an inert node, because handlers like
+  // Exceptions: getApi succeeds and returns an inert node, because handlers like
   // fundEphemeral resolve the Pendulum API unconditionally even on corridors
-  // that never touch Substrate — only actual USE of the node should fail.
+  // that never touch Substrate — only actual USE of the node should fail. The
+  // one supported use is `api.query.system.account`, which the registration
+  // freshness check reads for Substrate ephemerals (SDK clients always send
+  // one): every account is reported fresh (nonce 0, zero balance).
+  const substrateNodeUnfaked = (member: string) =>
+    new Error(
+      `FakeWorld: Substrate node .${member} was used but Substrate chains are not faked yet — ` +
+        "extend src/test-utils/fake-world if this flow must be covered hermetically."
+    );
+  const freshSubstrateApi = new Proxy(
+    {
+      query: { system: { account: async () => ({ data: { free: "0" }, nonce: { toNumber: () => 0 } }) } }
+    },
+    {
+      get: (obj, prop) => {
+        if (prop in obj) {
+          return obj[prop as keyof typeof obj];
+        }
+        if (prop === "then") {
+          return undefined;
+        }
+        throw substrateNodeUnfaked(`api.${String(prop)}`);
+      }
+    }
+  );
   const originalGetApiManager = ApiManager.getInstance;
   ApiManager.getInstance = () =>
     new Proxy(
@@ -48,16 +72,16 @@ export function installFakeWorld(): FakeWorld {
           if (prop === "getApi") {
             return async () =>
               new Proxy(
-                {},
+                { api: freshSubstrateApi },
                 {
-                  get: (_node, nodeProp) => {
+                  get: (node, nodeProp) => {
+                    if (nodeProp in node) {
+                      return node[nodeProp as keyof typeof node];
+                    }
                     if (nodeProp === "then") {
                       return undefined;
                     }
-                    throw new Error(
-                      `FakeWorld: Substrate node .${String(nodeProp)} was used but Substrate chains are not faked yet — ` +
-                        "extend src/test-utils/fake-world if this flow must be covered hermetically."
-                    );
+                    throw substrateNodeUnfaked(String(nodeProp));
                   }
                 }
               );
