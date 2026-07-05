@@ -161,7 +161,9 @@ mock.module("../brla/helpers", () => {
   };
 });
 
-describe("Onramp PhaseProcessor Integration Test", () => {
+// Live test: drives real chain/anchor interactions and needs TAX_ID plus funded accounts.
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration Test", () => {
   it("should process an onramp (pix -> evm) through multiple phases until completion", async () => {
     try {
       const _processor = new PhaseProcessor();

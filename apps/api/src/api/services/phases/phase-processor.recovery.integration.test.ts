@@ -81,7 +81,9 @@ RampState.create = mock(async (data: RampStateCreationAttributes) => {
   return rampState;
 }) as typeof RampState.create;
 
-describe("Restart PhaseProcessor Integration Test", () => {
+// Live test: replays a persisted failed ramp state against real services.
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)("Restart PhaseProcessor Integration Test", () => {
   it("should re-start an offramp (evm -> sepa) through multiple phases until completion", async () => {
     try {
       const processor = new PhaseProcessor();

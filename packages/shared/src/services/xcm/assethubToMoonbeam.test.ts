@@ -2,7 +2,8 @@ import {test} from "bun:test";
 import {dryRunExtrinsic,} from "../../index";
 import {createAssethubToMoonbeamTransferWithSwapOnHydration} from "./assethubToMoonbeam";
 
-test("dry-run assethub to moonbeam with swap on hydration", async () => {
+// Hits live AssetHub/Hydration RPCs; opt-in only (see docs/testing-strategy.md).
+test.skipIf(!process.env.RUN_LIVE_TESTS)("dry-run assethub to moonbeam with swap on hydration", async () => {
   // Hardcoded values for testing purposes
   const rawAmount = "1000000";
   const assetAccountKey = "0xFFfffffF7D2B0B761Af01Ca8e25242976ac0aD7D"; // xcUSDC
