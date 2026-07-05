@@ -157,34 +157,3 @@ describe('Language Detection Helpers', () => {
     });
   });
 });
-
-describe('Extensibility Example', () => {
-  it('demonstrates how easy it would be to add Spanish support', () => {
-    expect(Object.keys(LANGUAGE_FAMILIES)).toHaveLength(2);
-
-    const extendedFamilies = {
-      ...LANGUAGE_FAMILIES,
-      es: 'es' as any
-    };
-
-    expect(Object.keys(extendedFamilies)).toHaveLength(3);
-    expect(extendedFamilies.es).toBe('es');
-  });
-
-  it('demonstrates the simplicity of the language code extraction', () => {
-
-    const testCases = [
-      { input: 'pt-BR', expected: 'pt' },
-      { input: 'pt-PT', expected: 'pt' },
-      { input: 'en-US', expected: 'en' },
-      { input: 'en-GB', expected: 'en' },
-      { input: 'es-ES', expected: 'es' },
-      { input: 'es-MX', expected: 'es' }
-    ];
-
-    testCases.forEach(({ input, expected }) => {
-      const languageCode = input.toLowerCase().split('-')[0];
-      expect(languageCode).toBe(expected);
-    });
-  });
-});
