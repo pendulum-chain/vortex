@@ -116,7 +116,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
    */
   async function setUpRegisteredRamp(options: { recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
-    const destination = privateKeyToAccount(generatePrivateKey()).address;
+    const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
@@ -260,7 +260,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   it(
     "security regression: presigned transfer paying the wrong recipient fails the ramp unrecoverably",
     async () => {
-      const wrongRecipient = privateKeyToAccount(generatePrivateKey()).address;
+      const wrongRecipient = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
       const setup = await setUpRegisteredRamp({ recipient: wrongRecipient });
       scriptHappyWorld(setup);
 
