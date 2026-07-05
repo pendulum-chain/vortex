@@ -43,6 +43,7 @@ export class FakeEvm {
   private nonces = new Map<string, number>();
   private txCounter = 0;
   readonly sentTransactions: RecordedEvmTx[] = [];
+  private readonly transactionsByHash = new Map<string, RecordedEvmTx>();
 
   /** Called for every recorded transaction; use it to apply balance effects. */
   onTransaction?: (tx: RecordedEvmTx) => void;
@@ -75,6 +76,15 @@ export class FakeEvm {
     return this.balances.get(this.key(network, "native", holder)) ?? 0n;
   }
 
+  /**
+   * Records a transaction as if a user wallet had broadcast it (outside the
+   * EvmClientManager seam) and returns its hash — for corridors where the
+   * backend verifies an integrator-reported hash against a blueprint.
+   */
+  broadcastUserTransaction(network: string, from: string, tx: { to: string; data?: string; value?: bigint }): `0x${string}` {
+    return this.recordTransaction({ data: tx.data, from, network, to: tx.to, value: tx.value });
+  }
+
   private nextHash(): `0x${string}` {
     this.txCounter += 1;
     return `0x${this.txCounter.toString(16).padStart(64, "0")}` as `0x${string}`;
@@ -87,6 +97,7 @@ export class FakeEvm {
     }
     const recorded = { ...tx, hash: this.nextHash() };
     this.sentTransactions.push(recorded);
+    this.transactionsByHash.set(recorded.hash, recorded);
     this.onTransaction?.(recorded);
     return recorded.hash;
   }
@@ -129,12 +140,20 @@ export class FakeEvm {
 
   getClient(networkName: EvmNetworks): unknown {
     const network = networkName as string;
-    const receipt = (hash: `0x${string}`) => ({
-      blockNumber: 1n,
-      logs: [],
-      status: "success" as const,
-      transactionHash: hash
-    });
+    // Receipts for recorded transactions carry from/to so verification code
+    // (e.g. user-tx-verifier) can cross-check them; unknown hashes still
+    // confirm generically for recovery paths that probe stored hashes.
+    const receipt = (hash: `0x${string}`) => {
+      const recorded = this.transactionsByHash.get(hash);
+      return {
+        blockNumber: 1n,
+        from: recorded?.from,
+        logs: [],
+        status: "success" as const,
+        to: recorded?.to,
+        transactionHash: hash
+      };
+    };
     return this.makeUnimplementedProxy(
       {
         chain: { id: CHAIN_IDS[network] ?? 0, name: network, nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" } },
@@ -142,6 +161,19 @@ export class FakeEvm {
         estimateGas: async () => 21_000n,
         getBalance: async ({ address }: { address: string }) => this.nativeBalance(network, address),
         getGasPrice: async () => 1_000_000_000n,
+        getTransaction: async ({ hash }: { hash: `0x${string}` }) => {
+          const recorded = this.transactionsByHash.get(hash);
+          if (!recorded) {
+            throw new Error(`FakeEvm: getTransaction called with unknown hash ${hash}`);
+          }
+          return {
+            from: recorded.from,
+            hash,
+            input: recorded.data ?? "0x",
+            to: recorded.to,
+            value: recorded.value ?? 0n
+          };
+        },
         getTransactionCount: async ({ address }: { address: string }) => this.nonces.get(`${network}:${address}`) ?? 0,
         getTransactionReceipt: async ({ hash }: { hash: `0x${string}` }) => receipt(hash),
         readContract: async (params: ReadContractParams) => this.readContract(network, params),
