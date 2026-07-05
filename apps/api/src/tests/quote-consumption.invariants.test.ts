@@ -119,6 +119,26 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(ramps.length).toBe(1);
   });
 
+  // Pins the atomic-UPDATE backstop directly: even if the registration flow's
+  // row-locked pre-check were removed, consumeQuote must refuse a non-pending
+  // quote at the database level (WHERE status = 'pending').
+  it("consumeQuote reports zero affected rows for an already-consumed quote", async () => {
+    const { BaseRampService } = await import("../api/services/ramp/base.service");
+    class ConsumeQuoteProbe extends BaseRampService {
+      public consume(id: string) {
+        return this.consumeQuote(id);
+      }
+    }
+    const probe = new ConsumeQuoteProbe();
+    const quote = await createQuoteViaApi();
+
+    const [firstAffected] = await probe.consume(quote.id);
+    expect(firstAffected).toBe(1);
+
+    const [secondAffected] = await probe.consume(quote.id);
+    expect(secondAffected).toBe(0);
+  });
+
   it("rejects a second registration after the quote is consumed", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
