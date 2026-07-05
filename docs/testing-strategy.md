@@ -34,8 +34,12 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
 - Subsidy caps are enforced (pre-swap, post-swap, `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`) — a breach
   throws instead of paying out (finding F-001).
 - Ownership guards: a partner only sees its own quotes/ramps; a user only their own (F-068 class).
-- Phase processor: max-retry exhaustion transitions to `failed` (F-004), locks are released on
-  terminal states, only `currentPhase`/`phaseHistory` are updated by the processor.
+- Phase processor: retries are bounded (`MAX_RETRIES`); after exhaustion of a recoverable error
+  the processor stops without a terminal transition, releasing the lock and leaving the ramp
+  resumable (the missing `failed` transition is documented as open finding F-004 in
+  `docs/security-spec/03-ramp-engine/state-machine.md`). Unrecoverable errors transition to
+  `failed`. Locks are released on terminal states; only `currentPhase`/`phaseHistory` are
+  updated by the processor.
 - Presigned transaction and ephemeral address validation (F-021, F-038 class).
 - External swap/route outputs are validated against expectations before funds move (F-030).
 
@@ -91,6 +95,15 @@ gate on offramps) run against the real frontend in Chromium, hermetically:
 They run nightly via `.github/workflows/e2e.yml` (never PR-blocking) and locally with
 `bun test:e2e`.
 
+### EUR re-enablement precondition
+
+EUR ramps are kill-switched at registration (`ramp.service.ts`). The Mykobo (EUR) corridors
+currently have **no hermetic coverage** — only `RUN_LIVE_TESTS`-gated sandbox tests. Lifting
+the kill-switch is gated on adding a hermetic EUR corridor scenario in
+`apps/api/src/tests/corridors/` first (the FakeMykobo anchor in `test-utils/fake-world/`
+already covers intents/fees; the scenario harness is the same one the BRL and MXN corridors
+use).
+
 ### Live tests
 
 Tests that hit real RPCs or sandboxes (e.g. XCM dry-runs in `packages/shared`) are gated behind
@@ -103,10 +116,12 @@ never PR-blocking.
   workspace. Postgres is provided as a GitHub Actions service container.
 - **Non-blocking / nightly**: Playwright E2E journeys and any live smoke tests. Failures alert;
   they don't block merges.
-- The api suite carries a coverage ratchet: CI runs `bun run test:coverage` (in `apps/api`),
-  which produces an LCOV report and enforces the aggregate line/function floors in
-  `apps/api/scripts/check-coverage.ts`. Raise the floors when you add tested code; never lower
-  them to make CI pass. The other workspaces have no gate yet.
+- Every workspace suite carries a coverage ratchet, enforced by `bun run test:coverage` in CI:
+  the bun workspaces (shared, rebalancer, api) produce an LCOV report checked against per-package
+  floors by `scripts/check-coverage.ts` (floors live in each `package.json` script); the frontend
+  uses vitest's built-in thresholds (`apps/frontend/vitest.config.ts`). Floors sit just under the
+  coverage measured when they were last raised — raise them when you add tested code; never lower
+  them to make CI pass.
 
 ## How to extend
 
