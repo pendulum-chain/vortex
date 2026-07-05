@@ -137,7 +137,7 @@ export class FakeEvm {
     });
     return this.makeUnimplementedProxy(
       {
-        chain: { id: CHAIN_IDS[network] ?? 0, name: network },
+        chain: { id: CHAIN_IDS[network] ?? 0, name: network, nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" } },
         estimateFeesPerGas: async () => ({ maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n }),
         estimateGas: async () => 21_000n,
         getBalance: async ({ address }: { address: string }) => this.nativeBalance(network, address),

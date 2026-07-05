@@ -1,5 +1,6 @@
 import {
   AlfredpayApiService,
+  AveniaTicketStatus,
   BrlaApiService,
   MykoboApiService,
   type MykoboCreateIntentRequest,
@@ -103,6 +104,12 @@ export class FakeBrla {
   payOutRate = 1;
   subaccountId = "test-subaccount-id";
   subaccountEvmWallet = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
+  /** Internal Avenia subaccount balances served by getAccountBalance; script per test. */
+  accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
+  /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
+  payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Called after createPixOutputTicket succeeds; use it to apply the on-chain mint effect. */
+  onPixOutputTicket?: (ticket: { id: string; walletAddress?: string }) => void;
   readonly pixInputTickets: Array<{ id: string; brCode: string }> = [];
   readonly pixOutputTickets: Array<{ id: string }> = [];
   private counter = 0;
@@ -135,11 +142,14 @@ export class FakeBrla {
       this.pixInputTickets.push(ticket);
       return ticket;
     },
-    createPixOutputTicket: async () => {
+    createPixOutputTicket: async (payload?: { ticketBlockchainOutput?: { walletAddress?: string } }) => {
       const ticket = { id: `pix-out-${++this.counter}` };
       this.pixOutputTickets.push(ticket);
+      this.onPixOutputTicket?.({ id: ticket.id, walletAddress: payload?.ticketBlockchainOutput?.walletAddress });
       return ticket;
     },
+    getAccountBalance: async () => ({ balances: { ...this.accountBalances } }),
+    getAveniaPayinTickets: async () => this.pixInputTickets.map(ticket => ({ id: ticket.id, status: this.payinTicketStatus })),
     getSubaccountUsedLimit: async () => ({
       limitInfo: {
         blocked: false,

@@ -33,6 +33,9 @@ export function installFakeWorld(): FakeWorld {
 
   // Substrate/Pendulum flows are not faked yet; fail loudly if a code path
   // unexpectedly needs them so the gap is explicit rather than a hang.
+  // Exception: getApi succeeds and returns an inert node, because handlers like
+  // fundEphemeral resolve the Pendulum API unconditionally even on corridors
+  // that never touch Substrate — only actual USE of the node should fail.
   const originalGetApiManager = ApiManager.getInstance;
   ApiManager.getInstance = () =>
     new Proxy(
@@ -41,6 +44,23 @@ export function installFakeWorld(): FakeWorld {
         get: (_obj, prop) => {
           if (prop === "then") {
             return undefined;
+          }
+          if (prop === "getApi") {
+            return async () =>
+              new Proxy(
+                {},
+                {
+                  get: (_node, nodeProp) => {
+                    if (nodeProp === "then") {
+                      return undefined;
+                    }
+                    throw new Error(
+                      `FakeWorld: Substrate node .${String(nodeProp)} was used but Substrate chains are not faked yet — ` +
+                        "extend src/test-utils/fake-world if this flow must be covered hermetically."
+                    );
+                  }
+                }
+              );
           }
           throw new Error(
             `FakeWorld: ApiManager.${String(prop)} was called but Substrate chains are not faked yet — ` +
