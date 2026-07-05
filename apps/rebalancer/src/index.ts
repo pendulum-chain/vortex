@@ -281,6 +281,14 @@ function toUsdcRaw(amountUsdc: string): string {
   return multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
 }
 
+// Squidrouter's per-address rate limit is tight enough that two route quotes fired back-to-back
+// (standard then profitable amount) can trigger "Too many quote requests for this address".
+const SQUIDROUTER_QUOTE_STAGGER_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promise<{
   amountUsdcRaw: string;
   policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
@@ -309,6 +317,7 @@ async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promi
       `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
   );
 
+  await sleep(SQUIDROUTER_QUOTE_STAGGER_MS);
   const profitablePolicyDecision = await evaluateUsdcToBrlaPolicy(profitableAmountRaw, coverageDeviationBps);
 
   const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
