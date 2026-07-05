@@ -1,7 +1,17 @@
 import {
   AlfredpayApiService,
+  type AlfredpayFee,
+  type AlfredpayFiatPaymentInstructions,
+  type AlfredpayOnrampQuote,
+  AlfredpayOnrampStatus,
+  type AlfredpayOnrampStatusMetadata,
+  type AlfredpayOnrampTransaction,
   AveniaTicketStatus,
   BrlaApiService,
+  type CreateAlfredpayOnrampQuoteRequest,
+  type CreateAlfredpayOnrampRequest,
+  type CreateAlfredpayOnrampResponse,
+  type GetAlfredpayOnrampTransactionResponse,
   MykoboApiService,
   type MykoboCreateIntentRequest,
   type MykoboCreateIntentResponse,
@@ -182,9 +192,101 @@ export class FakeBrla {
   }
 }
 
-/** Fake Alfredpay anchor; extend as Alfredpay corridors gain test coverage. */
+/**
+ * Fake Alfredpay anchor. Onramp quotes apply a flat, scriptable rate; orders
+ * and transaction polling run against in-memory state. The status served by
+ * getOnrampTransaction is scripted through `onrampStatus`; the on-chain mint
+ * effect belongs in the test via `onCreateOnramp` (mirroring FakeBrla's
+ * onPixOutputTicket). Extend as Alfredpay corridors gain test coverage.
+ */
 export class FakeAlfredpay {
-  private readonly impl = {};
+  /** toAmount = fromAmount * onrampRate for onramp quotes. */
+  onrampRate = 1;
+  /** Fees attached to every quote; the fee engine sums them per currency. */
+  quoteFees: AlfredpayFee[] = [];
+  /** Status reported for every order by getOnrampTransaction. */
+  onrampStatus: AlfredpayOnrampStatus = AlfredpayOnrampStatus.TRADE_COMPLETED;
+  onrampStatusMetadata: AlfredpayOnrampStatusMetadata | null = null;
+  /** Called after createOnramp succeeds; use it to apply the on-chain mint effect. */
+  onCreateOnramp?: (order: { transactionId: string; depositAddress: string }) => void;
+  readonly onrampOrders: CreateAlfredpayOnrampRequest[] = [];
+  readonly transactions = new Map<string, AlfredpayOnrampTransaction>();
+  private counter = 0;
+
+  private readonly fiatPaymentInstructions: AlfredpayFiatPaymentInstructions = {
+    clabe: "646180157000000004",
+    paymentType: "SPEI",
+    reference: "VORTEX-TEST"
+  };
+
+  private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): AlfredpayOnrampQuote {
+    const fromAmount = request.fromAmount ?? "0";
+    return {
+      chain: request.chain,
+      expiration: new Date(Date.now() + 5 * 60_000).toISOString(),
+      fees: [...this.quoteFees],
+      fromAmount,
+      fromCurrency: request.fromCurrency,
+      metadata: {},
+      paymentMethodType: request.paymentMethodType,
+      quoteId: `alfredpay-quote-${++this.counter}`,
+      rate: this.onrampRate.toString(),
+      toAmount: (Number(fromAmount) * this.onrampRate).toString(),
+      toCurrency: request.toCurrency
+    };
+  }
+
+  private readonly impl = {
+    createOnramp: async (request: CreateAlfredpayOnrampRequest): Promise<CreateAlfredpayOnrampResponse> => {
+      this.onrampOrders.push(request);
+      const transactionId = `alfredpay-onramp-${++this.counter}`;
+      const now = new Date().toISOString();
+      const transaction: AlfredpayOnrampTransaction = {
+        chain: request.chain,
+        createdAt: now,
+        customerId: request.customerId,
+        depositAddress: request.depositAddress,
+        email: "test@example.com",
+        externalId: `external-${transactionId}`,
+        fromAmount: request.amount,
+        fromCurrency: request.fromCurrency,
+        memo: "",
+        metadata: null,
+        paymentMethodType: request.paymentMethodType,
+        quote: this.onrampQuote({
+          fromAmount: request.amount,
+          fromCurrency: request.fromCurrency,
+          metadata: { businessId: "vortex", customerId: request.customerId },
+          paymentMethodType: request.paymentMethodType,
+          toCurrency: request.toCurrency
+        }),
+        quoteId: request.quoteId,
+        status: AlfredpayOnrampStatus.CREATED,
+        toAmount: (Number(request.amount) * this.onrampRate).toString(),
+        toCurrency: request.toCurrency,
+        transactionId,
+        txHash: null,
+        updatedAt: now
+      };
+      this.transactions.set(transactionId, transaction);
+      this.onCreateOnramp?.({ depositAddress: request.depositAddress, transactionId });
+      return { fiatPaymentInstructions: { ...this.fiatPaymentInstructions }, transaction };
+    },
+    createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> =>
+      this.onrampQuote(request),
+    getOnrampTransaction: async (transactionId: string): Promise<GetAlfredpayOnrampTransactionResponse> => {
+      const transaction = this.transactions.get(transactionId);
+      if (!transaction) {
+        throw new Error(`FakeAlfredpay: unknown onramp transaction ${transactionId}`);
+      }
+      return {
+        ...transaction,
+        fiatPaymentInstructions: { ...this.fiatPaymentInstructions },
+        metadata: this.onrampStatusMetadata,
+        status: this.onrampStatus
+      };
+    }
+  };
 
   asService(): AlfredpayApiService {
     return unimplementedProxy<AlfredpayApiService>(this.impl, "FakeAlfredpay");

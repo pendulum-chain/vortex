@@ -1,4 +1,7 @@
 import {
+  AlfredPayCountry,
+  AlfredPayStatus,
+  AlfredPayType,
   AveniaAccountType,
   type DestinationType,
   EPaymentMethod,
@@ -12,6 +15,7 @@ import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/api
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
+import AlfredPayCustomer from "../models/alfredPayCustomer.model";
 import ApiKey from "../models/apiKey.model";
 import Partner from "../models/partner.model";
 import QuoteTicket, { type QuoteTicketAttributes } from "../models/quoteTicket.model";
@@ -124,6 +128,23 @@ export async function seedVortexPartners(): Promise<void> {
   for (const rampType of [RampDirection.BUY, RampDirection.SELL]) {
     await createTestPartner({ displayName: "Vortex", name: "vortex", rampType });
   }
+}
+
+/** An Alfredpay-KYC'd customer linked to a user, as required by MXN/COP/USD/ARS ramp registration. */
+export async function createTestAlfredpayCustomer(
+  userId: string,
+  overrides: Partial<{ alfredPayId: string; country: AlfredPayCountry }> = {}
+): Promise<AlfredPayCustomer> {
+  const seq = nextSeq();
+  return AlfredPayCustomer.create({
+    alfredPayId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
+    country: overrides.country ?? AlfredPayCountry.MX,
+    lastFailureReasons: null,
+    status: AlfredPayStatus.Success,
+    statusExternal: null,
+    type: AlfredPayType.INDIVIDUAL,
+    userId
+  });
 }
 
 /** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
