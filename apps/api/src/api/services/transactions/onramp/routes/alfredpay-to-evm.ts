@@ -1,7 +1,5 @@
 import {
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
-  AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_USDC_POLYGON,
@@ -10,7 +8,6 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
-  FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -21,9 +18,9 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
-import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
@@ -83,32 +80,11 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
-  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
-    [FiatToken.USD]: AlfredPayCountry.US,
-    [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO,
-    [FiatToken.ARS]: AlfredPayCountry.AR
-  };
-  const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
-  if (!customerCountry) {
-    throw new Error(`Unsupported Alfredpay input currency: ${quote.inputCurrency}`);
-  }
-
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country: customerCountry, userId }
-  });
-
-  if (!customer) {
-    throw new Error(`Alfredpay customer not found for userId ${userId}`);
-  }
-
-  if (customer.status !== AlfredPayStatus.Success) {
-    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
-  }
+  const alfredPayId = await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
 
   // Setup state metadata
   stateMeta = {
-    alfredpayUserId: customer.alfredPayId,
+    alfredpayUserId: alfredPayId,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address
   };

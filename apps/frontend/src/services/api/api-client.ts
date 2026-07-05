@@ -132,14 +132,12 @@ async function apiFetch<T>(
     const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
     console.error("API Error:", errorData);
     const serverMessage = errorData.error ?? errorData.message ?? response.statusText;
-    // Prefix with method/status/normalized-path so Sentry groups by endpoint (one issue per
-    // endpoint, not per id) instead of one generic bucket.
-    throw new ApiError(
-      response.status,
-      errorData,
-      `${method.toUpperCase()} ${normalizePath(path)} (${response.status}): ${serverMessage}`,
-      getApiDomain(path)
-    );
+    // Keep the message clean for the user; the endpoint/status prefix lives on `name` so Sentry
+    // still groups by endpoint (one issue per endpoint, not per id — hence normalizePath) without
+    // leaking "POST /path (500):" into user-facing error text.
+    const error = new ApiError(response.status, errorData, serverMessage, getApiDomain(path));
+    error.name = `ApiError ${method.toUpperCase()} ${normalizePath(path)} (${response.status})`;
+    throw error;
   }
 
   if (response.status === 204) return undefined as T;

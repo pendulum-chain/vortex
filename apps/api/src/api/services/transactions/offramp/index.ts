@@ -36,7 +36,7 @@ export async function prepareOfframpTransactions(params: OfframpTransactionParam
     }
     return prepareEvmToMykoboOfframpTransactions(params);
   } else if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-    // Alfredpay offramp (USD, MXN, COP)
+    // Alfredpay offramp (USD, MXN, COP, ARS)
     return prepareEvmToAlfredpayOfframpTransactions(params);
   }
 

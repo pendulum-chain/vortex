@@ -1,6 +1,15 @@
-import { API, EvmClientManager, EvmNetworks, Networks as VortexNetworks } from "@vortexfi/shared";
+import {
+  API,
+  checkEvmBalancePeriodically,
+  checkEvmNativeBalancePeriodically,
+  EvmClientManager,
+  EvmNetworks,
+  Networks as VortexNetworks
+} from "@vortexfi/shared";
 import Big from "big.js";
+import { decodeFunctionData, erc20Abi, parseTransaction, recoverTransactionAddress, type TransactionSerialized } from "viem";
 import { base, polygon } from "viem/chains";
+import logger from "../../../../config/logger";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
@@ -88,4 +97,67 @@ export async function isDestinationEvmEphemeralFunded(
   const fundingAmountRaw = new Big(multiplyByPowerOfTen(fundingAmountUnits, chain.nativeCurrency.decimals).toFixed());
 
   return Big(balance.toString()).gte(fundingAmountRaw);
+}
+
+const PRESIGNED_TRANSFER_BALANCE_POLL_MS = 5000;
+const PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS = 3 * 60 * 1000;
+
+/**
+ * Guard for broadcasting a presigned single-use transfer: a revert still consumes the fixed
+ * nonce, after which the presigned payload can never be re-broadcast and the funds strand on
+ * the ephemeral. Decode sender, token and amount from the signed raw transaction and poll until
+ * the sender's balance covers the transfer, so a short-funded ephemeral surfaces as a phase
+ * error instead of a burned nonce. Decode failures are logged and skipped — this guard must
+ * never block a well-formed broadcast path.
+ *
+ * Rejects with a BalanceCheckError when the balance does not cover the transfer within the
+ * timeout (or the balance read fails); callers wrap that in a recoverable phase error.
+ */
+export async function ensurePresignedTransferFunded(rawTx: `0x${string}`, network: EvmNetworks, phase: string): Promise<void> {
+  let sender: `0x${string}`;
+  let tokenAddress: `0x${string}` | undefined;
+  let amountRaw: bigint;
+
+  try {
+    const decoded = parseTransaction(rawTx);
+    sender = (await recoverTransactionAddress({ serializedTransaction: rawTx as TransactionSerialized })) as `0x${string}`;
+
+    if (!decoded.data || decoded.data === "0x") {
+      amountRaw = decoded.value ?? 0n;
+    } else {
+      const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: decoded.data });
+      if (functionName !== "transfer" || !decoded.to) {
+        // Not a plain transfer; there is no single balance requirement to assert here.
+        return;
+      }
+      tokenAddress = decoded.to as `0x${string}`;
+      amountRaw = args[1];
+    }
+  } catch (error) {
+    logger.warn(`${phase}: could not decode presigned transfer for balance pre-check - ${(error as Error).message}`);
+    return;
+  }
+
+  if (amountRaw <= 0n) {
+    return;
+  }
+
+  if (tokenAddress) {
+    await checkEvmBalancePeriodically(
+      tokenAddress,
+      sender,
+      amountRaw.toString(),
+      PRESIGNED_TRANSFER_BALANCE_POLL_MS,
+      PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS,
+      network
+    );
+  } else {
+    await checkEvmNativeBalancePeriodically(
+      sender,
+      amountRaw.toString(),
+      PRESIGNED_TRANSFER_BALANCE_POLL_MS,
+      PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS,
+      network
+    );
+  }
 }

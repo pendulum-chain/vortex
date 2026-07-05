@@ -11,6 +11,7 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import {
   buildApiClientRequestMetadata,
   getSafeApiKeyPrefix,
@@ -44,6 +45,7 @@ export const createQuote = async (
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
     const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+    const effectiveUserId = getEffectiveUserId(req);
 
     // Create quote with public key and partner name for discount application
     const quote = await quoteService.createQuote({
@@ -57,7 +59,7 @@ export const createQuote = async (
       partnerName: publicKeyPartnerName,
       rampType,
       to,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeApiClientEvent({
@@ -73,7 +75,7 @@ export const createQuote = async (
       rampType,
       requestId: req.requestId,
       status: "success",
-      userId: req.userId || null
+      userId: effectiveUserId || null
     });
 
     res.status(httpStatus.CREATED).json(quote);
@@ -107,6 +109,7 @@ export const createBestQuote = async (
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
     const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+    const effectiveUserId = getEffectiveUserId(req);
 
     // Create best quote by querying all eligible networks
     const quote = await quoteService.createBestQuote({
@@ -121,7 +124,7 @@ export const createBestQuote = async (
       partnerName: publicKeyPartnerName,
       rampType,
       to,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeApiClientEvent({
@@ -137,7 +140,7 @@ export const createBestQuote = async (
       rampType,
       requestId: req.requestId,
       status: "success",
-      userId: req.userId || null
+      userId: effectiveUserId || null
     });
 
     res.status(httpStatus.CREATED).json(quote);

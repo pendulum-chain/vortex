@@ -60,7 +60,7 @@ describe("getAveniaUser", () => {
     subAccountId: "subaccount-1"
   };
 
-  it("returns 400 when taxId is missing", async () => {
+  it("returns 400 when no effective user is present (anonymous caller)", async () => {
     mockConfirmedAveniaUser();
 
     const res = createResponse();
@@ -72,15 +72,32 @@ describe("getAveniaUser", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
-    expect(res.body).toEqual({ error: "Missing taxId query parameters" });
+    expect(res.body).toEqual({ error: "Missing or invalid authentication." });
   });
 
-  it("allows partner API key lookups without quoteId", async () => {
+  it("rejects unlinked partner API key lookups (no effective user)", async () => {
     mockConfirmedAveniaUser();
 
     const res = createResponse();
     await getAveniaUser(
       {
+        authenticatedPartner: { id: "partner-1", name: "Partner" },
+        query: { taxId: "08786985906" }
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ error: "Missing or invalid authentication." });
+  });
+
+  it("allows user-linked API key lookups for the key user's own taxId", async () => {
+    mockConfirmedAveniaUser("user-1");
+
+    const res = createResponse();
+    await getAveniaUser(
+      {
+        apiKeyUserId: "user-1",
         authenticatedPartner: { id: "partner-1", name: "Partner" },
         query: { taxId: "08786985906" }
       } as any,
@@ -181,11 +198,13 @@ describe("createSubaccount", () => {
     expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
   });
 
-  it("rejects when an authenticated caller targets an anonymously-owned existing subaccount", async () => {
+  it("lets an authenticated caller claim an anonymously-owned existing subaccount record", async () => {
     mockBrlaApi();
     createAveniaSubaccountMock.mockClear();
+    const updateMock = mock(async () => undefined);
     TaxId.findByPk = mock(async () => ({
       internalStatus: TaxIdInternalStatus.Requested,
+      update: updateMock,
       userId: null
     })) as typeof TaxId.findByPk;
 
@@ -198,8 +217,9 @@ describe("createSubaccount", () => {
       res as any
     );
 
-    expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(updateMock).toHaveBeenCalledWith({ userId: "some-user" });
+    expect(createAveniaSubaccountMock).toHaveBeenCalled();
   });
 
   it("allows an authenticated user to (re)create their own subaccount", async () => {

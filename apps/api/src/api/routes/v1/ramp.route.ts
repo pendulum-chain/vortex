@@ -34,7 +34,7 @@ const router = Router();
 router.post(
   "/register",
   rejectDuringActiveMaintenance("ramp_register"),
-  optionalPartnerOrUserAuth(),
+  requirePartnerOrUserAuth(),
   rampController.registerRamp as unknown as RequestHandler
 );
 
