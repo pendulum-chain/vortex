@@ -44,3 +44,19 @@ jobs:
           name: playwright-report
           path: apps/frontend/playwright-report/
           retention-days: 7
+
+      # Non-blocking runs are only useful if somebody hears about failures.
+      # Uses the same webhook token the backend's Slack notifier uses
+      # (repo secret SLACK_WEB_HOOK_TOKEN); skips silently when unset.
+      - name: 📣 Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEB_HOOK_TOKEN: ${{ secrets.SLACK_WEB_HOOK_TOKEN }}
+        run: |
+          if [ -z "$SLACK_WEB_HOOK_TOKEN" ]; then
+            echo "SLACK_WEB_HOOK_TOKEN secret not configured; skipping notification."
+            exit 0
+          fi
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"Nightly Playwright e2e run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "https://hooks.slack.com/services/${SLACK_WEB_HOOK_TOKEN}"
