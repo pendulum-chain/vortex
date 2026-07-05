@@ -24,14 +24,67 @@ Fixed in this branch:
 - ✅ dualAuth.test.ts renamed to ownershipAuth.test.ts.
 - ✅ cleanup.worker.test.ts neutralizes the CronJob runOnInit cleanup cycle that fired real DB
   queries on construction.
+- ✅ webhook-delivery.service.test.ts rewritten against current production behavior (was
+  quarantined): real RSA-PSS signing via the cryptoService singleton with a verifySignature
+  round-trip, webhookService methods patched on the instance and restored in afterAll (no
+  mock.module), per-test fetch stubs with restore, real timers with 1ms backoff. Resolves the
+  cannot-fail (line 47), stale-or-dead (line 60), and both wrong-assertion (lines 157, 414)
+  findings below.
 
-Quarantined pending a rewrite (skip with pointer to this document):
-- ⏸ webhook-delivery.service.test.ts (entire suite): predates RSA-PSS signing, global setTimeout
-  mock hangs the runner, stale payload shapes.
-- ⏸ 6 EUR-onramp fixture cases in transactions/validation.test.ts: assert a removed flow.
+Fixed in the second remediation pass (2026-07-05):
+- ✅ The 6 quarantined EUR-onramp cases in transactions/validation.test.ts rebuilt on the live
+  Base BRL-onramp corridor (nablaApprove/squidRouterSwap/destinationTransfer on Networks.Base,
+  chainId 8453) and un-skipped; this also exercises the polymorphic nabla-on-Base=EVM mapping
+  that broke the old fixture. The cannot-fail "matches a signed EVM transaction..." test was
+  deleted (fully subsumed by the neighboring calldata-differences test).
+- ✅ clientIp.test.ts: uses a non-loopback request IP (no more real ipify call) and asserts the
+  exact normalized value.
+- ✅ priceFeed.service.test.ts: "without API key" test now controls the key on the instance and
+  asserts absence of the real header (x-cg-pro-api-key), plus a positive-presence companion;
+  exported-singleton caches cleared in beforeEach (order-independence); duplicate
+  "default values" config test deleted (its env deletion was inert).
+- ✅ brla-onramp-hold.test.ts: missing-ticket case asserts updateState was not called instead of
+  re-asserting the fixture's initial value.
+- ✅ squid-router-phase-handler.test.ts: Monerium fixture uses network=Base (BUY quote.network is
+  the destination by construction) and asserts the pre-settlement snapshot on (Base, USDC).
+- ✅ ramp.service.register-auth.test.ts: no-effective-user test pins the guard's message so a
+  later unrelated 400 can't satisfy it.
+- ✅ discount/helpers.test.ts: mislabeled "negative targetDiscount (rate floor)" block replaced
+  with genuine calculateExpectedOutput coverage (negative/positive discount, offramp inversion).
+- ✅ webhook.service.test.ts: not-found test pins status 404 + message; registration-error test
+  resolves the quote so the rejection genuinely comes from Webhook.create (pins 500); orphaned
+  randomBytes mock removed.
+- ✅ base.service.test.ts: sequelize/QuoteTicket singleton patches restored in afterAll.
+- ✅ vars.test.ts: FLOW_VARIANT added to the required production env; subprocesses run with
+  cwd=os.tmpdir() so the developer's .env can no longer backfill missing variables.
+- ✅ rebalancer config.test.ts: REBALANCING_DAILY_BRIDGE_LIMIT_USD added to the scrubbed env list.
+- ✅ phase-processor.onramp.integration.test.ts: registerRamp now passes a userId, ephemeral keys
+  renamed to EVM/Substrate (they were silently dropped before), updateRamp reordered before
+  startRamp, vestigial ../brla/helpers mock deleted.
+- ✅ phase-processor.recovery.integration.test.ts: loads the fixture from
+  failedRampStateRecovery.json with fail-fast validation, and polls currentPhase asserting
+  "complete" instead of an unconditional 50-minute sleep with zero expects.
+- ✅ xcm/assethubToMoonbeam: dry-run test now asserts the Result is Ok and local execution
+  succeeded; the inert assetAccountKey parameter was dropped from the production function
+  (the asset is hardcoded to USDT on AssetHub).
+- 🗑 xcm/moonbeamToAssethub.test.ts deleted: it targeted
+  createMoonbeamToAssethubTransferWithSwapOnHydration, whose own doc comment says the resulting
+  XCM cannot work on Moonbeam; the dead production function was left in place (flagged, not removed).
+- 🗑 frontend phaseFlows.test.ts deleted: it compared PHASE_FLOWS to a verbatim copy of itself
+  (typos are already caught at compile time by the `as RampPhase[]` casts; backend parity was
+  never actually checked).
+- 🗑 frontend translations/helpers.test.ts "Extensibility Example" block deleted: both tests
+  asserted properties of local objects they had just built; the real extraction path stays
+  covered by the getBrowserLanguage tests.
 
-Still open: the remaining findings below (mostly cannot-fail assertions and stale fixtures that
-don't affect other files). The full apps/api suite now passes as one process: 301 pass / 28 skip / 0 fail.
+Skipped with pointer (blocked on a product decision, not fixable in tests):
+- ⏸ The two Mykobo EUR registration contract tests (mykobo-eur-offramp/onramp
+  .integration.test.ts) are it.skip'd: registerRamp unconditionally rejects EURC quotes with
+  503 "EUR ramps are currently disabled" (commit be52569e4). Re-enable when EUR ramps return
+  or a test bypass for the guard exists.
+
+All findings below are now remediated. The full apps/api suite passes as one process:
+317 pass / 12 skip / 0 fail. The tracked frontend suite passes 88/88.
 
 
 ## HIGH
