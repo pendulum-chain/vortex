@@ -284,6 +284,83 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   );
 
   it(
+    "retry exhaustion: a permanently failing broadcast stops processing without moving funds, and stays resumable",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      world.evm.failNextSends = 100;
+      world.evm.sendFailureMessage = "FakeEvm: scripted permanent outage";
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      // Per docs/security-spec/03-ramp-engine/state-machine.md (F-004): after the
+      // recoverable-retry budget is exhausted the processor stops WITHOUT a
+      // terminal transition — the ramp stays in its phase, the lock is released,
+      // and nothing was broadcast.
+      const stuck = await RampState.findByPk(setup.rampId);
+      expect(stuck?.currentPhase).toBe("destinationTransfer");
+      expect(stuck?.processingLock).toEqual({ locked: false, lockedAt: null });
+      const outageLogs = stuck?.errorLogs.filter(log => log.error.includes("scripted permanent outage")) ?? [];
+      // 1 initial attempt + MAX_RETRIES (8) retries.
+      expect(outageLogs.length).toBe(9);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
+
+      // Once the outage clears, a fresh processing cycle completes the ramp.
+      world.evm.failNextSends = 0;
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "lock takeover: an expired stale lock (e.g. from a crashed process) is reclaimed and the ramp completes",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      await RampState.update(
+        { processingLock: { locked: true, lockedAt: new Date(Date.now() - 16 * 60 * 1000) } },
+        { where: { id: setup.rampId } }
+      );
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "lock respect: a fresh foreign lock is neither processed past nor clobbered",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      const foreignLockedAt = new Date();
+      await RampState.update(
+        { processingLock: { locked: true, lockedAt: foreignLockedAt } },
+        { where: { id: setup.rampId } }
+      );
+      const sentBefore = world.evm.sentTransactions.length;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("initial");
+      expect(final?.processingLock.locked).toBe(true);
+      expect(new Date(final?.processingLock.lockedAt as unknown as string).getTime()).toBe(foreignLockedAt.getTime());
+      expect(world.evm.sentTransactions.length).toBe(sentBefore);
+    },
+    30000
+  );
+
+  it(
     "lock behavior: concurrent processRamp calls execute each phase exactly once",
     async () => {
       const setup = await setUpRegisteredRamp();

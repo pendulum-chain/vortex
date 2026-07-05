@@ -55,8 +55,11 @@ export class PhaseProcessor {
       if (!lockAcquired) {
         if (this.isLockExpired(state)) {
           logger.info(`Lock for ramp ${rampId} has expired. Ignoring previous lock and continue processing...`);
-          // Force release the expired lock and try to acquire it again
+          // Force release the expired lock and try to acquire it again. releaseLock
+          // only updates the database row, so refresh the instance first — otherwise
+          // acquireLock re-reads the stale in-memory lock and the takeover never succeeds.
           await this.releaseLock(state);
+          await state.reload();
           lockAcquired = await this.acquireLock(state);
           if (!lockAcquired) {
             logger.warn(`Failed to acquire lock for ramp ${rampId} even after clearing expired lock`);
