@@ -67,6 +67,9 @@ describe("RampService.registerRamp user gating", () => {
 
   it("rejects registration with no effective user (e.g. unlinked partner key) with 400", async () => {
     stubQuote({ userId: null });
-    await expectRegisterError(undefined, httpStatus.BAD_REQUEST);
+    const error = await expectRegisterError(undefined, httpStatus.BAD_REQUEST);
+    // Pin the guard's own message: without it, registration still fails later with a
+    // different 400 (missing destinationAddress), which must not satisfy this test.
+    expect(error.message).toContain("requires an API key linked to a user");
   });
 });

@@ -206,7 +206,10 @@ describe("SquidRouterPhaseHandler", () => {
           outputAmountRaw: "1000"
         }
       },
-      network: Networks.Polygon,
+      // quote.network for a BUY ramp is by construction the destination network
+      // (quote.controller getNetworkFromDestination(to)); the pre-settlement snapshot
+      // must read the destination-chain balance, so this pins Base, not Polygon.
+      network: Networks.Base,
       outputCurrency: EvmToken.USDC,
       to: Networks.Base
     };
@@ -215,7 +218,7 @@ describe("SquidRouterPhaseHandler", () => {
     const updatedState = await handler.execute(makeState());
 
     expect(sendRawTransaction).toHaveBeenCalledTimes(2);
-    expect(getOnChainTokenDetails).toHaveBeenCalledWith(Networks.Polygon, EvmToken.USDC);
+    expect(getOnChainTokenDetails).toHaveBeenCalledWith(Networks.Base, EvmToken.USDC);
     expect(getEvmBalance).toHaveBeenCalledTimes(1);
     expect(sendRawTransaction.mock.calls[0][0]).toEqual({ serializedTransaction: APPROVE_TX });
     expect(sendRawTransaction.mock.calls[1][0]).toEqual({ serializedTransaction: SWAP_TX });

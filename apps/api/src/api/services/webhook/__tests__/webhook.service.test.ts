@@ -53,11 +53,7 @@ const findAllMock = mock(async (): Promise<any[]> => ([]));
 const destroyMock = mock(async (): Promise<any> => true);
 const updateMock = mock(async (): Promise<any> => ({}));
 
-// Mock RampState
 const quoteTicketFindByPkMock = mock(async (): Promise<any> => ({}));
-
-// Mock crypto
-const randomBytesMock = mock(() => Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'));
 
 // Mock modules
 mock.module('../../../../models/webhook.model', () => ({
@@ -95,8 +91,6 @@ describe('WebhookService', () => {
     destroyMock.mockReset();
     updateMock.mockReset();
     quoteTicketFindByPkMock.mockReset();
-
-    // Setup default crypto mock
   });
 
   describe('registerWebhook', () => {
@@ -201,14 +195,22 @@ describe('WebhookService', () => {
     });
 
     it('should handle registration errors', async () => {
-      // Setup mocks
+      // Setup mocks — the quote lookup must succeed so the rejection genuinely
+      // comes from Webhook.create, not from an earlier validation step.
+      quoteTicketFindByPkMock.mockResolvedValue({ id: 'quote-123' });
       createMock.mockRejectedValue(new Error('Database error'));
 
       // Execute and verify
-      await expect(webhookService.registerWebhook({
+      const error = await webhookService.registerWebhook({
         url: 'https://example.com/webhook',
         quoteId: 'quote-123'
-      })).rejects.toBeInstanceOf(APIError);
+      }).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(500);
+      expect(createMock).toHaveBeenCalled();
     });
 
     it('should reject non-HTTPS URLs', async () => {
@@ -255,11 +257,17 @@ describe('WebhookService', () => {
       // Setup mocks - quote not found
       quoteTicketFindByPkMock.mockResolvedValue(null);
 
-      // Execute and verify
-      await expect(webhookService.registerWebhook({
+      // Execute and verify — pin the 404 so a generic wrapped error can't satisfy this
+      const error = await webhookService.registerWebhook({
         url: 'https://example.com/webhook',
         quoteId: 'non-existent-quote'
-      })).rejects.toBeInstanceOf(APIError);
+      }).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(404);
+      expect((error as APIError).message).toContain('not found');
     });
   });
 

@@ -192,6 +192,11 @@ describe("PriceFeedService", () => {
     // Ensure singleton is reset *before* each test to pick up fresh env vars/mocks
     // @ts-expect-error - accessing private property for testing
     PriceFeedService.instance = undefined;
+
+    // The exported module-level singleton keeps its caches across tests; without
+    // clearing them, cache-hit/miss and fetch call-count assertions depend on test order.
+    (priceFeedService as any).cryptoPriceCache.clear();
+    (priceFeedService as any).fiatExchangeRateCache.clear();
   });
 
   afterEach(() => {
@@ -377,14 +382,29 @@ describe("PriceFeedService", () => {
       await expect(freshInstance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow("Network error");
     });
 
-    it("should work without API key", async () => {
-      // Remove API key
-      delete process.env.COINGECKO_API_KEY;
-
-      // Reset singleton to apply change
+    it("should attach the CoinGecko pro API key header when a key is configured", async () => {
       // @ts-expect-error - accessing private property for testing
       PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get new instance
+      const serviceInstance = PriceFeedService.getInstance();
+      // The constructor reads config/vars (snapshotted at import), so the key is
+      // controlled on the instance rather than via process.env.
+      Object.assign(serviceInstance, { coingeckoApiKey: "test-api-key" });
+
+      await serviceInstance.getCryptoPrice("bitcoin", "usd");
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.objectContaining({ "x-cg-pro-api-key": "test-api-key" })
+        })
+      );
+    });
+
+    it("should work without API key", async () => {
+      // @ts-expect-error - accessing private property for testing
+      PriceFeedService.instance = undefined;
+      const serviceInstance = PriceFeedService.getInstance();
+      Object.assign(serviceInstance, { coingeckoApiKey: undefined });
 
       await serviceInstance.getCryptoPrice("bitcoin", "usd");
 
@@ -392,7 +412,7 @@ describe("PriceFeedService", () => {
         expect.any(String),
         expect.objectContaining({
           headers: expect.not.objectContaining({
-            "x-cg-demo-api-key": expect.any(String) // Verify header is NOT present
+            "x-cg-pro-api-key": expect.any(String) // The header production actually sets
           })
         })
       );
@@ -570,29 +590,6 @@ describe("PriceFeedService", () => {
   });
 
   describe("Configuration", () => {
-    it("should use default values when environment variables are not set", () => {
-      // Remove environment variables that have defaults
-      delete process.env.COINGECKO_API_URL;
-      delete process.env.CRYPTO_CACHE_TTL_MS;
-      delete process.env.FIAT_CACHE_TTL_MS;
-      // API key might be undefined, which is handled
-
-      // Reset singleton to apply changes
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-
-      // Create new instance
-      const instance = PriceFeedService.getInstance();
-
-      // Access private properties for testing (consider adding public getters if preferred)
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe("https://pro-api.coingecko.com/api/v3");
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.cryptoCacheTtlMs).toBe(300000);
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.fiatCacheTtlMs).toBe(300000);
-    });
-
     it("should keep loaded configuration values when environment variables change after import", () => {
       // Set specific values after the config module has already been imported
       process.env.COINGECKO_API_URL = "https://custom-api.example.com";
