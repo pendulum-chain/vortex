@@ -285,7 +285,10 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR onramp contract test (r
     expect(Number(quoteTicket.metadata.mykoboMint?.outputAmountRaw)).toBeGreaterThan(0);
   });
 
-  it("registers a EUR->Base USDC onramp and prepares the Mykobo phase set (no squid, no broadcast)", async () => {
+  // SKIPPED: registerRamp unconditionally rejects EURC quotes with 503 "EUR ramps are
+  // currently disabled" (commit be52569e4), so this contract test cannot run even live.
+  // Re-enable when EUR ramps come back (or a test bypass for the guard exists).
+  it.skip("registers a EUR->Base USDC onramp and prepares the Mykobo phase set (no squid, no broadcast)", async () => {
     const rampService = new RampService();
     const quoteService = new QuoteService();
 

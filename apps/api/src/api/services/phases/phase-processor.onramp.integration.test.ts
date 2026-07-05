@@ -35,6 +35,7 @@ const EVM_DESTINATION_ADDRESS = "12mkWe8Lfsk4Qx6EEocvRDpzmA6SQQHBA4Fq3b9T9cyPr7T
 const TEST_INPUT_AMOUNT = "1";
 const TEST_INPUT_CURRENCY = FiatToken.BRL;
 const TEST_OUTPUT_CURRENCY = EvmToken.USDC;
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const QUOTE_FROM = EPaymentMethod.PIX;
 
@@ -80,17 +81,18 @@ export async function createMoonbeamEphemeralSeed() {
   return { address: ephemeralAccountKeypair.address, secret: seedPhrase };
 }
 
-const testSigningAccounts = {
-  moonbeam: await createMoonbeamEphemeralSeed(),
-  pendulum: await createSubstrateEphemeral()
+// Keys must be EphemeralAccountType values ('EVM'/'Substrate'):
+// normalizeAndValidateSigningAccounts silently drops entries with any other type.
+const testSigningAccounts: { [key in EphemeralAccountType]: EphemeralAccount } = {
+  [EphemeralAccountType.EVM]: await createMoonbeamEphemeralSeed(),
+  [EphemeralAccountType.Substrate]: await createSubstrateEphemeral()
 };
 
 // convert into AccountMeta
-const testSigningAccountsMeta: AccountMeta[] = Object.keys(testSigningAccounts).map(networkKey => {
-  const address = testSigningAccounts[networkKey as keyof typeof testSigningAccounts].address;
-  const network = networkKey as EphemeralAccountType;
-  return { address, type: network };
-});
+const testSigningAccountsMeta: AccountMeta[] = (Object.keys(testSigningAccounts) as EphemeralAccountType[]).map(type => ({
+  address: testSigningAccounts[type].address,
+  type
+}));
 
 console.log("Test Signing Accounts:", testSigningAccountsMeta);
 
@@ -154,16 +156,6 @@ QuoteTicket.create = mock(async (data: any) => {
   return quoteTicket;
 }) as any;
 
-const mockVerifyReferenceLabel = mock(async (reference: any, receiverAddress: any) => {
-  console.log("Verifying reference label:", reference, receiverAddress);
-  return true;
-});
-
-mock.module("../brla/helpers", () => {
-  return {
-    verifyReferenceLabel: mockVerifyReferenceLabel
-  };
-});
 }
 
 // Live test: drives real chain/anchor interactions and needs TAX_ID plus funded accounts.
@@ -196,7 +188,9 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration 
       const registeredRamp = await rampService.registerRamp({
         additionalData,
         quoteId: quoteTicket.id,
-        signingAccounts: testSigningAccountsMeta
+        signingAccounts: testSigningAccountsMeta,
+        // registerRamp requires an effective user (API key linked to a user or Supabase auth).
+        userId: TEST_USER_ID
       });
 
       console.log("register onramp:", registeredRamp);
@@ -207,10 +201,6 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration 
 
       // END - MIMIC THE UI
 
-      await rampService.startRamp({
-        rampId: registeredRamp.id
-      });
-
       const pendulumNode = await getPendulumNode();
       const moonbeamNode = await getMoonbeamNode();
       const hydrationNode = await getHydrationNode();
@@ -218,16 +208,22 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration 
       const presignedTxs = await signUnsignedTransactions(
         registeredRamp?.unsignedTxs || [],
         {
-          evmEphemeral: testSigningAccounts.moonbeam,
-          substrateEphemeral: testSigningAccounts.pendulum
+          evmEphemeral: testSigningAccounts.EVM,
+          substrateEphemeral: testSigningAccounts.Substrate
         },
         pendulumNode.api,
         moonbeamNode.api,
         hydrationNode.api,
       );
 
+      // startRamp requires presigned transactions to already be present and is what
+      // kicks off phase processing, so updateRamp must run first.
       await rampService.updateRamp({
         presignedTxs,
+        rampId: registeredRamp.id
+      });
+
+      await rampService.startRamp({
         rampId: registeredRamp.id
       });
 
