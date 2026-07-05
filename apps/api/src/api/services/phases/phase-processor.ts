@@ -15,6 +15,8 @@ export class PhaseProcessor {
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
   private readonly MAX_EXECUTION_TIME_MS = 10 * 60 * 1000; // 10 minutes
+  // Overridable so tests don't wait 30s between recoverable-error retries.
+  private readonly DEFAULT_RETRY_DELAY_MS = parseInt(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS || "30000", 10);
   private lockedRamps = new Set<string>();
 
   /**
@@ -245,7 +247,7 @@ export class PhaseProcessor {
         if (currentRetries < maxRetries) {
           const nextRetry = currentRetries + 1;
           this.retriesMap.set(errorUpdatedState.id, nextRetry);
-          const delayMs = minimumWaitSeconds ? minimumWaitSeconds * 1000 : 30 * 1000;
+          const delayMs = minimumWaitSeconds ? minimumWaitSeconds * 1000 : this.DEFAULT_RETRY_DELAY_MS;
 
           logger.info(`Scheduling retry ${nextRetry}/${maxRetries} for ramp ${errorUpdatedState.id} in ${delayMs}ms`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
