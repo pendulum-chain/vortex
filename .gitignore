@@ -57,9 +57,14 @@ CLAUDE.local.md
 # hardhat generated files in workspace contract projects
 contracts/*/artifacts
 contracts/*/cache
+contracts/*/.env
 
 .mcp.json
 
 # Playwright E2E artifacts
 apps/frontend/test-results/
 apps/frontend/playwright-report/
+
+# Local credentials and agent-tool artifacts
+.api-key.json
+.playwright-mcp/
