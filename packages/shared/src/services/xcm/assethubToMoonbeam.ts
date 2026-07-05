@@ -4,10 +4,10 @@ import { ISubmittableResult } from "@polkadot/types/types";
 import { u8aToHex } from "@polkadot/util";
 import { ApiManager } from "../../index";
 
+// The transferred asset is fixed to USDT on AssetHub (PalletInstance 50 / GeneralIndex 1984).
 export async function createAssethubToMoonbeamTransferWithSwapOnHydration(
   receiverAddress: string,
-  rawAmount: string,
-  assetAccountKey: string
+  rawAmount: string
 ): Promise<SubmittableExtrinsic<"promise", ISubmittableResult>> {
   const apiManager = ApiManager.getInstance();
   const networkName = "assethub";
