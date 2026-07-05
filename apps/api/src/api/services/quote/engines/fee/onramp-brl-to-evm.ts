@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import { calculateEvmBridgeAndNetworkFee, getTokenDetailsForEvmDestination } from "../../core/squidrouter";
 import { QuoteContext } from "../../core/types";
+import { isFiatToOwnStablecoinBaseDirect } from "../../utils";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
 export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
@@ -46,6 +47,17 @@ export class OnRampAveniaToEvmFeeEngine extends BaseFeeEngine {
     const computedAnchorFee = ctx.aveniaMint!.fee.plus(ctx.aveniaTransfer!.fee).toString();
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in `validate`
     const anchorFeeCurrency = ctx.aveniaMint!.currency as RampCurrency;
+
+    // Direct fiat -> own-stablecoin corridors (BRL→BRLA, EUR→EURC on Base): the anchor mints the
+    // requested token and it transfers straight to the destination — no swap or bridge leg exists,
+    // so pricing one here would quote a network fee that is never charged nor distributed. Mirrors
+    // the isFiatToOwnStablecoinBaseDirect passthrough in the squidrouter engines.
+    if (isFiatToOwnStablecoinBaseDirect(request.inputCurrency, request.outputCurrency, request.to)) {
+      return {
+        anchor: { amount: computedAnchorFee, currency: anchorFeeCurrency },
+        network: { amount: "0", currency: "USD" as RampCurrency }
+      };
+    }
 
     const toNetwork = getNetworkFromDestination(request.to);
     if (!toNetwork) {
