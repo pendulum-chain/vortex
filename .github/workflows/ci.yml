@@ -84,8 +84,8 @@ jobs:
       - name: 🧪 Rebalancer tests
         run: bun run test:rebalancer
 
-      - name: 🧪 API tests (unit + integration)
-        run: bun run test:api
+      - name: 🧪 API tests (unit + integration, coverage-gated)
+        run: cd apps/api && bun run test:coverage
 
       - name: 🧪 Frontend tests
         run: bun run test:frontend

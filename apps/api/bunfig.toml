@@ -3,3 +3,8 @@
 # copies of test files that would otherwise run (stale) a second time.
 root = "src"
 preload = ["./src/test-utils/preload.ts"]
+
+# Coverage report config; the gate itself lives in scripts/check-coverage.ts
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["**/packages/shared/dist/**", "**/test-utils/**"]
+
