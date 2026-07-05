@@ -108,17 +108,21 @@ never PR-blocking.
 ## Commands
 
 ```bash
+# One-time per machine: dedicated test Postgres (Docker, port 54329)
+bun test:db:start         # bun test:db:stop to remove it
+
 # Everything hermetic (what CI runs)
-bun test:unit             # all workspaces' unit tests
-bun test:integration      # API integration + corridor + contract tests (needs Docker or DATABASE_URL)
+bun test                  # shared + sdk + rebalancer + api + frontend
 
 # Individual workspaces
-cd apps/api && bun test
-cd apps/frontend && bunx vitest run
-cd apps/frontend && bunx playwright test   # E2E, local/nightly
+bun test:api              # unit + integration (needs the test db)
+bun test:frontend
+bun test:shared
+bun test:rebalancer
+bun test:sdk
 
-# Opt-in live tests (real RPCs)
-RUN_LIVE_TESTS=1 bun test --cwd packages/shared
+# Opt-in live tests (real RPCs / sandboxes; needs credentials in .env)
+cd apps/api && RUN_LIVE_TESTS=1 bun test src/api/services/phases/
 ```
 
 (Scripts are defined in the root `package.json`; see there for the authoritative list.)
