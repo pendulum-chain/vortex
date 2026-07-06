@@ -3,12 +3,16 @@ import { computeFees } from "./fees";
 import { requestToIO } from "./io";
 import type { Flow, Phase, PhaseCtx, PhaseIO } from "./types";
 
-type OutputOf<P> = P extends Phase<PhaseIO, infer O> ? O : never;
+type OutputOf<P> = P extends Phase<never, infer O> ? O : never;
+
+// Internal type-erased phase storage. `never` input makes any Phase<I, O> assignable under
+// contravariance; the builder's pipe() adjacency check is what guarantees the runtime inputs line up.
+type AnyPhase = Phase<never, PhaseIO>;
 
 export class FlowBuilder<I extends PhaseIO, O extends PhaseIO> {
-  private constructor(private readonly phaseList: Phase<PhaseIO, PhaseIO>[]) {}
+  private constructor(private readonly phaseList: AnyPhase[]) {}
 
-  static start<P extends Phase<PhaseIO, PhaseIO>>(first: P): FlowBuilder<PhaseIO, OutputOf<P>> {
+  static start<P extends AnyPhase>(first: P): FlowBuilder<PhaseIO, OutputOf<P>> {
     return new FlowBuilder<PhaseIO, OutputOf<P>>([first]);
   }
 
@@ -19,14 +23,16 @@ export class FlowBuilder<I extends PhaseIO, O extends PhaseIO> {
   build(name: string): Flow {
     const phaseList = this.phaseList;
     const phases: RampPhase[] = phaseList.flatMap(phase => phase.phases);
+    const executors = phaseList.flatMap(phase => phase.executors ?? []);
     return {
+      executors,
       name,
       phases,
       async simulate(ctx: PhaseCtx): Promise<PhaseIO> {
         await computeFees(ctx);
         let current: PhaseIO = requestToIO(ctx);
         for (const phase of phaseList) {
-          current = await phase.simulate(current, ctx);
+          current = await phase.simulate(current as never, ctx);
         }
         return current;
       }

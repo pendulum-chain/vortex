@@ -6,24 +6,55 @@ A typed, composable **block** model for defining Vortex quote flows. Each
 phase declares its input and output `PhaseIO<Token, Chain>` brands; a
 `FlowBuilder.start(...).pipe(...).build(...)` chain enforces **at compile
 time** that adjacent phases are compatible — a Base swap cannot feed a
-Polygon-only transfer, a Morpho deposit on Arbitrum cannot follow a passthrough
-that stayed on Base. The execution `RampPhase[]` is derived from the flow
-(`["initial", ...flow.phases, "complete"]`), so the strategy, the execution
-sequence, and the brand-correctness check all live in one place.
+Polygon-only transfer, a phase that bridges to Arbitrum cannot be followed
+by a Base-only step. The execution `RampPhase[]` is derived from the flow
+(`["initial", ...flow.phases, "complete"]`), and each phase now also carries
+its **executors** — the execution-side handlers for its `RampPhase`s — so
+the strategy, the execution sequence, the brand-correctness check, and the
+execution logic all live in one place.
 
-**Scope of this POC:** the `EUR_ONRAMP_MORPHO` corridor (Mykobo SEPA → EURC
-on Base → Nabla EURC→USDC → Squid bridge → Morpho vault deposit) in two
-variants (cross-chain, base-vault). Lives entirely under
+### Design invariants (the ethos)
+
+1. **Self-contained phases.** A phase owns the complete logic for its step
+   on both sides of the system: quote simulation (`simulate`) and execution
+   (`executors`, one per declared `RampPhase`). One corridor is ultimately
+   defined once, as one flow, instead of three times (quote strategy,
+   `RampPhase[]` array, route-prep). Transaction *preparation*
+   (`prepareTxs`) is the remaining third leg — see roadmap.
+2. **Composition only through the typed IO boundary.** A phase sees its
+   input `PhaseIO` — funds of token `T` on chain `C`, plus signature or
+   contract-execution data accumulated in `meta` — and produces an output
+   `PhaseIO`. It knows nothing else: not which phases surround it, not its
+   position in the flow, and never another phase's `meta`. Anything a
+   phase needs beyond its input must be derivable from the shared
+   read-only `PhaseCtx` (request, partner, fees, notes). This is what
+   makes phases removable, reorderable, and swappable.
+3. **Adjacency mismatches fail at compile time — where the types can carry
+   it.** `FlowBuilder.pipe` rejects a token- or chain-brand mismatch as a
+   hard type error. `Phase.simulate` is declared as a *property function*
+   (not a method) so the check is contravariant under `strictFunctionTypes`
+   — a union or unbranded output cannot silently disable checking
+   downstream. This is a strong preference, not an absolute: where full
+   type-level enforcement would wreck readability, runtime checks and
+   parity tests are the accepted fallback.
+
+**Scope:** the `BRL_ONRAMP_BASE_CROSS_CHAIN` corridor (Avenia PIX → BRLA on
+Base → Nabla BRLA→USDC → fee distribution → Squid bridge → destination
+transfer) — a **real production corridor**, expressed as a flow *family*
+parameterized by destination chain and token. Lives entirely under
 `apps/api/src/api/services/quote/blocks/` and coexists with the existing
-quote engine — **zero edits outside `blocks/`**.
+quote engine — **zero edits outside `blocks/`** (production files are
+imported read-only).
 
-**Status:** `8 pass, 1 skip, 0 fail` parity test. Compile-time adjacency
-verified via a deliberately mis-ordered `@ts-expect-error` block in the
-test. Both `assemblePhaseFlow(flow)` outputs deep-equal the hand-maintained
-`EUR_ONRAMP_MORPHO` and `EUR_ONRAMP_BASE_MORPHO` arrays in
-`phases/ramp-flow-definitions.ts`. The final `PhaseIO.meta` carries the
-full `QuoteTicketMetadata` shape the old engines produced, so the existing
-route-prep and handlers read it unchanged.
+**Status:** `7 pass, 1 skip, 0 fail` parity test; `bun typecheck` clean for
+`blocks/`. The derived `RampPhase[]` deep-equals the production
+`BRL_ONRAMP_BASE_CROSS_CHAIN` array. Every phase in the flow carries an
+executor ported from the corresponding production handler (EVM/Base BUY
+slice), registry-compatible via `BasePhaseHandler` — but **nothing is wired
+into the PhaseProcessor or QuoteService yet**: the production handlers in
+`phases/handlers/` remain the ones that run. The earlier Morpho example
+flow was removed together with the Morpho production code; `MykoboMint`
+remains in the catalog for the EUR corridors.
 
 ---
 
@@ -41,20 +72,21 @@ apps/api/src/api/services/quote/blocks/
     combinators.ts                             # branch(), passthrough()
     fees.ts                                    # computeFees(ctx)
     phase-flow.ts                              # assemblePhaseFlow(flow) -> RampPhase[]
-  phases/
-    mykobo-mint.ts                             # fiat EUR -> EURC on Base
-    fund-ephemeral.ts                          # FundEphemeral<Token, Chain>()
-    subsidize-pre.ts                           # SubsidizePre<Token, Chain>() + computeSubsidyMeta
-    nabla-swap.ts                              # NablaSwap<Chain, In, Out>()
-    distribute-fees.ts                         # DistributeFees<Token, Chain>()
-    subsidize-post.ts                          # SubsidizePost<Token, Chain>()
-    squid-router-swap.ts                       # SquidRouterSwap<From, To, Token>()
-    final-settlement-subsidy.ts                # FinalSettlementSubsidy<Token, Chain>()
-    morpho-mint.ts                             # MorphoMint<Chain>()
+  phases/                                      # each file: simulate + executor(s)
+    avenia-mint.ts                             # fiat BRL -> BRLA on Base + brlaOnrampMint executor
+    mykobo-mint.ts                             # fiat EUR -> EURC on Base (simulate only, for EUR corridors)
+    fund-ephemeral.ts                          # FundEphemeral(token, chain) + fundEphemeral executor
+    subsidize-pre.ts                           # SubsidizePre<Token, Chain>() + subsidizePreSwap executor
+    nabla-swap.ts                              # NablaSwap(chain, in, out) + nablaApprove/nablaSwap executors
+    distribute-fees.ts                         # DistributeFees<Token, Chain>() + distributeFees executor
+    subsidize-post.ts                          # SubsidizePost<Token, Chain>() + subsidizePostSwap executor
+    squid-router-swap.ts                       # SquidRouterSwap(from, to, fromToken, toToken) + swap/pay executors
+    final-settlement-subsidy.ts                # FinalSettlementSubsidy<Token, Chain>() + executor
+    destination-transfer.ts                    # DestinationTransfer<Token, Chain>() + executor
   flows/
-    eur-onramp-morpho.ts                       # eurOnrampMorphoFlow + eurOnrampBaseMorphoFlow
+    brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
   __tests__/
-    eur-onramp-morpho.parity.test.ts           # structural + parity + compile-time + simulate
+    brl-onramp-base-cross-chain.parity.test.ts # structure + parity + executors + compile-time + simulate
 ```
 
 ### Core types (`core/types.ts`)
@@ -71,35 +103,33 @@ export interface PhaseIO<Token extends TokenBrand = TokenBrand, Chain extends Ch
   meta: Record<string, unknown>;     // phase-specific (route id, oracle price, subsidy, ...)
 }
 
-export interface PhaseCtx {
-  request: CreateQuoteRequest & { userId?: string };
-  partner: PartnerInfo | null;
-  now: Date;
-  notes: string[];
-  addNote(note: string): void;
-  fees?: {
-    usd?: { vortex: string; anchor: string; partnerMarkup: string; network: string; total: string };
-    displayFiat?: QuoteFeeStructure;
-  };
-}
-
 export interface Phase<I extends PhaseIO, O extends PhaseIO> {
   readonly name: string;
   readonly phases: RampPhase[];      // declared execution expansion
-  simulate(input: I, ctx: PhaseCtx): Promise<O>;
+  readonly simulate: (input: I, ctx: PhaseCtx) => Promise<O>;
+  readonly executors?: PhaseHandler[]; // one per entry in `phases`, same order
 }
 
 export interface Flow {
   readonly name: string;
-  readonly phases: RampPhase[];      // flatMap(p => p.phases) over assembled phases
+  readonly phases: RampPhase[];      // flatMap(p => p.phases)
+  readonly executors: PhaseHandler[];// flatMap(p => p.executors ?? [])
   simulate(ctx: PhaseCtx): Promise<PhaseIO>;
 }
 ```
 
-`Token` and `Chain` are instantiated with literal types drawn from
-`EvmToken`, `FiatToken`, `AssetHubToken`, `PendulumCurrencyId`, and
-`Networks` / `"Pendulum"` / `"Stellar"` / `"fiat"`. Brands are kept as
-`extends string` so literal narrowing flows through generics.
+`Token` and `Chain` are instantiated with literal types drawn from the
+string enums (`EvmToken`, `FiatToken`, `AssetHubToken`) and `Networks` /
+`"fiat"`. Brands are kept as `extends string` so literal narrowing flows
+through generics. Note the brands are structural (string values), not
+nominal: `EvmToken.USDC` and `AssetHubToken.USDC` are the same literal
+type, so the **chain** brand carries the discrimination between
+ecosystems.
+
+`simulate` is a **property function type**, not a method — under
+`strictFunctionTypes` this makes `pipe`'s input check contravariant, so a
+phase whose declared output degrades to unbranded `PhaseIO` (or a union)
+cannot be followed by a narrower-input phase without a compile error.
 
 ### `FlowBuilder` (`core/flow.ts`)
 
@@ -109,26 +139,64 @@ with no overload fallback to escape to, so a brand mismatch is a hard type
 error.
 
 ```ts
-type OutputOf<P> = P extends Phase<PhaseIO, infer O> ? O : never;
+type OutputOf<P> = P extends Phase<never, infer O> ? O : never;
+type AnyPhase = Phase<never, PhaseIO>;   // internal type-erased storage
 
 export class FlowBuilder<I extends PhaseIO, O extends PhaseIO> {
-  private constructor(private readonly phaseList: Phase<PhaseIO, PhaseIO>[]) {}
+  private constructor(private readonly phaseList: AnyPhase[]) {}
 
-  static start<P extends Phase<PhaseIO, PhaseIO>>(first: P): FlowBuilder<PhaseIO, OutputOf<P>>;
+  static start<P extends AnyPhase>(first: P): FlowBuilder<PhaseIO, OutputOf<P>>;
   pipe<P extends Phase<O, PhaseIO>>(next: P): FlowBuilder<I, OutputOf<P>>;
   build(name: string): Flow;
 }
 ```
 
-`OutputOf<P>` uses a conditional `infer` rather than a second generic
-parameter — `start<P extends Phase<PhaseIO, O1>, O1>` widens `O1` to
-`PhaseIO` (the constraint bound) during inference and severs the brand
-chain at the first `.pipe()`. `OutputOf<P>` preserves the literal brand.
+The internal list is stored as `Phase<never, PhaseIO>` — the honest
+existential under contravariance (any phase is assignable to it, and it
+cannot be *called* without a cast). The single `input as never` in
+`build()`'s simulate loop is the one place the type system hands over to
+the adjacency guarantee that `pipe` already enforced.
 
-Runtime: `build()` stores the phases; `Flow.simulate(ctx)` builds the first
-input via `requestToIO(ctx)`, then sequentially calls
-`phase.simulate(prevOutput, ctx)`. `Flow.phases` =
-`phaseList.flatMap(p => p.phases)`.
+Runtime: `build()` stores the phases; `Flow.simulate(ctx)` runs
+`computeFees(ctx)`, builds the first input via `requestToIO(ctx)`, then
+sequentially calls `phase.simulate(prevOutput, ctx)`. `Flow.phases` =
+`flatMap(p => p.phases)`; `Flow.executors` = `flatMap(p => p.executors)`.
+
+### Executors (the execution side)
+
+Each phase file defines executor class(es) extending the production
+`BasePhaseHandler` (imported read-only from `services/phases/`), one per
+`RampPhase` the phase declares. `Flow.executors` therefore lines up 1:1
+with `Flow.phases` — asserted in the parity test. Wiring a corridor later
+is one loop:
+
+```ts
+flow.executors.forEach(executor => phaseRegistry.registerHandler(executor));
+```
+
+Nothing calls this yet. The executors are faithful ports of the production
+handlers, **sliced to the path this corridor exercises** (EVM ephemeral,
+Base source chain, BUY direction):
+
+| Executor | `RampPhase` | Ported from | Slice notes |
+|----------|-------------|-------------|-------------|
+| `BrlaOnrampMintExecutor` | `brlaOnrampMint` | `handlers/brla-onramp-mint-handler.ts` | Full port (already Base-specific). Waits for the Avenia subaccount balance, creates the live transfer ticket to the Base ephemeral, 95% recovery shortcut, 30-min payment timeout → `failed`. |
+| `FundEphemeralExecutor` | `fundEphemeral` | `handlers/fund-ephemeral-handler.ts` | Source-chain gas funding (incl. presigned squid swap `value` extraction) + destination EVM funding for BUY. Pendulum/Polygon-Alfredpay branches and SELL user-tx verification not ported. |
+| `SubsidizePreSwapExecutor` | `subsidizePreSwap` | `handlers/subsidize-pre-swap-handler.ts` | EVM branch only (`nablaSwapEvm` config). USD cap check + funding-account ERC-20 top-up + Subsidy record. |
+| `NablaApproveExecutor` | `nablaApprove` | `handlers/nabla-approve-handler.ts` | EVM branch: broadcast presigned approve on Base. |
+| `NablaSwapExecutor` | `nablaSwap` | `handlers/nabla-swap-handler.ts` | EVM branch: input-balance validation + broadcast presigned swap. Substrate soft-minimum dry-run not ported. |
+| `DistributeFeesExecutor` | `distributeFees` | `handlers/distribute-fees-handler.ts` | EVM branch: `distributeFeeHash` idempotency, USDC fee-balance precondition, presigned broadcast. Substrate/Subscan branch not ported. |
+| `SubsidizePostSwapExecutor` | `subsidizePostSwap` | `handlers/subsidize-post-swap-handler.ts` | EVM branch: tops up to the simulated Squid input (`evmToEvm.inputAmountRaw`) for BUY. |
+| `SquidRouterSwapExecutor` | `squidRouterSwap` | `handlers/squid-router-phase-handler.ts` | Route short-circuits (direct transfer, Alfredpay, same-chain passthrough) dropped — a flow piping this block always bridges. Keeps approve+swap broadcast, hash persistence, `preSettlementBalance` snapshot. |
+| `SquidRouterPayExecutor` | `squidRouterPay` | `handlers/squid-router-pay-phase-handler.ts` | One network-generic Axelar `addNativeGas` method replaces the three per-chain copies; clients created lazily. Status/balance `Promise.any` race kept. |
+| `FinalSettlementSubsidyExecutor` | `finalSettlementSubsidy` | `handlers/final-settlement-subsidy.ts` | BUY branch: ≥90% bridge-delivery wait, `preSettlementBalance` delta, native→token SquidRouter top-up swap with USD cap, 5-attempt transfer loop. SELL/Alfredpay branches not ported. |
+| `DestinationTransferExecutor` | `destinationTransfer` | `handlers/destination-transfer-handler.ts` | Full port: recipient validation of the presigned tx, nonce-gap guard, idempotency, broadcast. |
+
+Executors intentionally read the **same `quote.metadata` keys and
+`state.state` fields** as the production handlers (including the
+cross-phase reads production performs, e.g. `subsidizePostSwap` reading
+`evmToEvm.inputAmountRaw`) so a block-driven ramp is bit-compatible with a
+handler-driven one during migration.
 
 ### `assemblePhaseFlow` (`core/phase-flow.ts`)
 
@@ -138,102 +206,80 @@ export function assemblePhaseFlow(flow: Flow): RampPhase[] {
 }
 ```
 
-That's the whole thing. No phase-name knowledge, no `isBaseVault` flag, no
-`branch` logic. The developer is responsible for piping every step
-(including funding, fee distribution, subsidy, final settlement) into the
-flow explicitly. Verbosity in flow definitions is the deliberate tradeoff:
-a corridor's full execution shape is readable top-to-bottom in one file.
+That's the whole thing. No phase-name knowledge, no route flags, no
+`branch` logic. The developer pipes every step (funding, fee distribution,
+subsidy, settlement, delivery) into the flow explicitly. Verbosity in flow
+definitions is the deliberate tradeoff: a corridor's full execution shape
+is readable top-to-bottom in one file.
 
 ### `branch()` and `passthrough()` (`core/combinators.ts`)
 
-```ts
-export function branch<I extends PhaseIO, O extends PhaseIO>(
-  select: (ctx: PhaseCtx) => Promise<number> | number,
-  branches: Phase<I, O>[]
-): Phase<I, O>;
-
-export function passthrough<Token extends TokenBrand, Chain extends ChainBrand>(): Phase<
-  PhaseIO<Token, Chain>,
-  PhaseIO<Token, Chain>
->;
-```
-
-`branch` runtime-selects between phases; the output `O` is declared
-explicitly (the common downstream shape) and each branch's `Phase<I, O>`
-must produce IO assignable to `O`. `branch.phases` = the order-preserving
-union of all branches' `phases`.
-
-These are kept as available primitives but are **not relied upon** in the
-POC flows — the cross-chain and base-vault variants are written as two
-explicit flows rather than runtime branches. Reach for `branch` only when a
-flow genuinely needs to fork at simulate time; prefer two flows otherwise.
+Kept as available primitives but **not relied upon**: destination variants
+are expressed as a flow *family* (a factory over brands) rather than
+runtime branches. Reach for `branch` only when a flow genuinely needs to
+fork at simulate time; prefer separate flows otherwise. Note `branch`'s
+static `phases` union is only valid when all branches expand to the same
+`RampPhase` list.
 
 ### Phase catalog
 
 Every step in a corridor — including the "bookend" steps (funding, fee
-distribution, subsidy, final settlement) — is a first-class `Phase<I, O>`.
-The flow assembles them linearly.
+distribution, subsidy, final settlement, delivery) — is a first-class
+`Phase<I, O>` carrying both `simulate` and its executors. The flow
+assembles them linearly.
 
-| Phase | Type | `phases` | Meta keys written | Notes |
-|-------|------|----------|------------------|-------|
-| `MykoboMint` | `Phase<PhaseIO<typeof FiatToken.EURC, "fiat">, PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>>` | `["mykoboOnrampDeposit"]` | `mykoboMint`, `fees` | Plain `const` (no generics). Ports `engines/initialize/onramp-mykobo.ts`. Also copies `ctx.fees` into meta. |
-| `FundEphemeral<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["fundEphemeral"]` | (preserves) | Passthrough. Funding happens execution-side. |
-| `SubsidizePre<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["subsidizePreSwap"]` | `subsidy` (partial: `expectedOutputAmountDecimal`, `expectedOutputAmountRaw`) | Computes expected output via `computeExpectedOutput(ctx)` — no meta read. Exports shared `buildFullSubsidy` + `computeExpectedOutput` helpers. |
-| `NablaSwap(chain, in, out)` | `Phase<PhaseIO<In, Chain>, PhaseIO<Out, Chain>>` | `["nablaApprove", "nablaSwap"]` | `nablaSwapEvm` | Generic with runtime args. Ports `engines/nabla-swap/base-evm.ts` + `core/nabla.ts:calculateNablaSwapOutputEvm`. |
-| `DistributeFees<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["distributeFees"]` | (preserves) | Reduces amount by `ctx.fees.usd`. |
-| `SubsidizePost<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["subsidizePostSwap"]` | `subsidy` (full) | Independently computes expected via `computeExpectedOutput(ctx)`, builds and writes full subsidy. No meta read. |
-| `SquidRouterSwap(from, to, token)` | `Phase<PhaseIO<Token, From>, PhaseIO<Token, To>>` | `["squidRouterSwap", "squidRouterPay"]` | `evmToEvm` | Generic with runtime args. Ports `engines/squidrouter/onramp-base-to-evm.ts` + `core/squidrouter.ts:calculateEvmBridgeAndNetworkFee`. |
-| `FinalSettlementSubsidy<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["finalSettlementSubsidy"]` | `subsidy` (full, overrides) | Same as `SubsidizePost` — independently computes expected, builds full subsidy. Overwrites any earlier `meta.subsidy`. |
-| `MorphoMint<Chain>()` | `Phase<PhaseIO<typeof EvmToken.USDC, Chain>, PhaseIO<typeof EvmToken.MORPHO_VAULT, Chain>>` | `["morphoDeposit"]` | `morphoDeposit` | Type-args only. Reads `input.chain` at runtime; calls `previewDeposit`. |
+| Phase | Type | `phases` | Meta keys written |
+|-------|------|----------|------------------|
+| `AveniaMint` | `Phase<PhaseIO<typeof FiatToken.BRL, "fiat">, PhaseIO<typeof EvmToken.BRLA, typeof Networks.Base>>` | `["brlaOnrampMint"]` | `aveniaMint`, `aveniaTransfer`, `fees` | 
+| `MykoboMint` | `Phase<PhaseIO<typeof FiatToken.EURC, "fiat">, PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>>` | `["mykoboOnrampDeposit"]` | `mykoboMint`, `fees` |
+| `FundEphemeral(token, chain)` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["fundEphemeral"]` | (preserves) |
+| `SubsidizePre<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["subsidizePreSwap"]` | `subsidy` (partial) |
+| `NablaSwap(chain, in, out)` | `Phase<PhaseIO<In, Chain>, PhaseIO<Out, Chain>>` | `["nablaApprove", "nablaSwap"]` | `nablaSwapEvm` |
+| `DistributeFees<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["distributeFees"]` | (preserves) |
+| `SubsidizePost<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["subsidizePostSwap"]` | `subsidy` (full) |
+| `SquidRouterSwap(from, to, fromToken, toToken)` | `Phase<PhaseIO<FromToken, From>, PhaseIO<ToToken, To>>` | `["squidRouterSwap", "squidRouterPay"]` | `evmToEvm` |
+| `FinalSettlementSubsidy<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["finalSettlementSubsidy"]` | `subsidy` (full, overrides) |
+| `DestinationTransfer<Token, Chain>()` | `Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>>` | `["destinationTransfer"]` | (preserves) |
 
-### The two flows (`flows/eur-onramp-morpho.ts`)
+`SquidRouterSwap` derives the bridge target from its **own** `toToken` /
+`toChain` args (not from `ctx.request.outputCurrency`) — the phase carries
+its complete contract in its signature.
+
+### The flow family (`flows/brl-onramp-base-cross-chain.ts`)
+
+The destination chain/token vary per request (`quote.to` /
+`quote.outputCurrency`), so the corridor is a factory; the derived
+`RampPhase[]` is identical for every destination:
 
 ```ts
-export const eurOnrampMorphoFlow: Flow = FlowBuilder.start(MykoboMint)
-  .pipe(FundEphemeral<typeof EvmToken.EURC, typeof Networks.Base>())
-  .pipe(SubsidizePre<typeof EvmToken.EURC, typeof Networks.Base>())
-  .pipe(NablaSwap(Networks.Base, EvmToken.EURC, EvmToken.USDC))
-  .pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>())
-  .pipe(SubsidizePost<typeof EvmToken.USDC, typeof Networks.Base>())
-  .pipe(SquidRouterSwap(Networks.Base, Networks.Arbitrum, EvmToken.USDC))
-  .pipe(FinalSettlementSubsidy<typeof EvmToken.USDC, typeof Networks.Arbitrum>())
-  .pipe(MorphoMint<typeof Networks.Arbitrum>())
-  .build("EurOnrampMorpho");
-
-export const eurOnrampBaseMorphoFlow: Flow = FlowBuilder.start(MykoboMint)
-  .pipe(FundEphemeral<typeof EvmToken.EURC, typeof Networks.Base>())
-  .pipe(SubsidizePre<typeof EvmToken.EURC, typeof Networks.Base>())
-  .pipe(NablaSwap(Networks.Base, EvmToken.EURC, EvmToken.USDC))
-  .pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>())
-  .pipe(SubsidizePost<typeof EvmToken.USDC, typeof Networks.Base>())
-  .pipe(MorphoMint<typeof Networks.Base>())
-  .build("EurOnrampBaseMorpho");
-
-export const eurOnrampMorphoPhaseFlow = assemblePhaseFlow(eurOnrampMorphoFlow);
-export const eurOnrampBaseMorphoPhaseFlow = assemblePhaseFlow(eurOnrampBaseMorphoFlow);
+export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToToken extends TokenBrand>(
+  toChain: ToChain,
+  toToken: ToToken
+): Flow {
+  return FlowBuilder.start(AveniaMint)
+    .pipe(FundEphemeral(EvmToken.BRLA, Networks.Base))
+    .pipe(SubsidizePre<typeof EvmToken.BRLA, typeof Networks.Base>())
+    .pipe(NablaSwap(Networks.Base, EvmToken.BRLA, EvmToken.USDC))
+    .pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>())
+    .pipe(SubsidizePost<typeof EvmToken.USDC, typeof Networks.Base>())
+    .pipe(SquidRouterSwap(Networks.Base, toChain, EvmToken.USDC, toToken))
+    .pipe(FinalSettlementSubsidy<ToToken, ToChain>())
+    .pipe(DestinationTransfer<ToToken, ToChain>())
+    .build("BrlOnrampBaseCrossChain");
+}
 ```
 
-No `WithSubsidy`, no `branch`, no `passthrough`. The two flows differ only
-in whether the Squid bridge and the final settlement subsidy are present.
+### Parity (derived `RampPhase[]`)
 
-### Parity proof (derived `RampPhase[]` arrays)
+`assemblePhaseFlow(flow)` deep-equals the hand-maintained
+`BRL_ONRAMP_BASE_CROSS_CHAIN` in `phases/ramp-flow-definitions.ts`, for
+every destination instantiation:
 
-`assemblePhaseFlow(flow)` produces arrays that deep-equal the hand-maintained
-definitions in `phases/ramp-flow-definitions.ts`.
-
-**Cross-chain** — deep-equals `EUR_ONRAMP_MORPHO` (lines 167-181):
 ```
-["initial", "mykoboOnrampDeposit", "fundEphemeral", "subsidizePreSwap",
+["initial", "brlaOnrampMint", "fundEphemeral", "subsidizePreSwap",
  "nablaApprove", "nablaSwap", "distributeFees", "subsidizePostSwap",
  "squidRouterSwap", "squidRouterPay", "finalSettlementSubsidy",
- "morphoDeposit", "complete"]
-```
-
-**Base vault** — deep-equals `EUR_ONRAMP_BASE_MORPHO` (lines 189-200):
-```
-["initial", "mykoboOnrampDeposit", "fundEphemeral", "subsidizePreSwap",
- "nablaApprove", "nablaSwap", "distributeFees", "subsidizePostSwap",
- "morphoDeposit", "complete"]
+ "destinationTransfer", "complete"]
 ```
 
 The bookend `["initial", ..., "complete"]` is the only thing
@@ -241,85 +287,47 @@ The bookend `["initial", ..., "complete"]` is the only thing
 
 ### Verification
 
-`__tests__/eur-onramp-morpho.parity.test.ts` runs five kinds of checks:
+`__tests__/brl-onramp-base-cross-chain.parity.test.ts` encodes the checks
+every ported corridor must pass:
 
-1. **Structural** — `flow.phases` equals the expected core phases array
-   (no bookends) for both flows.
+1. **Structural** — `flow.phases` equals the expected core phases array.
 2. **Phase-flow parity** — `assemblePhaseFlow(flow)` deep-equals the
-   existing hand-maintained array for both flows (asserted via both the
-   pre-derived constant and a direct call).
-3. **Compile-time adjacency** — a `// @ts-expect-error` block
-   (`FlowBuilder.start(MorphoMint<...>()).pipe(MykoboMint)`) is
-   type-checked by tsc. If the brand guard were broken, the directive
+   production `BRL_ONRAMP_BASE_CROSS_CHAIN`, including for other
+   destinations of the flow family.
+3. **Executor coverage** — `flow.executors.map(e => e.getPhaseName())`
+   deep-equals `flow.phases`: every execution phase has exactly one
+   executor, in order.
+4. **Compile-time adjacency** — a `// @ts-expect-error` block (wrong token
+   after `AveniaMint`; Base-only phase after an Arbitrum bridge) is
+   type-checked by tsc. If the brand guard were broken, the directives
    would be unused and `bun typecheck` would fail.
-4. **Simulate smoke** — with externals mocked (`calculateNablaSwapOutputEvm`,
-   `calculateEvmBridgeAndNetworkFee`, `MykoboApiService.defaultDepositFee`,
-   `EvmClientManager.readContract`), each flow's `simulate(ctx)` returns a
-   `PhaseIO` with `amount > 0`, `token === EvmToken.MORPHO_VAULT`, and
-   non-empty `ctx.notes`.
-5. **Metadata parity** — the final `PhaseIO.meta` carries every key the old
-   engines produced (`mykoboMint`, `nablaSwapEvm`, `evmToEvm`, `subsidy`,
-   `fees`, `morphoDeposit`) with the same field names, so the existing
-   route-prep and handlers read it unchanged.
-
-Final test run: `8 pass, 1 skip, 0 fail, 45 expect() calls`.
+5. **Simulate smoke** — with externals mocked (`BrlaApiService`,
+   `calculateNablaSwapOutputEvm`, `calculateEvmBridgeAndNetworkFee`,
+   `priceFeedService`), `simulate(ctx)` lands on the destination
+   token/chain with `amount > 0`.
+6. **Metadata parity** — the final `PhaseIO.meta` carries the keys the old
+   engines produce (`aveniaMint`, `aveniaTransfer`, `nablaSwapEvm`,
+   `evmToEvm`, `subsidy`, `fees`) with the same field names, so existing
+   route-prep and handlers read them unchanged.
 
 ### Meta accumulation and compatibility
 
 `PhaseIO.meta` is a `Record<string, unknown>` bag that flows forward
-through the pipeline. Each phase writes its data to a named key
-(`mykoboMint`, `nablaSwapEvm`, `evmToEvm`, `subsidy`, `morphoDeposit`)
-and **spreads `input.meta`** so earlier phases' data is preserved:
-
-```ts
-return evmIO(token, chain, amount, amountRaw, {
-  ...input.meta,                  // preserve everything from earlier phases
-  mykoboMint: { ... },            // this phase's data
-});
-```
-
-The final `PhaseIO.meta` is therefore the union of all phase outputs —
-equivalent to the old `QuoteContext` bag, minus the fields the POC doesn't
-use (`preNabla`, `*Xcm`, `hydrationSwap`, `alfredpayMint`, `aveniaMint`,
-`evmToMoonbeam`, `moonbeamToEvm`, etc.). The `QuoteService` casts it to
-`QuoteTicketMetadata` and stores it as `quote.metadata`:
-
-```ts
-const output = await flow.simulate(ctx);
-quote.metadata = output.meta as QuoteTicketMetadata;
-```
-
-The existing route-prep (`transactions/onramp/routes/mykobo-to-evm-morpho.ts`)
-already reads `quote.metadata.nablaSwapEvm.outputAmountRaw`,
-`quote.metadata.evmToEvm.outputAmountRaw`, and
-`quote.metadata.evmToEvm.inputAmountRaw` — these keys exist with the same
-shapes as before. No route-prep or handler code needs to change.
+through the pipeline. Each phase writes its data to a named key and
+**spreads `input.meta`** so earlier phases' data is preserved. The final
+meta is the union of all phase outputs — the subset of the old
+`QuoteContext` bag this corridor uses.
 
 **Invariant: meta is write-only during simulation.** No phase reads
 `input.meta.<key>` to compute its output. Every phase is a pure function
-of `(input, ctx)` — where `input` is the typed `PhaseIO` (amount, token,
-chain) and `ctx` is the cross-phase context (request, partner, fees,
-notes). This means any phase can be removed, reordered, or swapped without
-breaking another phase's simulation logic. The only adjacency constraint
-is the `Phase<I, O>` brand check enforced by `FlowBuilder.pipe`.
+of `(input, ctx)`. The only adjacency constraint is the `Phase<I, O>`
+brand check enforced by `FlowBuilder.pipe`.
 
-The three subsidy phases (`SubsidizePre`, `SubsidizePost`,
-`FinalSettlementSubsidy`) each independently call the shared
-`computeExpectedOutput(ctx)` helper to derive the oracle-based expected
-output from `ctx.request` + `ctx.partner` — they do not read each other's
-meta. `SubsidizePre` writes a partial `meta.subsidy` (just
-`expectedOutputAmount*`); `SubsidizePost` and `FinalSettlementSubsidy`
-each write the full `meta.subsidy` (including `actualOutputAmount*`,
-`subsidyAmountInOutputToken*`, `idealSubsidy*`, `targetOutputAmount*`,
-`applied`, `subsidyRate`, `partnerId`, `adjustedDifference`,
-`adjustedTargetDiscount`). If multiple subsidy phases run, the last one
-wins (its full `meta.subsidy` overwrites the prior). Each subsidy phase
-computes the same expected output independently — `priceFeedService`
-caches the oracle call so the cost is negligible.
-
-`computeFees(ctx)` (which populates `ctx.fees`) runs before the flow;
-`MykoboMint` copies `ctx.fees` into `meta.fees` so the final metadata
-includes it. No phase reads `meta.fees` during simulation.
+The three subsidy phases each independently call the shared
+`computeExpectedOutput(ctx)` helper — they do not read each other's meta.
+If multiple subsidy phases run, the last full `meta.subsidy` wins.
+`computeFees(ctx)` runs before the flow; the first phase copies `ctx.fees`
+into `meta.fees`.
 
 ### Conventions (non-negotiable)
 
@@ -329,165 +337,142 @@ includes it. No phase reads `meta.fees` during simulation.
   no trailing commas.
 - DO NOT add comments unless this doc explicitly asks. No docstrings on
   code you didn't touch.
-- Surgical changes: touch only files under `blocks/`. Do NOT modify any
-  existing file outside `blocks/` (no edits to `quote/core/*`, `engines/*`,
-  `phases/*`, `ramp-flow-definitions.ts`, etc.). The POC coexists with the
-  old code.
+- Surgical changes: touch only files under `blocks/`. Production files
+  (`quote/core/*`, `engines/*`, `phases/*`, models, constants) are
+  imported read-only, never edited.
 - No over-engineering: no abstractions for single-use code, no error
   handling for impossible scenarios, no input validation for typed internal
   params.
 - `FiatToken` has 6 values (EURC, ARS, BRL, USD, MXN, COP); any
   `Record<FiatToken, X>` must include all six.
-- Mimic the import style of neighboring files (e.g.
-  `engines/nabla-swap/base-evm.ts`).
+- Mimic the import style of neighboring files.
 
 ### Brand values (enum member string values — keep adjacency consistent)
 
 | Enum | Member | Value |
 |------|--------|-------|
-| `FiatToken` | `EURC` | `"EUR"` |
-| `FiatToken` | `ARS` | `"ARS"` |
 | `FiatToken` | `BRL` | `"BRL"` |
-| `FiatToken` | `USD` | `"USD"` |
-| `FiatToken` | `MXN` | `"MXN"` |
-| `FiatToken` | `COP` | `"COP"` |
+| `FiatToken` | `EURC` | `"EUR"` |
+| `EvmToken` | `BRLA` | `"BRLA"` |
 | `EvmToken` | `EURC` | `"EURC"` |
 | `EvmToken` | `USDC` | `"USDC"` |
-| `EvmToken` | `MORPHO_VAULT` | `"MORPHO VAULT"` |
+| `EvmToken` | `USDT` | `"USDT"` |
 | `Networks` | `Base` | `"base"` |
 | `Networks` | `Arbitrum` | `"arbitrum"` |
+| `Networks` | `Polygon` | `"polygon"` |
 
-**Gotcha:** `FiatToken.EURC` is `"EUR"` but `EvmToken.EURC` is `"EURC"` —
-different strings, so the brands are distinct types. This is what makes
-the fiat→EVM boundary in `MykoboMint` (input
-`PhaseIO<typeof FiatToken.EURC, "fiat">` → output
-`PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>`) type-check: the
-output brand genuinely differs from the input brand, and only
-`MykoboMint`'s declared signature bridges them.
+**Gotcha:** `FiatToken.BRL` is `"BRL"` but `EvmToken.BRLA` is `"BRLA"`
+(and `FiatToken.EURC` is `"EUR"` vs `EvmToken.EURC` `"EURC"`) — different
+strings, so the brands are distinct types. This is what makes the
+fiat→EVM boundary in `AveniaMint` / `MykoboMint` type-check: the output
+brand genuinely differs from the input brand, and only the mint phase's
+declared signature bridges them.
 
 ### Factory function call forms (TS has no generic const values)
 
 | Export | Form | Why |
 |--------|------|-----|
+| `AveniaMint` | plain `const` (no generics) | no runtime variability |
 | `MykoboMint` | plain `const` (no generics) | no runtime variability |
-| `NablaSwap(chain, in, out)` | generic **function with runtime args** | needs runtime values for `getOnChainTokenDetails`; brands inferred from args |
-| `SquidRouterSwap(from, to, token)` | generic **function with runtime args** | needs runtime values for bridge request; brands inferred from args |
-| `MorphoMint<Chain>()` | generic function with **type args only** | reads `input.chain` at runtime |
-| `FundEphemeral<Token, Chain>()` | type-args only | pure passthrough |
+| `FundEphemeral(token, chain)` | generic **function with runtime args** | executor needs the runtime chain |
+| `NablaSwap(chain, in, out)` | generic function with runtime args | needs runtime values for `getOnChainTokenDetails` |
+| `SquidRouterSwap(from, to, fromToken, toToken)` | generic function with runtime args | needs runtime values for the bridge request; target token is the phase's own arg |
 | `DistributeFees<Token, Chain>()` | type-args only | reads from `ctx.fees` |
-| `SubsidizePre<Token, Chain>()` | type-args only | writes `meta.expectedOutputAmount` |
-| `SubsidizePost<Token, Chain>()` | type-args only | reads from `meta`, writes `meta.subsidy` |
-| `FinalSettlementSubsidy<Token, Chain>()` | type-args only | finalizes subsidy |
+| `SubsidizePre<Token, Chain>()` | type-args only | ctx-derived |
+| `SubsidizePost<Token, Chain>()` | type-args only | ctx-derived |
+| `FinalSettlementSubsidy<Token, Chain>()` | type-args only | ctx-derived |
+| `DestinationTransfer<Token, Chain>()` | type-args only | pure passthrough in simulation |
 | `passthrough<Token, Chain>()` | type-args only | pure no-op |
 | `branch<I, O>(select, branches)` | generic function | runtime decision point |
 
-**Brands are always enum member types** (`typeof EvmToken.EURC`,
+**Brands are always enum member types** (`typeof EvmToken.BRLA`,
 `typeof Networks.Base`), never plain string literals — keep this consistent
 so adjacency matches.
 
-### Existing files to read before implementing (per phase)
+### Port sources (per phase: simulate ← quote engine, executor ← handler)
 
-| Block | Primary port source |
-|-------|---------------------|
-| `MykoboMint` | `engines/initialize/onramp-mykobo.ts`, `engines/initialize/index.ts` |
-| `NablaSwap` | `engines/nabla-swap/base-evm.ts`, `engines/nabla-swap/onramp-mykobo-evm.ts`, `core/nabla.ts` |
-| `SquidRouterSwap` | `engines/squidrouter/onramp-base-to-evm.ts`, `engines/squidrouter/index.ts`, `core/squidrouter.ts` |
-| `MorphoMint` | `handlers/morpho-deposit-handler.ts`, `handlers/morpho-vault-config.ts`, `engines/initialize/offramp-from-evm-morpho.ts` |
-| `SubsidizePre` / `SubsidizePost` / `FinalSettlementSubsidy` | `engines/discount/onramp.ts`, `engines/merge-subsidy/offramp-evm.ts`, `core/types.ts` (subsidy field) |
-| `computeFees` | `core/quote-fees.ts`, `core/helpers.ts` |
-| `assemblePhaseFlow` | `phases/ramp-flow-definitions.ts` (EUR_ONRAMP_MORPHO, EUR_ONRAMP_BASE_MORPHO) |
+| Block | Simulate ported from | Executor(s) ported from |
+|-------|---------------------|-------------------------|
+| `AveniaMint` | `engines/initialize/onramp-avenia.ts` | `handlers/brla-onramp-mint-handler.ts` |
+| `FundEphemeral` | (passthrough) | `handlers/fund-ephemeral-handler.ts` |
+| `SubsidizePre` / `SubsidizePost` / `FinalSettlementSubsidy` | `engines/discount/onramp.ts` (simplified) | `handlers/subsidize-pre-swap-handler.ts`, `handlers/subsidize-post-swap-handler.ts`, `handlers/final-settlement-subsidy.ts` |
+| `NablaSwap` | `engines/nabla-swap/base-evm.ts`, `core/nabla.ts` | `handlers/nabla-approve-handler.ts`, `handlers/nabla-swap-handler.ts` |
+| `DistributeFees` | (deducts `ctx.fees.usd`) | `handlers/distribute-fees-handler.ts` |
+| `SquidRouterSwap` | `engines/squidrouter/onramp-base-to-evm.ts`, `core/squidrouter.ts` | `handlers/squid-router-phase-handler.ts`, `handlers/squid-router-pay-phase-handler.ts` |
+| `DestinationTransfer` | (passthrough) | `handlers/destination-transfer-handler.ts` |
+| `computeFees` | `core/quote-fees.ts` | — |
 
-All paths relative to `apps/api/src/api/services/quote/` (or
-`apps/api/src/api/services/` for `phases/` and `handlers/`).
+All handler paths relative to `apps/api/src/api/services/phases/`.
 
 ### Known gaps & POC limitations
 
-All intentional POC scope cuts, not bugs:
+All intentional scope cuts, not bugs:
 
-1. **Subsidy simplified.** `SubsidizePre` / `SubsidizePost` /
-   `FinalSettlementSubsidy` compute subsidy metadata from
+1. **Subsidy simplified.** The subsidy phases compute metadata from
    `ctx.partner.targetDiscount` / `maxSubsidy` + a single oracle price
-   lookup. They do NOT port: the DB partner lookup (`resolveDiscountPartner`),
-   the per-engine SquidRouter conversion-rate adjustment, or post-swap fee
-   deduction from the "actual" amount. `actualOutputAmountDecimal` = the
-   actual input amount. Subsidy metadata shape mirrors the existing
-   `QuoteContext.subsidy` field.
-2. **`computeFees` network fee = `"0"`.** `calculateFeeComponents` (reused
-   from `core/quote-fees.ts`) returns no network component — the Squid
-   network fee is normally added mid-pipeline by per-engine `compute`
-   (which needs `ctx.mykoboMint` etc., not available on `PhaseCtx` at
-   pre-`simulate` time). The adapter sets `network: "0"` in both fee views
-   rather than re-fetching the Squid fee.
-3. **`MorphoMint` hardcodes `"usdc-arbitrum"` vault.** Only one vault is
-   configured in `morpho-vault-config.ts`; `PhaseCtx` / `CreateQuoteRequest`
-   carries no vault-id field. A multi-vault resolution (chain→vault-id map
-   or a `ctx.request` field) is deferred. When the base-vault flow runs,
-   `previewDeposit` would be read on Base against an Arbitrum vault
-   address — no Base vault configured yet.
-4. **`NablaSwap` SELL deductible = `0`.** The SELL path in the existing
-   engine reads `ctx.preNabla?.deductibleFeeAmountInSwapCurrency`, which
-   is not on `PhaseCtx`. Hardcoded to `0` (safe for the POC:
-   `EUR_ONRAMP_MORPHO` is BUY/onramp, where the deductible is `0` anyway).
+   lookup. They do NOT port: the DB partner lookup
+   (`resolveDiscountPartner`), the per-engine SquidRouter conversion-rate
+   adjustment, or post-swap fee deduction from the "actual" amount.
+2. **`computeFees` network fee = `"0"`, anchor fee from DB.** The
+   production Avenia fee engine sets the anchor fee from the live Avenia
+   mint/transfer fees and the network fee from a Squid quote; the blocks
+   adapter reuses `calculateFeeComponents` only. Simulated amounts
+   therefore drift from the old engine until fee parity (roadmap) is done.
+3. **Executors are corridor slices.** EVM ephemeral, Base source, BUY
+   direction. Substrate (Pendulum), Polygon/Alfredpay, and SELL branches
+   of the production handlers are not ported — they belong to the
+   corridors that exercise them.
+4. **Executors keep production's cross-phase metadata reads** (e.g.
+   `subsidizePostSwap` topping up to `evmToEvm.inputAmountRaw`) for
+   bit-compatibility during migration. Persisting per-phase IO boundaries
+   would remove these reads — deferred.
 5. **`NablaSwap` runtime is Base-only.** `calculateNablaSwapOutputEvm`
-   hardcodes `Networks.Base` in its `EvmClientManager.readContractWithRetry`
-   call. The `chain` arg is used only for branding/IO output. NablaSwap is
-   only ever instantiated with `chain = Networks.Base` in the POC flow.
+   hardcodes `Networks.Base`; the `chain` arg is used for branding/IO.
 6. **`PartnerInfo` import source.** Not exported from `@vortexfi/shared`;
-   `core/types.ts` imports it from `../../core/types` (read-only, no file
-   outside `core/` was modified).
+   `core/types.ts` imports it from `../../core/types` (read-only).
 7. **Smoke test mock leakage.** `mock.module("../../../priceFeed.service", ...)`
-   does not fully intercept the real module — the real
-   `PriceFeedService initialized` log still appears. Harmless:
-   `getOnchainOraclePrice` is wrapped in `try/catch` inside `NablaSwap` and
-   the subsidy phases, so the flow completes regardless.
+   does not fully intercept the real module. Harmless: oracle calls are
+   wrapped in `try/catch` inside the phases, so the flow completes.
 
 ### Appendix: the existing code this refactor targets
 
-The entanglement this POC begins to unwind:
+The entanglement this model unwinds:
 
 - **Quote side** (`apps/api/src/api/services/quote/`): `QuoteService` →
-  `RouteResolver` → `QuoteOrchestrator` walks `stages: StageKey[]` (10
-  keys) calling `engine.execute(ctx)`. 10 strategies in
-  `routes/strategies/`. Engines in
-  `engines/{initialize,nabla-swap,squidrouter,fee,discount,finalize,...}/`.
+  `RouteResolver` → `QuoteOrchestrator` walks `stages: StageKey[]` calling
+  `engine.execute(ctx)`. Strategies in `routes/strategies/`, engines in
+  `engines/*`, all communicating through the ~25-field optional
+  `QuoteContext` bag.
 - **Execution side** (`apps/api/src/api/services/phases/` +
-  `transactions/`): `PhaseProcessor` walks
-  `state.state.phaseFlow: RampPhase[]` (28 distinct strings). Handlers in
-  `handlers/*.ts` read `quote.metadata.*` by string key. Route-prep in
-  `transactions/{onramp,offramp}/routes/*.ts` picks both the `phaseFlow`
-  array AND builds `unsignedTxs` from the same metadata.
-- **The gap:** 10 quote stages ≠ 28 execution phases. The mapping is
-  implicit, spread across three files. `QuoteContext` is a ~25-field
-  optional bag. `phaseFlow` is `string[]` — a typo fails only at runtime.
-  Subsidy logic is smeared across both pipelines. No compile-time
-  guarantee that a Polygon-only phase doesn't follow a Base swap.
+  `transactions/`): `PhaseProcessor` walks `state.state.phaseFlow`.
+  Handlers read `quote.metadata.*` by string key. Route-prep picks the
+  `phaseFlow` array AND builds `unsignedTxs` from the same metadata —
+  re-deriving the corridor decision the quote strategy already made.
+- **The gap:** quote stages ≠ execution phases; the mapping is implicit,
+  spread across three files; `phaseFlow` correctness is runtime-only.
 
-This POC proves the block model closes that gap, one corridor at a time,
-without a big-bang rewrite.
+The block model closes that gap one corridor at a time, without a
+big-bang rewrite: this corridor's quote simulation, phase sequence, and
+execution handlers are now defined by a single flow.
 
 ### Roadmap (next steps, in priority order)
 
-1. **Port the remaining ~9 corridors.** Each is now small — primitives
-   exist. Apply the same `FlowBuilder.start(...).pipe(...).build()`
-   pattern. Candidates by complexity: `EUR_ONRAMP_BASE_DIRECT` (smallest),
-   `BRL_ONRAMP_*`, `ALFREDPAY_*`, the offramps. Each port replaces one
-   entry in `ramp-flow-definitions.ts` with a derived array.
-2. **Wire the new flow into `QuoteService` behind a flag.** Run real
-   parity vs the old `onrampMykoboToEvmStrategy` for `EUR_ONRAMP_MORPHO`.
-   Compare `outputAmount` numerically.
-3. **Implement `prepareTxs` and `execute` on `Phase`.** Currently only
-   `simulate` + `phases` are defined. Adding
-   `prepareTxs(input, output, ctx): Promise<UnsignedTx[]>` and
-   `execute(state, io): Promise<RampState>` to the `Phase` interface makes
-   the execution side block-defined too — one source of truth per corridor
-   instead of three (strategy, `RampPhase[]`, route-prep).
-4. **Full numerical parity integration test** vs
-   `onrampMykoboToEvmStrategy` (real externals, no mocks) as a follow-up
-   to the smoke test.
-5. **Close the POC gaps** in priority order: (a) `computeFees` network
-   fee (move the Squid fee fetch into a dedicated phase or a post-`simulate`
-   fixup), (b) `MorphoMint` multi-vault resolution, (c) `NablaSwap` SELL
-   deductible, (d) `Subsidize*` full partner-DB lookup.
-6. **Delete the old strategy + `ramp-flow-definitions.ts` entries** for
-   each ported corridor once parity is proven. The old `StageKey` /
-   `RampPhase` strings can coexist as aliases during migration.
+1. **`prepareTxs` on `Phase`.** The remaining third leg: each phase
+   declares the unsigned transactions its executors expect
+   (`nablaApprove`/`nablaSwap` txs, squid approve/swap, destination
+   transfer), replacing the corridor's route-prep in
+   `transactions/onramp/routes/avenia-to-evm-base.ts`. Needs a flow-level
+   prepare context (ephemeral addresses, per-signer nonce allocation in
+   flow order).
+2. **Wire the flow behind a flag.** Register `flow.executors` into the
+   phase registry and route `QuoteService` through `flow.simulate` for
+   this corridor; run real numerical parity vs `onrampAveniaToEvmBaseStrategy`
+   (requires closing gap #2 first).
+3. **Port the remaining corridors.** `EUR_ONRAMP_BASE_*` next (MykoboMint
+   exists; executors for `mykoboOnrampDeposit` pending), then
+   `BRL_ONRAMP_BASE_{DIRECT,SAME_CHAIN}` (subsets of this flow family),
+   `ALFREDPAY_*`, the offramps.
+4. **Persist per-phase IO boundaries** into metadata so executors read
+   their own phase's simulated output instead of downstream keys (gap #4).
+5. **Delete the old strategy + `ramp-flow-definitions.ts` entry + handlers**
+   for each ported corridor once parity is proven.

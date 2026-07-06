@@ -1,5 +1,6 @@
 import type { CreateQuoteRequest, QuoteFeeStructure, RampCurrency, RampPhase } from "@vortexfi/shared";
 import type { Big } from "big.js";
+import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { PartnerInfo } from "../../core/types";
 
 export type TokenBrand = string;
@@ -28,11 +29,17 @@ export interface PhaseCtx {
 export interface Phase<I extends PhaseIO, O extends PhaseIO> {
   readonly name: string;
   readonly phases: RampPhase[];
-  simulate(input: I, ctx: PhaseCtx): Promise<O>;
+  // Property (not method) so pipe's brand check stays contravariant under strictFunctionTypes.
+  readonly simulate: (input: I, ctx: PhaseCtx) => Promise<O>;
+  // One executor per entry in `phases`, in the same order. Optional while corridors
+  // are ported incrementally; a flow whose phases all carry executors is fully
+  // execution-ready (registerable into the phase registry, unwired for now).
+  readonly executors?: PhaseHandler[];
 }
 
 export interface Flow {
   readonly name: string;
   readonly phases: RampPhase[];
+  readonly executors: PhaseHandler[];
   simulate(ctx: PhaseCtx): Promise<PhaseIO>;
 }
