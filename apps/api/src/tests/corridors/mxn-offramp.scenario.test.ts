@@ -84,6 +84,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     await resetTestDatabase();
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
+    world.squidRouter.computeToAmount = params => params.fromAmount;
     world.alfredpay.offrampRate = ALFREDPAY_OFFRAMP_RATE;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
     // Fresh deposit address per test: the in-memory EVM ledger persists across
@@ -327,6 +328,38 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
       // The ephemeral's deposit transfer must never have been broadcast.
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
+    "subsidy cap (F-001): a settlement shortfall needing more than MAX_FINAL_SETTLEMENT_SUBSIDY_USD of native fails instead of paying",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
+      // Only 90% of the expected USDT arrived (exactly the minimum bridge
+      // delivery ratio, so the balance poll passes): the 10 USDT shortfall
+      // must be subsidized. The funding account holds no USDT, so the handler
+      // prices a native→USDT swap; at 0.5 USD/MATIC the required ~22 MATIC
+      // (incl. the 10% buffer) is worth $11 — above the $10 F-001 cap.
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        setup.ephemeral.address,
+        (setup.inputAmountRaw * 9n) / 10n
+      );
+      world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) / 2n / 10n ** 12n).toString();
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("exceeds maximum allowed"))).toBe(true);
+
+      // The deposit transfer never reached the chain and nothing was subsidized.
       expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, world.alfredpay.offrampDepositAddress)).toBe(0n);
     },
