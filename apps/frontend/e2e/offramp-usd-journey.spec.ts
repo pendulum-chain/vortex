@@ -19,14 +19,7 @@ const FIAT_ACCOUNT_ID = "fiat-account-e2e-1";
 // account -> ramp registration -> ephemeral presigning posted to /ramp/update -> USER
 // WALLET broadcast of the squidRouterNoPermitTransfer (eth_sendTransaction on the mock
 // wallet) with its hash reported in a second /ramp/update -> automatic /ramp/start ->
-// progress.
-//
-// KNOWN GAP: unlike the BRL offramp, this journey cannot end on the success screen. The
-// progress page's getRampFlow (src/pages/progress/index.tsx) returns null for SELL
-// ramps whose output is not BRL/EURC, so the ramp status is never polled after start
-// and currentPhase never advances to "complete" — for Alfredpay offramps the UI stays
-// on the progress screen. This spec asserts the truthful current behavior (progress
-// after the automatic start); extend it to the success screen when that gap is fixed.
+// progress -> success (once status polling reports COMPLETE).
 
 const SELL_RAMP_FIELDS = {
   depositQrCode: undefined,
@@ -84,7 +77,7 @@ function buildSellUnsignedTxs(evmEphemeral: string) {
   ];
 }
 
-test("SELL USD journey: quote, auth, Alfredpay KYC gate, fiat account, registration, wallet signing, progress", async ({
+test("SELL USD journey: quote, auth, Alfredpay KYC gate, fiat account, registration, wallet signing, progress, success", async ({
   page
 }) => {
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing
@@ -105,6 +98,7 @@ test("SELL USD journey: quote, auth, Alfredpay KYC gate, fiat account, registrat
         }),
         status: 200
       }) as { status: number; body: unknown },
+    rampStatusOverrides: () => SELL_RAMP_FIELDS,
     register: body => {
       const signingAccounts = (body.signingAccounts ?? []) as Array<{ address: string; type: string }>;
       const evmEphemeral = signingAccounts.find(account => account.type === "EVM")?.address ?? POLYGON_USDT;
@@ -159,13 +153,12 @@ test("SELL USD journey: quote, auth, Alfredpay KYC gate, fiat account, registrat
 
   // Stage 7: the ephemeral transactions are signed in-page and posted to /ramp/update,
   // then the USER WALLET broadcasts the source-of-funds transfer and its hash is
-  // reported in a second update; the offramp starts automatically and lands on the
-  // progress screen (which only renders once the machine reaches RampFollowUp, i.e.
-  // after /ramp/start succeeded). See the KNOWN GAP note above for why the journey
-  // ends here instead of on the success screen.
-  await expect(page.getByRole("heading", { name: "Your transaction is in progress." })).toBeVisible({
+  // reported in a second update; the offramp starts automatically and (once polling
+  // reports COMPLETE) lands on the SELL success screen.
+  await expect(page.getByRole("heading", { name: "All set! The withdrawal has been sent to your bank." })).toBeVisible({
     timeout: 45_000
   });
+  await expect(page.getByText("Your funds will arrive in your bank account in a few minutes.")).toBeVisible();
 
   expect(backend.registerRequests).toHaveLength(1);
   const registerBody = backend.registerRequests[0] as {
