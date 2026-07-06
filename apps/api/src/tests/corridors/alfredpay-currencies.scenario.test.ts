@@ -653,7 +653,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
 
     return {
       depositAddress: world.alfredpay.offrampDepositAddress,
-      ephemeralAddress: ephemeral.address,
+      ephemeralAddress: ephemeral.address as `0x${string}`,
       inputAmountRaw,
       quoteId: quote.id,
       rampId: ramp.id,

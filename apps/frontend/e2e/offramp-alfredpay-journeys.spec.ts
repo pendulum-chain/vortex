@@ -36,7 +36,7 @@ interface SellJourneyCase {
   arrivalText: string;
 }
 
-function buildFiatAccount(fields: Record<string, unknown>) {
+function buildFiatAccount<T extends Record<string, unknown>>(fields: T) {
   return {
     createdAt: new Date().toISOString(),
     customerId: "alfred-customer-e2e-1",
