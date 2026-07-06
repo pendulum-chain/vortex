@@ -248,6 +248,20 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
 
       const methods = await requestJson("/v1/supported-payment-methods");
       expect(methods.status).toBe(200);
+      const sellMethods = methods.body.paymentMethods as Array<{ id: string; supportedFiats: Array<{ id: string }> }>;
+      expect(sellMethods.map(method => method.id).sort()).toEqual(["ach", "cbu", "pix", "sepa", "spei"]);
+      // Every fiat token is reachable through at least one sell payment method.
+      const sellFiats = sellMethods.flatMap(method => method.supportedFiats.map(fiat => fiat.id));
+      expect([...new Set(sellFiats)].sort()).toEqual(["ARS", "BRL", "COP", "EUR", "MXN", "USD"]);
+
+      const buyMethods = await requestJson("/v1/supported-payment-methods?type=buy");
+      expect(buyMethods.status).toBe(200);
+      const buyIds = (buyMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id);
+      expect(buyIds.sort()).toEqual(["ach", "pix", "spei"]);
+
+      const mxnMethods = await requestJson("/v1/supported-payment-methods?fiat=MXN");
+      expect(mxnMethods.status).toBe(200);
+      expect((mxnMethods.body.paymentMethods as Array<{ id: string }>).map(method => method.id)).toEqual(["spei"]);
     });
 
     it("price endpoints validate their query parameters", async () => {
