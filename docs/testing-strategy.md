@@ -48,6 +48,53 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
 When a new security finding is fixed, add a regression test in the same PR and reference the
 finding ID in the test name.
 
+## Coverage matrix: corridors × entry points
+
+One row per live corridor and direction. The scenario columns are the **direct-API entry point**
+(registration over real HTTP + the real phase processor against the fake world); SDK and E2E are
+the other two entry points. Corridor-agnostic invariants (auth matrix, quote consumption/expiry,
+fee immutability, pricing goldens, ownership) are not repeated per row — they run once against
+shared code and are listed in the invariants section above. **Update this table in the same PR
+as any new corridor, rail, or entry-point test.**
+
+Legend: ✅ directly tested · ◐ covered only via shared code/another corridor (see footnote) ·
+❌ missing · — not applicable · 🚫 kill-switched.
+
+| Corridor (rail) | Dir | Happy path | Transient | Unrecoverable | Security / caps | Cross-chain leg | SDK | E2E journey |
+|---|---|---|---|---|---|---|---|---|
+| BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ◐¹ | ✅ | ✅ |
+| BRL (Avenia / Pix) | SELL | ✅ | ✅ | ✅ | ✅ pre/post-swap caps, recipient | ✅ F-021 | ✅ | ✅ |
+| MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ❌ | ✅ |
+| MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ◐² | ◐³ | ◐⁴ |
+| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| USD (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ✅ | ✅⁵ |
+| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ◐⁶ | ◐⁴ |
+| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ◐⁶ | ◐⁴ |
+| EUR (Mykobo / SEPA) | both | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 |
+| AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌ | ❌ | ❌ | — | ❌ | ❌ |
+
+¹ Onramp squid leg (squidRouterSwap/Pay + settlement subsidy) exercised only by the MXN
+cross-chain onramp scenario; the handlers are shared, but no per-corridor variant exists.
+² Offramp squid leg (user-reported squid-hash verification) exercised only by the BRL
+cross-chain offramp scenario; handlers shared.
+³ The Alfredpay SELL rail's SDK lifecycle runs as USD; MXN itself is never driven through
+the SDK.
+⁴ The Alfredpay BUY UI flow is exercised by the MXN onramp journey and the SELL flow by the
+USD offramp journey; no per-currency journey exists.
+⁵ The journey ends at the progress screen: the success screen is currently unreachable for
+Alfredpay offramps (frontend bug — `getRampFlow` returns null for SELL with non-BRL/EURC
+output; fix in progress).
+⁶ Quote + register SDK shape checks only; no full lifecycle.
+
+**Gaps at a glance** (everything not ✅ above): no SDK coverage for any Alfredpay BUY;
+MXN never driven through the SDK; COP/ARS SDK SELL is shape-checks only; Alfredpay E2E exists
+only as one BUY (MXN) and one SELL (USD) journey; per-corridor cross-chain variants lean on
+shared handlers; EUR is gated on the documented re-enablement precondition; the AssetHub
+corridors are reachable in production but deliberately deferred (see the decision note under
+Infrastructure — revisit if the product keeps them).
+
 ## Infrastructure
 
 ### The fake external world (`apps/api/src/test-utils/`)
