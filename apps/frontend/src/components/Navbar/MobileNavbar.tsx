@@ -17,8 +17,9 @@ export const MobileNavbar = () => {
 
   const { resetRampAndNavigateHome } = useNavbarHandlers();
 
-  const isBusinessPage = routerState.location.pathname.includes("/business");
-  const useTransparentStyle = isWidgetMode || isBusinessPage;
+  const isLightMarketingPage =
+    routerState.location.pathname.includes("/business") || routerState.location.pathname.includes("/payments");
+  const useTransparentStyle = isWidgetMode || isLightMarketingPage;
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -38,7 +39,7 @@ export const MobileNavbar = () => {
             <LogoButton onClick={resetRampAndNavigateHome} variant="blue" />
           ) : (
             <div className="flex grow items-center justify-between">
-              <LogoButton onClick={resetRampAndNavigateHome} variant={isBusinessPage ? "blue" : "white"} />
+              <LogoButton onClick={resetRampAndNavigateHome} variant={isLightMarketingPage ? "blue" : "white"} />
               <HamburgerButton isOpen={isMobileMenuOpen} onClick={toggleMobileMenu} />
             </div>
           )}

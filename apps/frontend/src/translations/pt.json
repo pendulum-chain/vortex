@@ -609,11 +609,12 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Agendar demo",
-      "business": "Empresas",
+      "business": "Parceiros",
       "community": "Comunidade",
       "docs": "Documentação",
       "howItWorks": "Como funciona",
       "individuals": "Indivíduos",
+      "payments": "Payments",
       "sellCrypto": "Vender Cripto",
       "solutions": "Soluções",
       "toggleMobileMenu": "Alternar menu móvel",

@@ -605,11 +605,12 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Book demo",
-      "business": "Business",
+      "business": "Partners",
       "community": "Community",
       "docs": "Docs",
       "howItWorks": "How it works",
       "individuals": "Individuals",
+      "payments": "Payments",
       "sellCrypto": "Sell Crypto",
       "solutions": "Solutions",
       "toggleMobileMenu": "Toggle mobile menu",
