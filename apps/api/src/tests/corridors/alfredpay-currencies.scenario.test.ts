@@ -7,11 +7,14 @@ import {
   AlfredpayOnrampStatus,
   EvmToken,
   FiatToken,
+  getAnyFiatTokenDetails,
+  multiplyByPowerOfTen,
   Networks,
   RampDirection,
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { BaseError, ContractFunctionExecutionError, decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
@@ -392,5 +395,203 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
       },
       30000
     );
+
+    it(`${currency.fiat} onramp quote beyond the per-currency maximum is rejected`, async () => {
+      const details = getAnyFiatTokenDetails(currency.fiat);
+      const maxBuyUnits = multiplyByPowerOfTen(Big(details.maxBuyAmountRaw), -details.decimals);
+
+      const response = await app.request("/v1/quotes", {
+        body: JSON.stringify({
+          from: currency.rail,
+          inputAmount: maxBuyUnits.plus(1).toFixed(),
+          inputCurrency: currency.fiat,
+          network: Networks.Polygon,
+          outputCurrency: EvmToken.USDT,
+          rampType: RampDirection.BUY,
+          to: Networks.Polygon
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { message?: string; error?: string };
+      expect(JSON.stringify(body).toLowerCase()).toContain("limit");
+    });
   }
+
+  it(
+    "transient failure (USD): an RPC outage on the destination transfer is recoverable and the onramp still completes",
+    async () => {
+      const currency = CURRENCY_CASES[0]; // USD/ach
+      world.alfredpay.onrampRate = currency.onrampRate;
+      const ephemeral = privateKeyToAccount(generatePrivateKey());
+      const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+
+      const user = await createTestUser();
+      await createTestAlfredpayCustomer(user.id, { country: currency.country });
+      const quote = await createQuoteViaApi({
+        from: currency.rail,
+        inputAmount: currency.onrampInputAmount,
+        inputCurrency: currency.fiat,
+        network: Networks.Polygon,
+        outputCurrency: EvmToken.USDT,
+        rampType: RampDirection.BUY,
+        to: Networks.Polygon
+      });
+      const ramp = await registerViaApi(quote.id, user.id, [{ address: ephemeral.address, type: "EVM" }], {
+        destinationAddress: destination
+      });
+
+      const persistedQuote = await QuoteTicket.findByPk(quote.id);
+      const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+      const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+
+      const signTransfer = (nonce: number) =>
+        ephemeral.signTransaction({
+          chainId: 137,
+          data: encodeFunctionData({ abi: erc20Abi, args: [destination, amountRaw], functionName: "transfer" }),
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: ALFREDPAY_ERC20_TOKEN,
+          type: "eip1559"
+        });
+      const backups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        backups[`backup${i}`] = { nonce: i, txData: await signTransfer(i) };
+      }
+      const signedTransfer = await signTransfer(0);
+      await updateRampViaApi(ramp.id, user.id, {
+        presignedTxs: [
+          {
+            meta: { additionalTxs: backups },
+            network: Networks.Polygon,
+            nonce: 0,
+            phase: "destinationTransfer",
+            signer: ephemeral.address,
+            txData: signedTransfer
+          }
+        ]
+      });
+
+      world.evm.setNativeBalance(Networks.Polygon, ephemeral.address, parseUnits("2", 18));
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, ephemeral.address, mintAmountRaw);
+      applyErc20TransfersToLedger();
+      // The first broadcast of this corridor is the destination transfer.
+      world.evm.failNextSends = 1;
+      world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
+
+      await phaseProcessor.processRamp(ramp.id);
+
+      const final = await RampState.findByPk(ramp.id);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
+      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, destination)).toBe(amountRaw);
+    },
+    30000
+  );
+
+  it(
+    "unrecoverable failure (ARS): a FAILED Alfredpay offramp order fails the ramp without paying out",
+    async () => {
+      const currency = CURRENCY_CASES[2]; // ARS/cbu
+      world.alfredpay.offrampRate = currency.offrampRate;
+      const ephemeral = privateKeyToAccount(generatePrivateKey());
+      const userWallet = privateKeyToAccount(generatePrivateKey());
+
+      world.evm.onReadContract = (_network, params) => {
+        if (params.functionName === "nonces") {
+          throw new ContractFunctionExecutionError(new BaseError("nonces() reverted"), {
+            abi: erc20Abi,
+            contractAddress: params.address,
+            functionName: "nonces"
+          });
+        }
+        return undefined;
+      };
+
+      const user = await createTestUser();
+      await createTestAlfredpayCustomer(user.id, { country: currency.country });
+      const quote = await createQuoteViaApi({
+        from: Networks.Polygon,
+        inputAmount: currency.offrampInputAmount,
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: currency.fiat,
+        rampType: RampDirection.SELL,
+        to: currency.rail
+      });
+      const ramp = await registerViaApi(quote.id, user.id, [{ address: ephemeral.address, type: "EVM" }], {
+        fiatAccountId: "test-fiat-account-1",
+        walletAddress: userWallet.address
+      });
+
+      const persistedQuote = await QuoteTicket.findByPk(quote.id);
+      const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+
+      const registered = await RampState.findByPk(ramp.id);
+      const allUnsignedTxs: UnsignedTx[] = registered?.unsignedTxs ?? [];
+      const userTxData = allUnsignedTxs.find(tx => tx.phase === "squidRouterNoPermitTransfer")?.txData as unknown as {
+        to: `0x${string}`;
+        data: `0x${string}`;
+      };
+      const offrampTxData = allUnsignedTxs.find(tx => tx.phase === "alfredpayOfframpTransfer")?.txData as unknown as {
+        to: `0x${string}`;
+        data: `0x${string}`;
+      };
+
+      const signOfframpTransfer = (nonce: number) =>
+        ephemeral.signTransaction({
+          chainId: 137,
+          data: offrampTxData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: offrampTxData.to,
+          type: "eip1559"
+        });
+      const backups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        backups[`backup${i}`] = { nonce: i, txData: await signOfframpTransfer(i) };
+      }
+      const userTxHash = world.evm.broadcastUserTransaction(Networks.Polygon, userWallet.address, {
+        data: userTxData.data,
+        to: userTxData.to,
+        value: 0n
+      });
+      await updateRampViaApi(ramp.id, user.id, {
+        additionalData: { squidRouterNoPermitTransferHash: userTxHash },
+        presignedTxs: [
+          {
+            meta: { additionalTxs: backups },
+            network: Networks.Polygon,
+            nonce: 0,
+            phase: "alfredpayOfframpTransfer",
+            signer: ephemeral.address,
+            txData: await signOfframpTransfer(0)
+          }
+        ]
+      });
+
+      world.evm.setNativeBalance(Networks.Polygon, ephemeral.address, parseUnits("2", 18));
+      world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, ephemeral.address, inputAmountRaw);
+      applyErc20TransfersToLedger();
+      // The anchor reports the order FAILED while the transfer phase polls it.
+      world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FAILED;
+
+      await phaseProcessor.processRamp(ramp.id);
+
+      const final = await RampState.findByPk(ramp.id);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+    },
+    30000
+  );
 });

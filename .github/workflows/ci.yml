@@ -81,6 +81,9 @@ jobs:
       - name: 🧪 SDK tests
         run: bun run test:sdk
 
+      - name: 🧪 SDK coverage gate
+        run: cd packages/sdk && bun run test:coverage
+
       - name: 🧪 Rebalancer tests (coverage-gated)
         run: cd apps/rebalancer && bun run test:coverage
 

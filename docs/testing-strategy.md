@@ -18,9 +18,9 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | Layer | What | Where | Runner |
 |---|---|---|---|
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
-| 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), MXN on/offramp (spei↔USDT-on-Polygon), and a USD/COP/ARS happy-path matrix over the same Alfredpay rails | `apps/api/src/tests/corridors/` | `bun test` |
-| 4. SDK contract | Real SDK against the real API in-process | `apps/api/src/tests/sdk-contract.test.ts` | `bun test` |
+| 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), and a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + transient/unrecoverable failures) | `apps/api/src/tests/corridors/` | `bun test` |
+| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`) and the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
@@ -90,10 +90,15 @@ hand-write these objects or copy JSON snapshots into tests; extend the factory i
 ### Playwright E2E (`apps/frontend/e2e/`)
 
 A handful of critical journeys run against the real frontend in Chromium, hermetically: quote
-form → quote displayed, quote error surfaced, wallet gate on offramps, and one full BRL onramp
-journey (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC gate → registration →
-in-page ephemeral signing asserted via the presigned txs posted to `/v1/ramp/update` → Pix
-payment info → progress → success):
+form → quote displayed, quote error surfaced, wallet gate on offramps, and three full ramp
+journeys — the BRL onramp (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC
+gate → registration → in-page ephemeral signing asserted via the presigned txs posted to
+`/v1/ramp/update` → Pix payment info → progress → success), the BRL OFFRAMP
+(`offramp-brl-journey.spec.ts`: the money-out path — wallet gate + balance check → CPF/Pix
+eligibility → registration → USER-WALLET broadcast of the source-of-funds transfer with its
+hash reported in a second update → automatic start → success), and the MXN onramp
+(`onramp-mxn-journey.spec.ts`: the Alfredpay rail — Alfredpay KYC gate → Polygon-side
+ephemeral signing → SPEI payment details (CLABE) → success):
 
 - The API origin (`http://localhost:3000`) is intercepted per-test with `page.route`
   (`e2e/support/mockBackend.ts`) — no backend, database, or chain access.
@@ -128,9 +133,9 @@ never PR-blocking.
 - **Non-blocking / nightly**: Playwright E2E journeys and any live smoke tests. Failures alert;
   they don't block merges.
 - Every workspace suite carries a coverage ratchet, enforced by `bun run test:coverage` in CI:
-  the bun workspaces (shared, rebalancer, api) produce an LCOV report checked against per-package
-  floors by `scripts/check-coverage.ts` (floors live in each `package.json` script); the frontend
-  uses vitest's built-in thresholds (`apps/frontend/vitest.config.ts`). Floors sit just under the
+  the bun workspaces (shared, sdk, rebalancer, api) produce an LCOV report checked against
+  per-package floors by `scripts/check-coverage.ts` (floors live in each `package.json` script);
+  the frontend uses vitest's built-in thresholds (`apps/frontend/vitest.config.ts`). Floors sit just under the
   coverage measured when they were last raised — raise them when you add tested code; never lower
   them to make CI pass.
 - The coverage denominator is real, testable source only: built bundles, foreign workspace code,

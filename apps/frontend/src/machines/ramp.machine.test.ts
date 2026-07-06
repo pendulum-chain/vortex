@@ -17,6 +17,7 @@ import { AuthService, type AuthTokens } from "../services/auth";
 import { RampExecutionInput } from "../types/phases";
 import { SignRampError, SignRampErrorType } from "./actors/sign.actor";
 import { RampLimitExceededError } from "./actors/validateKyc.actor";
+import { AlfredpayKycMachineError, AlfredpayKycMachineErrorType, alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { MykoboKycMachineError, MykoboKycMachineErrorType, mykoboKycMachine } from "./mykoboKyc.machine";
 import { RampContext, RampMachineEvents, RampState } from "./types";
@@ -111,6 +112,29 @@ const stubAveniaMachine = setup({}).createMachine({
   output: () => ({}),
   states: { Done: { type: "final" } }
 }) as unknown as typeof aveniaKycMachine;
+
+/**
+ * Minimal child machine standing in for the Alfredpay KYC machine. It captures
+ * the input the ramp machine passes (country routing) and finishes on FINISH —
+ * or on SummaryConfirm, to prove the parent forwards that event to this child.
+ */
+function stubAlfredpayMachine(output: { error?: AlfredpayKycMachineError } = {}) {
+  return setup({}).createMachine({
+    context: ({ input }) => ({ capturedInput: input as { country?: string; business?: boolean } }),
+    initial: "Waiting",
+    output: () => output,
+    states: { Done: { type: "final" }, Waiting: { on: { FINISH: "Done", SummaryConfirm: "Done" } } }
+  }) as unknown as typeof alfredpayKycMachine;
+}
+
+/** Waiting variant of the Avenia stub so the test can observe the {KYC: "Avenia"} state. */
+function stubWaitingAveniaMachine(output: { error?: { message: string } } = {}) {
+  return setup({}).createMachine({
+    initial: "Waiting",
+    output: () => output,
+    states: { Done: { type: "final" }, Waiting: { on: { FINISH: "Done" } } }
+  }) as unknown as typeof aveniaKycMachine;
+}
 
 async function goToQuoteReady(actor: ReturnType<typeof createRampActor>) {
   actor.send({ lock: false, quoteId: "quote-1", type: "SET_QUOTE" });
@@ -489,6 +513,80 @@ describe("rampMachine", () => {
       actor.send({ selectedFiatAccountId: "fiat-account-1", type: "PROCEED_TO_REGISTRATION" });
       expect(actor.getSnapshot().value).toBe("RegisterRamp");
       expect(actor.getSnapshot().context.executionInput?.selectedFiatAccountId).toBe("fiat-account-1");
+    });
+
+    it.each([
+      [FiatToken.MXN, "MX"],
+      [FiatToken.USD, "US"],
+      [FiatToken.COP, "CO"],
+      [FiatToken.ARS, "AR"]
+    ])("routes %s ramps with kycNeeded to the Alfredpay child with country %s and completes", async (fiatToken, country) => {
+      const actor = createRampActor({
+        alfredpayKyc: stubAlfredpayMachine(),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, fiatToken);
+
+      await waitFor(actor, s => s.matches({ KYC: "Alfredpay" }));
+
+      // The parent derived the Alfredpay country from the quote's fiat token.
+      const child = actor.getSnapshot().children.alfredpayKyc as AnyActorRef;
+      const capturedInput = child.getSnapshot().context.capturedInput as { country?: string; business?: boolean };
+      expect(capturedInput.country).toBe(country);
+      expect(capturedInput.business).toBeUndefined();
+
+      child.send({ type: "FINISH" });
+      await waitFor(actor, s => s.matches("KycComplete"));
+    });
+
+    it("an Alfredpay KYC error output resets the ramp but keeps the failure message", async () => {
+      const actor = createRampActor({
+        alfredpayKyc: stubAlfredpayMachine({
+          error: new AlfredpayKycMachineError("Verification rejected", AlfredpayKycMachineErrorType.UnknownError)
+        }),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.MXN);
+      await waitFor(actor, s => s.matches({ KYC: "Alfredpay" }));
+
+      (actor.getSnapshot().children.alfredpayKyc as AnyActorRef).send({ type: "FINISH" });
+      // KycFailure immediately resets; the reset preserves initializeFailedMessage for the UI.
+      await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("Verification rejected");
+    });
+
+    it("SummaryConfirm inside KYC is forwarded to the Alfredpay child", async () => {
+      const actor = createRampActor({
+        alfredpayKyc: stubAlfredpayMachine(),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.ARS);
+      await waitFor(actor, s => s.matches({ KYC: "Alfredpay" }));
+
+      // The stub finalizes when it receives the forwarded SummaryConfirm.
+      actor.send({ type: "SummaryConfirm" });
+      await waitFor(actor, s => s.matches("KycComplete"));
+    });
+
+    it("routes BRL ramps with kycNeeded to the Avenia child and advances to KycComplete on success", async () => {
+      const actor = createRampActor({
+        aveniaKyc: stubWaitingAveniaMachine(),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.BRL);
+
+      await waitFor(actor, s => s.matches({ KYC: "Avenia" }));
+
+      (actor.getSnapshot().children.aveniaKyc as AnyActorRef).send({ type: "FINISH" });
+      await waitFor(actor, s => s.matches("KycComplete"));
     });
 
     it("completes the quote-less KYB deep link via SelectRegion and lands in KybLinkComplete", async () => {

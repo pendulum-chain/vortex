@@ -10,11 +10,18 @@ import * as shared from "@vortexfi/shared";
 export class FakeSquidRouter {
   /** Native value attached to the route tx (wei); drives the derived network fee. */
   transactionValueWei = "1000000000000000";
+  /** Router contract the route's swap tx calls; approve blueprints approve this spender. */
+  transactionTarget = "0x00000000000000000000000000000000005a11d0";
+  /** Calldata of the route's swap tx (opaque to the corridor code; only echoed back). */
+  transactionData = "0x5a11d0000000000000000000000000000000000000000000000000000000000000cafe";
+  transactionGasLimit = "500000";
   /** Raw destination amount for a requested route. Default: 1:1 with the input. */
   computeToAmount: (params: RouteParams) => string = params => params.fromAmount;
   toTokenDecimals = 18;
   failNextRoute: Error | null = null;
   readonly requestedRoutes: RouteParams[] = [];
+  /** Status the squidRouterPay bridge poll reports. Default: immediate success. */
+  bridgeStatus = "success";
 
   async getRoute(params: RouteParams) {
     if (this.failNextRoute) {
@@ -30,10 +37,26 @@ export class FakeSquidRouter {
             toAmount: this.computeToAmount(params),
             toToken: { decimals: this.toTokenDecimals }
           },
-          transactionRequest: { value: this.transactionValueWei }
+          transactionRequest: {
+            data: this.transactionData,
+            gasLimit: this.transactionGasLimit,
+            target: this.transactionTarget,
+            value: this.transactionValueWei
+          }
         }
       },
       requestId: "fake-squid-request"
+    };
+  }
+
+  /** Fake of the shared getStatus (SquidRouter status API) used by squidRouterPay. */
+  async getStatus() {
+    return {
+      id: "fake-squid-status",
+      isGMPTransaction: false,
+      routeStatus: [],
+      squidTransactionStatus: this.bridgeStatus,
+      status: this.bridgeStatus
     };
   }
 }
@@ -43,7 +66,8 @@ export function installFakeSquidRouter(): { fakeSquidRouter: FakeSquidRouter; re
 
   mock.module("@vortexfi/shared", () => ({
     ...shared,
-    getRoute: (params: RouteParams) => fakeSquidRouter.getRoute(params)
+    getRoute: (params: RouteParams) => fakeSquidRouter.getRoute(params),
+    getStatus: () => fakeSquidRouter.getStatus()
   }));
 
   return {

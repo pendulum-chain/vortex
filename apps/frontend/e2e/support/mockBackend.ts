@@ -101,6 +101,14 @@ interface MockBackendOptions {
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
   // Default 1: the progress page's immediate poll sees PENDING, the next one (after ~5s) sees COMPLETE.
   pendingStatusPolls?: number;
+  // Full response body for POST /v1/ramp/register. Default: the BUY BRL onramp response.
+  register?: (requestBody: Record<string, unknown>) => unknown;
+  // Full response body for POST /v1/ramp/update. Default: a bare RampProcess.
+  update?: (requestBody: Record<string, unknown>) => unknown;
+  // Extra fields merged into every GET /v1/ramp/:id status response (e.g. SELL currencies).
+  rampStatusOverrides?: (complete: boolean) => Record<string, unknown>;
+  // Status served on GET /v1/alfredpay/alfredpayStatus (Alfredpay KYC gate). Default: SUCCESS.
+  alfredpayStatus?: string;
 }
 
 // Intercepts all traffic to the API origin (http://localhost:3000) so journeys run
@@ -195,12 +203,23 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
+    // Alfredpay KYC gate: the alfredpayKyc machine's CheckingStatus step. SUCCESS means an
+    // existing verified customer, so the KYC child completes immediately (the gate's happy path).
+    if (path === "/v1/alfredpay/alfredpayStatus" && method === "GET") {
+      await fulfillJson({ status: options.alfredpayStatus ?? "SUCCESS" });
+      return;
+    }
+
     // Ramp lifecycle (RampProcess shapes from packages/shared/src/endpoints/ramp.endpoints.ts).
     if (path === "/v1/ramp/register" && method === "POST") {
       const body = request.postDataJSON() as {
         signingAccounts?: Array<{ address: string; type: string }>;
       } & Record<string, unknown>;
       registerRequests.push(body);
+      if (options.register) {
+        await fulfillJson(options.register(body));
+        return;
+      }
       const evmEphemeral = body.signingAccounts?.find(account => account.type === "EVM")?.address ?? BASE_USDC;
       await fulfillJson(
         buildRampProcess({
@@ -210,8 +229,9 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
     if (path === "/v1/ramp/update" && method === "POST") {
-      updateRequests.push(request.postDataJSON() as Record<string, unknown>);
-      await fulfillJson(buildRampProcess());
+      const body = request.postDataJSON() as Record<string, unknown>;
+      updateRequests.push(body);
+      await fulfillJson(options.update ? options.update(body) : buildRampProcess());
       return;
     }
     if (path === "/v1/ramp/start" && method === "POST") {
@@ -239,7 +259,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
           totalFeeFiat: "0.7",
           totalFeeUsd: "0.14",
           vortexFeeFiat: "0",
-          vortexFeeUsd: "0"
+          vortexFeeUsd: "0",
+          ...options.rampStatusOverrides?.(complete)
         })
       );
       return;
@@ -248,23 +269,101 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     await route.fulfill({ json: {}, status: 404 });
   });
 
-  // The frontend pre-signs the ephemeral-account transactions locally with viem, which
-  // issues eth_chainId to the network's RPC before signing (signing itself is offline).
-  // Answer those RPC calls hermetically for Base (0x2105).
-  const answerRpc = (body: { id?: number; method?: string } | Array<{ id?: number; method?: string }>) => {
-    const answerOne = (req: { id?: number; method?: string }) => ({
-      id: req.id ?? 1,
-      jsonrpc: "2.0",
-      result: req.method === "eth_chainId" ? "0x2105" : null
-    });
+  // The app reads chain state through the networks' RPC endpoints (ephemeral signing issues
+  // eth_chainId; offramps also read the user's token balance and wait for the receipt of the
+  // user-broadcast transaction). Answer those calls hermetically per chain.
+  type RpcRequest = { id?: number; method?: string; params?: unknown[] };
+  const answerRpc = (chainIdHex: string) => (body: RpcRequest | RpcRequest[]) => {
+    const answerOne = (req: RpcRequest) => {
+      const hash = (req.params?.[0] as string) ?? `0x${"cd".repeat(32)}`;
+      let result: unknown = null;
+      switch (req.method) {
+        case "eth_chainId":
+          result = chainIdHex;
+          break;
+        // Token balance reads (balanceOf & friends): a comfortably large uint256.
+        case "eth_call":
+          result = `0x${(10n ** 24n).toString(16).padStart(64, "0")}`;
+          break;
+        case "eth_getBalance":
+          result = "0xde0b6b3a7640000"; // 1 native token
+          break;
+        case "eth_blockNumber":
+          result = "0x1";
+          break;
+        case "eth_getTransactionCount":
+          result = "0x0";
+          break;
+        case "eth_estimateGas":
+          result = "0x5208";
+          break;
+        case "eth_gasPrice":
+        case "eth_maxPriorityFeePerGas":
+          result = "0x3b9aca00";
+          break;
+        case "eth_getBlockByNumber":
+          result = { baseFeePerGas: "0x1", number: "0x1" };
+          break;
+        // Answering the tx lookup marks user-broadcast hashes as regular (non-Safe) txs.
+        case "eth_getTransactionByHash":
+          result = { blockHash: `0x${"ef".repeat(32)}`, blockNumber: "0x1", from: null, hash, input: "0x", value: "0x0" };
+          break;
+        case "eth_getTransactionReceipt":
+          result = {
+            blockHash: `0x${"ef".repeat(32)}`,
+            blockNumber: "0x1",
+            contractAddress: null,
+            cumulativeGasUsed: "0x5208",
+            effectiveGasPrice: "0x3b9aca00",
+            gasUsed: "0x5208",
+            logs: [],
+            logsBloom: `0x${"00".repeat(256)}`,
+            status: "0x1",
+            transactionHash: hash,
+            transactionIndex: "0x0",
+            type: "0x2"
+          };
+          break;
+      }
+      return { id: req.id ?? 1, jsonrpc: "2.0", result };
+    };
     return Array.isArray(body) ? body.map(answerOne) : answerOne(body);
   };
-  for (const rpcPattern of ["https://base-mainnet.g.alchemy.com/**", "https://mainnet.base.org/**"]) {
-    await page.route(rpcPattern, async route => {
-      const body = route.request().postDataJSON() as Parameters<typeof answerRpc>[0];
-      await route.fulfill({ json: answerRpc(body) });
+  const rpcEndpoints: Array<{ chainIdHex: string; pattern: string }> = [
+    { chainIdHex: "0x2105", pattern: "https://base-mainnet.g.alchemy.com/**" },
+    { chainIdHex: "0x2105", pattern: "https://mainnet.base.org/**" },
+    { chainIdHex: "0x89", pattern: "https://polygon-mainnet.g.alchemy.com/**" },
+    { chainIdHex: "0x89", pattern: "https://polygon-rpc.com/**" }
+  ];
+  for (const { chainIdHex, pattern } of rpcEndpoints) {
+    const answer = answerRpc(chainIdHex);
+    await page.route(pattern, async route => {
+      const body = route.request().postDataJSON() as Parameters<typeof answer>[0];
+      await route.fulfill({ json: answer(body) });
     });
   }
+  // Safe Wallet transaction service — never reached (eth_getTransactionByHash answers first),
+  // but blocked so a code change cannot silently make runs non-hermetic.
+  await page.route("https://safe-transaction-*.safe.global/**", route => route.abort());
+
+  // Alchemy Data API (token balances by address): the wallet holds plenty of USDC on Base
+  // and USDT on Polygon, so offramp balance gates pass. The balance fetcher keys results
+  // by tokenAddress per queried network; entries not configured for a network are ignored.
+  await page.route("https://api.g.alchemy.com/**", async route => {
+    await route.fulfill({
+      json: {
+        data: {
+          tokens: [
+            { tokenAddress: BASE_USDC, tokenBalance: `0x${(1_000_000_000_000n).toString(16)}` },
+            {
+              tokenAddress: "0xc2132d05d31c914a87c6611c10748aeb04b58e8f",
+              tokenBalance: `0x${(1_000_000_000_000n).toString(16)}`
+            }
+          ]
+        }
+      }
+    });
+  });
 
   // SquidRouter token list: the app falls back to its static token config on failure.
   await page.route("https://v2.api.squidrouter.com/**", route => route.abort());

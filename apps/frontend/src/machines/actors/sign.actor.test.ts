@@ -103,6 +103,28 @@ describe("signTransactionsActor", () => {
       expect(updateCalls).toHaveLength(0);
     });
 
+    it("signs only the user-wallet transactions of a SELL ramp, never the ephemeral's phases", async () => {
+      const updateCalls = mockUpdateEndpoint();
+      vi.mocked(signAndSubmitEvmTransaction).mockResolvedValue("0xtransferhash");
+      // A registered offramp carries both kinds: the user's source-of-funds
+      // transfer plus the ephemeral's presign blueprints (which would throw as
+      // "unknown phase" if they ever reached the user signing loop).
+      const context = buildContext([
+        buildUnsignedTx({ nonce: 0, phase: "squidRouterNoPermitTransfer", signer: USER_ADDRESS }),
+        buildUnsignedTx({ nonce: 1, phase: "nablaApprove", signer: OTHER_ADDRESS }),
+        buildUnsignedTx({ nonce: 2, phase: "nablaSwap", signer: OTHER_ADDRESS }),
+        buildUnsignedTx({ nonce: 3, phase: "brlaPayoutOnBase", signer: OTHER_ADDRESS })
+      ]);
+
+      const { result } = await runActor(context);
+
+      expect(signAndSubmitEvmTransaction).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(signAndSubmitEvmTransaction).mock.calls[0][0].phase).toBe("squidRouterNoPermitTransfer");
+      expect(updateCalls).toHaveLength(1);
+      expect(updateCalls[0].additionalData).toMatchObject({ squidRouterNoPermitTransferHash: "0xtransferhash" });
+      expect(result.userSigningMeta).toBeDefined();
+    });
+
     it("matches EVM signers case-insensitively", async () => {
       mockUpdateEndpoint();
       vi.mocked(signAndSubmitEvmTransaction).mockResolvedValue("0xhash");

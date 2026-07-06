@@ -1,6 +1,7 @@
 import {
   AlfredpayApiService,
   type AlfredpayFee,
+  type AlfredpayFiatAccount,
   type AlfredpayFiatPaymentInstructions,
   type AlfredpayOfframpQuote,
   AlfredpayOfframpStatus,
@@ -232,6 +233,8 @@ export class FakeAlfredpay {
   offrampDepositAddress = "0x5afe00000000000000000000000000000000d0e5";
   readonly offrampOrders: CreateAlfredpayOfframpRequest[] = [];
   readonly offrampTransactions = new Map<string, AlfredpayOfframpTransaction>();
+  /** Accounts served by listFiatAccounts, keyed by Alfredpay customer id. */
+  readonly fiatAccountsByCustomer = new Map<string, AlfredpayFiatAccount[]>();
   private counter = 0;
 
   private readonly fiatPaymentInstructions: AlfredpayFiatPaymentInstructions = {
@@ -363,7 +366,9 @@ export class FakeAlfredpay {
         metadata: this.onrampStatusMetadata,
         status: this.onrampStatus
       };
-    }
+    },
+    listFiatAccounts: async (customerId: string): Promise<AlfredpayFiatAccount[]> =>
+      this.fiatAccountsByCustomer.get(customerId) ?? []
   };
 
   asService(): AlfredpayApiService {

@@ -17,6 +17,9 @@ export default defineConfig({
   },
   webServer: {
     command: "bun x --bun vite --port 5173 --strictPort",
+    // A placeholder Alchemy key so balance fetching runs at all; every Alchemy
+    // endpoint is intercepted per-test in e2e/support/mockBackend.ts.
+    env: { VITE_ALCHEMY_API_KEY: "e2e-mock-key" },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:5173"
