@@ -40,6 +40,23 @@ export async function injectMockWallet(page: Page) {
             case "personal_sign":
             case "eth_signTypedData_v4":
               return `0x${"ab".repeat(65)}`;
+            // Journeys that submit user transactions (e.g. offramp squidRouter steps)
+            // get a plausible transaction hash back without touching a chain.
+            case "eth_sendTransaction":
+              return `0x${"cd".repeat(32)}`;
+            case "eth_getTransactionReceipt":
+              return {
+                blockHash: `0x${"ef".repeat(32)}`,
+                blockNumber: "0x1",
+                status: "0x1",
+                transactionHash: `0x${"cd".repeat(32)}`
+              };
+            case "eth_estimateGas":
+              return "0x5208";
+            case "eth_gasPrice":
+              return "0x3b9aca00";
+            case "eth_getTransactionCount":
+              return "0x0";
             case "eth_getBalance":
               return "0xde0b6b3a7640000"; // 1 ETH
             case "eth_blockNumber":
