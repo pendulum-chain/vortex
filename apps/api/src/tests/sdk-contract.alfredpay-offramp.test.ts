@@ -40,7 +40,17 @@ interface CurrencyCase {
   offrampRate: number;
 }
 
-// Rails per currency: USD and COP pay out over ach, ARS over cbu.
+interface LifecycleCase extends CurrencyCase {
+  /** The user's payout account served by the fake anchor's listFiatAccounts. */
+  fiatAccount: {
+    fiatAccountId: string;
+    type: AlfredpayFiatAccountType;
+    accountNumber: string;
+    accountType: string;
+  };
+}
+
+// Rails per currency: USD and COP pay out over ach, ARS over cbu, MXN over spei.
 const CURRENCY_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "USD",
@@ -65,6 +75,35 @@ const CURRENCY_CASES: CurrencyCase[] = [
     inputAmount: "100",
     offrampRate: 1000,
     rail: EPaymentMethod.CBU
+  }
+];
+
+// The full lifecycle runs once per Alfredpay SELL rail with its own SDK test:
+// USD/ach and MXN/spei (100 USDT * 20 = 2000 MXN, the same legible flat rate
+// the MXN corridor scenario uses).
+const FULL_LIFECYCLE_CASES: LifecycleCase[] = [
+  {
+    ...CURRENCY_CASES[0], // USD/ach
+    fiatAccount: {
+      accountNumber: "021000021000000",
+      accountType: "checking",
+      fiatAccountId: "fiat-account-usd-1",
+      type: AlfredpayFiatAccountType.ACH
+    }
+  },
+  {
+    alfredpayCurrency: "MXN",
+    country: AlfredPayCountry.MX,
+    fiat: FiatToken.MXN,
+    fiatAccount: {
+      accountNumber: "002010077777777771", // CLABE
+      accountType: "clabe",
+      fiatAccountId: "fiat-account-mxn-1",
+      type: AlfredpayFiatAccountType.SPEI
+    },
+    inputAmount: "100",
+    offrampRate: 20,
+    rail: EPaymentMethod.SPEI
   }
 ];
 
@@ -99,11 +138,12 @@ function installChainIdShim(): { restore: () => void } {
 
 /**
  * SDK ↔ API contract tests for the Alfredpay SELL rail (USDT on Polygon →
- * USD/COP/ARS bank payouts): the real SDK lists the user's registered fiat
- * accounts, registers the offramp on the no-permit path (fiatAccountId +
+ * USD/MXN/COP/ARS bank payouts): the real SDK lists the user's registered
+ * fiat accounts, registers the offramp on the no-permit path (fiatAccountId +
  * walletAddress), broadcasts the user's source-of-funds transfer via
- * submitUserTransactions, and drives the ramp to completion — plus lighter
- * createQuote/registerRamp shape checks for every currency's rail.
+ * submitUserTransactions, and drives the ramp to completion — the full
+ * lifecycle runs as both USD/ach and MXN/spei — plus lighter
+ * createQuote/registerRamp shape checks for the USD/COP/ARS rails.
  */
 describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank payout)", () => {
   let world: FakeWorld;
@@ -244,98 +284,94 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     }
   }
 
-  it(
-    "drives the full USD/ach lifecycle: createQuote → listAlfredpayFiatAccounts → registerRamp → submitUserTransactions → startRamp → complete",
-    async () => {
-      const currency = CURRENCY_CASES[0]; // USD/ach
-      world.alfredpay.offrampRate = currency.offrampRate;
-      const { customer, sdk, userId } = await createUserSdk(currency.country);
+  for (const currency of FULL_LIFECYCLE_CASES) {
+    it(
+      `drives the full ${currency.fiat}/${currency.rail} lifecycle: createQuote → listAlfredpayFiatAccounts → registerRamp → submitUserTransactions → startRamp → complete`,
+      async () => {
+        world.alfredpay.offrampRate = currency.offrampRate;
+        const { customer, sdk, userId } = await createUserSdk(currency.country);
 
-      // The frontend-SDK flow picks the payout destination from the user's
-      // fiat accounts registered with the anchor.
-      world.alfredpay.fiatAccountsByCustomer.set(customer.alfredPayId, [
-        {
-          accountNumber: "021000021000000",
-          accountType: "checking",
-          customerId: customer.alfredPayId,
-          fiatAccountId: "fiat-account-usd-1",
-          type: AlfredpayFiatAccountType.ACH
-        }
-      ]);
-      const accounts = await sdk.listAlfredpayFiatAccounts(currency.country);
-      expect(accounts).toHaveLength(1);
-      expect(accounts[0].type).toBe(AlfredpayFiatAccountType.ACH);
-      const fiatAccountId = accounts[0].fiatAccountId;
+        // The frontend-SDK flow picks the payout destination from the user's
+        // fiat accounts registered with the anchor.
+        world.alfredpay.fiatAccountsByCustomer.set(customer.alfredPayId, [
+          { ...currency.fiatAccount, customerId: customer.alfredPayId }
+        ]);
+        const accounts = await sdk.listAlfredpayFiatAccounts(currency.country);
+        expect(accounts).toHaveLength(1);
+        expect(accounts[0].type).toBe(currency.fiatAccount.type);
+        const fiatAccountId = accounts[0].fiatAccountId;
+        expect(fiatAccountId).toBe(currency.fiatAccount.fiatAccountId);
 
-      const wallet = privateKeyToAccount(generatePrivateKey());
-      fundWallet(wallet.address, currency.inputAmount);
+        const wallet = privateKeyToAccount(generatePrivateKey());
+        fundWallet(wallet.address, currency.inputAmount);
 
-      const quote = await sdk.createQuote(quoteRequest(currency));
-      expect(quote.id).toMatch(UUID_PATTERN);
-      expect(quote.rampType).toBe(RampDirection.SELL);
-      expect(quote.to).toBe(currency.rail);
-      expect(Number(quote.outputAmount)).toBeGreaterThan(0);
+        const quote = await sdk.createQuote(quoteRequest(currency));
+        expect(quote.id).toMatch(UUID_PATTERN);
+        expect(quote.rampType).toBe(RampDirection.SELL);
+        expect(quote.to).toBe(currency.rail);
+        expect(Number(quote.outputAmount)).toBeGreaterThan(0);
 
-      // registerRamp SELL contract on the no-permit path: exactly one
-      // user-wallet transaction comes back — the plain USDT transfer to the
-      // ephemeral — classified as a broadcastable EVM tx.
-      const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
-        fiatAccountId,
-        walletAddress: wallet.address
-      });
-      expect(rampProcess.id).toMatch(UUID_PATTERN);
-      expect(rampProcess.type).toBe(RampDirection.SELL);
-      expect(rampProcess.currentPhase).toBe("initial");
-      expect(unsignedTransactions).toHaveLength(1);
-      const userTx = unsignedTransactions[0];
-      expect(userTx.phase).toBe("squidRouterNoPermitTransfer");
-      expect(userTx.network).toBe(Networks.Polygon);
-      expect(userTx.signer.toLowerCase()).toBe(wallet.address.toLowerCase());
-      expect(sdk.getUserTransactionType(userTx)).toBe("evm-transaction");
-      const broadcastable = sdk.getTransactionToBroadcast(userTx);
-      expect(broadcastable.to.toLowerCase()).toBe(ALFREDPAY_ERC20_TOKEN.toLowerCase());
-      expect(broadcastable.data).toBeTruthy();
+        // registerRamp SELL contract on the no-permit path: exactly one
+        // user-wallet transaction comes back — the plain USDT transfer to the
+        // ephemeral — classified as a broadcastable EVM tx.
+        const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+          fiatAccountId,
+          walletAddress: wallet.address
+        });
+        expect(rampProcess.id).toMatch(UUID_PATTERN);
+        expect(rampProcess.type).toBe(RampDirection.SELL);
+        expect(rampProcess.currentPhase).toBe("initial");
+        expect(unsignedTransactions).toHaveLength(1);
+        const userTx = unsignedTransactions[0];
+        expect(userTx.phase).toBe("squidRouterNoPermitTransfer");
+        expect(userTx.network).toBe(Networks.Polygon);
+        expect(userTx.signer.toLowerCase()).toBe(wallet.address.toLowerCase());
+        expect(sdk.getUserTransactionType(userTx)).toBe("evm-transaction");
+        const broadcastable = sdk.getTransactionToBroadcast(userTx);
+        expect(broadcastable.to.toLowerCase()).toBe(ALFREDPAY_ERC20_TOKEN.toLowerCase());
+        expect(broadcastable.data).toBeTruthy();
 
-      // The SDK already signed and stored the ephemeral's Polygon-side txs;
-      // registration created the anchor order on the no-permit path.
-      const stored = await RampState.findByPk(rampProcess.id);
-      expect(stored?.userId).toBe(userId);
-      expect(stored?.state.alfredpayTransactionId).toBeTruthy();
-      expect(stored?.state.isNoPermitFallback).toBe(true);
-      const presignedPhases = (stored?.presignedTxs ?? []).map(tx => tx.phase);
-      expect(presignedPhases).toContain("alfredpayOfframpTransfer");
-      // The user-wallet transfer must never be presigned by the ephemeral.
-      expect(presignedPhases).not.toContain("squidRouterNoPermitTransfer");
+        // The SDK already signed and stored the ephemeral's Polygon-side txs;
+        // registration created the anchor order on the no-permit path.
+        const stored = await RampState.findByPk(rampProcess.id);
+        expect(stored?.userId).toBe(userId);
+        expect(stored?.state.alfredpayTransactionId).toBeTruthy();
+        expect(stored?.state.isNoPermitFallback).toBe(true);
+        const presignedPhases = (stored?.presignedTxs ?? []).map(tx => tx.phase);
+        expect(presignedPhases).toContain("alfredpayOfframpTransfer");
+        // The user-wallet transfer must never be presigned by the ephemeral.
+        expect(presignedPhases).not.toContain("squidRouterNoPermitTransfer");
 
-      // submitUserTransactions broadcasts through the caller's wallet handler
-      // and reports the hash to the API.
-      const afterSubmit = await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
-        sendTransaction: sendFromWallet(wallet.address)
-      });
-      expect(afterSubmit.id).toBe(rampProcess.id);
-      const withHash = await RampState.findByPk(rampProcess.id);
-      expect(withHash?.state.squidRouterNoPermitTransferHash).toBeTruthy();
+        // submitUserTransactions broadcasts through the caller's wallet handler
+        // and reports the hash to the API.
+        const afterSubmit = await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+          sendTransaction: sendFromWallet(wallet.address)
+        });
+        expect(afterSubmit.id).toBe(rampProcess.id);
+        const withHash = await RampState.findByPk(rampProcess.id);
+        expect(withHash?.state.squidRouterNoPermitTransferHash).toBeTruthy();
 
-      const { inputAmountRaw } = await scriptHappyWorld(rampProcess.id, quote.id);
-      const depositAddress = world.alfredpay.offrampDepositAddress;
-      const started = await sdk.startRamp(rampProcess.id);
-      expect(started.id).toBe(rampProcess.id);
+        const { inputAmountRaw } = await scriptHappyWorld(rampProcess.id, quote.id);
+        const depositAddress = world.alfredpay.offrampDepositAddress;
+        const started = await sdk.startRamp(rampProcess.id);
+        expect(started.id).toBe(rampProcess.id);
 
-      const status = await waitForComplete(sdk, rampProcess.id);
-      expect(status.type).toBe(RampDirection.SELL);
-      expect(Number(status.inputAmount)).toBe(Number(quote.inputAmount));
-      expect(Number(status.outputAmount)).toBe(Number(quote.outputAmount));
+        const status = await waitForComplete(sdk, rampProcess.id);
+        expect(status.type).toBe(RampDirection.SELL);
+        expect(Number(status.inputAmount)).toBe(Number(quote.inputAmount));
+        expect(Number(status.outputAmount)).toBe(Number(quote.outputAmount));
 
-      // End to end, the anchor's deposit address received the full USDT and
-      // the order maps USDT → this currency against the chosen fiat account.
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(inputAmountRaw);
-      const order = world.alfredpay.offrampOrders[world.alfredpay.offrampOrders.length - 1];
-      expect(order.fromCurrency).toBe("USDT" as never);
-      expect(order.toCurrency).toBe(currency.alfredpayCurrency as never);
-      expect(order.fiatAccountId).toBe(fiatAccountId);
-    },
-    30000
-  );
+        // End to end, the anchor's deposit address received the full USDT and
+        // the order maps USDT → this currency against the chosen fiat account.
+        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(inputAmountRaw);
+        const order = world.alfredpay.offrampOrders[world.alfredpay.offrampOrders.length - 1];
+        expect(order.fromCurrency).toBe("USDT" as never);
+        expect(order.toCurrency).toBe(currency.alfredpayCurrency as never);
+        expect(order.fiatAccountId).toBe(fiatAccountId);
+      },
+      30000
+    );
+  }
 
   for (const currency of CURRENCY_CASES) {
     it(
