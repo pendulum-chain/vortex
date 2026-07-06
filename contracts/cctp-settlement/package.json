@@ -1,0 +1,32 @@
+{
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "description": "Per-user USDC CCTP settlement proof of concept",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^0.15.9",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.2.0",
+    "@types/chai": "^4.3.20",
+    "@types/node": "catalog:",
+    "chai": "^4.5.0",
+    "hardhat": "^2.22.17",
+    "ts-node": "^10.9.2",
+    "typescript": "catalog:"
+  },
+  "main": "index.js",
+  "name": "@vortexfi/contracts-cctp-settlement",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:base": "hardhat ignition deploy ignition/modules/CctpSettlement.ts --network base",
+    "deploy:base-sepolia": "hardhat ignition deploy ignition/modules/CctpSettlement.ts --network baseSepolia",
+    "deploy:settlement:base": "hardhat deploy-settlement --network base",
+    "deploy:settlement:base-sepolia": "hardhat deploy-settlement --network baseSepolia",
+    "node": "hardhat node",
+    "sweep:base": "hardhat sweep-usdc --network base",
+    "sweep:base-sepolia": "hardhat sweep-usdc --network baseSepolia",
+    "test": "hardhat test"
+  },
+  "version": "0.1.0"
+}

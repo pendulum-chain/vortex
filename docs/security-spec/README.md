@@ -34,6 +34,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
 | Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
 | Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
+| Per-User CCTP Settlement | `04-smart-contracts/per-user-cctp-settlement.md` | Per-user USDC CCTP settlement PoC contract invariants |
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
