@@ -3,7 +3,7 @@ import { PresignedTx, RampErrorLog, RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
-import Subsidy, { SubsidyToken } from "../../../models/subsidy.model";
+import Subsidy from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
 import rampService from "../ramp/ramp.service";
@@ -152,7 +152,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   protected async createSubsidy(
     state: RampState,
     amount: number,
-    token: SubsidyToken,
+    token: string,
     payerAccount: string,
     transactionHash: string,
     paymentDate: Date = new Date()
@@ -182,8 +182,13 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
       logger.info(`Subsidy created successfully with id ${subsidy.id} for ramp ${state.id}`);
     } catch (error) {
-      logger.error(`Error creating subsidy for ramp ${state.id}:`, error);
-      // We do not want to throw an error here, as it should not block the phase execution.
+      // Deliberately swallowed so bookkeeping can't block the phase — but the subsidy
+      // was already paid on-chain, so an unrecorded row is real money lost to
+      // accounting. Keep this line alertable.
+      logger.error(
+        `SUBSIDY_RECORDING_FAILED: subsidy paid but not recorded. ramp=${state.id} phase=${this.getPhaseName()} token=${token} amount=${amount} txHash=${transactionHash}:`,
+        error
+      );
     }
   }
 

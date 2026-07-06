@@ -28,7 +28,6 @@ import logger from "../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../constants/constants";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import { SubsidyToken } from "../../../../models/subsidy.model";
 import { priceFeedService } from "../../priceFeed.service";
 import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
@@ -376,9 +375,7 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
       }
 
       if (txHash) {
-        const subsidyToken = (
-          isNative ? NATIVE_TOKENS[destinationNetwork].symbol : outTokenDetails.assetSymbol
-        ) as SubsidyToken;
+        const subsidyToken = isNative ? NATIVE_TOKENS[destinationNetwork].symbol : outTokenDetails.assetSymbol;
         const subsidyAmount = nativeToDecimal(
           subsidyAmountRaw,
           isNative ? NATIVE_TOKENS[destinationNetwork].decimals : outTokenDetails.decimals
