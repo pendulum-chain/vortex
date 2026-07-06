@@ -4,7 +4,15 @@
 root = "src"
 preload = ["./src/test-utils/preload.ts"]
 
-# Coverage report config; the gate itself lives in scripts/check-coverage.ts
+# Coverage report config; the gate itself lives in scripts/check-coverage.ts.
+# Excluded from the denominator: built/foreign packages (sdk has its own suite),
+# migrations (run-once DDL), and generated contract ABIs (const data, always "covered").
 coverageSkipTestFiles = true
-coveragePathIgnorePatterns = ["**/packages/shared/dist/**", "**/test-utils/**"]
+coveragePathIgnorePatterns = [
+  "**/packages/shared/dist/**",
+  "**/packages/sdk/**",
+  "**/test-utils/**",
+  "**/database/migrations/**",
+  "**/src/contracts/**"
+]
 
