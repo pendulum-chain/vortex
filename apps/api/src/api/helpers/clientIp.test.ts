@@ -17,10 +17,12 @@ describe("normalizeClientIp", () => {
 
 describe("enrichAdditionalDataWithClientIp", () => {
   it("adds the normalized request IP when additional data does not include one", async () => {
-    const additionalData = await enrichAdditionalDataWithClientIp({ email: "user@example.com" }, { ip: "::1" });
+    // A non-loopback request IP: loopback would trigger the real public-IP lookup
+    // (fetchHostPublicIp) in non-production, making the result network-dependent.
+    const additionalData = await enrichAdditionalDataWithClientIp({ email: "user@example.com" }, { ip: "::ffff:203.0.113.42" });
 
     expect(additionalData?.email).toBe("user@example.com");
-    expect(typeof additionalData?.ipAddress).toBe("string");
+    expect(additionalData?.ipAddress).toBe("203.0.113.42");
   });
 
   it("keeps a provided IPv4 address over the request IP", async () => {

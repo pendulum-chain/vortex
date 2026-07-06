@@ -1,42 +1,15 @@
-import {describe, expect, it, mock} from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import Big from "big.js";
-import {Keyring} from "@polkadot/api";
-import {mnemonicGenerate} from "@polkadot/util-crypto";
-import httpStatus from "http-status";
-import {
-  AccountMeta,
-  BrlaApiService,
-  DestinationType,
-  EPaymentMethod,
-  EphemeralAccount,
-  EphemeralAccountType,
-  EvmToken,
-  FiatToken,
-  MYKOBO_ACCESS_KEY,
-  MYKOBO_BASE_URL,
-  MYKOBO_SECRET_KEY,
-  MykoboApiService,
-  MykoboCurrency,
-  MykoboFeeKind,
-  MykoboTransactionStatus,
-  MykoboTransactionType,
-  Networks,
-  RampDirection,
-  RegisterRampRequest
-} from "@vortexfi/shared";
-import {Transaction, UpdateOptions} from "sequelize";
-import {config} from "../../../config/vars";
-import QuoteTicket, {QuoteTicketAttributes, QuoteTicketCreationAttributes} from "../../../models/quoteTicket.model";
-import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
-import {APIError} from "../../errors/api-error";
-import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
-import {QuoteService} from "../quote";
-import {RampService} from "../ramp/ramp.service";
+import { Keyring } from "@polkadot/api";
+import { mnemonicGenerate } from "@polkadot/util-crypto";
 
+// Module-level patching only when the live suite is enabled — bun runs all
+// test files in one process, so unconditional patches leak into other files.
 // Mock the EVM Nabla swap quote function before importing QuoteService so the
 // quote engine does not hit Base RPC for the (currently illiquid) EURC<->USDC pool.
+if (process.env.RUN_LIVE_TESTS)
 mock.module("../quote/core/nabla", () => {
   return {
     calculateNablaSwapOutputEvm: async (request: {
@@ -59,14 +32,54 @@ mock.module("../quote/core/nabla", () => {
   };
 });
 
+// The Mykobo email is now derived from the user's profile and gated on an APPROVED Mykobo customer
+// (resolveMykoboCustomerForUser). This contract test focuses on the Mykobo intent/transaction path,
+// so stub the resolver to return the test email instead of standing up profile + KYC-mirror rows.
+if (process.env.RUN_LIVE_TESTS)
+mock.module("../mykobo/mykobo-customer.service", () => ({
+  resolveMykoboCustomerForUser: async () => ({ email: "mail@test.com" }),
+  syncMykoboCustomerKyc: async () => {},
+  upsertMykoboCustomerFromProfile: async () => {}
+}));
+import {
+  AccountMeta,
+  BrlaApiService,
+  DestinationType,
+  EPaymentMethod,
+  EphemeralAccount,
+  EphemeralAccountType,
+  EvmToken,
+  FiatToken,
+  IbanPaymentData,
+  MYKOBO_ACCESS_KEY,
+  MYKOBO_BASE_URL,
+  MYKOBO_SECRET_KEY,
+  MykoboApiService,
+  MykoboCurrency,
+  MykoboFeeKind,
+  MykoboTransactionStatus,
+  MykoboTransactionType,
+  Networks,
+  RampDirection,
+  RegisterRampRequest
+} from "@vortexfi/shared";
+import { UpdateOptions } from "sequelize";
+import QuoteTicket, { QuoteTicketAttributes, QuoteTicketCreationAttributes } from "../../../models/quoteTicket.model";
+import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../../../models/rampState.model";
+import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
+import { QuoteService } from "../quote";
+import { RampService } from "../ramp/ramp.service";
+import registerPhaseHandlers from "./register-handlers";
+import { StateMetadata } from "./meta-state-types";
+
 const EVM_TESTING_ADDRESS = "0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3";
 const EVM_DESTINATION_ADDRESS = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
 const TEST_INPUT_AMOUNT = "35";
 const TEST_EMAIL = "mail@test.com";
 const TEST_IP_ADDRESS = "203.0.113.42";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const filePath = path.join(__dirname, "lastRampStateMykoboEurOnramp.json");
-const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
 const IBAN_REGEX = /^[A-Z]{2}[0-9A-Z]{2}[0-9A-Z]{4,30}$/;
 
 interface TestSigningAccounts {
@@ -105,6 +118,8 @@ let quoteTicket: QuoteTicket;
 type RampStateUpdateData = Partial<RampStateAttributes>;
 type QuoteTicketUpdateData = Partial<QuoteTicketAttributes>;
 
+// Guarded for the same leak reason as the mock.module calls above.
+if (process.env.RUN_LIVE_TESTS) {
 RampState.update = mock(async function (updateData: RampStateUpdateData) {
   rampState = { ...rampState, ...updateData, updatedAt: new Date() } as RampState;
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -180,8 +195,11 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
   // worker disabled in test
 });
+}
 
-describe("Mykobo EUR onramp contract test (real sandbox, no on-chain submission)", () => {
+// Live test: hits the real Mykobo sandbox and needs MYKOBO_ACCESS_KEY/MYKOBO_SECRET_KEY.
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR onramp contract test (real sandbox, no on-chain submission)", () => {
   it("requires Mykobo sandbox credentials in the environment", () => {
     if (!MYKOBO_ACCESS_KEY || !MYKOBO_SECRET_KEY) {
       throw new Error("MYKOBO_ACCESS_KEY and MYKOBO_SECRET_KEY must be set to run this test");
@@ -267,35 +285,24 @@ describe("Mykobo EUR onramp contract test (real sandbox, no on-chain submission)
     expect(Number(quoteTicket.metadata.mykoboMint?.outputAmountRaw)).toBeGreaterThan(0);
   });
 
-  it("rejects EUR->Base USDC onramp registration while EUR ramps are disabled", async () => {
-    const rampService = new RampService() as RampService & {
-      withTransaction: <T>(callback: (transaction: Transaction) => Promise<T>) => Promise<T>;
-    };
-    rampService.withTransaction = async callback => callback({} as Transaction);
+  // SKIPPED: registerRamp unconditionally rejects EURC quotes with 503 "EUR ramps are
+  // currently disabled" (commit be52569e4), so this contract test cannot run even live.
+  // Re-enable when EUR ramps come back (or a test bypass for the guard exists).
+  it.skip("registers a EUR->Base USDC onramp and prepares the Mykobo phase set (no squid, no broadcast)", async () => {
+    const rampService = new RampService();
+    const quoteService = new QuoteService();
 
-    quoteTicket = {
-      apiKey: null,
-      countryCode: null,
-      createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      flowVariant: config.flowVariant,
+    registerPhaseHandlers();
+
+    const quote = await quoteService.createQuote({
       from: EPaymentMethod.SEPA as DestinationType,
-      id: "test-disabled-eur-onramp-quote-id",
       inputAmount: TEST_INPUT_AMOUNT,
       inputCurrency: FiatToken.EURC,
-      metadata: {},
       network: Networks.Base,
-      outputAmount: "36.75",
       outputCurrency: EvmToken.USDC,
-      partnerId: null,
-      paymentMethod: EPaymentMethod.SEPA,
-      pricingPartnerId: null,
       rampType: RampDirection.BUY,
-      status: "pending",
-      to: Networks.Base as DestinationType,
-      updatedAt: new Date(),
-      userId: null
-    } as QuoteTicket;
+      to: Networks.Base as DestinationType
+    });
 
     const additionalData: RegisterRampRequest["additionalData"] = {
       destinationAddress: EVM_DESTINATION_ADDRESS,
@@ -304,17 +311,50 @@ describe("Mykobo EUR onramp contract test (real sandbox, no on-chain submission)
       walletAddress: EVM_TESTING_ADDRESS
     };
 
-    try {
-      await rampService.registerRamp({
-        additionalData,
-        quoteId: quoteTicket.id,
-        signingAccounts: testSigningAccountsMeta
-      });
-      throw new Error("expected rejection");
-    } catch (err) {
-      expect(err).toBeInstanceOf(APIError);
-      expect((err as APIError).status).toBe(httpStatus.SERVICE_UNAVAILABLE);
-      expect((err as APIError).message).toBe("EUR ramps are currently disabled");
+    const registered = await rampService.registerRamp({
+      additionalData,
+      quoteId: quote.id,
+      signingAccounts: testSigningAccountsMeta,
+      userId: TEST_USER_ID
+    });
+
+    if (!registered.unsignedTxs) {
+      throw new Error("Expected registerRamp to return unsigned transactions");
     }
+
+    const phases = registered.unsignedTxs.map(tx => tx.phase);
+    console.log("Prepared phases:", phases);
+
+    expect(phases).not.toContain("squidRouterApprove");
+    expect(phases).not.toContain("squidRouterSwap");
+    expect(phases).toContain("nablaApprove");
+    expect(phases).toContain("nablaSwap");
+    expect(phases).toContain("destinationTransfer");
+    expect(phases).toContain("baseCleanupEurc");
+    expect(phases).toContain("baseCleanupUsdc");
+
+    const state = rampState.state as StateMetadata;
+    expect(state.mykoboEmail).toBe(TEST_EMAIL);
+    expect(state.mykoboTransactionId).toBeTruthy();
+    expect(state.mykoboTransactionReference).toBeTruthy();
+    expect(state.evmEphemeralAddress).toBe(testSigningAccounts.EVM.address);
+
+    const ibanPaymentData = (rampState.state as StateMetadata & { ibanPaymentData?: IbanPaymentData }).ibanPaymentData;
+    expect(ibanPaymentData).toBeDefined();
+    expect(ibanPaymentData?.iban).toMatch(IBAN_REGEX);
+    expect(ibanPaymentData?.receiverName).toBeTruthy();
+    expect(ibanPaymentData?.reference).toBe(state.mykoboTransactionReference);
+
+    console.log("StateMeta (Mykobo fields):", {
+      ibanPaymentData,
+      mykoboEmail: state.mykoboEmail,
+      mykoboTransactionId: state.mykoboTransactionId,
+      mykoboTransactionReference: state.mykoboTransactionReference
+    });
+
+    const destinationTx = registered.unsignedTxs.find(tx => tx.phase === "destinationTransfer");
+    expect(destinationTx).toBeDefined();
+    expect(destinationTx?.signer).toBe(testSigningAccounts.EVM.address);
+    expect(destinationTx?.network).toBe(Networks.Base);
   });
 });

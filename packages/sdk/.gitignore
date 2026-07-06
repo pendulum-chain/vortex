@@ -22,6 +22,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env.production.local
 .env.local
 
+# api-key artifacts (secrets)
+.api-key.json
+ephemerals_*.json
+
 # caches
 .eslintcache
 .cache

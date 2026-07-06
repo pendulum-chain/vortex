@@ -16,6 +16,8 @@ import { WagmiProvider } from "wagmi";
 import { config } from "./config";
 import { PolkadotNodeProvider } from "./contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "./contexts/polkadotWallet";
+import { SENTRY_DENY_URLS, SENTRY_IGNORE_ERRORS, sentryBeforeSend } from "./helpers/sentry";
+import { AuthService } from "./services/auth";
 import { initializeEvmTokens } from "./services/tokens";
 import { wagmiConfig } from "./wagmiConfig";
 import "./helpers/googleTranslate";
@@ -57,17 +59,34 @@ declare module "@tanstack/react-router" {
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 if (sentryDsn) {
   Sentry.init({
+    beforeSend: sentryBeforeSend,
+    denyUrls: SENTRY_DENY_URLS,
     dsn: sentryDsn,
     enabled: !window.location.hostname.includes("localhost"), // Disable sentry entirely when testing locally
-    environment: config.isProd ? "production" : "development",
-    integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router), Sentry.replayIntegration()],
+    environment: config.env, // production | staging | development — keeps preview/QA noise out of prod
+    ignoreErrors: SENTRY_IGNORE_ERRORS,
+    // Explicit replay masking — these are the defaults, but pinned for a KYC/KYB app so a future
+    // default change can't start leaking user input into replays.
+    integrations: [
+      Sentry.tanstackRouterBrowserTracingIntegration(router),
+      Sentry.replayIntegration({ blockAllMedia: true, maskAllText: true })
+    ],
     // Capture 100% of sessions where an error occurs; sample plain sessions only in prod.
     replaysOnErrorSampleRate: 1.0,
     replaysSessionSampleRate: config.isProd ? 0.1 : 1.0,
-    // Allow all targets to account for different Netlify URLs which depend on the branch name.
-    tracePropagationTargets: ["*"],
+    // Only propagate trace headers to our own (same-origin) API. The API is served same-origin
+    // (/api/...), so this works across all Netlify branch URLs and avoids leaking headers to
+    // third parties (Squid, RPCs).
+    tracePropagationTargets: [window.location.origin],
     tracesSampleRate: config.isProd ? 0.2 : 1.0
   });
+
+  // On a page reload the session is restored from localStorage without calling storeTokens, so
+  // seed the Sentry user here too (pseudonymous id only). Runtime login/logout keeps it in sync.
+  const restoredUserId = AuthService.getUserId();
+  if (restoredUserId) {
+    Sentry.setUser({ id: restoredUserId });
+  }
 }
 
 const root = document.getElementById("app");

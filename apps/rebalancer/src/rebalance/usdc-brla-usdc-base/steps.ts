@@ -29,6 +29,18 @@ export const USDC_BASE: `0x${string}` = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02
 export const BRLA_POLYGON: `0x${string}` = brlaMoonbeamTokenDetails.polygonErc20Address as `0x${string}`;
 const NABLA_SWAP_DEADLINE_MINUTES = 60 * 24 * 7;
 const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
+const STALE_PERSISTED_TX_MINUTES = 15;
+
+interface TransactionReceiptStatusReader {
+  getTransactionReceipt(args: { hash: `0x${string}` }): Promise<{ status: "success" | "reverted" }>;
+}
+
+function isPersistedTransactionStale(updatedTime: string): boolean {
+  const updatedAt = Date.parse(updatedTime);
+  if (Number.isNaN(updatedAt)) return false;
+
+  return Date.now() - updatedAt > STALE_PERSISTED_TX_MINUTES * 60_000;
+}
 
 function buildRecoveredBrlaOutput(brlaReceivedRaw: bigint) {
   const brlaAmountRaw = brlaReceivedRaw.toString();
@@ -203,6 +215,10 @@ export async function nablaApproveAndSwapOnBase(
   let approveHash = state.nablaApproveHash;
   let swapHash = state.nablaSwapHash;
 
+  if (swapHash && (await resetFailedNablaSwapOnResume(swapHash, state, stateManager, publicClient))) {
+    swapHash = null;
+  }
+
   if (!swapHash) {
     const evmClientManager = EvmClientManager.getInstance();
     const quoteAbi = [
@@ -338,6 +354,34 @@ export async function nablaApproveAndSwapOnBase(
     brlaAmountRaw,
     swapHash
   };
+}
+
+export async function resetFailedNablaSwapOnResume(
+  swapHash: string,
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">,
+  publicClient: TransactionReceiptStatusReader
+): Promise<boolean> {
+  let receipt: { status: "success" | "reverted" };
+  try {
+    receipt = await publicClient.getTransactionReceipt({
+      hash: swapHash as `0x${string}`
+    });
+  } catch (error) {
+    if (!isPersistedTransactionStale(state.updatedTime)) throw error;
+
+    console.warn(`Persisted Nabla swap tx ${swapHash} was not found after ${STALE_PERSISTED_TX_MINUTES} minutes. Retrying.`);
+    state.nablaSwapHash = null;
+    await stateManager.saveState(state);
+    return true;
+  }
+
+  if (receipt.status === "success") return false;
+
+  console.warn(`Persisted Nabla swap tx ${swapHash} failed on Base. Retrying with a fresh quote and swap.`);
+  state.nablaSwapHash = null;
+  await stateManager.saveState(state);
+  return true;
 }
 
 export async function transferBrlaToAveniaOnBase(

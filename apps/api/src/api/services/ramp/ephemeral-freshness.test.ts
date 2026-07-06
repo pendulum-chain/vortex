@@ -1,6 +1,15 @@
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import {EphemeralAccountType} from "@vortexfi/shared";
+import * as sharedNamespace from "@vortexfi/shared";
 import {APIError} from "../../errors/api-error";
+
+// Value copy taken before mock.module runs; restored in afterAll because bun
+// module mocks are process-wide and would poison later test files.
+const sharedReal = { ...sharedNamespace };
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+});
 
 const SUBSTRATE_ADDR = "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty";
 const EVM_ADDR = "0x1111111111111111111111111111111111111111";

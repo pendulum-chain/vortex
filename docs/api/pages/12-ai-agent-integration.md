@@ -169,8 +169,7 @@ These are not optional. The SDK handles them for you; a custom client must imple
 - It does not poll ramp status; you must poll or use webhooks.
 - It does not encrypt ephemeral backups at rest.
 - It does not delete ephemeral backups after success.
-- It does not drive BRLA KYC; the user must be onboarded through the Vortex app or Widget before a BRL ramp.
-- It does not support EUR onramp today (throws `"Euro onramp handler not implemented yet"`).
+- It does not drive KYC for any corridor; the user must be onboarded through the Vortex app or Widget before ramping.
 
 Mirror those gaps deliberately. If your integration adds behavior the SDK lacks (encryption at rest, backup rotation, idempotency keys, retries), document it for your operators.
 

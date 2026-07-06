@@ -1,7 +1,7 @@
 {
   "components": {
     "responses": {
-      "Invalid input": {
+      "InvalidInput": {
         "content": {
           "application/json": {
             "schema": {
@@ -20,7 +20,7 @@
         },
         "description": ""
       },
-      "Record not found": {
+      "RecordNotFound": {
         "content": {
           "application/json": {
             "schema": {
@@ -339,7 +339,9 @@
           "stellar",
           "pix",
           "sepa",
-          "cbu"
+          "cbu",
+          "ach",
+          "spei"
         ],
         "type": "string"
       },
@@ -393,7 +395,7 @@
         "type": "object"
       },
       "FiatToken": {
-        "enum": ["EUR", "ARS", "BRL"],
+        "enum": ["EUR", "ARS", "BRL", "USD", "MXN", "COP"],
         "type": "string"
       },
       "GetKycStatusResponse": {
@@ -670,6 +672,58 @@
         "required": ["id"],
         "type": "object"
       },
+      "ListUserApiKeysResponse": {
+        "properties": {
+          "apiKeys": {
+            "items": {
+              "properties": {
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "expiresAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "key": {
+                  "description": "Full key value; present for public keys only. Secret key values are never returned after creation.",
+                  "type": "string"
+                },
+                "keyPrefix": {
+                  "type": "string"
+                },
+                "lastUsedAt": {
+                  "description": "Null until the key is first used.",
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": ["public", "secret"],
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "required": ["createdAt", "expiresAt", "id", "isActive", "keyPrefix", "name", "type", "updatedAt"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["apiKeys"],
+        "type": "object"
+      },
       "Networks": {
         "description": "Supported blockchain networks.",
         "enum": ["assethub", "arbitrum", "avalanche", "base", "bsc", "ethereum", "polygon", "moonbeam"],
@@ -836,7 +890,7 @@
       },
       "RampCurrency": {
         "description": "Represents supported currencies for ramp operations, including fiat and on-chain tokens.",
-        "enum": ["EUR", "ARS", "BRL", "USDC", "USDT", "USDC.E"],
+        "enum": ["EUR", "ARS", "BRL", "USD", "MXN", "COP", "USDC", "USDT", "USDC.E"],
         "examples": ["USDC"],
         "type": "string"
       },
@@ -1245,6 +1299,93 @@
         "required": ["rampId", "presignedTxs"],
         "type": "object"
       },
+      "UserApiKeyErrorResponse": {
+        "properties": {
+          "error": {
+            "properties": {
+              "code": {
+                "description": "Machine-readable error code, e.g. `AUTHENTICATION_REQUIRED`, `API_KEY_LIMIT_REACHED`, `INVALID_EXPIRES_AT`, `API_KEY_NOT_FOUND`.",
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "status": {
+                "type": "integer"
+              }
+            },
+            "required": ["code", "message", "status"],
+            "type": "object"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "UserApiKeyPairResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "publicKey": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "key": {
+                "description": "The full key value. For the secret key this is returned only in this response.",
+                "type": "string"
+              },
+              "keyPrefix": {
+                "description": "Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`.",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "enum": ["public", "secret"],
+                "type": "string"
+              }
+            },
+            "required": ["id", "key", "keyPrefix", "name", "type"],
+            "type": "object"
+          },
+          "secretKey": {
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "key": {
+                "description": "The full key value. For the secret key this is returned only in this response.",
+                "type": "string"
+              },
+              "keyPrefix": {
+                "description": "Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`.",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "enum": ["public", "secret"],
+                "type": "string"
+              }
+            },
+            "required": ["id", "key", "keyPrefix", "name", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["createdAt", "expiresAt", "isActive", "publicKey", "secretKey"],
+        "type": "object"
+      },
       "ValidatePixKeyResponse": {
         "properties": {
           "valid": {
@@ -1264,6 +1405,406 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/api-keys": {
+      "get": {
+        "deprecated": false,
+        "description": "Lists the authenticated user's active API keys. Public key values are included; secret key values are never returned.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
+        "operationId": "listUserApiKeys",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListUserApiKeysResponse"
+                }
+              }
+            },
+            "description": "Active keys, newest first.",
+            "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid Bearer token.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "List the user's API keys",
+        "tags": ["Authentication"]
+      },
+      "post": {
+        "deprecated": false,
+        "description": "Creates a public + secret API key pair bound to the authenticated user. The secret key value is returned only in this response; Vortex stores a hash and cannot show it again.\n\nKeys expire after one year by default; `expiresAt` may extend this to at most two years from now. A user may hold at most 10 active keys (a pair counts as two).\n\nSandbox mints `pk_test_*`/`sk_test_*`; production mints `pk_live_*`/`sk_live_*`.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
+        "operationId": "createUserApiKey",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "expiresAt": "2027-07-06T00:00:00.000Z",
+                "name": "my-backend"
+              },
+              "schema": {
+                "properties": {
+                  "expiresAt": {
+                    "description": "Optional ISO-8601 expiry, at most 2 years from now. Defaults to 1 year.",
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Optional label; defaults to \"API Key\".",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyPairResponse"
+                }
+              }
+            },
+            "description": "Key pair created. Persist `secretKey.key` immediately; it cannot be retrieved again.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "`INVALID_EXPIRES_AT`: expiresAt is not a valid ISO-8601 date or is more than 2 years from now.",
+            "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid Bearer token.",
+            "headers": {}
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "`API_KEY_LIMIT_REACHED`: the user already holds the maximum of 10 active keys.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Create a user-linked API key pair",
+        "tags": ["Authentication"]
+      }
+    },
+    "/v1/api-keys/{keyId}": {
+      "delete": {
+        "deprecated": false,
+        "description": "Revokes (soft-deletes) an API key owned by the authenticated user. Pass `pairedKeyId` in the body to revoke both halves of a pair together; the two keys must be of opposite types (one public, one secret) and share the same base name. The legacy `publicKeyId` body field is accepted as an alias.\n\n**Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.",
+        "operationId": "revokeUserApiKey",
+        "parameters": [
+          {
+            "description": "ID of the key to revoke.",
+            "in": "path",
+            "name": "keyId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "pairedKeyId": "00000000-0000-0000-0000-000000000000"
+              },
+              "schema": {
+                "properties": {
+                  "pairedKeyId": {
+                    "description": "Optional ID of the other half of the pair, to revoke both keys together.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "204": {
+            "description": "Key(s) revoked.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "`INVALID_KEY_PAIR` or `KEY_PAIR_MISMATCH`: the two keys are not opposite halves of the same pair.",
+            "headers": {}
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid Bearer token.",
+            "headers": {}
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "`API_KEY_NOT_FOUND` or `PAIRED_PUBLIC_KEY_NOT_FOUND`: key missing, already revoked, or not owned by the user.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserApiKeyErrorResponse"
+                }
+              }
+            },
+            "description": "Internal server error.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Revoke an API key",
+        "tags": ["Authentication"]
+      }
+    },
+    "/v1/auth/request-otp": {
+      "post": {
+        "deprecated": false,
+        "description": "Sends a 6-digit one-time password to the given email address. Use it with `POST /v1/auth/verify-otp` to obtain a user session.\n\n**Auth:** none.",
+        "operationId": "requestOTP",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.com"
+              },
+              "schema": {
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "locale": {
+                    "description": "Optional locale for the email, e.g. `pt-BR`.",
+                    "type": "string"
+                  }
+                },
+                "required": ["email"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["message", "success"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OTP sent.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Email missing or locale not a string.",
+            "headers": {}
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Failed to send the OTP email.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Request an email OTP",
+        "tags": ["Authentication"]
+      }
+    },
+    "/v1/auth/verify-otp": {
+      "post": {
+        "deprecated": false,
+        "description": "Verifies the emailed one-time password and returns a user session. First-time sign-ins create the user profile; `user_id` identifies the profile that API keys minted with this session are linked to.\n\n**Auth:** none.",
+        "operationId": "verifyOTP",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "user@example.com",
+                "token": "123456"
+              },
+              "schema": {
+                "properties": {
+                  "email": {
+                    "format": "email",
+                    "type": "string"
+                  },
+                  "token": {
+                    "description": "The 6-digit code from the email.",
+                    "type": "string"
+                  }
+                },
+                "required": ["email", "token"],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "user_id": {
+                      "format": "uuid",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["access_token", "refresh_token", "success", "user_id"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Session created.",
+            "headers": {}
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["error"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Missing fields, or the OTP is invalid or expired.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Verify an email OTP",
+        "tags": ["Authentication"]
+      }
+    },
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
@@ -3085,7 +3626,7 @@
       "post": {
         "deprecated": false,
         "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided. \n\nFor onramps, no additional data is required after registering the ramp.",
-        "operationId": "startRamp",
+        "operationId": "updateRamp",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -3657,7 +4198,7 @@
             }
           },
           {
-            "description": "Filter supported payment methods Allowed values: `ars`, `brl`, `eur` ",
+            "description": "Filter supported payment methods by fiat currency. Allowed values: `EUR`, `ARS`, `BRL`, `USD`, `MXN`, `COP`.",
             "example": "",
             "in": "query",
             "name": "fiat",
@@ -3870,7 +4411,16 @@
     }
   },
   "security": [],
-  "servers": [],
+  "servers": [
+    {
+      "description": "Production",
+      "url": "https://api.vortexfinance.co"
+    },
+    {
+      "description": "Sandbox",
+      "url": "https://api-sandbox.vortexfinance.co"
+    }
+  ],
   "tags": [
     {
       "description": "Create and retrieve cross-border payment quotes.",
@@ -3887,6 +4437,10 @@
     {
       "description": "User account, KYC, and BRLA subaccount operations.",
       "name": "Account Management"
+    },
+    {
+      "description": "Email OTP sign-in and user-linked API key provisioning.",
+      "name": "Authentication"
     },
     {
       "description": "Register and remove webhook endpoints for ramp events.",

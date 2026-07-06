@@ -2,6 +2,10 @@
   "apidogProjectId": "918521",
   "endpointReference": {
     "currentDocumentedPaths": [
+      "/v1/api-keys",
+      "/v1/api-keys/{keyId}",
+      "/v1/auth/request-otp",
+      "/v1/auth/verify-otp",
       "/v1/brla/createSubaccount",
       "/v1/brla/getKycStatus",
       "/v1/brla/getSelfieLivenessUrl",
@@ -28,7 +32,16 @@
       "/v1/webhook",
       "/v1/webhook/{id}"
     ],
-    "recommendedGroups": ["Quotes", "Vortex Widget", "Ramp", "Account Management", "Webhooks", "Public Key", "Reference Data"],
+    "recommendedGroups": [
+      "Quotes",
+      "Vortex Widget",
+      "Ramp",
+      "Account Management",
+      "Authentication",
+      "Webhooks",
+      "Public Key",
+      "Reference Data"
+    ],
     "source": "docs/api/openapi/vortex.openapi.json"
   },
   "markdownSync": {
@@ -52,7 +65,7 @@
       "order": 3,
       "slug": "authentication-and-partner-keys",
       "source": "docs/api/pages/03-authentication-and-partner-keys.md",
-      "title": "Authentication And Partner Keys"
+      "title": "Authentication And API Keys"
     },
     {
       "order": 4,
@@ -86,9 +99,9 @@
     },
     {
       "order": 9,
-      "slug": "brl-kyc-notes",
-      "source": "docs/api/pages/09-brl-kyc-notes.md",
-      "title": "BRL / KYC Notes"
+      "slug": "fiat-corridors",
+      "source": "docs/api/pages/09-fiat-corridors.md",
+      "title": "Fiat Corridors"
     },
     {
       "order": 10,

@@ -1,0 +1,7 @@
+[test]
+# `bun test` from the repo root is NOT the test aggregate: it would discover every
+# test file in the monorepo, including stale compiled copies under apps/api/dist/.
+# Restrict discovery to a directory that doesn't exist at the root so a root-level
+# `bun test` finds nothing instead of running garbage. Use `bun run test` (the
+# package.json script) to run all workspace suites.
+root = "src"

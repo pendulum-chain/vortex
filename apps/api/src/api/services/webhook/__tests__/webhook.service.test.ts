@@ -1,6 +1,23 @@
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect, afterAll, beforeEach } from 'bun:test';
 import { mock } from 'bun:test';
+import * as webhookModelNamespace from '../../../../models/webhook.model';
+import * as quoteTicketModelNamespace from '../../../../models/quoteTicket.model';
+import * as loggerNamespace from '../../../../config/logger';
 import { WebhookService } from '../webhook.service';
+
+// Value copies taken before the mock.module calls below; restored in afterAll
+// because bun module mocks are process-wide and would poison later test files.
+const restorableModules: Array<[string, Record<string, unknown>]> = [
+  ['../../../../models/webhook.model', { ...webhookModelNamespace }],
+  ['../../../../models/quoteTicket.model', { ...quoteTicketModelNamespace }],
+  ['../../../../config/logger', { ...loggerNamespace }]
+];
+
+afterAll(() => {
+  for (const [path, real] of restorableModules) {
+    mock.module(path, () => real);
+  }
+});
 import { APIError } from '../../../errors/api-error';
 import { WebhookEventType, RegisterWebhookRequest, RegisterWebhookResponse } from '@vortexfi/shared';
 import Webhook, { WebhookAttributes } from '../../../../models/webhook.model';
@@ -36,18 +53,7 @@ const findAllMock = mock(async (): Promise<any[]> => ([]));
 const destroyMock = mock(async (): Promise<any> => true);
 const updateMock = mock(async (): Promise<any> => ({}));
 
-// Mock RampState
-const rampStateFindByPkMock = mock(async (): Promise<any> => ({}));
-
-// Mock crypto
-const randomBytesMock = mock(() => Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'));
-
-mock.module('crypto', () => ({
-  default: {
-    randomBytes: randomBytesMock
-  },
-  randomBytes: randomBytesMock
-}));
+const quoteTicketFindByPkMock = mock(async (): Promise<any> => ({}));
 
 // Mock modules
 mock.module('../../../../models/webhook.model', () => ({
@@ -58,9 +64,10 @@ mock.module('../../../../models/webhook.model', () => ({
   }
 }));
 
-mock.module('../../../../models/rampState.model', () => ({
+// Production validates quoteId via QuoteTicket (webhook.service.ts), not RampState.
+mock.module('../../../../models/quoteTicket.model', () => ({
   default: {
-    findByPk: rampStateFindByPkMock
+    findByPk: quoteTicketFindByPkMock
   }
 }));
 
@@ -83,11 +90,7 @@ describe('WebhookService', () => {
     findAllMock.mockReset();
     destroyMock.mockReset();
     updateMock.mockReset();
-    rampStateFindByPkMock.mockReset();
-    randomBytesMock.mockReset();
-
-    // Setup default crypto mock
-    randomBytesMock.mockReturnValue(Buffer.from('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef', 'hex'));
+    quoteTicketFindByPkMock.mockReset();
   });
 
   describe('registerWebhook', () => {
@@ -95,7 +98,7 @@ describe('WebhookService', () => {
       const mockWebhook = createMockWebhook();
 
       // Setup mocks
-      rampStateFindByPkMock.mockResolvedValue(createMockRampState()); // Quote exists
+      quoteTicketFindByPkMock.mockResolvedValue(createMockRampState()); // Quote exists
       createMock.mockResolvedValue(mockWebhook);
 
       // Execute
@@ -105,7 +108,7 @@ describe('WebhookService', () => {
       });
 
       // Verify
-      expect(rampStateFindByPkMock).toHaveBeenCalledWith('quote-123');
+      expect(quoteTicketFindByPkMock).toHaveBeenCalledWith('quote-123');
       expect(createMock).toHaveBeenCalledWith({
         events: [WebhookEventType.TRANSACTION_CREATED, WebhookEventType.STATUS_CHANGE],
         isActive: true,
@@ -192,14 +195,22 @@ describe('WebhookService', () => {
     });
 
     it('should handle registration errors', async () => {
-      // Setup mocks
+      // Setup mocks — the quote lookup must succeed so the rejection genuinely
+      // comes from Webhook.create, not from an earlier validation step.
+      quoteTicketFindByPkMock.mockResolvedValue({ id: 'quote-123' });
       createMock.mockRejectedValue(new Error('Database error'));
 
       // Execute and verify
-      await expect(webhookService.registerWebhook({
+      const error = await webhookService.registerWebhook({
         url: 'https://example.com/webhook',
         quoteId: 'quote-123'
-      })).rejects.toBeInstanceOf(APIError);
+      }).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(500);
+      expect(createMock).toHaveBeenCalled();
     });
 
     it('should reject non-HTTPS URLs', async () => {
@@ -244,13 +255,19 @@ describe('WebhookService', () => {
 
     it('should reject when quoteId does not exist', async () => {
       // Setup mocks - quote not found
-      rampStateFindByPkMock.mockResolvedValue(null);
+      quoteTicketFindByPkMock.mockResolvedValue(null);
 
-      // Execute and verify
-      await expect(webhookService.registerWebhook({
+      // Execute and verify — pin the 404 so a generic wrapped error can't satisfy this
+      const error = await webhookService.registerWebhook({
         url: 'https://example.com/webhook',
         quoteId: 'non-existent-quote'
-      })).rejects.toBeInstanceOf(APIError);
+      }).then(
+        () => { throw new Error('registerWebhook did not reject'); },
+        e => e
+      );
+      expect(error).toBeInstanceOf(APIError);
+      expect((error as APIError).status).toBe(404);
+      expect((error as APIError).message).toContain('not found');
     });
   });
 

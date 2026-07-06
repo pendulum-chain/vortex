@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import { findKybRegionByCode } from "../constants/kybRegions";
@@ -7,7 +8,7 @@ import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
-import { validateKycActor } from "./actors/validateKyc.actor";
+import { RampLimitExceededError, validateKycActor } from "./actors/validateKyc.actor";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
@@ -65,6 +66,15 @@ function getActorErrorMessage(event: unknown): string {
 
 export const rampMachine = setup({
   actions: {
+    // Report genuine money-flow failures to Sentry. User-rejected signatures are expected,
+    // not bugs, so they are skipped here regardless of how the transition was routed.
+    captureActorError: ({ event }) => {
+      const error = (event as { error?: unknown }).error;
+      if (!error || (error instanceof SignRampError && error.type === SignRampErrorType.UserRejected)) {
+        return;
+      }
+      Sentry.captureException(error);
+    },
     refreshQuoteActionWithDelay: async ({ context, self }) => {
       const { quote, quoteLocked, apiKey, partnerId } = context;
       if (quoteLocked || !quote) {
@@ -359,12 +369,15 @@ export const rampMachine = setup({
       }
     },
     Error: {
-      entry: assign(({ context }) => ({
-        ...context,
-        rampSigningPhase: undefined,
-        rampSigningPhaseCurrent: undefined,
-        rampSigningPhaseMax: undefined
-      })),
+      entry: [
+        "captureActorError",
+        assign(({ context }) => ({
+          ...context,
+          rampSigningPhase: undefined,
+          rampSigningPhaseCurrent: undefined,
+          rampSigningPhaseMax: undefined
+        }))
+      ],
       on: {
         RESET_RAMP: {
           target: "Resetting"
@@ -612,7 +625,18 @@ export const rampMachine = setup({
             target: "KycComplete"
           }
         ],
-        onError: "Idle",
+        onError: [
+          {
+            // An exceeded Avenia limit is a user-facing error, not a KYC redirect;
+            // RampErrorMessage renders initializeFailedMessage in the widget.
+            actions: assign({
+              initializeFailedMessage: ({ event }) => getActorErrorMessage(event)
+            }),
+            guard: ({ event }) => event.error instanceof RampLimitExceededError,
+            target: "Idle"
+          },
+          { target: "Idle" }
+        ],
         src: "validateKyc"
       },
       on: {

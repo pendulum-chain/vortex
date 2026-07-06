@@ -1290,6 +1290,7 @@
         "sell": {
           "ARS": "Your funds will arrive in your bank account in a few minutes.",
           "BRL": "Your funds were sent via PIX and are now in your bank account.",
+          "COP": "Your funds will arrive in your bank account in a few minutes.",
           "default": "Your funds will arrive in your bank account soon.",
           "EURC": "Funds will be received via Standard SEPA within 1-2 business days.",
           "MXN": "Your funds will arrive in your bank account via SPEI in a few minutes.",

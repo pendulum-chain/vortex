@@ -1,6 +1,26 @@
-import {describe, expect, it, mock} from "bun:test";
+import {afterAll, describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
+// Captured before mock.module so afterAll can restore the real modules —
+// bun module mocks are process-wide and would poison later test files.
+import * as sharedNamespace from "@vortexfi/shared";
+import * as nablaNamespace from "../../core/nabla";
+import * as priceFeedNamespace from "../../../priceFeed.service";
+import * as loggerNamespace from "../../../../../config/logger";
 import type {QuoteContext} from "../../core/types";
+
+// Value copies taken before mock.module runs — the namespaces themselves are
+// live bindings that would reflect the mocks once installed.
+const sharedReal = { ...sharedNamespace };
+const nablaReal = { ...nablaNamespace };
+const priceFeedReal = { ...priceFeedNamespace };
+const loggerReal = { ...loggerNamespace };
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../core/nabla", () => ({ ...nablaReal }));
+  mock.module("../../../priceFeed.service", () => ({ ...priceFeedReal }));
+  mock.module("../../../../../config/logger", () => ({ ...loggerReal }));
+});
 
 const mockedEvmToken = {
   BRLA: "BRLA",
@@ -17,6 +37,7 @@ const mockedRampDirection = {
 } as const;
 
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   EvmToken: mockedEvmToken,
   getOnChainTokenDetails: (_network: string, token: string) => ({
     assetSymbol: token,

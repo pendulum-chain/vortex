@@ -1,6 +1,8 @@
+import * as Sentry from "@sentry/react";
 import { isValidCnpj } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { AlfredpayKycFlow } from "../../components/Alfredpay/AlfredpayKycFlow";
 import { LoadingScreen } from "../../components/Alfredpay/LoadingScreen";
 import { AveniaKYBFlow } from "../../components/Avenia/AveniaKYBFlow";
@@ -36,6 +38,18 @@ export interface WidgetProps {
   className?: string;
 }
 
+const WidgetErrorFallback = ({ onReset }: { onReset: () => void }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center gap-4 py-10 text-center">
+      <p className="text-body">{t("toasts.genericError")}</p>
+      <button className="btn btn-vortex-primary" onClick={onReset} type="button">
+        {t("components.errorStep.retryButton")}
+      </button>
+    </div>
+  );
+};
+
 export const Widget = ({ className }: WidgetProps) => (
   <FiatAccountMachineContext.Provider>
     <div
@@ -44,7 +58,9 @@ export const Widget = ({ className }: WidgetProps) => (
         className
       )}
     >
-      <WidgetContent />
+      <Sentry.ErrorBoundary fallback={({ resetError }) => <WidgetErrorFallback onReset={resetError} />}>
+        <WidgetContent />
+      </Sentry.ErrorBoundary>
       <SettingsMenu />
       <HistoryMenu />
     </div>

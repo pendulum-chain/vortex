@@ -14,6 +14,7 @@ import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+import { ensurePresignedTransferFunded } from "./helpers";
 
 const ALFREDPAY_POLL_INTERVAL_MS = 30000;
 const ALFREDPAY_OFFRAMP_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -75,6 +76,20 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
       );
 
       const { txData: offrampTransfer } = this.getPresignedTransaction(state, "alfredpayOfframpTransfer");
+
+      // The presigned transfer is single-use (fixed nonce, consumed even on revert); confirm the
+      // ephemeral can cover it before broadcasting.
+      try {
+        await ensurePresignedTransferFunded(
+          offrampTransfer as `0x${string}`,
+          Networks.Polygon as EvmNetworks,
+          this.getPhaseName()
+        );
+      } catch (error) {
+        throw this.createRecoverableError(
+          `AlfredpayOfframpTransferHandler: ephemeral balance does not cover the presigned final transfer: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
 
       const txHash = await evmClientManager.sendRawTransactionWithRetry(
         Networks.Polygon as EvmNetworks,

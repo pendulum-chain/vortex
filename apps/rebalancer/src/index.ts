@@ -6,6 +6,7 @@ import { checkInitialPendulumBalance } from "./rebalance/brla-to-axlusdc/steps.t
 import { rebalanceBrlaToUsdcBase } from "./rebalance/brla-to-usdc-base";
 import { quoteBrlaToUsdcBaseRebalance } from "./rebalance/brla-to-usdc-base/steps.ts";
 import { rebalanceUsdcBrlaUsdcBase } from "./rebalance/usdc-brla-usdc-base";
+import { selectEvaluatedUsdcToBrlaAmount, selectUsdcToBrlaAmount } from "./rebalance/usdc-brla-usdc-base/amountPolicy.ts";
 import { evaluatePaidRunDailyLimit, sumTodayBridgedUsdRaw } from "./rebalance/usdc-brla-usdc-base/dailyLimit.ts";
 import {
   type DailyBridgeLimitDecision,
@@ -276,11 +277,69 @@ async function executeUsdcToBrlaRebalance(
   return true;
 }
 
+function toUsdcRaw(amountUsdc: string): string {
+  return multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
+}
+
+// Squidrouter's per-address rate limit is tight enough that two route quotes fired back-to-back
+// (standard then profitable amount) can trigger "Too many quote requests for this address".
+const SQUIDROUTER_QUOTE_STAGGER_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function selectUsdcToBrlaPolicyAmount(coverageDeviationBps: number): Promise<{
+  amountUsdcRaw: string;
+  policyDecision: Awaited<ReturnType<typeof evaluateUsdcToBrlaPolicy>>;
+}> {
+  const config = getConfig();
+  const standardAmountSelection = selectUsdcToBrlaAmount(
+    config.rebalancingUsdToBrlAmount,
+    config.rebalancingUsdToBrlAmount,
+    false,
+    manualAmount
+  );
+  const standardAmountRaw = toUsdcRaw(standardAmountSelection.amountUsdc);
+  const standardPolicyDecision = await evaluateUsdcToBrlaPolicy(standardAmountRaw, coverageDeviationBps);
+
+  if (standardAmountSelection.reason === "manual") {
+    return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
+  }
+
+  const profitableAmountRaw = toUsdcRaw(config.rebalancingProfitableUsdToBrlAmount);
+  if (profitableAmountRaw === standardAmountRaw) {
+    return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
+  }
+
+  console.log(
+    `Evaluating USDC->BRLA rebalance amounts independently: standard ${standardAmountSelection.amountUsdc} USDC, ` +
+      `profitable ${config.rebalancingProfitableUsdToBrlAmount} USDC.`
+  );
+
+  await sleep(SQUIDROUTER_QUOTE_STAGGER_MS);
+  const profitablePolicyDecision = await evaluateUsdcToBrlaPolicy(profitableAmountRaw, coverageDeviationBps);
+
+  const selectedAmount = selectEvaluatedUsdcToBrlaAmount(
+    { amountUsdc: standardAmountSelection.amountUsdc, projectedProfitable: standardPolicyDecision.profitable },
+    { amountUsdc: config.rebalancingProfitableUsdToBrlAmount, projectedProfitable: profitablePolicyDecision.profitable },
+    null
+  );
+
+  if (selectedAmount.reason !== "profitable") {
+    console.log(
+      `Configured profitable amount ${config.rebalancingProfitableUsdToBrlAmount} USDC is not projected profitable. ` +
+        `Using standard amount ${standardAmountSelection.amountUsdc} USDC.`
+    );
+    return { amountUsdcRaw: standardAmountRaw, policyDecision: standardPolicyDecision };
+  }
+
+  return { amountUsdcRaw: profitableAmountRaw, policyDecision: profitablePolicyDecision };
+}
+
 async function tryOpportunisticUsdcToBrla(): Promise<boolean> {
   const config = getConfig();
-  const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
-  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
-  const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, 0);
+  const { amountUsdcRaw, policyDecision } = await selectUsdcToBrlaPolicyAmount(0);
   const opportunisticMaxCostBps = config.rebalancingCostPolicy.opportunisticUsdcToBrlaMaxCostBps;
 
   if (!policyDecision.shouldExecute) return false;
@@ -329,17 +388,17 @@ async function evaluateBrlaToUsdcPolicy(
 
 async function runUsdcToBrla(coverageDeviationBps: number) {
   const config = getConfig();
-  const amountUsdc = manualAmount || config.rebalancingUsdToBrlAmount;
-  const amountUsdcRaw = multiplyByPowerOfTen(new Big(amountUsdc), 6).toFixed(0, 0);
+  const amountUsdcRaw = toUsdcRaw(manualAmount || config.rebalancingUsdToBrlAmount);
 
   const stateManager = new UsdcBaseStateManager();
   const state = await stateManager.getState();
   const isResuming = !forceRestart && state && state.currentPhase !== UsdcBaseRebalancePhase.Idle;
 
   if (!isResuming) {
-    const policyDecision = await evaluateUsdcToBrlaPolicy(amountUsdcRaw, coverageDeviationBps);
+    const selectedAmount = await selectUsdcToBrlaPolicyAmount(coverageDeviationBps);
+    const policyDecision = selectedAmount.policyDecision;
     if (!policyDecision.shouldExecute) return;
-    await executeUsdcToBrlaRebalance(amountUsdcRaw, coverageDeviationBps, policyDecision);
+    await executeUsdcToBrlaRebalance(selectedAmount.amountUsdcRaw, coverageDeviationBps, policyDecision);
     return;
   }
 

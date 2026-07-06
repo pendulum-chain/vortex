@@ -4,10 +4,90 @@ import {
   ensurePolygonBrlaAvailableForSquidSwap,
   recoverAveniaPolygonTransferFromBalance,
   recoverSquidUsdcOutputFromBaseBalance,
+  resetFailedNablaSwapOnResume,
   resetFailedSquidRouterSwapOnResume
 } from "./steps.ts";
 
 describe("USDC Base SquidRouter steps", () => {
+  test("clears a persisted Nabla swap when the Base receipt failed", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.NablaApprove);
+    state.nablaSwapHash = "0xfailed";
+
+    const savedStates: Array<{ nablaSwapHash: string | null }> = [];
+    const stateManager = {
+      saveState: async () => {
+        savedStates.push({ nablaSwapHash: state.nablaSwapHash });
+      }
+    };
+    const publicClient = {
+      getTransactionReceipt: async () => ({ status: "reverted" as const })
+    };
+
+    await expect(resetFailedNablaSwapOnResume("0xfailed", state, stateManager, publicClient)).resolves.toBe(true);
+    expect(state.nablaSwapHash).toBeNull();
+    expect(savedStates).toEqual([{ nablaSwapHash: null }]);
+  });
+
+  test("keeps a persisted Nabla swap when the Base receipt succeeded", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.NablaApprove);
+    state.nablaSwapHash = "0xsuccess";
+
+    const stateManager = {
+      saveState: async () => {
+        throw new Error("successful receipts should not rewrite state");
+      }
+    };
+    const publicClient = {
+      getTransactionReceipt: async () => ({ status: "success" as const })
+    };
+
+    await expect(resetFailedNablaSwapOnResume("0xsuccess", state, stateManager, publicClient)).resolves.toBe(false);
+    expect(state.nablaSwapHash).toBe("0xsuccess");
+  });
+
+  test("clears a stale persisted Nabla swap when the Base receipt is missing", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.NablaApprove);
+    state.nablaSwapHash = "0xmissing";
+    state.updatedTime = new Date(Date.now() - 16 * 60_000).toISOString();
+
+    const savedStates: Array<{ nablaSwapHash: string | null }> = [];
+    const stateManager = {
+      saveState: async () => {
+        savedStates.push({ nablaSwapHash: state.nablaSwapHash });
+      }
+    };
+    const publicClient = {
+      getTransactionReceipt: async () => {
+        throw new Error("Transaction not found");
+      }
+    };
+
+    await expect(resetFailedNablaSwapOnResume("0xmissing", state, stateManager, publicClient)).resolves.toBe(true);
+    expect(state.nablaSwapHash).toBeNull();
+    expect(savedStates).toEqual([{ nablaSwapHash: null }]);
+  });
+
+  test("keeps a fresh persisted Nabla swap when the Base receipt is temporarily missing", async () => {
+    const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.NablaApprove);
+    state.nablaSwapHash = "0xmissing";
+
+    const stateManager = {
+      saveState: async () => {
+        throw new Error("fresh missing receipts should not rewrite state");
+      }
+    };
+    const publicClient = {
+      getTransactionReceipt: async () => {
+        throw new Error("Transaction not found");
+      }
+    };
+
+    await expect(resetFailedNablaSwapOnResume("0xmissing", state, stateManager, publicClient)).rejects.toThrow(
+      "Transaction not found"
+    );
+    expect(state.nablaSwapHash).toBe("0xmissing");
+  });
+
   test("clears a persisted SquidRouter swap when the Polygon receipt failed", async () => {
     const state = createUsdcBaseRebalanceState("1000000000", UsdcBaseRebalancePhase.SquidRouterApproveAndSwap);
     state.squidRouterSwapHash = "0xfailed";

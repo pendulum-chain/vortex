@@ -503,7 +503,7 @@ try {
 ## Current corridor reality (May 2026)
 - **BRL via PIX**: onramp and offramp both live.
 - **EUR via SEPA**: SDK types exist (`EurOnrampQuote`, `EurOfframpQuote`) but handlers throw `"Euro onramp/offramp handler not implemented yet"` at runtime. Treat as `planned`.
-- **ARS via CBU**: offramp only.
+- **ARS via CBU**: supported via the AlfredPay corridor; route resolver determines availability per-combination.
 - **USD / MXN / COP via ACH / SPEI / WIRE**: supported via the AlfredPay corridor; route resolver determines availability per-combination.
 
 ## Common failures
