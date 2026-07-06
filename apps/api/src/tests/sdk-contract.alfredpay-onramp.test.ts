@@ -36,15 +36,20 @@ interface CurrencyCase {
   inputAmount: string;
   /** USDT the fake anchor mints per unit of fiat. */
   onrampRate: number;
+  /** Rail-specific payment instructions registerRamp must surface as achPaymentData. */
+  expectedInstructions: Record<string, string>;
 }
 
 // Rails per currency: MXN funds over spei, USD and COP over ach, ARS over cbu.
 // The MXN rate is the same legible flat rate the MXN corridor scenario uses
-// (2000 MXN * 0.05 = 100 USDT); the others mirror the FakePrices feeds.
+// (2000 MXN * 0.05 = 100 USDT); the others mirror the FakePrices feeds. The
+// expected instructions match FakeAlfredpay's rail-realistic per-currency
+// defaults (fiatPaymentInstructionsByCurrency).
 const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "MXN",
     country: AlfredPayCountry.MX,
+    expectedInstructions: { clabe: "646180157000000004", paymentType: "SPEI" },
     fiat: FiatToken.MXN,
     inputAmount: "2000",
     onrampRate: 0.05,
@@ -53,6 +58,12 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "USD",
     country: AlfredPayCountry.US,
+    expectedInstructions: {
+      bankAccountNumber: "000123456789",
+      bankName: "Test Bank USA",
+      bankRoutingNumber: "021000021",
+      paymentType: "ACH"
+    },
     fiat: FiatToken.USD,
     inputAmount: "20000",
     onrampRate: 1,
@@ -61,6 +72,12 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "COP",
     country: AlfredPayCountry.CO,
+    expectedInstructions: {
+      bankAccountNumber: "01234567890",
+      bankName: "Bancolombia de Prueba",
+      bankRoutingNumber: "007",
+      paymentType: "ACH"
+    },
     fiat: FiatToken.COP,
     inputAmount: "50000",
     onrampRate: 1 / 4000,
@@ -69,6 +86,11 @@ const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
   {
     alfredpayCurrency: "ARS",
     country: AlfredPayCountry.AR,
+    expectedInstructions: {
+      accountHolderName: "Vortex Test Account",
+      bankAccountNumber: "2850590940090418135201",
+      paymentType: "CBU"
+    },
     fiat: FiatToken.ARS,
     inputAmount: "10000",
     onrampRate: 1 / 1000,
@@ -273,12 +295,12 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(Number(rampProcess.inputAmount)).toBe(Number(quote.inputAmount));
         expect(Number(rampProcess.outputAmount)).toBe(Number(quote.outputAmount));
 
-        // The client-visible payment details. The fake anchor hands out the
-        // same SPEI-shaped instructions (CLABE + reference) for every
-        // currency; the contract under test is that registerRamp surfaces the
-        // anchor's fiatPaymentInstructions verbatim as achPaymentData.
-        expect(rampProcess.achPaymentData?.paymentType).toBe("SPEI");
-        expect(rampProcess.achPaymentData?.clabe).toBeTruthy();
+        // The client-visible payment details: registerRamp surfaces the
+        // anchor's rail-specific fiatPaymentInstructions verbatim as
+        // achPaymentData (SPEI/CLABE for MXN, ACH bank fields for USD/COP,
+        // CBU for ARS).
+        expect(rampProcess.achPaymentData).toMatchObject(currency.expectedInstructions);
+        expect(rampProcess.achPaymentData?.reference).toBeTruthy();
 
         // The ephemeral surface of the direct Alfredpay BUY route: the
         // destination transfer plus the Polygon dust cleanup.

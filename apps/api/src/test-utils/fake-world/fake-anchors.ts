@@ -20,13 +20,16 @@ import {
   type CreateAlfredpayOnrampRequest,
   type CreateAlfredpayOnrampResponse,
   type GetAlfredpayOnrampTransactionResponse,
+  MykoboApiError,
   MykoboApiService,
   type MykoboCreateIntentRequest,
   type MykoboCreateIntentResponse,
   type MykoboFeeResponse,
+  type MykoboGetProfileResponse,
   type MykoboGetTransactionResponse,
   type MykoboTransaction,
-  MykoboTransactionStatus
+  MykoboTransactionStatus,
+  MykoboTransactionType
 } from "@vortexfi/shared";
 
 function unimplementedProxy<T extends object>(impl: object, label: string): T {
@@ -52,6 +55,13 @@ export class FakeMykobo {
   withdrawFeeTotal = "1.00";
   /** When set, the next createTransactionIntent call rejects with this error. */
   failNextIntent: Error | null = null;
+  /**
+   * KYC review status served by getProfileByEmail ("approved" | "pending" |
+   * "rejected"); null means Mykobo knows no such profile (404).
+   */
+  profileKycReviewStatus: string | null = "approved";
+  /** On-chain receivables address handed out in WITHDRAW intent instructions. */
+  withdrawReceivablesAddress = "0x5afe0000000000000000000000000000005e9a00";
 
   readonly intents: MykoboCreateIntentRequest[] = [];
   readonly transactions = new Map<string, MykoboTransaction>();
@@ -91,12 +101,30 @@ export class FakeMykobo {
       };
       this.transactions.set(transaction.id, transaction);
       return {
-        instructions: { bank_account_name: "Vortex Test Account", iban: "DE89370400440532013000" },
+        instructions:
+          request.transaction_type === MykoboTransactionType.WITHDRAW
+            ? { address: this.withdrawReceivablesAddress }
+            : { bank_account_name: "Vortex Test Account", iban: "DE89370400440532013000" },
         transaction
       };
     },
     defaultDepositFee: async (): Promise<MykoboFeeResponse> => ({ total: this.depositFeeTotal }),
     defaultWithdrawFee: async (): Promise<MykoboFeeResponse> => ({ total: this.withdrawFeeTotal }),
+    getProfileByEmail: async (email: string): Promise<MykoboGetProfileResponse> => {
+      if (this.profileKycReviewStatus === null) {
+        throw new MykoboApiError(404, { error: "profile not found" }, "profile not found");
+      }
+      return {
+        profile: {
+          bank_account_number: "DE89370400440532013000",
+          created_at: new Date().toISOString(),
+          email_address: email,
+          first_name: "Test",
+          kyc_status: { received_at: new Date().toISOString(), review_status: this.profileKycReviewStatus },
+          last_name: "User"
+        }
+      };
+    },
     getTransaction: async (transactionId: string): Promise<MykoboGetTransactionResponse> => {
       const transaction = this.transactions.get(transactionId);
       if (!transaction) {
@@ -237,11 +265,51 @@ export class FakeAlfredpay {
   readonly fiatAccountsByCustomer = new Map<string, AlfredpayFiatAccount[]>();
   private counter = 0;
 
-  private readonly fiatPaymentInstructions: AlfredpayFiatPaymentInstructions = {
-    clabe: "646180157000000004",
-    paymentType: "SPEI",
-    reference: "VORTEX-TEST"
+  /**
+   * Rail-realistic fiat payment instructions handed out per BUY currency
+   * (MXN: SPEI/CLABE, USD & COP: ACH bank fields, ARS: CBU). Tests can
+   * override entries to script other shapes.
+   */
+  fiatPaymentInstructionsByCurrency: Record<string, AlfredpayFiatPaymentInstructions> = {
+    ARS: {
+      accountHolderName: "Vortex Test Account",
+      bankAccountNumber: "2850590940090418135201",
+      bankName: "Banco de Prueba",
+      paymentType: "CBU",
+      reference: "VORTEX-TEST"
+    },
+    COP: {
+      accountHolderName: "Vortex Test Account",
+      bankAccountNumber: "01234567890",
+      bankName: "Bancolombia de Prueba",
+      bankRoutingNumber: "007",
+      paymentType: "ACH",
+      reference: "VORTEX-TEST"
+    },
+    MXN: {
+      clabe: "646180157000000004",
+      paymentType: "SPEI",
+      reference: "VORTEX-TEST"
+    },
+    USD: {
+      accountHolderName: "Vortex Test Account",
+      bankAccountNumber: "000123456789",
+      bankName: "Test Bank USA",
+      bankRoutingNumber: "021000021",
+      paymentType: "ACH",
+      reference: "VORTEX-TEST"
+    }
   };
+
+  private instructionsFor(currency: string): AlfredpayFiatPaymentInstructions {
+    const instructions = this.fiatPaymentInstructionsByCurrency[currency];
+    if (!instructions) {
+      throw new Error(
+        `FakeAlfredpay: no fiatPaymentInstructions configured for ${currency} — extend fiatPaymentInstructionsByCurrency.`
+      );
+    }
+    return { ...instructions };
+  }
 
   private onrampQuote(request: CreateAlfredpayOnrampQuoteRequest): AlfredpayOnrampQuote {
     const fromAmount = request.fromAmount ?? "0";
@@ -344,7 +412,7 @@ export class FakeAlfredpay {
       };
       this.transactions.set(transactionId, transaction);
       this.onCreateOnramp?.({ depositAddress: request.depositAddress, transactionId });
-      return { fiatPaymentInstructions: { ...this.fiatPaymentInstructions }, transaction };
+      return { fiatPaymentInstructions: this.instructionsFor(request.fromCurrency), transaction };
     },
     createOnrampQuote: async (request: CreateAlfredpayOnrampQuoteRequest): Promise<AlfredpayOnrampQuote> =>
       this.onrampQuote(request),
@@ -362,7 +430,7 @@ export class FakeAlfredpay {
       }
       return {
         ...transaction,
-        fiatPaymentInstructions: { ...this.fiatPaymentInstructions },
+        fiatPaymentInstructions: this.instructionsFor(transaction.fromCurrency),
         metadata: this.onrampStatusMetadata,
         status: this.onrampStatus
       };
