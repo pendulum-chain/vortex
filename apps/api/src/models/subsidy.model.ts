@@ -13,7 +13,8 @@ export enum SubsidyToken {
   USDC = "USDC",
   MATIC = "MATIC",
   BRL = "BRL",
-  ETH = "ETH"
+  ETH = "ETH",
+  USDT = "USDT"
 }
 
 export interface SubsidyAttributes {

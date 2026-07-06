@@ -16,6 +16,7 @@ import { getEvmFundingAccount } from "../../api/services/phases/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
+import Subsidy, { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
 import { createTestAlfredpayCustomer, createTestUser } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
@@ -402,8 +403,6 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
 
       // The funding account sent exactly the shortfall as a USDT transfer to
       // the ephemeral on ARBITRUM, and its hash was recorded for idempotency.
-      // (Note: unlike the gas subsidy in squidRouterPay, this handler keeps no
-      // Subsidy table row.)
       expect(final?.state.finalSettlementSubsidyTxHash).toBeTruthy();
       const subsidyTransfers = world.evm.sentTransactions.filter(tx => {
         if (tx.network !== Networks.Arbitrum || tx.from?.toLowerCase() !== fundingAccount.address.toLowerCase() || !tx.data) {
@@ -419,6 +418,15 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
       });
       expect(subsidyTransfers.length).toBe(1);
       expect(world.evm.erc20Balance(Networks.Arbitrum, USDT_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
+
+      // The top-up is recorded in the subsidies table so accounting sees it,
+      // just like the gas subsidy in squidRouterPay.
+      const subsidyRows = await Subsidy.findAll({ where: { phase: "finalSettlementSubsidy", rampId: setup.rampId } });
+      expect(subsidyRows.length).toBe(1);
+      expect(subsidyRows[0].token).toBe(SubsidyToken.USDT);
+      expect(subsidyRows[0].amount).toBeCloseTo(1);
+      expect(subsidyRows[0].payerAccount.toLowerCase()).toBe(fundingAccount.address.toLowerCase());
+      expect(subsidyRows[0].transactionHash).toBe(final?.state.finalSettlementSubsidyTxHash as string);
     },
     30000
   );

@@ -9,7 +9,7 @@ There are now **five** subsidization-related phase handlers and one settlement p
 **Phase handlers (Substrate):**
 - `subsidize-pre-swap-handler.ts` — Tops up the Pendulum ephemeral before a Nabla swap to ensure it has the expected input amount
 - `subsidize-post-swap-handler.ts` — Tops up the Pendulum ephemeral after a Nabla swap. Also contains complex next-phase routing logic.
-- `final-settlement-subsidy.ts` — Tops up an EVM ephemeral by SquidRouter-swapping native → ERC-20 (legacy / cross-chain settlement). Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`).
+- `final-settlement-subsidy.ts` — Tops up an EVM ephemeral by SquidRouter-swapping native → ERC-20 (legacy / cross-chain settlement). Has a USD cap (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`). Records the confirmed top-up as a `subsidies` table row (like the other subsidy handlers), so settlement subsidies are visible to subsidy accounting.
 - `destination-transfer-handler.ts` — Sends the presigned EVM transfer from the ephemeral to the user's destination address
 
 **Phase handlers (EVM):** The Substrate handlers above are polymorphic: `subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` dispatch to their EVM branches when the ephemeral involved is on a supported EVM chain (currently Base). The EVM pre-swap branch tops the ephemeral up before `nablaSwap` and enforces the quote-relative cap fraction from `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` (default `0.05`). The EVM post-swap branch splits the required top-up into a swap-discrepancy component and a discount component: `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` applies to the actual-vs-quoted swap-output discrepancy, while `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` (default `0.05`) caps the discount-derived top-up separately.
