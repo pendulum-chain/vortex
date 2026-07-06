@@ -14,6 +14,13 @@ export default defineConfig({
         lines: 19
       }
     },
+    // Dummy values so src/config/supabase.ts (pulled in transitively via services/auth)
+    // doesn't throw at import time; keeps the suite hermetic (no real credentials in CI).
+    // ".invalid" never resolves, so an accidental real call fails instead of hitting a live project.
+    env: {
+      VITE_SUPABASE_ANON_KEY: "test-anon-key",
+      VITE_SUPABASE_URL: "http://supabase.invalid"
+    },
     environment: "node",
     globals: false,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
