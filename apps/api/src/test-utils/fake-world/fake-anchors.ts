@@ -125,6 +125,8 @@ export class FakeBrla {
   accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
   /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
   payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
+  /** Status reported for every payout ticket by getAveniaPayoutTicket. */
+  payoutTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
   /** Called after createPixOutputTicket succeeds; use it to apply the on-chain mint effect. */
   onPixOutputTicket?: (ticket: { id: string; walletAddress?: string }) => void;
   readonly pixInputTickets: Array<{ id: string; brCode: string }> = [];
@@ -167,6 +169,10 @@ export class FakeBrla {
     },
     getAccountBalance: async () => ({ balances: { ...this.accountBalances } }),
     getAveniaPayinTickets: async () => this.pixInputTickets.map(ticket => ({ id: ticket.id, status: this.payinTicketStatus })),
+    getAveniaPayoutTicket: async (ticketId: string) => ({
+      id: ticketId,
+      status: this.payoutTicketStatus
+    }),
     getSubaccountUsedLimit: async () => ({
       limitInfo: {
         blocked: false,

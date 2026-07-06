@@ -156,6 +156,8 @@ export class FakeEvm {
     };
     return this.makeUnimplementedProxy(
       {
+        // Dry-runs (eth_call) succeed generically; scripted failures go through failNextSends instead.
+        call: async () => ({ data: "0x" as `0x${string}` }),
         chain: { id: CHAIN_IDS[network] ?? 0, name: network, nativeCurrency: { decimals: 18, name: "Ether", symbol: "ETH" } },
         estimateFeesPerGas: async () => ({ maxFeePerGas: 1_000_000_000n, maxPriorityFeePerGas: 1_000_000_000n }),
         estimateGas: async () => 21_000n,

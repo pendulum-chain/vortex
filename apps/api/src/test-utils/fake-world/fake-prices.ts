@@ -19,8 +19,12 @@ export class FakePrices {
   perUsd: Record<string, number> = {
     ars: 1000,
     brl: 5,
+    // BRLA is the on-chain twin of BRL and shares its peg.
+    brla: 5,
     cop: 4000,
     eur: 0.9,
+    // Consistent with cryptoUsd["polygon-ecosystem-token"] = 0.5.
+    matic: 2,
     mxn: 17,
     usd: 1,
     usdc: 1,
