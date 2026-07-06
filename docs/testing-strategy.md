@@ -19,8 +19,8 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 |---|---|---|---|
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), and a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + transient/unrecoverable failures) | `apps/api/src/tests/corridors/` | `bun test` |
-| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`) and the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), and a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures) | `apps/api/src/tests/corridors/` | `bun test` |
+| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and the Alfredpay SELL rail: full USD/ach offramp lifecycle plus quote/register shape checks for COP and ARS (`sdk-contract.alfredpay-offramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
@@ -90,15 +90,19 @@ hand-write these objects or copy JSON snapshots into tests; extend the factory i
 ### Playwright E2E (`apps/frontend/e2e/`)
 
 A handful of critical journeys run against the real frontend in Chromium, hermetically: quote
-form → quote displayed, quote error surfaced, wallet gate on offramps, and three full ramp
+form → quote displayed, quote error surfaced, wallet gate on offramps, and four full ramp
 journeys — the BRL onramp (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC
 gate → registration → in-page ephemeral signing asserted via the presigned txs posted to
 `/v1/ramp/update` → Pix payment info → progress → success), the BRL OFFRAMP
 (`offramp-brl-journey.spec.ts`: the money-out path — wallet gate + balance check → CPF/Pix
 eligibility → registration → USER-WALLET broadcast of the source-of-funds transfer with its
-hash reported in a second update → automatic start → success), and the MXN onramp
+hash reported in a second update → automatic start → success), the MXN onramp
 (`onramp-mxn-journey.spec.ts`: the Alfredpay rail — Alfredpay KYC gate → Polygon-side
-ephemeral signing → SPEI payment details (CLABE) → success):
+ephemeral signing → SPEI payment details (CLABE) → success), and the USD OFFRAMP
+(`offramp-usd-journey.spec.ts`: Alfredpay money-out — wallet gate on Polygon → Alfredpay KYC
+gate → ACH fiat-account selection → ephemeral presigning → user-wallet broadcast with its
+hash reported in a second update → automatic start → progress; the success screen is
+currently unreachable for Alfredpay offramps — known frontend gap documented in the spec):
 
 - The API origin (`http://localhost:3000`) is intercepted per-test with `page.route`
   (`e2e/support/mockBackend.ts`) — no backend, database, or chain access.
