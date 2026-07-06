@@ -19,10 +19,10 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 |---|---|---|---|
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), and a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures) | `apps/api/src/tests/corridors/` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
-| 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
+| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
 ### The invariants the suite protects
 
@@ -62,34 +62,39 @@ Legend: ✅ directly tested · ◐ covered only via shared code/another corridor
 
 | Corridor (rail) | Dir | Happy path | Transient | Unrecoverable | Security / caps | Cross-chain leg | SDK | E2E journey |
 |---|---|---|---|---|---|---|---|---|
-| BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ◐¹ | ✅ | ✅ |
+| BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅² | ✅ | ✅ |
 | BRL (Avenia / Pix) | SELL | ✅ | ✅ | ✅ | ✅ pre/post-swap caps, recipient | ✅ F-021 | ✅ | ✅ |
 | MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ✅ | ✅ |
-| MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ◐² | ✅ | ◐³ |
-| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ✅ | ◐³ |
-| USD (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ✅ | ✅⁴ |
-| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ✅ | ◐³ |
-| COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ✅ | ◐³ |
-| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ✅ | ◐³ |
-| ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ✅ | ◐³ |
-| EUR (Mykobo / SEPA) | both | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 |
+| MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ✅¹ | ✅ | ✅ |
+| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
+| USD (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
+| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
+| COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
+| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ✅ | ✅ | ✅ |
+| ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ✅¹ | ✅ | ✅ |
+| EUR (Mykobo / SEPA) | BUY | ✅³ | ✅³ | ✅³ | ✅ recipient, KYC gate | ◐⁴ | 🚫 | 🚫 |
+| EUR (Mykobo / SEPA) | SELL | ✅³ | ✅³ | ✅³ | ✅ payout-vs-intent match, KYC gate | ◐⁴ | 🚫 | 🚫 |
 | AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌ | ❌ | ❌ | — | ❌ | ❌ |
 
-¹ Onramp squid leg (squidRouterSwap/Pay + settlement subsidy) exercised only by the MXN
-cross-chain onramp scenario; the handlers are shared, but no per-corridor variant exists.
-² Offramp squid leg (user-reported squid-hash verification) exercised only by the BRL
-cross-chain offramp scenario; handlers shared.
-³ The Alfredpay BUY UI flow is exercised by the MXN onramp journey and the SELL flow by the
-USD offramp journey; no per-currency journey exists.
-⁴ The journey ends at the progress screen: the success screen is currently unreachable for
-Alfredpay offramps (frontend bug — `getRampFlow` returns null for SELL with non-BRL/EURC
-output; fix in progress).
+¹ Alfredpay SELL cross-chain is covered on the no-permit fallback path (user-broadcast squid
+approve+swap verified against the blueprints by hash); the permit/TokenRelayer variant is
+untested — it needs relayer-contract execution the fake world doesn't model.
+² BRL BUY cross-chain (pix → Base mint + Nabla swap → squid → USDC-on-Arbitrum) is happy-path
+only; failure modes of the shared squid handlers are covered by the MXN cross-chain and BRL
+cross-chain offramp scenarios.
+³ EUR registration is still kill-switched at `/v1/ramp/register` (503 — asserted by these
+tests). The scenarios seed the registered state through the same service calls registration
+runs below the switch, then drive the real PhaseProcessor. The re-enablement precondition is
+met; once the switch is lifted, swap the seeding helpers in `corridors/eur-*.scenario.test.ts`
+to plain HTTP registration and add SDK + E2E coverage.
+⁴ The EUR scenarios cover the direct EURC-on-Base paths; BUY to other destinations / SELL from
+non-Base sources use the shared squid legs tested in the other corridors' cross-chain variants.
 
-**Gaps at a glance** (everything not ✅ above): Alfredpay E2E exists
-only as one BUY (MXN) and one SELL (USD) journey; per-corridor cross-chain variants lean on
-shared handlers; EUR is gated on the documented re-enablement precondition; the AssetHub
-corridors are reachable in production but deliberately deferred (see the decision note under
-Infrastructure — revisit if the product keeps them).
+**Gaps at a glance** (everything not ✅ above): the Alfredpay permit/TokenRelayer cross-chain
+SELL variant is untested (no-permit fallback is); EUR SDK and E2E entry points stay closed
+behind the kill-switch (corridor scenarios are in place, so lifting it is unblocked); the
+AssetHub corridors are reachable in production but deliberately deferred (see the decision
+note under Infrastructure — revisit if the product keeps them).
 
 ## Infrastructure
 
@@ -132,20 +137,21 @@ hand-write these objects or copy JSON snapshots into tests; extend the factory i
 
 ### Playwright E2E (`apps/frontend/e2e/`)
 
-A handful of critical journeys run against the real frontend in Chromium, hermetically: quote
-form → quote displayed, quote error surfaced, wallet gate on offramps, and four full ramp
-journeys — the BRL onramp (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC
-gate → registration → in-page ephemeral signing asserted via the presigned txs posted to
-`/v1/ramp/update` → Pix payment info → progress → success), the BRL OFFRAMP
-(`offramp-brl-journey.spec.ts`: the money-out path — wallet gate + balance check → CPF/Pix
-eligibility → registration → USER-WALLET broadcast of the source-of-funds transfer with its
-hash reported in a second update → automatic start → success), the MXN onramp
-(`onramp-mxn-journey.spec.ts`: the Alfredpay rail — Alfredpay KYC gate → Polygon-side
-ephemeral signing → SPEI payment details (CLABE) → success), and the USD OFFRAMP
-(`offramp-usd-journey.spec.ts`: Alfredpay money-out — wallet gate on Polygon → Alfredpay KYC
-gate → ACH fiat-account selection → ephemeral presigning → user-wallet broadcast with its
-hash reported in a second update → automatic start → progress; the success screen is
-currently unreachable for Alfredpay offramps — known frontend gap documented in the spec):
+Critical journeys run against the real frontend in Chromium, hermetically: quote form → quote
+displayed, quote error surfaced, wallet gate on offramps, and full ramp journeys — the BRL
+onramp (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC gate → registration
+→ in-page ephemeral signing asserted via the presigned txs posted to `/v1/ramp/update` → Pix
+payment info → progress → success), the BRL OFFRAMP (`offramp-brl-journey.spec.ts`: the
+money-out path — wallet gate + balance check → CPF/Pix eligibility → registration →
+USER-WALLET broadcast of the source-of-funds transfer with its hash reported in a second
+update → automatic start → success), and the Alfredpay rail parameterized over all four
+currencies in both directions — BUY MXN/USD/COP/ARS (`onramp-alfredpay-journeys.spec.ts`:
+Alfredpay KYC gate with per-country routing asserted → Polygon-side ephemeral signing →
+per-currency payment instructions (SPEI/CLABE, ACH bank details, COP bank details, ARS CVU)
+→ success) and SELL USD/MXN/COP/ARS (`offramp-alfredpay-journeys.spec.ts`: wallet gate on
+Polygon → Alfredpay KYC gate → per-country fiat-account form (US wire, 18-digit CLABE, COP
+ACH, 22-digit CBU) → ephemeral presigning → user-wallet broadcast with its hash reported in
+a second update → automatic start → success incl. per-token arrival text):
 
 - The API origin (`http://localhost:3000`) is intercepted per-test with `page.route`
   (`e2e/support/mockBackend.ts`) — no backend, database, or chain access.
@@ -160,12 +166,13 @@ They run nightly via `.github/workflows/e2e.yml` (never PR-blocking) and locally
 
 ### EUR re-enablement precondition
 
-EUR ramps are kill-switched at registration (`ramp.service.ts`). The Mykobo (EUR) corridors
-currently have **no hermetic coverage** — only `RUN_LIVE_TESTS`-gated sandbox tests. Lifting
-the kill-switch is gated on adding a hermetic EUR corridor scenario in
-`apps/api/src/tests/corridors/` first (the FakeMykobo anchor in `test-utils/fake-world/`
-already covers intents/fees; the scenario harness is the same one the BRL and MXN corridors
-use).
+EUR ramps are kill-switched at registration (`ramp.service.ts`). The hermetic EUR corridor
+scenarios this precondition asked for now exist (`corridors/eur-onramp.scenario.test.ts`,
+`corridors/eur-offramp.scenario.test.ts` — both directions, happy path + transient +
+unrecoverable, driving the real PhaseProcessor; they also pin the 503 the kill-switch
+returns). What remains before EUR can be re-enabled: lift the switch, swap the scenarios'
+state-seeding helpers to plain HTTP registration (each file's docstring says how), and add
+SDK contract + E2E journey coverage for the reopened entry points.
 
 ### Live tests
 
