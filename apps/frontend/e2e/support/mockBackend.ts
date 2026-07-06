@@ -109,6 +109,10 @@ interface MockBackendOptions {
   rampStatusOverrides?: (complete: boolean) => Record<string, unknown>;
   // Status served on GET /v1/alfredpay/alfredpayStatus (Alfredpay KYC gate). Default: SUCCESS.
   alfredpayStatus?: string;
+  // Accounts served on GET /v1/alfredpay/fiatAccounts (AlfredpayListFiatAccountsResponse).
+  // Alfredpay offramps require one: the summary's Confirm button stays disabled without a
+  // selectable fiat account. Default: none configured (the route 404s like any unmatched path).
+  fiatAccounts?: (country: string) => unknown;
 }
 
 // Intercepts all traffic to the API origin (http://localhost:3000) so journeys run
@@ -118,6 +122,7 @@ interface MockBackendOptions {
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
   const quoteRequests: Array<Record<string, unknown>> = [];
   const brlaGetUserRequests: string[] = [];
+  const fiatAccountsRequests: string[] = [];
   const registerRequests: Array<Record<string, unknown>> = [];
   const updateRequests: Array<Record<string, unknown>> = [];
   const startRequests: Array<Record<string, unknown>> = [];
@@ -207,6 +212,16 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     // existing verified customer, so the KYC child completes immediately (the gate's happy path).
     if (path === "/v1/alfredpay/alfredpayStatus" && method === "GET") {
       await fulfillJson({ status: options.alfredpayStatus ?? "SUCCESS" });
+      return;
+    }
+
+    // Alfredpay fiat accounts: the payout bank accounts registered with the anchor. On
+    // offramps the summary's FiatAccountSelector lists these and registration sends the
+    // chosen fiatAccountId.
+    if (path === "/v1/alfredpay/fiatAccounts" && method === "GET" && options.fiatAccounts) {
+      const country = url.searchParams.get("country") ?? "";
+      fiatAccountsRequests.push(country);
+      await fulfillJson(options.fiatAccounts(country));
       return;
     }
 
@@ -371,5 +386,5 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   await page.route("https://api.web3modal.org/**", route => route.abort());
   await page.route("https://pulse.walletconnect.org/**", route => route.abort());
 
-  return { brlaGetUserRequests, quoteRequests, registerRequests, startRequests, updateRequests };
+  return { brlaGetUserRequests, fiatAccountsRequests, quoteRequests, registerRequests, startRequests, updateRequests };
 }

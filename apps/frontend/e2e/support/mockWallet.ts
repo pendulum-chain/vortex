@@ -6,11 +6,11 @@ export const MOCK_WALLET_NAME = "E2E Mock Wallet";
 // Injects a minimal EIP-1193 provider announced via EIP-6963 before the app loads.
 // AppKit is configured with enableEIP6963, so the provider shows up in the connect
 // modal as an installed browser wallet — no app code changes needed.
-export async function injectMockWallet(page: Page) {
+// The wallet's chain defaults to Base; journeys that live on another network (e.g.
+// Polygon offramps) pass the matching chainIdHex so no mid-flow chain switch is needed.
+export async function injectMockWallet(page: Page, options: { chainIdHex?: string } = {}) {
   await page.addInitScript(
-    ({ address, name }) => {
-      const chainIdHex = "0x2105"; // Base
-
+    ({ address, name, chainIdHex }) => {
       // biome-ignore lint/suspicious/noExplicitAny: minimal EIP-1193 stub
       const listeners: Record<string, Array<(...args: any[]) => void>> = {};
       const provider = {
@@ -82,6 +82,6 @@ export async function injectMockWallet(page: Page) {
       // biome-ignore lint/suspicious/noExplicitAny: window.ethereum has no typed slot here
       (window as any).ethereum = provider;
     },
-    { address: MOCK_WALLET_ADDRESS, name: MOCK_WALLET_NAME }
+    { address: MOCK_WALLET_ADDRESS, chainIdHex: options.chainIdHex ?? "0x2105", name: MOCK_WALLET_NAME }
   );
 }
