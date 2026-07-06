@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildQuoteResponse } from "../../test/fixtures";
 import { API_BASE_URL, server } from "../../test/msw-server";
 import { RampContext } from "../types";
-import { validateKycActor } from "./validateKyc.actor";
+import { RampLimitExceededError, validateKycActor } from "./validateKyc.actor";
 
 // Structurally valid, non-trivial CPF (11 digits).
 const VALID_CPF = "52998224725";
@@ -104,16 +104,15 @@ describe("validateKycActor", () => {
       expect(recordCalls[0]).toEqual({ quoteId: "quote-1", sessionId: "session-1", taxId: VALID_CPF });
     });
 
-    // The over-limit throw is swallowed by the surrounding catch: with a structurally valid
-    // CPF the actor falls through to "user needs KYC" instead of surfacing the limit error.
-    it("treats an exceeded remaining limit as a new KYC attempt for a valid CPF", async () => {
+    it("throws a RampLimitExceededError when the amount exceeds the remaining limit, without recording a KYC attempt", async () => {
       mockBrlaUser({ evmAddress: "0xbrla", identityStatus: "CONFIRMED" }, "10");
       const recordCalls = mockRecordAttemptEndpoint();
 
-      const result = await validateKycActor({ input: buildContext(FiatToken.BRL) });
+      await expect(validateKycActor({ input: buildContext(FiatToken.BRL) })).rejects.toThrow(RampLimitExceededError);
 
-      expect(result).toEqual({ kycNeeded: true });
-      await vi.waitFor(() => expect(recordCalls).toHaveLength(1));
+      // An exceeded limit is not a KYC problem; give any stray fire-and-forget request a beat to land.
+      await new Promise(resolve => setTimeout(resolve, 25));
+      expect(recordCalls).toHaveLength(0);
     });
 
     it("requires KYC re-verification when the API reports KYC invalid, without recording an initial attempt", async () => {

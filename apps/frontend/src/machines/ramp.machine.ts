@@ -8,7 +8,7 @@ import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
-import { validateKycActor } from "./actors/validateKyc.actor";
+import { RampLimitExceededError, validateKycActor } from "./actors/validateKyc.actor";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
@@ -625,7 +625,18 @@ export const rampMachine = setup({
             target: "KycComplete"
           }
         ],
-        onError: "Idle",
+        onError: [
+          {
+            // An exceeded Avenia limit is a user-facing error, not a KYC redirect;
+            // RampErrorMessage renders initializeFailedMessage in the widget.
+            actions: assign({
+              initializeFailedMessage: ({ event }) => getActorErrorMessage(event)
+            }),
+            guard: ({ event }) => event.error instanceof RampLimitExceededError,
+            target: "Idle"
+          },
+          { target: "Idle" }
+        ],
         src: "validateKyc"
       },
       on: {

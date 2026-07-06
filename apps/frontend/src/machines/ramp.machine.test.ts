@@ -16,6 +16,7 @@ import { CheckEmailResponse, VerifyOTPResponse } from "../services/api/auth.api"
 import { AuthService, type AuthTokens } from "../services/auth";
 import { RampExecutionInput } from "../types/phases";
 import { SignRampError, SignRampErrorType } from "./actors/sign.actor";
+import { RampLimitExceededError } from "./actors/validateKyc.actor";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { MykoboKycMachineError, MykoboKycMachineErrorType, mykoboKycMachine } from "./mykoboKyc.machine";
 import { RampContext, RampMachineEvents, RampState } from "./types";
@@ -374,6 +375,21 @@ describe("rampMachine", () => {
       await confirmRamp(actor);
 
       await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBeUndefined();
+    });
+
+    it("an exceeded ramp limit returns to Idle with the limit error message", async () => {
+      const actor = createRampActor({
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => {
+          throw new RampLimitExceededError();
+        })
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.BRL);
+
+      await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("Insufficient remaining limit for this transaction.");
     });
 
     it("redirects to the callback URL after starting a ramp and returns to Idle after the delay", async () => {
