@@ -122,6 +122,7 @@ interface MockBackendOptions {
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
   const quoteRequests: Array<Record<string, unknown>> = [];
   const brlaGetUserRequests: string[] = [];
+  const alfredpayStatusRequests: string[] = [];
   const fiatAccountsRequests: string[] = [];
   const registerRequests: Array<Record<string, unknown>> = [];
   const updateRequests: Array<Record<string, unknown>> = [];
@@ -211,6 +212,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     // Alfredpay KYC gate: the alfredpayKyc machine's CheckingStatus step. SUCCESS means an
     // existing verified customer, so the KYC child completes immediately (the gate's happy path).
     if (path === "/v1/alfredpay/alfredpayStatus" && method === "GET") {
+      alfredpayStatusRequests.push(url.searchParams.get("country") ?? "");
       await fulfillJson({ status: options.alfredpayStatus ?? "SUCCESS" });
       return;
     }
@@ -386,5 +388,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   await page.route("https://api.web3modal.org/**", route => route.abort());
   await page.route("https://pulse.walletconnect.org/**", route => route.abort());
 
-  return { brlaGetUserRequests, fiatAccountsRequests, quoteRequests, registerRequests, startRequests, updateRequests };
+  return {
+    alfredpayStatusRequests,
+    brlaGetUserRequests,
+    fiatAccountsRequests,
+    quoteRequests,
+    registerRequests,
+    startRequests,
+    updateRequests
+  };
 }

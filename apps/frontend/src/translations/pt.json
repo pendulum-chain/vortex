@@ -1295,6 +1295,7 @@
         "sell": {
           "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
+          "COP": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
           "MXN": "Seus fundos chegarão à sua conta bancária via SPEI em alguns minutos.",
