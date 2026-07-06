@@ -20,7 +20,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) and the HTTP surface tests (auth OTP flow, webhooks, ramp history, public routes; `http-surface.invariants.test.ts`) | `apps/api/src/tests/` | `bun test` |
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), and a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures) | `apps/api/src/tests/corridors/` | `bun test` |
-| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and the Alfredpay SELL rail: full USD/ach offramp lifecycle plus quote/register shape checks for COP and ARS (`sdk-contract.alfredpay-offramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
+| 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and the Alfredpay SELL rail: full USD/ach offramp lifecycle plus quote/register shape checks for COP and ARS (`sdk-contract.alfredpay-offramp.test.ts`) — and the Alfredpay BUY rail: full MXN/spei onramp lifecycle plus quote/register shape checks for USD, COP and ARS (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
@@ -64,13 +64,13 @@ Legend: ✅ directly tested · ◐ covered only via shared code/another corridor
 |---|---|---|---|---|---|---|---|---|
 | BRL (Avenia / Pix) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ◐¹ | ✅ | ✅ |
 | BRL (Avenia / Pix) | SELL | ✅ | ✅ | ✅ | ✅ pre/post-swap caps, recipient | ✅ F-021 | ✅ | ✅ |
-| MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ❌ | ✅ |
+| MXN (Alfredpay / SPEI) | BUY | ✅ | ✅ | ✅ | ✅ recipient | ✅ settlement subsidy | ✅ | ✅ |
 | MXN (Alfredpay / SPEI) | SELL | ✅ | ✅ | ✅ | ✅ calldata, F-001 cap | ◐² | ◐³ | ◐⁴ |
-| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| USD (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ◐⁷ | ◐⁴ |
 | USD (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ✅ | ✅⁵ |
-| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| COP (Alfredpay / ACH) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ◐⁷ | ◐⁴ |
 | COP (Alfredpay / ACH) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ◐⁶ | ◐⁴ |
-| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ❌ | ◐⁴ |
+| ARS (Alfredpay / CBU) | BUY | ✅ | ✅ | ✅ | ✅ + limit breach | ◐¹ | ◐⁷ | ◐⁴ |
 | ARS (Alfredpay / CBU) | SELL | ✅ | ✅ | ✅ | ✅ + limit breach | ◐² | ◐⁶ | ◐⁴ |
 | EUR (Mykobo / SEPA) | both | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 | 🚫 |
 | AssetHub (BRL BUY → USDC; USDC SELL → Pix) | both | ❌ deferred | ❌ | ❌ | ❌ | — | ❌ | ❌ |
@@ -79,17 +79,20 @@ Legend: ✅ directly tested · ◐ covered only via shared code/another corridor
 cross-chain onramp scenario; the handlers are shared, but no per-corridor variant exists.
 ² Offramp squid leg (user-reported squid-hash verification) exercised only by the BRL
 cross-chain offramp scenario; handlers shared.
-³ The Alfredpay SELL rail's SDK lifecycle runs as USD; MXN itself is never driven through
-the SDK.
+³ The Alfredpay SELL rail's SDK lifecycle runs as USD; MXN SELL has no SDK-driven test
+(MXN BUY does — see the SDK column of the BUY row).
 ⁴ The Alfredpay BUY UI flow is exercised by the MXN onramp journey and the SELL flow by the
 USD offramp journey; no per-currency journey exists.
 ⁵ The journey ends at the progress screen: the success screen is currently unreachable for
 Alfredpay offramps (frontend bug — `getRampFlow` returns null for SELL with non-BRL/EURC
 output; fix in progress).
 ⁶ Quote + register SDK shape checks only; no full lifecycle.
+⁷ Quote + register SDK shape checks only; the Alfredpay BUY rail's full SDK lifecycle runs
+as MXN.
 
-**Gaps at a glance** (everything not ✅ above): no SDK coverage for any Alfredpay BUY;
-MXN never driven through the SDK; COP/ARS SDK SELL is shape-checks only; Alfredpay E2E exists
+**Gaps at a glance** (everything not ✅ above): the Alfredpay BUY SDK lifecycle runs only
+as MXN (USD/COP/ARS BUY, like COP/ARS SELL, is SDK shape-checks only) and MXN SELL has no
+SDK-driven test; Alfredpay E2E exists
 only as one BUY (MXN) and one SELL (USD) journey; per-corridor cross-chain variants lean on
 shared handlers; EUR is gated on the documented re-enablement precondition; the AssetHub
 corridors are reachable in production but deliberately deferred (see the decision note under
