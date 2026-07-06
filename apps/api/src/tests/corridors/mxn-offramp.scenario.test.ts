@@ -302,6 +302,49 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
+    "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",
+    async () => {
+      const setup = await setUpRegisteredRamp();
+      scriptHappyWorld(setup);
+      const depositAddress = world.alfredpay.offrampDepositAddress;
+
+      // The ephemeral starts without gas, so fundEphemeral must broadcast a
+      // native funding transfer from the funding account. Apply that value
+      // transfer to the ledger on top of scriptHappyWorld's ERC-20 effects.
+      world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, 0n);
+      const applyErc20Transfers = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        if (!tx.serialized && tx.to && tx.value) {
+          world.evm.setNativeBalance(tx.network, tx.to, world.evm.nativeBalance(tx.network, tx.to) + tx.value);
+          return;
+        }
+        applyErc20Transfers?.(tx);
+      };
+      // The first broadcast of this corridor is now that funding transfer.
+      world.evm.failNextSends = 1;
+      world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+
+      // The outage surfaced as exactly one recoverable fundEphemeral error...
+      const outageLogs = final?.errorLogs.filter(log => log.error.includes("Error funding ephemeral account")) ?? [];
+      expect(outageLogs.length).toBe(1);
+      expect(outageLogs.every(log => log.phase === "fundEphemeral" && log.recoverable === true)).toBe(true);
+
+      // ...and after the retry the deposit transfer reached the chain exactly
+      // once, paying the anchor in full.
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(setup.inputAmountRaw);
+    },
+    30000
+  );
+
+  it(
     "security regression: a reported user tx whose calldata does not match the blueprint fails the ramp unrecoverably",
     async () => {
       const setup = await setUpRegisteredRamp();
