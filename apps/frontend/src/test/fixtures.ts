@@ -1,4 +1,15 @@
-import { EPaymentMethod, Networks, QuoteResponse, RampCurrency, RampDirection, RampPhase, RampProcess } from "@vortexfi/shared";
+import {
+  EPaymentMethod,
+  EvmTransactionData,
+  Networks,
+  QuoteResponse,
+  RampCurrency,
+  RampDirection,
+  RampPhase,
+  RampProcess,
+  SignedTypedData,
+  UnsignedTx
+} from "@vortexfi/shared";
 
 export function buildQuoteResponse(overrides: Partial<QuoteResponse> = {}): QuoteResponse {
   return {
@@ -27,6 +38,38 @@ export function buildQuoteResponse(overrides: Partial<QuoteResponse> = {}): Quot
     totalFeeUsd: "0.14",
     vortexFeeFiat: "0",
     vortexFeeUsd: "0",
+    ...overrides
+  };
+}
+
+export function buildEvmTransactionData(overrides: Partial<EvmTransactionData> = {}): EvmTransactionData {
+  return {
+    data: "0x",
+    gas: "21000",
+    to: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    value: "0",
+    ...overrides
+  };
+}
+
+export function buildUnsignedTx(overrides: Partial<UnsignedTx> = {}): UnsignedTx {
+  return {
+    meta: {},
+    network: Networks.Base,
+    nonce: 0,
+    phase: "squidRouterSwap",
+    signer: "0x1111111111111111111111111111111111111111",
+    txData: buildEvmTransactionData(),
+    ...overrides
+  };
+}
+
+export function buildSignedTypedData(overrides: Partial<SignedTypedData> = {}): SignedTypedData {
+  return {
+    domain: { name: "Permit2", verifyingContract: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", version: "1" },
+    message: { amount: "1" },
+    primaryType: "PermitTransferFrom",
+    types: { PermitTransferFrom: [{ name: "amount", type: "uint256" }] },
     ...overrides
   };
 }
