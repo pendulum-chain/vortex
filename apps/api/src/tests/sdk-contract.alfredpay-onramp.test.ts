@@ -24,9 +24,6 @@ import { startTestApp, type TestApp } from "../test-utils/test-app";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const POLYGON_CHAIN_ID_HEX = "0x89"; // 137
 
-// 2000 MXN * 0.05 = 100 USDT: the same legible flat rate the MXN corridor scenario uses.
-const MXN_ONRAMP_RATE = 0.05;
-
 interface CurrencyCase {
   fiat: FiatToken;
   /** Alfredpay-side currency code expected on created orders. */
@@ -41,8 +38,18 @@ interface CurrencyCase {
   onrampRate: number;
 }
 
-// Rails per currency: USD and COP fund over ach, ARS over cbu (rates mirror the FakePrices feeds).
-const CURRENCY_CASES: CurrencyCase[] = [
+// Rails per currency: MXN funds over spei, USD and COP over ach, ARS over cbu.
+// The MXN rate is the same legible flat rate the MXN corridor scenario uses
+// (2000 MXN * 0.05 = 100 USDT); the others mirror the FakePrices feeds.
+const FULL_LIFECYCLE_CASES: CurrencyCase[] = [
+  {
+    alfredpayCurrency: "MXN",
+    country: AlfredPayCountry.MX,
+    fiat: FiatToken.MXN,
+    inputAmount: "2000",
+    onrampRate: 0.05,
+    rail: EPaymentMethod.SPEI
+  },
   {
     alfredpayCurrency: "USD",
     country: AlfredPayCountry.US,
@@ -101,11 +108,11 @@ function installChainIdShim(): { restore: () => void } {
 /**
  * SDK ↔ API contract tests for the Alfredpay BUY rail (fiat → USDT on
  * Polygon): the real @vortexfi/sdk drives the real in-process API. The full
- * lifecycle deliberately runs as MXN/spei — the one corridor no other SDK test
- * exercises — with registerRamp's internal flow (ephemeral generation,
- * /v1/ramp/register, signing the destinationTransfer + backups, and the
- * /v1/ramp/update that creates the anchor order and returns the SPEI payment
- * details). USD/COP/ARS get lighter createQuote/registerRamp shape checks.
+ * lifecycle runs once per currency (MXN/spei, USD/ach, COP/ach, ARS/cbu) with
+ * registerRamp's internal flow (ephemeral generation, /v1/ramp/register,
+ * signing the destinationTransfer + backups, and the /v1/ramp/update that
+ * creates the anchor order and returns the fiat payment details), then
+ * startRamp and getRampStatus polling to completion.
  */
 describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", () => {
   let world: FakeWorld;
@@ -210,177 +217,133 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
     }
   }
 
-  it(
-    "drives the full MXN/spei lifecycle: createQuote → registerRamp → startRamp → getRampStatus",
-    async () => {
-      world.alfredpay.onrampRate = MXN_ONRAMP_RATE;
-      const { sdk, userId } = await createUserSdk(AlfredPayCountry.MX);
-      const destination = privateKeyToAccount(generatePrivateKey()).address;
-
-      const quote = await sdk.createQuote(quoteRequest(FiatToken.MXN, EPaymentMethod.SPEI, "2000"));
-
-      // Quote contract: the fields the SDK's QuoteResponse type promises to integrators.
-      expect(quote.id).toMatch(UUID_PATTERN);
-      expect(quote.rampType).toBe(RampDirection.BUY);
-      expect(quote.from).toBe(EPaymentMethod.SPEI);
-      expect(quote.to).toBe(Networks.Polygon);
-      expect(quote.network).toBe(Networks.Polygon);
-      expect(Number(quote.inputAmount)).toBe(2000);
-      expect(quote.inputCurrency).toBe(FiatToken.MXN);
-      expect(quote.outputCurrency).toBe(EvmToken.USDT);
-      expect(Number(quote.outputAmount)).toBeGreaterThan(0);
-      expect(new Date(quote.expiresAt).getTime()).toBeGreaterThan(Date.now());
-      const feeFields = [
-        quote.networkFeeFiat,
-        quote.anchorFeeFiat,
-        quote.vortexFeeFiat,
-        quote.partnerFeeFiat,
-        quote.totalFeeFiat,
-        quote.processingFeeFiat,
-        quote.networkFeeUsd,
-        quote.anchorFeeUsd,
-        quote.vortexFeeUsd,
-        quote.partnerFeeUsd,
-        quote.totalFeeUsd,
-        quote.processingFeeUsd
-      ];
-      for (const fee of feeFields) {
-        expect(Number.isFinite(Number(fee))).toBe(true);
-      }
-      expect(quote.feeCurrency).toBeTruthy();
-
-      // registerRamp runs the SDK's full internal Alfredpay BUY flow: ephemeral
-      // generation (Substrate + EVM), /v1/ramp/register, signing the returned
-      // destinationTransfer (plus its backups), and the /v1/ramp/update that
-      // creates the anchor order — there is no separate user sign/update step.
-      const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, { destinationAddress: destination });
-
-      // Alfredpay onramps settle fiat off-chain: no user-wallet transactions.
-      expect(unsignedTransactions).toEqual([]);
-      expect(rampProcess.id).toMatch(UUID_PATTERN);
-      expect(rampProcess.quoteId).toBe(quote.id);
-      expect(rampProcess.type).toBe(RampDirection.BUY);
-      expect(rampProcess.currentPhase).toBe("initial");
-      expect(Number(rampProcess.inputAmount)).toBe(Number(quote.inputAmount));
-      expect(Number(rampProcess.outputAmount)).toBe(Number(quote.outputAmount));
-
-      // The client-visible payment details: SPEI instructions with the CLABE
-      // the user must wire the MXN to.
-      expect(rampProcess.achPaymentData?.paymentType).toBe("SPEI");
-      expect(rampProcess.achPaymentData?.clabe).toBeTruthy();
-
-      // The ephemeral surface of the direct Alfredpay BUY route: the
-      // destination transfer plus the Polygon dust cleanup.
-      const unsigned = rampProcess.unsignedTxs ?? [];
-      expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
-      expect(unsigned.every(tx => tx.network === Networks.Polygon)).toBe(true);
-      const destinationTransferTx = unsigned.find(tx => tx.phase === "destinationTransfer");
-      if (!destinationTransferTx) {
-        throw new Error("No destinationTransfer in unsignedTxs");
-      }
-      const ephemeralAddress = destinationTransferTx.signer;
-
-      // The SDK-signed transfer stored by /v1/ramp/update must pay the
-      // registered destination exactly the quoted USDT on Polygon — the core
-      // signing contract between SDK and backend.
-      const stored = await RampState.findByPk(rampProcess.id);
-      expect(stored?.userId).toBe(userId);
-      expect(stored?.state.alfredpayTransactionId).toBeTruthy();
-      const presigned = stored?.presignedTxs ?? [];
-      expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
-      const presignedTransfer = presigned.find(tx => tx.phase === "destinationTransfer");
-      if (!presignedTransfer) {
-        throw new Error("No presigned destinationTransfer");
-      }
-      expect(presignedTransfer.signer).toBe(ephemeralAddress);
-      const parsed = parseTransaction(presignedTransfer.txData as `0x${string}`);
-      expect(parsed.chainId).toBe(137);
-      expect(parsed.to?.toLowerCase()).toBe(ALFREDPAY_ERC20_TOKEN.toLowerCase());
-      if (!parsed.data) {
-        throw new Error("Presigned destinationTransfer has no calldata");
-      }
-      const decoded = decodeFunctionData({ abi: erc20Abi, data: parsed.data });
-      expect(decoded.functionName).toBe("transfer");
-      const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
-      expect(decoded.args).toEqual([destination, amountRaw]);
-
-      // Registration created exactly one anchor order: MXN in, USDT minted to
-      // the ephemeral.
-      expect(world.alfredpay.onrampOrders).toHaveLength(1);
-      const order = world.alfredpay.onrampOrders[0];
-      expect(order.fromCurrency).toBe("MXN" as never);
-      expect(order.toCurrency).toBe("USDT" as never);
-      expect(Number(order.amount)).toBe(2000);
-      expect(order.depositAddress.toLowerCase()).toBe(ephemeralAddress.toLowerCase());
-
-      const persistedQuote = await QuoteTicket.findByPk(quote.id);
-      const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-      expect(mintAmountRaw).toBeGreaterThan(0n);
-
-      scriptHappyWorld(ephemeralAddress, mintAmountRaw);
-      const started = await sdk.startRamp(rampProcess.id);
-      expect(started.id).toBe(rampProcess.id);
-      expect(started.quoteId).toBe(quote.id);
-
-      const status = await waitForComplete(sdk, rampProcess.id);
-      expect(status.id).toBe(rampProcess.id);
-      expect(status.quoteId).toBe(quote.id);
-      expect(status.type).toBe(RampDirection.BUY);
-      expect(status.from).toBe(EPaymentMethod.SPEI);
-      expect(status.to).toBe(Networks.Polygon);
-      expect(Number(status.inputAmount)).toBe(Number(quote.inputAmount));
-      expect(Number(status.outputAmount)).toBe(Number(quote.outputAmount));
-
-      // End to end, the destination received the quoted amount in the fake ledger.
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, destination)).toBe(amountRaw);
-    },
-    30000
-  );
-
-  for (const currency of CURRENCY_CASES) {
+  for (const currency of FULL_LIFECYCLE_CASES) {
     it(
-      `${currency.fiat} (${currency.rail}): createQuote and registerRamp return the SDK-visible shapes for the rail`,
+      `drives the full ${currency.fiat}/${currency.rail} lifecycle: createQuote → registerRamp → startRamp → getRampStatus`,
       async () => {
         world.alfredpay.onrampRate = currency.onrampRate;
-        const { sdk } = await createUserSdk(currency.country);
+        const { sdk, userId } = await createUserSdk(currency.country);
         const destination = privateKeyToAccount(generatePrivateKey()).address;
         const ordersBefore = world.alfredpay.onrampOrders.length;
 
-        // Quote contract: the rail and currency mapping the SDK promises.
         const quote = await sdk.createQuote(quoteRequest(currency.fiat, currency.rail, currency.inputAmount));
+
+        // Quote contract: the fields the SDK's QuoteResponse type promises to integrators.
         expect(quote.id).toMatch(UUID_PATTERN);
         expect(quote.rampType).toBe(RampDirection.BUY);
         expect(quote.from).toBe(currency.rail);
         expect(quote.to).toBe(Networks.Polygon);
         expect(quote.network).toBe(Networks.Polygon);
-        expect(quote.inputCurrency).toBe(currency.fiat);
         expect(Number(quote.inputAmount)).toBe(Number(currency.inputAmount));
+        expect(quote.inputCurrency).toBe(currency.fiat);
         expect(quote.outputCurrency).toBe(EvmToken.USDT);
         expect(Number(quote.outputAmount)).toBeGreaterThan(0);
         expect(new Date(quote.expiresAt).getTime()).toBeGreaterThan(Date.now());
-        expect(Number.isFinite(Number(quote.totalFeeFiat))).toBe(true);
-        expect(Number.isFinite(Number(quote.totalFeeUsd))).toBe(true);
+        const feeFields = [
+          quote.networkFeeFiat,
+          quote.anchorFeeFiat,
+          quote.vortexFeeFiat,
+          quote.partnerFeeFiat,
+          quote.totalFeeFiat,
+          quote.processingFeeFiat,
+          quote.networkFeeUsd,
+          quote.anchorFeeUsd,
+          quote.vortexFeeUsd,
+          quote.partnerFeeUsd,
+          quote.totalFeeUsd,
+          quote.processingFeeUsd
+        ];
+        for (const fee of feeFields) {
+          expect(Number.isFinite(Number(fee))).toBe(true);
+        }
         expect(quote.feeCurrency).toBeTruthy();
 
-        // Register contract: no user transactions, the payment instructions
-        // for the client, the ephemeral's destinationTransfer, and an anchor
-        // order in this currency's Alfredpay code.
+        // registerRamp runs the SDK's full internal Alfredpay BUY flow: ephemeral
+        // generation (Substrate + EVM), /v1/ramp/register, signing the returned
+        // destinationTransfer (plus its backups), and the /v1/ramp/update that
+        // creates the anchor order — there is no separate user sign/update step.
         const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, { destinationAddress: destination });
+
+        // Alfredpay onramps settle fiat off-chain: no user-wallet transactions.
         expect(unsignedTransactions).toEqual([]);
         expect(rampProcess.id).toMatch(UUID_PATTERN);
         expect(rampProcess.quoteId).toBe(quote.id);
         expect(rampProcess.type).toBe(RampDirection.BUY);
         expect(rampProcess.currentPhase).toBe("initial");
-        expect(rampProcess.achPaymentData?.paymentType).toBeTruthy();
+        expect(Number(rampProcess.inputAmount)).toBe(Number(quote.inputAmount));
+        expect(Number(rampProcess.outputAmount)).toBe(Number(quote.outputAmount));
+
+        // The client-visible payment details. The fake anchor hands out the
+        // same SPEI-shaped instructions (CLABE + reference) for every
+        // currency; the contract under test is that registerRamp surfaces the
+        // anchor's fiatPaymentInstructions verbatim as achPaymentData.
+        expect(rampProcess.achPaymentData?.paymentType).toBe("SPEI");
+        expect(rampProcess.achPaymentData?.clabe).toBeTruthy();
+
+        // The ephemeral surface of the direct Alfredpay BUY route: the
+        // destination transfer plus the Polygon dust cleanup.
         const unsigned = rampProcess.unsignedTxs ?? [];
         expect(unsigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
         expect(unsigned.every(tx => tx.network === Networks.Polygon)).toBe(true);
+        const destinationTransferTx = unsigned.find(tx => tx.phase === "destinationTransfer");
+        if (!destinationTransferTx) {
+          throw new Error("No destinationTransfer in unsignedTxs");
+        }
+        const ephemeralAddress = destinationTransferTx.signer;
 
+        // The SDK-signed transfer stored by /v1/ramp/update must pay the
+        // registered destination exactly the quoted USDT on Polygon — the core
+        // signing contract between SDK and backend.
+        const stored = await RampState.findByPk(rampProcess.id);
+        expect(stored?.userId).toBe(userId);
+        expect(stored?.state.alfredpayTransactionId).toBeTruthy();
+        const presigned = stored?.presignedTxs ?? [];
+        expect(presigned.map(tx => tx.phase).sort()).toEqual(["destinationTransfer", "polygonCleanup"]);
+        const presignedTransfer = presigned.find(tx => tx.phase === "destinationTransfer");
+        if (!presignedTransfer) {
+          throw new Error("No presigned destinationTransfer");
+        }
+        expect(presignedTransfer.signer).toBe(ephemeralAddress);
+        const parsed = parseTransaction(presignedTransfer.txData as `0x${string}`);
+        expect(parsed.chainId).toBe(137);
+        expect(parsed.to?.toLowerCase()).toBe(ALFREDPAY_ERC20_TOKEN.toLowerCase());
+        if (!parsed.data) {
+          throw new Error("Presigned destinationTransfer has no calldata");
+        }
+        const decoded = decodeFunctionData({ abi: erc20Abi, data: parsed.data });
+        expect(decoded.functionName).toBe("transfer");
+        const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
+        expect(decoded.args).toEqual([destination, amountRaw]);
+
+        // Registration created exactly one anchor order: this currency's
+        // Alfredpay code in, USDT minted to the ephemeral.
         expect(world.alfredpay.onrampOrders).toHaveLength(ordersBefore + 1);
         const order = world.alfredpay.onrampOrders[world.alfredpay.onrampOrders.length - 1];
         expect(order.fromCurrency).toBe(currency.alfredpayCurrency as never);
         expect(order.toCurrency).toBe("USDT" as never);
         expect(Number(order.amount)).toBe(Number(currency.inputAmount));
+        expect(order.depositAddress.toLowerCase()).toBe(ephemeralAddress.toLowerCase());
+
+        const persistedQuote = await QuoteTicket.findByPk(quote.id);
+        const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+        expect(mintAmountRaw).toBeGreaterThan(0n);
+
+        scriptHappyWorld(ephemeralAddress, mintAmountRaw);
+        const started = await sdk.startRamp(rampProcess.id);
+        expect(started.id).toBe(rampProcess.id);
+        expect(started.quoteId).toBe(quote.id);
+
+        const status = await waitForComplete(sdk, rampProcess.id);
+        expect(status.id).toBe(rampProcess.id);
+        expect(status.quoteId).toBe(quote.id);
+        expect(status.type).toBe(RampDirection.BUY);
+        expect(status.from).toBe(currency.rail);
+        expect(status.to).toBe(Networks.Polygon);
+        expect(Number(status.inputAmount)).toBe(Number(quote.inputAmount));
+        expect(Number(status.outputAmount)).toBe(Number(quote.outputAmount));
+
+        // End to end, the destination received the quoted amount in the fake ledger.
+        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, destination)).toBe(amountRaw);
       },
       30000
     );
