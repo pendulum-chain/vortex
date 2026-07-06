@@ -19,9 +19,9 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 |---|---|---|---|
 | 1. Unit | Pure logic: helpers, token configs, SDK handlers | each package, next to source | `bun test` (Vitest for frontend) |
 | 2. API integration | Real Express + real Postgres + fake external world, driven over HTTP; incl. the quote pricing goldens (`quote-pricing.golden.test.ts`) | `apps/api/src/tests/` | `bun test` |
-| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world (BRL pix→BRLA-on-Base, MXN spei→USDT-on-Polygon) | `apps/api/src/tests/corridors/` | `bun test` |
+| 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), MXN on/offramp (spei↔USDT-on-Polygon), and a USD/COP/ARS happy-path matrix over the same Alfredpay rails | `apps/api/src/tests/corridors/` | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process | `apps/api/src/tests/sdk-contract.test.ts` | `bun test` |
-| 5. Frontend | XState machine tests, component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
+| 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
 | 6. E2E | Few critical Playwright journeys with a mock wallet | `apps/frontend/e2e/` | Playwright (non-blocking) |
 
 ### The invariants the suite protects
@@ -32,7 +32,9 @@ Derived from `docs/security-spec/` — these must never regress, and each has de
 - Fees are fixed at quote creation (`metadata.fees`) and identical at registration time; no
   client-supplied fee is accepted.
 - Subsidy caps are enforced (pre-swap, post-swap, `MAX_FINAL_SETTLEMENT_SUBSIDY_USD`) — a breach
-  throws instead of paying out (finding F-001).
+  throws instead of paying out (finding F-001). Each of the three caps has an end-to-end breach
+  test: pre- and post-swap in `corridors/brl-offramp.scenario.test.ts`, the final-settlement cap
+  in `corridors/mxn-offramp.scenario.test.ts`.
 - Ownership guards: a partner only sees its own quotes/ramps; a user only their own (F-068 class).
 - Phase processor: retries are bounded (`MAX_RETRIES`); after exhaustion of a recoverable error
   the processor stops without a terminal transition, releasing the lock and leaving the ramp
@@ -66,6 +68,12 @@ Decision: we deliberately do **not** run Anvil/fork-based EVM tests in CI. Fork 
 upstream RPC (flaky public endpoints or a paid key as a CI secret). If calldata-level fidelity ever
 becomes a problem, add a non-blocking nightly Anvil job — do not put it in the PR path.
 
+Decision: Pendulum/AssetHub/XCM ramp corridors are **deliberately not tested**. Vortex no longer
+supports those flows as a product; the route strategies and substrate handlers that still
+reference them are kept only in case support is re-added later. Do not count them as coverage
+gaps and do not build a substrate fake for them — if the flows come back, that is the moment to
+add corridor scenarios (and the fake) for them.
+
 ### Database
 
 API integration tests run against a real Postgres (Docker locally, service container in CI),
@@ -81,8 +89,11 @@ hand-write these objects or copy JSON snapshots into tests; extend the factory i
 
 ### Playwright E2E (`apps/frontend/e2e/`)
 
-A handful of critical journeys (quote form → quote displayed, quote error surfaced, wallet
-gate on offramps) run against the real frontend in Chromium, hermetically:
+A handful of critical journeys run against the real frontend in Chromium, hermetically: quote
+form → quote displayed, quote error surfaced, wallet gate on offramps, and one full BRL onramp
+journey (`onramp-brl-journey.spec.ts`: quote → email/OTP auth → Avenia KYC gate → registration →
+in-page ephemeral signing asserted via the presigned txs posted to `/v1/ramp/update` → Pix
+payment info → progress → success):
 
 - The API origin (`http://localhost:3000`) is intercepted per-test with `page.route`
   (`e2e/support/mockBackend.ts`) — no backend, database, or chain access.
