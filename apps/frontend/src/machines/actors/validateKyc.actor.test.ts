@@ -116,6 +116,26 @@ describe("validateKycActor", () => {
       await vi.waitFor(() => expect(recordCalls).toHaveLength(1));
     });
 
+    it("requires KYC re-verification when the API reports KYC invalid, without recording an initial attempt", async () => {
+      server.use(
+        http.get(`${API_BASE_URL}/brla/getUser`, () =>
+          HttpResponse.json({ evmAddress: "0xbrla", identityStatus: "REJECTED", subAccountId: "sub-1" })
+        ),
+        http.get(`${API_BASE_URL}/brla/getUserRemainingLimit`, () =>
+          HttpResponse.json({ error: "KYC invalid" }, { status: 400 })
+        )
+      );
+      const recordCalls = mockRecordAttemptEndpoint();
+
+      const result = await validateKycActor({ input: buildContext(FiatToken.BRL) });
+
+      expect(result).toEqual({ kycNeeded: true });
+      // The user exists (valid CPF), so a wrong branch order would fire recordInitialKycAttempt;
+      // it is fire-and-forget, so give any stray request a beat to land before asserting absence.
+      await new Promise(resolve => setTimeout(resolve, 25));
+      expect(recordCalls).toHaveLength(0);
+    });
+
     it("checks the input amount against the limit for BUY ramps", async () => {
       mockBrlaUser({ evmAddress: "0xbrla", identityStatus: "CONFIRMED" }, "200");
       const context = buildContext(FiatToken.BRL, { rampDirection: RampDirection.BUY });

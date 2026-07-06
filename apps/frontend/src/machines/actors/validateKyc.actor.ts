@@ -1,6 +1,6 @@
-import { BrlaErrorResponse, FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
 
-import { BrlaService } from "../../services/api";
+import { BrlaService, isApiError } from "../../services/api";
 import { RampContext } from "../types";
 
 interface ValidateKycResult {
@@ -64,14 +64,17 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       return { brlaEvmAddress, kycNeeded: false };
     } catch (err) {
-      const errorResponse = err as BrlaErrorResponse;
+      // "KYC invalid" comes from the remaining-limit endpoint for an existing user whose
+      // identity check failed, so it must win over the valid-CPF "user doesn't exist yet"
+      // branch below — that one would wrongly record an initial KYC attempt.
+      if (isApiError(err) && err.data.error?.includes("KYC invalid")) {
+        console.log("User KYC is invalid. Needs KYC.");
+        return { kycNeeded: true };
+      }
 
       if (isValidCpf(taxId) || isValidCnpj(taxId)) {
         console.log("User doesn't exist yet. Needs KYC.");
         BrlaService.recordInitialKycAttempt(taxId, quoteId, externalSessionId);
-        return { kycNeeded: true };
-      } else if (errorResponse.error?.includes("KYC invalid")) {
-        console.log("User KYC is invalid. Needs KYC.");
         return { kycNeeded: true };
       }
       console.error("Error while fetching BRLA user in KYC check", err);
