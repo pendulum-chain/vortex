@@ -1,7 +1,7 @@
 {
   "components": {
     "responses": {
-      "Invalid input": {
+      "InvalidInput": {
         "content": {
           "application/json": {
             "schema": {
@@ -20,7 +20,7 @@
         },
         "description": ""
       },
-      "Record not found": {
+      "RecordNotFound": {
         "content": {
           "application/json": {
             "schema": {
@@ -3625,7 +3625,7 @@
       "post": {
         "deprecated": false,
         "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided. \n\nFor onramps, no additional data is required after registering the ramp.",
-        "operationId": "startRamp",
+        "operationId": "updateRamp",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -4410,7 +4410,16 @@
     }
   },
   "security": [],
-  "servers": [],
+  "servers": [
+    {
+      "description": "Production",
+      "url": "https://api.vortexfinance.co"
+    },
+    {
+      "description": "Sandbox",
+      "url": "https://api-sandbox.vortexfinance.co"
+    }
+  ],
   "tags": [
     {
       "description": "Create and retrieve cross-border payment quotes.",

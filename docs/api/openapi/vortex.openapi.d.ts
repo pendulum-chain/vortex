@@ -343,26 +343,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/quotes/best": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create a quote for the best network
-         * @description Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output.
-         */
-        post: operations["createBestQuote"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/quotes/{id}": {
         parameters: {
             query?: never;
@@ -406,53 +386,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/ramp/history/{walletAddress}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get ramp history for wallet address
-         * @description Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description The maximum count of transaction items returned in this query. The maximum value is `100`. */
-                    limit?: number;
-                    /** @description The offset for querying the transactions. Necessary if the number of transaction items of the address is larger than the maximum limit. A larger value will return older transaction items. */
-                    offset?: number;
-                };
-                header?: never;
-                path: {
-                    /** @description The wallet address for which the ramp history is queried for. */
-                    walletAddress: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["GetRampHistoryResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ramp/register": {
+    "/v1/quotes/best": {
         parameters: {
             query?: never;
             header?: never;
@@ -462,63 +396,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Register new ramp process
-         * @description Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.
+         * Create a quote for the best network
+         * @description Generates a new quote for the network that yields the highest output amount for the given parameters. This endpoint compares the output for a given input amount over all supported networks and returns the 'best' quote, defined as the one with the highest output.
          */
-        post: operations["registerRamp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ramp/start": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Start ramp process
-         * @description Starts a ramp process.
-         *
-         *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
-         */
-        post: operations["startRamp"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ramp/update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Update ramp process
-         * @description Submits presigned transactions and additional data to an existing ramp process before starting it.
-         *     This endpoint can be called many times, and data can be incrementally added to the ramp.
-         *
-         *     Note: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.
-         *
-         *     ### Required data for ramps.
-         *     The signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.
-         *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.
-         *     If the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided.
-         *     If the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided.
-         *
-         *     For onramps, no additional data is required after registering the ramp.
-         */
-        post: operations["startRamp"];
+        post: operations["createBestQuote"];
         delete?: never;
         options?: never;
         head?: never;
@@ -640,6 +521,125 @@ export interface paths {
         get: operations["getRampErrorLogs"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp/history/{walletAddress}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get ramp history for wallet address
+         * @description Fetches the transaction history for a given wallet address. The response returns the last 20 items by default. This can be adjusted by using the `limit` and `offset` query parameters.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The maximum count of transaction items returned in this query. The maximum value is `100`. */
+                    limit?: number;
+                    /** @description The offset for querying the transactions. Necessary if the number of transaction items of the address is larger than the maximum limit. A larger value will return older transaction items. */
+                    offset?: number;
+                };
+                header?: never;
+                path: {
+                    /** @description The wallet address for which the ramp history is queried for. */
+                    walletAddress: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GetRampHistoryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register new ramp process
+         * @description Initiates a new on-ramp or off-ramp process by providing quote details, signing accounts, and additional data.
+         */
+        post: operations["registerRamp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start ramp process
+         * @description Starts a ramp process.
+         *
+         *     It is assumed all required information from the client has already been sent using the `update` endpoint. This endpoint is only used to tell the backend any external operation (like a bank transfer) has been completed, and the ramp can start.
+         */
+        post: operations["startRamp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Update ramp process
+         * @description Submits presigned transactions and additional data to an existing ramp process before starting it.
+         *     This endpoint can be called many times, and data can be incrementally added to the ramp.
+         *
+         *     Note: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.
+         *
+         *     ### Required data for ramps.
+         *     The signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.
+         *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.
+         *     If the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided.
+         *     If the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided.
+         *
+         *     For onramps, no additional data is required after registering the ramp.
+         */
+        post: operations["updateRamp"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1709,7 +1709,7 @@ export interface components {
         };
     };
     responses: {
-        "Invalid input": {
+        InvalidInput: {
             headers: {
                 [name: string]: unknown;
             };
@@ -1720,7 +1720,7 @@ export interface components {
                 };
             };
         };
-        "Record not found": {
+        RecordNotFound: {
             headers: {
                 [name: string]: unknown;
             };
@@ -2630,6 +2630,50 @@ export interface operations {
             };
         };
     };
+    getRampErrorLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ramp ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Error log array (empty if no errors). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetRampErrorLogsResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ramp does not belong to authenticated principal. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ramp not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     registerRamp: {
         parameters: {
             query?: never;
@@ -2955,7 +2999,7 @@ export interface operations {
             };
         };
     };
-    startRamp: {
+    updateRamp: {
         parameters: {
             query?: never;
             header?: never;
@@ -3093,50 +3137,6 @@ export interface operations {
                      */
                     "application/json": Record<string, never>;
                 };
-            };
-        };
-    };
-    getRampErrorLogs: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Ramp ID. */
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Error log array (empty if no errors). */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GetRampErrorLogsResponse"];
-                };
-            };
-            /** @description Authentication required. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Ramp does not belong to authenticated principal. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Ramp not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

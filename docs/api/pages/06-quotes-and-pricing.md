@@ -30,7 +30,7 @@ Content-Type: application/json
 ```
 
 - `rampType` is `"BUY"` (onramp, fiat → crypto) or `"SELL"` (offramp, crypto → fiat).
-- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Bank Transfer Corridors](https://api-docs.vortexfinance.co/bank-transfer-corridors).
+- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
 - `inputAmount` is a decimal string in the smallest commonly used unit of `inputCurrency` (e.g. `"150"` for 150 BRL, `"100"` for 100 USDC). Do not pass raw chain base units.
 - `apiKey` (optional) is the partner public key `pk_live_*` / `pk_test_*`. Required for partner attribution and discount eligibility.
 
@@ -102,6 +102,6 @@ Quotes are immutable and short-lived. If the user takes too long to confirm, or 
 
 ## Partner Pricing
 
-Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And Partner Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
 ---

@@ -65,7 +65,7 @@
       "order": 3,
       "slug": "authentication-and-partner-keys",
       "source": "docs/api/pages/03-authentication-and-partner-keys.md",
-      "title": "Authentication And Partner Keys"
+      "title": "Authentication And API Keys"
     },
     {
       "order": 4,
@@ -99,9 +99,9 @@
     },
     {
       "order": 9,
-      "slug": "brl-kyc-notes",
-      "source": "docs/api/pages/09-brl-kyc-notes.md",
-      "title": "BRL / KYC Notes"
+      "slug": "fiat-corridors",
+      "source": "docs/api/pages/09-fiat-corridors.md",
+      "title": "Fiat Corridors"
     },
     {
       "order": 10,
@@ -126,18 +126,6 @@
       "slug": "kyb-deep-link",
       "source": "docs/api/pages/13-kyb-deep-link.md",
       "title": "KYB Deep Link"
-    },
-    {
-      "order": 14,
-      "slug": "bank-transfer-corridors",
-      "source": "docs/api/pages/14-bank-transfer-corridors.md",
-      "title": "Bank Transfer Corridors (USD, MXN, COP, ARS)"
-    },
-    {
-      "order": 15,
-      "slug": "user-api-keys",
-      "source": "docs/api/pages/15-user-api-keys.md",
-      "title": "User API Keys"
     }
   ],
   "publicDocsUrl": "https://api-docs.vortexfinance.co/"

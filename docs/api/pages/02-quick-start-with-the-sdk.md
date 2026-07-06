@@ -115,7 +115,7 @@ USD, MXN, COP, and ARS settle through Vortex's local payment partners over the u
 | `COP` | `"ach"` | Colombian bank transfer |
 | `ARS` | `"cbu"` | CBU bank transfer |
 
-All four corridors support buys and sells on EVM networks; AssetHub is not available for these corridors. The examples below use MXN — for the other currencies, substitute the fiat token and the rail identifier from the table. See [Bank Transfer Corridors](https://api-docs.vortexfinance.co/bank-transfer-corridors) for onboarding, fiat accounts, and limits.
+All four corridors support buys and sells on EVM networks; AssetHub is not available for these corridors. The examples below use MXN — for the other currencies, substitute the fiat token and the rail identifier from the table. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for onboarding, fiat accounts, and limits.
 
 ### Onramp (Buy)
 
@@ -150,7 +150,7 @@ No user-signed on-chain transactions are required for onramp. The SDK signs ephe
 
 Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed KYC for the corridor's country. The key and the KYC record belong to the same account, so registration resolves to the user's verified payment profile automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
 
-Partner `sk_*` keys cannot drive this KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation; see [User API Keys](https://api-docs.vortexfinance.co/user-api-keys) for minting it programmatically). This applies to buys and sells in all four corridors.
+Partner `sk_*` keys cannot drive this KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) for minting it programmatically). This applies to buys and sells in all four corridors.
 
 ### Offramp (Sell)
 
