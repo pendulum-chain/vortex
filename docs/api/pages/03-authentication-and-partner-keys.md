@@ -32,4 +32,6 @@ BRLA account-management endpoints are first-party, user-oriented flows. Partner 
 
 Store secret keys in a secret manager or encrypted environment configuration. Rotate keys if they are exposed, no longer needed, or tied to a retired integration. Use test keys in sandbox and live keys only in production.
 
+User-linked key pairs can be provisioned programmatically through an email OTP sign-in; see [User API Keys](https://api-docs.vortexfinance.co/user-api-keys).
+
 ---

@@ -11,7 +11,7 @@ It is a variant of the [hosted widget](https://api-docs.vortexfinance.co/widget-
 ```
 
 - **Brazil** routes to Avenia KYB. The user enters the company name and CNPJ together on the company form, then completes Avenia's hosted company and representative verification.
-- **Mexico / Colombia / USA** route to the Alfredpay business KYB form (the business customer type is preselected).
+- **Mexico / Colombia / USA** route to the local payment partner's business KYB form (the business customer type is preselected).
 - Europe is intentionally excluded — it is individual KYC only and requires a connected wallet, so it cannot complete a quote-less KYB deep link.
 
 After verification the user lands on a **KYB Completed** screen. *Continue* returns them to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
