@@ -122,6 +122,15 @@ never PR-blocking.
   uses vitest's built-in thresholds (`apps/frontend/vitest.config.ts`). Floors sit just under the
   coverage measured when they were last raised — raise them when you add tested code; never lower
   them to make CI pass.
+- The coverage denominator is real, testable source only: built bundles, foreign workspace code,
+  migrations, generated files (contract ABIs, route tree), Storybook stories, and test
+  infrastructure are excluded (each workspace's `bunfig.toml` `coveragePathIgnorePatterns`,
+  resp. `coverage.exclude` in the frontend vitest config). If a methodology change like this
+  moves the measured numbers, re-base the floors to just under the new values in the same PR —
+  that is not "lowering the ratchet".
+- `bun run test:coverage` at the repo root runs every workspace's gate and then prints a
+  per-area breakdown (`scripts/coverage-report.ts`) showing which parts of each workspace are
+  covered and which are not.
 
 ## How to extend
 
@@ -150,6 +159,13 @@ bun test:db:start         # bun test:db:stop to remove it
 # a bare `bun test` at the root invokes bun's own runner (the root bunfig.toml
 # makes it a no-op instead of letting it pick up stray files).
 bun run test              # shared + sdk + rebalancer + api + frontend
+
+# Coverage: all workspace gates + per-area report (needs the test db)
+bun run test:coverage
+
+# Browsable HTML version of the same report (per-file, with uncovered line
+# ranges) from the lcov files the previous command left behind
+bun run test:coverage:html
 
 # Individual workspaces
 bun test:api              # unit + integration (needs the test db)
