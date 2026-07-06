@@ -1,9 +1,9 @@
-import { AveniaAccountType, BrlaApiService } from "@vortexfi/shared";
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import {AveniaAccountType, BrlaApiService} from "@vortexfi/shared";
+import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
-import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
-import { createSubaccount, getAveniaUser } from "./brla.controller";
+import TaxId, {TaxIdInternalStatus} from "../../models/taxId.model";
+import {createSubaccount, getAveniaUser} from "./brla.controller";
 
 function createResponse() {
   const res = {
@@ -137,7 +137,7 @@ describe("getAveniaUser", () => {
     );
 
     expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
-    expect(res.body).toEqual({ error: "Forbidden" });
+    expect(res.body).toEqual({ error: "This tax ID is not linked to your user profile and cannot be used." });
   });
 });
 

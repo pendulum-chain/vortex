@@ -178,7 +178,7 @@ export const getAveniaUser = async (
 
       // TaxId must be owned by the effective user.
       if (taxIdRecord.userId !== effectiveUserId) {
-        res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+        res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
     } else {
@@ -301,7 +301,7 @@ export const getAveniaUserRemainingLimit = async (
       // TaxId must be owned by the effective user. The legacy partner-key
       // exemption that allowed reading any taxId has been removed.
       if (taxIdRecord.userId !== effectiveUserId) {
-        res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+        res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
     } else {
@@ -598,7 +598,7 @@ export const getUploadUrls = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
@@ -654,7 +654,7 @@ export const newKyc = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
@@ -696,7 +696,7 @@ export const initiateKybLevel1 = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
