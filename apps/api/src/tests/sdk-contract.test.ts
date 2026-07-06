@@ -159,6 +159,8 @@ describe("SDK ↔ API contract (BRL onramp, pix → BRLA on Base)", () => {
     const deadline = Date.now() + 20_000;
     for (;;) {
       const status = await sdk.getRampStatus(rampId);
+      // Fail immediately (not via the poll timeout) if the status shape breaks.
+      expect(status.currentPhase).toBeDefined();
       if (status.currentPhase === "complete") {
         return status;
       }
