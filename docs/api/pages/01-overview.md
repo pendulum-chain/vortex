@@ -6,7 +6,7 @@ These docs are written for partner developers integrating Vortex into a backend,
 
 ## Supported Corridors
 
-The current SDK release supports BRL/PIX flows plus bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU) through Vortex's local payment partners, where enabled by country and route configuration. These four corridors support buys and sells on EVM networks; AssetHub is not available for them. EUR onramp endpoints exist on the API surface but the SDK throws `"Euro onramp handler not implemented yet"`; SEPA buy flows are not production-ready today. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
+The current SDK release supports BRL/PIX flows, EUR/SEPA flows, and bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU) through Vortex's local payment partners, where enabled by country and route configuration. The EUR and bank-transfer corridors support buys and sells on EVM networks; AssetHub is not available for them. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
 
 For crypto, Vortex supports USDC and USDT across the listed EVM networks plus USDC on AssetHub. Stablecoin pegs and routes are subject to liquidity on the Nabla AMM and the wider Pendulum/Hydration corridor.
 

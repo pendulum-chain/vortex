@@ -699,8 +699,9 @@
                   "type": "string"
                 },
                 "lastUsedAt": {
+                  "description": "Null until the key is first used.",
                   "format": "date-time",
-                  "type": ["string", "null"]
+                  "type": "string"
                 },
                 "name": {
                   "type": "string"
@@ -1398,7 +1399,7 @@
     "securitySchemes": {}
   },
   "info": {
-    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**Scope:** 25 paths verified against `apps/api/src/api/routes/v1/`.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` — partner SDK key (server-side).\n- `X-Public-Key: pk_<live|test>_...` — partner public key (browser; attribution only).\n- `Authorization: Bearer <Supabase JWT>` — first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer only; partner sk_*/pk_* keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
+    "description": "Cross-border payments gateway built on the Pendulum blockchain.\n\n**Scope:** 25 paths verified against `apps/api/src/api/routes/v1/`.\n\n**Auth principals:**\n- `X-API-Key: sk_<live|test>_...` \u2014 partner SDK key (server-side).\n- `X-Public-Key: pk_<live|test>_...` \u2014 partner public key (browser; attribution only).\n- `Authorization: Bearer <Supabase JWT>` \u2014 first-party user session.\n\nAll `/v1/brla/*` endpoints accept Supabase Bearer only; partner sk_*/pk_* keys are not accepted on BRLA routes.\n\n**Webhook signing:** RSA-PSS 2048 / SHA-256. Fetch the signing key from `GET /v1/public-key`.\n",
     "title": "Vortex API",
     "version": "1.1.0"
   },
@@ -1807,7 +1808,7 @@
     "/v1/brla/createSubaccount": {
       "post": {
         "deprecated": false,
-        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "description": "`companyName`, `startDate` and `cnpj` are only required when taxIdType is `CNPJ`\n\n`quoteId` is optional: pass it in the normal ramp flow, or omit it for the quote-less KYB deep link where business verification starts before any quote exists.\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "createSubaccount",
         "parameters": [],
         "requestBody": {
@@ -1991,7 +1992,7 @@
     "/v1/brla/getUploadUrls": {
       "post": {
         "deprecated": false,
-        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` — accepts a Supabase Bearer token if present but does not require one.",
+        "description": "Returns presigned upload URLs for the user's ID document and selfie. Only `ID` and `DRIVERS-LICENSE` are accepted for `documentType` (passport not supported here).\n\n**Auth:** uses `optionalAuth` \u2014 accepts a Supabase Bearer token if present but does not require one.",
         "operationId": "brlaGetUploadUrls",
         "requestBody": {
           "content": {
@@ -3871,7 +3872,7 @@
     },
     "/v1/session/create": {
       "post": {
-        "description": "Creates a hosted Vortex Widget session and returns the URL to open for the user.\n\nThis single endpoint supports two mutually exclusive request shapes:\n\n- **Fixed quote** (`GetWidgetUrlLocked`) — pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.\n\n- **Auto-refresh** (`GetWidgetUrlRefresh`) — pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.\n\nUse the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.",
+        "description": "Creates a hosted Vortex Widget session and returns the URL to open for the user.\n\nThis single endpoint supports two mutually exclusive request shapes:\n\n- **Fixed quote** (`GetWidgetUrlLocked`) \u2014 pass a `quoteId` you created via `POST /v1/quotes`. The widget uses that exact quote and does not refresh it. If the quote expires before the user finishes, they must close the window and start over.\n\n- **Auto-refresh** (`GetWidgetUrlRefresh`) \u2014 pass the route parameters (`network`, `rampType`, `inputAmount`, plus `fiat` / `cryptoLocked` / `paymentMethod` as relevant for the direction). The widget creates and refreshes quotes on demand for the user.\n\nUse the example switcher below to see the request shape for each mode. `externalSessionId` is required in both modes and is echoed back in webhook payloads.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -4027,7 +4028,7 @@
                       "type": "array"
                     },
                     "emoji": {
-                      "description": "e.g. 🇩🇪",
+                      "description": "e.g. \ud83c\udde9\ud83c\uddea",
                       "type": "string"
                     },
                     "name": {

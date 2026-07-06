@@ -43,7 +43,9 @@ Per-currency minimum and maximum amounts are enforced at quote time and refreshe
 
 ## EUR (SEPA)
 
-EUR sells (offramp) settle to SEPA using the `"sepa"` rail identifier. EUR onramp endpoints exist on the API surface, but the SDK throws `"Euro onramp handler not implemented yet"` — SEPA buy flows are not production-ready today.
+EUR routes settle over SEPA using the `"sepa"` rail identifier and support both buys and sells. EUR onramps deliver to EVM networks; AssetHub is not available as a destination.
+
+On a buy, register the ramp with `destinationAddress`, `email`, and `ipAddress`. The SEPA transfer instructions are returned in the ramp's `ibanPaymentData` — IBAN, receiver name, and payment reference. Display them to the user, and start the ramp once the user has completed the SEPA transfer. No user-signed on-chain transactions are required for buys.
 
 EUR onboarding is individual KYC only and requires a connected wallet, so it is completed through the Vortex application or hosted widget; there is no quote-less KYB deep link for Europe.
 

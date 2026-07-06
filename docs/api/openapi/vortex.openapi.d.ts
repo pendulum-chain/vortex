@@ -1370,8 +1370,11 @@ export interface components {
                 /** @description Full key value; present for public keys only. Secret key values are never returned after creation. */
                 key?: string;
                 keyPrefix: string;
-                /** Format: date-time */
-                lastUsedAt?: string | null;
+                /**
+                 * Format: date-time
+                 * @description Null until the key is first used.
+                 */
+                lastUsedAt?: string;
                 name: string;
                 /** @enum {string} */
                 type: "public" | "secret";
