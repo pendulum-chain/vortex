@@ -62,12 +62,11 @@ describe("syncAveniaOnHoldState", () => {
   it("does not update state when the Avenia pay-in ticket is missing", async () => {
     getAveniaPayinTickets.mockImplementationOnce(async () => []);
     const state = makeState(false);
+    const updateState = mock(async () => {});
 
-    const ticketFound = await syncAveniaOnHoldState(state.state, async nextState => {
-      Object.assign(state.state, nextState);
-    }, brlaApiService, "subaccount-1");
+    const ticketFound = await syncAveniaOnHoldState(state.state, updateState, brlaApiService, "subaccount-1");
 
     expect(ticketFound).toBe(false);
-    expect(state.state.onHold).toBe(false);
+    expect(updateState).not.toHaveBeenCalled();
   });
 });

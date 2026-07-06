@@ -1,11 +1,18 @@
-import { BrlaErrorResponse, FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, isValidCnpj, isValidCpf, RampDirection } from "@vortexfi/shared";
 
-import { BrlaService } from "../../services/api";
+import { BrlaService, isApiError } from "../../services/api";
 import { RampContext } from "../types";
 
 interface ValidateKycResult {
   kycNeeded: boolean;
   brlaEvmAddress?: string;
+}
+
+export class RampLimitExceededError extends Error {
+  constructor() {
+    super("Insufficient remaining limit for this transaction.");
+    this.name = "RampLimitExceededError";
+  }
 }
 
 export const validateKycActor = async ({ input }: { input: RampContext }): Promise<ValidateKycResult> => {
@@ -51,9 +58,8 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
       const remainingLimitNum = Number(remainingLimitResponse.remainingLimit);
 
       if (amountNum > remainingLimitNum) {
-        // Avenia-Migration: this must be changed. No more levels. TOAST?
-        // We don't know of a possibility to increase limits so far.
-        throw new Error("Insufficient remaining limit for this transaction.");
+        // We don't know of a possibility to increase Avenia limits so far.
+        throw new RampLimitExceededError();
       }
 
       // Only skip KYC if identity is confirmed - handles case where user created subaccount but didn't complete KYC
@@ -64,14 +70,23 @@ export const validateKycActor = async ({ input }: { input: RampContext }): Promi
 
       return { brlaEvmAddress, kycNeeded: false };
     } catch (err) {
-      const errorResponse = err as BrlaErrorResponse;
+      // An exceeded limit is not a KYC problem — let it reach the machine's error path
+      // instead of falling into the valid-CPF "needs KYC" branch below.
+      if (err instanceof RampLimitExceededError) {
+        throw err;
+      }
+
+      // "KYC invalid" comes from the remaining-limit endpoint for an existing user whose
+      // identity check failed, so it must win over the valid-CPF "user doesn't exist yet"
+      // branch below — that one would wrongly record an initial KYC attempt.
+      if (isApiError(err) && err.data.error?.includes("KYC invalid")) {
+        console.log("User KYC is invalid. Needs KYC.");
+        return { kycNeeded: true };
+      }
 
       if (isValidCpf(taxId) || isValidCnpj(taxId)) {
         console.log("User doesn't exist yet. Needs KYC.");
         BrlaService.recordInitialKycAttempt(taxId, quoteId, externalSessionId);
-        return { kycNeeded: true };
-      } else if (errorResponse.error?.includes("KYC invalid")) {
-        console.log("User KYC is invalid. Needs KYC.");
         return { kycNeeded: true };
       }
       console.error("Error while fetching BRLA user in KYC check", err);

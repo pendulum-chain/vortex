@@ -1,7 +1,29 @@
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import {CleanupPhase} from "@vortexfi/shared";
+import * as loggerNamespace from "../../config/logger";
+import * as postProcessNamespace from "../services/phases/post-process";
 import RampState, {RampStateAttributes} from "../../models/rampState.model";
 import CleanupWorker from "./cleanup.worker";
+
+// Value copies taken before the mock.module calls below; restored in afterAll
+// because bun module mocks are process-wide and would poison later test files.
+const loggerReal = { ...loggerNamespace };
+const postProcessReal = { ...postProcessNamespace };
+const realRampStateUpdate = RampState.update;
+
+// CleanupWorker's CronJob is created with runOnInit=true, so merely
+// constructing the worker fires a real cleanup cycle (live DB queries) in the
+// background. Neutralize the tick target for the duration of this file.
+const workerPrototype = CleanupWorker.prototype as unknown as { cleanup: () => Promise<void> };
+const realCleanupCycle = workerPrototype.cleanup;
+workerPrototype.cleanup = async () => {};
+
+afterAll(() => {
+  mock.module("../../config/logger", () => ({ ...loggerReal }));
+  mock.module("../services/phases/post-process", () => ({ ...postProcessReal }));
+  RampState.update = realRampStateUpdate;
+  workerPrototype.cleanup = realCleanupCycle;
+});
 
 class TestCleanupWorker extends CleanupWorker {
   public async testProcessCleanup(state: RampState): Promise<void> {

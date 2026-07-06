@@ -30,6 +30,10 @@ import { getEvmFundingAccount } from "../evm-funding";
 import { calculatePostSwapSubsidyComponents } from "../helpers/post-swap-subsidy-breakdown";
 import { StateMetadata } from "../meta-state-types";
 
+// Overridable so hermetic tests don't wait 15s for a settlement that the fake
+// world applies instantly (same pattern as PHASE_PROCESSOR_RETRY_DELAY_MS).
+const EVM_SETTLEMENT_DELAY_MS = parseInt(process.env.SUBSIDY_SETTLEMENT_DELAY_MS || "15000", 10);
+
 export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePostSwap";
@@ -193,7 +197,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       }
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
 
       // Check current balance on EVM
       const currentBalance = await checkEvmBalanceForToken({

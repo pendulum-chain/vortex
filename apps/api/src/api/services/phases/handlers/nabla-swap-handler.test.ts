@@ -1,7 +1,16 @@
 // eslint-disable-next-line import/no-unresolved
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import {privateKeyToAccount} from "viem/accounts";
 import {parseTransaction} from "viem";
+// Captured before mock.module so afterAll can restore the real package —
+// bun module mocks are process-wide and would poison later test files.
+import * as sharedNamespace from "@vortexfi/shared";
+import * as rampServiceNamespace from "../../ramp/ramp.service";
+
+// Value copies taken before mock.module runs — the namespaces themselves are
+// live bindings that would reflect the mocks once installed.
+const sharedReal = { ...sharedNamespace };
+const rampServiceReal = { ...rampServiceNamespace };
 
 const Networks = {
   Base: "base"
@@ -40,12 +49,11 @@ const checkEvmBalanceForToken = mock(async () => undefined);
 const appendErrorLog = mock(async (_rampId: string, _errorLog: { error: string; recoverable: boolean }) => undefined);
 
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   ApiManager: {
     getInstance: () => ({})
   },
   checkEvmBalanceForToken,
-  decodeSubmittableExtrinsic: mock(),
-  defaultReadLimits: {},
   EvmClientManager: {
     getInstance: () => ({
       getClient: () => ({
@@ -55,8 +63,6 @@ mock.module("@vortexfi/shared", () => ({
       })
     })
   },
-  EvmToken,
-  EvmTokenDetails: {},
   evmTokenConfig: {
     [Networks.Base]: {
       [EvmToken.USDC]: {
@@ -68,10 +74,7 @@ mock.module("@vortexfi/shared", () => ({
       }
     }
   },
-  NABLA_ROUTER: "0x4444444444444444444444444444444444444444",
-  Networks,
-  RampPhase: {},
-  RampDirection
+  NABLA_ROUTER: "0x4444444444444444444444444444444444444444"
 }));
 
 mock.module("../../ramp/ramp.service", () => ({
@@ -84,6 +87,14 @@ const { default: QuoteTicket } = await import("../../../../models/quoteTicket.mo
 const { NablaSwapPhaseHandler } = await import("./nabla-swap-handler");
 
 type NablaSwapState = Parameters<InstanceType<typeof NablaSwapPhaseHandler>["execute"]>[0];
+
+const realQuoteTicketFindByPk = QuoteTicket.findByPk;
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../ramp/ramp.service", () => ({ ...rampServiceReal }));
+  QuoteTicket.findByPk = realQuoteTicketFindByPk;
+});
 
 QuoteTicket.findByPk = mock(async () => ({
   metadata: {

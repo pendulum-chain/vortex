@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import crypto from "crypto";
 import { CryptoService } from "./crypto";
+import { config } from "./vars";
 
 describe("CryptoService - Public Key Derivation", () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  // initializeKeys() reads config.secrets.webhookPrivateKey — the snapshot of
+  // WEBHOOK_PRIVATE_KEY taken when vars.ts was imported. Mutating process.env
+  // here is inert, so the tests inject through the config object instead.
+  let originalWebhookPrivateKey: string | undefined;
 
   beforeEach(() => {
-    originalEnv = { ...process.env };
+    originalWebhookPrivateKey = config.secrets.webhookPrivateKey;
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    config.secrets.webhookPrivateKey = originalWebhookPrivateKey;
   });
 
   it("should derive public key from private key when only WEBHOOK_PRIVATE_KEY is provided", () => {
@@ -27,9 +31,8 @@ describe("CryptoService - Public Key Derivation", () => {
       }
     });
 
-    // Set only the private key in environment
-    process.env.WEBHOOK_PRIVATE_KEY = privateKey;
-    delete process.env.WEBHOOK_PUBLIC_KEY;
+    // Inject only the private key through the config snapshot
+    config.secrets.webhookPrivateKey = privateKey;
 
     // Create a new instance and initialize
     const cryptoService = new (CryptoService as any)();
@@ -56,9 +59,8 @@ describe("CryptoService - Public Key Derivation", () => {
       }
     });
 
-    // Set only the private key in environment
-    process.env.WEBHOOK_PRIVATE_KEY = privateKey;
-    delete process.env.WEBHOOK_PUBLIC_KEY;
+    // Inject only the private key through the config snapshot
+    config.secrets.webhookPrivateKey = privateKey;
 
     // Create a new instance and initialize
     const cryptoService = new (CryptoService as any)();
@@ -73,8 +75,7 @@ describe("CryptoService - Public Key Derivation", () => {
   });
 
   it("should generate new key pair when WEBHOOK_PRIVATE_KEY is not provided", () => {
-    delete process.env.WEBHOOK_PRIVATE_KEY;
-    delete process.env.WEBHOOK_PUBLIC_KEY;
+    config.secrets.webhookPrivateKey = undefined;
 
     const cryptoService = new (CryptoService as any)();
     cryptoService.initializeKeys();

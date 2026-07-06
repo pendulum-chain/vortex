@@ -1,0 +1,6 @@
+[test]
+# Coverage report config; the gate itself lives in scripts/check-coverage.ts.
+# Generated contract ABIs are const data that count as 100% covered on import,
+# which inflates the ratchet without any test protecting anything.
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["**/src/contracts/**"]

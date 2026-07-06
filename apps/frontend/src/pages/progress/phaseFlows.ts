@@ -44,6 +44,15 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
 };
 
 export const PHASE_FLOWS = {
+  offramp_alfredpay: [
+    "initial",
+    "squidRouterPermitExecute",
+    "fundEphemeral",
+    "finalSettlementSubsidy",
+    "alfredpayOfframpTransfer",
+    "complete"
+  ] as RampPhase[],
+
   offramp_brl: [
     "initial",
     "fundEphemeral",

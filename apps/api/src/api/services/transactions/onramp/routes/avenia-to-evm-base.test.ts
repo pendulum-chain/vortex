@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
 
 const EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
@@ -43,7 +43,37 @@ const addOnrampDestinationChainTransactions = mock(async (params: { amountRaw: s
   };
 });
 
+
+// Value copies taken before the mock.module calls below; restored in afterAll
+// because bun module mocks are process-wide and would poison later test files.
+import * as sharedNamespace2 from "@vortexfi/shared";
+import * as commonValidationNamespace from "../common/validation";
+import * as commonTransactionsNamespace from "../common/transactions";
+import * as feeDistributionNamespace from "../../common/feeDistribution";
+import * as baseCleanupNamespace from "../../base/cleanup";
+import * as onrampIndexNamespace from "../../index";
+import * as evmFundingNamespace from "../../../phases/evm-funding";
+import * as loggerNamespace2 from "../../../../../config/logger";
+
+const restorableModules: Array<[string, Record<string, unknown>]> = [
+  ["@vortexfi/shared", { ...sharedNamespace2 }],
+  ["../common/validation", { ...commonValidationNamespace }],
+  ["../common/transactions", { ...commonTransactionsNamespace }],
+  ["../../common/feeDistribution", { ...feeDistributionNamespace }],
+  ["../../base/cleanup", { ...baseCleanupNamespace }],
+  ["../../index", { ...onrampIndexNamespace }],
+  ["../../../phases/evm-funding", { ...evmFundingNamespace }],
+  ["../../../../../config/logger", { ...loggerNamespace2 }]
+];
+
+afterAll(() => {
+  for (const [path, real] of restorableModules) {
+    mock.module(path, () => real);
+  }
+});
+
 mock.module("@vortexfi/shared", () => ({
+  ...sharedNamespace2,
   createOnrampSquidrouterTransactionsFromBaseToEvm: mock(async () => ({
     approveData: { data: "0xapprove", gas: "100000", to: USDC_BASE, value: "0" },
     squidRouterQuoteId: "quote",

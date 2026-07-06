@@ -21,7 +21,7 @@ function createSecretKeyRecord({
 }: { userId?: string | null; partnerName?: string | null } = {}): ApiKey & { raw: string } {
   const secret = generateApiKey("secret", "test");
   const secretHash = bcrypt.hashSync(secret, 4);
-  return Object.assign(new ApiKey(), {
+  const record = Object.assign(new ApiKey(), {
     id: crypto.randomUUID(),
     isActive: true,
     keyHash: secretHash,
@@ -31,6 +31,10 @@ function createSecretKeyRecord({
     raw: secret,
     userId
   });
+  // validateSecretApiKey fire-and-forgets keyRecord.update({lastUsedAt}); on a
+  // real instance that issues live SQL against whatever DB the env points at.
+  record.update = (async () => record) as typeof record.update;
+  return record;
 }
 
 describe("validateSecretApiKey - apiKeyUserId propagation", () => {

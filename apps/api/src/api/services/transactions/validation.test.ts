@@ -135,16 +135,20 @@ function withBackups(tx: PresignedTx): PresignedTx {
   return { ...tx, meta: { additionalTxs } };
 }
 
-const VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP: PresignedTx[] = await Promise.all([
-  makeSignedEvmTxWithBackups({ nonce: 0, phase: "nablaApprove", network: Networks.Polygon }),
-  makeSignedEvmTxWithBackups({ nonce: 1, phase: "squidRouterApprove", network: Networks.Polygon }),
-  makeSignedEvmTxWithBackups({ nonce: 2, phase: "squidRouterSwap", network: Networks.Polygon }),
+// All-EVM presigned set on the live BRL onramp Base corridor (see the backend
+// onramp_brl phase chain): nabla phases classify as EVM on Base per
+// getTransactionTypeForPhase, and destinationTransfer/squidRouterSwap are EVM
+// everywhere. Signed with chainId 8453 to match Networks.Base.
+const VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP: PresignedTx[] = await Promise.all([
+  makeSignedEvmTxWithBackups({ chainId: 8453, network: Networks.Base, nonce: 0, phase: "nablaApprove" }),
+  makeSignedEvmTxWithBackups({ chainId: 8453, network: Networks.Base, nonce: 1, phase: "squidRouterSwap" }),
+  makeSignedEvmTxWithBackups({ chainId: 8453, network: Networks.Base, nonce: 2, phase: "destinationTransfer" }),
 ]);
 
-const VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP: PresignedTx[] = [
-  { meta: {}, network: Networks.Polygon, nonce: 0, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
-  { meta: {}, network: Networks.Polygon, nonce: 1, phase: "squidRouterApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
-  { meta: {}, network: Networks.Polygon, nonce: 2, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
+const VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP: PresignedTx[] = [
+  { meta: {}, network: Networks.Base, nonce: 0, phase: "nablaApprove", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
+  { meta: {}, network: Networks.Base, nonce: 1, phase: "squidRouterSwap", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
+  { meta: {}, network: Networks.Base, nonce: 2, phase: "destinationTransfer", signer: EVM_SIGNER, txData: { data: "0x12345678", gas: "21000", maxFeePerGas: "1000000000", maxPriorityFeePerGas: "1000000000", to: "0x000000000000000000000000000000000000dEaD", value: "0" } },
 ];
 
 const VALID_EXAMPLE_PRESIGNED_TX_BRL_ONRAMP: PresignedTx[] = [
@@ -208,44 +212,6 @@ const VALID_EXAMPLE_UNSIGNED_TX_BRL_ONRAMP: PresignedTx[] = [
 
 
 describe("Presigned Transaction validation", () => {
-  it("matches a signed EVM transaction to the unsigned server-built transaction", async () => {
-    const unsignedTxData: EvmTransactionData = {
-      data: "0x12345678",
-      gas: "21000",
-      maxFeePerGas: "1000000000",
-      maxPriorityFeePerGas: "1000000000",
-      to: "0x000000000000000000000000000000000000dEaD",
-      value: "1"
-    };
-    const signedRawTx = await EVM_WALLET.signTransaction({
-      chainId: 137,
-      data: unsignedTxData.data,
-      gasLimit: BigInt(unsignedTxData.gas),
-      maxFeePerGas: BigInt(unsignedTxData.maxFeePerGas!),
-      maxPriorityFeePerGas: BigInt(unsignedTxData.maxPriorityFeePerGas!),
-      nonce: 4,
-      to: unsignedTxData.to,
-      type: 2,
-      value: BigInt(unsignedTxData.value)
-    });
-
-    const unsignedTx: PresignedTx = {
-      meta: {},
-      network: Networks.Polygon,
-      nonce: 4,
-      phase: "fundEphemeral",
-      signer: EVM_WALLET.address,
-      txData: unsignedTxData
-    };
-    const signedTx: PresignedTx = {
-      ...unsignedTx,
-      txData: signedRawTx
-    };
-
-    // change to use universal "validator"
-    expect(areAllTxsIncluded([signedTx], [unsignedTx])).toBe(true);
-  });
-
   it("includes a signed EVM transaction regardless of txData calldata differences (correctness is validated elsewhere)", async () => {
     const unsignedTxData: EvmTransactionData = {
       data: "0x12345678",
@@ -387,12 +353,12 @@ describe("Presigned Transaction validation", () => {
   it("should pass validation for valid presigned EVM transactions", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
-    await expect(validatePresignedTxs(RampDirection.BUY, VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).resolves.toBeUndefined();
+    await expect(validatePresignedTxs(RampDirection.BUY, VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP)).resolves.toBeUndefined();
   });
 
   it("should pass validation for single valid presigned transaction", async () => {
-    const singleTx: PresignedTx[] = [VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]];
-    const singleUnsigned: PresignedTx[] = [VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP[0]];
+    const singleTx: PresignedTx[] = [VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP[0]];
+    const singleUnsigned: PresignedTx[] = [VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP[0]];
 
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
@@ -440,24 +406,24 @@ describe("Presigned Transaction validation", () => {
   });
 
   it("should throw error for too many transactions", async () => {
-    const invalidTxs: PresignedTx[] = new Array(101).fill(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP[0]);
+    const invalidTxs: PresignedTx[] = new Array(101).fill(VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP[0]);
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz", EVM: EVM_SIGNER_2 };
     await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, [])).rejects.toThrow("presignedTxs must be an array with 1-100 elements");
   });
 
   it("should throw when an ephemeral transaction is missing backup transactions", async () => {
-    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP));
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP));
     invalidTxs[2].meta = {};
 
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
-    await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).rejects.toThrow(
-      "Transaction for phase squidRouterSwap must include at least 4 backup transactions in meta.additionalTxs"
+    await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP)).rejects.toThrow(
+      "Transaction for phase destinationTransfer must include at least 4 backup transactions in meta.additionalTxs"
     );
   });
 
   it("should throw when backup transaction nonces are not sequential", async () => {
-    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP));
+    const invalidTxs: PresignedTx[] = JSON.parse(JSON.stringify(VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP));
     const backupTx = invalidTxs[2]?.meta?.additionalTxs?.backup2;
     if (!backupTx) {
       throw new Error("Missing backup transaction for test setup");
@@ -466,8 +432,8 @@ describe("Presigned Transaction validation", () => {
 
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
 
-    await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)).rejects.toThrow(
-      "Transaction for phase squidRouterSwap has invalid backup nonce sequence. Expected 4, got 5"
+    await expect(validatePresignedTxs(RampDirection.BUY, invalidTxs, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP)).rejects.toThrow(
+      "Transaction for phase destinationTransfer has invalid backup nonce sequence. Expected 4, got 5"
     );
   });
 
@@ -1059,17 +1025,17 @@ describe("Presigned Transaction validation", () => {
 
   it("accepts a subset of presigned txs when requireComplete is false (updateRamp partial submission)", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
-    const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
+    const subset = VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP.slice(0, 1);
     await expect(
-      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
+      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP, { requireComplete: false })
     ).resolves.toBeUndefined();
   });
 
   it("still rejects subset submissions by default (requireComplete defaults to true)", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
-    const subset = VALID_EXAMPLE_PRESIGNED_TX_EUR_ONRAMP.slice(0, 1);
+    const subset = VALID_EXAMPLE_PRESIGNED_TX_BASE_ONRAMP.slice(0, 1);
     await expect(
-      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP)
+      validatePresignedTxs(RampDirection.BUY, subset, ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP)
     ).rejects.toThrow("Not all unsigned transactions have a corresponding presigned transaction");
   });
 
@@ -1077,7 +1043,7 @@ describe("Presigned Transaction validation", () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER };
     const extra = await makeSignedEvmTxWithBackups({ nonce: 99, phase: "fundEphemeral", network: Networks.Polygon });
     await expect(
-      validatePresignedTxs(RampDirection.BUY, [extra], ephemerals, VALID_EXAMPLE_UNSIGNED_TX_EUR_ONRAMP, { requireComplete: false })
+      validatePresignedTxs(RampDirection.BUY, [extra], ephemerals, VALID_EXAMPLE_UNSIGNED_TX_BASE_ONRAMP, { requireComplete: false })
     ).rejects.toThrow("Some presigned transactions do not match any unsigned transaction");
   });
 

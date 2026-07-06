@@ -46,7 +46,8 @@
     "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "prepublishOnly": "bun run build",
-    "test": "bun run build && node -e \"require('./dist/index.js')\"",
+    "test": "bun test && bun run build && node -e \"require('./dist/index.js')\"",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.32 0.15",
     "typecheck": "bun x --bun tsc"
   },
   "type": "module",

@@ -58,7 +58,9 @@
     "build": "rm -rf ./dist && bun build ./src/index.ts --outdir ./dist/node --target=node && bun build ./src/index.ts --outdir ./dist/browser --target=browser && tsc -p tsconfig.json --emitDeclarationOnly --outDir dist",
     "dev": "bun build ./src/index.ts --outdir ./dist/node --target=node & bun build ./src/index.ts --outdir ./dist/browser --target=browser",
     "format": "prettier . --write",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.32 0.26"
   },
   "types": "./dist/index.d.ts",
   "version": "0.2.0"

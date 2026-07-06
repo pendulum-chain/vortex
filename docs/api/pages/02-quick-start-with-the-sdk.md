@@ -1,6 +1,6 @@
 # Quick Start With The SDK
 
-This page walks through a complete BRL ramp end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
+This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
 
 ## Install
 
@@ -104,9 +104,22 @@ const started = await sdk.startRamp(rampProcess.id);
 
 Validate every field before signing: `chainId`, `verifyingContract`, `value`, `to`, and `data` must match what your application requested. Never sign payloads blindly.
 
-## MXN Onramp (Buy)
+## USD, MXN, COP And ARS Ramps
 
-MXN settles via SPEI through Alfredpay. The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
+USD, MXN, COP, and ARS settle through Vortex's local payment partners over the user's domestic banking rail. Pass the rail identifier as `from` (buy) or `to` (sell):
+
+| Fiat currency | Rail identifier | Payment rail |
+|---|---|---|
+| `USD` | `"ach"` | ACH bank transfer |
+| `MXN` | `"spei"` | SPEI transfer |
+| `COP` | `"ach"` | Colombian bank transfer |
+| `ARS` | `"cbu"` | CBU bank transfer |
+
+All four corridors support buys and sells on EVM networks; AssetHub is not available for these corridors. The examples below use MXN — for the other currencies, substitute the fiat token and the rail identifier from the table. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for onboarding, fiat accounts, and limits.
+
+### Onramp (Buy)
+
+The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
 
 ```js
 import { EPaymentMethod } from "@vortexfi/sdk";
@@ -135,13 +148,13 @@ console.log(started.achPaymentData);
 
 No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
 
-Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed Alfredpay MXN KYC. The key and the KYC record belong to the same account, so registration resolves to the user's Alfredpay customer automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
+Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed KYC for the corridor's country. The key and the KYC record belong to the same account, so registration resolves to the user's verified payment profile automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
 
-Partner `sk_*` keys cannot drive Alfredpay KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation). This applies to both MXN onramp and offramp below.
+Partner `sk_*` keys cannot drive this KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) for minting it programmatically). This applies to buys and sells in all four corridors.
 
-## MXN Offramp (Sell)
+### Offramp (Sell)
 
-Selling crypto for MXN requires the user to sign one or more on-chain transactions with their own wallet. The SDK returns those transactions in `unsignedTransactions`.
+Selling crypto for fiat in these corridors requires the user to sign one or more on-chain transactions with their own wallet. The SDK returns those transactions in `unsignedTransactions`.
 
 ```js
 const quote = await sdk.createQuote({
@@ -162,7 +175,7 @@ const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
 
 `fiatAccountId` is opaque to the SDK. Create or look up the user's fiat account out-of-band and pass the ID here. It is required for offramp and optional for onramp.
 
-### Signing MXN Offramp User Transactions
+### Signing Offramp User Transactions
 
 Use the SDK helper to classify, sign, broadcast, and submit each entry in `unsignedTransactions`:
 
