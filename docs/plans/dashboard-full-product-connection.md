@@ -338,8 +338,12 @@ No recipient/transfer features yet — but the dashboard is genuinely connected.
 **Verify:** `bun --cwd apps/dashboard typecheck` / `build`; manual walkthrough — login → quote →
 ramp → status → history; a widget onboarding round-trip.
 
-### Phase 1 — Recipient product (additive migrations)
+### Phase 1 — Recipient product (additive migrations) — **landed (2026-07)**
 Adds the net-new invite/transfer surface. All additive; nothing existing is altered.
+Shipped as migrations `038`/`042`/`043` plus `/v1/recipients`, `/v1/notifications` and
+`GET /v1/onboarding/status` (reading `provider_customers`+`kyc_cases` directly, since Phase 3
+landed first). Still open from this phase: the §7.1 payout-instrument mechanism (A vs B) and
+email dispatch (D7 transport).
 
 **Migrations** (`034`–`036`):
 - `034-create-customer-entities.ts` — `customer_entities`; backfill one `individual`/`active`

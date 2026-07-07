@@ -29,6 +29,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
 | Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
+| Recipient Transfers | `03-ramp-engine/recipient-transfers.md` | Invite token hashing/expiry, token-bound redemption, sender↔recipient authorization, transfer eligibility gate |
 | FastForex | `05-integrations/fastforex.md` | USD-fiat conversion provider hardening and fallback |
 | Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
@@ -48,6 +49,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
 | Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
+| Notifications | `07-operations/notifications.md` | In-app feed authorization, PII redaction rules, email dispatch status |
 
 ## Per-File Format
 
