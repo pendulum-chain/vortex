@@ -30,9 +30,11 @@ dashboard wiring, and the product decisions layered on top.
 
 ## 1. Guiding properties
 
-- **Additive & phased.** Every phase follows the expand/contract pattern the unified doc
-  prescribes (`add → backfill → dual-write → cut over reads → drop`). No legacy table is
-  dropped before parity is proven.
+- **Additive, migrate-once, cut over.** Every phase adds the new tables, backfills them with a
+  **one-time data migration**, then points production reads at them (`add → backfill → cut over
+  reads`). **No dual-write and no parity-gated drop:** legacy tables are left in place as a
+  read-only **backup** (not kept in sync, not dropped), so a bad cut-over can be re-migrated
+  rather than rolled forward.
 - **Frontend & SDK safe throughout.** Responses are hand-built field-by-field in
   `apps/api/src/api/services/quote/engines/finalize/index.ts` (`buildQuoteResponse`) and
   `apps/api/src/api/services/ramp/ramp.service.ts` (`GetRampStatusResponse`); they emit computed
@@ -42,8 +44,12 @@ dashboard wiring, and the product decisions layered on top.
   lockstep — that is the real risk, not consumer breakage.
 - **Migration mechanics.** Umzug v3 + Sequelize v6 (`apps/api/src/database/migrator.ts`),
   files `apps/api/src/database/migrations/NNN-kebab.ts` with `up`/`down`, camelCase attrs +
-  `field:` snake_case. Highest existing number is **033** (older numbers collide) — new files
-  start at **034**. A proxy already makes `createTable`/`addColumn` idempotent.
+  `field:` snake_case. Migrations **034–037 landed since this plan was written** (api-key
+  `user_id`, nullable `partner_name`, subsidy-token changes) — new files start at **038**. A
+  proxy already makes `createTable`/`addColumn` idempotent. Every new table must
+  `ENABLE ROW LEVEL SECURITY` — Supabase's `ALTER DEFAULT PRIVILEGES` grants
+  anon/authenticated ALL on future public tables, and RLS-with-no-policies is what keeps
+  PostgREST out.
 - **Dashboard ships first — and fast.** Phase 0 connects the dashboard's core flow to the
   existing backend with **no migrations**; Phase 1 adds the recipient product (additive); the
   identity cleanup (Phases 2–6) follows without holding the dashboard back.
@@ -139,7 +145,8 @@ Phase 5, which therefore **depends on Phase 4's `profile_id`** for SDK principal
   PIX/IBAN/ACH/CLABE/CBU PII locally.
 
 **Non-goals for the first implementation (unified doc) — carried verbatim:**
-- Don't remove legacy tables before parity is proven (expand/contract).
+- Don't remove legacy tables — keep them as a read-only **backup** after cut-over (amends the
+  doc's expand/contract: migrate once and cut over, no dual-write, no parity-gated drop).
 - **Don't collapse `partner_id` and `pricing_partner_id`** — Phase 2 keeps both on `quote_tickets`.
 - A profile↔partner assignment grants **pricing only, not ownership**.
 - Don't store raw API secrets or raw tax IDs.
@@ -370,7 +377,7 @@ onboarding → verified payout → transfer allowed.
 - Migration: create `provider_customers` + `kyc_cases` (uniques per doc). Backfill from
   `mykobo_customers`, `alfredpay_customers`, the Avenia half of `tax_ids`; attach each to its
   owning `customer_entity`. `kyc_level_2` is dead (§4), so `kyc_cases` supersedes it with **no
-  data conversion** — `kyc_level_2` is dropped in Phase 6.
+  data conversion** — `kyc_level_2` is left in place as a dead backup, not dropped.
 - **Code in lockstep:** `mykobo/mykobo-customer.service.ts`, `alfredpay.controller.ts` (~20
   sites), `brla.controller.ts` (many), the BRLA phase handlers, `ramp.service.ts` taxId reads.
 - **Payoff:** the D5 aggregator and the eligibility check swap their internals to a single clean
@@ -378,27 +385,38 @@ onboarding → verified payout → transfer allowed.
 - Verify: every provider read returns the same result via the new table; ownership backfill
   quarantines any unclear owner (no auto-assign).
 
-### Phase 4 — Refactor `api_keys` (unified-doc step 3)
-- Migration: add `partner_id` FK (backfill from `partner_name`) + `profile_id` + `scopes` +
-  `revoked_at`; dual-write; then drop `partner_name`. Existing partner-wide keys keep a null
-  `profile_id` until re-keyed (SDK ownership check applies only to keys that have one).
+### Phase 4 — Refactor `api_keys` (unified-doc step 3) — **half already landed**
+- **Already shipped** (migrations 034/035 + user-scoped-key work): the doc's `profile_id`
+  exists as `api_keys.user_id`; `partner_name` is nullable; user-scoped keys (NULL
+  `partner_name`, `user_id` set) authenticate purely as the linked user via
+  `getEffectiveUserId`. Do NOT add a duplicate `profile_id` column or rename.
+- Remaining migration: add `partner_id` FK (backfill from `partner_name`) + `scopes` +
+  `revoked_at`; cut authorization over to `partner_id`, leaving `partner_name` in place as a
+  backup column (no dual-write, not dropped). Existing partner-wide keys keep a null
+  `user_id` until re-keyed (SDK ownership check applies only to keys that have one).
 - **Code:** `apiKeyAuth.helpers.ts` (`validateSecretApiKey`/`validatePublicApiKey`),
   `dualAuth.ts`, `enforcePartnerAuth`, `validatePartnerMatch`, admin `partnerApiKeys.controller`.
 - Verify: name-equality authorization is preserved through the FK; key auth integration tests.
 
-### Phase 5 — Enforce subaccount ownership (unified-doc step 4) — **the security fix (D8)**
-- Enforce the invariant (§4.1) on **all** Avenia/BRLA ramp + read/limit paths — today
-  `getAveniaUser` only checks when a `userId` is present and `getAveniaUserRemainingLimit` has
-  **no** check. Reject quote/ramp creation targeting a `provider_customer` the authenticated
-  principal doesn't own.
+### Phase 5 — Enforce subaccount ownership (unified-doc step 4) — **mostly landed; 3 gaps remain**
+- **Already shipped** (dualAuth/effectiveUser/ownershipAuth work): `getAveniaUser` AND
+  `getAveniaUserRemainingLimit` both require an effective user and 403 on non-owned taxIds;
+  `createSubaccount` conflict-checks and claims; every alfredpay customer/fiat-account query
+  filters by the effective user. (The unified doc's claims here are stale.)
+- **Remaining gaps** to close during the provider cutover: `fetchSubaccountKycStatus`
+  (`GET /v1/brla/getKycStatus` — no ownership check, and it *writes* status transitions),
+  `getSelfieLivenessUrl`, and `getKybAttemptStatus` (attemptId passed upstream with no
+  tenancy check). Reject quote/ramp creation targeting a `provider_customer` the
+  authenticated principal doesn't own.
 - **Principal resolution** per §4.1 — SDK-key principals resolve via `api_keys.profile_id`, so
   this phase depends on Phase 4. No lazy null-owner adoption.
 - Verify: a principal cannot use a `provider_customer` it doesn't own (both UI and SDK-key
   principals); regression tests.
 
-### Phase 6 — Switch reads & deprecate legacy (unified-doc step 5)
-- After parity checks, cut remaining reads to the new tables and drop the legacy columns/tables.
-  Security-spec updated in the same change set (§10).
+### Phase 6 — Finalize cut-over; keep legacy as backup (unified-doc step 5)
+- Confirm no code still reads the legacy tables/columns and **retain them as a read-only backup —
+  do not drop** (a manual drop can happen later, out of band, once the backup is no longer
+  wanted). Security-spec updated in the same change set (§10).
 
 ---
 
@@ -533,7 +551,7 @@ token-bound redemption, sender↔recipient authorization, transfer gating) and
    eligibility internals.
 5. **Phase 4** (api_keys). Verify: key-auth parity.
 6. **Phase 5** (ownership enforcement). Verify: ownership regression tests.
-7. **Phase 6** (switch reads, drop legacy) + security-spec finalization.
+7. **Phase 6** (finalize cut-over; keep legacy as backup, no drop) + security-spec finalization.
 
 Phase 0 makes the dashboard live on its own. Phases 2–6 don't block it (Phase 1 already shipped
 the product surface) and are individually additive.
@@ -545,7 +563,9 @@ the product surface) and are individually additive.
 1. **Phase 2/3 data migrations are the real risk** — dedup partners by name and fold three
    heterogeneous provider tables (keyed by `user_id` / `user_id+country+type` / normalized
    `taxId`) into `provider_customers`. Consumer apps are safe (DTO-mapped), but internal
-   resolution/provider code and admin endpoints change in lockstep; cover with parity tests.
+   resolution/provider code and admin endpoints change in lockstep; cover with parity tests. With
+   no dual-write safety net, those tests are the gate — and the retained legacy tables are the
+   fallback: if a parity test fails after cut-over, re-run the migration from the backup.
 2. **Unified-doc open questions need product/compliance sign-off before Phase 3:** tax-ID
    global-uniqueness semantics; KYC/failure-payload retention; retention on profile deletion.
 3. **Supabase transactional email** — confirm the SMTP/edge-function path for non-auth emails

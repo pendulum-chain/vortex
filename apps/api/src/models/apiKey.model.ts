@@ -5,15 +5,19 @@ import type Partner from "./partner.model";
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
   id: string;
+  /** Legacy backup column — authorization resolves through partnerId; never read this. */
   partnerName: string | null;
+  partnerId: string | null;
   keyType: "public" | "secret";
   keyHash: string | null;
   keyValue: string | null;
   keyPrefix: string;
   name: string | null;
+  scopes: string[] | null;
   lastUsedAt: Date | null;
   expiresAt: Date | null;
   isActive: boolean;
+  revokedAt: Date | null;
   userId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -22,7 +26,18 @@ export interface ApiKeyAttributes {
 // Define the attributes that can be set during creation
 type ApiKeyCreationAttributes = Optional<
   ApiKeyAttributes,
-  "id" | "keyType" | "name" | "lastUsedAt" | "expiresAt" | "partnerName" | "userId" | "createdAt" | "updatedAt"
+  | "id"
+  | "keyType"
+  | "name"
+  | "scopes"
+  | "lastUsedAt"
+  | "expiresAt"
+  | "revokedAt"
+  | "partnerName"
+  | "partnerId"
+  | "userId"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 // Define the ApiKey model
@@ -30,6 +45,8 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
   declare id: string;
 
   declare partnerName: string | null;
+
+  declare partnerId: string | null;
 
   declare keyType: "public" | "secret";
 
@@ -41,11 +58,15 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
 
   declare name: string | null;
 
+  declare scopes: string[] | null;
+
   declare lastUsedAt: Date | null;
 
   declare expiresAt: Date | null;
 
   declare isActive: boolean;
+
+  declare revokedAt: Date | null;
 
   declare userId: string | null;
 
@@ -53,8 +74,8 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
 
   declare updatedAt: Date;
 
-  // Association helper - partners with this name
-  declare partners?: Partner[];
+  // Association helper
+  declare partner?: Partner;
 }
 
 // Initialize the model
@@ -114,10 +135,30 @@ ApiKey.init(
       allowNull: true,
       type: DataTypes.STRING(100)
     },
+    partnerId: {
+      allowNull: true,
+      field: "partner_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     partnerName: {
       allowNull: true,
       field: "partner_name",
       type: DataTypes.STRING(100)
+    },
+    revokedAt: {
+      allowNull: true,
+      field: "revoked_at",
+      type: DataTypes.DATE
+    },
+    scopes: {
+      allowNull: true,
+      type: DataTypes.JSONB
     },
     updatedAt: {
       allowNull: false,
@@ -142,6 +183,10 @@ ApiKey.init(
       {
         fields: ["partner_name"],
         name: "idx_api_keys_partner_name"
+      },
+      {
+        fields: ["partner_id"],
+        name: "idx_api_keys_partner_id"
       },
       {
         fields: ["key_type"],
