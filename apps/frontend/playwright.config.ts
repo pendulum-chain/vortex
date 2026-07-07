@@ -18,8 +18,16 @@ export default defineConfig({
   webServer: {
     command: "bun x --bun vite --port 5173 --strictPort",
     // A placeholder Alchemy key so balance fetching runs at all; every Alchemy
-    // endpoint is intercepted per-test in e2e/support/mockBackend.ts.
-    env: { VITE_ALCHEMY_API_KEY: "e2e-mock-key" },
+    // endpoint is intercepted per-test in e2e/support/mockBackend.ts. The dummy
+    // Supabase vars keep src/config/supabase.ts from throwing at import time
+    // (it's loaded eagerly via services/auth) — without them the app white-screens
+    // on CI, where the webServer spins up a fresh Vite instead of reusing `bun dev`.
+    // ".invalid" never resolves, so an accidental real call fails loudly.
+    env: {
+      VITE_ALCHEMY_API_KEY: "e2e-mock-key",
+      VITE_SUPABASE_ANON_KEY: "e2e-mock-anon-key",
+      VITE_SUPABASE_URL: "http://supabase.invalid"
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:5173"
