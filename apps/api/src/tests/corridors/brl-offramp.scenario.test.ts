@@ -1,6 +1,4 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { Keyring } from "@polkadot/api";
-import { cryptoWaitReady, mnemonicGenerate } from "@polkadot/util-crypto";
 import {
   AveniaTicketStatus,
   EvmToken,
@@ -142,13 +140,12 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
     return (await response.json()) as { id: string; outputAmount: string };
   }
 
-  // The EVM→BRL route still requires a Substrate ephemeral in signingAccounts
-  // (validateOfframpQuote legacy default) even though this path never uses it.
-  async function createSubstrateEphemeralAddress(): Promise<string> {
-    await cryptoWaitReady();
-    const keyring = new Keyring({ type: "sr25519" });
-    return keyring.addFromUri(mnemonicGenerate()).address;
-  }
+  // The EVM→BRL route still requires a Substrate entry in signingAccounts
+  // (validateOfframpQuote legacy default) even though this path never uses it to
+  // sign — all signing here is EVM. A static well-known SS58 address keeps the test
+  // off the @polkadot WASM keyring, whose CJS/ESM dual-load intermittently leaves an
+  // uninitialized bridge under Bun and crashed this suite in CI.
+  const SUBSTRATE_PLACEHOLDER_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
   async function registerViaApi(
     quoteId: string,
@@ -167,7 +164,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         quoteId,
         signingAccounts: [
           { address: ephemeral.address, type: "EVM" },
-          { address: await createSubstrateEphemeralAddress(), type: "Substrate" }
+          { address: SUBSTRATE_PLACEHOLDER_ADDRESS, type: "Substrate" }
         ]
       }),
       headers: {

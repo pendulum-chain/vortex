@@ -11,6 +11,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.vortexfinance.co/payments</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.vortexfinance.co/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>

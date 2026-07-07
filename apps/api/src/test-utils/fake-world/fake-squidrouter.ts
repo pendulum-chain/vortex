@@ -37,6 +37,7 @@ export class FakeSquidRouter {
             toAmount: this.computeToAmount(params),
             toToken: { decimals: this.toTokenDecimals }
           },
+          quoteId: "fake-squid-quote",
           transactionRequest: {
             data: this.transactionData,
             gasLimit: this.transactionGasLimit,
