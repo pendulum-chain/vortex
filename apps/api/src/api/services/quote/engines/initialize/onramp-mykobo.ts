@@ -1,14 +1,7 @@
-import {
-  EvmToken,
-  FiatToken,
-  getOnChainTokenDetails,
-  MykoboApiService,
-  multiplyByPowerOfTen,
-  Networks,
-  RampDirection
-} from "@vortexfi/shared";
+import { EvmToken, FiatToken, getOnChainTokenDetails, multiplyByPowerOfTen, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { QuoteContext } from "../../core/types";
+import { resolveMykoboDepositFee } from "../mykobo-fee";
 import { BaseInitializeEngine } from "./index";
 
 export class OnRampInitializeMykoboEngine extends BaseInitializeEngine {
@@ -28,8 +21,8 @@ export class OnRampInitializeMykoboEngine extends BaseInitializeEngine {
     const inputAmountDecimal = new Big(req.inputAmount);
     const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, eurcBaseDetails.decimals).toFixed(0, 0);
 
-    const mykoboFeeResponse = await MykoboApiService.getInstance().defaultDepositFee(inputAmountDecimal.toFixed(2, 0));
-    const mykoboFeeDecimal = new Big(mykoboFeeResponse.total);
+    const mykoboFeeTotal = await resolveMykoboDepositFee(inputAmountDecimal.toFixed(2, 0));
+    const mykoboFeeDecimal = new Big(mykoboFeeTotal);
 
     const deliveredEurcDecimal = inputAmountDecimal.minus(mykoboFeeDecimal);
     if (deliveredEurcDecimal.lte(0)) {
