@@ -52,12 +52,36 @@ out against another tenant's relationship.
    `REJECTED`/`FAILED`/`Rejected`) ∧ a `verified` payout reference for the relationship + rail.
    First failing check returns its `blockingReasonCode`.
 
-**Not yet enforced at quote/ramp creation.** The plan (§7) scopes server-side enforcement to
-requests that carry a recipient context; no quote/ramp request carries one yet, and the payout
-instrument capture mechanism (plan §7.1) is still an open decision — until it lands, no code path
-writes `verified` payout references, so the gate cannot pass in production. When transfer
-creation gains a recipient context, registration must call this service server-side; the
-dashboard's client-side use of `GET /:id/eligibility` is UX, not the security boundary.
+### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
+
+Ramp registration today is structurally a **self-offramp** flow, and (post ownership
+enforcement) payout destinations are already bound to the *sender* on two of three corridors —
+verified against the code:
+
+- **Mykobo/EUR** (`evm-to-mykobo.ts`): the withdraw intent is created for the sender's own
+  anchor profile (email derived from the effective user); the payout IBAN lives anchor-side.
+  Third-party payout impossible.
+- **Alfredpay** (`evm-to-alfredpay.ts`): `customerId` is server-derived from the effective user;
+  the client-supplied `fiatAccountId` is provider-scoped to that customer. Third-party payout
+  impossible.
+- **BRL/avenia** (`ramp.service.ts` `prepareOfframpBrlTransactions`): sender identity is
+  server-derived, but `pixDestination` + `receiverTaxId` are client-supplied; `receiverTaxId`
+  defaults to the sender's own tax id and is only consistency-checked against the pix key's
+  owner (`validateBrlaOfframpRequest`). **Third-party payout is possible here by design** — the
+  one corridor where it is.
+
+Consequently, sender→recipient transfers cannot be expressed through the current registration
+API at all (except mechanically on BRL): the gap is **not a missing destination check** but a
+missing concept — registration has no second principal. The pending design (plan §7 + §7.1,
+still to be defined) is a **recipient-context extension**: a registration that carries the
+`sender_recipients` id, where the server (a) verifies the relationship belongs to the
+authenticated sender, (b) runs `getTransferEligibility`, and (c) resolves the payout side from
+the **recipient's** provider identity / verified payout reference — recipient pix key + tax id
+for BRL (narrowing the currently-free destination whenever a recipient context is present), an
+order against the recipient's alfredpay customer + fiat account, a withdraw intent under the
+recipient's mykobo profile. Until that lands, every dashboard "transfer" is a self-offramp of
+the sender, and `GET /:id/eligibility` is UX, not a security boundary. Blocked on the §7.1
+payout-instrument decision (no code path writes `verified` payout references yet).
 
 ## Threat Vectors & Mitigations
 
@@ -72,8 +96,11 @@ dashboard's client-side use of `GET /:id/eligibility` is UX, not the security bo
 - **Blocked-recipient bypass via re-invite**: invariant 5.
 - **Recipient bank PII exposure to the sender**: capture-at-transfer-time was rejected (plan §7.1
   option C); only provider-side references with masks are stored.
-- **Transfer to an unverified/restricted recipient**: the eligibility gate blocks with
-  `recipient_onboarding_pending` / `provider_restricted` / `provider_payout_reference_unverified`.
+- **Transfer to an unverified/restricted recipient**: the eligibility gate reports
+  `recipient_onboarding_pending` / `provider_restricted` / `provider_payout_reference_unverified`
+  — advisory (UI-consulted) until the recipient-context extension above makes it a registration
+  precondition. The exposure is bounded meanwhile: registration cannot pay third parties on
+  mykobo/alfredpay at all, and on BRL only with a consistent pix key + tax id pair.
 
 ## Audit Checklist
 

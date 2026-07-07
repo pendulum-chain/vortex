@@ -589,6 +589,19 @@ the product surface) and are individually additive.
    a dedicated subdomain later needs a new CORS entry + security-spec update (no wildcards).
 6. **Shared split shape** — `./types` subpath vs. a separate package (S1 fallback); resolve with
    a dependency audit before building.
+7. **PRESSING — recipient-context ramp registration (to be defined, 2026-07).** Verified against
+   the code: registration is structurally a *self-offramp* — payout destinations are already
+   sender-bound on mykobo (anchor-side IBAN via the sender's profile) and alfredpay
+   (`fiatAccountId` provider-scoped to the server-derived customer); only BRL accepts a
+   third-party destination (`pixDestination` + `receiverTaxId`, consistency-checked against the
+   pix key owner, defaulting to self). So sender→recipient transfers need a **second principal**
+   in registration, not an added check: request carries the `sender_recipients` id; server
+   verifies relationship ownership + `getTransferEligibility`, then resolves the payout side
+   from the *recipient's* provider identity / verified payout reference per corridor (BRL:
+   inject recipient pix key + tax id and narrow the free destination; alfredpay: order against
+   the recipient's customer + fiat account — provider design question; mykobo: withdraw intent
+   under the recipient's profile). Couples to §7.1; BRL is the cheapest first corridor. See
+   `docs/security-spec/03-ramp-engine/recipient-transfers.md`.
 
 ---
 
