@@ -19,6 +19,9 @@ type ConsumedRoute = Pick<SquidrouterRoute, "quoteId" | "transactionRequest"> & 
 type ConsumedPayStatus = Pick<SquidRouterPayResponse, "isGMPTransaction" | "status">;
 
 const RAW_UNITS = /^\d+$/;
+// gasLimit is BigInt-parsed downstream (normalizeBigIntString in route-transactions,
+// BigInt() in final-settlement-subsidy); both accept decimal or 0x-hex integer strings.
+const BIGINT_STRING = /^(?:\d+|0x[0-9a-fA-F]+)$/;
 const HEX_DATA = /^0x[0-9a-fA-F]*$/;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 
@@ -33,7 +36,7 @@ export const squidrouterRouteResponseSchema = z.looseObject({
     quoteId: z.string().min(1),
     transactionRequest: z.looseObject({
       data: z.string().regex(HEX_DATA),
-      gasLimit: z.string().min(1),
+      gasLimit: z.string().regex(BIGINT_STRING),
       target: z.string().regex(EVM_ADDRESS),
       value: z.string().regex(RAW_UNITS)
     })

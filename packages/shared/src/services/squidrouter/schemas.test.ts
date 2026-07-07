@@ -46,6 +46,16 @@ describe("squidrouterRouteResponseSchema", () => {
     expect(() => squidrouterRouteResponseSchema.parse(body)).toThrow();
   });
 
+  test("accepts a hex gasLimit but rejects a non-integer one (BigInt-parsed downstream)", () => {
+    const hex = validRouteBody();
+    hex.route.transactionRequest.gasLimit = "0x8e6a0";
+    expect(() => squidrouterRouteResponseSchema.parse(hex)).not.toThrow();
+
+    const garbage = validRouteBody();
+    garbage.route.transactionRequest.gasLimit = "350000.5";
+    expect(() => squidrouterRouteResponseSchema.parse(garbage)).toThrow();
+  });
+
   test("rejects a non-address transaction target", () => {
     const body = validRouteBody();
     body.route.transactionRequest.target = "not-an-address";
