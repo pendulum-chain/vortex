@@ -3,8 +3,8 @@ import Big from "big.js";
 import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import Anchor from "../../../../models/anchor.model";
-import Partner from "../../../../models/partner.model";
 import { APIError } from "../../../errors/api-error";
+import { findPartnerWithPricing } from "../../partners/partner-pricing.service";
 import { priceFeedService } from "../../priceFeed.service";
 import { getTargetFiatCurrency, validateChainSupport } from "./helpers";
 
@@ -14,7 +14,7 @@ export interface CalculateFeeComponentsRequest {
   rampType: RampDirection;
   from: DestinationType;
   to: DestinationType;
-  partnerName?: string;
+  partnerId?: string;
   inputCurrency: RampCurrency;
   outputCurrency: RampCurrency;
 }
@@ -83,88 +83,72 @@ async function calculatePartnerAndVortexFees(
   let totalPartnerMarkupInFeeCurrency = new Big(0);
   let totalVortexFeeInFeeCurrency = new Big(0);
 
-  // 1. Fetch and process partner-specific configurations if partnerName is provided
+  // 1. Fetch and process the partner's pricing config if a partner id is provided
   if (partnerId) {
-    // Query all records where name matches partnerName AND rampType matches rampType
-    const partnerRecords = await Partner.findAll({
-      where: {
-        id: partnerId,
-        isActive: true,
-        rampType: rampType
-      }
-    });
+    const pricing = await findPartnerWithPricing({ id: partnerId }, rampType);
 
-    if (partnerRecords.length > 0) {
+    if (pricing) {
       let hasApplicableFees = false;
 
-      for (const record of partnerRecords) {
-        // Partner markup fee
-        if (record.markupType !== "none") {
-          const markupFeeComponent = await calculateFeeComponent(
-            record.markupValue,
-            record.markupType as "absolute" | "relative",
-            inputAmount,
-            inputCurrency,
-            record.markupCurrency
-          );
+      // Partner markup fee
+      if (pricing.markupType !== "none") {
+        const markupFeeComponent = await calculateFeeComponent(
+          pricing.markupValue,
+          pricing.markupType,
+          inputAmount,
+          inputCurrency,
+          pricing.markupCurrency
+        );
 
-          const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
-            markupFeeComponent.toString(),
-            record.markupCurrency,
-            feeCurrency
-          );
-          totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
+        const markupFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+          markupFeeComponent.toString(),
+          pricing.markupCurrency,
+          feeCurrency
+        );
+        totalPartnerMarkupInFeeCurrency = totalPartnerMarkupInFeeCurrency.plus(markupFeeComponentInFeeCurrency);
 
-          if (markupFeeComponent.gt(0)) {
-            hasApplicableFees = true;
-          }
+        if (markupFeeComponent.gt(0)) {
+          hasApplicableFees = true;
         }
+      }
 
-        // Vortex Fee Component from this partner record
-        if (record.vortexFeeType !== "none") {
-          const vortexFeeComponent = await calculateFeeComponent(
-            record.vortexFeeValue,
-            record.vortexFeeType as "absolute" | "relative",
-            inputAmount,
-            inputCurrency,
-            record.markupCurrency
-          );
+      // Vortex Fee Component from this partner's pricing config
+      if (pricing.vortexFeeType !== "none") {
+        const vortexFeeComponent = await calculateFeeComponent(
+          pricing.vortexFeeValue,
+          pricing.vortexFeeType,
+          inputAmount,
+          inputCurrency,
+          pricing.markupCurrency
+        );
 
-          const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
-            vortexFeeComponent.toString(),
-            record.markupCurrency,
-            feeCurrency
-          );
-          totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
+        const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+          vortexFeeComponent.toString(),
+          pricing.markupCurrency,
+          feeCurrency
+        );
+        totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
 
-          if (vortexFeeComponent.gt(0)) {
-            hasApplicableFees = true;
-          }
+        if (vortexFeeComponent.gt(0)) {
+          hasApplicableFees = true;
         }
       }
 
       // Log warning if partner found but no applicable custom fees
       if (!hasApplicableFees) {
-        logger.warn(`Partner with name '${partnerId}' found, but no active markup defined. Proceeding with default fees.`);
+        logger.warn(`Partner '${partnerId}' found, but no active markup defined. Proceeding with default fees.`);
       }
     } else {
-      // No specific partner records found, will use default Vortex fee below
-      logger.warn(`No fee configuration found for partner with name '${partnerId}'. Proceeding with default fees.`);
+      // No pricing config found, will use default Vortex fee below
+      logger.warn(`No fee configuration found for partner '${partnerId}'. Proceeding with default fees.`);
     }
   }
 
   // 2. If no partner was provided initially, use default Vortex fees
   if (!partnerId) {
-    // Query all vortex records for this ramp type
-    const vortexFoundationPartners = await Partner.findAll({
-      where: {
-        isActive: true,
-        name: "vortex",
-        rampType: rampType
-      }
-    });
+    const vortexPricing = await findPartnerWithPricing({ name: "vortex" }, rampType);
 
-    if (vortexFoundationPartners.length === 0) {
+    if (!vortexPricing) {
       logger.error(`Vortex partner configuration not found for ${rampType}-ramp in database.`);
       throw new APIError({
         message: "Internal configuration error [VF]",
@@ -172,24 +156,21 @@ async function calculatePartnerAndVortexFees(
       });
     }
 
-    // Process each vortex record and accumulate fees
-    for (const vortexFoundationPartner of vortexFoundationPartners) {
-      if (vortexFoundationPartner.markupType !== "none") {
-        const vortexFeeComponent = await calculateFeeComponent(
-          vortexFoundationPartner.markupValue,
-          vortexFoundationPartner.markupType as "absolute" | "relative",
-          inputAmount,
-          inputCurrency,
-          vortexFoundationPartner.markupCurrency
-        );
+    if (vortexPricing.markupType !== "none") {
+      const vortexFeeComponent = await calculateFeeComponent(
+        vortexPricing.markupValue,
+        vortexPricing.markupType,
+        inputAmount,
+        inputCurrency,
+        vortexPricing.markupCurrency
+      );
 
-        const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
-          vortexFeeComponent.toString(),
-          vortexFoundationPartner.markupCurrency,
-          feeCurrency
-        );
-        totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
-      }
+      const vortexFeeComponentInFeeCurrency = await priceFeedService.convertCurrency(
+        vortexFeeComponent.toString(),
+        vortexPricing.markupCurrency,
+        feeCurrency
+      );
+      totalVortexFeeInFeeCurrency = totalVortexFeeInFeeCurrency.plus(vortexFeeComponentInFeeCurrency);
     }
   }
 
@@ -339,7 +320,7 @@ export async function calculateFeeComponents(request: CalculateFeeComponentsRequ
     const { partnerMarkupFee, vortexFee } = await calculatePartnerAndVortexFees(
       request.inputAmount,
       request.rampType,
-      request.partnerName,
+      request.partnerId,
       request.inputCurrency,
       feeCurrency
     );

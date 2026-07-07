@@ -46,12 +46,15 @@ import { Op, Transaction, WhereOptions } from "sequelize";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
-import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
-import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import {
+  ActivePartner,
+  handleQuoteConsumptionForDiscountState,
+  resolveActivePartnerById
+} from "../../services/quote/engines/discount/helpers";
 import { resolveAveniaAccountForRamp } from "../avenia-account";
 import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -254,7 +257,7 @@ export class RampService extends BaseRampService {
       const pricingPartnerId = quote.pricingPartnerId ?? quote.partnerId;
       let partner: ActivePartner = null;
       if (pricingPartnerId) {
-        partner = await Partner.findByPk(pricingPartnerId);
+        partner = await resolveActivePartnerById(pricingPartnerId, quote.rampType);
       }
 
       handleQuoteConsumptionForDiscountState(partner);

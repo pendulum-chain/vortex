@@ -1,5 +1,4 @@
 import {afterEach, describe, expect, it, mock} from "bun:test";
-import {RampDirection} from "@vortexfi/shared";
 import {Request, Response} from "express";
 import httpStatus from "http-status";
 import {Op, Transaction, UniqueConstraintError} from "sequelize";
@@ -37,7 +36,7 @@ function createResponse() {
 describe("createProfilePartnerAssignment", () => {
   const originalTransaction = sequelize.transaction;
   const originalUserFindByPk = User.findByPk;
-  const originalPartnerFindAll = Partner.findAll;
+  const originalPartnerFindOne = Partner.findOne;
   const originalAssignmentUpdate = ProfilePartnerAssignment.update;
   const originalAssignmentCreate = ProfilePartnerAssignment.create;
   const originalAssignmentFindAll = ProfilePartnerAssignment.findAll;
@@ -49,7 +48,7 @@ describe("createProfilePartnerAssignment", () => {
   afterEach(() => {
     sequelize.transaction = originalTransaction;
     User.findByPk = originalUserFindByPk;
-    Partner.findAll = originalPartnerFindAll;
+    Partner.findOne = originalPartnerFindOne;
     ProfilePartnerAssignment.update = originalAssignmentUpdate;
     ProfilePartnerAssignment.create = originalAssignmentCreate;
     ProfilePartnerAssignment.findAll = originalAssignmentFindAll;
@@ -58,33 +57,29 @@ describe("createProfilePartnerAssignment", () => {
   function mockValidAssignmentDependencies() {
     const transactionMock = mock(async (callback: (tx: unknown) => Promise<unknown>) => callback(transaction));
     const userFindByPkMock = mock(async () => ({ id: "user-1" }));
-    const partnerFindAllMock = mock(async () => [
-      { id: "buy-partner-1", name: "Acme", rampType: RampDirection.BUY },
-      { id: "sell-partner-1", name: "Acme", rampType: RampDirection.SELL }
-    ]);
+    const partnerFindOneMock = mock(async () => ({ id: "partner-1", isActive: true, name: "Acme" }));
     const assignmentUpdateMock = mock(async () => [1]);
     const assignmentCreateMock = mock(async () => ({
       createdAt,
       expiresAt: null,
-      buyPartnerId: "buy-partner-1",
       id: "assignment-2",
       isActive: true,
+      partnerId: "partner-1",
       partnerName: "Acme",
-      sellPartnerId: "sell-partner-1",
       updatedAt,
       userId: "user-1"
     }));
 
     sequelize.transaction = transactionMock as unknown as typeof sequelize.transaction;
     User.findByPk = userFindByPkMock as unknown as typeof User.findByPk;
-    Partner.findAll = partnerFindAllMock as unknown as typeof Partner.findAll;
+    Partner.findOne = partnerFindOneMock as unknown as typeof Partner.findOne;
     ProfilePartnerAssignment.update = assignmentUpdateMock as unknown as typeof ProfilePartnerAssignment.update;
     ProfilePartnerAssignment.create = assignmentCreateMock as unknown as typeof ProfilePartnerAssignment.create;
 
     return {
       assignmentCreateMock,
       assignmentUpdateMock,
-      partnerFindAllMock,
+      partnerFindOneMock,
       transactionMock,
       userFindByPkMock
     };
@@ -122,11 +117,10 @@ describe("createProfilePartnerAssignment", () => {
     );
     expect(assignmentCreateMock).toHaveBeenCalledWith(
       {
-        buyPartnerId: "buy-partner-1",
         expiresAt: null,
         isActive: true,
+        partnerId: "partner-1",
         partnerName: "Acme",
-        sellPartnerId: "sell-partner-1",
         userId: "user-1"
       },
       { transaction }
@@ -160,12 +154,9 @@ describe("createProfilePartnerAssignment", () => {
     });
   });
 
-  it("rejects ambiguous active partners for the same ramp type", async () => {
+  it("returns 404 when no active partner has the requested name", async () => {
     mockValidAssignmentDependencies();
-    Partner.findAll = mock(async () => [
-      { id: "buy-partner-1", name: "Acme", rampType: RampDirection.BUY },
-      { id: "buy-partner-2", name: "Acme", rampType: RampDirection.BUY }
-    ]) as unknown as typeof Partner.findAll;
+    Partner.findOne = mock(async () => null) as unknown as typeof Partner.findOne;
     const res = createResponse();
 
     await createProfilePartnerAssignment(
@@ -178,12 +169,12 @@ describe("createProfilePartnerAssignment", () => {
       res as unknown as Response
     );
 
-    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(res.statusCode).toBe(httpStatus.NOT_FOUND);
     expect(res.body).toEqual({
       error: {
-        code: "AMBIGUOUS_PARTNER_ASSIGNMENT",
-        message: `Multiple active ${RampDirection.BUY} partners found with this name`,
-        status: httpStatus.CONFLICT
+        code: "PARTNER_NOT_FOUND",
+        message: "No active partners found with name: Acme",
+        status: httpStatus.NOT_FOUND
       }
     });
   });

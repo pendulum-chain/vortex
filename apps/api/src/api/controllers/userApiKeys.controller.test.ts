@@ -75,8 +75,8 @@ describe("revokeUserApiKey", () => {
   }
 
   const expectedPairUpdates = [
-    { changes: { isActive: false }, id: "secret-key-id" },
-    { changes: { isActive: false }, id: "public-key-id" }
+    { changes: { isActive: false, revokedAt: expect.any(Date) }, id: "secret-key-id" },
+    { changes: { isActive: false, revokedAt: expect.any(Date) }, id: "public-key-id" }
   ];
 
   it("revokes default-named public and secret keys as one pair via pairedKeyId", async () => {

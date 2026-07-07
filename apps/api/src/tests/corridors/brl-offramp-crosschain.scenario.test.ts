@@ -14,9 +14,8 @@ import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
-import Partner from "../../models/partner.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestTaxId, createTestUser } from "../../test-utils/factories";
+import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -103,10 +102,7 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     await resetTestDatabase();
     // The EVM fee distribution transaction builder requires the vortex
     // partner's EVM payout address even when the resulting fees are zero.
-    await Partner.update(
-      { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" },
-      { where: { name: "vortex", rampType: RampDirection.SELL } }
-    );
+    await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;

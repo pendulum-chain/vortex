@@ -53,7 +53,7 @@ export abstract class BaseFeeEngine implements Stage {
       inputCurrency: request.inputCurrency,
       outputAmountOfframp: ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0",
       outputCurrency: request.outputCurrency,
-      partnerName: ctx.partner?.id || undefined,
+      partnerId: ctx.partner?.id || undefined,
       rampType: request.rampType,
       to: request.to
     });
