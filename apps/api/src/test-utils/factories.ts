@@ -8,10 +8,13 @@ import {
   EvmToken,
   FiatToken,
   Networks,
+  normalizeTaxId,
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/apiKeyAuth.helpers";
+import { hashTaxReference, maskTaxReference } from "../api/services/avenia/avenia-customer.service";
+import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
@@ -19,9 +22,9 @@ import AlfredPayCustomer from "../models/alfredPayCustomer.model";
 import ApiKey from "../models/apiKey.model";
 import Partner, { type PartnerAttributes } from "../models/partner.model";
 import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
+import ProviderCustomer, { AveniaKycStatus } from "../models/providerCustomer.model";
 import QuoteTicket, { type QuoteTicketAttributes } from "../models/quoteTicket.model";
 import RampState, { type RampStateAttributes } from "../models/rampState.model";
-import TaxId, { TaxIdInternalStatus } from "../models/taxId.model";
 import User from "../models/user.model";
 
 let sequence = 0;
@@ -193,21 +196,22 @@ export async function createTestAlfredpayCustomer(
 }
 
 /** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
+/** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
 export async function createTestTaxId(userId: string, overrides: Partial<{ taxId: string; subAccountId: string }> = {}) {
   const seq = nextSeq();
-  return TaxId.create({
-    accountType: AveniaAccountType.INDIVIDUAL,
-    finalQuoteId: null,
-    finalSessionId: null,
-    finalTimestamp: null,
-    initialQuoteId: null,
-    initialSessionId: null,
-    internalStatus: TaxIdInternalStatus.Accepted,
-    kycAttempt: null,
-    requestedDate: new Date(),
-    subAccountId: overrides.subAccountId ?? "test-subaccount-id",
-    taxId: overrides.taxId ?? `1234567890${seq}`,
-    userId
+  const taxReference = normalizeTaxId(overrides.taxId ?? `1234567890${seq}`);
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  return ProviderCustomer.create({
+    country: "BR",
+    customerEntityId: entity.id,
+    customerType: "individual",
+    provider: "avenia",
+    providerSubaccountId: overrides.subAccountId ?? "test-subaccount-id",
+    rail: "brl",
+    status: AveniaKycStatus.Accepted,
+    taxReference,
+    taxReferenceHash: hashTaxReference(taxReference),
+    taxReferenceMasked: maskTaxReference(taxReference)
   });
 }
 

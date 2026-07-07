@@ -44,7 +44,7 @@ When the user on-ramps BRL and asks for **BRLA delivered on Base** (input BRL, o
 
 Avenia requires a subaccount per user, identified by tax ID (CPF for individuals, CNPJ for businesses). The system creates/manages subaccounts during ramp registration and maps them via the `TaxId` model (`taxIdRecord.subAccountId`).
 
-`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in the **quote-less KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) it is omitted. The controller stores it as the nullable `TaxId.initialQuoteId` — a provenance field only. It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and `optionalAuth` user context gate subaccount creation independently of whether a quote is present.
+`POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in the **quote-less KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) it is omitted. The controller stores it as the quote-provenance fields were dropped in the provider_customers cutover (they were write-only). It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and `optionalAuth` user context gate subaccount creation independently of whether a quote is present.
 
 ### The three-amount model (off-ramp)
 
@@ -128,3 +128,25 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 
 - **Hardcoded BRL offramp validation amount:** Resolved in the remediation pass; BRL offramp validation now derives the pre-anchor amount from quote metadata instead of a literal placeholder.
 - **EVM subsidy USD caps:** Resolved for the Base EVM subsidy handlers via env-configured quote-relative cap fractions. `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` and `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` both default to `0.05` and can be overridden through environment variables. Over-cap cases are intentionally recoverable retries: no subsidy transfer is submitted, and the ramp remains waiting for operator action rather than becoming unrecoverably failed.
+
+## Provider-customers cutover (2026-07)
+
+Avenia identity moved from `tax_ids` (raw-tax-id PK, nullable owner) to
+`provider_customers` (`provider = 'avenia'`), owned via `customer_entities` (owner is NOT NULL).
+Key properties:
+
+- Lookups key off `tax_reference_hash` (sha256 of the normalized tax id). The raw normalized
+  value is retained in `tax_reference` because it is the join/aggregation key for in-flight
+  ramp state (`ramp_states.state.taxId`, `getPendingBrlVolume`) — a documented deviation from
+  the unified doc's "no raw tax IDs" non-goal, to be revisited once legacy ramp state drains.
+- The legacy `tax_ids` table is a read-only backup. Its only remaining read is the
+  createSubaccount legacy-adoption probe: quarantined (ownerless) legacy rows can be claimed
+  by an authenticated caller exactly as before; owned legacy rows still 409.
+- Ownership gaps closed in the cutover: `fetchSubaccountKycStatus` (which also WRITES status
+  transitions) and `getSelfieLivenessUrl` now require the effective user to own the account.
+  KNOWN RESIDUAL: `getKybAttemptStatus` proxies an opaque `attemptId` to BRLA with no tenancy
+  check — the KYB attempt response carries no subaccount linkage, so server-side binding is
+  impossible without a provider API change.
+- KYC/KYB state transitions update `provider_customers.status` and the account's `kyc_cases`
+  row in the same code path (`updateAveniaKycOutcome` preserves the idempotent
+  `WHERE status = 'Requested'` transition guard that makes a subaccount ramp-ready).

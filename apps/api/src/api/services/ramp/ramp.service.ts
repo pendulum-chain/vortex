@@ -48,13 +48,13 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
-import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import {
   ActivePartner,
   handleQuoteConsumptionForDiscountState,
   resolveActivePartnerById
 } from "../../services/quote/engines/discount/helpers";
+import { findAveniaCustomerByTaxId } from "../avenia/avenia-customer.service";
 import { resolveAveniaAccountForRamp } from "../avenia-account";
 import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -904,15 +904,16 @@ export class RampService extends BaseRampService {
   ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
     }
-    const subAccountData = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
-    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
+    const subAccountData = await brlaApiService.subaccountInfo(aveniaSubAccountId);
+    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
     if (!subaccountLimits) {
       throw new APIError({
         message: "Failed to fetch subaccount limits",
@@ -989,15 +990,16 @@ export class RampService extends BaseRampService {
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found.",
         status: httpStatus.BAD_REQUEST
       });
     }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
-    const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    const accountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
     if (!accountLimits) {
       throw new APIError({
         message: "Failed to fetch subaccount limits.",
@@ -1015,7 +1017,7 @@ export class RampService extends BaseRampService {
       outputCurrency: BrlaCurrency.BRLA,
       outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       outputThirdParty: false,
-      subAccountId: taxIdRecord.subAccountId
+      subAccountId: aveniaSubAccountId
     });
 
     const aveniaTicket = await brlaApiService.createPixInputTicket(
@@ -1029,7 +1031,7 @@ export class RampService extends BaseRampService {
           additionalData: generateReferenceLabel(quote)
         }
       },
-      taxIdRecord.subAccountId
+      aveniaSubAccountId
     );
 
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };

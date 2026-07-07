@@ -1,9 +1,10 @@
 import { MykoboApiError, MykoboApiService, MykoboCustomerStatus, MykoboProfile, mapMykoboReviewStatus } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
-import MykoboCustomer from "../../../models/mykoboCustomer.model";
+import ProviderCustomer from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
+import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
 interface UpsertArgs {
   userId: string;
@@ -13,12 +14,23 @@ interface UpsertArgs {
 }
 
 async function upsertMykoboCustomer({ userId, email, status, statusExternal }: UpsertArgs): Promise<void> {
-  const existing = await MykoboCustomer.findOne({ where: { userId } });
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const existing = await ProviderCustomer.findOne({
+    where: { customerEntityId: entity.id, provider: "mykobo" }
+  });
   if (existing) {
-    await existing.update({ email, status, statusExternal });
+    // The Mykobo-side durable key is the email; keep the mirror in sync with the profile.
+    await existing.update({ providerCustomerId: email, status, statusExternal });
     return;
   }
-  await MykoboCustomer.create({ email, status, statusExternal, userId });
+  await ProviderCustomer.create({
+    customerEntityId: entity.id,
+    provider: "mykobo",
+    providerCustomerId: email,
+    rail: "eur",
+    status,
+    statusExternal
+  });
 }
 
 export async function upsertMykoboCustomerFromProfile(userId: string, email: string, profile: MykoboProfile): Promise<void> {
@@ -66,7 +78,10 @@ export async function resolveMykoboCustomerForUser(userId: string, providedEmail
   // Refresh the KYC mirror from the live Mykobo profile, then gate on an approved customer.
   await syncMykoboCustomerKyc(userId, email);
 
-  const customer = await MykoboCustomer.findOne({ where: { userId } });
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const customer = await ProviderCustomer.findOne({
+    where: { customerEntityId: entity.id, provider: "mykobo" }
+  });
   if (!customer || customer.status !== MykoboCustomerStatus.APPROVED) {
     throw new APIError({
       message: "Mykobo KYC is not approved for this user. Complete Mykobo KYC before requesting an EUR ramp.",

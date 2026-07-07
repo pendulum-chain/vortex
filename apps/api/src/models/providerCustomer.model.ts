@@ -20,8 +20,9 @@ export type ProviderCustomerStatus = MykoboCustomerStatus | AlfredPayStatus | Av
 
 // One anchor for every provider/rail account (Mykobo, AlfredPay, Avenia), owned by exactly
 // one customer_entity. Folds the legacy mykobo_customers/alfredpay_customers tables and the
-// Avenia half of tax_ids. Raw tax IDs are never stored — only a sha256 hash (the runtime
-// join key against ramp-state taxIds) and a masked display value.
+// Avenia half of tax_ids. taxReference holds the raw normalized tax id (avenia only — it is
+// the join/aggregation key for in-flight ramp state); the sha256 hash backs the uniqueness
+// guard and hashed lookups, the masked value is for display.
 export interface ProviderCustomerAttributes {
   id: string;
   customerEntityId: string;
@@ -30,6 +31,7 @@ export interface ProviderCustomerAttributes {
   country: string | null;
   providerCustomerId: string | null;
   providerSubaccountId: string | null;
+  taxReference: string | null;
   taxReferenceHash: string | null;
   taxReferenceMasked: string | null;
   customerType: ProviderCustomerType;
@@ -47,6 +49,7 @@ type ProviderCustomerCreationAttributes = Optional<
   | "country"
   | "providerCustomerId"
   | "providerSubaccountId"
+  | "taxReference"
   | "taxReferenceHash"
   | "taxReferenceMasked"
   | "customerType"
@@ -67,6 +70,7 @@ class ProviderCustomer
   declare country: string | null;
   declare providerCustomerId: string | null;
   declare providerSubaccountId: string | null;
+  declare taxReference: string | null;
   declare taxReferenceHash: string | null;
   declare taxReferenceMasked: string | null;
   declare customerType: ProviderCustomerType;
@@ -143,6 +147,11 @@ ProviderCustomer.init(
       allowNull: true,
       field: "status_external",
       type: DataTypes.STRING(255)
+    },
+    taxReference: {
+      allowNull: true,
+      field: "tax_reference",
+      type: DataTypes.STRING(32)
     },
     taxReferenceHash: {
       allowNull: true,

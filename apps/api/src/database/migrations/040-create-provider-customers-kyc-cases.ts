@@ -67,6 +67,15 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
       allowNull: true,
       type: DataTypes.STRING(255)
     },
+    // Raw (normalized, digits-only) tax reference — avenia only. Deliberate deviation from
+    // the unified doc's "no raw tax IDs" non-goal: the raw value is the join/aggregation key
+    // for in-flight ramp state (ramp_states.state.taxId, getPendingBrlVolume) and already
+    // persists in that JSONB indefinitely; dropping it here would force a dual-key transition
+    // in fund-flow-critical code. Revisit once legacy ramp state stops carrying raw tax ids.
+    tax_reference: {
+      allowNull: true,
+      type: DataTypes.STRING(32)
+    },
     tax_reference_hash: {
       allowNull: true,
       type: DataTypes.STRING(64)
@@ -306,11 +315,12 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.sequelize.query(`
     INSERT INTO provider_customers (
       id, customer_entity_id, provider, rail, country, provider_subaccount_id,
-      tax_reference_hash, tax_reference_masked,
+      tax_reference, tax_reference_hash, tax_reference_masked,
       customer_type, status, created_at, updated_at
     )
     SELECT
       uuid_generate_v4(), ce.id, 'avenia', 'brl', 'BR', NULLIF(t.sub_account_id, ''),
+      t.tax_id,
       encode(sha256(convert_to(t.tax_id, 'UTF8')), 'hex'),
       repeat('*', GREATEST(length(t.tax_id) - 4, 0)) || right(t.tax_id, 4),
       CASE t.account_type::text WHEN 'COMPANY' THEN 'business' ELSE 'individual' END,

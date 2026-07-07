@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
 import { MykoboApiService, MykoboCustomerStatus } from "@vortexfi/shared";
-import MykoboCustomer from "../../../models/mykoboCustomer.model";
+import CustomerEntity from "../../../models/customerEntity.model";
+import ProviderCustomer from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
 import { resolveMykoboCustomerForUser } from "./mykobo-customer.service";
@@ -12,13 +13,15 @@ function stub({ profileEmail, reviewStatus }: { profileEmail: string | null; rev
     profileEmail ? { email: profileEmail, id: "user-1" } : null
   ) as unknown as typeof User.findByPk;
 
+  CustomerEntity.findOrCreate = mock(async () => [{ id: "entity-1" }, false]) as unknown as typeof CustomerEntity.findOrCreate;
+
   const customer = {
     status: MykoboCustomerStatus.CONSULTED,
     update: mock(async (changes: { status: MykoboCustomerStatus }) => {
       customer.status = changes.status;
     })
   };
-  MykoboCustomer.findOne = mock(async () => customer) as unknown as typeof MykoboCustomer.findOne;
+  ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
 
   MykoboApiService.getInstance = mock(() => ({
     getProfileByEmail: async () => ({
@@ -31,14 +34,16 @@ function stub({ profileEmail, reviewStatus }: { profileEmail: string | null; rev
 
 describe("resolveMykoboCustomerForUser", () => {
   const originals = {
-    customerFindOne: MykoboCustomer.findOne,
+    customerFindOne: ProviderCustomer.findOne,
+    entityFindOrCreate: CustomerEntity.findOrCreate,
     getInstance: MykoboApiService.getInstance,
     userFindByPk: User.findByPk
   };
 
   afterEach(() => {
     User.findByPk = originals.userFindByPk;
-    MykoboCustomer.findOne = originals.customerFindOne;
+    ProviderCustomer.findOne = originals.customerFindOne;
+    CustomerEntity.findOrCreate = originals.entityFindOrCreate;
     MykoboApiService.getInstance = originals.getInstance;
   });
 

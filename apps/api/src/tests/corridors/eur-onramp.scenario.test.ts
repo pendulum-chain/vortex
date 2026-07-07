@@ -22,7 +22,8 @@ import { resolveMykoboCustomerForUser } from "../../api/services/mykobo/mykobo-c
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { prepareMykoboToEvmOnrampTransactions } from "../../api/services/transactions/onramp/routes/mykobo-to-evm";
-import MykoboCustomer from "../../models/mykoboCustomer.model";
+import CustomerEntity from "../../models/customerEntity.model";
+import ProviderCustomer from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -346,7 +347,10 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
       expect(intents.length).toBe(1);
       expect(intents[0].transaction_type).toBe(MykoboTransactionType.DEPOSIT);
       expect(intents[0].value).toBe("100.00");
-      expect((await MykoboCustomer.findOne({ where: { userId: final?.userId as string } }))?.status).toBe(
+      const entity = await CustomerEntity.findOne({ where: { profileId: final?.userId as string } });
+      expect(
+        (await ProviderCustomer.findOne({ where: { customerEntityId: entity?.id as string, provider: "mykobo" } }))?.status
+      ).toBe(
         MykoboCustomerStatus.APPROVED
       );
     },
