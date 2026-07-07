@@ -13,6 +13,7 @@
   "files": {
     "includes": [
       "**",
+      "!**/.claude/**",
       "!**/dist/**",
       "!**/build/**",
       "!**/node_modules/",
