@@ -19,7 +19,8 @@
     "p-queue": "^9.1.0",
     "stellar-sdk": "catalog:",
     "web3": "catalog:",
-    "winston": "catalog:"
+    "winston": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/big.js": "catalog:",

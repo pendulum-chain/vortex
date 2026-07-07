@@ -173,7 +173,7 @@
         "wagmi": "catalog:",
         "web3": "^4.16.0",
         "xstate": "^5.20.1",
-        "zod": "^4.3.6",
+        "zod": "catalog:",
         "zustand": "^5.0.2",
       },
       "devDependencies": {
@@ -303,6 +303,7 @@
         "stellar-sdk": "catalog:",
         "web3": "catalog:",
         "winston": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@types/big.js": "catalog:",
@@ -396,6 +397,7 @@
     "wagmi": "^2.19.1",
     "web3": "4.16.0",
     "winston": "3.18.3",
+    "zod": "^4.3.6",
   },
   "packages": {
     "@adobe/css-tools": ["@adobe/css-tools@4.5.0", "", {}, "sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q=="],
