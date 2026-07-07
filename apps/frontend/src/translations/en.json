@@ -943,6 +943,216 @@
         "title": "<0>Buy and Sell crypto.</0> <br /> Fast, secure, best rates."
       }
     },
+    "payments": {
+      "currencyStrip": {
+        "ariaLabel": "Supported route currencies"
+      },
+      "finance": {
+        "eyebrow": "For finance teams",
+        "headers": {
+          "question": "Question",
+          "traditional": "Traditional path",
+          "vortex": "Vortex route discussion"
+        },
+        "rows": {
+          "operatingCash": {
+            "question": "How fast can funds become operating cash?",
+            "traditional": "Corridor, bank, and intermediary dependent.",
+            "vortex": "Route-dependent settlement paths through local partners."
+          },
+          "spread": {
+            "question": "What spread am I paying?",
+            "traditional": "Often blended into bank FX and correspondent costs.",
+            "vortex": "Quote-based route review before execution."
+          },
+          "vendors": {
+            "question": "Can I pay vendors or contractors locally?",
+            "traditional": "Usually handled outside the receivables workflow.",
+            "vortex": "Discuss payout currency, country, counterparty, and compliance needs together."
+          }
+        },
+        "title": "A cleaner way to compare cross-border payment routes"
+      },
+      "fit": {
+        "eyebrow": "Where Vortex fits",
+        "items": {
+          "compliance": {
+            "body": "Compliance-heavy flows are handled through Vortex and its partners, subject to route requirements.",
+            "title": "KYB and KYC aware"
+          },
+          "localCoverage": {
+            "body": "Connect fiat and stablecoin rails with local settlement paths where availability supports it.",
+            "title": "Local partner coverage"
+          },
+          "nonCustodial": {
+            "body": "Designed around routes and execution rather than forcing businesses into a new treasury stack.",
+            "title": "Non-custodial by design"
+          },
+          "quoteExecution": {
+            "body": "Give finance teams a concrete comparison before moving money across rails.",
+            "title": "Quote-based execution"
+          }
+        },
+        "title": "Finance infrastructure without the operational sprawl"
+      },
+      "flows": {
+        "eyebrow": "Built for real business flows",
+        "items": {
+          "platforms": {
+            "body": "Add fiat-stablecoin settlement and payout flows through Vortex API/widget while Vortex and local partners handle the compliance-heavy parts.",
+            "detail": "Fintechs, marketplaces, payment platforms",
+            "title": "Platforms and marketplaces"
+          },
+          "productExporters": {
+            "body": "Move export receivables into vendor, freight, and operating payments with clearer quotes and stablecoin-based settlement routes.",
+            "detail": "Manufacturing, apparel, agro, food, packaging",
+            "title": "Product exporters and importers"
+          },
+          "serviceExporters": {
+            "body": "Invoice foreign clients and settle into local operating funds for payroll, contractors, and monthly expenses.",
+            "detail": "Software, BPO, design, staffing, digital studios",
+            "title": "Service exporters"
+          }
+        },
+        "title": "Turn international receivables into local operating cash"
+      },
+      "form": {
+        "companyEmail": "Company email",
+        "companyName": "Company name",
+        "country": "Country",
+        "countryPlaceholder": "Brazil, Argentina, Mexico",
+        "disclaimer": "Subject to KYB/KYC, limits, liquidity, and regulatory availability.",
+        "error": "Something went wrong. Please try again or email sales@vortexfinance.co.",
+        "monthlyVolume": "Monthly volume",
+        "payoutCurrency": "Payout currency",
+        "receiveCurrency": "Receive currency",
+        "requestSent": "Request sent",
+        "selectCurrency": "Select currency",
+        "selectRange": "Select range",
+        "selectUseCase": "Select use case",
+        "sending": "Sending...",
+        "submit": "Request route comparison",
+        "successBody": "The Vortex team will review the route details and follow up by email.",
+        "successTitle": "Request received",
+        "useCase": "Use case",
+        "useCaseOptions": {
+          "localPayout": "Local payout",
+          "platform": "Platform or marketplace",
+          "productExporter": "Product exporter/importer",
+          "serviceExporter": "Service exporter"
+        },
+        "validation": {
+          "companyNameRequired": "Company name is required",
+          "countryRequired": "Country is required",
+          "emailFormat": "Please enter a valid company email",
+          "emailRequired": "Company email is required",
+          "payoutCurrencyRequired": "Payout currency is required",
+          "receiveCurrencyRequired": "Receive currency is required",
+          "useCaseRequired": "Use case is required",
+          "volumeRequired": "Monthly volume is required"
+        },
+        "volumeOptions": {
+          "50kTo250k": "50k to 250k",
+          "250kTo1m": "250k to 1m",
+          "over1m": "Over 1m",
+          "under50k": "Under 50k"
+        }
+      },
+      "hero": {
+        "cta": "Talk to Vortex",
+        "description": "Vortex helps businesses turn cross-border customer payments into local settlement, stablecoin treasury, or local bank payouts through compliant fiat and stablecoin routes.",
+        "eyebrow": "Stablecoin payment infrastructure for business",
+        "title": "Receive international business payments on stablecoin rails"
+      },
+      "lead": {
+        "contactTeam": "Contact the Vortex team",
+        "description": "Share the currencies, countries, and monthly volume. Vortex can review whether a fiat and stablecoin route is worth comparing for your business.",
+        "eyebrow": "Compare your route",
+        "preferDirectNote": "Prefer a direct note?",
+        "title": "Tell us the payment flow you want to improve"
+      },
+      "process": {
+        "description": "Vortex gives finance teams a practical path from customer payment to local settlement, with compliance review, quote visibility, and payout routing in one flow.",
+        "eyebrow": "How it works",
+        "steps": {
+          "kyb": {
+            "body": "Confirm company profile, countries, monthly volume, counterparties, and payout needs.",
+            "title": "Complete KYB and route review"
+          },
+          "quote": {
+            "body": "Review route-dependent pricing, FX, stablecoin conversion, timing, and payout path.",
+            "title": "Compare a quote"
+          },
+          "receive": {
+            "body": "Bring in customer payments, stablecoin treasury, or operational funds through supported routes.",
+            "title": "Receive or route funds"
+          },
+          "settle": {
+            "body": "Convert into local bank settlement, vendor payments, or route-dependent payout flows through Vortex and local partners.",
+            "title": "Settle or pay out locally"
+          }
+        },
+        "title": "From KYB to quote-based settlement"
+      },
+      "routeQuote": {
+        "eyebrow": "Route quote",
+        "rows": {
+          "receive": {
+            "description": "Foreign client invoice",
+            "term": "Receive"
+          },
+          "route": {
+            "description": "USD/EUR to USDC to BRL",
+            "term": "Route"
+          },
+          "settlement": {
+            "description": "Local operating funds",
+            "term": "Settlement"
+          },
+          "status": {
+            "description": "Subject to KYB, limits, liquidity, and regulatory availability",
+            "term": "Status"
+          }
+        },
+        "title": "USD/EUR to BRL operating cash"
+      },
+      "routes": {
+        "currencyRoutes": "Currency routes",
+        "description": "Vortex can discuss routes that connect fiat and stablecoin settlement with local instant payment systems, including Pix in Brazil, Bre-B in Colombia, Instant SEPA in Europe, and comparable instant bank rails in Argentina and Mexico. Availability, limits, timing, and pricing stay route-dependent, but the first conversation can map your corridor, settlement currency, and operating flow.",
+        "eyebrow": "Routes we can discuss",
+        "localPayoutRails": "Local payout rails",
+        "localRails": {
+          "argentina": "Argentina instant rails",
+          "breb": "Bre-B",
+          "instantSepa": "Instant SEPA",
+          "mexico": "Mexico instant rails",
+          "pix": "Pix"
+        },
+        "preview": {
+          "disclaimer": "Subject to KYB/KYC, limits, liquidity, and regulatory availability through local partners.",
+          "eyebrow": "Route preview",
+          "from": "From",
+          "fromDetail": "Stablecoin balance",
+          "steps": {
+            "kyb": "Company KYB reviewed",
+            "quote": "Route and quote confirmed",
+            "settlement": "Local bank settlement initiated"
+          },
+          "title": "Convert USDT to BRL via Pix",
+          "to": "To",
+          "toDetail": "Brazilian bank account",
+          "toValue": "BRL via Pix"
+        },
+        "title": "EUR, USD, stablecoins, and local payout routes"
+      },
+      "routeVisual": {
+        "ariaLabel": "Payment route visual",
+        "bankSettlement": "Bank account settlement",
+        "invoice": "Foreign customer invoice",
+        "localBankPayout": "Local bank payout",
+        "stablecoin": "Stablecoin route"
+      }
+    },
     "privacyPolicy": {
       "intro": "This Privacy Policy explains how Vortex (a brand operated by SatoshiPay Ltd) collects and processes personal data when you use our websites, apps, widgets, and related services (collectively, the \"Services\"). It replaces earlier versions and will be updated as our Services evolve.",
       "lastUpdated": "Last updated: 28 September 2025",

@@ -1,92 +1,54 @@
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { FormEvent, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { z } from "zod";
 import PaymentsHeroRails from "../../assets/payments-hero-rails.png";
+import { Field } from "../../components/Field";
 import { cn } from "../../helpers/cn";
 import { submitContactForm } from "../../services/api/contact.service";
+import { buildPaymentsInquiry } from "./paymentsLeadPayload";
 
-const FLOW_SEGMENTS = [
-  {
-    body: "Invoice foreign clients and settle into local operating funds for payroll, contractors, and monthly expenses.",
-    detail: "Software, BPO, design, staffing, digital studios",
-    title: "Service exporters"
-  },
-  {
-    body: "Move export receivables into vendor, freight, and operating payments with clearer quotes and stablecoin-based settlement routes.",
-    detail: "Manufacturing, apparel, agro, food, packaging",
-    title: "Product exporters and importers"
-  },
-  {
-    body: "Add fiat-stablecoin settlement and payout flows through Vortex API/widget while Vortex and local partners handle the compliance-heavy parts.",
-    detail: "Fintechs, marketplaces, payment platforms",
-    title: "Platforms and marketplaces"
-  }
-];
-
-const PROCESS_STEPS = [
-  {
-    body: "Confirm company profile, countries, monthly volume, counterparties, and payout needs.",
-    title: "Complete KYB and route review"
-  },
-  {
-    body: "Bring in customer payments, stablecoin treasury, or operational funds through supported routes.",
-    title: "Receive or route funds"
-  },
-  {
-    body: "Review route-dependent pricing, FX, stablecoin conversion, timing, and payout path.",
-    title: "Compare a quote"
-  },
-  {
-    body: "Convert into local bank settlement, vendor payments, or route-dependent payout flows through Vortex and local partners.",
-    title: "Settle or pay out locally"
-  }
-];
-
-const FIT_ITEMS = [
-  {
-    body: "Designed around routes and execution rather than forcing businesses into a new treasury stack.",
-    title: "Non-custodial by design"
-  },
-  {
-    body: "Connect fiat and stablecoin rails with local settlement paths where availability supports it.",
-    title: "Local partner coverage"
-  },
-  {
-    body: "Compliance-heavy flows are handled through Vortex and its partners, subject to route requirements.",
-    title: "KYB and KYC aware"
-  },
-  {
-    body: "Give finance teams a concrete comparison before moving money across rails.",
-    title: "Quote-based execution"
-  }
-];
-
+const FLOW_SEGMENTS = ["serviceExporters", "productExporters", "platforms"] as const;
+const PROCESS_STEPS = ["kyb", "receive", "quote", "settle"] as const;
+const FIT_ITEMS = ["nonCustodial", "localCoverage", "compliance", "quoteExecution"] as const;
+const COMPARISON_ROWS = ["spread", "operatingCash", "vendors"] as const;
 const CURRENCIES = ["EUR", "USD", "USDC", "EURC", "BRL", "MXN", "COP", "ARS"];
-const LOCAL_RAILS = ["Pix", "Bre-B", "Instant SEPA", "Argentina instant rails", "Mexico instant rails"];
+const LOCAL_RAILS = ["pix", "breb", "instantSepa", "argentina", "mexico"] as const;
+const CURRENCY_STRIP = ["USDC", "EURC", "USD", "EUR", "BRL", "MXN", "COP", "ARS"];
+const VOLUME_OPTIONS = ["under50k", "50kTo250k", "250kTo1m", "over1m"] as const;
+const RECEIVE_CURRENCY_OPTIONS = ["USD", "EUR", "USDC", "EURC"];
+const PAYOUT_CURRENCY_OPTIONS = ["BRL", "MXN", "COP", "ARS", "EUR"];
+const USE_CASE_OPTIONS = ["serviceExporter", "productExporter", "platform", "localPayout"] as const;
 
-const COMPARISON_ROWS = [
-  {
-    question: "What spread am I paying?",
-    traditional: "Often blended into bank FX and correspondent costs.",
-    vortex: "Quote-based route review before execution."
-  },
-  {
-    question: "How fast can funds become operating cash?",
-    traditional: "Corridor, bank, and intermediary dependent.",
-    vortex: "Route-dependent settlement paths through local partners."
-  },
-  {
-    question: "Can I pay vendors or contractors locally?",
-    traditional: "Usually handled outside the receivables workflow.",
-    vortex: "Discuss payout currency, country, counterparty, and compliance needs together."
-  }
-];
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+const createPaymentsLeadSchema = (t: (key: string) => string) =>
+  z.object({
+    companyEmail: z
+      .string()
+      .trim()
+      .min(1, t("pages.payments.form.validation.emailRequired"))
+      .regex(EMAIL_REGEX, t("pages.payments.form.validation.emailFormat")),
+    companyName: z.string().trim().min(1, t("pages.payments.form.validation.companyNameRequired")),
+    country: z.string().trim().min(1, t("pages.payments.form.validation.countryRequired")),
+    payoutCurrency: z.string().trim().min(1, t("pages.payments.form.validation.payoutCurrencyRequired")),
+    privacyPolicyAccepted: z
+      .boolean()
+      .refine(val => val === true, { message: t("pages.contact.validation.privacyPolicyRequired") }),
+    receiveCurrency: z.string().trim().min(1, t("pages.payments.form.validation.receiveCurrencyRequired")),
+    useCase: z.string().trim().min(1, t("pages.payments.form.validation.useCaseRequired")),
+    volume: z.string().trim().min(1, t("pages.payments.form.validation.volumeRequired"))
+  });
+
+type PaymentsLeadFormData = z.infer<ReturnType<typeof createPaymentsLeadSchema>>;
 
 const selectClassName =
   "select select-bordered w-full rounded-lg border-neutral-300 bg-white text-gray-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
-const inputClassName =
-  "input-vortex-primary input-ghost w-full rounded-lg border border-neutral-300 p-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
+const inputClassName = "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20";
 
 export function PaymentsPage() {
   return (
@@ -105,6 +67,7 @@ export function PaymentsPage() {
 
 function HeroSection() {
   const shouldReduceMotion = useReducedMotion();
+  const { t } = useTranslation();
 
   return (
     <section
@@ -127,19 +90,14 @@ function HeroSection() {
           initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          <p className="font-semibold text-cyan-300 text-sm uppercase tracking-[0.18em]">
-            Stablecoin payment infrastructure for business
-          </p>
+          <p className="font-semibold text-cyan-300 text-sm uppercase tracking-[0.18em]">{t("pages.payments.hero.eyebrow")}</p>
           <h1 className="mt-5 font-bold text-h1 text-white" id="payments-hero-title" style={{ textWrap: "balance" }}>
-            Receive international business payments on stablecoin rails
+            {t("pages.payments.hero.title")}
           </h1>
-          <p className="mt-6 max-w-xl text-body-lg text-white/80">
-            Vortex helps businesses turn cross-border customer payments into local settlement, stablecoin treasury, or local
-            bank payouts through compliant fiat and stablecoin routes.
-          </p>
+          <p className="mt-6 max-w-xl text-body-lg text-white/80">{t("pages.payments.hero.description")}</p>
           <div className="mt-8 flex">
             <a className="btn btn-vortex-primary rounded-3xl px-7" href="#payments-lead-form">
-              Talk to Vortex
+              {t("pages.payments.hero.cta")}
             </a>
           </div>
         </motion.div>
@@ -158,17 +116,23 @@ function HeroSection() {
 }
 
 function PaymentRouteCard() {
+  const { t } = useTranslation();
+
   return (
     <aside
-      aria-label="Payment route visual"
+      aria-label={t("pages.payments.routeVisual.ariaLabel")}
       className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-white/15 bg-blue-950/75 shadow-2xl backdrop-blur-md"
     >
       <div className="grid gap-3 p-4 md:grid-cols-[1fr_auto_1fr_auto_1.2fr] md:items-center md:p-5">
-        <RouteNode label="Foreign customer invoice" value="USD / EUR" />
+        <RouteNode label={t("pages.payments.routeVisual.invoice")} value="USD / EUR" />
         <RouteArrow />
-        <RouteNode highlight label="Stablecoin route" value="USDC / EURC" />
+        <RouteNode highlight label={t("pages.payments.routeVisual.stablecoin")} value="USDC / EURC" />
         <RouteArrow />
-        <RouteNode label="Local bank payout" tags={["BRL", "COP", "MXN", "ARS"]} value="Bank account settlement" />
+        <RouteNode
+          label={t("pages.payments.routeVisual.localBankPayout")}
+          tags={["BRL", "COP", "MXN", "ARS"]}
+          value={t("pages.payments.routeVisual.bankSettlement")}
+        />
       </div>
       <RouteQuoteCard />
     </aside>
@@ -216,20 +180,20 @@ function RouteArrow() {
 }
 
 function RouteQuoteCard() {
+  const { t } = useTranslation();
+  const rows = ["receive", "route", "settlement", "status"] as const;
+
   return (
     <div className="bg-white/95 p-5 text-gray-800 md:p-6">
-      <p className="font-semibold text-gray-500 text-sm uppercase">Route quote</p>
-      <h2 className="mt-1 font-bold text-2xl text-blue-950 leading-tight">USD/EUR to BRL operating cash</h2>
+      <p className="font-semibold text-gray-500 text-sm uppercase">{t("pages.payments.routeQuote.eyebrow")}</p>
+      <h2 className="mt-1 font-bold text-2xl text-blue-950 leading-tight">{t("pages.payments.routeQuote.title")}</h2>
       <dl className="mt-5 grid gap-3">
-        {[
-          ["Receive", "Foreign client invoice"],
-          ["Route", "USD/EUR to USDC to BRL"],
-          ["Settlement", "Local operating funds"],
-          ["Status", "Subject to KYB, limits, liquidity, and regulatory availability"]
-        ].map(([term, description]) => (
-          <div className="grid gap-2 border-gray-200 border-t pt-3 sm:grid-cols-[7rem_1fr]" key={term}>
-            <dt className="font-semibold text-gray-500 text-xs uppercase">{term}</dt>
-            <dd className="m-0 font-semibold text-gray-800 text-sm leading-relaxed">{description}</dd>
+        {rows.map(row => (
+          <div className="grid gap-2 border-gray-200 border-t pt-3 sm:grid-cols-[7rem_1fr]" key={row}>
+            <dt className="font-semibold text-gray-500 text-xs uppercase">{t(`pages.payments.routeQuote.rows.${row}.term`)}</dt>
+            <dd className="m-0 font-semibold text-gray-800 text-sm leading-relaxed">
+              {t(`pages.payments.routeQuote.rows.${row}.description`)}
+            </dd>
           </div>
         ))}
       </dl>
@@ -238,10 +202,15 @@ function RouteQuoteCard() {
 }
 
 function CurrencyStrip() {
+  const { t } = useTranslation();
+
   return (
-    <section aria-label="Supported route currencies" className="border-blue-100 border-y bg-white px-4 py-6 md:px-10">
+    <section
+      aria-label={t("pages.payments.currencyStrip.ariaLabel")}
+      className="border-blue-100 border-y bg-white px-4 py-6 md:px-10"
+    >
       <div className="container mx-auto flex flex-wrap justify-center gap-3">
-        {["USDC", "EURC", "USD", "EUR", "BRL", "MXN", "COP", "ARS"].map(currency => (
+        {CURRENCY_STRIP.map(currency => (
           <span className="rounded-full bg-gray-50 px-4 py-2 font-semibold text-blue-950 text-sm shadow-sm" key={currency}>
             {currency}
           </span>
@@ -252,24 +221,27 @@ function CurrencyStrip() {
 }
 
 function BusinessFlowsSection() {
+  const { t } = useTranslation();
+
   return (
     <section aria-labelledby="payments-flows-title" className="container mx-auto px-4 py-20 md:px-10 lg:py-28">
       <SectionHeading
-        eyebrow="Built for real business flows"
-        title="Turn international receivables into local operating cash"
+        eyebrow={t("pages.payments.flows.eyebrow")}
+        id="payments-flows-title"
+        title={t("pages.payments.flows.title")}
       />
       <div className="mt-12 grid gap-6 lg:grid-cols-3">
         {FLOW_SEGMENTS.map(item => (
-          <article className="rounded-lg border border-gray-100 bg-white p-6 shadow-card" key={item.title}>
+          <article className="rounded-lg border border-gray-100 bg-white p-6 shadow-card" key={item}>
             <div
               aria-hidden="true"
               className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50 text-primary"
             >
               <span className="h-5 w-5 rounded-full border-4 border-current" />
             </div>
-            <h3 className="font-bold text-blue-950 text-h3">{item.title}</h3>
-            <p className="mt-3 text-body text-gray-600">{item.body}</p>
-            <p className="mt-5 font-semibold text-gray-800 text-sm">{item.detail}</p>
+            <h3 className="font-bold text-blue-950 text-h3">{t(`pages.payments.flows.items.${item}.title`)}</h3>
+            <p className="mt-3 text-body text-gray-600">{t(`pages.payments.flows.items.${item}.body`)}</p>
+            <p className="mt-5 font-semibold text-gray-800 text-sm">{t(`pages.payments.flows.items.${item}.detail`)}</p>
           </article>
         ))}
       </div>
@@ -278,23 +250,27 @@ function BusinessFlowsSection() {
 }
 
 function HowItWorksSection() {
+  const { t } = useTranslation();
+
   return (
     <section aria-labelledby="payments-process-title" className="bg-blue-50 px-4 py-20 md:px-10 lg:py-28">
       <div className="container mx-auto grid gap-12 lg:grid-cols-[0.78fr_1fr]">
         <div className="lg:sticky lg:top-24 lg:h-fit">
-          <SectionHeading align="left" eyebrow="How it works" title="From KYB to quote-based settlement" />
-          <p className="mt-5 max-w-xl text-body-lg text-gray-600">
-            Vortex gives finance teams a practical path from customer payment to local settlement, with compliance review, quote
-            visibility, and payout routing in one flow.
-          </p>
+          <SectionHeading
+            align="left"
+            eyebrow={t("pages.payments.process.eyebrow")}
+            id="payments-process-title"
+            title={t("pages.payments.process.title")}
+          />
+          <p className="mt-5 max-w-xl text-body-lg text-gray-600">{t("pages.payments.process.description")}</p>
         </div>
         <ol className="space-y-5">
           {PROCESS_STEPS.map((step, index) => (
-            <li className="grid gap-4 rounded-lg bg-white p-6 shadow-card md:grid-cols-[auto_1fr]" key={step.title}>
+            <li className="grid gap-4 rounded-lg bg-white p-6 shadow-card md:grid-cols-[auto_1fr]" key={step}>
               <span className="font-bold text-h3 text-primary">{String(index + 1).padStart(2, "0")}</span>
               <div>
-                <h3 className="font-bold text-blue-950 text-h3">{step.title}</h3>
-                <p className="mt-2 text-body text-gray-600">{step.body}</p>
+                <h3 className="font-bold text-blue-950 text-h3">{t(`pages.payments.process.steps.${step}.title`)}</h3>
+                <p className="mt-2 text-body text-gray-600">{t(`pages.payments.process.steps.${step}.body`)}</p>
               </div>
             </li>
           ))}
@@ -305,6 +281,8 @@ function HowItWorksSection() {
 }
 
 function WhereVortexFitsSection() {
+  const { t } = useTranslation();
+
   return (
     <section
       aria-labelledby="payments-fit-title"
@@ -312,15 +290,16 @@ function WhereVortexFitsSection() {
     >
       <div className="container mx-auto">
         <SectionHeading
-          eyebrow="Where Vortex fits"
-          title="Finance infrastructure without the operational sprawl"
+          eyebrow={t("pages.payments.fit.eyebrow")}
+          id="payments-fit-title"
+          title={t("pages.payments.fit.title")}
           variant="dark"
         />
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           {FIT_ITEMS.map(item => (
-            <article className="rounded-lg border border-white/10 bg-white/5 p-6" key={item.title}>
-              <h3 className="font-bold text-h3 text-white">{item.title}</h3>
-              <p className="mt-3 text-blue-100 text-body">{item.body}</p>
+            <article className="rounded-lg border border-white/10 bg-white/5 p-6" key={item}>
+              <h3 className="font-bold text-h3 text-white">{t(`pages.payments.fit.items.${item}.title`)}</h3>
+              <p className="mt-3 text-blue-100 text-body">{t(`pages.payments.fit.items.${item}.body`)}</p>
             </article>
           ))}
         </div>
@@ -330,50 +309,62 @@ function WhereVortexFitsSection() {
 }
 
 function RoutesSection() {
+  const { t } = useTranslation();
+
   return (
     <section
       aria-labelledby="payments-routes-title"
       className="container mx-auto grid gap-12 px-4 py-20 md:px-10 lg:grid-cols-2 lg:py-28"
     >
       <div>
-        <SectionHeading align="left" eyebrow="Routes we can discuss" title="EUR, USD, stablecoins, and local payout routes" />
-        <p className="mt-5 text-body-lg text-gray-600">
-          Vortex can discuss routes that connect fiat and stablecoin settlement with local instant payment systems, including
-          Pix in Brazil, Bre-B in Colombia, Instant SEPA in Europe, and comparable instant bank rails in Argentina and Mexico.
-          Availability, limits, timing, and pricing stay route-dependent, but the first conversation can map your corridor,
-          settlement currency, and operating flow.
-        </p>
-        <ChipSet items={CURRENCIES} label="Currency routes" />
-        <ChipSet items={LOCAL_RAILS} label="Local payout rails" muted />
+        <SectionHeading
+          align="left"
+          eyebrow={t("pages.payments.routes.eyebrow")}
+          id="payments-routes-title"
+          title={t("pages.payments.routes.title")}
+        />
+        <p className="mt-5 text-body-lg text-gray-600">{t("pages.payments.routes.description")}</p>
+        <ChipSet items={CURRENCIES} label={t("pages.payments.routes.currencyRoutes")} />
+        <ChipSet
+          items={LOCAL_RAILS.map(item => t(`pages.payments.routes.localRails.${item}`))}
+          label={t("pages.payments.routes.localPayoutRails")}
+          muted
+        />
       </div>
       <div className="rounded-lg border border-gray-100 bg-white p-5 shadow-card">
         <div className="rounded-lg bg-blue-950 p-4 text-white">
-          <p className="font-semibold text-blue-200 text-sm">Route preview</p>
-          <h3 className="mt-1 font-bold text-h3">Convert USDT to BRL via Pix</h3>
+          <p className="font-semibold text-blue-200 text-sm">{t("pages.payments.routes.preview.eyebrow")}</p>
+          <h3 className="mt-1 font-bold text-h3">{t("pages.payments.routes.preview.title")}</h3>
         </div>
         <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
-          <AmountCard detail="Stablecoin balance" label="From" value="10,000 USDT" />
+          <AmountCard
+            detail={t("pages.payments.routes.preview.fromDetail")}
+            label={t("pages.payments.routes.preview.from")}
+            value="10,000 USDT"
+          />
           <div
             aria-hidden="true"
             className="mx-auto h-10 w-10 rounded-full bg-primary/10 text-center font-bold text-primary leading-10"
           >
             →
           </div>
-          <AmountCard detail="Brazilian bank account" label="To" value="BRL via Pix" />
+          <AmountCard
+            detail={t("pages.payments.routes.preview.toDetail")}
+            label={t("pages.payments.routes.preview.to")}
+            value={t("pages.payments.routes.preview.toValue")}
+          />
         </div>
         <ol className="mt-5 grid gap-3">
-          {["Company KYB reviewed", "Route and quote confirmed", "Local bank settlement initiated"].map((item, index) => (
+          {(["kyb", "quote", "settlement"] as const).map((item, index) => (
             <li className="flex items-center gap-3 rounded-lg bg-blue-50 p-3 text-gray-700" key={item}>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-sm text-white">
                 {index + 1}
               </span>
-              {item}
+              {t(`pages.payments.routes.preview.steps.${item}`)}
             </li>
           ))}
         </ol>
-        <p className="mt-5 text-gray-500 text-sm">
-          Subject to KYB/KYC, limits, liquidity, and regulatory availability through local partners.
-        </p>
+        <p className="mt-5 text-gray-500 text-sm">{t("pages.payments.routes.preview.disclaimer")}</p>
       </div>
     </section>
   );
@@ -390,28 +381,38 @@ function AmountCard({ label, value, detail }: { label: string; value: string; de
 }
 
 function FinanceComparisonSection() {
+  const { t } = useTranslation();
+
   return (
     <section aria-labelledby="payments-finance-title" className="bg-blue-50 px-4 py-20 md:px-10 lg:py-28">
       <div className="container mx-auto">
-        <SectionHeading eyebrow="For finance teams" title="A cleaner way to compare cross-border payment routes" />
+        <SectionHeading
+          eyebrow={t("pages.payments.finance.eyebrow")}
+          id="payments-finance-title"
+          title={t("pages.payments.finance.title")}
+        />
         <div className="mt-12 overflow-hidden rounded-lg bg-white shadow-card">
           <div className="grid bg-blue-950 px-5 py-4 font-semibold text-white md:grid-cols-3">
-            <span>Question</span>
-            <span className="hidden md:block">Traditional path</span>
-            <span className="hidden md:block">Vortex route discussion</span>
+            <span>{t("pages.payments.finance.headers.question")}</span>
+            <span className="hidden md:block">{t("pages.payments.finance.headers.traditional")}</span>
+            <span className="hidden md:block">{t("pages.payments.finance.headers.vortex")}</span>
           </div>
           {COMPARISON_ROWS.map(row => (
-            <div className="grid gap-3 border-gray-100 border-t px-5 py-5 md:grid-cols-3" key={row.question}>
+            <div className="grid gap-3 border-gray-100 border-t px-5 py-5 md:grid-cols-3" key={row}>
               <div>
-                <p className="font-semibold text-blue-950">{row.question}</p>
+                <p className="font-semibold text-blue-950">{t(`pages.payments.finance.rows.${row}.question`)}</p>
               </div>
               <div>
-                <p className="font-semibold text-gray-400 text-xs uppercase md:hidden">Traditional path</p>
-                <p className="text-gray-600">{row.traditional}</p>
+                <p className="font-semibold text-gray-400 text-xs uppercase md:hidden">
+                  {t("pages.payments.finance.headers.traditional")}
+                </p>
+                <p className="text-gray-600">{t(`pages.payments.finance.rows.${row}.traditional`)}</p>
               </div>
               <div>
-                <p className="font-semibold text-gray-400 text-xs uppercase md:hidden">Vortex route discussion</p>
-                <p className="text-gray-600">{row.vortex}</p>
+                <p className="font-semibold text-gray-400 text-xs uppercase md:hidden">
+                  {t("pages.payments.finance.headers.vortex")}
+                </p>
+                <p className="text-gray-600">{t(`pages.payments.finance.rows.${row}.vortex`)}</p>
               </div>
             </div>
           ))}
@@ -422,6 +423,8 @@ function FinanceComparisonSection() {
 }
 
 function LeadSection() {
+  const { t } = useTranslation();
+
   return (
     <section
       aria-labelledby="payments-lead-title"
@@ -429,18 +432,20 @@ function LeadSection() {
       id="payments-lead-form"
     >
       <div>
-        <SectionHeading align="left" eyebrow="Compare your route" title="Tell us the payment flow you want to improve" />
-        <p className="mt-5 text-body-lg text-gray-600">
-          Share the currencies, countries, and monthly volume. Vortex can review whether a fiat and stablecoin route is worth
-          comparing for your business.
-        </p>
+        <SectionHeading
+          align="left"
+          eyebrow={t("pages.payments.lead.eyebrow")}
+          id="payments-lead-title"
+          title={t("pages.payments.lead.title")}
+        />
+        <p className="mt-5 text-body-lg text-gray-600">{t("pages.payments.lead.description")}</p>
         <p className="mt-6 text-gray-500 text-sm">
-          Prefer a direct note?{" "}
+          {t("pages.payments.lead.preferDirectNote")}{" "}
           <Link
             className="font-semibold text-primary underline decoration-primary/30 underline-offset-2"
             to="/{-$locale}/contact"
           >
-            Contact the Vortex team
+            {t("pages.payments.lead.contactTeam")}
           </Link>
           .
         </p>
@@ -452,108 +457,185 @@ function LeadSection() {
 
 function PaymentsLeadForm() {
   const formId = useId();
-  const formRef = useRef<HTMLFormElement>(null);
+  const { t, i18n } = useTranslation();
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const schema = createPaymentsLeadSchema(t);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting, isValid, touchedFields }
+  } = useForm<PaymentsLeadFormData>({
+    defaultValues: {
+      companyEmail: "",
+      companyName: "",
+      country: "",
+      payoutCurrency: "",
+      privacyPolicyAccepted: false,
+      receiveCurrency: "",
+      useCase: "",
+      volume: ""
+    },
+    mode: "onChange",
+    resolver: standardSchemaResolver(schema)
+  });
   const mutation = useMutation({
     mutationFn: submitContactForm,
     onError: () => setStatus("error"),
     onSuccess: () => {
-      formRef.current?.reset();
+      reset();
       setStatus("success");
     }
   });
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const companyEmail = String(formData.get("companyEmail") || "");
-    const companyName = String(formData.get("companyName") || "Payments route lead");
-    const routeSummary = [
-      `Monthly volume: ${formData.get("volume")}`,
-      `Receive currency: ${formData.get("receiveCurrency")}`,
-      `Payout currency: ${formData.get("payoutCurrency")}`,
-      `Country: ${formData.get("country")}`,
-      `Use case: ${formData.get("useCase")}`
-    ].join("\n");
+  useEffect(() => {
+    if (status === "success" || status === "error") {
+      const timeout = setTimeout(() => setStatus("idle"), 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [status]);
 
+  const onSubmit = handleSubmit(data => {
     mutation.mutate({
-      email: companyEmail,
-      fullName: companyName,
-      inquiry: `Payments route comparison request\n\n${routeSummary}`,
-      projectName: companyName,
+      email: data.companyEmail,
+      fullName: data.companyName,
+      inquiry: buildPaymentsInquiry(data),
+      projectName: data.companyName,
       timestamp: new Date().toISOString()
     });
-  };
+  });
 
-  const disabled = mutation.isPending || status === "success";
+  const disabled = mutation.isPending || isSubmitting || status === "success";
 
   return (
-    <form className="rounded-lg bg-white p-6 shadow-card md:p-8" onSubmit={handleSubmit} ref={formRef}>
+    <form className="rounded-lg bg-white p-6 shadow-card md:p-8" onSubmit={onSubmit}>
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField htmlFor={`${formId}-company`} label="Company name">
-          <input className={inputClassName} disabled={disabled} id={`${formId}-company`} name="companyName" required />
+        <FormField
+          error={touchedFields.companyName ? errors.companyName?.message : undefined}
+          htmlFor={`${formId}-company`}
+          label={t("pages.payments.form.companyName")}
+        >
+          <Field
+            autoComplete="organization"
+            className={inputClassName}
+            disabled={disabled}
+            error={touchedFields.companyName && !!errors.companyName}
+            id={`${formId}-company`}
+            register={register("companyName")}
+          />
         </FormField>
-        <FormField htmlFor={`${formId}-email`} label="Company email">
-          <input
+        <FormField
+          error={touchedFields.companyEmail ? errors.companyEmail?.message : undefined}
+          htmlFor={`${formId}-email`}
+          label={t("pages.payments.form.companyEmail")}
+        >
+          <Field
             autoComplete="email"
             className={inputClassName}
             disabled={disabled}
+            error={touchedFields.companyEmail && !!errors.companyEmail}
             id={`${formId}-email`}
-            name="companyEmail"
-            required
+            register={register("companyEmail")}
             type="email"
           />
         </FormField>
-        <FormField htmlFor={`${formId}-volume`} label="Monthly volume">
-          <select className={selectClassName} disabled={disabled} id={`${formId}-volume`} name="volume" required>
-            <option value="">Select range</option>
-            <option>Under 50k</option>
-            <option>50k to 250k</option>
-            <option>250k to 1m</option>
-            <option>Over 1m</option>
+        <FormField
+          error={touchedFields.volume ? errors.volume?.message : undefined}
+          htmlFor={`${formId}-volume`}
+          label={t("pages.payments.form.monthlyVolume")}
+        >
+          <select className={selectClassName} disabled={disabled} id={`${formId}-volume`} {...register("volume")}>
+            <option value="">{t("pages.payments.form.selectRange")}</option>
+            {VOLUME_OPTIONS.map(option => (
+              <option key={option} value={t(`pages.payments.form.volumeOptions.${option}`)}>
+                {t(`pages.payments.form.volumeOptions.${option}`)}
+              </option>
+            ))}
           </select>
         </FormField>
-        <FormField htmlFor={`${formId}-receive`} label="Receive currency">
-          <select className={selectClassName} disabled={disabled} id={`${formId}-receive`} name="receiveCurrency" required>
-            <option value="">Select currency</option>
-            <option>USD</option>
-            <option>EUR</option>
-            <option>USDC</option>
-            <option>EURC</option>
+        <FormField
+          error={touchedFields.receiveCurrency ? errors.receiveCurrency?.message : undefined}
+          htmlFor={`${formId}-receive`}
+          label={t("pages.payments.form.receiveCurrency")}
+        >
+          <select className={selectClassName} disabled={disabled} id={`${formId}-receive`} {...register("receiveCurrency")}>
+            <option value="">{t("pages.payments.form.selectCurrency")}</option>
+            {RECEIVE_CURRENCY_OPTIONS.map(option => (
+              <option key={option}>{option}</option>
+            ))}
           </select>
         </FormField>
-        <FormField htmlFor={`${formId}-payout`} label="Payout currency">
-          <select className={selectClassName} disabled={disabled} id={`${formId}-payout`} name="payoutCurrency" required>
-            <option value="">Select currency</option>
-            <option>BRL</option>
-            <option>MXN</option>
-            <option>COP</option>
-            <option>ARS</option>
-            <option>EUR</option>
+        <FormField
+          error={touchedFields.payoutCurrency ? errors.payoutCurrency?.message : undefined}
+          htmlFor={`${formId}-payout`}
+          label={t("pages.payments.form.payoutCurrency")}
+        >
+          <select className={selectClassName} disabled={disabled} id={`${formId}-payout`} {...register("payoutCurrency")}>
+            <option value="">{t("pages.payments.form.selectCurrency")}</option>
+            {PAYOUT_CURRENCY_OPTIONS.map(option => (
+              <option key={option}>{option}</option>
+            ))}
           </select>
         </FormField>
-        <FormField htmlFor={`${formId}-country`} label="Country">
-          <input
+        <FormField
+          error={touchedFields.country ? errors.country?.message : undefined}
+          htmlFor={`${formId}-country`}
+          label={t("pages.payments.form.country")}
+        >
+          <Field
             className={inputClassName}
             disabled={disabled}
+            error={touchedFields.country && !!errors.country}
             id={`${formId}-country`}
-            name="country"
-            placeholder="Brazil, Argentina, Mexico"
-            required
+            placeholder={t("pages.payments.form.countryPlaceholder")}
+            register={register("country")}
           />
         </FormField>
-        <FormField className="md:col-span-2" htmlFor={`${formId}-use-case`} label="Use case">
-          <select className={selectClassName} disabled={disabled} id={`${formId}-use-case`} name="useCase" required>
-            <option value="">Select use case</option>
-            <option>Service exporter</option>
-            <option>Product exporter/importer</option>
-            <option>Platform or marketplace</option>
-            <option>Local payout</option>
+        <FormField
+          className="md:col-span-2"
+          error={touchedFields.useCase ? errors.useCase?.message : undefined}
+          htmlFor={`${formId}-use-case`}
+          label={t("pages.payments.form.useCase")}
+        >
+          <select className={selectClassName} disabled={disabled} id={`${formId}-use-case`} {...register("useCase")}>
+            <option value="">{t("pages.payments.form.selectUseCase")}</option>
+            {USE_CASE_OPTIONS.map(option => (
+              <option key={option} value={t(`pages.payments.form.useCaseOptions.${option}`)}>
+                {t(`pages.payments.form.useCaseOptions.${option}`)}
+              </option>
+            ))}
           </select>
         </FormField>
       </div>
-      <button className="btn btn-vortex-primary mt-6 w-full rounded-3xl" disabled={disabled} type="submit">
-        {mutation.isPending ? "Sending..." : status === "success" ? "Request sent" : "Request route comparison"}
+      <div className="mt-4 flex items-start gap-2">
+        <input
+          {...register("privacyPolicyAccepted")}
+          className="checkbox checkbox-primary checkbox-sm mt-0.5"
+          disabled={disabled}
+          id={`${formId}-privacy`}
+          type="checkbox"
+        />
+        <label className="text-gray-500 text-sm" htmlFor={`${formId}-privacy`}>
+          {t("pages.contact.form.privacyPolicy")}{" "}
+          <a
+            className="text-primary underline hover:text-primary/80"
+            href={`/${i18n.language}/privacy-policy`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {t("pages.contact.form.privacyPolicyLink")}
+          </a>
+        </label>
+      </div>
+      {touchedFields.privacyPolicyAccepted && errors.privacyPolicyAccepted?.message && (
+        <p className="mt-1 text-error text-xs">{errors.privacyPolicyAccepted.message}</p>
+      )}
+      <button className="btn btn-vortex-primary mt-6 w-full rounded-3xl" disabled={disabled || !isValid} type="submit">
+        {mutation.isPending
+          ? t("pages.payments.form.sending")
+          : status === "success"
+            ? t("pages.payments.form.requestSent")
+            : t("pages.payments.form.submit")}
       </button>
       <AnimatePresence>
         {status === "success" && (
@@ -564,17 +646,17 @@ function PaymentsLeadForm() {
             initial={{ opacity: 0, y: -4 }}
             role="status"
           >
-            <p className="font-semibold">Request received</p>
-            <p className="mt-1">The Vortex team will review the route details and follow up by email.</p>
+            <p className="font-semibold">{t("pages.payments.form.successTitle")}</p>
+            <p className="mt-1">{t("pages.payments.form.successBody")}</p>
           </motion.div>
         )}
         {status === "error" && (
           <motion.p animate={{ opacity: 1 }} className="mt-3 text-error text-sm" exit={{ opacity: 0 }} initial={{ opacity: 0 }}>
-            Something went wrong. Please try again or email sales@vortexfinance.co.
+            {t("pages.payments.form.error")}
           </motion.p>
         )}
       </AnimatePresence>
-      <p className="mt-4 text-gray-500 text-sm">Subject to KYB/KYC, limits, liquidity, and regulatory availability.</p>
+      <p className="mt-4 text-gray-500 text-sm">{t("pages.payments.form.disclaimer")}</p>
     </form>
   );
 }
@@ -582,11 +664,13 @@ function PaymentsLeadForm() {
 function FormField({
   children,
   className,
+  error,
   htmlFor,
   label
 }: {
   children: React.ReactNode;
   className?: string;
+  error?: string;
   htmlFor: string;
   label: string;
 }) {
@@ -594,6 +678,7 @@ function FormField({
     <label className={cn("block", className)} htmlFor={htmlFor}>
       <span className="mb-1 block font-medium text-gray-600 text-xs">{label}</span>
       {children}
+      {error && <span className="mt-1 block text-error text-xs">{error}</span>}
     </label>
   );
 }
@@ -619,11 +704,13 @@ function ChipSet({ items, label, muted = false }: { items: string[]; label: stri
 function SectionHeading({
   align = "center",
   eyebrow,
+  id,
   title,
   variant = "light"
 }: {
   align?: "center" | "left";
   eyebrow: string;
+  id: string;
   title: string;
   variant?: "dark" | "light";
 }) {
@@ -634,19 +721,7 @@ function SectionHeading({
       <p className="font-semibold text-primary text-sm uppercase tracking-[0.18em]">{eyebrow}</p>
       <h2
         className={cn("mt-3 font-bold text-4xl leading-tight md:text-5xl", isDark ? "text-white" : "text-blue-950")}
-        id={
-          eyebrow === "Built for real business flows"
-            ? "payments-flows-title"
-            : eyebrow === "How it works"
-              ? "payments-process-title"
-              : eyebrow === "Where Vortex fits"
-                ? "payments-fit-title"
-                : eyebrow === "Routes we can discuss"
-                  ? "payments-routes-title"
-                  : eyebrow === "For finance teams"
-                    ? "payments-finance-title"
-                    : "payments-lead-title"
-        }
+        id={id}
         style={{ textWrap: "balance" }}
       >
         {title}

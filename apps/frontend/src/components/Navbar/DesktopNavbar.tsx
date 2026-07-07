@@ -12,8 +12,8 @@ export const DesktopNavbar = () => {
   const params = useParams({ strict: false });
   const routerState = useRouterState();
 
-  const isLightMarketingPage = routerState.location.pathname.includes("/business");
-  const useTransparentStyle = isWidgetMode || isLightMarketingPage;
+  const isBusinessPage = routerState.location.pathname.includes("/business");
+  const useTransparentStyle = isWidgetMode || isBusinessPage;
 
   return (
     <div className={cn("relative px-4 py-4 md:px-10 md:py-5", useTransparentStyle ? "bg-transparent" : "bg-blue-950")}>
@@ -23,17 +23,17 @@ export const DesktopNavbar = () => {
         ) : (
           <>
             <div className="group flex grow items-center gap-10">
-              <LogoButton onClick={resetRampAndNavigateHome} variant={isLightMarketingPage ? "blue" : "white"} />
+              <LogoButton onClick={resetRampAndNavigateHome} variant={isBusinessPage ? "blue" : "white"} />
               <Link
                 activeProps={{
                   className: cn(
                     "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
-                    isLightMarketingPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
+                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
                   )
                 }}
                 className={cn(
                   "text-xl transition-colors",
-                  isLightMarketingPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
+                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
                 )}
                 params={params}
                 to="/{-$locale}"
@@ -44,12 +44,12 @@ export const DesktopNavbar = () => {
                 activeProps={{
                   className: cn(
                     "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
-                    isLightMarketingPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
+                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
                   )
                 }}
                 className={cn(
                   "text-xl transition-colors",
-                  isLightMarketingPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
+                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
                 )}
                 params={params}
                 to="/{-$locale}/business"
@@ -60,12 +60,12 @@ export const DesktopNavbar = () => {
                 activeProps={{
                   className: cn(
                     "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
-                    isLightMarketingPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
+                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
                   )
                 }}
                 className={cn(
                   "text-xl transition-colors",
-                  isLightMarketingPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
+                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
                 )}
                 params={params}
                 to="/{-$locale}/payments"
