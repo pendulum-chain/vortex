@@ -37,6 +37,8 @@ import { Op } from "sequelize";
 import logger from "../../config/logger";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { resolveAveniaAccountForUser } from "../services/avenia-account";
 
 // Helper functions for TaxId updates
 
@@ -148,32 +150,48 @@ export const getAveniaUser = async (
 ): Promise<void> => {
   try {
     const { taxId } = req.query;
+    const effectiveUserId = getEffectiveUserId(req);
 
-    if (!taxId) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: "Missing or invalid authentication."
+      });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const taxIdRecord = await TaxId.findOne({
-      where: {
-        internalStatus: {
-          [Op.ne]: TaxIdInternalStatus.Consulted
-        },
-        taxId: normalizeTaxId(taxId)
-      }
-    });
-    if (!taxIdRecord) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
+    let taxIdRecord: TaxId | null;
 
-    // When the caller authenticated as a Supabase user, only the owning user may read this taxId.
-    // Partner SDK callers (no req.userId) are intentionally exempt: they authenticate via API key
-    // and may need to look up any taxId for their integration flow.
-    if (req.userId && taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
-      return;
+    if (taxId) {
+      const normalized = normalizeTaxId(taxId);
+      taxIdRecord = await TaxId.findOne({
+        where: {
+          internalStatus: { [Op.ne]: TaxIdInternalStatus.Consulted },
+          taxId: normalized
+        }
+      });
+
+      if (!taxIdRecord) {
+        res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
+        return;
+      }
+
+      // TaxId must be owned by the effective user.
+      if (taxIdRecord.userId !== effectiveUserId) {
+        res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+        return;
+      }
+    } else {
+      try {
+        const resolved = await resolveAveniaAccountForUser(effectiveUserId);
+        taxIdRecord = resolved.taxIdRecord;
+      } catch (error) {
+        if (error instanceof APIError) {
+          res.status(error.status ?? httpStatus.BAD_REQUEST).json({ error: error.message });
+          return;
+        }
+        throw error;
+      }
     }
 
     const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
@@ -209,6 +227,7 @@ export const recordInitialKycAttempt = async (
 ): Promise<void> => {
   try {
     const { taxId, quoteId, sessionId } = req.body;
+    const effectiveUserId = getEffectiveUserId(req);
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId query parameters" });
@@ -237,7 +256,7 @@ export const recordInitialKycAttempt = async (
           internalStatus: TaxIdInternalStatus.Consulted,
           subAccountId: "",
           taxId,
-          userId: req.userId ?? null
+          userId: effectiveUserId ?? null
         });
       }
     }
@@ -255,25 +274,50 @@ export const getAveniaUserRemainingLimit = async (
 ): Promise<void> => {
   try {
     const { taxId, direction } = req.query;
+    const effectiveUserId = getEffectiveUserId(req);
 
-    if (!taxId || !direction) {
-      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId or direction query parameter" });
+    if (!direction) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "Missing direction query parameter" });
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
-      throw new APIError({
-        message: "Ramp disabled",
-        status: httpStatus.BAD_REQUEST
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: "This endpoint requires authentication."
       });
+      return;
+    }
+
+    let taxIdRecord: TaxId | null;
+    if (taxId) {
+      taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
+      if (!taxIdRecord) {
+        throw new APIError({
+          message: "taxId does not match existing records",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      // TaxId must be owned by the effective user. The legacy partner-key
+      // exemption that allowed reading any taxId has been removed.
+      if (taxIdRecord.userId !== effectiveUserId) {
+        res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+        return;
+      }
+    } else {
+      try {
+        const resolved = await resolveAveniaAccountForUser(effectiveUserId);
+        taxIdRecord = resolved.taxIdRecord;
+      } catch (error) {
+        if (error instanceof APIError) {
+          res.status(error.status ?? httpStatus.BAD_REQUEST).json({ error: error.message });
+          return;
+        }
+        throw error;
+      }
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    if (!taxIdRecord) {
-      res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
-      return;
-    }
     const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
@@ -316,6 +360,16 @@ export const createSubaccount = async (
 ): Promise<void> => {
   try {
     const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
+    const effectiveUserId = getEffectiveUserId(req);
+
+    // Reject callers that do not resolve to a user (anonymous requests
+    // or unlinked secret keys) so the resulting TaxId is always owned by a real profile.
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: "This endpoint requires authentication."
+      });
+      return;
+    }
 
     const isCnpj = isValidCnpj(taxId);
 
@@ -328,7 +382,7 @@ export const createSubaccount = async (
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
     const existingTaxId = await TaxId.findByPk(normalizedTaxId);
     if (existingTaxId && existingTaxId.internalStatus !== TaxIdInternalStatus.Consulted) {
-      const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== (req.userId ?? null);
+      const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== effectiveUserId;
       if (ownedByAnotherUser) {
         res.status(httpStatus.CONFLICT).json({
           error: "A subaccount already exists for this taxId"
@@ -336,8 +390,8 @@ export const createSubaccount = async (
         return;
       }
       // Allow authenticated users to claim anonymous records by updating userId
-      if (existingTaxId.userId === null && req.userId) {
-        await existingTaxId.update({ userId: req.userId });
+      if (existingTaxId.userId === null) {
+        await existingTaxId.update({ userId: effectiveUserId });
       }
     }
 
@@ -363,7 +417,7 @@ export const createSubaccount = async (
         requestedDate: new Date(),
         subAccountId: id,
         taxId: normalizedTaxId,
-        userId: req.userId ?? null
+        userId: effectiveUserId
       });
     }
 
@@ -544,7 +598,7 @@ export const getUploadUrls = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
@@ -600,7 +654,7 @@ export const newKyc = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
@@ -642,7 +696,7 @@ export const initiateKybLevel1 = async (
     }
 
     if (!req.userId || taxIdRecord.userId !== req.userId) {
-      res.status(httpStatus.FORBIDDEN).json({ error: "Forbidden" });
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 

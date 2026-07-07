@@ -15,6 +15,7 @@ import {
   multiplyByPowerOfTen,
   NATIVE_TOKEN_ADDRESS,
   Networks,
+  nativeToDecimal,
   RampCurrency,
   RampDirection,
   RampPhase,
@@ -31,8 +32,13 @@ import { priceFeedService } from "../../priceFeed.service";
 import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
+import { computeSubsidyRaw } from "./final-settlement-subsidy.helpers";
 
 const BALANCE_POLLING_TIME_MS = 5000;
+// Backoff between failed subsidy-transfer attempts. Overridable so hermetic
+// tests don't wait 20s per scripted failure (same pattern as
+// PHASE_PROCESSOR_RETRY_DELAY_MS).
+const SETTLEMENT_RETRY_BACKOFF_MS = parseInt(process.env.PHASE_SETTLEMENT_RETRY_BACKOFF_MS || "20000", 10);
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 // Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
 const MIN_BRIDGE_DELIVERY_RATIO = 0.9;
@@ -178,10 +184,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
     });
     logger.debug(`FinalSettlementSubsidyHandler: Funding account balance=${actualBalanceFundingAccount.toString()}`);
 
-    const subsidyAmountRaw = expectedAmountRaw.minus(delivered);
+    // Clamped to the true on-chain shortfall — see computeSubsidyRaw. This bounds any over-subsidy
+    // from a mis-timed preSettlementBalance snapshot (e.g. same-chain synchronous swaps).
+    const deliveredBasedSubsidy = expectedAmountRaw.minus(delivered);
+    const subsidyAmountRaw = computeSubsidyRaw(expectedAmountRaw, delivered, actualBalance);
     logger.debug(
       `FinalSettlementSubsidyHandler: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - delivered=${delivered.toString()}, actualBalance=${actualBalance.toString()}, preSettlementBalance=${preBalance.toString()})`
     );
+
+    if (subsidyAmountRaw.lt(deliveredBasedSubsidy)) {
+      logger.warn(
+        `FinalSettlementSubsidyHandler: Clamped subsidy ${deliveredBasedSubsidy.toString()} -> ${subsidyAmountRaw.toString()} ` +
+          `(actualBalance=${actualBalance.toString()}, expected=${expectedAmountRaw.toString()}, delivered=${delivered.toString()}). ` +
+          "delivered-calc disagrees with chain balance."
+      );
+    }
 
     if (subsidyAmountRaw.lte(0)) {
       logger.info(
@@ -349,12 +366,21 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         if (!receipt || receipt.status !== "success") {
           logger.error(`FinalSettlementSubsidyHandler: Transaction ${txHash} failed or was not found. Retrying...`);
           attempt++;
-          await new Promise(resolve => setTimeout(resolve, 20000));
+          await new Promise(resolve => setTimeout(resolve, SETTLEMENT_RETRY_BACKOFF_MS));
         }
       }
 
       if (!receipt || receipt.status !== "success") {
         throw new Error(`Failed to confirm subsidy transaction after ${attempt} attempts`);
+      }
+
+      if (txHash) {
+        const subsidyToken = isNative ? NATIVE_TOKENS[destinationNetwork].symbol : outTokenDetails.assetSymbol;
+        const subsidyAmount = nativeToDecimal(
+          subsidyAmountRaw,
+          isNative ? NATIVE_TOKENS[destinationNetwork].decimals : outTokenDetails.decimals
+        ).toNumber();
+        await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
       }
 
       await state.update({

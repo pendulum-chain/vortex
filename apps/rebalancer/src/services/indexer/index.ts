@@ -30,9 +30,7 @@ const ROUTER_ABI = [
   }
 ] as const;
 
-export async function getBaseNablaCoverageRatio(): Promise<
-  { brlaCoverageRatio: number; usdcCoverageRatio: number } | undefined
-> {
+export async function getBaseNablaCoverageRatio(): Promise<{ brlaCoverageRatio: number } | undefined> {
   try {
     const evmClientManager = EvmClientManager.getInstance();
     const baseClient = evmClientManager.getClient(Networks.Base);
@@ -66,7 +64,7 @@ export async function getBaseNablaCoverageRatio(): Promise<
 
     console.log(`Base Nabla BRLA pool coverage ratio: ${brlaCoverageRatio}`);
 
-    return { brlaCoverageRatio, usdcCoverageRatio: 0 };
+    return { brlaCoverageRatio };
   } catch (error) {
     console.error("Failed to fetch Base Nabla coverage ratio:", error);
     return undefined;

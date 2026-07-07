@@ -1,5 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { EPaymentMethod, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -7,6 +8,11 @@ import { RampService } from "./ramp.service";
 
 const createdAt = new Date("2026-06-10T12:31:56.420Z");
 const updatedAt = new Date("2026-06-10T12:32:25.548Z");
+
+const originalFindByPk = QuoteTicket.findByPk;
+afterAll(() => {
+  QuoteTicket.findByPk = originalFindByPk;
+});
 
 QuoteTicket.findByPk = mock(async () => ({
   countryCode: "BR",
@@ -51,7 +57,7 @@ function makeRampState(onHold: boolean, currentPhase: RampPhase = "brlaOnrampMin
     createdAt,
     currentPhase,
     errorLogs: [],
-    flowVariant: "monerium",
+    flowVariant: config.flowVariant,
     from: EPaymentMethod.PIX,
     id: "ramp-1",
     paymentMethod: EPaymentMethod.PIX,

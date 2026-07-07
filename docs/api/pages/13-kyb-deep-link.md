@@ -11,14 +11,14 @@ It is a variant of the [hosted widget](https://api-docs.vortexfinance.co/widget-
 ```
 
 - **Brazil** routes to Avenia KYB. The user enters the company name and CNPJ together on the company form, then completes Avenia's hosted company and representative verification.
-- **Mexico / Colombia / USA** route to the Alfredpay business KYB form (the business customer type is preselected).
+- **Mexico / Colombia / USA** route to the local payment partner's business KYB form (the business customer type is preselected).
 - Europe is intentionally excluded — it is individual KYC only and requires a connected wallet, so it cannot complete a quote-less KYB deep link.
 
 After verification the user lands on a **KYB Completed** screen. *Continue* returns them to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
 
 ## URL Parameters
 
-Append one of these to the widget URL (e.g. `https://widget.vortexfinance.co/en/widget?kyb`):
+Append one of these to the widget URL (e.g. `https://www.vortexfinance.co/widget?kyb`):
 
 | URL | Behavior |
 |---|---|
@@ -35,7 +35,7 @@ Query keys are case-sensitive: use `kyb` and `kybLocked` exactly. Region codes a
 `externalSessionId`, `partnerId`, and `apiKey` are forwarded in KYB mode exactly as in the quoted widget flow, so partner and session attribution work the same way:
 
 ```
-https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id&partnerId=my-partner&apiKey=pk_live_...
+https://www.vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id&partnerId=my-partner&apiKey=pk_live_...
 ```
 
 Pass your partner public key (`pk_live_*` / `pk_test_*`) as `apiKey` for attribution. `externalSessionId` is your own opaque identifier and is echoed back in [webhook payloads](https://api-docs.vortexfinance.co/webhooks).
@@ -46,7 +46,7 @@ The KYB deep link is a normal widget URL, so the same embed options apply:
 
 ```html
 <iframe
-  src="https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id"
+  src="https://www.vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id"
   allow="clipboard-write"
   style="width: 100%; height: 720px; border: 0;"
 ></iframe>
@@ -54,7 +54,7 @@ The KYB deep link is a normal widget URL, so the same embed options apply:
 
 ```js
 window.open(
-  "https://widget.vortexfinance.co/en/widget?kybLocked=BR&externalSessionId=my-session-id",
+  "https://www.vortexfinance.co/widget?kybLocked=BR&externalSessionId=my-session-id",
   "vortex-kyb",
   "width=480,height=760"
 );
@@ -62,6 +62,6 @@ window.open(
 
 ## Underlying KYB Onboarding
 
-For Brazil, the deep link drives `POST /v1/brla/createSubaccount` **without** a `quoteId` — the subaccount is created from the company name and CNPJ collected on the form, and the optional quote association is simply omitted. See [BRL / KYC Notes](https://api-docs.vortexfinance.co/brl-kyc-notes) for how BRLA onboarding relates to the ramp flow.
+For Brazil, the deep link drives `POST /v1/brla/createSubaccount` **without** a `quoteId` — the subaccount is created from the company name and CNPJ collected on the form, and the optional quote association is simply omitted. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for how BRLA onboarding relates to the ramp flow.
 
 ---

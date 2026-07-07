@@ -1,11 +1,31 @@
-import {afterEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, afterEach, describe, expect, it, mock} from "bun:test";
 import type {NextFunction, Request, Response} from "express";
 import express from "express";
 import httpStatus from "http-status";
 import {APIError} from "../errors/api-error";
+// Real modules are captured (value copies, not live bindings) before the
+// mock.module calls below so afterAll can restore them — bun keeps module
+// mocks for the whole process otherwise, poisoning every later test file.
+import * as authServiceReal from "../services/auth";
+import * as quoteControllerReal from "../controllers/quote.controller";
+import * as rampControllerReal from "../controllers/ramp.controller";
+import * as apiClientEventServiceReal from "../observability/apiClientEvent.service";
 import type {ApiClientEventInput} from "../observability/types";
 import {MaintenanceService} from "../services/maintenance.service";
 import {handler as errorHandler} from "./error";
+
+const realModules: Array<[string, Record<string, unknown>]> = [
+  ["../observability/apiClientEvent.service", { ...apiClientEventServiceReal }],
+  ["../controllers/quote.controller", { ...quoteControllerReal }],
+  ["../controllers/ramp.controller", { ...rampControllerReal }],
+  ["../services/auth", { ...authServiceReal }]
+];
+
+afterAll(() => {
+  for (const [path, real] of realModules) {
+    mock.module(path, () => real);
+  }
+});
 
 const observedEvents: ApiClientEventInput[] = [];
 const controllerCalls: string[] = [];

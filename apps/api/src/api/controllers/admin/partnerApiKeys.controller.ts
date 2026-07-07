@@ -4,6 +4,7 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
+import User from "../../../models/user.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
 
 /**
@@ -13,7 +14,7 @@ import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiK
 export async function createApiKey(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
     const partnerName = req.params.partnerName;
-    const { name, expiresAt } = req.body;
+    const { name, expiresAt, userId } = req.body;
 
     // Verify at least one partner with this name exists and is active
     const partners = await Partner.findAll({
@@ -32,6 +33,34 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
         }
       });
       return;
+    }
+
+    // Optionally bind the new key pair to a profile (api_keys.user_id).
+    // The user must already exist; null is the default for partner-only keys.
+    let resolvedUserId: string | null = null;
+    if (userId !== undefined && userId !== null && userId !== "") {
+      if (typeof userId !== "string") {
+        res.status(httpStatus.BAD_REQUEST).json({
+          error: {
+            code: "INVALID_USER_ID",
+            message: "userId must be a string",
+            status: httpStatus.BAD_REQUEST
+          }
+        });
+        return;
+      }
+      const user = await User.findByPk(userId);
+      if (!user) {
+        res.status(httpStatus.NOT_FOUND).json({
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "Profile was not found",
+            status: httpStatus.NOT_FOUND
+          }
+        });
+        return;
+      }
+      resolvedUserId = user.id;
     }
 
     // Determine environment
@@ -57,7 +86,8 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "public",
       keyValue: publicKey,
       name: name ? `${name} (Public)` : "Public Key",
-      partnerName
+      partnerName,
+      userId: resolvedUserId
     });
 
     // Create secret key record
@@ -69,7 +99,8 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "secret",
       keyValue: null,
       name: name ? `${name} (Secret)` : "Secret Key",
-      partnerName
+      partnerName,
+      userId: resolvedUserId
     });
 
     // Return both keys (secret shown only once!)
@@ -84,15 +115,18 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
         key: publicKey, // Can be shown anytime (it's public)
         keyPrefix: publicKeyRecord.keyPrefix,
         name: publicKeyRecord.name,
-        type: "public"
+        type: "public",
+        userId: publicKeyRecord.userId
       },
       secretKey: {
         id: secretKeyRecord.id,
         key: secretKey, // Shown only once!
         keyPrefix: secretKeyRecord.keyPrefix,
         name: secretKeyRecord.name,
-        type: "secret"
-      }
+        type: "secret",
+        userId: secretKeyRecord.userId
+      },
+      userId: resolvedUserId
     });
   } catch (error) {
     logger.error("Error creating API keys:", error);
@@ -141,6 +175,7 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         "lastUsedAt",
         "expiresAt",
         "isActive",
+        "userId",
         "createdAt",
         "updatedAt"
       ],
@@ -159,7 +194,8 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         lastUsedAt: key.lastUsedAt,
         name: key.name,
         type: key.keyType,
-        updatedAt: key.updatedAt
+        updatedAt: key.updatedAt,
+        userId: key.userId
       })),
       partnerCount: partners.length,
       partnerName

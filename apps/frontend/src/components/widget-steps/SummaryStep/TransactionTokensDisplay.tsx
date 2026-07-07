@@ -25,6 +25,7 @@ import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { MykoboService } from "../../../services/api/mykobo.service";
 import { RampExecutionInput } from "../../../types/phases";
+import { ARSOnrampDetails } from "./ARSOnrampDetails";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { COPOnrampDetails } from "./COPOnrampDetails";
@@ -34,7 +35,7 @@ import { MXNOnrampDetails } from "./MXNOnrampDetails";
 import { USOnrampDetails } from "./USOnrampDetails";
 
 const ONRAMP_DETAILS_BY_FIAT: Record<FiatToken, FC | null> = {
-  [FiatToken.ARS]: null,
+  [FiatToken.ARS]: ARSOnrampDetails,
   [FiatToken.BRL]: BRLOnrampDetails,
   [FiatToken.COP]: COPOnrampDetails,
   [FiatToken.EURC]: EUROnrampDetails,

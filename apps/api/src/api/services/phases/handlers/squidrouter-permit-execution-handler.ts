@@ -7,6 +7,7 @@ import {
   RampPhase,
   SignedTypedData
 } from "@vortexfi/shared";
+import { erc20Abi } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
@@ -74,6 +75,42 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
   public getPhaseName(): RampPhase {
     return "squidRouterPermitExecute";
+  }
+
+  // Give the owner time to fund the wallet before the single-use permit is spent (see
+  // assertOwnerHasBalance). At the processor's 30s retry cadence this is ~10 minutes.
+  public getMaxRetries(): number {
+    return 20;
+  }
+
+  // A signed EIP-2612 permit is single-use: the token increments the owner's nonce on the first
+  // successful permit() call, so the stored signature cannot be replayed ("INVALID-PERMIT").
+  // Confirm the owner holds `value` before touching the permit; if not, throw a recoverable error
+  // so the phase retries (waiting for funds) instead of burning the permit on a doomed attempt.
+  // If the permit was already consumed on an earlier attempt, its allowance persists and the
+  // direct-transfer path skips permit() on retry (see executeDirectTransfer).
+  private async assertOwnerHasBalance(
+    fromNetwork: EvmNetworks,
+    token: `0x${string}`,
+    owner: `0x${string}`,
+    value: bigint
+  ): Promise<void> {
+    const publicClient = this.evmClientManager.getClient(fromNetwork);
+    const balance = await publicClient.readContract({
+      abi: erc20Abi,
+      address: token,
+      args: [owner],
+      functionName: "balanceOf"
+    });
+
+    if (balance < value) {
+      throw this.createRecoverableError(
+        `Owner ${owner} has insufficient ${token} balance for permit execution: has ${balance}, needs ${value}. ` +
+          "Waiting for funds before sending the single-use permit."
+      );
+    }
+
+    logger.info(`Owner ${owner} balance ${balance} covers required ${value} for permit execution`);
   }
 
   private getExecutorClients(fromNetwork: EvmNetworks) {
@@ -171,17 +208,35 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
     const { walletClient, publicClient } = this.getExecutorClients(fromNetwork);
 
-    const permitHash = await walletClient.writeContract({
-      abi: permitAbi,
-      address: token,
-      args: [owner, spender, value, deadline, permitSig.v, permitSig.r, permitSig.s],
-      functionName: "permit"
-    });
-    logger.info(`Direct transfer permit tx sent: ${permitHash}`);
+    // Guard the single-use permit: bail out (recoverably) if the owner cannot cover the transfer.
+    await this.assertOwnerHasBalance(fromNetwork, token, owner, value);
 
-    const permitReceipt = await publicClient.waitForTransactionReceipt({ hash: permitHash });
-    if (!permitReceipt || permitReceipt.status !== "success") {
-      throw this.createRecoverableError(`Direct transfer permit tx failed: ${permitHash}`);
+    // permit() and transferFrom() are separate transactions, so a failed transfer leaves the
+    // allowance from an already-consumed permit standing. Only send permit() if that allowance
+    // is not already in place — this makes retries idempotent: once the permit landed, every
+    // retry goes straight to transferFrom instead of replaying the spent (now invalid) permit.
+    const allowance = await publicClient.readContract({
+      abi: erc20Abi,
+      address: token,
+      args: [owner, spender],
+      functionName: "allowance"
+    });
+
+    if (allowance >= value) {
+      logger.info(`Existing allowance ${allowance} covers required ${value}, skipping permit for ramp ${state.id}`);
+    } else {
+      const permitHash = await walletClient.writeContract({
+        abi: permitAbi,
+        address: token,
+        args: [owner, spender, value, deadline, permitSig.v, permitSig.r, permitSig.s],
+        functionName: "permit"
+      });
+      logger.info(`Direct transfer permit tx sent: ${permitHash}`);
+
+      const permitReceipt = await publicClient.waitForTransactionReceipt({ hash: permitHash });
+      if (!permitReceipt || permitReceipt.status !== "success") {
+        throw this.createRecoverableError(`Direct transfer permit tx failed: ${permitHash}`);
+      }
     }
 
     const transferHash = await walletClient.writeContract({
@@ -218,6 +273,9 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     }
 
     const { walletClient } = this.getExecutorClients(fromNetwork);
+
+    // Guard the single-use permit: bail out (recoverably) if the owner cannot cover the transfer.
+    await this.assertOwnerHasBalance(fromNetwork, token, owner, value);
 
     const hash = await walletClient.writeContract({
       abi: tokenRelayerAbi,

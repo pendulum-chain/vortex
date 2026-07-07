@@ -115,6 +115,7 @@ export enum QuoteError {
 
   // Availability errors
   UnsupportedCurrency = "Currency not supported",
+  AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.",
 
   // Compatibility errors
   AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",

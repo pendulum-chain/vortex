@@ -41,7 +41,8 @@
     "viem": "^2.37.9",
     "wagmi": "^2.19.1",
     "web3": "4.16.0",
-    "winston": "3.18.3"
+    "winston": "3.18.3",
+    "zod": "^4.3.6"
   },
   "dependencies": {
     "big.js": "^7.0.1",
@@ -123,7 +124,18 @@
     "prepare": "husky",
     "serve:backend": "bun run --cwd apps/api serve",
     "serve:frontend": "bun run --cwd apps/frontend preview",
+    "test": "bun run test:shared && bun run test:sdk && bun run test:rebalancer && bun run test:api && bun run test:frontend",
+    "test:api": "cd apps/api && bun test",
     "test:contracts:relayer": "bun run --cwd contracts/relayer test",
+    "test:coverage": "bun run --cwd packages/shared test:coverage && bun run --cwd packages/sdk test:coverage && bun run --cwd apps/rebalancer test:coverage && bun run --cwd apps/api test:coverage && bun run --cwd apps/frontend test:coverage && bun scripts/coverage-report.ts",
+    "test:coverage:html": "bun scripts/coverage-report.ts --html coverage/index.html && open coverage/index.html",
+    "test:db:start": "bun run --cwd apps/api test:db:start",
+    "test:db:stop": "bun run --cwd apps/api test:db:stop",
+    "test:e2e": "cd apps/frontend && bun run test:e2e",
+    "test:frontend": "cd apps/frontend && bunx vitest run",
+    "test:rebalancer": "cd apps/rebalancer && bun test",
+    "test:sdk": "bun run --cwd packages/sdk test",
+    "test:shared": "cd packages/shared && bun test",
     "typecheck": "bunx tsc",
     "verify": "biome check --no-errors-on-unmatched"
   },

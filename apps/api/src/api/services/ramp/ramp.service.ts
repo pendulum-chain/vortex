@@ -52,10 +52,12 @@ import RampState, { RampStateAttributes } from "../../../models/rampState.model"
 import TaxId from "../../../models/taxId.model";
 import { APIError } from "../../errors/api-error";
 import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
-import { syncMykoboCustomerKyc } from "../mykobo/mykobo-customer.service";
+import { resolveAveniaAccountForRamp } from "../avenia-account";
+import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
+import { resolveAlfredpayCustomerId } from "../quote/alfredpay-customer";
 import { prepareOfframpTransactions } from "../transactions/offramp";
 import { prepareOnrampTransactions } from "../transactions/onramp";
 import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
@@ -199,6 +201,35 @@ export class RampService extends BaseRampService {
         });
       }
 
+      if (request.userId && quote.userId && request.userId !== quote.userId) {
+        throw new APIError({
+          message: "Authenticated user does not own this provider-bound quote.",
+          status: httpStatus.FORBIDDEN
+        });
+      }
+
+      // An anonymous quote (userId == null) carries no owner, so an authenticated caller
+      // claiming it is not an escalation — this is the normal web-app funnel (quote before
+      // login, register after). Provider identity is still derived from the effective user.
+      const effectiveUserId = request.userId || quote.userId || undefined;
+
+      if (!effectiveUserId) {
+        throw new APIError({
+          message: "Invalid quote: this route requires an API key linked to a user or Supabase user authentication.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      // Before removing this kill-switch, add a hermetic EUR corridor scenario in
+      // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
+      // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
+      if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
+        throw new APIError({
+          message: "EUR ramps are currently disabled",
+          status: httpStatus.SERVICE_UNAVAILABLE
+        });
+      }
+
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
       await validateEphemeralAccountsFresh(ephemerals);
@@ -209,7 +240,7 @@ export class RampService extends BaseRampService {
         additionalData,
         signingAccounts,
         transaction,
-        request.userId // will be undefined if not logged in. registerRamp is optional.
+        effectiveUserId
       );
 
       const [affectedRows] = await this.consumeQuote(quote.id, transaction);
@@ -253,7 +284,7 @@ export class RampService extends BaseRampService {
           to: quote.to,
           type: quote.rampType,
           unsignedTxs,
-          userId: request.userId || quote.userId
+          userId: effectiveUserId
         },
         transaction
       );
@@ -1004,16 +1035,24 @@ export class RampService extends BaseRampService {
   private async prepareOfframpBrlTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"]
+    additionalData: RegisterRampRequest["additionalData"],
+    userId: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (!additionalData || !additionalData.pixDestination || !additionalData.taxId || !additionalData.receiverTaxId) {
-      throw new Error("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL");
+    if (!additionalData || !additionalData.pixDestination) {
+      throw new APIError({
+        message: "pixDestination is required for offramp to BRL",
+        status: httpStatus.BAD_REQUEST
+      });
     }
 
+    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
+    const derivedTaxId = aveniaAccount.taxId;
+    const derivedReceiverTaxId = normalizeTaxId(additionalData.receiverTaxId || derivedTaxId);
+
     const subaccount = await this.validateBrlaOfframpRequest(
-      additionalData.taxId,
+      derivedTaxId,
       additionalData.pixDestination,
-      additionalData.receiverTaxId,
+      derivedReceiverTaxId,
       quote.outputAmount
     );
 
@@ -1021,10 +1060,11 @@ export class RampService extends BaseRampService {
       brlaEvmAddress: subaccount.wallets.evm,
       pixDestination: additionalData.pixDestination,
       quote,
-      receiverTaxId: additionalData.receiverTaxId,
+      receiverTaxId: derivedReceiverTaxId,
       signingAccounts: normalizedSigningAccounts,
-      taxId: additionalData.taxId,
-      userAddress: additionalData.walletAddress
+      taxId: derivedTaxId,
+      userAddress: additionalData.walletAddress,
+      userId
     });
 
     return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
@@ -1035,12 +1075,18 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     transaction: Transaction,
-    userId?: string
+    userId: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     // We refresh the quote. It will be used in the transaction creation process, right after this.
     if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
       const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
-      await this.refreshAlfredpayOfframpQuoteIfMatching(quote, quote.metadata.alfredpayOfframp, toCurrency, transaction);
+      await this.refreshAlfredpayOfframpQuoteIfMatching(
+        quote,
+        quote.metadata.alfredpayOfframp,
+        toCurrency,
+        userId,
+        transaction
+      );
     }
 
     const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
@@ -1061,11 +1107,12 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[]
+    signingAccounts: AccountMeta[],
+    userId: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
-    if (!additionalData || additionalData.destinationAddress === undefined || additionalData.taxId === undefined) {
+    if (!additionalData || !additionalData.destinationAddress) {
       throw new APIError({
-        message: "Parameters destinationAddress and taxId are required for onramp",
+        message: "Parameter destinationAddress is required for onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
@@ -1078,13 +1125,16 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(additionalData.taxId, quote, quote.inputAmount);
+    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
+    const derivedTaxId = aveniaAccount.taxId;
+
+    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(derivedTaxId, quote, quote.inputAmount);
 
     const params: AveniaOnrampTransactionParams = {
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      taxId: additionalData.taxId
+      taxId: derivedTaxId
     };
 
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
@@ -1096,7 +1146,7 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    userId?: string
+    userId: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1108,11 +1158,13 @@ export class RampService extends BaseRampService {
       });
     }
 
+    await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
+
     const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
-      userId: userId as string
+      userId
     });
 
     return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
@@ -1122,18 +1174,22 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    userId?: string
+    userId: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    if (!additionalData?.destinationAddress || !additionalData?.email || !additionalData?.ipAddress) {
+    if (!additionalData?.destinationAddress || !additionalData?.ipAddress) {
       throw new APIError({
-        message: "Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp",
+        message: "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp",
         status: httpStatus.BAD_REQUEST
       });
     }
+
+    // The Mykobo email is derived from the effective user's profile (and KYC must be approved);
+    // a client-supplied email is accepted only if it matches. See resolveMykoboCustomerForUser.
+    const { email } = await resolveMykoboCustomerForUser(userId, additionalData.email);
 
     const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
     if (!evmEphemeralEntry) {
@@ -1146,7 +1202,7 @@ export class RampService extends BaseRampService {
     const mykobo = MykoboApiService.getInstance();
     const intent = await mykobo.createTransactionIntent({
       currency: MykoboCurrency.EURC,
-      email_address: additionalData.email,
+      email_address: email,
       ip_address: additionalData.ipAddress,
       transaction_type: MykoboTransactionType.DEPOSIT,
       value: new Big(quote.inputAmount).toFixed(2, 0),
@@ -1164,7 +1220,7 @@ export class RampService extends BaseRampService {
     const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
       destinationAddress: additionalData.destinationAddress,
       ipAddress: additionalData.ipAddress,
-      mykoboEmail: additionalData.email,
+      mykoboEmail: email,
       mykoboTransactionId: intent.transaction.id,
       mykoboTransactionReference: intent.transaction.reference,
       quote,
@@ -1178,10 +1234,6 @@ export class RampService extends BaseRampService {
       reference: intent.transaction.reference
     };
 
-    if (userId) {
-      await syncMykoboCustomerKyc(userId, additionalData.email);
-    }
-
     return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
@@ -1191,7 +1243,7 @@ export class RampService extends BaseRampService {
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
     transaction: Transaction,
-    userId?: string
+    userId: string
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1201,7 +1253,7 @@ export class RampService extends BaseRampService {
   }> {
     switch (selectRampTransactionPreparationKind(quote, additionalData)) {
       case RampTransactionPreparationKind.OfframpBrl:
-        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData);
+        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OfframpNonBrl:
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
@@ -1213,7 +1265,7 @@ export class RampService extends BaseRampService {
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampAvenia:
-        return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts);
+        return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts, userId);
     }
   }
 
@@ -1377,6 +1429,7 @@ export class RampService extends BaseRampService {
       quote,
       originalAlfredpayMint,
       fromCurrency,
+      rampState.userId,
       transaction
     );
 
@@ -1411,10 +1464,13 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     originalAlfredpayMint: NonNullable<QuoteTicket["metadata"]["alfredpayMint"]>,
     fromCurrency: AlfredpayFiatCurrency,
+    userId: string,
     transaction: Transaction
   ): Promise<string> {
     const alfredpayService = AlfredpayApiService.getInstance();
     const originalQuoteId = originalAlfredpayMint.quoteId;
+
+    const customerId = await resolveAlfredpayCustomerId(fromCurrency, userId);
 
     try {
       const freshQuote = await alfredpayService.createOnrampQuote({
@@ -1423,7 +1479,7 @@ export class RampService extends BaseRampService {
         fromCurrency,
         metadata: {
           businessId: "vortex",
-          customerId: quote.userId || "unknown"
+          customerId
         },
         paymentMethodType: AlfredpayPaymentMethodType.BANK,
         toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
@@ -1478,16 +1534,19 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
     toCurrency: AlfredpayFiatCurrency,
+    userId: string,
     transaction: Transaction
   ): Promise<string> {
     const alfredpayService = AlfredpayApiService.getInstance();
     const originalQuoteId = originalAlfredpayOfframp.quoteId;
 
+    const customerId = await resolveAlfredpayCustomerId(toCurrency, userId);
+
     const freshQuote = await alfredpayService.createOfframpQuote({
       chain: AlfredpayChain.MATIC,
       fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
       fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      metadata: { businessId: "vortex", customerId: quote.userId || "unknown" },
+      metadata: { businessId: "vortex", customerId },
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency
     } satisfies CreateAlfredpayOfframpQuoteRequest);

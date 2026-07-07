@@ -57,7 +57,7 @@ export function validateOfframpQuote(
 }
 
 /**
- * Validates BRL offramp requirements
+ * Validates BRL offramp requirements.
  * @param quote The quote ticket
  * @param params Offramp parameters
  * @returns Validated parameters
@@ -79,13 +79,13 @@ export function validateBRLOfframp(
   const { brlaEvmAddress, pixDestination, taxId, receiverTaxId } = params;
 
   if (!brlaEvmAddress || !pixDestination || !taxId || !receiverTaxId) {
-    throw new Error("brlaEvmAddress, pixDestination, receiverTaxId and taxId parameters must be provided for offramp to BRL");
+    throw new Error("brlaEvmAddress, pixDestination, receiverTaxId and taxId must be derived for offramp to BRL");
   }
 
   return {
     brlaEvmAddress,
     pixDestination,
-    receiverTaxId,
+    receiverTaxId: normalizeTaxId(receiverTaxId),
     taxId: normalizeTaxId(taxId)
   };
 }

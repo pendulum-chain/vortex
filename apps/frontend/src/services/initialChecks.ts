@@ -5,6 +5,7 @@ import { useToastMessage } from "../helpers/notifications";
 import { useRampDirection } from "../stores/rampDirectionStore";
 import { RampExecutionInput } from "../types/phases";
 import { BrlaService } from "./api";
+import { AuthService } from "./auth";
 
 function useRampAmountWithinAllowedLimits() {
   const { t } = useTranslation();
@@ -13,6 +14,13 @@ function useRampAmountWithinAllowedLimits() {
 
   return useCallback(
     async (amountUnits: string, taxId: string): Promise<boolean> => {
+      // /brla/getUser and /brla/getUserRemainingLimit require an authenticated (effective) user.
+      // The Confirm click can happen before login, so skip the pre-flight here — the backend
+      // enforces limits authoritatively at ramp registration.
+      if (!AuthService.isAuthenticated()) {
+        return true;
+      }
+
       try {
         const subaccount = await BrlaService.getUser(taxId);
         // This check passes if subaccount is not created, or if identity status is not confirmed

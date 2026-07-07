@@ -1,11 +1,16 @@
 import {afterEach, beforeEach, describe, expect, test} from "bun:test";
 import {
+  getConfig,
   getRebalancingCostPolicyConfig,
   parseRebalancingDailyBridgeLimitUsd,
   parseRebalancingPolicyMode
 } from "./config.ts";
 
 const policyEnvVars = [
+  "EVM_ACCOUNT_SECRET",
+  "REBALANCING_DAILY_BRIDGE_LIMIT_USD",
+  "REBALANCING_USD_TO_BRL_AMOUNT",
+  "REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT",
   "REBALANCING_POLICY_MODE",
   "REBALANCING_MODERATE_DEVIATION_BPS",
   "REBALANCING_SEVERE_DEVIATION_BPS",
@@ -126,5 +131,22 @@ describe("getRebalancingCostPolicyConfig", () => {
 
     delete process.env.REBALANCING_MAX_COST_BPS_MILD;
     delete process.env.REBALANCING_MAX_COST_BPS_MODERATE;
+  });
+});
+
+describe("getConfig", () => {
+  test("defaults the profitable USDC to BRLA amount to the standard amount", () => {
+    process.env.EVM_ACCOUNT_SECRET = "test test test test test test test test test test test junk";
+    process.env.REBALANCING_USD_TO_BRL_AMOUNT = "1000";
+
+    expect(getConfig().rebalancingProfitableUsdToBrlAmount).toBe("1000");
+  });
+
+  test("allows configuring a larger profitable USDC to BRLA amount", () => {
+    process.env.EVM_ACCOUNT_SECRET = "test test test test test test test test test test test junk";
+    process.env.REBALANCING_USD_TO_BRL_AMOUNT = "1000";
+    process.env.REBALANCING_PROFITABLE_USD_TO_BRL_AMOUNT = "2000";
+
+    expect(getConfig().rebalancingProfitableUsdToBrlAmount).toBe("2000");
   });
 });

@@ -10,6 +10,26 @@ export interface AuthenticatedPartner {
 }
 
 /**
+ * Validation result for a secret API key. `partner` may be null for user-scoped
+ * keys (created via the self-serve API key endpoints) which may have no
+ * `partner_name` binding; in that case the request authenticates purely as
+ * the linked user via `apiKeyUserId`.
+ */
+export interface ValidatedSecretKey {
+  apiKeyId: string;
+  apiKeyUserId: string | null;
+  partner: AuthenticatedPartner | null;
+}
+
+/**
+ * Validation result for a public API key. `partnerName` may be null for
+ * user-scoped public keys (no partner binding).
+ */
+export interface ValidatedPublicKey {
+  partnerName: string | null;
+}
+
+/**
  * Validate API key format for both public and secret keys
  * Public: pk_(live|test)_[32 alphanumeric chars]
  * Secret: sk_(live|test)_[32 alphanumeric chars]
@@ -76,9 +96,9 @@ export function getKeyPrefix(key: string): string {
 /**
  * Validate public API key (simple lookup, no hashing)
  * @param apiKey - The public API key to validate
- * @returns Promise resolving to partner name or null if invalid
+ * @returns Promise resolving to validation result, or null if the key is invalid/expired/inactive
  */
-export async function validatePublicApiKey(apiKey: string): Promise<string | null> {
+export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPublicKey | null> {
   try {
     const keyRecord = await ApiKey.findOne({
       where: {
@@ -102,7 +122,7 @@ export async function validatePublicApiKey(apiKey: string): Promise<string | nul
       logger.error("Failed to update lastUsedAt for public key:", err);
     });
 
-    return keyRecord.partnerName;
+    return { partnerName: keyRecord.partnerName };
   } catch (error) {
     logger.error("Error validating public API key:", error);
     return null;
@@ -113,9 +133,9 @@ export async function validatePublicApiKey(apiKey: string): Promise<string | nul
  * Validate secret API key and return associated partner information
  * Uses bcrypt hash comparison for security
  * @param apiKey - The secret API key to validate
- * @returns Promise resolving to authenticated partner or null if invalid
+ * @returns Promise resolving to validation result, or null if invalid
  */
-export async function validateSecretApiKey(apiKey: string): Promise<AuthenticatedPartner | null> {
+export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSecretKey | null> {
   try {
     // Extract prefix for quick lookup
     const prefix = getKeyPrefix(apiKey);
@@ -143,7 +163,27 @@ export async function validateSecretApiKey(apiKey: string): Promise<Authenticate
           continue; // Key expired, try next
         }
 
-        // Find any active partner with this name
+        // User-scoped keys (no partner_name) authenticate purely as the linked
+        // user; skip the Partner lookup so they remain usable without a partner row.
+        if (!keyRecord.partnerName) {
+          if (!keyRecord.userId) {
+            // Key has no partner and no user binding: unusable.
+            continue;
+          }
+
+          // Update last used timestamp (async, don't wait)
+          keyRecord.update({ lastUsedAt: new Date() }).catch(err => {
+            logger.error("Failed to update lastUsedAt for secret key:", err);
+          });
+
+          return {
+            apiKeyId: keyRecord.id,
+            apiKeyUserId: keyRecord.userId,
+            partner: null
+          };
+        }
+
+        // Partner-scoped keys: find any active partner with this name
         const partner = await Partner.findOne({
           where: {
             isActive: true,
@@ -162,8 +202,12 @@ export async function validateSecretApiKey(apiKey: string): Promise<Authenticate
 
         // Return partner info (from any partner with this name)
         return {
-          id: partner.id,
-          name: partner.name
+          apiKeyId: keyRecord.id,
+          apiKeyUserId: keyRecord.userId,
+          partner: {
+            id: partner.id,
+            name: partner.name
+          }
         };
       }
     }
@@ -178,9 +222,9 @@ export async function validateSecretApiKey(apiKey: string): Promise<Authenticate
 /**
  * Unified validation function that detects key type and validates accordingly
  * @param apiKey - The API key to validate (public or secret)
- * @returns Promise resolving to authenticated partner or null
+ * @returns Promise resolving to validation result for secret keys, or null for public/invalid keys
  */
-export async function validateApiKey(apiKey: string): Promise<AuthenticatedPartner | null> {
+export async function validateApiKey(apiKey: string): Promise<ValidatedSecretKey | null> {
   const keyType = getKeyType(apiKey);
 
   if (keyType === "secret") {

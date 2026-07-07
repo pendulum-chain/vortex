@@ -1,10 +1,12 @@
 import {describe, expect, it} from "bun:test";
+import os from "node:os";
 
 const varsModuleUrl = new URL("./vars.ts", import.meta.url).href;
 const bunExecutable = Bun.argv[0];
 
 const requiredProductionEnv = {
   ADMIN_SECRET: "test-admin-secret",
+  FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
@@ -19,6 +21,9 @@ async function importVarsWithEnv(env: Record<string, string>) {
       "-e",
       `import(${JSON.stringify(varsModuleUrl)}).then(() => console.log("ok")).catch(error => { console.error(error instanceof Error ? error.message : String(error)); process.exit(1); })`
     ],
+    // A cwd without .env files: bun auto-loads .env from the cwd, which would
+    // silently backfill variables these scenarios deliberately leave unset.
+    cwd: os.tmpdir(),
     env: {
       PATH: process.env.PATH ?? "",
       ...requiredProductionEnv,

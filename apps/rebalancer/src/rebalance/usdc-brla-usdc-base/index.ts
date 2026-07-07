@@ -21,6 +21,7 @@ import {
   getUsdcBalanceOnBaseRaw,
   mainNablaApproveAndSwap,
   nablaApproveAndSwapOnBase,
+  recoverAveniaPolygonTransferFromBalance,
   squidRouterApproveAndSwap,
   transferBrlaToAveniaOnBase,
   verifyFinalUsdcBalanceOnBase,
@@ -69,6 +70,22 @@ async function calculateRemainingBrlaForPolygonTransfer(brlaAmountRaw: string, p
   if (remainingRaw.lte(0)) return Big(0);
 
   return multiplyByPowerOfTen(remainingRaw, -18);
+}
+
+async function recoverCompletedAveniaPolygonTransfer(
+  state: UsdcBaseRebalanceState,
+  stateManager: Pick<UsdcBaseStateManager, "saveState">
+): Promise<boolean> {
+  if (!state.brlaAmountRaw || !state.polygonBrlaBalanceBeforeTransferRaw) return false;
+
+  const recoveredBrlaRaw = await recoverAveniaPolygonTransferFromBalance(
+    state.brlaAmountRaw,
+    state.polygonBrlaBalanceBeforeTransferRaw,
+    state,
+    stateManager
+  );
+
+  return recoveredBrlaRaw !== null;
 }
 
 export async function rebalanceUsdcBrlaUsdcBase(
@@ -311,41 +328,59 @@ export async function rebalanceUsdcBrlaUsdcBase(
           await stateManager.saveState(state);
         }
 
-        const ticketId = await aveniaTransferBrlaToPolygon(Big(state.brlaAmountDecimal));
-        state.aveniaTicketId = ticketId;
-        await stateManager.saveState(state);
+        if (await recoverCompletedAveniaPolygonTransfer(state, stateManager)) {
+          console.log(
+            "Existing Polygon BRLA balance delta detected before creating a new Avenia ticket. Continuing recovered rebalance."
+          );
+          state.currentPhase = UsdcBaseRebalancePhase.WaitBrlaOnPolygon;
+          await stateManager.saveState(state);
+        } else {
+          const ticketId = await aveniaTransferBrlaToPolygon(Big(state.brlaAmountDecimal));
+          state.aveniaTicketId = ticketId;
+          await stateManager.saveState(state);
+        }
       }
 
       const brlaApiService = BrlaApiService.getInstance();
-      try {
-        await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
-      } catch (error) {
-        if (!(error instanceof RetryableAveniaTicketStatusError)) {
-          throw error;
-        }
+      if (state.currentPhase === UsdcBaseRebalancePhase.AveniaTransferToPolygon) {
+        if (!state.aveniaTicketId) throw new Error("State corrupted: aveniaTicketId missing for Avenia Polygon transfer");
 
-        console.warn(
-          `Avenia transfer ticket ${error.ticketId} reached retryable status ${error.status}. Creating a replacement ticket.`
-        );
-        if (!state.brlaAmountRaw)
-          throw new Error("State corrupted: brlaAmountRaw missing while retrying Avenia Polygon ticket");
-        if (!state.polygonBrlaBalanceBeforeTransferRaw) {
-          throw new Error("State corrupted: polygonBrlaBalanceBeforeTransferRaw missing while retrying Avenia Polygon ticket");
-        }
-
-        const remainingBrlaDecimal = await calculateRemainingBrlaForPolygonTransfer(
-          state.brlaAmountRaw,
-          state.polygonBrlaBalanceBeforeTransferRaw
-        );
-        if (remainingBrlaDecimal.lte(0)) {
-          console.log(
-            "Avenia ticket failed after the full BRLA amount arrived on Polygon. Continuing to arrival confirmation."
-          );
-        } else {
-          console.warn(`Retrying Avenia transfer to Polygon for remaining ${remainingBrlaDecimal.toFixed(4)} BRLA.`);
-          state.aveniaTicketId = await aveniaTransferBrlaToPolygon(remainingBrlaDecimal);
-          await stateManager.saveState(state);
+        try {
           await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+        } catch (error) {
+          if (await recoverCompletedAveniaPolygonTransfer(state, stateManager)) {
+            console.warn(
+              `Avenia transfer ticket ${state.aveniaTicketId} did not confirm, but Polygon BRLA balance delta proves completion. Continuing.`
+            );
+          } else if (error instanceof RetryableAveniaTicketStatusError) {
+            console.warn(
+              `Avenia transfer ticket ${error.ticketId} reached retryable status ${error.status}. Creating a replacement ticket.`
+            );
+            if (!state.brlaAmountRaw)
+              throw new Error("State corrupted: brlaAmountRaw missing while retrying Avenia Polygon ticket");
+            if (!state.polygonBrlaBalanceBeforeTransferRaw) {
+              throw new Error(
+                "State corrupted: polygonBrlaBalanceBeforeTransferRaw missing while retrying Avenia Polygon ticket"
+              );
+            }
+
+            const remainingBrlaDecimal = await calculateRemainingBrlaForPolygonTransfer(
+              state.brlaAmountRaw,
+              state.polygonBrlaBalanceBeforeTransferRaw
+            );
+            if (remainingBrlaDecimal.lte(0)) {
+              console.log(
+                "Avenia ticket failed after the full BRLA amount arrived on Polygon. Continuing to arrival confirmation."
+              );
+            } else {
+              console.warn(`Retrying Avenia transfer to Polygon for remaining ${remainingBrlaDecimal.toFixed(4)} BRLA.`);
+              state.aveniaTicketId = await aveniaTransferBrlaToPolygon(remainingBrlaDecimal);
+              await stateManager.saveState(state);
+              await checkTicketStatusPaid(brlaApiService, state.aveniaTicketId);
+            }
+          } else {
+            throw error;
+          }
         }
       }
 

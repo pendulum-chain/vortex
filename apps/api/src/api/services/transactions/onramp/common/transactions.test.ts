@@ -1,6 +1,24 @@
-import {beforeEach, describe, expect, it, mock} from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import type {AccountMeta, UnsignedTx} from "@vortexfi/shared";
+import * as sharedNamespace from "@vortexfi/shared";
+import * as varsNamespace from "../../../../../config/vars";
+import * as moonbeamCleanupNamespace from "../../moonbeam/cleanup";
+import * as pendulumCleanupNamespace from "../../pendulum/cleanup";
 import type {QuoteTicketAttributes} from "../../../../../models/quoteTicket.model";
+
+// Value copies taken before mock.module runs; restored in afterAll because
+// bun module mocks are process-wide and would poison later test files.
+const sharedReal = { ...sharedNamespace };
+const varsReal = { ...varsNamespace };
+const moonbeamCleanupReal = { ...moonbeamCleanupNamespace };
+const pendulumCleanupReal = { ...pendulumCleanupNamespace };
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../../../../config/vars", () => ({ ...varsReal }));
+  mock.module("../../moonbeam/cleanup", () => ({ ...moonbeamCleanupReal }));
+  mock.module("../../pendulum/cleanup", () => ({ ...pendulumCleanupReal }));
+});
 
 const Networks = {
   Base: "base",
@@ -39,6 +57,7 @@ const createNablaTransactionsForOnrampOnEVM = mock(
 );
 
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   AMM_MINIMUM_OUTPUT_HARD_MARGIN: 0.02,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN: 0.01,
   createMoonbeamToPendulumXCM: mock(async () => "0xmoonbeam"),
@@ -58,7 +77,9 @@ mock.module("@vortexfi/shared", () => ({
 }));
 
 mock.module("../../../../../config/vars", () => ({
+  ...varsReal,
   config: {
+    ...varsReal.config,
     swap: {
       deadlineMinutes: 20
     }

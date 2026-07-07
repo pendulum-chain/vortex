@@ -12,8 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Coverage reports (any workspace; bun/vitest lcov output)
+coverage
+
 # Environment files (any package, any name)
-**/.env
+packages/sdk/.env
 **/.env.local
 **/.env.*.local
 **/.env.development
@@ -57,5 +60,74 @@ CLAUDE.local.md
 # hardhat generated files in workspace contract projects
 contracts/*/artifacts
 contracts/*/cache
+contracts/*/.env
 
 .mcp.json
+
+# Playwright E2E artifacts
+apps/frontend/test-results/
+apps/frontend/playwright-report/
+
+# Local credentials and agent-tool artifacts
+.api-key.json
+.playwright-mcp/
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC20Errors.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC721Errors.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC1155Errors.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/IERC1363.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/interfaces/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/extensions/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/utils/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/utils/SafeERC20.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/ERC20.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/IERC20.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/ERC20/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/token/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/utils/introspection/IERC165.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/utils/introspection/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/utils/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/utils/ReentrancyGuard.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/contracts/index.ts
+/contracts/cctp-settlement/typechain-types/@openzeppelin/index.ts
+/contracts/cctp-settlement/typechain-types/contracts/interfaces/index.ts
+/contracts/cctp-settlement/typechain-types/contracts/interfaces/ITokenMessengerV2.ts
+/contracts/cctp-settlement/typechain-types/contracts/mocks/index.ts
+/contracts/cctp-settlement/typechain-types/contracts/mocks/MockERC20.ts
+/contracts/cctp-settlement/typechain-types/contracts/mocks/MockTokenMessengerV2.ts
+/contracts/cctp-settlement/typechain-types/contracts/index.ts
+/contracts/cctp-settlement/typechain-types/contracts/PerUserCctpSettlement.ts
+/contracts/cctp-settlement/typechain-types/contracts/PerUserCctpSettlementFactory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC20Errors__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC721Errors__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC1155Errors__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/draft-IERC6093.sol/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/IERC1363__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/interfaces/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/extensions/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/utils/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/utils/SafeERC20__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/ERC20__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/IERC20__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/ERC20/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/token/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/utils/introspection/IERC165__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/utils/introspection/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/utils/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/utils/ReentrancyGuard__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/contracts/index.ts
+/contracts/cctp-settlement/typechain-types/factories/@openzeppelin/index.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/interfaces/index.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/interfaces/ITokenMessengerV2__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/mocks/index.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/mocks/MockERC20__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/mocks/MockTokenMessengerV2__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/index.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/PerUserCctpSettlement__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/contracts/PerUserCctpSettlementFactory__factory.ts
+/contracts/cctp-settlement/typechain-types/factories/index.ts
+/contracts/cctp-settlement/typechain-types/common.ts
+/contracts/cctp-settlement/typechain-types/hardhat.d.ts
+/contracts/cctp-settlement/typechain-types/index.ts

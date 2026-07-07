@@ -5,6 +5,7 @@
 # Known app routes — serve SPA shell with real 200
 /                              /index.html  200
 /business                      /index.html  200
+/payments                      /index.html  200
 /contact                       /index.html  200
 /privacy-policy                /index.html  200
 /terms-and-conditions          /index.html  200

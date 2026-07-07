@@ -104,6 +104,20 @@ export const MobileMenu = ({ onMenuItemClick }: MobileMenuProps) => {
           </Link>
         </motion.div>
 
+        <motion.div variants={menuItemVariants}>
+          <Link
+            activeProps={{
+              className: "text-white group-hover:[&:not(:hover)]:text-gray-400"
+            }}
+            className="block w-full px-2 py-3 text-left text-gray-400 text-xl transition-colors hover:text-white"
+            onClick={onMenuItemClick}
+            params={params}
+            to="/{-$locale}/payments"
+          >
+            {t("components.navbar.payments")}
+          </Link>
+        </motion.div>
+
         <motion.div className="mt-6 mb-4" variants={buttonVariants}>
           <Link className="btn btn-vortex-secondary w-full rounded-md" onClick={onMenuItemClick} to="/{-$locale}/widget">
             Buy & Sell

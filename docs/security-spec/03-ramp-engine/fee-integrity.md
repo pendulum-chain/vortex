@@ -14,6 +14,8 @@ Fee calculation determines how much the user pays for a ramp operation and how t
 
 This means the fees shown to the user (from the database system) may differ from the fees actually applied (from the token config system). This is documented in `docs/architecture/current-fee-derivation.md` as a partially-implemented refactor.
 
+**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. `OnRampAveniaToEvmFeeEngine` now reports zero network fee for these corridors (same `isFiatToOwnStablecoinBaseDirect` predicate as the squidrouter passthrough engines); output amounts were never affected. Pinned by the quote pricing goldens (`apps/api/src/tests/quote-pricing.golden.test.ts`).
+
 ### Fee Application Points
 
 - **On-ramp:** Fees are deducted from the input amount BEFORE the swap. `inputAmountAfterFees = inputAmount - fees`.
@@ -78,6 +80,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 - [x] Partner markup payout uses the pricing partner when present. **PASS** — fee distribution resolves payout from `pricing_partner_id ?? partner_id`, preserving profile-assigned quote payouts while keeping older partner-owned quotes compatible.
 - [x] Anchor fee deduction by external services (BRLA, Stellar) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
 - [ ] Mykobo anchor fee in the quote MUST match the tier Mykobo actually charges. The fee tier is selected by `MYKOBO_CLIENT_DOMAIN`; an unset env var silently degrades to Mykobo's default tier (~5x worse), causing `defaultDepositFee` / `defaultWithdrawFee` and on-chain settlement to diverge. See `07-operations/secret-management.md` (invariant 9) and `05-integrations/mykobo.md` (invariant 20).
+- [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not a generic failure. The optional env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED` → flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE`) is **display-only** and MUST NOT price a ramp execution; a fallback-priced quote MUST re-validate the live Mykobo fee before a rail runs (EUR registration is currently disabled). See `05-integrations/mykobo.md` (invariant 26).
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
 - [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
 - [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.

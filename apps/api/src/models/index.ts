@@ -51,6 +51,10 @@ ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "se
 Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
 Partner.hasMany(ProfilePartnerAssignment, { as: "sellProfileAssignments", foreignKey: "sellPartnerId" });
 
+// API key ↔ user binding
+User.hasMany(ApiKey, { as: "apiKeys", foreignKey: "userId" });
+ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
+
 // Initialize models
 const models = {
   AlfredPayCustomer,

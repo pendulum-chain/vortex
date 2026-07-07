@@ -270,6 +270,15 @@ export class PriceFeedService {
     toCurrency: RampCurrency,
     decimals: number | null = null // Allow overriding, but default to null
   ): Promise<string> {
+    return this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
+  }
+
+  public async convertCurrencyOrOriginal(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+    decimals: number | null = null
+  ): Promise<string> {
     try {
       return await this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
     } catch (error) {

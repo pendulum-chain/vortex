@@ -95,7 +95,10 @@
     "seed:phase-metadata": "bun -r @swc-node/register src/database/seeders/phase-metadata.ts",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.55 0.64",
+    "test:db:start": "./scripts/test-db.sh start",
+    "test:db:stop": "./scripts/test-db.sh stop"
   },
   "version": "1.0.0"
 }

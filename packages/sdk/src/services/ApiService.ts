@@ -1,4 +1,6 @@
 import type {
+  AlfredPayCountry,
+  AlfredpayFiatAccount,
   CreateQuoteRequest,
   GetRampStatusResponse,
   QuoteResponse,
@@ -87,9 +89,11 @@ export class ApiService {
     return handleAPIResponse<GetRampStatusResponse>(response, `/v1/ramp/status?id=${rampId}`);
   }
 
-  async getBrlKycStatus(taxId: string): Promise<BrlKycResponse> {
+  async getBrlKycStatus(taxId?: string): Promise<BrlKycResponse> {
     const url = new URL(`${this.apiBaseUrl}/v1/brla/getUser`);
-    url.searchParams.append("taxId", taxId);
+    if (taxId) {
+      url.searchParams.append("taxId", taxId);
+    }
 
     const response = await fetch(url.toString(), {
       headers: this.buildHeaders(),
@@ -99,9 +103,11 @@ export class ApiService {
     return handleAPIResponse<BrlKycResponse>(response, "/v1/brla/getUser");
   }
 
-  async getBrlRemainingLimit(taxId: string, direction: RampDirection): Promise<{ remainingLimit: number }> {
+  async getBrlRemainingLimit(taxId: string | undefined, direction: RampDirection): Promise<{ remainingLimit: number }> {
     const url = new URL(`${this.apiBaseUrl}/v1/brla/getUserRemainingLimit`);
-    url.searchParams.append("taxId", taxId);
+    if (taxId) {
+      url.searchParams.append("taxId", taxId);
+    }
     url.searchParams.append("direction", direction);
 
     const response = await fetch(url.toString(), {
@@ -122,5 +128,17 @@ export class ApiService {
     });
 
     return handleAPIResponse<{ valid: boolean }>(response, "/v1/brla/validatePixKey");
+  }
+
+  async listAlfredpayFiatAccounts(country: AlfredPayCountry): Promise<AlfredpayFiatAccount[]> {
+    const url = new URL(`${this.apiBaseUrl}/v1/alfredpay/fiatAccounts`);
+    url.searchParams.append("country", country);
+
+    const response = await fetch(url.toString(), {
+      headers: this.buildHeaders(),
+      method: "GET"
+    });
+
+    return handleAPIResponse<AlfredpayFiatAccount[]>(response, `/v1/alfredpay/fiatAccounts?country=${country}`);
   }
 }
