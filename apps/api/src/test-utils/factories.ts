@@ -18,7 +18,6 @@ import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-en
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
-import AlfredPayCustomer from "../models/alfredPayCustomer.model";
 import ApiKey from "../models/apiKey.model";
 import Partner, { type PartnerAttributes } from "../models/partner.model";
 import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
@@ -182,16 +181,16 @@ export async function updatePartnerPricing(
 export async function createTestAlfredpayCustomer(
   userId: string,
   overrides: Partial<{ alfredPayId: string; country: AlfredPayCountry }> = {}
-): Promise<AlfredPayCustomer> {
+): Promise<ProviderCustomer> {
   const seq = nextSeq();
-  return AlfredPayCustomer.create({
-    alfredPayId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  return ProviderCustomer.create({
     country: overrides.country ?? AlfredPayCountry.MX,
-    lastFailureReasons: null,
-    status: AlfredPayStatus.Success,
-    statusExternal: null,
-    type: AlfredPayType.INDIVIDUAL,
-    userId
+    customerEntityId: entity.id,
+    customerType: "individual",
+    provider: "alfredpay",
+    providerCustomerId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
+    status: AlfredPayStatus.Success
   });
 }
 

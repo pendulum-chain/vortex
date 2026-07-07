@@ -321,11 +321,11 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
       const customer = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
-      world.alfredpay.fiatAccountsByCustomer.set(customer.alfredPayId, [
+      world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
         {
           accountNumber: "646180157000000004",
           accountType: "checking",
-          customerId: customer.alfredPayId,
+          customerId: customer.providerCustomerId as string,
           fiatAccountId: "fiat-account-1",
           type: AlfredpayFiatAccountType.SPEI
         }

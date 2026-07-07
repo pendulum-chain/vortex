@@ -1,13 +1,10 @@
 import sequelize from "../config/database";
-import AlfredPayCustomer from "./alfredPayCustomer.model";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
 import KycCase from "./kycCase.model";
-import KycLevel2 from "./kycLevel2.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
-import MykoboCustomer from "./mykoboCustomer.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -41,17 +38,8 @@ QuoteTicket.belongsTo(User, { as: "user", foreignKey: "userId" });
 User.hasMany(RampState, { as: "rampStates", foreignKey: "userId" });
 RampState.belongsTo(User, { as: "user", foreignKey: "userId" });
 
-User.hasMany(KycLevel2, { as: "kycRecords", foreignKey: "userId" });
-KycLevel2.belongsTo(User, { as: "user", foreignKey: "userId" });
-
 User.hasMany(TaxId, { as: "taxIds", foreignKey: "userId" });
 TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
-
-User.hasMany(AlfredPayCustomer, { as: "alfredPayCustomers", foreignKey: "userId" });
-AlfredPayCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
-
-User.hasOne(MykoboCustomer, { as: "mykoboCustomer", foreignKey: "userId" });
-MykoboCustomer.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
@@ -105,15 +93,12 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 
 // Initialize models
 const models = {
-  AlfredPayCustomer,
   Anchor,
   ApiClientEvent,
   ApiKey,
   CustomerEntity,
   KycCase,
-  KycLevel2,
   MaintenanceSchedule,
-  MykoboCustomer,
   Notification,
   NotificationPreference,
   Partner,

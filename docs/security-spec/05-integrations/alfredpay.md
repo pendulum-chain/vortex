@@ -35,7 +35,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 
 **Request validation:** Alfredpay middleware (`alfredpay.middleware.ts`) validates the `country` parameter against the `AlfredPayCountry` enum for all Alfredpay-related requests.
 
-**Fiat account routes:** `POST/GET/DELETE /v1/alfredpay/fiatAccounts` accept either a Supabase Bearer token (frontend/user-session) or a user-scoped secret API key (SDK/server integration) via `requirePartnerOrUserAuth()`. The controller resolves the operating user via `getEffectiveUserId(req)` so that `AlfredPayCustomer.findOne({ where: { userId, country } })` returns the linked customer regardless of which credential was presented. The remaining Alfredpay routes (KYC/KYB/customer creation/status) continue to require a Supabase Bearer session via `requireAuth` because KYC/KYB submission is a browser-mediated flow.
+**Fiat account routes:** `POST/GET/DELETE /v1/alfredpay/fiatAccounts` accept either a Supabase Bearer token (frontend/user-session) or a user-scoped secret API key (SDK/server integration) via `requirePartnerOrUserAuth()`. The controller resolves the operating user via `getEffectiveUserId(req)` so that the alfredpay `provider_customers` row for the effective user's `customer_entity` (latest-updated per country/type) returns the linked customer regardless of which credential was presented. The remaining Alfredpay routes (KYC/KYB/customer creation/status) continue to require a Supabase Bearer session via `requireAuth` because KYC/KYB submission is a browser-mediated flow.
 
 ## Security Invariants
 
@@ -103,3 +103,20 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 - [x] Routed Alfredpay onramp quote output precision follows destination token decimals when `evmToEvm` metadata exists; direct Polygon same-token passthrough remains at minted-token precision. **PASS** — verified in `finalize/onramp.ts`.
 - [x] Alfredpay onramp registration rejects missing customer context before customer lookup and requires a `Success` Alfredpay customer status. **PASS** — `ramp.service.ts` checks for the current user-backed customer context; `alfredpay-to-evm.ts` rejects missing/non-success customer records.
 - [x] Alfredpay quote engines resolve the tracking-only `metadata.customerId` via `resolveAlfredpayQuoteCustomerId` (real id for KYC-completed users, `"anonymous"` sentinel otherwise); provider *orders* always resolve via the strict `resolveAlfredpayCustomerId`. **PASS**.
+
+## Provider-customers cutover (2026-07)
+
+Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
+`provider_customers` (`provider = 'alfredpay'`), owned via `customer_entities`:
+
+- `alfred_pay_id` → `provider_customer_id` (still the durable Alfredpay-side key,
+  UNIQUE per provider); the internal status machine (CONSULTED/LINK_OPENED/USER_COMPLETED/
+  VERIFYING/FAILED/SUCCESS/UPDATE_REQUIRED) is carried verbatim, and the new schema
+  legitimately admits UPDATE_REQUIRED (the legacy Postgres enum lacked it — writes of that
+  status used to crash).
+- All controller lookups go through `findAlfredpayCustomer(userId, country[, type])`, which
+  resolves the caller's `customer_entity` first and preserves the legacy updatedAt-DESC
+  tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
+  type-ASC precedence ('business' < 'individual').
+- Status transitions mirror into the account's `kyc_cases` row in the same code path.
+- The legacy `alfredpay_customers` table is a read-only backup with no remaining readers.
