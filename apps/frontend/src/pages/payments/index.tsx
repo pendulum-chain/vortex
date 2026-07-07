@@ -109,22 +109,31 @@ function HeroSection() {
   return (
     <section
       aria-labelledby="payments-hero-title"
-      className="bg-gradient-to-b from-white to-blue-50 px-4 py-20 md:px-10 lg:py-28"
+      className="relative overflow-hidden bg-blue-950 px-4 py-16 text-white md:px-10 md:py-24 lg:py-28"
     >
-      <div className="container mx-auto grid items-center gap-12 lg:grid-cols-[0.92fr_1.08fr]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-center bg-cover opacity-90 md:bg-right"
+        style={{ backgroundImage: `url(${PaymentsHeroRails})` }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,26,72,0.98)_0%,rgba(16,26,72,0.82)_44%,rgba(16,26,72,0.26)_78%),linear-gradient(180deg,rgba(16,26,72,0.2)_0%,rgba(16,26,72,0.94)_100%)]"
+      />
+      <div className="container relative mx-auto grid min-h-[720px] items-center gap-12 lg:grid-cols-[0.92fr_1.08fr]">
         <motion.div
           animate={{ opacity: 1, y: 0 }}
           className="max-w-2xl"
           initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          <p className="font-semibold text-primary text-sm uppercase tracking-[0.18em]">
+          <p className="font-semibold text-cyan-300 text-sm uppercase tracking-[0.18em]">
             Stablecoin payment infrastructure for business
           </p>
-          <h1 className="mt-5 font-bold text-blue-950 text-h1" id="payments-hero-title" style={{ textWrap: "balance" }}>
+          <h1 className="mt-5 font-bold text-h1 text-white" id="payments-hero-title" style={{ textWrap: "balance" }}>
             Receive international business payments on stablecoin rails
           </h1>
-          <p className="mt-6 max-w-xl text-body-lg text-gray-600">
+          <p className="mt-6 max-w-xl text-body-lg text-white/80">
             Vortex helps businesses turn cross-border customer payments into local settlement, stablecoin treasury, or local
             bank payouts through compliant fiat and stablecoin routes.
           </p>
@@ -141,14 +150,6 @@ function HeroSection() {
           initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.96, y: 20 }}
           transition={{ delay: shouldReduceMotion ? 0 : 0.1, duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          <div className="overflow-hidden rounded-lg bg-blue-950 shadow-2xl">
-            <img
-              alt="Global stablecoin payment route visual with illuminated international settlement paths"
-              className="h-full min-h-[240px] w-full object-cover"
-              draggable={false}
-              src={PaymentsHeroRails}
-            />
-          </div>
           <PaymentRouteCard />
         </motion.div>
       </div>
@@ -160,15 +161,16 @@ function PaymentRouteCard() {
   return (
     <aside
       aria-label="Payment route visual"
-      className="-mt-10 lg:-mt-16 relative mx-auto max-w-3xl rounded-lg border border-blue-100 bg-white/95 p-4 shadow-card backdrop-blur md:p-5"
+      className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-white/15 bg-blue-950/75 shadow-2xl backdrop-blur-md"
     >
-      <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1.2fr] md:items-center">
+      <div className="grid gap-3 p-4 md:grid-cols-[1fr_auto_1fr_auto_1.2fr] md:items-center md:p-5">
         <RouteNode label="Foreign customer invoice" value="USD / EUR" />
         <RouteArrow />
         <RouteNode highlight label="Stablecoin route" value="USDC / EURC" />
         <RouteArrow />
         <RouteNode label="Local bank payout" tags={["BRL", "COP", "MXN", "ARS"]} value="Bank account settlement" />
       </div>
+      <RouteQuoteCard />
     </aside>
   );
 }
@@ -185,13 +187,21 @@ function RouteNode({
   highlight?: boolean;
 }) {
   return (
-    <div className={cn("rounded-lg border p-4", highlight ? "border-primary bg-blue-50" : "border-gray-100 bg-white")}>
-      <p className="font-medium text-gray-500 text-sm">{label}</p>
-      <p className="mt-1 font-bold text-blue-950 text-lg">{value}</p>
+    <div
+      className={cn(
+        "min-h-[132px] rounded-lg border p-4",
+        highlight ? "border-cyan-300/40 bg-cyan-300/10" : "border-white/15 bg-white/10"
+      )}
+    >
+      <p className="font-semibold text-sm text-white/60 uppercase">{label}</p>
+      <p className="mt-2 font-bold text-lg text-white leading-tight">{value}</p>
       {tags && (
         <div className="mt-3 flex flex-wrap gap-2">
           {tags.map(tag => (
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary text-xs" key={tag}>
+            <span
+              className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 font-semibold text-white text-xs"
+              key={tag}
+            >
               {tag}
             </span>
           ))}
@@ -202,7 +212,29 @@ function RouteNode({
 }
 
 function RouteArrow() {
-  return <div aria-hidden="true" className="hidden h-px w-8 bg-primary md:block" />;
+  return <div aria-hidden="true" className="hidden h-0.5 w-8 bg-gradient-to-r from-cyan-300 to-cyan-300/0 md:block" />;
+}
+
+function RouteQuoteCard() {
+  return (
+    <div className="bg-white/95 p-5 text-gray-800 md:p-6">
+      <p className="font-semibold text-gray-500 text-sm uppercase">Route quote</p>
+      <h2 className="mt-1 font-bold text-2xl text-blue-950 leading-tight">USD/EUR to BRL operating cash</h2>
+      <dl className="mt-5 grid gap-3">
+        {[
+          ["Receive", "Foreign client invoice"],
+          ["Route", "USD/EUR to USDC to BRL"],
+          ["Settlement", "Local operating funds"],
+          ["Status", "Subject to KYB, limits, liquidity, and regulatory availability"]
+        ].map(([term, description]) => (
+          <div className="grid gap-2 border-gray-200 border-t pt-3 sm:grid-cols-[7rem_1fr]" key={term}>
+            <dt className="font-semibold text-gray-500 text-xs uppercase">{term}</dt>
+            <dd className="m-0 font-semibold text-gray-800 text-sm leading-relaxed">{description}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
 }
 
 function CurrencyStrip() {
@@ -274,7 +306,10 @@ function HowItWorksSection() {
 
 function WhereVortexFitsSection() {
   return (
-    <section aria-labelledby="payments-fit-title" className="bg-blue-950 px-4 py-20 text-white md:px-10 lg:py-28">
+    <section
+      aria-labelledby="payments-fit-title"
+      className="bg-[radial-gradient(circle_at_82%_36%,rgba(57,213,255,0.14),transparent_26%)] bg-blue-950 px-4 py-20 text-white md:px-10 lg:py-28"
+    >
       <div className="container mx-auto">
         <SectionHeading
           eyebrow="Where Vortex fits"
@@ -305,7 +340,8 @@ function RoutesSection() {
         <p className="mt-5 text-body-lg text-gray-600">
           Vortex can discuss routes that connect fiat and stablecoin settlement with local instant payment systems, including
           Pix in Brazil, Bre-B in Colombia, Instant SEPA in Europe, and comparable instant bank rails in Argentina and Mexico.
-          Availability, limits, timing, and pricing stay route-dependent.
+          Availability, limits, timing, and pricing stay route-dependent, but the first conversation can map your corridor,
+          settlement currency, and operating flow.
         </p>
         <ChipSet items={CURRENCIES} label="Currency routes" />
         <ChipSet items={LOCAL_RAILS} label="Local payout rails" muted />
@@ -357,7 +393,7 @@ function FinanceComparisonSection() {
   return (
     <section aria-labelledby="payments-finance-title" className="bg-blue-50 px-4 py-20 md:px-10 lg:py-28">
       <div className="container mx-auto">
-        <SectionHeading eyebrow="Finance-team comparison" title="A cleaner way to compare cross-border payment routes" />
+        <SectionHeading eyebrow="For finance teams" title="A cleaner way to compare cross-border payment routes" />
         <div className="mt-12 overflow-hidden rounded-lg bg-white shadow-card">
           <div className="grid bg-blue-950 px-5 py-4 font-semibold text-white md:grid-cols-3">
             <span>Question</span>
@@ -597,7 +633,7 @@ function SectionHeading({
     <div className={cn(align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-2xl")}>
       <p className="font-semibold text-primary text-sm uppercase tracking-[0.18em]">{eyebrow}</p>
       <h2
-        className={cn("mt-3 font-bold text-h2", isDark ? "text-white" : "text-blue-950")}
+        className={cn("mt-3 font-bold text-4xl leading-tight md:text-5xl", isDark ? "text-white" : "text-blue-950")}
         id={
           eyebrow === "Built for real business flows"
             ? "payments-flows-title"
@@ -607,7 +643,7 @@ function SectionHeading({
                 ? "payments-fit-title"
                 : eyebrow === "Routes we can discuss"
                   ? "payments-routes-title"
-                  : eyebrow === "Finance-team comparison"
+                  : eyebrow === "For finance teams"
                     ? "payments-finance-title"
                     : "payments-lead-title"
         }

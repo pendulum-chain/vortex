@@ -12,8 +12,7 @@ export const DesktopNavbar = () => {
   const params = useParams({ strict: false });
   const routerState = useRouterState();
 
-  const isLightMarketingPage =
-    routerState.location.pathname.includes("/business") || routerState.location.pathname.includes("/payments");
+  const isLightMarketingPage = routerState.location.pathname.includes("/business");
   const useTransparentStyle = isWidgetMode || isLightMarketingPage;
 
   return (

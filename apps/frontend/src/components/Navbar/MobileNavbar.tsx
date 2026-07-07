@@ -17,8 +17,7 @@ export const MobileNavbar = () => {
 
   const { resetRampAndNavigateHome } = useNavbarHandlers();
 
-  const isLightMarketingPage =
-    routerState.location.pathname.includes("/business") || routerState.location.pathname.includes("/payments");
+  const isLightMarketingPage = routerState.location.pathname.includes("/business");
   const useTransparentStyle = isWidgetMode || isLightMarketingPage;
 
   const toggleMobileMenu = () => {
