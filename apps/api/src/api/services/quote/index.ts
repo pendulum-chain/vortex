@@ -24,6 +24,7 @@ import { resolveQuotePartner } from "./core/partner-resolution";
 import { createQuoteContext } from "./core/quote-context";
 import { QuoteOrchestrator } from "./core/quote-orchestrator";
 import { buildQuoteResponse } from "./engines/finalize";
+import { MykoboFeeUnavailableError } from "./engines/mykobo-fee";
 import { RouteResolver } from "./routes/route-resolver";
 
 type BestQuoteFailure = {
@@ -219,6 +220,11 @@ export class QuoteService extends BaseRampService {
 
       if (isLowLiquidityQuoteError(error)) {
         throw createLowLiquidityQuoteError();
+      }
+
+      // Surface an anchor (Mykobo) outage distinctly instead of the generic quote failure
+      if (error instanceof MykoboFeeUnavailableError) {
+        throw new APIError({ message: QuoteError.AnchorTemporarilyUnavailable, status: httpStatus.SERVICE_UNAVAILABLE });
       }
 
       // Detect Alfredpay trade limit error and surface it as a user-facing limit error

@@ -53,6 +53,41 @@ function readFlowVariant(): FlowVariant {
   return rawFlowVariant as FlowVariant;
 }
 
+interface MykoboFeeFallback {
+  enabled: boolean;
+  depositFee: string | undefined;
+  withdrawFee: string | undefined;
+}
+
+// Display-only fallback so EUR quotes still render when the Mykobo /fees endpoint is
+// down. Never prices a ramp execution: EUR ramp start is currently blocked entirely by
+// the register-time kill-switch (registerRamp rejects EURC quotes with 503). When EUR is
+// re-enabled, ramp start must re-validate the live Mykobo fee before executing — no such
+// check exists today. Both fees are flat EUR amounts and are required when enabled.
+function readMykoboFeeFallback(): MykoboFeeFallback {
+  const enabled = process.env.MYKOBO_FEE_FALLBACK_ENABLED === "true";
+  if (!enabled) {
+    return { depositFee: undefined, enabled: false, withdrawFee: undefined };
+  }
+  return {
+    depositFee: readNonNegativeDecimalEnv("MYKOBO_FALLBACK_DEPOSIT_FEE"),
+    enabled: true,
+    withdrawFee: readNonNegativeDecimalEnv("MYKOBO_FALLBACK_WITHDRAW_FEE")
+  };
+}
+
+function readNonNegativeDecimalEnv(name: string): string {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) {
+    throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
+  }
+  const value = Number(rawValue);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number (got '${rawValue}')`);
+  }
+  return rawValue;
+}
+
 function readFractionEnv(name: string, defaultValue: string): number {
   const rawValue = process.env[name] ?? defaultValue;
   const trimmedValue = rawValue.trim();
@@ -119,6 +154,9 @@ interface Config {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
   };
+  mykobo: {
+    feeFallback: MykoboFeeFallback;
+  };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
 
@@ -178,6 +216,9 @@ export const config: Config = {
   },
   logs: nodeEnv === "production" ? "combined" : "dev",
   metricsDashboardSecret: process.env.METRICS_DASHBOARD_SECRET || "",
+  mykobo: {
+    feeFallback: readMykoboFeeFallback()
+  },
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
