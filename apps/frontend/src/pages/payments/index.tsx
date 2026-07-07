@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { FormEvent, useId, useState } from "react";
+import { FormEvent, useId, useRef, useState } from "react";
 import PaymentsHeroRails from "../../assets/payments-hero-rails.png";
 import { cn } from "../../helpers/cn";
 import { submitContactForm } from "../../services/api/contact.service";
@@ -416,11 +416,15 @@ function LeadSection() {
 
 function PaymentsLeadForm() {
   const formId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const mutation = useMutation({
     mutationFn: submitContactForm,
     onError: () => setStatus("error"),
-    onSuccess: () => setStatus("success")
+    onSuccess: () => {
+      formRef.current?.reset();
+      setStatus("success");
+    }
   });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -448,7 +452,7 @@ function PaymentsLeadForm() {
   const disabled = mutation.isPending || status === "success";
 
   return (
-    <form className="rounded-lg bg-white p-6 shadow-card md:p-8" onSubmit={handleSubmit}>
+    <form className="rounded-lg bg-white p-6 shadow-card md:p-8" onSubmit={handleSubmit} ref={formRef}>
       <div className="grid gap-4 md:grid-cols-2">
         <FormField htmlFor={`${formId}-company`} label="Company name">
           <input className={inputClassName} disabled={disabled} id={`${formId}-company`} name="companyName" required />
@@ -516,6 +520,18 @@ function PaymentsLeadForm() {
         {mutation.isPending ? "Sending..." : status === "success" ? "Request sent" : "Request route comparison"}
       </button>
       <AnimatePresence>
+        {status === "success" && (
+          <motion.div
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 text-sm"
+            exit={{ opacity: 0, y: -4 }}
+            initial={{ opacity: 0, y: -4 }}
+            role="status"
+          >
+            <p className="font-semibold">Request received</p>
+            <p className="mt-1">The Vortex team will review the route details and follow up by email.</p>
+          </motion.div>
+        )}
         {status === "error" && (
           <motion.p animate={{ opacity: 1 }} className="mt-3 text-error text-sm" exit={{ opacity: 0 }} initial={{ opacity: 0 }}>
             Something went wrong. Please try again or email sales@vortexfinance.co.
