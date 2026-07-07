@@ -520,14 +520,20 @@ exists today (only Supabase OTP, a Slack ops alert, and a Google-Sheet lead capt
 
 ## 9. `packages/shared` + `apps/dashboard` workstreams
 
-**`packages/shared` — S1:** add a dependency-free `"./types"` export (`src/types-entry.ts`)
-re-exporting only pure DTOs/enums (`FiatToken`, `Networks`, `endpoints/*`), excluding
-`@polkadot`/`stellar-sdk`/`web3`/services/substrateEvents. Dashboard imports from it and deletes
-its hand-copied `types.ts`. Fallback: a separate `packages/shared-types` package if an
-`endpoints/*` file has a hidden runtime dep. Frontend's `"."` export is untouched.
+**`packages/shared` — S1: OBSOLETE (2026-07).** The transfer flow was ported from the widget's
+ramp machine, so the dashboard needs shared's *runtime* signing helpers
+(`signUnsignedTransactions`, ephemeral creation, `ApiManager`) — it now depends on the full
+`"."` export like the frontend does, and a types-only entry no longer buys anything. The
+hand-copied wire `types.ts` stays for UI-facing DTO shapes (accurate string-date wire types);
+route-level code splitting keeps the blockchain graph out of non-transfer pages.
 
-**`apps/dashboard` — D:** real `api-client` (mirror the frontend's `apiFetch`); real Supabase OTP
-auth → `/v1/auth/*`; `.env.example`; swap **all** mocks — quote/ramp → existing endpoints,
+**`apps/dashboard` — D (partially landed 2026-07):** ✅ real `api-client` + Supabase OTP auth →
+`/v1/auth/*` + `.env.example`; ✅ quote/ramp mocks swapped (payout-driven quote inversion;
+`transfer.machine.ts` = ported widget ramp core: register → ephemeral presign → user wallet
+sign → start → poll). Still mocked: recipients page → `/v1/recipients/*`, notifications →
+`/v1/notifications`, onboarding wizards → widget redirect (§6) + `/v1/onboarding/status`,
+transactions history. Original scope: real `api-client` (mirror the frontend's `apiFetch`); real
+Supabase OTP auth → `/v1/auth/*`; `.env.example`; swap **all** mocks — quote/ramp → existing endpoints,
 recipients/transfers → `/v1/recipients/*`, onboarding → widget redirect (§6), notifications →
 `/v1/notifications`; adopt `@vortexfi/shared/types`. No backend logic — replaces the app's mocks.
 
