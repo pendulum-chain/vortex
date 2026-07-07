@@ -60,8 +60,10 @@ interface MykoboFeeFallback {
 }
 
 // Display-only fallback so EUR quotes still render when the Mykobo /fees endpoint is
-// down. Never used to execute a ramp: EUR ramp start is guarded separately and re-checks
-// the live integration. Both fees are flat EUR amounts and are required when enabled.
+// down. Never prices a ramp execution: EUR ramp start is currently blocked entirely by
+// the register-time kill-switch (registerRamp rejects EURC quotes with 503). When EUR is
+// re-enabled, ramp start must re-validate the live Mykobo fee before executing — no such
+// check exists today. Both fees are flat EUR amounts and are required when enabled.
 function readMykoboFeeFallback(): MykoboFeeFallback {
   const enabled = process.env.MYKOBO_FEE_FALLBACK_ENABLED === "true";
   if (!enabled) {

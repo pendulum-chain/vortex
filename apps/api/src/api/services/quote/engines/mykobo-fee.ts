@@ -32,13 +32,14 @@ async function resolveFee(kind: "deposit" | "withdraw", lookup: () => Promise<{ 
     const response = await lookup();
     return response.total;
   } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
     const { enabled, depositFee, withdrawFee } = config.mykobo.feeFallback;
     const fallback = kind === "deposit" ? depositFee : withdrawFee;
     if (enabled && fallback !== undefined) {
-      const reason = error instanceof Error ? error.message : String(error);
       logger.warn(`Mykobo ${kind} fee lookup failed (${reason}); using display fallback fee ${fallback} EUR`);
       return fallback;
     }
+    logger.error(`Mykobo ${kind} fee lookup failed (${reason}); no display fallback configured, failing quote`);
     throw new MykoboFeeUnavailableError(kind, { cause: error });
   }
 }
