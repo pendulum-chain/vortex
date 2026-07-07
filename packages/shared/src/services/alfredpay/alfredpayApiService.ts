@@ -113,9 +113,11 @@ export class AlfredpayApiService {
             logger.current.warn(
               `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
             );
+            // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
+            // the error exposes them as strings.
             throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
-              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
+              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
+              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
