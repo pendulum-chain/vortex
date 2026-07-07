@@ -18,13 +18,16 @@ export const PAYMENT_METHOD_LABEL: Record<RecipientMethod, string> = {
   spei: "SPEI"
 };
 
-/** Blockchain networks the stablecoin leg can settle on. */
+/**
+ * Blockchain networks the stablecoin leg can settle on. EVM-only: AssetHub offramps
+ * need a substrate wallet signature, which the dashboard's wagmi-only wallet can't
+ * provide yet.
+ */
 export const TRANSFER_NETWORKS = [
   { id: "polygon", label: "Polygon" },
   { id: "arbitrum", label: "Arbitrum" },
   { id: "base", label: "Base" },
-  { id: "ethereum", label: "Ethereum" },
-  { id: "assethub", label: "Polkadot AssetHub" }
+  { id: "ethereum", label: "Ethereum" }
 ] as const;
 
 export function shortenAddress(address: string): string {

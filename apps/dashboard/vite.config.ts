@@ -10,7 +10,12 @@ export default defineConfig({
   base: "/dashboard/",
   build: {
     emptyOutDir: true,
-    outDir: fileURLToPath(new URL("../frontend/dist/dashboard", import.meta.url))
+    outDir: fileURLToPath(new URL("../frontend/dist/dashboard", import.meta.url)),
+    target: "esnext"
+  },
+  // @vortexfi/shared (polkadot/stellar graph) expects process.env to exist, same as the widget.
+  define: {
+    "process.env": {}
   },
   plugins: [
     // tanstackRouter() must be before react()

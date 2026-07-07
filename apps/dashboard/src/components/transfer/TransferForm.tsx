@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,11 +12,10 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL, TRANSFER_NETWORKS } from "@/domain/transfer";
 import type { Recipient, SenderAccount } from "@/domain/types";
-import { notifyTransferCompleted } from "@/lib/notify";
-import { useOfframpQuote, useRegisterRamp, useStartRamp } from "@/services/api/hooks";
-import { mapPhaseToStatus, pollRampStatus } from "@/services/api/ramp.service";
+import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
+import { transferActor } from "@/machines/transferActor";
+import { useOfframpQuote } from "@/services/api/hooks";
 import { extractBackendLimit, QuoteError } from "@/services/api/types";
-import { useDashboardStore } from "@/stores/dashboard.store";
 import { FundingMethods, type FundingSubmit } from "./FundingMethods";
 import { QuoteSummary } from "./QuoteSummary";
 
@@ -42,8 +42,6 @@ function friendlyQuoteError(message: string): string {
 
 export function TransferForm({ account, recipients, preselectRecipientId }: TransferFormProps) {
   const navigate = useNavigate();
-  const addTransaction = useDashboardStore(state => state.addTransaction);
-  const setTransactionStatus = useDashboardStore(state => state.setTransactionStatus);
 
   const firstApproved = recipients.find(recipient => recipient.status === "approved");
   const initialId = preselectRecipientId ?? firstApproved?.id ?? "";
@@ -62,59 +60,56 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     setAmount(recipients.find(recipient => recipient.id === id)?.amount ?? "");
   }
 
-  const registerRamp = useRegisterRamp();
-  const startRamp = useStartRamp();
-  const submitting = registerRamp.isPending || startRamp.isPending;
+  // The transfer machine (ported widget ramp core) owns register → sign → start → track.
+  const submitting = useSelector(
+    transferActor,
+    snapshot => snapshot.matches("Registering") || snapshot.matches("SigningUserTxs") || snapshot.matches("Starting")
+  );
+  const signing = useSelector(transferActor, snapshot => snapshot.matches("SigningUserTxs"));
 
   const quoteParams =
     selected && isApproved && payoutAmount > 0 ? { corridorId: selected.corridorId, network, payoutAmount } : null;
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
-  async function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isApproved || !quote) {
+  function submitTransfer(submit: FundingSubmit) {
+    if (!selected || !isApproved || !quote || submitting) {
       return;
     }
     const label = recipientLabel(selected);
     const summary = `${quote.outputAmount} ${selected.payoutCurrency} to ${label}`;
-    try {
-      const { rampProcess } = await registerRamp.mutateAsync({
-        additionalData: {
-          destinationAddress: selected.bankDetails.value,
-          email: selected.email,
-          walletAddress: submit.destAddress
-        },
-        quote
-      });
-      const txId = addTransaction({
+
+    // One-shot outcome watcher: navigate when tracking begins, surface the error
+    // when any stage fails. The actor keeps polling after this form unmounts.
+    const subscription = transferActor.subscribe(snapshot => {
+      if (snapshot.matches("Tracking")) {
+        subscription.unsubscribe();
+        toast.success("Transfer initiated", {
+          description: `Funding via ${submit.label} — we'll pay out ${summary} once your ${quote.inputAmount} USDC lands.`
+        });
+        navigate({ to: "/transactions" });
+      } else if (snapshot.matches("Failed")) {
+        subscription.unsubscribe();
+        toast.error("Could not start transfer", { description: snapshot.context.errorMessage ?? undefined });
+      }
+    });
+
+    transferActor.send({
+      additionalData: buildTransferAdditionalData(selected, submit.destAddress),
+      meta: {
         accountId: account.id,
         amountIn: quote.inputAmount,
         amountInToken: "USDC",
         corridorId: selected.corridorId,
         fiatPayoutAmount: quote.outputAmount,
         payinNetwork: network,
-        payinWallet: rampProcess.walletAddress ?? submit.destAddress,
         payoutCurrency: selected.payoutCurrency,
         recipientEmail: label,
         recipientId: selected.id,
-        status: "awaiting_payin"
-      });
-      toast.success("Transfer initiated", {
-        description: `Funding via ${submit.label} — we'll pay out ${summary} once your ${quote.inputAmount} USDC lands.`
-      });
-      await startRamp.mutateAsync(rampProcess.id);
-      pollRampStatus(rampProcess.id, status => {
-        const domainStatus = mapPhaseToStatus(status.currentPhase);
-        setTransactionStatus(txId, domainStatus);
-        if (domainStatus === "completed") {
-          notifyTransferCompleted(`Payout of ${summary}`);
-        }
-      });
-      navigate({ to: "/transactions" });
-    } catch (submitError) {
-      toast.error("Could not start transfer", {
-        description: submitError instanceof Error ? submitError.message : undefined
-      });
-    }
+        summary
+      },
+      quote,
+      type: "START"
+    });
   }
 
   return (
@@ -209,6 +204,11 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
                 recipient={selected}
                 submitting={submitting}
               />
+              {signing && (
+                <p className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-sm">
+                  Confirm the signature request in your wallet to authorize the transfer…
+                </p>
+              )}
             </>
           ) : (
             <div className="grid gap-3">

@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { AuthOtpStep } from "@/components/auth/AuthOtpStep";
 import { VortexLogo } from "@/components/layout/VortexLogo";
@@ -21,15 +22,49 @@ type FormValues = z.infer<typeof schema>;
 
 function LoginPage() {
   const user = useAuthStore(state => state.user);
-  const login = useAuthStore(state => state.login);
+  const requestOtp = useAuthStore(state => state.requestOtp);
+  const verifyOtp = useAuthStore(state => state.verifyOtp);
   const signInWithEmail = useDashboardStore(state => state.signInWithEmail);
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<FormValues>({ defaultValues: { email: "" }, resolver: zodResolver(schema) });
 
   if (user) {
     return <Navigate to="/overview" />;
+  }
+
+  async function submitEmail(values: FormValues) {
+    setSubmitting(true);
+    try {
+      await requestOtp(values.email);
+      setEmail(values.email);
+    } catch (error) {
+      toast.error("Could not send the code", {
+        description: error instanceof Error ? error.message : undefined
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitOtp(code: string) {
+    if (!email || submitting) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await verifyOtp(email, code);
+      signInWithEmail(email);
+      navigate({ to: "/overview" });
+    } catch (error) {
+      toast.error("Verification failed", {
+        description: error instanceof Error ? error.message : "Check the code and try again."
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -50,15 +85,13 @@ function LoginPage() {
               <AuthOtpStep
                 email={email}
                 onChangeEmail={() => setEmail(null)}
-                onVerify={() => {
-                  signInWithEmail(email);
-                  login(email);
-                  navigate({ to: "/overview" });
-                }}
+                onResend={() => requestOtp(email)}
+                onVerify={submitOtp}
+                submitting={submitting}
               />
             ) : (
               <Form {...form}>
-                <form className="grid gap-4" onSubmit={form.handleSubmit(values => setEmail(values.email))}>
+                <form className="grid gap-4" onSubmit={form.handleSubmit(submitEmail)}>
                   <FormField
                     control={form.control}
                     name="email"
@@ -72,10 +105,9 @@ function LoginPage() {
                       </FormItem>
                     )}
                   />
-                  <Button className="w-full" type="submit">
-                    Continue
+                  <Button className="w-full" disabled={submitting} type="submit">
+                    {submitting ? "Sending code…" : "Continue"}
                   </Button>
-                  <p className="text-center text-muted-foreground text-xs">Demo environment — any email works.</p>
                 </form>
               </Form>
             )}
