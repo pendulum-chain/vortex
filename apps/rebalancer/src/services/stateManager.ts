@@ -203,6 +203,8 @@ export interface UsdcBaseRebalanceState {
   squidRouterQuoteUsdc: string | null;
   aveniaQuoteUsdc: string | null;
   mainNablaQuoteUsdc: string | null;
+  // Observational-only BlindPay shadow quote (USDC-equivalent raw, 6 decimals); never routed.
+  blindpayShadowQuoteUsdc: string | null;
   mainNablaApproveHash: string | null;
   mainNablaSwapHash: string | null;
   mainNablaUsdcBalanceBeforeRaw: string | null;
@@ -251,6 +253,7 @@ export function createUsdcBaseRebalanceState(
     aveniaTicketId: null,
     baseUsdcBalanceBeforeAveniaSwapRaw: null,
     baseUsdcBalanceBeforeSquidSwapRaw: null,
+    blindpayShadowQuoteUsdc: null,
     brlaAmountDecimal: null,
     brlaAmountRaw: null,
     brlaBalanceBeforeNablaRaw: null,

@@ -40,11 +40,15 @@ const sequelize = new Sequelize(config.database.database, config.database.userna
   dialectOptions: getDialectOptions(),
   host: config.database.host,
   logging: config.database.logging ? msg => logger.debug(msg) : false,
+  // Keep a couple of warm connections: with min 0 / idle 10s every quiet period dropped
+  // all connections, so each request burst re-ran the full SCRAM handshake through the
+  // Supabase pooler (Supavisor) — which times out with EAUTHTIMEOUT when the event loop
+  // is busy, failing quotes and API-key validation.
   pool: {
     acquire: 30000,
-    idle: 10000,
+    idle: 60000,
     max: 10,
-    min: 0
+    min: 2
   },
   port: config.database.port
 });

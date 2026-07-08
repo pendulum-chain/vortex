@@ -16,9 +16,11 @@ export interface PhaseHandler {
   /**
    * Execute the phase
    * @param state The current ramp state
+   * @param signal Aborted when the processor gives up on this execution; long-running
+   *   waits must stop when it fires so abandoned executions don't keep running
    * @returns The updated ramp state
    */
-  execute(state: RampState): Promise<RampState>;
+  execute(state: RampState, signal?: AbortSignal): Promise<RampState>;
 
   /**
    * Get the phase name
@@ -41,7 +43,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param state The current ramp state
    * @returns The updated ramp state
    */
-  public async execute(state: RampState): Promise<RampState> {
+  public async execute(state: RampState, signal?: AbortSignal): Promise<RampState> {
     try {
       logger.info(`Executing phase ${this.getPhaseName()} for ramp ${state.id}`);
 
@@ -54,7 +56,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       }
 
       // Execute the phase
-      const updatedState = await this.executePhase(state);
+      const updatedState = await this.executePhase(state, signal);
 
       // Log the phase execution
       logger.info(`Phase ${this.getPhaseName()} executed successfully for ramp ${state.id}`);
@@ -90,9 +92,11 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   /**
    * Execute the phase implementation
    * @param state The current ramp state
+   * @param signal Aborted when the processor abandons this execution; implementations
+   *   with long-running waits should pass it to their polling helpers
    * @returns The updated ramp state
    */
-  protected abstract executePhase(state: RampState): Promise<RampState>;
+  protected abstract executePhase(state: RampState, signal?: AbortSignal): Promise<RampState>;
 
   /**
    * Transition to the next phase
