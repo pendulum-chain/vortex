@@ -1,6 +1,15 @@
 // eslint-disable-next-line import/no-unresolved
 import {afterAll, afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import type {RampCurrency} from "@vortexfi/shared";
+// Captured before the mock.module calls below so afterAll can restore the real
+// modules. bun module mocks are process-wide: leaving "@vortexfi/shared" stubbed
+// poisons later test files that resolve real token configs (e.g. the corridor
+// integration tests, whose top-level helpers throw "token config missing").
+import * as sharedNamespace from "@vortexfi/shared";
+import * as loggerNamespace from "../../config/logger";
+
+const sharedReal = { ...sharedNamespace };
+const loggerReal = { ...loggerNamespace };
 
 const ARS = "ARS" as RampCurrency;
 const BRL = "BRL" as RampCurrency;
@@ -48,8 +57,6 @@ mock.module("../../config/logger", () => ({
   default: loggerMock
 }));
 
-mock.module("../../../index", () => ({}));
-
 const { PriceFeedService, priceFeedService } = await import("./priceFeed.service");
 const { config } = await import("../../config/vars");
 
@@ -95,6 +102,9 @@ describe("PriceFeedService", () => {
     }
     global.fetch = originalFetch;
     Reflect.set(PriceFeedService, "instance", undefined);
+    // Restore the real modules so this file's stubs don't leak into later files.
+    mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+    mock.module("../../config/logger", () => ({ ...loggerReal }));
   });
 
   describe("Singleton Pattern", () => {
