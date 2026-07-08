@@ -56,6 +56,17 @@ describe("waitUntilTrueWithTimeout", () => {
   });
 });
 
+describe("sleep", () => {
+  it("rejects immediately when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("pre-aborted"));
+
+    const start = Date.now();
+    await expect(sleep(10_000, controller.signal)).rejects.toThrow("pre-aborted");
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+});
+
 describe("waitUntilTrue", () => {
   it("stops polling when the signal aborts", async () => {
     let calls = 0;

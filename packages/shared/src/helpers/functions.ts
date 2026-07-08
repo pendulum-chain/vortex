@@ -7,10 +7,6 @@ function abortReason(signal: AbortSignal): Error {
  */
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(abortReason(signal));
-      return;
-    }
     const onAbort = () => {
       clearTimeout(timer);
       reject(abortReason(signal as AbortSignal));
@@ -20,6 +16,13 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       resolve();
     }, ms);
     signal?.addEventListener("abort", onAbort, { once: true });
+    // A listener added to an already-aborted signal never fires, so re-check
+    // after registration — this leaves no ordering in which an abort is missed.
+    if (signal?.aborted) {
+      signal.removeEventListener("abort", onAbort);
+      clearTimeout(timer);
+      reject(abortReason(signal));
+    }
   });
 }
 
