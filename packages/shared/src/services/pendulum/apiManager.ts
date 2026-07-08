@@ -118,7 +118,10 @@ export class ApiManager {
     const index = wsUrlIndex ?? 0;
     const instanceKey = this.generateInstanceKey(networkName, index);
     const staleInstance = this.apiInstances.get(instanceKey);
-    this.apiInstances.delete(instanceKey);
+
+    // Create the replacement before dropping the stale instance so a failed reconnect
+    // doesn't leave the network without a cached api.
+    const newApi = await this.createAndCacheApi(networkName, index);
 
     if (staleInstance) {
       try {
@@ -128,16 +131,17 @@ export class ApiManager {
       }
     }
 
-    return await this.createAndCacheApi(networkName, index);
+    return newApi;
   }
 
   private async createAndCacheApi(networkName: SubstrateApiNetwork, index: number): Promise<API> {
-    const instanceKey = this.generateInstanceKey(networkName, index);
     const newApi = await this.connectApi(networkName, index);
-    this.apiInstances.set(instanceKey, newApi);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
+
+    // Cache only once the api is ready so concurrent readers never observe a connecting instance.
+    this.apiInstances.set(this.generateInstanceKey(networkName, index), newApi);
 
     return newApi;
   }

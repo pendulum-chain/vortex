@@ -91,14 +91,15 @@ describe("ApiManager api refresh", () => {
 
     // Mimics the real connectApi: returns a fresh instance reading the current on-chain
     // spec version and records that version as the previous one.
-    manager.connectApi = mock((networkName: SubstrateApiNetwork) => {
+    const connectApiMock = mock((networkName: SubstrateApiNetwork) => {
       const fake = createFakeApi(() => onChainSpecVersion);
       fakes.push(fake);
       manager.previousSpecVersions.set(networkName, onChainSpecVersion);
       return Promise.resolve(fake.instance);
     });
+    manager.connectApi = connectApiMock;
 
-    return { fakes, manager, setSpecVersion: (version: number) => (onChainSpecVersion = version) };
+    return { connectApiMock, fakes, manager, setSpecVersion: (version: number) => (onChainSpecVersion = version) };
   }
 
   it("populateApi is idempotent and reuses the cached instance", async () => {
@@ -126,6 +127,20 @@ describe("ApiManager api refresh", () => {
     expect(manager.connectApi).toHaveBeenCalledTimes(2);
     expect(fakes[0].disconnect).toHaveBeenCalledTimes(1);
     expect(manager.apiInstances.get("pendulum-0")).toBe(refreshed);
+  });
+
+  it("keeps the cached instance when the refresh reconnect fails", async () => {
+    const { connectApiMock, fakes, manager, setSpecVersion } = setupManager();
+
+    const initial = await manager.populateApi("pendulum");
+
+    setSpecVersion(2);
+    connectApiMock.mockImplementationOnce(() => Promise.reject(new Error("reconnect failed")));
+
+    await expect(manager.getApi("pendulum")).rejects.toThrow("reconnect failed");
+
+    expect(manager.apiInstances.get("pendulum-0")).toBe(initial);
+    expect(fakes[0].disconnect).not.toHaveBeenCalled();
   });
 
   it("getApi with forceRefresh replaces and disconnects the cached instance", async () => {
