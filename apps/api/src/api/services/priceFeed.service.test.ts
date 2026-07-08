@@ -241,6 +241,21 @@ describe("PriceFeedService", () => {
       expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Binance failed for USD-BRL"));
     });
 
+    it("should fall back to fastforex when Binance returns a mismatched symbol", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? mockBinanceResponse(5.85, "USDTARS") : mockFastforexResponse(5.85)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=BRL", expect.anything());
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Binance returned unexpected symbol for USDTBRL: USDTARS"));
+    });
+
     it("should fall back to fastforex when the Binance rate is outside the CoinGecko sanity band", async () => {
       const instance = PriceFeedService.getInstance();
       fetchMock = mock(async (url: string) => (isBinanceUrl(url) ? mockBinanceResponse(6.2) : mockFastforexResponse(5.85)));

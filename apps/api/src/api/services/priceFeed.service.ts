@@ -465,6 +465,11 @@ export class PriceFeedService {
     }
 
     const data = (await response.json()) as { symbol: string; price: string };
+
+    if (data.symbol !== symbol) {
+      throw new Error(`Binance returned unexpected symbol for ${symbol}: ${data.symbol}`);
+    }
+
     const rate = Number(data.price);
 
     if (!Number.isFinite(rate) || rate <= 0) {

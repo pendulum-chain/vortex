@@ -75,8 +75,10 @@ const initializeApp = async () => {
     registerPhaseHandlers();
 
     // Probe the Binance price feed so a geo-block (HTTP 451) or outage surfaces
-    // loudly at boot instead of silently degrading to the fiat fallback.
-    await priceFeedService.verifyBinanceReachability();
+    // loudly in the logs instead of silently degrading to the fiat fallback.
+    // Fire-and-forget: a blocked/hanging call must not delay startup, and the
+    // probe never throws while request-time pricing already fails over safely.
+    void priceFeedService.verifyBinanceReachability();
 
     // Start the server
     app.listen(port, () => logger.info(`server started on port ${port} (${env})`));
