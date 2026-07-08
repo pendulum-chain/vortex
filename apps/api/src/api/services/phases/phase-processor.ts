@@ -197,7 +197,13 @@ export class PhaseProcessor {
         }, maxExecuteTime);
       });
 
-      const pendingState = await Promise.race([handler.execute(state, abortController.signal), timeoutPromise]).finally(() => {
+      // Wrap the handler call so a synchronous throw becomes a rejection of the race:
+      // thrown eagerly inside the array literal, it would skip the .finally and leak
+      // the timeout timer (whose later rejection nobody handles).
+      const pendingState = await Promise.race([
+        Promise.resolve().then(() => handler.execute(state, abortController.signal)),
+        timeoutPromise
+      ]).finally(() => {
         clearTimeout(timeoutId);
       });
 

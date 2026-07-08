@@ -97,6 +97,43 @@ describe("PhaseProcessor execution cancellation", () => {
     expect(reloaded?.processingLock.locked).toBe(false);
   });
 
+  it("cleans up the timeout timer when a handler throws synchronously", async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    const syncThrowHandler: PhaseHandler = {
+      // Deliberately not async: thrown before Promise.race is entered, this used to
+      // leak the timeout timer, whose later rejection nobody handled.
+      execute: () => {
+        throw new Error("sync boom");
+      },
+      getPhaseName: () => TEST_PHASE
+    };
+    phaseRegistry.registerHandler(syncThrowHandler);
+
+    try {
+      const state = await createTestRampState({ currentPhase: TEST_PHASE });
+      const { PhaseProcessor } = await import("./phase-processor");
+      const processor = new PhaseProcessor();
+      await processor.processRamp(state.id);
+
+      // Wait past MAX_EXECUTION_TIME_MS (150ms): a leaked timer would reject the
+      // never-awaited timeout promise as an unhandled rejection.
+      await new Promise(resolve => setTimeout(resolve, 300));
+      expect(unhandled).toEqual([]);
+
+      // The sync throw still goes through the normal error path and releases the lock.
+      const reloaded = await RampState.findByPk(state.id);
+      expect(reloaded?.processingLock.locked).toBe(false);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+      phaseRegistry.registerHandler(hangingHandler);
+    }
+  });
+
   it("falls back to default timeouts when env overrides are malformed", async () => {
     process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS = "banana";
     process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "-5";
