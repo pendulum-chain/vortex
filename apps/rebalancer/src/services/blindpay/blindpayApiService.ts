@@ -1,6 +1,10 @@
 import { getConfig } from "../../utils/config.ts";
 import type { PayinFxRateInput, PayinFxRateResponse } from "./types.ts";
 
+// A stalled BlindPay request must not hang the surrounding Promise.allSettled and
+// stall the whole rebalance run — the quote is observational only.
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /// Minimal client for the BlindPay API. Uses a static Bearer API key (no login flow).
 /// We only need the payin FX-rate endpoint to obtain an indicative fiat -> stablecoin
 /// price, used purely as an observational comparison against the executed routes.
@@ -41,7 +45,8 @@ export class BlindpayApiService {
         Authorization: `Bearer ${blindpayApiKey}`,
         "Content-Type": "application/json"
       },
-      method: "POST"
+      method: "POST",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
 
     if (!response.ok) {
