@@ -124,6 +124,7 @@ interface Config {
   };
   priceProviders: {
     alchemyPay: PriceProvider;
+    binance: PriceProvider;
     transak: PriceProvider;
     moonpay: PriceProvider;
     coingecko: {
@@ -230,6 +231,9 @@ export const config: Config = {
       appId: process.env.ALCHEMYPAY_APP_ID,
       baseUrl: process.env.ALCHEMYPAY_PROD_URL || "https://openapi.alchemypay.org",
       secretKey: process.env.ALCHEMYPAY_SECRET_KEY
+    },
+    binance: {
+      baseUrl: process.env.BINANCE_API_URL || "https://api.binance.com"
     },
     coingecko: {
       apiKey: process.env.COINGECKO_API_KEY,
