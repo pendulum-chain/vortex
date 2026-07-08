@@ -107,11 +107,41 @@ export class ApiManager {
     if (existingInstance) {
       return existingInstance;
     }
+    return await this.createAndCacheApi(networkName, index);
+  }
+
+  /**
+   * Discards the cached API instance (disconnecting it) and creates a fresh one.
+   * Unlike populateApi, this always replaces the cached instance.
+   */
+  public async refreshApi(networkName: SubstrateApiNetwork, wsUrlIndex?: number): Promise<API> {
+    const index = wsUrlIndex ?? 0;
+    const instanceKey = this.generateInstanceKey(networkName, index);
+    const staleInstance = this.apiInstances.get(instanceKey);
+
+    // Create the replacement before dropping the stale instance so a failed reconnect
+    // doesn't leave the network without a cached api.
+    const newApi = await this.createAndCacheApi(networkName, index);
+
+    if (staleInstance) {
+      try {
+        await staleInstance.api.disconnect();
+      } catch (error) {
+        logger.current.warn(`Failed to disconnect stale API instance for ${instanceKey}: ${error}`);
+      }
+    }
+
+    return newApi;
+  }
+
+  private async createAndCacheApi(networkName: SubstrateApiNetwork, index: number): Promise<API> {
     const newApi = await this.connectApi(networkName, index);
-    this.apiInstances.set(instanceKey, newApi);
 
     if (!newApi.api.isConnected) await newApi.api.connect();
     await newApi.api.isReady;
+
+    // Cache only once the api is ready so concurrent readers never observe a connecting instance.
+    this.apiInstances.set(this.generateInstanceKey(networkName, index), newApi);
 
     return newApi;
   }
@@ -127,8 +157,12 @@ export class ApiManager {
     const instanceKey = this.generateInstanceKey(networkName, 0);
     const apiInstance = this.apiInstances.get(instanceKey);
 
-    if (!apiInstance || forceRefresh) {
+    if (!apiInstance) {
       return await this.populateApi(networkName);
+    }
+
+    if (forceRefresh) {
+      return await this.refreshApi(networkName);
     }
 
     const currentSpecVersion = await this.getSpecVersion(apiInstance.api);
@@ -136,7 +170,7 @@ export class ApiManager {
 
     if (currentSpecVersion !== previousSpecVersion) {
       logger.current.info(`Spec version changed for ${networkName}, refreshing the api...`);
-      return await this.populateApi(networkName);
+      return await this.refreshApi(networkName);
     }
 
     return apiInstance;
@@ -235,10 +269,12 @@ export class ApiManager {
         );
 
         try {
-          await this.populateApi(networkName);
+          const refreshedApiInstance = await this.refreshApi(networkName);
+          // Rebuild the extrinsic against the refreshed api; the original call is bound to the stale registry.
+          const retryCall = createCall(refreshedApiInstance.api);
           const nonce = await this.getNonce(senderKeypair, networkName);
           return new Promise((resolve, reject) => {
-            call.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
+            retryCall.signAndSend(senderKeypair, { nonce }, (submissionResult: ISubmittableResult) => {
               const { status, dispatchError } = submissionResult;
 
               if (dispatchError) {

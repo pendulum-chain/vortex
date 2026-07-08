@@ -7,6 +7,13 @@ import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
 import phaseRegistry from "./phase-registry";
 
+// A malformed env override must fall back to the default: parseInt would yield NaN
+// and setTimeout(..., NaN) fires immediately, which would time out every phase instantly.
+function positiveIntFromEnv(value: string | undefined, fallback: number): number {
+  const parsed = value ? parseInt(value, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 /**
  * Process phases for a ramping process
  */
@@ -14,9 +21,10 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
-  private readonly MAX_EXECUTION_TIME_MS = 10 * 60 * 1000; // 10 minutes
+  // Overridable so tests don't wait 10 minutes for the execution timeout.
+  private readonly MAX_EXECUTION_TIME_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS, 600000); // 10 minutes
   // Overridable so tests don't wait 30s between recoverable-error retries.
-  private readonly DEFAULT_RETRY_DELAY_MS = parseInt(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS || "30000", 10);
+  private readonly DEFAULT_RETRY_DELAY_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS, 30000);
   private lockedRamps = new Set<string>();
 
   /**
@@ -176,15 +184,26 @@ export class PhaseProcessor {
 
       // Execute the phase with a maximum waiting time
       // If the phase execution exceeds this time, we consider it a timeout and handle it as a recoverable error.
+      // The abort signal tells the (otherwise unstoppable) execution to wind down: without it, every
+      // timed-out execution kept its polling loops running forever and they piled up until the CPU pegged.
       const maxExecuteTime = this.MAX_EXECUTION_TIME_MS;
+      const abortController = new AbortController();
       let timeoutId: NodeJS.Timeout;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
-          reject(new RecoverablePhaseError("Phase execution timed out"));
+          const timeoutError = new RecoverablePhaseError("Phase execution timed out");
+          abortController.abort(timeoutError);
+          reject(timeoutError);
         }, maxExecuteTime);
       });
 
-      const pendingState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
+      // Wrap the handler call so a synchronous throw becomes a rejection of the race:
+      // thrown eagerly inside the array literal, it would skip the .finally and leak
+      // the timeout timer (whose later rejection nobody handles).
+      const pendingState = await Promise.race([
+        Promise.resolve().then(() => handler.execute(state, abortController.signal)),
+        timeoutPromise
+      ]).finally(() => {
         clearTimeout(timeoutId);
       });
 

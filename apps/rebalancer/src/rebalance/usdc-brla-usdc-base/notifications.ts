@@ -17,6 +17,7 @@ export interface RebalancePolicySummary {
   opportunistic?: boolean;
   preflightQuotes?: {
     aveniaQuoteUsdc: string | null;
+    blindpayShadowQuoteUsdc: string | null;
     mainNablaQuoteUsdc: string | null;
     squidRouterQuoteUsdc: string | null;
   };
@@ -32,6 +33,9 @@ interface BaseRebalanceCompletionMessageParams {
   policy?: RebalancePolicySummary;
   requestedUsdc: Big;
   route: WinningRoute;
+  // Observational-only BlindPay shadow quote and the executed route's USDC, both raw (6 decimals).
+  blindpayShadowQuoteUsdcRaw?: string | null;
+  winnerQuoteUsdcRaw?: string | null;
 }
 
 export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceCompletionMessageParams): string {
@@ -54,8 +58,29 @@ export function formatBaseRebalanceCompletionMessage(params: BaseRebalanceComple
         ]
       ]
     ),
+    formatBlindpayShadowLine(params.blindpayShadowQuoteUsdcRaw, params.winnerQuoteUsdcRaw, params.route),
     formatPolicySummary(params.policy, params.edgeCaseFlags)
-  ].join("\n");
+  ]
+    .filter(section => section !== null)
+    .join("\n");
+}
+
+// Observational only: shows what BlindPay would have quoted for the same BRLA amount, alongside
+// the executed route, to evaluate BlindPay as a cheaper stablecoin source. Never routed.
+function formatBlindpayShadowLine(
+  blindpayShadowUsdcRaw: string | null | undefined,
+  winnerQuoteUsdcRaw: string | null | undefined,
+  route: WinningRoute
+): string | null {
+  if (!blindpayShadowUsdcRaw) return null;
+
+  const blindpayUsdc = Big(blindpayShadowUsdcRaw).div(1e6);
+  let comparison = "";
+  if (winnerQuoteUsdcRaw) {
+    const delta = blindpayUsdc.minus(Big(winnerQuoteUsdcRaw).div(1e6));
+    comparison = ` | vs ${formatRoute(route)} ${Big(winnerQuoteUsdcRaw).div(1e6).toFixed(6)}: ${delta.gte(0) ? "+" : ""}${delta.toFixed(6)}`;
+  }
+  return `*BlindPay shadow* (not routed): ${blindpayUsdc.toFixed(6)} USDC-eq${comparison}`;
 }
 
 export function formatPolicySummary(policy: RebalancePolicySummary | undefined, edgeCaseFlags: string[] = []): string {

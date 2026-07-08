@@ -204,6 +204,7 @@ async function evaluateUsdcToBrlaPolicy(
   profitable: boolean;
   routeQuotes?: {
     aveniaQuoteUsdc: string | null;
+    blindpayShadowQuoteUsdc: string | null;
     mainNablaQuoteUsdc: string | null;
     squidRouterQuoteUsdc: string | null;
   };
@@ -243,6 +244,7 @@ async function evaluateUsdcToBrlaPolicy(
     profitable: isProjectedProfit(Big(amountUsdcRaw), Big(projectedOutputRaw)),
     routeQuotes: {
       aveniaQuoteUsdc: comparison.aveniaQuoteUsdc,
+      blindpayShadowQuoteUsdc: comparison.blindpayShadowQuoteUsdc,
       mainNablaQuoteUsdc: comparison.mainNablaQuoteUsdc,
       squidRouterQuoteUsdc: comparison.squidRouterQuoteUsdc
     },

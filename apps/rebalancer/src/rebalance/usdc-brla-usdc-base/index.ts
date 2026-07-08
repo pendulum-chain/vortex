@@ -144,12 +144,14 @@ export async function rebalanceUsdcBrlaUsdcBase(
       state.squidRouterQuoteUsdc = policy?.preflightQuotes?.squidRouterQuoteUsdc ?? null;
       state.aveniaQuoteUsdc = policy?.preflightQuotes?.aveniaQuoteUsdc ?? null;
       state.mainNablaQuoteUsdc = policy?.preflightQuotes?.mainNablaQuoteUsdc ?? null;
+      state.blindpayShadowQuoteUsdc = policy?.preflightQuotes?.blindpayShadowQuoteUsdc ?? null;
     } else {
       const comparison = await compareRoutesUpfront(state.usdcAmountRaw);
       state.winningRoute = comparison.winningRoute;
       state.squidRouterQuoteUsdc = comparison.squidRouterQuoteUsdc;
       state.aveniaQuoteUsdc = comparison.aveniaQuoteUsdc;
       state.mainNablaQuoteUsdc = comparison.mainNablaQuoteUsdc;
+      state.blindpayShadowQuoteUsdc = comparison.blindpayShadowQuoteUsdc;
     }
 
     console.log(`Route selected: ${state.winningRoute}`);
@@ -476,9 +478,19 @@ export async function rebalanceUsdcBrlaUsdcBase(
     startingTime: state.startingTime
   });
 
+  const winnerQuoteUsdcRaw =
+    state.winningRoute === "squidrouter"
+      ? state.squidRouterQuoteUsdc
+      : state.winningRoute === "avenia"
+        ? state.aveniaQuoteUsdc
+        : state.winningRoute === "nabla-main"
+          ? state.mainNablaQuoteUsdc
+          : null;
+
   const slackNotifier = new SlackNotifier(process.env.SLACK_WEB_HOOK_TOKEN);
   await slackNotifier.sendMessage({
     text: formatBaseRebalanceCompletionMessage({
+      blindpayShadowQuoteUsdcRaw: state.blindpayShadowQuoteUsdc,
       brlaReceived: Big(state.brlaAmountDecimal),
       cost,
       edgeCaseFlags,
@@ -486,7 +498,8 @@ export async function rebalanceUsdcBrlaUsdcBase(
       initialUsdcBalance: initialUsdcDecimal,
       policy: policy ?? { config: getConfig().rebalancingCostPolicy },
       requestedUsdc: usdcRebalanced,
-      route: state.winningRoute
+      route: state.winningRoute,
+      winnerQuoteUsdcRaw
     })
   });
 }

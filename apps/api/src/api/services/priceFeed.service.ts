@@ -1,20 +1,8 @@
-import {
-  ApiManager,
-  EvmToken,
-  getPendulumDetails,
-  getTokenOutAmount,
-  getTokenUsdPrice,
-  isFiatToken,
-  normalizeTokenSymbol,
-  PENDULUM_USDC_AXL,
-  RampCurrency,
-  UsdLikeEvmToken
-} from "@vortexfi/shared";
+import { EvmToken, getTokenUsdPrice, isFiatToken, normalizeTokenSymbol, RampCurrency, UsdLikeEvmToken } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import { fetchWithTimeout } from "../helpers/fetchWithTimeout";
-import { SlackNotifier } from "./slack.service";
 
 // Cache entry interface
 interface CacheEntry<T> {
@@ -22,10 +10,18 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+const FASTFOREX_SANITY_SPREAD_LIMITS: Record<string, number> = {
+  ARS: 0.25,
+  BRL: 0.02,
+  COP: 0.03,
+  EUR: 0.02,
+  MXN: 0.03
+};
+
 /**
  * PriceFeedService
  *
- * A singleton service that centralizes price lookups for crypto (CoinGecko) and fiat (Nabla) currencies.
+ * A singleton service that centralizes price lookups for crypto (CoinGecko) and fiat (fastforex) currencies.
  * This service is part of the fee-handling refactor to provide consistent price data across the application.
  * Includes in-memory caching with configurable TTLs to reduce API calls and improve performance.
  */
@@ -36,6 +32,10 @@ export class PriceFeedService {
   private coingeckoApiKey: string | undefined;
 
   private coingeckoApiBaseUrl: string;
+
+  private fastforexApiKey: string | undefined;
+
+  private fastforexApiBaseUrl: string;
 
   // Cache configuration
   private cryptoCacheTtlMs: number;
@@ -54,6 +54,9 @@ export class PriceFeedService {
     this.coingeckoApiKey = config.priceProviders.coingecko.apiKey;
     this.coingeckoApiBaseUrl = config.priceProviders.coingecko.baseUrl;
 
+    this.fastforexApiKey = config.priceProviders.fastforex.apiKey;
+    this.fastforexApiBaseUrl = config.priceProviders.fastforex.baseUrl;
+
     this.cryptoCacheTtlMs = config.priceProviders.coingecko.cryptoCacheTtlMs;
     this.fiatCacheTtlMs = config.priceProviders.coingecko.fiatCacheTtlMs;
 
@@ -61,7 +64,12 @@ export class PriceFeedService {
       logger.warn("COINGECKO_API_KEY environment variable is not set. CoinGecko API calls may be rate-limited.");
     }
 
+    if (!this.fastforexApiKey) {
+      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko.");
+    }
+
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
+    logger.info(`PriceFeedService initialized with fastforex API URL: ${this.fastforexApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
   }
 
@@ -171,13 +179,21 @@ export class PriceFeedService {
    * Get the exchange rate from USD to another fiat currency. The source currency is always USD.
    *
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
-   * @param inputAmount - The amount to convert (default is '1.0')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
-  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency, inputAmount = "1.0"): Promise<number> {
+  public async getUsdToFiatExchangeRate(toCurrency: RampCurrency): Promise<number> {
     const fromCurrency = "USD";
+    const targetCurrency = toCurrency.toUpperCase() as RampCurrency;
 
-    const cacheKey = `fiat:${fromCurrency}:${toCurrency}`;
+    if (!isFiatToken(targetCurrency)) {
+      throw new Error(`USD-to-fiat exchange rate requires a fiat currency, got ${toCurrency}`);
+    }
+
+    if (targetCurrency === "USD") {
+      return 1;
+    }
+
+    const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
 
@@ -186,67 +202,50 @@ export class PriceFeedService {
       return cachedEntry.value;
     }
 
-    // Check if the currency has a Pendulum representative (Nabla pool).
-    // Currencies like MXN, COP, and ARS are TokenType.Fiat with no Pendulum pool — use CoinGecko for those.
-    let outputTokenPendulumDetails;
-    try {
-      outputTokenPendulumDetails = getPendulumDetails(toCurrency);
-    } catch {
-      // No Pendulum representative — fall back to CoinGecko using USDC as a USD proxy.
-      logger.debug(`Cache miss for ${cacheKey}. No Pendulum pool for ${toCurrency}, fetching from CoinGecko.`);
+    if (this.fastforexApiKey) {
+      logger.debug(`Cache miss for ${cacheKey}. Fetching from fastforex.`);
+
       try {
-        const rate = await this.getCryptoPrice("usd-coin", toCurrency.toLowerCase());
+        const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
+        await this.assertFastforexRateWithinSanityBand(targetCurrency, rate);
         this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
         return rate;
-      } catch (cgError) {
-        if (cgError instanceof Error) {
-          logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${cgError.message}`);
-        }
-        throw cgError;
+      } catch (ffError) {
+        logger.warn(
+          `fastforex failed for ${fromCurrency}-${targetCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
+        );
       }
+    } else {
+      logger.debug(`Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, fetching from CoinGecko fallback.`);
     }
 
-    logger.debug(`Cache miss for ${cacheKey}. Fetching from Nabla.`);
-
+    logger.debug(`Fetching ${fromCurrency}-${targetCurrency} rate from CoinGecko as fallback.`);
     try {
-      logger.debug(`Using ${this.constructor.name} instance to fetch exchange rate from ${fromCurrency} to ${toCurrency}`);
-
-      const apiManager = ApiManager.getInstance();
-      const networkName = "pendulum";
-      const apiInstance = await apiManager.getApi(networkName);
-
-      // We assume that the exchange rate from axlUSDC to the target currency in the Forex AMM
-      // resemble the real fiat exchange rate.
-      const inputTokenPendulumDetails = PENDULUM_USDC_AXL;
-
-      // Call getTokenOutAmount to get the exchange rate
-      const amountOut = await getTokenOutAmount({
-        api: apiInstance.api,
-        fromAmountString: inputAmount,
-        inputTokenPendulumDetails,
-        outputTokenPendulumDetails
-      });
-
-      const exchangeRate = parseFloat(amountOut.effectiveExchangeRate);
-
-      logger.debug(`Exchange rate from ${fromCurrency} to ${toCurrency}: ${exchangeRate}`);
-
-      this.fiatExchangeRateCache.set(cacheKey, {
-        expiresAt: now + this.fiatCacheTtlMs,
-        value: exchangeRate
-      });
-
-      return exchangeRate;
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}: ${error.message}`);
-      } else {
-        logger.error(`Unknown error fetching fiat exchange rate from ${fromCurrency} to ${toCurrency}`);
+      const rate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
+      this.assertValidFiatRate("CoinGecko", fromCurrency, targetCurrency, rate);
+      this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
+      return rate;
+    } catch (cgError) {
+      if (cgError instanceof Error) {
+        logger.error(`Error fetching fiat exchange rate from ${fromCurrency} to ${targetCurrency}: ${cgError.message}`);
       }
-
-      // Re-throw the error to be handled by the caller
-      throw error;
+      throw cgError;
     }
+  }
+
+  /**
+   * Get the fiat-to-USD exchange rate expected by quote discount math.
+   * FastForex returns USD-to-fiat, so this is the inverse of that rate.
+   */
+  public async getFiatToUsdExchangeRate(currency: RampCurrency): Promise<Big> {
+    const usdToFiatRate = await this.getUsdToFiatExchangeRate(currency);
+    const rate = new Big(usdToFiatRate);
+
+    if (rate.lte(0)) {
+      throw new Error(`Invalid USD-to-fiat exchange rate for ${currency}: ${usdToFiatRate}`);
+    }
+
+    return new Big(1).div(rate);
   }
 
   /**
@@ -365,119 +364,68 @@ export class PriceFeedService {
     return this.convertCurrencyStrict(amountInUSD, EvmToken.USDC, toCurrency, null);
   }
 
-  // Checks if the onchain oracle prices are up to date. Sends a warning to Slack if not.
-  async checkOnchainOraclePricesUpToDate(): Promise<void> {
-    logger.info("Performing onchain oracle prices check...");
+  private async getFastforexRate(fromCurrency: string, toCurrency: string): Promise<number> {
+    const normalizedBaseUrl = this.fastforexApiBaseUrl.endsWith("/")
+      ? this.fastforexApiBaseUrl
+      : `${this.fastforexApiBaseUrl}/`;
+    const url = new URL("fetch-one", normalizedBaseUrl);
+    url.searchParams.append("from", fromCurrency);
+    url.searchParams.append("to", toCurrency);
 
-    const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi("pendulum");
-    const pendulumApiInstance = pendulumApi.api;
+    const headers = new Headers({ Accept: "application/json" });
+    if (this.fastforexApiKey) {
+      headers.set("X-API-Key", this.fastforexApiKey);
+    }
 
+    const response = await fetchWithTimeout(url.toString(), { headers });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`fastforex API error (${response.status}): ${errorText}`);
+    }
+
+    const data = (await response.json()) as { base: string; result: Record<string, number> };
+    const rate = data.result[toCurrency];
+
+    if (rate === undefined || rate <= 0) {
+      throw new Error(`fastforex returned invalid rate for ${fromCurrency}-${toCurrency}: ${rate}`);
+    }
+
+    logger.debug(`fastforex rate ${fromCurrency}-${toCurrency}: ${rate}`);
+    return rate;
+  }
+
+  private async assertFastforexRateWithinSanityBand(targetCurrency: RampCurrency, fastforexRate: number): Promise<void> {
+    this.assertValidFiatRate("fastforex", "USD", targetCurrency, fastforexRate);
+
+    let referenceRate: number;
     try {
-      // Check if the oracle prices are up to date
-      const allPricesEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap.entries();
-
-      const prices = allPricesEncoded.map(([_, priceData]) => {
-        const price = priceData.toHuman() as { name: string; lastUpdateTimestamp: string };
-        return {
-          lastUpdateTimestamp: price.lastUpdateTimestamp.replaceAll(",", ""),
-          name: price.name
-        };
-      });
-
-      const outdatedPrices = [];
-      for (const price of prices) {
-        const lastUpdateTimestamp = parseInt(price.lastUpdateTimestamp, 10);
-        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-        const isPriceUpToDate = currentTime - lastUpdateTimestamp < 3600; // Check if updated within the last hour
-
-        if (!isPriceUpToDate) {
-          logger.warn(
-            `Onchain oracle price for ${price.name} is not up to date. Last update: ${lastUpdateTimestamp}, Current time: ${currentTime}`
-          );
-
-          outdatedPrices.push(price);
-        }
-      }
-
-      if (outdatedPrices.length > 0) {
-        const slackNotifier = new SlackNotifier();
-        await slackNotifier.sendMessage({
-          text: `⚠️ Onchain oracle prices are not up to date! The following prices are outdated:\n${outdatedPrices.map(price => price.name).join(", ")}`
-        });
-      } else {
-        logger.info("All onchain oracle prices are up to date.");
-      }
+      referenceRate = await this.getCryptoPrice("usd-coin", targetCurrency.toLowerCase());
+      this.assertValidFiatRate("CoinGecko", "USD", targetCurrency, referenceRate);
     } catch (error) {
-      logger.error(`Error checking onchain oracle prices: ${error instanceof Error ? error.message : "Unknown error"}`);
+      logger.warn(
+        `Unable to sanity-check fastforex USD-${targetCurrency} rate against CoinGecko; accepting fastforex rate: ${
+          error instanceof Error ? error.message : error
+        }`
+      );
+      return;
+    }
+
+    const spread = Big(fastforexRate).minus(referenceRate).abs().div(referenceRate).toNumber();
+    const limit = FASTFOREX_SANITY_SPREAD_LIMITS[targetCurrency] ?? 0.03;
+
+    if (spread > limit) {
+      throw new Error(
+        `fastforex USD-${targetCurrency} rate ${fastforexRate} differs from CoinGecko reference ${referenceRate} by ${(
+          spread * 100
+        ).toFixed(2)}%, above ${(limit * 100).toFixed(2)}% limit`
+      );
     }
   }
 
-  /**
-   * Get the onchain oracle price for a specific currency
-   *
-   * @param currency - The RampCurrency to get the oracle price for
-   * @returns The oracle price data including price value and last update timestamp
-   * @throws Error if the price cannot be fetched or currency is not found
-   */
-  public async getOnchainOraclePrice(currency: RampCurrency): Promise<{
-    price: Big;
-    lastUpdateTimestamp: number;
-    name: string;
-  }> {
-    logger.debug(`Fetching onchain oracle price for ${currency}`);
-
-    const apiManager = ApiManager.getInstance();
-    const pendulumApi = await apiManager.getApi("pendulum");
-    const pendulumApiInstance = pendulumApi.api;
-
-    try {
-      // Construct the query parameters
-      const blockchain = "FIAT";
-      const symbol = `${currency}-USD`;
-
-      logger.debug(`Querying oracle with blockchain: ${blockchain}, symbol: ${symbol}`);
-
-      // Query the oracle for the specific currency
-      const priceDataEncoded = await pendulumApiInstance.query.diaOracleModule.coinInfosMap({
-        blockchain,
-        symbol
-      });
-
-      // Check if price data exists
-      if (priceDataEncoded.isEmpty) {
-        throw new Error(`No oracle price found for currency ${currency} (${blockchain}/${symbol})`);
-      }
-
-      // Parse the price data
-      const priceData = priceDataEncoded.toHuman() as {
-        name: string;
-        price: string;
-        lastUpdateTimestamp: string;
-      };
-
-      // Remove commas from numeric strings and parse
-      const priceRaw = parseFloat(priceData.price.replaceAll(",", ""));
-      const lastUpdateTimestamp = parseInt(priceData.lastUpdateTimestamp.replaceAll(",", ""), 10);
-
-      // Convert price from raw to decimal number by dividing by 10^12
-      const price = Big(priceRaw).div(1_000_000_000_000);
-
-      logger.debug(`Oracle price for ${currency}: ${price}, Last update: ${lastUpdateTimestamp}, Name: ${priceData.name}`);
-
-      return {
-        lastUpdateTimestamp,
-        name: priceData.name,
-        price
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        logger.error(`Error fetching onchain oracle price for ${currency}: ${error.message}`);
-      } else {
-        logger.error(`Unknown error fetching onchain oracle price for ${currency}`);
-      }
-
-      throw error;
+  private assertValidFiatRate(provider: string, fromCurrency: string, toCurrency: string, rate: number): void {
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`${provider} returned invalid rate for ${fromCurrency}-${toCurrency}: ${rate}`);
     }
   }
 
