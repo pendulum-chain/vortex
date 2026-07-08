@@ -14,7 +14,8 @@ export class PhaseProcessor {
   private static instance: PhaseProcessor;
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
-  private readonly MAX_EXECUTION_TIME_MS = 10 * 60 * 1000; // 10 minutes
+  // Overridable so tests don't wait 10 minutes for the execution timeout.
+  private readonly MAX_EXECUTION_TIME_MS = parseInt(process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS || "600000", 10); // 10 minutes
   // Overridable so tests don't wait 30s between recoverable-error retries.
   private readonly DEFAULT_RETRY_DELAY_MS = parseInt(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS || "30000", 10);
   private lockedRamps = new Set<string>();
@@ -176,15 +177,20 @@ export class PhaseProcessor {
 
       // Execute the phase with a maximum waiting time
       // If the phase execution exceeds this time, we consider it a timeout and handle it as a recoverable error.
+      // The abort signal tells the (otherwise unstoppable) execution to wind down: without it, every
+      // timed-out execution kept its polling loops running forever and they piled up until the CPU pegged.
       const maxExecuteTime = this.MAX_EXECUTION_TIME_MS;
+      const abortController = new AbortController();
       let timeoutId: NodeJS.Timeout;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => {
-          reject(new RecoverablePhaseError("Phase execution timed out"));
+          const timeoutError = new RecoverablePhaseError("Phase execution timed out");
+          abortController.abort(timeoutError);
+          reject(timeoutError);
         }, maxExecuteTime);
       });
 
-      const pendingState = await Promise.race([handler.execute(state), timeoutPromise]).finally(() => {
+      const pendingState = await Promise.race([handler.execute(state, abortController.signal), timeoutPromise]).finally(() => {
         clearTimeout(timeoutId);
       });
 
