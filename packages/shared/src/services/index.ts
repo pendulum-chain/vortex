@@ -5,6 +5,7 @@ export * from "./evm";
 export * from "./mykobo";
 export * from "./nabla";
 export * from "./pendulum";
+export * from "./providerApiError";
 export * from "./slack.service";
 export * from "./squidrouter";
 export * from "./squidrouter";

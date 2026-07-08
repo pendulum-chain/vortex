@@ -1,6 +1,7 @@
 import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
+import { ProviderApiError } from "../providerApiError";
 import {
   AlfredpayCustomerType,
   AlfredpayFee,
@@ -40,6 +41,16 @@ import {
   SubmitKycInformationRequest,
   SubmitKycInformationResponse
 } from "./types";
+
+/**
+ * Error thrown when an Alfredpay HTTP request returns a non-ok response. See
+ * {@link ProviderApiError} for the carried fields and the message-format invariant.
+ */
+export class AlfredpayApiError extends ProviderApiError {
+  constructor(params: { status: number; endpoint: string; method: string; responseBody: string }) {
+    super({ ...params, provider: "alfredpay" });
+  }
+}
 
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
@@ -123,7 +134,14 @@ export class AlfredpayApiService {
           }
         }
       }
-      throw new Error(`Request failed with status '${response.status}'. Error: ${errorText}`);
+      // AlfredpayApiError keeps the "status '<code>'. Error: <body>" message shape that this
+      // controller's callers match on, and exposes endpoint/method/status for structured logging.
+      throw new AlfredpayApiError({
+        endpoint: path,
+        method,
+        responseBody: errorText,
+        status: response.status
+      });
     }
     try {
       return await response.json();

@@ -21,6 +21,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - Stack traces stripped in non-development environments
 - 404 handler for unmatched routes
 - Error responses include an `errors` array with validation details
+- Fiat-provider failures raised while handling the mutating ramp endpoints (`POST /v1/ramp/register`, `/update`, `/start`) are normalized before they reach the caller (`mapProviderFailure` in `controllers/ramp.controller.ts`). Both providers throw a `ProviderApiError` (`BrlaApiError` for Avenia/BRLA, `AlfredpayApiError` for Alfredpay; base class in `packages/shared/src/services/providerApiError.ts`), which the handler maps to a `422` (upstream `4xx` — account/request rejected) or `502` (upstream `5xx`/transport — provider unavailable) with a generic "payment provider" message. The raw upstream body (e.g. `{"error":"user is blocked"}`) is **never** forwarded to the caller; it is retained server-side only, in logs. The same handler logs the failing `provider`/`endpoint`/`method`/`status` (never query parameters, which may carry a PIX key or other PII) so operators can pinpoint which provider call failed. The Avenia and Alfredpay controllers under `controllers/` handle their own errors inline and do not route through this path.
 
 **Request correlation and client observability** (`api/observability/`):
 - Incoming requests receive or propagate a non-secret request ID.

@@ -1,6 +1,7 @@
 import * as forge from "node-forge";
 import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
+import { ProviderApiError } from "../providerApiError";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
@@ -38,6 +39,16 @@ interface CachedQuote {
 
 const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
+
+/**
+ * Error thrown when an Avenia/BRLA HTTP request returns a non-ok response. See
+ * {@link ProviderApiError} for the carried fields and the message-format invariant.
+ */
+export class BrlaApiError extends ProviderApiError {
+  constructor(params: { status: number; endpoint: string; method: string; responseBody: string }) {
+    super({ ...params, provider: "avenia" });
+  }
+}
 
 export class BrlaApiService {
   private static instance: BrlaApiService;
@@ -152,8 +163,15 @@ export class BrlaApiService {
     }
 
     if (!response.ok) {
-      // This format matters and is used in the BRLA controller.
-      throw new Error(`Request failed with status '${response.status}'. Error: ${await response.text()}`);
+      // BrlaApiError keeps the "status '<code>'. Error: <body>" message shape that the BRLA
+      // controller parses, and additionally exposes the endpoint/method/status so the caller
+      // can log precisely which Avenia call failed.
+      throw new BrlaApiError({
+        endpoint: endpoint as string,
+        method: method as string,
+        responseBody: await response.text(),
+        status: response.status
+      });
     }
     try {
       return await response.json();
@@ -305,7 +323,6 @@ export class BrlaApiService {
   public async createPixInputTicket(payload: PixInputTicketPayload, subAccountId: string): Promise<PixInputTicketOutput> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     const response = await this.sendRequest(Endpoint.Tickets, "POST", query, payload);
-    console.log("createPixInputTicket response", response);
 
     if ("brCode" in response) {
       return response;
