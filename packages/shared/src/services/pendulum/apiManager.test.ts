@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "bun:test";
-import type { NetworkConfig } from "./apiManager";
+import { afterEach, describe, expect, it, mock } from "bun:test";
+import type { ApiPromise } from "@polkadot/api";
+import { type API, ApiManager, type NetworkConfig, type SubstrateApiNetwork } from "./apiManager";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -51,5 +52,90 @@ describe("ApiManager network configuration", () => {
       "wss://moonbeam-one.example",
       "wss://moonbeam-two.example"
     ]);
+  });
+});
+
+// Exposes the private members needed to drive the manager without real WS connections.
+type TestableApiManager = {
+  apiInstances: Map<string, API>;
+  previousSpecVersions: Map<string, number>;
+  connectApi: (networkName: SubstrateApiNetwork, wsUrlIndex?: number) => Promise<API>;
+  populateApi: ApiManager["populateApi"];
+  getApi: ApiManager["getApi"];
+};
+
+function createManager(): TestableApiManager {
+  return new (ApiManager as unknown as new () => TestableApiManager)();
+}
+
+function createFakeApi(getSpecVersion: () => number): { instance: API; disconnect: ReturnType<typeof mock> } {
+  const disconnect = mock(() => Promise.resolve());
+  const api = {
+    call: {
+      core: {
+        version: () => Promise.resolve({ toHuman: () => ({ specVersion: getSpecVersion() }) })
+      }
+    },
+    disconnect,
+    isConnected: true,
+    isReady: Promise.resolve()
+  };
+  return { disconnect, instance: { api: api as unknown as ApiPromise, decimals: 12, ss58Format: 42 } };
+}
+
+describe("ApiManager api refresh", () => {
+  function setupManager() {
+    const manager = createManager();
+    let onChainSpecVersion = 1;
+    const fakes: ReturnType<typeof createFakeApi>[] = [];
+
+    // Mimics the real connectApi: returns a fresh instance reading the current on-chain
+    // spec version and records that version as the previous one.
+    manager.connectApi = mock((networkName: SubstrateApiNetwork) => {
+      const fake = createFakeApi(() => onChainSpecVersion);
+      fakes.push(fake);
+      manager.previousSpecVersions.set(networkName, onChainSpecVersion);
+      return Promise.resolve(fake.instance);
+    });
+
+    return { fakes, manager, setSpecVersion: (version: number) => (onChainSpecVersion = version) };
+  }
+
+  it("populateApi is idempotent and reuses the cached instance", async () => {
+    const { fakes, manager } = setupManager();
+
+    const first = await manager.populateApi("pendulum");
+    const second = await manager.populateApi("pendulum");
+
+    expect(second).toBe(first);
+    expect(manager.connectApi).toHaveBeenCalledTimes(1);
+    expect(fakes[0].disconnect).not.toHaveBeenCalled();
+  });
+
+  it("getApi replaces and disconnects the cached instance when the spec version changes", async () => {
+    const { fakes, manager, setSpecVersion } = setupManager();
+
+    const initial = await manager.populateApi("pendulum");
+
+    // Simulate a runtime upgrade on chain
+    setSpecVersion(2);
+
+    const refreshed = await manager.getApi("pendulum");
+
+    expect(refreshed).not.toBe(initial);
+    expect(manager.connectApi).toHaveBeenCalledTimes(2);
+    expect(fakes[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(manager.apiInstances.get("pendulum-0")).toBe(refreshed);
+  });
+
+  it("getApi with forceRefresh replaces and disconnects the cached instance", async () => {
+    const { fakes, manager } = setupManager();
+
+    const initial = await manager.populateApi("pendulum");
+    const refreshed = await manager.getApi("pendulum", true);
+
+    expect(refreshed).not.toBe(initial);
+    expect(fakes[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(manager.apiInstances.get("pendulum-0")).toBe(refreshed);
   });
 });
