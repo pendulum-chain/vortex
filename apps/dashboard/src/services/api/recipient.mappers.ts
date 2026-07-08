@@ -9,6 +9,33 @@ function toAccountType(type: RecipientInviteeType): AccountType {
   return type === "business" ? "company" : "individual";
 }
 
+/**
+ * Resolves a provider/KYC account (from GET /v1/onboarding/status) to a dashboard corridor.
+ * Prefers the rail (currency) code; falls back to provider + country for null rails.
+ */
+export function corridorFromProviderAccount(account: {
+  provider: string;
+  country: string | null;
+  rail: string | null;
+}): CorridorId | undefined {
+  if (account.rail && CORRIDOR_BY_RAIL[account.rail]) {
+    return CORRIDOR_BY_RAIL[account.rail];
+  }
+  if (account.provider === "avenia") {
+    return "BR";
+  }
+  if (account.provider === "mykobo") {
+    return "EU";
+  }
+  if (account.provider === "alfredpay" && account.country) {
+    const country = account.country.toUpperCase();
+    if (country === "US" || country === "MX" || country === "CO" || country === "AR") {
+      return country as CorridorId;
+    }
+  }
+  return undefined;
+}
+
 /** Shows only the tail of an account identifier — never the full number. */
 function maskAccountNumber(value: string): string {
   return value.length <= 4 ? value : `••••${value.slice(-4)}`;

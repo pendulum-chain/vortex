@@ -17,15 +17,13 @@ export const Route = createFileRoute("/_app/recipients")({
 
 function RecipientsPage() {
   const account = useActiveAccount();
-  const { recipients: accountRecipients } = useRecipients(account);
+  const { recipients: accountRecipients, approvedCorridors: approvedIds } = useRecipients(account);
 
   if (!account) {
     return null;
   }
 
-  const approvedCorridors = account.selectedCorridors
-    .map(id => CORRIDORS[id])
-    .filter(corridor => corridor.availability === "live" && account.onboardings[corridor.id]?.status === "approved");
+  const approvedCorridors = [...approvedIds].map(id => CORRIDORS[id]).filter(corridor => corridor.availability === "live");
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">
