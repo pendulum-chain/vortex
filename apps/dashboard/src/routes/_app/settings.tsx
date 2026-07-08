@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useAuthStore } from "@/stores/auth.store";
-import { useDashboardStore } from "@/stores/dashboard.store";
 
 const NOTIFICATION_PREFS = [
   {
@@ -36,7 +36,7 @@ export const Route = createFileRoute("/_app/settings")({
 
 function SettingsPage() {
   const user = useAuthStore(state => state.user);
-  const accounts = useDashboardStore(state => state.accounts);
+  const account = useActiveAccount();
 
   return (
     <Stagger className="mx-auto grid max-w-3xl gap-6">
@@ -91,12 +91,12 @@ function SettingsPage() {
       <StaggerItem>
         <Card>
           <CardHeader>
-            <CardTitle>Sender accounts</CardTitle>
-            <CardDescription>Accounts you can onboard and transfer from.</CardDescription>
+            <CardTitle>Sender account</CardTitle>
+            <CardDescription>The account you onboard and transfer from.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {accounts.map(account => (
-              <div className="surface-raised flex items-center gap-3 rounded-lg p-3" key={account.id}>
+            {account && (
+              <div className="surface-raised flex items-center gap-3 rounded-lg p-3">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   {account.type === "company" ? <Building2 className="size-4" /> : <User className="size-4" />}
                 </span>
@@ -108,7 +108,7 @@ function SettingsPage() {
                   {account.type}
                 </Badge>
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       </StaggerItem>

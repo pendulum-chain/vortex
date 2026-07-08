@@ -248,7 +248,6 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
                 networkLabel={networkLabel}
                 onSubmit={submitTransfer}
                 quote={quote}
-                recipient={selected}
                 submitting={submitting}
               />
               {signing && (

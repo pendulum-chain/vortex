@@ -23,18 +23,23 @@ export function approvedCorridorsFrom(data: OnboardingStatusResponse | undefined
   return approved;
 }
 
+/** Raw GET /v1/onboarding/status query — shared by the approval gate and the account hook. */
+export function useOnboardingStatusQuery(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: () => OnboardingService.status(),
+    queryKey: ONBOARDING_STATUS_QUERY_KEY,
+    staleTime: 30_000
+  });
+}
+
 /**
  * The set of corridors the authenticated user has an approved provider account for,
  * read from GET /v1/onboarding/status. Drives self-recipients and which corridors a
  * sender can invite recipients for.
  */
 export function useApprovedCorridors(enabled = true): { approved: Set<CorridorId>; isLoading: boolean } {
-  const { data, isLoading } = useQuery({
-    enabled,
-    queryFn: () => OnboardingService.status(),
-    queryKey: ONBOARDING_STATUS_QUERY_KEY,
-    staleTime: 30_000
-  });
+  const { data, isLoading } = useOnboardingStatusQuery(enabled);
   const approved = useMemo(() => approvedCorridorsFrom(data), [data]);
   return { approved, isLoading };
 }

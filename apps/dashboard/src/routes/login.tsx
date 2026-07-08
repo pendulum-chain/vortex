@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth.store";
-import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage
@@ -24,7 +23,6 @@ function LoginPage() {
   const user = useAuthStore(state => state.user);
   const requestOtp = useAuthStore(state => state.requestOtp);
   const verifyOtp = useAuthStore(state => state.verifyOtp);
-  const signInWithEmail = useDashboardStore(state => state.signInWithEmail);
   const navigate = useNavigate();
   const [email, setEmail] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +54,6 @@ function LoginPage() {
     setSubmitting(true);
     try {
       await verifyOtp(email, code);
-      signInWithEmail(email);
       navigate({ to: "/overview" });
     } catch (error) {
       toast.error("Verification failed", {

@@ -1,10 +1,10 @@
-import { ArrowRight, ExternalLink, FileText, RotateCcw } from "lucide-react";
+import { ArrowRight, ExternalLink, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
+import { onboardingKindFor, PROVIDER_LABEL } from "@/domain/corridors";
 import { STATUS_META } from "@/domain/status";
-import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
+import type { Corridor, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { StatusBadge } from "./StatusBadge";
 
 interface CorridorCardProps {
@@ -12,12 +12,6 @@ interface CorridorCardProps {
   corridor: Corridor;
   onStart: () => void;
 }
-
-const ROUTE_HINT: Record<OnboardingRoute, { icon: typeof FileText; label: string } | null> = {
-  google_form: { icon: FileText, label: "Completed via external Google Form" },
-  headless: null,
-  redirect: { icon: ExternalLink, label: "Completed via partner redirect" }
-};
 
 /** Progress bar colour carries the outcome: green when approved, red when rejected, brand blue mid-flow. */
 const BAR_TONE: Record<OnboardingStatus, string> = {
@@ -32,7 +26,6 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
   const kind = onboardingKindFor(corridor, account.type);
   const onboarding = account.onboardings[corridor.id];
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
-  const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
 
   return (
     <Card>
@@ -54,21 +47,15 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
       <CardContent className="grid gap-2">
         <Progress indicatorClassName={BAR_TONE[onboarding?.status ?? "not_started"]} value={meta?.progress ?? 0} />
         {onboarding?.status === "rejected" ? (
-          <p className="text-destructive text-xs">Verification was rejected — retry below or contact support.</p>
-        ) : hint ? (
-          <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
-            <hint.icon className="size-3.5" />
-            {hint.label}
-          </p>
+          <p className="text-destructive text-xs">Verification was rejected — retry in the widget or contact support.</p>
         ) : (
-          <p className="text-muted-foreground text-xs">
-            {onboarding
-              ? `Updated ${new Date(onboarding.updatedAt).toLocaleDateString(undefined, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric"
-                })}`
-              : ""}
+          <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
+            <ExternalLink className="size-3.5" />
+            {onboarding?.status === "approved"
+              ? "Approved"
+              : onboarding
+                ? "Onboarding in progress"
+                : "Onboard via the Vortex widget"}
           </p>
         )}
       </CardContent>

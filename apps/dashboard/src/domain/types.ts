@@ -16,9 +16,6 @@ export type OnboardingKind = "kyb" | "kyc";
 
 export type AccountType = "company" | "individual";
 
-/** How an onboarding is completed: inline wizard, an external Google Form, or a partner redirect. */
-export type OnboardingRoute = "headless" | "google_form" | "redirect";
-
 export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected";
 
 export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
@@ -120,7 +117,7 @@ export interface AppNotification {
   id: string;
   title: string;
   body: string;
-  /** The address the simulated completion email was "sent" to. */
+  /** The address the notification relates to. */
   email: string;
   createdAt: string;
   read: boolean;

@@ -52,6 +52,23 @@ export const CORRIDOR_BY_RAIL: Record<string, CorridorId> = Object.fromEntries(
 /** AlfredPay corridors expose a fetchable list of saved fiat (payout) accounts. */
 export const ALFREDPAY_CORRIDORS: CorridorId[] = ["US", "MX", "CO", "AR"];
 
+/** Inverse of CORRIDOR_FIAT — maps a ramp-history payout currency back to its corridor. */
+export const CORRIDOR_BY_FIAT: Partial<Record<FiatToken, CorridorId>> = Object.fromEntries(
+  Object.entries(CORRIDOR_FIAT).map(([corridorId, fiat]) => [fiat, corridorId as CorridorId])
+) as Partial<Record<FiatToken, CorridorId>>;
+
+/**
+ * Region code for the widget's KYB deep link (`?kybLocked=`). Only these corridors are
+ * deep-linkable — EU (individual KYC, needs a wallet) and AR are not offered by the widget's
+ * quote-less KYB flow, so they fall back to the widget home.
+ */
+export const CORRIDOR_KYB_REGION: Partial<Record<CorridorId, string>> = {
+  BR: "BR",
+  CO: "CO",
+  MX: "MX",
+  US: "US"
+};
+
 /** Min/max payout limits per corridor, in units of the corridor's fiat currency. */
 export const CORRIDOR_LIMITS: Record<CorridorId, { min: number; max: number }> = {
   AR: { max: 9_000_000, min: 9_500 },

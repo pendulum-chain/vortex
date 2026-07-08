@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
+import { useTransactions } from "@/hooks/useTransactions";
 import { popIn } from "@/lib/motion";
-import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/transactions")({
   component: TransactionsPage
@@ -16,16 +16,14 @@ export const Route = createFileRoute("/_app/transactions")({
 
 function TransactionsPage() {
   const account = useActiveAccount();
-  const transactions = useDashboardStore(state => state.transactions);
+  const { transactions, walletConnected } = useTransactions(account);
   const { recipients } = useRecipients(account);
 
   if (!account) {
     return null;
   }
 
-  const accountTransactions = transactions
-    .filter(tx => tx.accountId === account.id)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const accountTransactions = [...transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const hasApprovedRecipient = recipients.some(recipient => recipient.isSelf && recipient.status === "approved");
 
   return (
@@ -50,9 +48,11 @@ function TransactionsPage() {
               <div className="grid gap-1">
                 <p className="font-medium">No transactions yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
-                  {hasApprovedRecipient
-                    ? "Pay an approved recipient and the payout will appear here."
-                    : "Approve a recipient first, then your payouts will appear here."}
+                  {!walletConnected
+                    ? "Connect your wallet to see your payout history."
+                    : hasApprovedRecipient
+                      ? "Pay an approved recipient and the payout will appear here."
+                      : "Approve a recipient first, then your payouts will appear here."}
                 </p>
               </div>
               <Button asChild>
