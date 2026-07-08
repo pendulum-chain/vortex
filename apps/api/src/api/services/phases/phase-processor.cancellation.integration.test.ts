@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { waitUntilTrue } from "@vortexfi/shared";
 import RampState from "../../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
@@ -17,7 +17,10 @@ import phaseRegistry from "./phase-registry";
  * timeout, and signal-aware polling helpers must stop.
  */
 
-// Shrink the processor's timeouts before the class is instantiated.
+// Shrink the processor's timeouts before the class is instantiated. Originals are
+// snapshotted and restored in afterAll so the overrides can't leak into other tests.
+const OVERRIDDEN_ENV_VARS = ["PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS", "PHASE_PROCESSOR_RETRY_DELAY_MS"];
+const originalEnv = new Map(OVERRIDDEN_ENV_VARS.map(name => [name, process.env[name]]));
 process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS = "150";
 process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "10";
 
@@ -45,10 +48,31 @@ describe("PhaseProcessor execution cancellation", () => {
     getPhaseName: () => TEST_PHASE
   };
 
+  // phaseRegistry is a process-wide singleton: shadow the real handler for the
+  // duration of this file only, and restore (or remove) it in afterAll.
+  const originalHandler = phaseRegistry.getHandler(TEST_PHASE);
+
   beforeAll(async () => {
     await setupTestDatabase();
     await resetTestDatabase();
     phaseRegistry.registerHandler(hangingHandler);
+  });
+
+  afterAll(() => {
+    if (originalHandler) {
+      phaseRegistry.registerHandler(originalHandler);
+    } else {
+      // The registry has no unregister API; drop the shadow entry directly.
+      (phaseRegistry as unknown as { handlers: Map<string, PhaseHandler> }).handlers.delete(TEST_PHASE);
+    }
+    for (const name of OVERRIDDEN_ENV_VARS) {
+      const originalValue = originalEnv.get(name);
+      if (originalValue === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = originalValue;
+      }
+    }
   });
 
   it("aborts abandoned executions so their polling loops stop", async () => {
@@ -71,5 +95,20 @@ describe("PhaseProcessor execution cancellation", () => {
     // The processor released the ramp for future processing.
     const reloaded = await RampState.findByPk(state.id);
     expect(reloaded?.processingLock.locked).toBe(false);
+  });
+
+  it("falls back to default timeouts when env overrides are malformed", async () => {
+    process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS = "banana";
+    process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "-5";
+    try {
+      const { PhaseProcessor } = await import("./phase-processor");
+      const processor = new PhaseProcessor() as unknown as { MAX_EXECUTION_TIME_MS: number; DEFAULT_RETRY_DELAY_MS: number };
+      // A NaN here would make setTimeout fire immediately and time out every phase instantly.
+      expect(processor.MAX_EXECUTION_TIME_MS).toBe(600000);
+      expect(processor.DEFAULT_RETRY_DELAY_MS).toBe(30000);
+    } finally {
+      process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS = "150";
+      process.env.PHASE_PROCESSOR_RETRY_DELAY_MS = "10";
+    }
   });
 });
