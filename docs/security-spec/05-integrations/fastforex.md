@@ -2,7 +2,7 @@
 
 ## What This Does
 
-FastForex is the primary fiat exchange-rate provider used by `PriceFeedService` for USD-to-fiat conversion in quote, fee, and subsidy math. Vortex calls FastForex for a single forex pair at a time and validates the returned rate before it can affect a quote or conversion.
+FastForex is a fiat exchange-rate provider used by `PriceFeedService` for USD-to-fiat conversion in quote, fee, and subsidy math. It is the primary source for fiat currencies without a liquid Binance USDT market, and the secondary source (after Binance) for currencies that have one — currently BRL (see `05-integrations/binance.md`). Vortex calls FastForex for a single forex pair at a time and validates the returned rate before it can affect a quote or conversion.
 
 **Provider type:** Price provider  
 **Fiat currencies:** ARS, BRL, COP, EUR, MXN, USD  
@@ -10,7 +10,7 @@ FastForex is the primary fiat exchange-rate provider used by `PriceFeedService` 
 **Phase handlers:** No phase handler calls FastForex directly; handlers call `PriceFeedService.convertCurrency()` when they need USD-denominated caps or conversions.  
 **API auth method:** `X-API-Key` header from `FASTFOREX_API_KEY`.
 
-The API request shape is `GET {FASTFOREX_API_URL}/fetch-one?from=USD&to=<FIAT>`. The response is accepted only when `result[<FIAT>]` exists and is a positive finite rate. FastForex rates are sanity-checked against CoinGecko's USDC-to-fiat price when that reference is available. If FastForex is unavailable, missing, invalid, or outside the configured per-currency sanity band, Vortex falls back to CoinGecko. If FastForex returns a valid rate but CoinGecko is unavailable or invalid, Vortex logs the missing sanity check and accepts FastForex rather than making the fallback provider a hard dependency. If no valid provider remains, the conversion fails closed.
+The full provider priority for `getUsdToFiatExchangeRate()` is Binance USDT spot (for currencies with a mapped symbol, currently BRL) → FastForex → CoinGecko. The API request shape is `GET {FASTFOREX_API_URL}/fetch-one?from=USD&to=<FIAT>`. The response is accepted only when `result[<FIAT>]` exists and is a positive finite rate. FastForex rates are sanity-checked against CoinGecko's USDC-to-fiat price when that reference is available. If FastForex is unavailable, missing, invalid, or outside the configured per-currency sanity band, Vortex falls back to CoinGecko. If FastForex returns a valid rate but CoinGecko is unavailable or invalid, Vortex logs the missing sanity check and accepts FastForex rather than making the fallback provider a hard dependency. If no valid provider remains, the conversion fails closed.
 
 ## Security Invariants
 
@@ -44,7 +44,7 @@ The API request shape is `GET {FASTFOREX_API_URL}/fetch-one?from=USD&to=<FIAT>`.
 - [x] Non-fiat targets are rejected before fetching. **PASS** — `getUsdToFiatExchangeRate()` checks `isFiatToken(targetCurrency)`.
 - [x] USD target returns `1` without calling external providers. **PASS** — `getUsdToFiatExchangeRate("USD")` short-circuits.
 - [x] FastForex response status and rate are validated. **PASS** — non-OK responses throw; missing, zero, or negative rates throw.
-- [x] FastForex rates are sanity-checked against CoinGecko when the reference is available. **PASS** — `assertFastforexRateWithinSanityBand()` compares the spread with per-currency limits when CoinGecko returns a valid reference; otherwise it warns and accepts the valid FastForex rate.
+- [x] FastForex rates are sanity-checked against CoinGecko when the reference is available. **PASS** — `assertRateWithinSanityBand("fastforex", ...)` compares the spread with per-currency limits when CoinGecko returns a valid reference; otherwise it warns and accepts the valid FastForex rate. The same helper guards Binance rates.
 - [x] FastForex failures fall back to CoinGecko. **PASS** — failures are caught and logged before requesting the CoinGecko fallback.
 - [x] CoinGecko fallback/reference uses USDC as the USD proxy. **PASS / OPERATIONAL RISK** — accepted by current code, but operators should monitor depeg conditions because this is not a pure fiat FX reference.
 - [x] Both-provider failure fails closed. **PASS** — `convertCurrency()` rethrows provider failures instead of returning the original amount.
