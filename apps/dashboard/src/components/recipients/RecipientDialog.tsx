@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, Copy, Link2, Plus, User } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,9 +22,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDORS } from "@/domain/corridors";
 import { inviteUrl } from "@/domain/recipient";
 import type { AccountType, Corridor, SenderAccount } from "@/domain/types";
+import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
-import { simulateRecipientOnboarding } from "@/lib/recipientFlow";
-import { useDashboardStore } from "@/stores/dashboard.store";
+import { CORRIDOR_COUNTRY, CORRIDOR_RAIL } from "@/services/api/mappers";
+import { RecipientsService } from "@/services/api/recipients.service";
 
 const schema = z.object({
   amount: z.string().refine(value => Number(value) > 0, "Enter an amount"),
@@ -41,7 +44,7 @@ interface CreatedInvite {
 export function RecipientDialog({ account, approvedCorridors }: { account: SenderAccount; approvedCorridors: Corridor[] }) {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
-  const addRecipient = useDashboardStore(state => state.addRecipient);
+  const queryClient = useQueryClient();
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -56,23 +59,30 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
   const corridor = CORRIDORS[corridorId];
   const disabled = approvedCorridors.length === 0;
 
-  function onSubmit(values: FormValues) {
-    const selected = CORRIDORS[values.corridorId];
-    const id = addRecipient({
-      accountId: account.id,
-      amount: Number(values.amount).toFixed(2),
-      corridorId: values.corridorId,
-      payoutCurrency: selected.currency,
-      recipientType: values.recipientType
-    });
-    const recipient = useDashboardStore.getState().recipients.find(item => item.id === id);
-    if (!recipient) {
-      return;
+  const createInvite = useMutation({
+    mutationFn: (values: FormValues) =>
+      RecipientsService.createInvite({
+        amount: Number(values.amount).toFixed(2),
+        country: CORRIDOR_COUNTRY[values.corridorId],
+        inviteeType: values.recipientType === "company" ? "business" : "individual",
+        payoutCurrency: CORRIDOR_RAIL[values.corridorId],
+        rail: CORRIDOR_RAIL[values.corridorId]
+      }),
+    onError: error => {
+      toast.error("Could not create the invite", { description: error instanceof Error ? error.message : undefined });
+    },
+    onSuccess: (invite, values) => {
+      const selected = CORRIDORS[values.corridorId];
+      notifyInviteLinkReady(selected.name);
+      // Show the new invite as a pending recipient the moment it's created.
+      queryClient.invalidateQueries({ queryKey: RECIPIENTS_QUERY_KEY });
+      // The raw token is returned exactly once — this is the only chance to build the link.
+      setCreated({ corridorName: selected.name, id: invite.id, url: inviteUrl(invite.token) });
     }
-    notifyInviteLinkReady(selected.name);
-    // The recipient opens the link shortly and completes KYC/KYB in the mock.
-    simulateRecipientOnboarding(id, selected.name);
-    setCreated({ corridorName: selected.name, id, url: inviteUrl(recipient.inviteCode) });
+  });
+
+  function onSubmit(values: FormValues) {
+    createInvite.mutate(values);
   }
 
   function reset() {
@@ -176,9 +186,9 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                   <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button disabled={createInvite.isPending} type="submit">
                     <Link2 />
-                    Create invite link
+                    {createInvite.isPending ? "Creating…" : "Create invite link"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -191,12 +201,10 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
 }
 
 function InviteShare({ created, onDone }: { created: CreatedInvite; onDone: () => void }) {
-  const trackInviteCopy = useDashboardStore(state => state.trackInviteCopy);
   const [copied, setCopied] = useState(false);
 
   function copy() {
     navigator.clipboard?.writeText(created.url);
-    trackInviteCopy(created.id);
     notifyInviteCopied();
     setCopied(true);
   }

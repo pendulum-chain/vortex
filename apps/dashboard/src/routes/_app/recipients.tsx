@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CORRIDORS } from "@/domain/corridors";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
-import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/recipients")({
   component: RecipientsPage
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/recipients")({
 
 function RecipientsPage() {
   const account = useActiveAccount();
-  const recipients = useDashboardStore(state => state.recipients);
+  const { recipients: accountRecipients } = useRecipients(account);
 
   if (!account) {
     return null;
@@ -26,7 +26,6 @@ function RecipientsPage() {
   const approvedCorridors = account.selectedCorridors
     .map(id => CORRIDORS[id])
     .filter(corridor => corridor.availability === "live" && account.onboardings[corridor.id]?.status === "approved");
-  const accountRecipients = recipients.filter(recipient => recipient.accountId === account.id);
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">

@@ -1,9 +1,10 @@
-import type { Recipient, SenderAccount, Transaction } from "./types";
+import type { SenderAccount, Transaction } from "./types";
 
 /**
  * Seeded demo data: one company onboarded across several corridors and one fresh
- * individual. Statuses are spread so every onboarding, recipient and payout state
- * is visible at a glance.
+ * individual. Statuses are spread so every onboarding and payout state is visible
+ * at a glance. Recipients are no longer seeded — they come from the backend
+ * (third-party) and from fetched payout accounts (self).
  */
 export const SEED_ACCOUNTS: SenderAccount[] = [
   {
@@ -30,96 +31,6 @@ export const SEED_ACCOUNTS: SenderAccount[] = [
     },
     selectedCorridors: ["BR", "EU", "CO"],
     type: "individual"
-  }
-];
-
-/** Recipients carry compliance status only; payout amounts/bank details are captured by the sender. */
-export const SEED_RECIPIENTS: Recipient[] = [
-  {
-    accountId: "acc_nordwind",
-    amount: "0.00",
-    bankDetails: { method: "pix", value: "Your Brazil PIX account" },
-    copyCount: 0,
-    corridorId: "BR",
-    createdAt: "2026-06-20T09:31:00.000Z",
-    email: "",
-    id: "rcp_self_br",
-    inviteCode: "SELFBR",
-    isSelf: true,
-    name: "Nordwind Logística Ltda (You)",
-    payoutCurrency: "BRL",
-    recipientType: "company",
-    status: "approved"
-  },
-  {
-    accountId: "acc_nordwind",
-    amount: "11040.50",
-    bankDetails: { method: "iban", value: "DE89 3704 0044 0532 0130 00" },
-    copyCount: 2,
-    corridorId: "EU",
-    createdAt: "2026-06-19T10:12:00.000Z",
-    email: "treasury@hanseatic-trade.de",
-    id: "rcp_eu_1",
-    inviteCode: "7K2QF9",
-    payoutCurrency: "EURC",
-    recipientType: "company",
-    status: "approved"
-  },
-  {
-    accountId: "acc_nordwind",
-    amount: "30000.00",
-    bankDetails: { method: "pix", value: "financeiro@nordwind.com.br" },
-    copyCount: 1,
-    corridorId: "BR",
-    createdAt: "2026-06-19T10:15:00.000Z",
-    email: "financeiro@nordwind.com.br",
-    id: "rcp_br_1",
-    inviteCode: "M4XT8B",
-    payoutCurrency: "BRL",
-    recipientType: "company",
-    status: "approved"
-  },
-  {
-    accountId: "acc_nordwind",
-    amount: "8500.00",
-    bankDetails: { method: "pix", value: "12.345.678/0001-90" },
-    copyCount: 1,
-    corridorId: "BR",
-    createdAt: "2026-06-23T09:40:00.000Z",
-    email: "ops@lojaverde.com.br",
-    id: "rcp_br_2",
-    inviteCode: "QP9R3C",
-    payoutCurrency: "BRL",
-    recipientType: "company",
-    status: "pending"
-  },
-  {
-    accountId: "acc_nordwind",
-    amount: "2400.00",
-    bankDetails: { method: "iban", value: "" },
-    copyCount: 0,
-    corridorId: "EU",
-    createdAt: "2026-06-24T15:05:00.000Z",
-    email: "",
-    id: "rcp_eu_2",
-    inviteCode: "H6NZ2K",
-    payoutCurrency: "EURC",
-    recipientType: "individual",
-    status: "invite_sent"
-  },
-  {
-    accountId: "acc_nordwind",
-    amount: "1500.00",
-    bankDetails: { method: "pix", value: "+55 11 99999-0000" },
-    copyCount: 3,
-    corridorId: "BR",
-    createdAt: "2026-06-22T18:20:00.000Z",
-    email: "contas@suspeito-ltda.com.br",
-    id: "rcp_br_3",
-    inviteCode: "B5WD7L",
-    payoutCurrency: "BRL",
-    recipientType: "individual",
-    status: "rejected"
   }
 ];
 

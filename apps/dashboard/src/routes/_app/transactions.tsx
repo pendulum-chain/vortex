@@ -6,6 +6,7 @@ import { TransactionsTable } from "@/components/transactions/TransactionsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
 import { useDashboardStore } from "@/stores/dashboard.store";
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/_app/transactions")({
 function TransactionsPage() {
   const account = useActiveAccount();
   const transactions = useDashboardStore(state => state.transactions);
-  const recipients = useDashboardStore(state => state.recipients);
+  const { recipients } = useRecipients(account);
 
   if (!account) {
     return null;
@@ -25,9 +26,7 @@ function TransactionsPage() {
   const accountTransactions = transactions
     .filter(tx => tx.accountId === account.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const hasApprovedRecipient = recipients.some(
-    recipient => recipient.accountId === account.id && recipient.status === "approved"
-  );
+  const hasApprovedRecipient = recipients.some(recipient => recipient.isSelf && recipient.status === "approved");
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">

@@ -31,6 +31,27 @@ export const CORRIDOR_COUNTRY: Record<CorridorId, string> = {
   US: "US"
 };
 
+/**
+ * Dashboard corridor → payout rail as the recipient backend expects it (the lowercased
+ * currency code). `providerForRail` routes eur→mykobo, brl→avenia, everything else→alfredpay.
+ */
+export const CORRIDOR_RAIL: Record<CorridorId, string> = {
+  AR: "ars",
+  BR: "brl",
+  CO: "cop",
+  EU: "eur",
+  MX: "mxn",
+  US: "usd"
+};
+
+/** Inverse of CORRIDOR_RAIL — maps a fetched recipient's rail back to its corridor. */
+export const CORRIDOR_BY_RAIL: Record<string, CorridorId> = Object.fromEntries(
+  Object.entries(CORRIDOR_RAIL).map(([corridorId, rail]) => [rail, corridorId as CorridorId])
+) as Record<string, CorridorId>;
+
+/** AlfredPay corridors expose a fetchable list of saved fiat (payout) accounts. */
+export const ALFREDPAY_CORRIDORS: CorridorId[] = ["US", "MX", "CO", "AR"];
+
 /** Min/max payout limits per corridor, in units of the corridor's fiat currency. */
 export const CORRIDOR_LIMITS: Record<CorridorId, { min: number; max: number }> = {
   AR: { max: 9_000_000, min: 9_500 },

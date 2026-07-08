@@ -109,8 +109,10 @@ export interface Recipient {
   inviteCode: string;
   /** How many times the invite link was copied — tracked per product request. */
   copyCount: number;
-  /** The account holder's own "send to myself" recipient, auto-created on onboarding approval. */
+  /** The account holder's own "send to myself" recipient, derived from fetched payout accounts. */
   isSelf?: boolean;
+  /** AlfredPay payout target — the saved fiat-account id a self offramp registers against. */
+  fiatAccountId?: string;
   createdAt: string;
 }
 

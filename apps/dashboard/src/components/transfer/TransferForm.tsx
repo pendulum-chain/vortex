@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CORRIDORS } from "@/domain/corridors";
 import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
@@ -43,21 +44,27 @@ function friendlyQuoteError(message: string): string {
 export function TransferForm({ account, recipients, preselectRecipientId }: TransferFormProps) {
   const navigate = useNavigate();
 
-  const firstApproved = recipients.find(recipient => recipient.status === "approved");
-  const initialId = preselectRecipientId ?? firstApproved?.id ?? "";
+  const firstSelfApproved = recipients.find(recipient => recipient.isSelf && recipient.status === "approved");
+  const initialId = preselectRecipientId ?? firstSelfApproved?.id ?? "";
   const [recipientId, setRecipientId] = useState(initialId);
   const [network, setNetwork] = useState<string>(TRANSFER_NETWORKS[0].id);
   const [amount, setAmount] = useState(() => recipients.find(recipient => recipient.id === initialId)?.amount ?? "");
+  const [pixKey, setPixKey] = useState("");
 
   const selected = recipients.find(recipient => recipient.id === recipientId);
-  const isApproved = selected?.status === "approved";
+  // Only self-recipients are sendable today; third-party sending is coming soon.
+  const isSendable = selected?.isSelf === true && selected.status === "approved";
   const corridor = selected ? CORRIDORS[selected.corridorId] : undefined;
   const networkLabel = TRANSFER_NETWORKS.find(item => item.id === network)?.label ?? network;
   const payoutAmount = Number(amount);
+  // BRL offramps pay out to the user's own PIX key; taxId/receiverTaxId are derived server-side.
+  const needsPixKey = selected?.corridorId === "BR" && selected.isSelf === true;
+  const pixReady = !needsPixKey || pixKey.trim().length > 0;
 
   function selectRecipient(id: string) {
     setRecipientId(id);
     setAmount(recipients.find(recipient => recipient.id === id)?.amount ?? "");
+    setPixKey("");
   }
 
   // The transfer machine (ported widget ramp core) owns register → sign → start → track.
@@ -68,11 +75,11 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const signing = useSelector(transferActor, snapshot => snapshot.matches("SigningUserTxs"));
 
   const quoteParams =
-    selected && isApproved && payoutAmount > 0 ? { corridorId: selected.corridorId, network, payoutAmount } : null;
+    selected && isSendable && payoutAmount > 0 ? { corridorId: selected.corridorId, network, payoutAmount } : null;
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
   function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isApproved || !quote || submitting) {
+    if (!selected || !isSendable || !quote || submitting || !pixReady) {
       return;
     }
     const label = recipientLabel(selected);
@@ -94,7 +101,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     });
 
     transferActor.send({
-      additionalData: buildTransferAdditionalData(selected, submit.destAddress),
+      additionalData: buildTransferAdditionalData(selected, submit.destAddress, pixKey.trim() || undefined),
       meta: {
         accountId: account.id,
         amountIn: quote.inputAmount,
@@ -121,28 +128,49 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             <SelectValue placeholder="Select a recipient" />
           </SelectTrigger>
           <SelectContent>
-            {recipients.map(recipient => (
-              <SelectItem disabled={recipient.status !== "approved"} key={recipient.id} value={recipient.id}>
-                {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name}
-                {recipient.status !== "approved" && ` — ${RECIPIENT_STATUS_META[recipient.status].label}`}
-              </SelectItem>
-            ))}
+            {recipients.map(recipient => {
+              // Third-party sending isn't available yet — those rows are disabled with a
+              // "coming soon" tooltip; a self-recipient still awaiting KYC is disabled too.
+              if (!recipient.isSelf) {
+                return (
+                  <SelectItem className="text-muted-foreground" disabled key={recipient.id} value={recipient.id}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="pointer-events-auto">
+                          {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name} — Coming soon
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Coming soon — sending to third-party recipients isn't available yet.</TooltipContent>
+                    </Tooltip>
+                  </SelectItem>
+                );
+              }
+              return (
+                <SelectItem disabled={recipient.status !== "approved"} key={recipient.id} value={recipient.id}>
+                  {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name}
+                  {recipient.status !== "approved" && ` — ${RECIPIENT_STATUS_META[recipient.status].label}`}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
-        <p className="text-muted-foreground text-xs">Only approved recipients can receive a transfer.</p>
+        <p className="text-muted-foreground text-xs">
+          You can send to your own payout accounts. Third-party sending is coming soon.
+        </p>
       </div>
 
-      {selected && !isApproved && (
+      {selected && !isSendable && (
         <div className="flex items-center gap-3 rounded-lg border border-dashed p-3 text-sm">
           <Lock className="size-4 text-muted-foreground" />
           <p className="text-muted-foreground">
-            {recipientLabel(selected)} is {RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked
-            until this recipient is approved.
+            {selected.isSelf
+              ? `${recipientLabel(selected)} is ${RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked until it's approved.`
+              : "Sending to third-party recipients is coming soon — you can only pay your own payout accounts for now."}
           </p>
         </div>
       )}
 
-      {selected && isApproved && corridor && (
+      {selected && isSendable && corridor && (
         <>
           <div className="surface-raised grid gap-3 rounded-lg p-4">
             <div className="grid gap-1.5">
@@ -168,6 +196,21 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             </Row>
           </div>
 
+          {needsPixKey && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="pix-key">Your PIX key</Label>
+              <Input
+                id="pix-key"
+                onChange={event => setPixKey(event.target.value)}
+                placeholder="CPF, phone, email or random key"
+                value={pixKey}
+              />
+              <p className="text-muted-foreground text-xs">
+                We pay out to your own PIX key — it must be registered to your tax ID.
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label>Payin network</Label>
             <Select onValueChange={setNetwork} value={network}>
@@ -192,6 +235,10 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
           ) : payoutAmount <= 0 ? (
             <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
               Enter an amount to see the quote.
+            </p>
+          ) : !pixReady ? (
+            <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
+              Enter your PIX key to continue.
             </p>
           ) : quote ? (
             <>

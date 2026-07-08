@@ -6,8 +6,8 @@ import { TransferForm } from "@/components/transfer/TransferForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
-import { useDashboardStore } from "@/stores/dashboard.store";
 
 export const Route = createFileRoute("/_app/transfer")({
   component: TransferPage,
@@ -19,14 +19,14 @@ export const Route = createFileRoute("/_app/transfer")({
 function TransferPage() {
   const account = useActiveAccount();
   const { recipient } = Route.useSearch();
-  const allRecipients = useDashboardStore(state => state.recipients);
+  const { recipients } = useRecipients(account);
 
   if (!account) {
     return null;
   }
 
-  const recipients = allRecipients.filter(item => item.accountId === account.id);
-  const hasApproved = recipients.some(item => item.status === "approved");
+  // Only self-recipients are sendable today — third-party sending is not yet available.
+  const hasApproved = recipients.some(item => item.isSelf && item.status === "approved");
   const hasAnyRecipient = recipients.length > 0;
 
   return (
