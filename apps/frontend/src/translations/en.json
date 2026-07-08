@@ -646,13 +646,13 @@
       "docs": "Docs",
       "howItWorks": "How it works",
       "individuals": "Individuals",
-    "openApp": "Open App",
-    "payments": "Payments",
-    "sellCrypto": "Sell Crypto",
-    "solutions": "Solutions",
-    "toggleMobileMenu": "Toggle mobile menu",
-    "vortexLogo": "Vortex Logo",
-    "widget": "Widget"
+      "openApp": "Open App",
+      "payments": "Payments",
+      "sellCrypto": "Sell Crypto",
+      "solutions": "Solutions",
+      "toggleMobileMenu": "Toggle mobile menu",
+      "vortexLogo": "Vortex Logo",
+      "widget": "Widget"
     },
     "quoteSubmitButton": {
       "buy": "Buy",
