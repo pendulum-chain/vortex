@@ -44,6 +44,17 @@ import rampService from "../services/ramp/ramp.service";
  */
 const MAX_LOGGED_PROVIDER_BODY_LENGTH = 300;
 
+/**
+ * Collapse control characters (CR/LF, ESC, etc.) in the untrusted provider response body to a
+ * single space before it is embedded in a log line. The body is external input echoed from the
+ * provider's HTTP response, so an embedded newline could split the line or forge a fake log
+ * entry (CWE-117), and an ESC could inject terminal color codes. The other fields we log
+ * (provider, endpoint, method, numeric status) are code-defined constants and need no escaping.
+ */
+function sanitizeProviderBody(body: string): string {
+  return body.replace(/[\x00-\x1F\x7F]+/g, " ");
+}
+
 export function mapProviderFailure(error: unknown): { error: unknown; logContext: Record<string, unknown> } {
   if (!(error instanceof ProviderHttpError)) {
     return { error, logContext: {} };
@@ -64,10 +75,29 @@ export function mapProviderFailure(error: unknown): { error: unknown; logContext
       provider: error.provider,
       providerEndpoint: error.endpoint,
       providerMethod: error.method,
-      providerResponseBody: error.responseBody.slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
+      providerResponseBody: sanitizeProviderBody(error.responseBody).slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
       providerStatus: error.status
     }
   };
+}
+
+/**
+ * Render the provider log context as a message suffix.
+ *
+ * The app logger (`config/logger.ts`) formats only `{ timestamp, level, message, label }` and
+ * drops any metadata object passed as the second argument. Provider context therefore has to
+ * live in the message string itself to reach the logs — passing it as metadata (as we did
+ * before) silently discarded it. Server-side only; the body is already truncated. Returns an
+ * empty string for non-provider failures so their log line is unchanged.
+ */
+export function formatProviderContext(logContext: Record<string, unknown>): string {
+  if (!logContext.provider) {
+    return "";
+  }
+  return (
+    ` — provider=${logContext.provider} call=${logContext.providerMethod} ${logContext.providerEndpoint}` +
+    ` status=${logContext.providerStatus} body=${logContext.providerResponseBody}`
+  );
 }
 
 /**
@@ -109,10 +139,9 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
     const { error: mappedError, logContext } = mapProviderFailure(error);
-    logger.error("Error registering ramp", {
+    logger.error(`Error registering ramp${formatProviderContext(logContext)}`, {
       errorType: classifyApiClientError(mappedError),
-      requestId: req.requestId,
-      ...logContext
+      requestId: req.requestId
     });
     observeRampFailure(req, "ramp_register", mappedError, { quoteId: req.body?.quoteId || null });
     next(mappedError);
@@ -166,10 +195,9 @@ export const updateRamp = async (
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
     const { error: mappedError, logContext } = mapProviderFailure(error);
-    logger.error("Error updating ramp", {
+    logger.error(`Error updating ramp${formatProviderContext(logContext)}`, {
       errorType: classifyApiClientError(mappedError),
-      requestId: req.requestId,
-      ...logContext
+      requestId: req.requestId
     });
     observeRampFailure(req, "ramp_update", mappedError, { rampId: req.body?.rampId || null });
     next(mappedError);
@@ -213,10 +241,9 @@ export const startRamp = async (
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
     const { error: mappedError, logContext } = mapProviderFailure(error);
-    logger.error("Error starting ramp", {
+    logger.error(`Error starting ramp${formatProviderContext(logContext)}`, {
       errorType: classifyApiClientError(mappedError),
-      requestId: req.requestId,
-      ...logContext
+      requestId: req.requestId
     });
     observeRampFailure(req, "ramp_start", mappedError, { rampId: req.body?.rampId || null });
     next(mappedError);

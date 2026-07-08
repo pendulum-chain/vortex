@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import httpStatus from "http-status";
 import { APIError } from "../errors/api-error";
 import { classifyApiClientError } from "../observability/errorClassifier";
-import { mapProviderFailure } from "./ramp.controller";
+import { formatProviderContext, mapProviderFailure } from "./ramp.controller";
 
 describe("mapProviderFailure", () => {
   it("maps a 4xx Avenia rejection (e.g. blocked user) to a 422 with a sanitized public message", () => {
@@ -131,5 +131,50 @@ describe("mapProviderFailure", () => {
     const { error, logContext } = mapProviderFailure("boom");
     expect(error).toBe("boom");
     expect(logContext).toEqual({});
+  });
+});
+
+describe("formatProviderContext", () => {
+  it("embeds provider/call/status/body in the message suffix (logger drops metadata objects)", () => {
+    const { logContext } = mapProviderFailure(
+      new BrlaApiError({
+        endpoint: "/v2/account/tickets",
+        method: "POST",
+        responseBody: JSON.stringify({ error: "user is blocked" }),
+        status: 400
+      })
+    );
+
+    const suffix = formatProviderContext(logContext);
+
+    // The whole point of the fix: the failing Avenia call and reason must be in the message.
+    expect(suffix).toContain("provider=avenia");
+    expect(suffix).toContain("call=POST /v2/account/tickets");
+    expect(suffix).toContain("status=400");
+    expect(suffix).toContain('body={"error":"user is blocked"}');
+  });
+
+  it("returns an empty string for non-provider failures so their log line is unchanged", () => {
+    expect(formatProviderContext({})).toBe("");
+  });
+
+  it("strips control characters from the provider body so it cannot forge/split log lines", () => {
+    const { logContext } = mapProviderFailure(
+      new BrlaApiError({
+        endpoint: "/v2/account/tickets",
+        method: "POST",
+        // Attacker-influenced provider echo trying to inject a fake log line + ANSI escape.
+        responseBody: 'oops\r\n[fatal] forged line\x1b[31m',
+        status: 400
+      })
+    );
+
+    const body = logContext.providerResponseBody as string;
+    expect(body).not.toMatch(/[\r\n]/);
+    expect(body).not.toContain("\x1b");
+
+    const suffix = formatProviderContext(logContext);
+    // The whole suffix (and therefore the log line) stays single-line.
+    expect(suffix).not.toMatch(/[\r\n]/);
   });
 });
