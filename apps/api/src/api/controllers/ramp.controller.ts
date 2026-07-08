@@ -5,6 +5,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusRequest,
   GetRampStatusResponse,
+  ProviderHttpError,
   RampProcess,
   StartRampRequest,
   StartRampResponse,
@@ -23,6 +24,51 @@ import { classifyApiClientError, getErrorMessage } from "../observability/errorC
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientOperation } from "../observability/types";
 import rampService from "../services/ramp/ramp.service";
+
+/**
+ * Translate a raw fiat-provider (Avenia/BRLA, Alfredpay) failure raised while handling a ramp
+ * request into a caller-facing `APIError` plus structured log context.
+ *
+ * - Logging: for a `ProviderHttpError` we surface the exact `provider`/`endpoint`/`method`/
+ *   `status` of the failing call plus a truncated response body (the reason, e.g. "user is
+ *   blocked") so operators can tell *where* and *why* it failed without guessing. The body is
+ *   logged server-side only and never returned to the caller. A transport failure carries
+ *   `status: 0`, which maps to the same 502 as an upstream `5xx`.
+ * - Caller message: the provider's raw body (e.g. `{"error":"user is blocked"}`) is never
+ *   forwarded. A `4xx` means the account/request was rejected (unprocessable), a `5xx`/
+ *   transport failure means the provider is unavailable (bad gateway). Both messages indicate
+ *   the failing stage — the payment provider — without leaking internal detail. The word
+ *   "provider" keeps `classifyApiClientError` reporting this as `provider_error`.
+ *
+ * Non-provider errors (validation, ownership, quote state, …) are returned unchanged.
+ */
+const MAX_LOGGED_PROVIDER_BODY_LENGTH = 300;
+
+export function mapProviderFailure(error: unknown): { error: unknown; logContext: Record<string, unknown> } {
+  if (!(error instanceof ProviderHttpError)) {
+    return { error, logContext: {} };
+  }
+
+  const isClientRejection = error.status >= 400 && error.status < 500;
+  const mapped = new APIError({
+    isPublic: true,
+    message: isClientRejection
+      ? "The payment provider could not process this request for the associated account. Please verify the account status or contact support."
+      : "The payment provider is temporarily unavailable. Please try again shortly.",
+    status: isClientRejection ? httpStatus.UNPROCESSABLE_ENTITY : httpStatus.BAD_GATEWAY
+  });
+
+  return {
+    error: mapped,
+    logContext: {
+      provider: error.provider,
+      providerEndpoint: error.endpoint,
+      providerMethod: error.method,
+      providerResponseBody: error.responseBody.slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
+      providerStatus: error.status
+    }
+  };
+}
 
 /**
  * Register a new ramping process
@@ -62,9 +108,14 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error("Error registering ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_register", error, { quoteId: req.body?.quoteId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error("Error registering ramp", {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId,
+      ...logContext
+    });
+    observeRampFailure(req, "ramp_register", mappedError, { quoteId: req.body?.quoteId || null });
+    next(mappedError);
   }
 };
 
@@ -114,9 +165,14 @@ export const updateRamp = async (
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error updating ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_update", error, { rampId: req.body?.rampId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error("Error updating ramp", {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId,
+      ...logContext
+    });
+    observeRampFailure(req, "ramp_update", mappedError, { rampId: req.body?.rampId || null });
+    next(mappedError);
   }
 };
 
@@ -156,9 +212,14 @@ export const startRamp = async (
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error starting ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_start", error, { rampId: req.body?.rampId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error("Error starting ramp", {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId,
+      ...logContext
+    });
+    observeRampFailure(req, "ramp_start", mappedError, { rampId: req.body?.rampId || null });
+    next(mappedError);
   }
 };
 
