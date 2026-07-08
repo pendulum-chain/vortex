@@ -1011,6 +1011,7 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
   squidRouterQuoteUsdc: string | null;
   aveniaQuoteUsdc: string | null;
   mainNablaQuoteUsdc: string | null;
+  blindpayShadowQuoteUsdc: string | null;
 }> {
   console.log("Quoting first Nabla (USDC→BRLA) to estimate BRLA output for route comparison...");
 
@@ -1121,6 +1122,7 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
 
   return {
     aveniaQuoteUsdc,
+    blindpayShadowQuoteUsdc,
     estimatedBrlaRaw: estimatedBrlaRaw.toString(),
     mainNablaQuoteUsdc,
     squidRouterQuoteUsdc,
