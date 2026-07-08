@@ -145,6 +145,13 @@ ARRIVAL_TEXT_BY_TOKEN, sep10 tokenMapping.
 
 ## Testing
 
+### Test Coverage Requirements
+
+These apply to every agent working in this repo:
+
+- **Bug fixes and regressions**: if a bug or regression slipped past the existing tests, add a test that reproduces it (and fails without the fix) before/with the fix — so it can't silently come back. Write the test at the level that actually covers the gap (unit or integration). Only skip when a test genuinely can't capture it (e.g. purely cosmetic, environment/config, or third-party behavior) — and say why you skipped.
+- **New features**: always ship the appropriate tests alongside the feature. Cover the core behavior and the edge cases that matter, not just the happy path.
+
 ### Backend Integration Tests
 ```bash
 cd apps/api
@@ -160,9 +167,9 @@ bun test
 
 ## Security Spec Sync
 
-`docs/security-spec/` is the audit-facing source of truth for security-sensitive behavior. When changing auth, admin routes, quote/ramp state, signing, fees, partner pricing, integrations, migrations/schema that affect invariants, or cross-chain fund flow, do a quick targeted check for the matching spec file and update it in the same change if behavior changed.
+`docs/security-spec/` is the audit-facing source of truth for security-sensitive behavior, and it must not go stale. Any change to an API feature or its business logic — auth, admin routes, quote/ramp state, signing, fees, partner pricing, integrations, migrations/schema that affect invariants, or cross-chain fund flow — must be cross-checked against the matching spec file and updated in the same change whenever the behavior it documents changed. This applies to every agent working in this repo, not just the one that first touched the code.
 
-Keep this lightweight: grep/read only the relevant spec path from `docs/security-spec/README.md`; skip this for cosmetic refactors, test-only changes, or implementation changes that do not alter security-relevant behavior.
+Keep this lightweight: grep/read only the relevant spec path from `docs/security-spec/README.md`; skip this for cosmetic refactors, test-only changes, or implementation changes that do not alter security-relevant behavior. If a change alters documented behavior but you are unsure which spec file owns it, say so rather than leaving the spec silently stale.
 
 ## Type Issues
 

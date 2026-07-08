@@ -32,12 +32,17 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    const alfredpayMint = ctx.alfredpayMint!;
+    const alfredpayMint = ctx.alfredpayMint;
+    if (!alfredpayMint) {
+      throw new Error("OnRampAlfredpayDiscountEngine requires alfredpayMint to be defined");
+    }
 
     const effectiveRate = alfredpayMint.outputAmountDecimal.div(alfredpayMint.inputAmountDecimal);
 
-    // biome-ignore lint/style/noNonNullAssertion: validated in validate()
-    const usdFees = ctx.fees!.usd!;
+    const usdFees = ctx.fees?.usd;
+    if (!usdFees) {
+      throw new Error("OnRampAlfredpayDiscountEngine requires fees.usd to be defined");
+    }
     const feesToDeduct = new Big(usdFees.vortex).plus(usdFees.partnerMarkup);
 
     const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal.minus(feesToDeduct);

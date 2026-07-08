@@ -1,9 +1,15 @@
-// @ts-nocheck
-
 import * as readline from "readline";
-import { EvmToken, EvmTransactionData, FiatToken, Networks, RampDirection } from "../src/index";
+import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "../src/index";
 import { VortexSdkConfig } from "../src/types";
 import { VortexSdk } from "../src/VortexSdk";
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required env var: ${name}. Copy .env.example to .env and set it.`);
+  }
+  return value;
+}
 
 async function runBrlOfframpExample() {
   const askQuestion = (query: string): Promise<string> => {
@@ -25,13 +31,13 @@ async function runBrlOfframpExample() {
 
     console.log("📝 Step 1: Initializing VortexSdk...");
     const config: VortexSdkConfig = {
-      apiBaseUrl: "http://localhost:3000",
+      apiBaseUrl: process.env.VORTEX_API_URL ?? "http://localhost:3000",
       autoReconnect: true,
       // Optional: provide custom WebSocket URLs
       moonbeamWsUrl: undefined,
       pendulumWsUrl: undefined, // 'wss://custom-moonbeam-rpc.com',
-      publicKey: "pk_live_REPLACEME", // 'wss://custom-pendulum-rpc.com',
-      secretKey: "sk_live_REPLACEME", // default is `true`
+      publicKey: requireEnv("VORTEX_PUBLIC_KEY"), // 'wss://custom-pendulum-rpc.com',
+      secretKey: requireEnv("VORTEX_SECRET_KEY"), // default is `true`
       // Optional: store ephemeral keys for debug
       storeEphemeralKeys: true // default is `true`
     };
@@ -48,7 +54,7 @@ async function runBrlOfframpExample() {
       network: Networks.Polygon,
       outputCurrency: FiatToken.BRL,
       rampType: RampDirection.SELL,
-      to: "pix" as const
+      to: EPaymentMethod.PIX
     };
 
     const quote = await sdk.createQuote(quoteRequest);
@@ -60,10 +66,10 @@ async function runBrlOfframpExample() {
     console.log(`   Expires at: ${quote.expiresAt}\n`);
 
     const brlOfframpData = {
-      pixDestination: "157.492.981-08",
-      receiverTaxId: "157.492.981-08",
-      taxId: "157.492.981-08",
-      walletAddress: "0x1234567890123456789012345678901234567890"
+      pixDestination: requireEnv("BRL_PIX_DESTINATION"),
+      receiverTaxId: requireEnv("BRL_RECEIVER_TAX_ID"),
+      taxId: requireEnv("BRL_TAX_ID"),
+      walletAddress: requireEnv("WALLET_ADDRESS")
     };
 
     const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, brlOfframpData);
@@ -74,7 +80,7 @@ async function runBrlOfframpExample() {
     // The unsignedTransactions object will always return the transactions the user must sign and broadcast, please check the docs for more information https://api-docs.vortexfinance.co/vortex-sdk-1289458m0.
     console.log("   Unsigned transactions:");
     unsignedTransactions.forEach(tx => {
-      const { to, data, value } = tx.txData as EvmTransactionData;
+      const { to, data, value } = sdk.getTransactionToBroadcast(tx);
       console.log(`     - ${tx.phase}: Send to ${to} data ${data} with value ${value}`);
     });
     console.log("");

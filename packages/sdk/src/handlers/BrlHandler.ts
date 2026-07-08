@@ -2,6 +2,7 @@ import {
   AccountMeta,
   EphemeralAccount,
   EphemeralAccountType,
+  PresignedTx,
   RampDirection,
   RampProcess,
   RegisterRampRequest,
@@ -31,7 +32,7 @@ export class BrlHandler implements RampHandler {
       substrateEphemeral?: EphemeralAccount;
       evmEphemeral?: EphemeralAccount;
     }
-  ) => Promise<any[]>;
+  ) => Promise<PresignedTx[]>;
 
   constructor(
     apiService: ApiService,
@@ -46,7 +47,7 @@ export class BrlHandler implements RampHandler {
         substrateEphemeral?: EphemeralAccount;
         evmEphemeral?: EphemeralAccount;
       }
-    ) => Promise<any[]>
+    ) => Promise<PresignedTx[]>
   ) {
     this.apiService = apiService;
     this.context = context;
@@ -55,19 +56,17 @@ export class BrlHandler implements RampHandler {
   }
 
   async registerBrlOnramp(quoteId: string, additionalData: BrlOnrampAdditionalData): Promise<RampProcess> {
-    if (!additionalData.taxId) {
-      throw new Error("Tax ID is required for BRL onramp");
-    }
+    // taxId is now derived server-side from the bound user
+    const taxId = additionalData.taxId ?? "";
 
-    await this.validateBrlKyc(additionalData.taxId);
-    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.BUY);
+    await this.assertWithinBrlLimit(taxId, quoteId, RampDirection.BUY);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
     const registerRequest: RegisterRampRequest = {
       additionalData: {
         destinationAddress: additionalData.destinationAddress,
-        taxId: additionalData.taxId
+        taxId: taxId || undefined
       },
       quoteId,
       signingAccounts: accountMetas
@@ -94,21 +93,19 @@ export class BrlHandler implements RampHandler {
   }
 
   async registerBrlOfframp(quoteId: string, additionalData: BrlOfframpAdditionalData): Promise<RampProcess> {
-    if (!additionalData.taxId) {
-      throw new Error("Tax ID is required for BRL offramps");
-    }
+    const taxId = additionalData.taxId ?? "";
+    const receiverTaxId = additionalData.receiverTaxId ?? taxId;
 
-    await this.validateBrlKyc(additionalData.taxId);
     await this.assertValidPixKey(additionalData.pixDestination);
-    await this.assertWithinBrlLimit(additionalData.taxId, quoteId, RampDirection.SELL);
+    await this.assertWithinBrlLimit(taxId, quoteId, RampDirection.SELL);
 
     const { ephemerals, accountMetas } = await this.generateEphemerals();
 
     const registerRequest: RegisterRampRequest = {
       additionalData: {
         pixDestination: additionalData.pixDestination,
-        receiverTaxId: additionalData.receiverTaxId,
-        taxId: additionalData.taxId,
+        receiverTaxId: receiverTaxId || undefined,
+        taxId: taxId || undefined,
         walletAddress: additionalData.walletAddress
       },
       quoteId,
@@ -157,22 +154,6 @@ export class BrlHandler implements RampHandler {
     return updatedRampProcess;
   }
 
-  async startBrlRamp(rampId: string): Promise<RampProcess> {
-    const startRequest = { rampId };
-    return this.apiService.startRamp(startRequest);
-  }
-
-  private async validateBrlKyc(taxId: string): Promise<void> {
-    if (!taxId) {
-      throw new BrlKycStatusError("Tax ID is required", 400);
-    }
-
-    const kycStatus = await this.apiService.getBrlKycStatus(taxId);
-    if (kycStatus.kycLevel < 1) {
-      throw new Error(`Insufficient KYC level. Current: ${kycStatus.kycLevel}`);
-    }
-  }
-
   private async assertValidPixKey(pixKey: string): Promise<void> {
     let result: { valid: boolean };
     try {
@@ -210,7 +191,7 @@ export class BrlHandler implements RampHandler {
     }
     let remainingLimit: number;
     try {
-      ({ remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId, direction));
+      ({ remainingLimit } = await this.apiService.getBrlRemainingLimit(taxId || undefined, direction));
     } catch (error) {
       // The backend returns 404 "Limits not found" for KYC-approved users whose
       // BRLA subaccount has not yet been initialized for limits. Treat this as

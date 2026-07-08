@@ -1,10 +1,11 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
+import type Partner from "./partner.model";
 
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
   id: string;
-  partnerName: string;
+  partnerName: string | null;
   keyType: "public" | "secret";
   keyHash: string | null;
   keyValue: string | null;
@@ -13,6 +14,7 @@ export interface ApiKeyAttributes {
   lastUsedAt: Date | null;
   expiresAt: Date | null;
   isActive: boolean;
+  userId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,14 +22,14 @@ export interface ApiKeyAttributes {
 // Define the attributes that can be set during creation
 type ApiKeyCreationAttributes = Optional<
   ApiKeyAttributes,
-  "id" | "keyType" | "name" | "lastUsedAt" | "expiresAt" | "createdAt" | "updatedAt"
+  "id" | "keyType" | "name" | "lastUsedAt" | "expiresAt" | "partnerName" | "userId" | "createdAt" | "updatedAt"
 >;
 
 // Define the ApiKey model
 class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implements ApiKeyAttributes {
   declare id: string;
 
-  declare partnerName: string;
+  declare partnerName: string | null;
 
   declare keyType: "public" | "secret";
 
@@ -45,12 +47,14 @@ class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implement
 
   declare isActive: boolean;
 
+  declare userId: string | null;
+
   declare createdAt: Date;
 
   declare updatedAt: Date;
 
   // Association helper - partners with this name
-  declare partners?: any[];
+  declare partners?: Partner[];
 }
 
 // Initialize the model
@@ -111,7 +115,7 @@ ApiKey.init(
       type: DataTypes.STRING(100)
     },
     partnerName: {
-      allowNull: false,
+      allowNull: true,
       field: "partner_name",
       type: DataTypes.STRING(100)
     },
@@ -120,6 +124,17 @@ ApiKey.init(
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
+    },
+    userId: {
+      allowNull: true,
+      field: "user_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "profiles"
+      },
+      type: DataTypes.UUID
     }
   },
   {
@@ -143,6 +158,14 @@ ApiKey.init(
       {
         fields: ["is_active"],
         name: "idx_api_keys_active"
+      },
+      {
+        fields: ["user_id"],
+        name: "idx_api_keys_user_id"
+      },
+      {
+        fields: ["user_id", "is_active"],
+        name: "idx_api_keys_active_user_lookup"
       },
       {
         fields: ["is_active", "key_prefix", "key_type"],

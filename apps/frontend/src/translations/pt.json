@@ -248,6 +248,7 @@
           "required": "Rua é obrigatória"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "Tax Id inválido",
           "required": "Tax Id é obrigatório"
         }
@@ -352,6 +353,10 @@
     },
     "feeCollapse": {
       "details": "Detalhes",
+      "discount": {
+        "label": "Desconto",
+        "tooltip": "A Vortex está dando um desconto nos custos da plataforma."
+      },
       "finalAmount": "Valor final",
       "netRate": {
         "label": "Câmbio Efetiva",
@@ -365,7 +370,7 @@
         "label": "Taxa de processamento",
         "tooltip": "Essa taxa cobre os custos do parceiro e da plataforma Vortex."
       },
-      "totalFee": "Taxa total",
+      "totalFee": "Taxa efetiva",
       "yourQuote": "Sua cotação"
     },
     "fiatAccountForms": {
@@ -472,7 +477,7 @@
       "business": {
         "contactSales": "Contatar Vendas",
         "contactSupport": "Contatar Suporte",
-        "title": "Negócios"
+        "title": "Parceiros"
       },
       "buyCrypto": {
         "buyDot": "Comprar DOT",
@@ -640,11 +645,13 @@
     "navbar": {
       "api": "API",
       "bookDemo": "Agendar demo",
-      "business": "Empresas",
+      "business": "Parceiros",
       "community": "Comunidade",
       "docs": "Documentação",
       "howItWorks": "Como funciona",
       "individuals": "Indivíduos",
+      "openApp": "Abrir App",
+      "payments": "Pagamentos",
       "sellCrypto": "Vender Cripto",
       "solutions": "Soluções",
       "toggleMobileMenu": "Alternar menu móvel",
@@ -676,6 +683,19 @@
       "howWouldYouRateYourExperience": "Como você avaliaria sua experiência?",
       "thankYou": "Obrigado!",
       "title": "Sua opinião é importante!"
+    },
+    "regionSelectStep": {
+      "continue": "Continuar",
+      "description": "Selecione a região para a qual deseja verificar sua empresa.",
+      "label": "Região",
+      "placeholder": "Selecione uma região",
+      "regions": {
+        "BR": "Brasil",
+        "CO": "Colômbia",
+        "MX": "México",
+        "US": "Estados Unidos"
+      },
+      "title": "Selecione sua região"
     },
     "SummaryPage": {
       "ARSOnrampDetails": {
@@ -797,6 +817,7 @@
           "required": "Chave PIX é obrigatória para transferências em BRL"
         },
         "taxId": {
+          "cnpjFormat": "CNPJ inválido",
           "format": "CPF o CNPJ inválido",
           "required": "CPF o CNPJ é obrigatório para transferências em BRL"
         },
@@ -985,6 +1006,216 @@
         "partnerWithUs": "Seja nosso parceiro",
         "subtitle": "Mantemos as coisas simples para você e garantimos que você obtenha a melhor taxa disponível.",
         "title": "<0>Compre e venda cripto.</0> <br /> Rápido, seguro, melhores taxas."
+      }
+    },
+    "payments": {
+      "currencyStrip": {
+        "ariaLabel": "Moedas de rota suportadas"
+      },
+      "finance": {
+        "eyebrow": "Para equipes financeiras",
+        "headers": {
+          "question": "Pergunta",
+          "traditional": "Caminho tradicional",
+          "vortex": "Discussão de rota Vortex"
+        },
+        "rows": {
+          "operatingCash": {
+            "question": "Com que rapidez os fundos viram caixa operacional?",
+            "traditional": "Depende do corredor, do banco e dos intermediários.",
+            "vortex": "Caminhos de liquidação dependentes da rota por parceiros locais."
+          },
+          "spread": {
+            "question": "Qual spread estou pagando?",
+            "traditional": "Muitas vezes misturado ao câmbio bancário e aos custos de correspondentes.",
+            "vortex": "Revisão de rota baseada em cotação antes da execução."
+          },
+          "vendors": {
+            "question": "Posso pagar fornecedores ou prestadores localmente?",
+            "traditional": "Normalmente tratado fora do fluxo de recebíveis.",
+            "vortex": "Moeda de pagamento, país, contraparte e necessidades de compliance são discutidos juntos."
+          }
+        },
+        "title": "Uma forma mais clara de comparar rotas de pagamentos internacionais"
+      },
+      "fit": {
+        "eyebrow": "Onde a Vortex se encaixa",
+        "items": {
+          "compliance": {
+            "body": "Fluxos pesados em compliance são tratados pela Vortex e seus parceiros, sujeitos aos requisitos da rota.",
+            "title": "Preparado para KYB e KYC"
+          },
+          "localCoverage": {
+            "body": "Conecte trilhos fiat e stablecoin a caminhos de liquidação local onde houver disponibilidade.",
+            "title": "Cobertura de parceiros locais"
+          },
+          "nonCustodial": {
+            "body": "Projetado em torno de rotas e execução, sem forçar empresas a adotar uma nova pilha de tesouraria.",
+            "title": "Non-custodial por design"
+          },
+          "quoteExecution": {
+            "body": "Dê às equipes financeiras uma comparação concreta antes de mover dinheiro entre trilhos.",
+            "title": "Execução baseada em cotação"
+          }
+        },
+        "title": "Infraestrutura financeira sem expansão operacional desnecessária"
+      },
+      "flows": {
+        "eyebrow": "Criado para fluxos reais de negócio",
+        "items": {
+          "platforms": {
+            "body": "Adicione liquidação fiat-stablecoin e fluxos de pagamento pela API/widget da Vortex enquanto a Vortex e parceiros locais tratam das partes mais pesadas de compliance.",
+            "detail": "Fintechs, marketplaces, plataformas de pagamento",
+            "title": "Plataformas e marketplaces"
+          },
+          "productExporters": {
+            "body": "Transforme recebíveis de exportação em pagamentos a fornecedores, frete e operação com cotações mais claras e rotas de liquidação baseadas em stablecoins.",
+            "detail": "Manufatura, vestuário, agro, alimentos, embalagens",
+            "title": "Exportadores e importadores de produtos"
+          },
+          "serviceExporters": {
+            "body": "Fature clientes internacionais e liquide em fundos operacionais locais para folha, prestadores e despesas mensais.",
+            "detail": "Software, BPO, design, staffing, estúdios digitais",
+            "title": "Exportadores de serviços"
+          }
+        },
+        "title": "Transforme recebíveis internacionais em caixa operacional local"
+      },
+      "form": {
+        "companyEmail": "E-mail da empresa",
+        "companyName": "Nome da empresa",
+        "country": "País",
+        "countryPlaceholder": "Brasil, Argentina, México",
+        "disclaimer": "Sujeito a KYB/KYC, limites, liquidez e disponibilidade regulatória.",
+        "error": "Algo deu errado. Tente novamente ou envie um e-mail para sales@vortexfinance.co.",
+        "monthlyVolume": "Volume mensal",
+        "payoutCurrency": "Moeda de pagamento",
+        "receiveCurrency": "Moeda recebida",
+        "requestSent": "Solicitação enviada",
+        "selectCurrency": "Selecione a moeda",
+        "selectRange": "Selecione a faixa",
+        "selectUseCase": "Selecione o caso de uso",
+        "sending": "Enviando...",
+        "submit": "Solicitar comparação de rota",
+        "successBody": "A equipe da Vortex revisará os detalhes da rota e retornará por e-mail.",
+        "successTitle": "Solicitação recebida",
+        "useCase": "Caso de uso",
+        "useCaseOptions": {
+          "localPayout": "Pagamento local",
+          "platform": "Plataforma ou marketplace",
+          "productExporter": "Exportador/importador de produtos",
+          "serviceExporter": "Exportador de serviços"
+        },
+        "validation": {
+          "companyNameRequired": "Nome da empresa é obrigatório",
+          "countryRequired": "País é obrigatório",
+          "emailFormat": "Digite um e-mail corporativo válido",
+          "emailRequired": "E-mail da empresa é obrigatório",
+          "payoutCurrencyRequired": "Moeda de pagamento é obrigatória",
+          "receiveCurrencyRequired": "Moeda recebida é obrigatória",
+          "useCaseRequired": "Caso de uso é obrigatório",
+          "volumeRequired": "Volume mensal é obrigatório"
+        },
+        "volumeOptions": {
+          "50kTo250k": "50k a 250k",
+          "250kTo1m": "250k a 1m",
+          "over1m": "Acima de 1m",
+          "under50k": "Abaixo de 50k"
+        }
+      },
+      "hero": {
+        "cta": "Fale com a Vortex",
+        "description": "A Vortex ajuda empresas a transformar pagamentos internacionais de clientes em liquidação local, tesouraria em stablecoins ou pagamentos para contas bancárias locais por rotas fiat e stablecoin compatíveis.",
+        "eyebrow": "Infraestrutura de pagamentos em stablecoins para empresas",
+        "title": "Receba pagamentos empresariais internacionais em trilhos de stablecoins"
+      },
+      "lead": {
+        "contactTeam": "Fale com a equipe Vortex",
+        "description": "Compartilhe moedas, países e volume mensal. A Vortex pode avaliar se vale comparar uma rota fiat e stablecoin para sua empresa.",
+        "eyebrow": "Compare sua rota",
+        "preferDirectNote": "Prefere uma mensagem direta?",
+        "title": "Conte qual fluxo de pagamento voce quer melhorar"
+      },
+      "process": {
+        "description": "A Vortex oferece às equipes financeiras um caminho prático do pagamento do cliente à liquidação local, com revisão de compliance, visibilidade de cotação e roteamento de pagamento em um só fluxo.",
+        "eyebrow": "Como funciona",
+        "steps": {
+          "kyb": {
+            "body": "Confirme perfil da empresa, países, volume mensal, contrapartes e necessidades de pagamento.",
+            "title": "Complete KYB e revisão de rota"
+          },
+          "quote": {
+            "body": "Revise preço dependente da rota, FX, conversão de stablecoin, prazo e caminho de pagamento.",
+            "title": "Compare uma cotação"
+          },
+          "receive": {
+            "body": "Receba pagamentos de clientes, tesouraria em stablecoins ou fundos operacionais por rotas suportadas.",
+            "title": "Receba ou roteie fundos"
+          },
+          "settle": {
+            "body": "Converta para liquidação em conta bancária local, pagamentos a fornecedores ou fluxos de payout dependentes da rota por meio da Vortex e parceiros locais.",
+            "title": "Liquide ou pague localmente"
+          }
+        },
+        "title": "De KYB a liquidação baseada em cotação"
+      },
+      "routeQuote": {
+        "eyebrow": "Cotação da rota",
+        "rows": {
+          "receive": {
+            "description": "Fatura de cliente internacional",
+            "term": "Receber"
+          },
+          "route": {
+            "description": "USD/EUR para USDC para BRL",
+            "term": "Rota"
+          },
+          "settlement": {
+            "description": "Fundos operacionais locais",
+            "term": "Liquidação"
+          },
+          "status": {
+            "description": "Sujeito a KYB, limites, liquidez e disponibilidade regulatória",
+            "term": "Status"
+          }
+        },
+        "title": "USD/EUR para caixa operacional em BRL"
+      },
+      "routes": {
+        "currencyRoutes": "Rotas de moedas",
+        "description": "A Vortex pode discutir rotas que conectam liquidação fiat e stablecoin a sistemas locais de pagamento instantâneo, incluindo Pix no Brasil, Bre-B na Colombia, Instant SEPA na Europa e trilhos bancários instantâneos comparáveis na Argentina e no México. Disponibilidade, limites, prazo e preço continuam dependentes da rota, mas a primeira conversa pode mapear seu corredor, moeda de liquidação e fluxo operacional.",
+        "eyebrow": "Rotas que podemos discutir",
+        "localPayoutRails": "Trilhos de pagamento local",
+        "localRails": {
+          "argentina": "Trilhos instantâneos na Argentina",
+          "breb": "Bre-B",
+          "instantSepa": "Instant SEPA",
+          "mexico": "Trilhos instantâneos no México",
+          "pix": "Pix"
+        },
+        "preview": {
+          "disclaimer": "Sujeito a KYB/KYC, limites, liquidez e disponibilidade regulatória por parceiros locais.",
+          "eyebrow": "Prévia de rota",
+          "from": "De",
+          "fromDetail": "Saldo em stablecoin",
+          "steps": {
+            "kyb": "KYB da empresa revisado",
+            "quote": "Rota e cotação confirmadas",
+            "settlement": "Liquidação em banco local iniciada"
+          },
+          "title": "Converter USDT para BRL via Pix",
+          "to": "Para",
+          "toDetail": "Conta bancária brasileira",
+          "toValue": "BRL via Pix"
+        },
+        "title": "EUR, USD, stablecoins e rotas de pagamento local"
+      },
+      "routeVisual": {
+        "ariaLabel": "Visual de rota de pagamento",
+        "bankSettlement": "Liquidação em conta bancária",
+        "invoice": "Fatura de cliente estrangeiro",
+        "localBankPayout": "Pagamento bancário local",
+        "stablecoin": "Rota stablecoin"
       }
     },
     "privacyPolicy": {
@@ -1276,6 +1507,7 @@
         "sell": {
           "ARS": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "BRL": "Em breve os fundos estarão disponíveis em sua conta bancária..",
+          "COP": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "default": "Em breve os fundos estarão disponíveis em sua conta bancária.",
           "EURC": "Você receberá os fundos em até 1 minuto (SEPA Instantâneo) ou em até 2 dias (SEPA Padrão), dependendo do seu banco.",
           "MXN": "Seus fundos chegarão à sua conta bancária via SPEI em alguns minutos.",
@@ -1298,6 +1530,7 @@
           "sellTooHigh": "Pedidos em {{assetSymbol}} devem ser menos de {{maxAmountUnits}} {{assetSymbol}}",
           "sellTooLow": "Pedidos em {{assetSymbol}} devem ser mais de {{minAmountUnits}} {{assetSymbol}}"
         },
+        "anchorUnavailable": "Este provedor de pagamento está temporariamente indisponível. Tente novamente em alguns minutos.",
         "assetHubNotSupportedForAlfredPay": "AssetHub não é suportado para esta moeda. Por favor, selecione uma rede diferente.",
         "BRL_tokenUnavailable": "Ajustando sua saída BRL - em breve!",
         "COP_tokenUnavailable": "Construa seu trilho COP - disponível em breve!",
@@ -1395,6 +1628,7 @@
         "buttons": {
           "next": "Próximo"
         },
+        "eurRampUnavailable": "Estamos melhorando a sua rampa de EUR. Ela voltará em breve.",
         "quoteChangedWarning": "Sua cotação foi alterada. Por favor, confirme o novo valor de saída antes de continuar.",
         "title": "Insira os detalhes"
       }

@@ -15,6 +15,11 @@ import TaxId from "../../../../models/taxId.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+import { ensurePresignedTransferFunded } from "./helpers";
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -66,7 +71,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       const pollInterval = 5000; // 5 seconds
       const timeout = 5 * 60 * 1000; // 5 minutes
       const startTime = Date.now();
-      let lastError: any;
+      let lastError: unknown;
 
       while (Date.now() - startTime < timeout) {
         try {
@@ -188,6 +193,16 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
           logger.info(`BrlaPayoutOnBasePhaseHandler: Existing transaction ${brlaPayoutTxHash} succeeded.`);
         }
       } else {
+        // The presigned payout is single-use (fixed nonce, consumed even on revert); confirm the
+        // ephemeral can cover it before broadcasting.
+        try {
+          await ensurePresignedTransferFunded(brlaPayoutTx as `0x${string}`, Networks.Base, this.getPhaseName());
+        } catch (error) {
+          throw this.createRecoverableError(
+            `BrlaPayoutOnBasePhaseHandler: ephemeral balance does not cover the presigned payout: ${getErrorMessage(error)}`
+          );
+        }
+
         txHash = (await evmClientManager.sendRawTransactionWithRetry(
           Networks.Base,
           brlaPayoutTx as `0x${string}`
@@ -209,6 +224,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
         });
       }
     } catch (error) {
+      if (error instanceof PhaseError) throw error;
       logger.error("BrlaPayoutOnBasePhaseHandler: Failed to send BRLA payout transaction.", error);
       throw this.createRecoverableError("Failed to send BRLA payout transaction");
     }
@@ -225,7 +241,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     const pollInterval = 5000; // 5 seconds
     const timeout = 5 * 60 * 1000; // 5 minutes
     const startTime = Date.now();
-    let lastError: any;
+    let lastError: unknown;
 
     while (Date.now() - startTime < timeout) {
       try {
@@ -252,7 +268,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     if (lastError) {
       logger.error("BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ", lastError);
       throw this.createUnrecoverableError(
-        `BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ${lastError.message}`
+        `BrlaPayoutOnBasePhaseHandler: Polling for ticket status timed out with an error: ${getErrorMessage(lastError)}`
       );
     }
 

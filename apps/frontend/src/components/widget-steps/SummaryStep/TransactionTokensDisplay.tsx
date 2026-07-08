@@ -25,6 +25,7 @@ import { useTokenIcon } from "../../../hooks/useTokenIcon";
 import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { MykoboService } from "../../../services/api/mykobo.service";
 import { RampExecutionInput } from "../../../types/phases";
+import { ARSOnrampDetails } from "./ARSOnrampDetails";
 import { AssetDisplay } from "./AssetDisplay";
 import { BRLOnrampDetails } from "./BRLOnrampDetails";
 import { COPOnrampDetails } from "./COPOnrampDetails";
@@ -34,7 +35,7 @@ import { MXNOnrampDetails } from "./MXNOnrampDetails";
 import { USOnrampDetails } from "./USOnrampDetails";
 
 const ONRAMP_DETAILS_BY_FIAT: Record<FiatToken, FC | null> = {
-  [FiatToken.ARS]: null,
+  [FiatToken.ARS]: ARSOnrampDetails,
   [FiatToken.BRL]: BRLOnrampDetails,
   [FiatToken.COP]: COPOnrampDetails,
   [FiatToken.EURC]: EUROnrampDetails,
@@ -134,6 +135,14 @@ export const TransactionTokensDisplay: FC<TransactionTokensDisplayProps> = ({ ex
       <FeeDetails
         destinationAddress={destinationAddress}
         direction={rampDirection}
+        discount={
+          Big(quote.discountFiat || "0").gt(0)
+            ? {
+                amount: Big(quote.discountFiat || "0").toFixed(2),
+                currency: quote.discountCurrency || quote.feeCurrency
+              }
+            : undefined
+        }
         exchangeRate={Big(quote.outputAmount).div(quote.inputAmount).toFixed(4)}
         feesCost={{
           anchor: quote.anchorFeeFiat,

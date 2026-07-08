@@ -318,8 +318,8 @@ async function main() {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     console.log("Transaction hash:", hash);
     console.log("Gas used:", receipt.gasUsed.toString());
-  } catch (error: any) {
-    console.error("Execution failed:", error.message);
+  } catch (error) {
+    console.error("Execution failed:", error instanceof Error ? error.message : String(error));
     return;
   }
 

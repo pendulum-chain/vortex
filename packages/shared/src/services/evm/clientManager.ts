@@ -10,7 +10,9 @@ export interface EvmNetworkConfig {
 }
 
 const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
-const NON_RETRYABLE_READ_CONTRACT_REVERTS = ["EXCEEDS_MAX_COVERAGE_RATIO"];
+// Any on-chain revert is deterministic for a given block state: retrying against a different RPC
+// node will not change the outcome, so retrying just wastes calls and delays failure reporting.
+const NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS = [/execution reverted/i];
 
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
@@ -53,7 +55,7 @@ function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transpo
 }
 
 function isNonRetryableReadContractError(error: Error): boolean {
-  return NON_RETRYABLE_READ_CONTRACT_REVERTS.some(revertReason => error.message.includes(revertReason));
+  return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
@@ -188,13 +190,21 @@ export class EvmClientManager {
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        const retryable = shouldRetry(lastError);
+        const sanitizedMessage = sanitizeRpcErrorMessage(lastError.message);
 
-        logger.current.warn(
-          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
-        );
+        if (retryable) {
+          logger.current.warn(
+            `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        } else {
+          logger.current.warn(
+            `${operationName} failed without retry on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        }
 
-        if (!shouldRetry(lastError)) {
-          throw new Error(`${operationName} failed on ${networkName}: ${sanitizeRpcErrorMessage(lastError.message)}`, {
+        if (!retryable) {
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizedMessage}`, {
             cause: lastError
           });
         }

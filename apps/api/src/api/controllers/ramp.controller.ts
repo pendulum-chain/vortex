@@ -16,6 +16,7 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
 import { enrichAdditionalDataWithClientIp } from "../helpers/clientIp";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
@@ -43,11 +44,13 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     const enrichedAdditionalData = await enrichAdditionalDataWithClientIp(additionalData, req);
 
+    const effectiveUserId = getEffectiveUserId(req);
+
     const ramp = await rampService.registerRamp({
       additionalData: enrichedAdditionalData,
       quoteId,
       signingAccounts,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeRampSuccess(req, "ramp_register", httpStatus.CREATED, {
@@ -257,10 +260,11 @@ export const getRampHistory = async (
       });
     }
 
+    const effectiveUserId = getEffectiveUserId(req);
     const owner = req.authenticatedPartner
       ? { partnerId: req.authenticatedPartner.id }
-      : req.userId
-        ? { userId: req.userId }
+      : effectiveUserId
+        ? { userId: effectiveUserId }
         : null;
     if (!owner) {
       throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });

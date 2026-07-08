@@ -29,13 +29,14 @@ This directory contains the security specification for the Vortex cross-border p
 | Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
 | Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
+| FastForex | `05-integrations/fastforex.md` | USD-fiat conversion provider hardening and fallback |
 | Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
 | Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
 | Token Relayer | `04-smart-contracts/token-relayer.md` | EIP-712, permit, known findings |
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
-| Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (active EUR rail) |
+| Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
 | Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
@@ -44,7 +45,7 @@ This directory contains the security specification for the Vortex cross-border p
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
-| Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management |
+| Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
 | Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
@@ -69,14 +70,17 @@ Every spec file uses exactly four sections:
 | **Spacewalk** | Bridge between Pendulum and Stellar |
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
-| **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base) |
+| **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
 | **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **FastForex** | Fiat exchange-rate provider used as the primary source for USD-to-fiat quote/conversion rates |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
+| **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
+| **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |
 | **Subsidization** | When the platform tops up an ephemeral account to ensure the user receives the quoted amount |
 | **pk\_/sk\_** | Public key / Secret key prefixes for the dual API key system |
 | **PIX** | Brazilian instant payment system |
 | **SEPA** | Single Euro Payments Area — European bank transfer system |
+| **Coverage ratio** | Reserve ÷ liabilities for a Nabla swap pool; ratio > 1 means the pool is over-collateralized and triggers rebalancing |
 | **Request ID** | Non-secret correlation identifier generated or propagated by the API for log/event debugging |
 | **Client event** | Sanitized operational record of a partner-facing API request outcome |

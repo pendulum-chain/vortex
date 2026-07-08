@@ -56,11 +56,27 @@ export const DesktopNavbar = () => {
               >
                 {t("components.navbar.business")}
               </Link>
+              <Link
+                activeProps={{
+                  className: cn(
+                    "transition-colors group-hover:[&:not(:hover)]:text-gray-400",
+                    isBusinessPage ? "text-blue-950 hover:text-blue-950" : "text-white hover:text-white"
+                  )
+                }}
+                className={cn(
+                  "text-xl transition-colors",
+                  isBusinessPage ? "text-gray-600 hover:text-blue-950" : "text-gray-400 hover:text-white"
+                )}
+                params={params}
+                to="/{-$locale}/payments"
+              >
+                {t("components.navbar.payments")}
+              </Link>
             </div>
 
             <div className="flex items-center">
               <Link className="btn btn-vortex-secondary !rounded-3xl" to="/{-$locale}/widget">
-                Open App
+                {t("components.navbar.openApp")}
               </Link>
             </div>
           </>

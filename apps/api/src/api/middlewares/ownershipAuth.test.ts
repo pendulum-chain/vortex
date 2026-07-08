@@ -95,6 +95,72 @@ describe("assertQuoteOwnership", () => {
 
     await expect(assertQuoteOwnership({}, "quote-1")).rejects.toThrow("Authentication required");
   });
+
+  it("rejects a linked API key from operating on another linked user's provider-bound quote", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      partnerId: "quote-partner-id",
+      userId: "victim-user"
+    })) as typeof QuoteTicket.findByPk;
+    Partner.findByPk = mock(async () => ({
+      id: "quote-partner-id",
+      isActive: true,
+      name: "Partner"
+    })) as typeof Partner.findByPk;
+
+    await expect(
+      assertQuoteOwnership(
+        {
+          apiKeyUserId: "attacker-user",
+          authenticatedPartner: {id: "api-key-partner-id", name: "Partner"}
+        },
+        "quote-1"
+      )
+    ).rejects.toThrow("Authenticated API key user does not own this quote");
+  });
+
+  it("allows a linked API key to operate on its own user's provider-bound quote", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      partnerId: "quote-partner-id",
+      userId: "user-1"
+    })) as typeof QuoteTicket.findByPk;
+    Partner.findByPk = mock(async () => ({
+      id: "quote-partner-id",
+      isActive: true,
+      name: "Partner"
+    })) as typeof Partner.findByPk;
+
+    await expect(
+      assertQuoteOwnership(
+        {
+          apiKeyUserId: "user-1",
+          authenticatedPartner: {id: "api-key-partner-id", name: "Partner"}
+        },
+        "quote-1"
+      )
+    ).resolves.toBeUndefined();
+  });
+
+  it("allows an unlinked partner key to operate on a partner-owned anonymous-user quote", async () => {
+    QuoteTicket.findByPk = mock(async () => ({
+      partnerId: "quote-partner-id",
+      userId: null
+    })) as typeof QuoteTicket.findByPk;
+    Partner.findByPk = mock(async () => ({
+      id: "quote-partner-id",
+      isActive: true,
+      name: "Partner"
+    })) as typeof Partner.findByPk;
+
+    await expect(
+      assertQuoteOwnership(
+        {
+          apiKeyUserId: undefined,
+          authenticatedPartner: {id: "api-key-partner-id", name: "Partner"}
+        },
+        "quote-1"
+      )
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe("assertRampOwnership", () => {

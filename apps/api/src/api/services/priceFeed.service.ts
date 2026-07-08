@@ -269,51 +269,17 @@ export class PriceFeedService {
     toCurrency: RampCurrency,
     decimals: number | null = null // Allow overriding, but default to null
   ): Promise<string> {
-    fromCurrency = fromCurrency.toUpperCase() as RampCurrency;
-    toCurrency = toCurrency.toUpperCase() as RampCurrency;
+    return this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
+  }
 
-    // Determine target decimals based on currency type, unless explicitly overridden
-    const targetDecimals = decimals !== null ? decimals : isFiatToken(toCurrency) ? 2 : 8;
-    logger.debug(`Target decimals for ${toCurrency} set to ${targetDecimals}`);
-
+  public async convertCurrencyOrOriginal(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+    decimals: number | null = null
+  ): Promise<string> {
     try {
-      // If currencies are the same, return the original amount
-      if (fromCurrency === toCurrency) {
-        logger.debug(`Currencies are the same (${fromCurrency}), returning original amount: ${amount}`);
-        return new Big(amount).toFixed(targetDecimals);
-      }
-
-      // Check if both currencies are USD-like stablecoins
-      const isUsdLikeCurrency = (currency: RampCurrency): boolean =>
-        currency.toUpperCase() === "USD" ||
-        Object.values(UsdLikeEvmToken).includes(normalizeTokenSymbol(currency) as unknown as UsdLikeEvmToken);
-
-      if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        return this.convertUsdLikeToUsdLike(amount, fromCurrency, toCurrency);
-      }
-
-      if (isUsdLikeCurrency(fromCurrency) && isFiatToken(toCurrency)) {
-        return this.convertUsdToFiat(amount, toCurrency, targetDecimals);
-      }
-
-      if (isFiatToken(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        return this.convertFiatToUsd(amount, fromCurrency, targetDecimals);
-      }
-
-      if (isUsdLikeCurrency(fromCurrency) && !isFiatToken(toCurrency) && !isUsdLikeCurrency(toCurrency)) {
-        return this.convertUsdToCrypto(amount, toCurrency, targetDecimals);
-      }
-
-      if (!isFiatToken(fromCurrency) && !isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
-        return this.convertCryptoToUsd(amount, fromCurrency, targetDecimals);
-      }
-
-      // For other currency pairs, convert via USD as an intermediate step
-      logger.debug(`Converting ${fromCurrency} to ${toCurrency} via USD as intermediate`);
-      // Pass null for decimals to let the recursive call determine the correct precision
-      const amountInUSD = await this.convertCurrency(amount, fromCurrency, EvmToken.USDC, null);
-
-      return this.convertCurrency(amountInUSD, EvmToken.USDC, toCurrency, null);
+      return await this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
     } catch (error) {
       if (error instanceof Error) {
         logger.error(`Error converting ${amount} from ${fromCurrency} to ${toCurrency}: ${error.message}`);
@@ -321,8 +287,81 @@ export class PriceFeedService {
         logger.error(`Unknown error converting ${amount} from ${fromCurrency} to ${toCurrency}`);
       }
 
-      throw error instanceof Error ? error : new Error(String(error));
+      // Return the original amount as fallback
+      logger.warn(`Returning original amount ${amount} as fallback due to conversion error`);
+      return amount;
     }
+  }
+
+  public async convertCurrencyOrNull(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+    decimals: number | null = null
+  ): Promise<string | null> {
+    try {
+      return await this.convertCurrencyStrict(amount, fromCurrency, toCurrency, decimals);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(`Error converting ${amount} from ${fromCurrency} to ${toCurrency}: ${error.message}`);
+      } else {
+        logger.error(`Unknown error converting ${amount} from ${fromCurrency} to ${toCurrency}`);
+      }
+
+      return null;
+    }
+  }
+
+  private async convertCurrencyStrict(
+    amount: string,
+    fromCurrency: RampCurrency,
+    toCurrency: RampCurrency,
+    decimals: number | null = null
+  ): Promise<string> {
+    fromCurrency = fromCurrency.toUpperCase() as RampCurrency;
+    toCurrency = toCurrency.toUpperCase() as RampCurrency;
+
+    // Determine target decimals based on currency type, unless explicitly overridden
+    const targetDecimals = decimals !== null ? decimals : isFiatToken(toCurrency) ? 2 : 8;
+    logger.debug(`Target decimals for ${toCurrency} set to ${targetDecimals}`);
+
+    // If currencies are the same, return the original amount
+    if (fromCurrency === toCurrency) {
+      logger.debug(`Currencies are the same (${fromCurrency}), returning original amount: ${amount}`);
+      return new Big(amount).toFixed(targetDecimals);
+    }
+
+    // Check if both currencies are USD-like stablecoins
+    const isUsdLikeCurrency = (currency: RampCurrency): boolean =>
+      currency.toUpperCase() === "USD" ||
+      Object.values(UsdLikeEvmToken).includes(normalizeTokenSymbol(currency) as unknown as UsdLikeEvmToken);
+
+    if (isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
+      return this.convertUsdLikeToUsdLike(amount, fromCurrency, toCurrency);
+    }
+
+    if (isUsdLikeCurrency(fromCurrency) && isFiatToken(toCurrency)) {
+      return this.convertUsdToFiat(amount, toCurrency, targetDecimals);
+    }
+
+    if (isFiatToken(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
+      return this.convertFiatToUsd(amount, fromCurrency, targetDecimals);
+    }
+
+    if (isUsdLikeCurrency(fromCurrency) && !isFiatToken(toCurrency) && !isUsdLikeCurrency(toCurrency)) {
+      return this.convertUsdToCrypto(amount, toCurrency, targetDecimals);
+    }
+
+    if (!isFiatToken(fromCurrency) && !isUsdLikeCurrency(fromCurrency) && isUsdLikeCurrency(toCurrency)) {
+      return this.convertCryptoToUsd(amount, fromCurrency, targetDecimals);
+    }
+
+    // For other currency pairs, convert via USD as an intermediate step
+    logger.debug(`Converting ${fromCurrency} to ${toCurrency} via USD as intermediate`);
+    // Pass null for decimals to let the recursive call determine the correct precision
+    const amountInUSD = await this.convertCurrencyStrict(amount, fromCurrency, EvmToken.USDC, null);
+
+    return this.convertCurrencyStrict(amountInUSD, EvmToken.USDC, toCurrency, null);
   }
 
   private async getFastforexRate(fromCurrency: string, toCurrency: string): Promise<number> {

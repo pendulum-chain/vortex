@@ -102,6 +102,8 @@ export abstract class BaseNablaSwapEngineEvm implements Stage {
   ): void {
     ctx.nablaSwapEvm = {
       ...ctx.nablaSwapEvm,
+      ammOutputAmountDecimal: result.nablaOutputAmountDecimal,
+      ammOutputAmountRaw: result.nablaOutputAmountRaw,
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwapDecimal,
       inputAmountForSwapRaw,

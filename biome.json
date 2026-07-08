@@ -13,12 +13,20 @@
   "files": {
     "includes": [
       "**",
+      "!**/.claude/**",
       "!**/dist/**",
       "!**/build/**",
       "!**/node_modules/",
       "!**/coverage/**",
       "!**/gql/**",
       "!**/lottie/**",
+      "!**/storybook-static/**",
+      "!contracts/relayer/artifacts/**",
+      "!contracts/relayer/cache/**",
+      "!contracts/relayer/ignition/deployments/**",
+      "!contracts/relayer/typechain-types/**",
+      "!contracts/relayer/coverage.json",
+      "!docs/api/openapi/vortex.openapi.d.ts",
       "!**/*.test.ts",
       "!**/*.test.tsx",
       "!**/routeTree.gen.ts"
@@ -114,15 +122,9 @@
       }
     }
   },
-  "overrides": [
-    {
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
-        }
-      }
-    }
-  ]
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
+  }
 }

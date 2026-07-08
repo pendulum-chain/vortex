@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import logger from "../../config/logger";
 import User from "../../models/user.model";
-import { SupabaseAuthService } from "../services/auth";
+import { RefreshTokenError, SupabaseAuthService } from "../services/auth";
 
 export class AuthController {
   /**
@@ -124,9 +124,18 @@ export class AuthController {
         success: true
       });
     } catch (error) {
+      // Only a confirmed-invalid refresh token yields a 401 (which the frontend treats as a
+      // definitive logout). Transient failures — and anything unexpected — return 503 so the
+      // frontend keeps the session and retries instead of forcing re-login.
+      if (error instanceof RefreshTokenError && !error.transient) {
+        return res.status(401).json({
+          error: "Invalid refresh token"
+        });
+      }
+
       logger.error("Error in refreshToken:", error);
-      return res.status(401).json({
-        error: "Invalid refresh token"
+      return res.status(503).json({
+        error: "Auth service temporarily unavailable"
       });
     }
   }

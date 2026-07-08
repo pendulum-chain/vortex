@@ -1,7 +1,5 @@
 import {
   ALFREDPAY_ERC20_TOKEN,
-  AlfredPayCountry,
-  AlfredPayStatus,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   ERC20_USDC_POLYGON,
@@ -10,7 +8,6 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
-  FiatToken,
   getNetworkFromDestination,
   getOnChainTokenDetails,
   getOnChainTokenDetailsOrDefault,
@@ -21,13 +18,22 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import { isAddress } from "viem";
-import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
 import { AlfredpayOnrampTransactionParams, OnrampTransactionsWithMeta } from "../common/types";
+
+function getEthereumUsdcAddressForFallback(): `0x${string}` {
+  const ethereumUsdc = evmTokenConfig.ethereum.USDC;
+  if (!ethereumUsdc) {
+    throw new Error("Ethereum USDC token config is required for Alfredpay EVM onramp fallback swap");
+  }
+
+  return ethereumUsdc.erc20AddressSourceChain;
+}
 
 /**
  * Prepares all transactions for Alfredpay (USD) onramp to EVM chain.
@@ -74,32 +80,11 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     throw new Error(`Output token details not found for ${quote.outputCurrency} on network ${toNetwork}`);
   }
 
-  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
-    [FiatToken.USD]: AlfredPayCountry.US,
-    [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO,
-    [FiatToken.ARS]: AlfredPayCountry.AR
-  };
-  const customerCountry = fiatToCountry[quote.inputCurrency as FiatToken];
-  if (!customerCountry) {
-    throw new Error(`Unsupported Alfredpay input currency: ${quote.inputCurrency}`);
-  }
-
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country: customerCountry, userId }
-  });
-
-  if (!customer) {
-    throw new Error(`Alfredpay customer not found for userId ${userId}`);
-  }
-
-  if (customer.status !== AlfredPayStatus.Success) {
-    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
-  }
+  const alfredPayId = await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
 
   // Setup state metadata
   stateMeta = {
-    alfredpayUserId: customer.alfredPayId,
+    alfredpayUserId: alfredPayId,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address
   };
@@ -248,14 +233,13 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
   const destinationAxlUsdcDetails = getOnChainTokenDetailsOrDefault(toNetwork as Networks, EvmToken.AXLUSDC) as EvmTokenDetails;
   const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+    toNetwork === Networks.Ethereum ? getEthereumUsdcAddressForFallback() : destinationAxlUsdcDetails.erc20AddressSourceChain;
+  const bridgedTokenAddress = bridgedTokenForFallback as `0x${string}`;
 
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
     destinationAddress: evmEphemeralEntry.address,
     fromAddress: evmEphemeralEntry.address,
-    fromToken: bridgedTokenForFallback,
+    fromToken: bridgedTokenAddress,
     network: toNetwork as EvmNetworks,
     rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
@@ -287,7 +271,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     amountRaw: maxUint256.toString(),
     destinationNetwork: toNetwork as EvmNetworks,
     spenderAddress: fundingAccount.address,
-    tokenAddress: bridgedTokenForFallback
+    tokenAddress: bridgedTokenAddress
   });
 
   // We set this to the destinationTransfer nonce on purpose because we don't want to risk that the required nonce is never reached

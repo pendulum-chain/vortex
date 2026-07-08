@@ -1,8 +1,6 @@
 import {
   ALFREDPAY_ERC20_TOKEN,
   ALFREDPAY_ONCHAIN_CURRENCY,
-  AlfredPayCountry,
-  AlfredPayStatus,
   AlfredpayApiService,
   AlfredpayChain,
   AlfredpayFiatCurrency,
@@ -13,7 +11,6 @@ import {
   EvmTokenDetails,
   EvmTransactionData,
   evmTokenConfig,
-  FiatToken,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
@@ -25,6 +22,7 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import httpStatus from "http-status";
 import {
   ContractFunctionExecutionError,
   encodeAbiParameters,
@@ -38,9 +36,10 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
-import AlfredPayCustomer from "../../../../../models/alfredPayCustomer.model";
+import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -198,43 +197,35 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     throw new Error(`Unsupported source network ${fromNetwork} for EVM to Alfredpay type offramp`);
   }
 
-  const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
-    [FiatToken.USD]: AlfredPayCountry.US,
-    [FiatToken.MXN]: AlfredPayCountry.MX,
-    [FiatToken.COP]: AlfredPayCountry.CO,
-    [FiatToken.ARS]: AlfredPayCountry.AR
-  };
-  const customerCountry = fiatToCountry[quote.outputCurrency as FiatToken];
-  if (!customerCountry) {
-    throw new Error(`Unsupported Alfredpay output currency: ${quote.outputCurrency}`);
-  }
-
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country: customerCountry, userId }
-  });
-
-  if (!customer) {
-    throw new Error(`Alfredpay customer not found for userId ${userId}`);
-  }
-
-  if (customer.status !== AlfredPayStatus.Success) {
-    throw new Error(`Alfredpay customer status is ${customer.status}, expected Success. Proceed first with KYC.`);
+  if (!userId) {
+    throw new APIError({
+      message: "Alfredpay offramp requires an API key linked to a user or Supabase user authentication.",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   if (!fiatAccountId) {
-    throw new Error("fiatAccountId is required for Alfredpay offramp");
+    throw new APIError({
+      message: "fiatAccountId is required for Alfredpay offramp",
+      status: httpStatus.BAD_REQUEST
+    });
   }
+
+  const alfredPayId = await resolveAlfredpayCustomerId(quote.outputCurrency, userId);
 
   const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
   if (!alfredpayQuoteId) {
-    throw new Error("Missing alfredpayOfframp.quoteId in quote metadata");
+    throw new APIError({
+      message: "Missing alfredpayOfframp.quoteId in quote metadata",
+      status: httpStatus.BAD_REQUEST
+    });
   }
 
   const alfredpayService = AlfredpayApiService.getInstance();
   const offrampOrder = await alfredpayService.createOfframp({
     amount: quote.metadata.alfredpayOfframp.inputAmountDecimal.toString(),
     chain: AlfredpayChain.MATIC,
-    customerId: customer.alfredPayId,
+    customerId: alfredPayId,
     fiatAccountId,
     fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
     originAddress: evmEphemeralEntry.address,
@@ -249,7 +240,10 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     fromNetwork === Networks.Polygon && inputTokenAddress.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase();
 
   const publicClient = evmClientManager.getClient(fromNetwork);
-  const chainId = getNetworkId(fromNetwork)!;
+  const chainId = getNetworkId(fromNetwork);
+  if (chainId === undefined) {
+    throw new Error(`Unsupported EVM network for Alfredpay offramp: ${fromNetwork}`);
+  }
 
   // Probe EIP-2612 support: tokens that don't implement nonces() (e.g. USDT on Base) revert here.
   // Only treat contract-call failures as "no permit"; rethrow network/transport errors.
@@ -318,7 +312,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       stateMeta = {
         ...stateMeta,
         alfredpayTransactionId: offrampOrder.transactionId,
-        alfredpayUserId: customer.alfredPayId,
+        alfredpayUserId: alfredPayId,
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
         isDirectTransfer: true,
@@ -367,7 +361,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
 
       const payloadTypedData: SignedTypedData = {
         domain: {
-          chainId: getNetworkId(fromNetwork)!,
+          chainId,
           name: "TokenRelayer",
           verifyingContract: relayerAddress,
           version: "1"
@@ -409,7 +403,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       stateMeta = {
         ...stateMeta,
         alfredpayTransactionId: offrampOrder.transactionId,
-        alfredpayUserId: customer.alfredPayId,
+        alfredpayUserId: alfredPayId,
         evmEphemeralAddress: evmEphemeralEntry.address,
         fiatAccountId,
         squidRouterPermitExecutionValue: bridgeResult.swapData.value,
@@ -442,7 +436,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     stateMeta = {
       ...stateMeta,
       alfredpayTransactionId: offrampOrder.transactionId,
-      alfredpayUserId: customer.alfredPayId,
+      alfredpayUserId: alfredPayId,
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
       isDirectTransfer: true,
@@ -484,7 +478,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     stateMeta = {
       ...stateMeta,
       alfredpayTransactionId: offrampOrder.transactionId,
-      alfredpayUserId: customer.alfredPayId,
+      alfredpayUserId: alfredPayId,
       evmEphemeralAddress: evmEphemeralEntry.address,
       fiatAccountId,
       isNoPermitFallback: true,

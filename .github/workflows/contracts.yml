@@ -1,0 +1,54 @@
+# Non-PR-blocking external API contract checks (see docs/features/contract-tests.md).
+# Runs the live halves of the contract suites against the real partner APIs nightly;
+# failures alert but never gate merges. The hermetic halves of the same suites run
+# in the PR-blocking test job.
+name: external-api-contracts
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  contracts:
+    name: External API contracts (live)
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+      RUN_LIVE_TESTS: "1"
+      # A nightly where zero live calls completed must fail, not rot as green.
+      CONTRACT_EXPECT_LIVE: "1"
+
+    steps:
+      - name: 🛒 Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🧩 Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.3.1
+
+      - name: 🧩 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔨 Build shared package
+        run: bun run build:shared
+
+      - name: 🧪 Live contract suites
+        working-directory: apps/api
+        run: bun test src/tests/contracts/
+
+      # Non-blocking runs are only useful if somebody hears about failures.
+      # Same webhook token the nightly e2e workflow uses; skips silently when unset.
+      - name: 📣 Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEB_HOOK_TOKEN: ${{ secrets.SLACK_WEB_HOOK_TOKEN }}
+        run: |
+          if [ -z "$SLACK_WEB_HOOK_TOKEN" ]; then
+            echo "SLACK_WEB_HOOK_TOKEN secret not configured; skipping notification."
+            exit 0
+          fi
+          curl -sf -X POST -H 'Content-Type: application/json' \
+            -d "{\"text\":\"Nightly external API contract run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "https://hooks.slack.com/services/${SLACK_WEB_HOOK_TOKEN}"

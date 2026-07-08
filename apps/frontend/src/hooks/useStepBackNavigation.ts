@@ -23,6 +23,7 @@ export const useStepBackNavigation = () => {
 
   const rampState = useSelector(rampActor, state => state.value);
   const enteredViaForm = useSelector(rampActor, state => state.context.enteredViaForm);
+  const regionLocked = useSelector(rampActor, state => !!state.context.kybLink?.regionLocked);
 
   const searchParams = useSearch({ strict: false });
   const isExternalProviderEntry = !!searchParams.externalSessionId;
@@ -47,9 +48,23 @@ export const useStepBackNavigation = () => {
     }
   }, [rampActor, hasQuoteIdInUrl, rampState, enteredViaForm]);
 
+  // With `?kybLocked=` the region selector is skipped, so the first KYB screen has nothing to go back to
+  // (the parent KYC `GO_BACK` is a guarded no-op when locked). Deeper KYB steps that own their back
+  // navigation — the same ones `handleBack` forwards to the child machine — keep the button.
+  const isKybInternalBackStep =
+    (!!aveniaState &&
+      (aveniaState.stateValue === "DocumentUpload" ||
+        aveniaState.stateValue === "LivenessCheck" ||
+        isInCompoundState(aveniaState.stateValue, "KYBFlow"))) ||
+    (!!alfredpayKycState && alfredpayKycState.stateValue === "UploadingDocuments");
+  const hideForLockedKyb = regionLocked && isInCompoundState(rampState, "KYC") && !isKybInternalBackStep;
+
   const shouldHide =
     rampState === "RampFollowUp" ||
     rampState === "RedirectCallback" ||
+    // The region selector is the root of the KYB deep-link flow — there is nothing to go back to.
+    rampState === "SelectRegion" ||
+    hideForLockedKyb ||
     isExternalProviderEntry ||
     (rampState === "QuoteReady" && !enteredViaForm);
 

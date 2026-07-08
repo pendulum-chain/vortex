@@ -127,6 +127,25 @@ describe("PriceFeedService", () => {
       );
     });
 
+    it("should work without API key", async () => {
+      const instance = PriceFeedService.getInstance();
+      Reflect.set(instance, "coingeckoApiKey", undefined);
+      fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: { usd: 50000 } }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const price = await instance.getCryptoPrice("bitcoin", "usd");
+
+      expect(price).toBe(50000);
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          headers: expect.not.objectContaining({
+            "x-cg-pro-api-key": expect.any(String)
+          })
+        })
+      );
+    });
+
     it("should return cached crypto price without a second API call", async () => {
       const instance = PriceFeedService.getInstance();
       fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: { usd: 50000 } }));
@@ -427,6 +446,26 @@ describe("PriceFeedService", () => {
       expect(result).toBe("100.00000000");
     });
 
+    it("should convert USD to crypto using getCryptoPrice", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 3000);
+
+      const result = await instance.convertCurrency("300", USDC, ETH);
+
+      expect(result).toBe("0.10000000");
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("ethereum", "usd");
+    });
+
+    it("should convert crypto to USD using getCryptoPrice", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 3000);
+
+      const result = await instance.convertCurrency("0.1", ETH, USDC);
+
+      expect(result).toBe("300.00000000");
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("ethereum", "usd");
+    });
+
     it("should respect custom decimal precision", async () => {
       const instance = PriceFeedService.getInstance();
       instance.getCryptoPrice = mock(async () => 5.86);
@@ -445,6 +484,32 @@ describe("PriceFeedService", () => {
       });
 
       await expect(instance.convertCurrency("100", USDC, BRL)).rejects.toThrow("cg down");
+    });
+
+    it("should return the original amount only through the explicit fallback helper", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("fastforex down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      const result = await instance.convertCurrencyOrOriginal("100", USDC, BRL);
+
+      expect(result).toBe("100");
+    });
+
+    it("should return null through the nullable helper when conversion fails", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("fastforex down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      const result = await instance.convertCurrencyOrNull("100", USDC, BRL);
+
+      expect(result).toBeNull();
     });
   });
 
@@ -477,6 +542,19 @@ describe("PriceFeedService", () => {
 
     it("should read CoinGecko config", () => {
       const instance = PriceFeedService.getInstance();
+      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe("https://api.coingecko.com/api/v3");
+      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(300000);
+      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(300000);
+    });
+
+    it("should keep loaded configuration values when environment variables change after import", () => {
+      process.env.COINGECKO_API_URL = "https://custom-api.example.com";
+      process.env.CRYPTO_CACHE_TTL_MS = "60000";
+      process.env.FIAT_CACHE_TTL_MS = "120000";
+
+      Reflect.set(PriceFeedService, "instance", undefined);
+      const instance = PriceFeedService.getInstance();
+
       expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe("https://api.coingecko.com/api/v3");
       expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(300000);
       expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(300000);

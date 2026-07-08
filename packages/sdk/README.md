@@ -51,6 +51,71 @@ console.log("Please do the pix transfer using the following code: ", depositQrCo
 const startedRamp = await sdk.startRamp(rampProcess.id);
 ```
 
+### Alfredpay (USD / MXN / COP / ARS) onramp
+
+```typescript
+import { VortexSdk, FiatToken, EvmToken, EPaymentMethod, Networks, RampDirection } from "@vortexfi/sdk";
+
+const sdk = new VortexSdk({
+  apiBaseUrl: "http://localhost:3000",
+  publicKey: process.env.VORTEX_PUBLIC_KEY,
+  secretKey: process.env.VORTEX_SECRET_KEY
+});
+
+const quote = await sdk.createQuote({
+  from: EPaymentMethod.ACH, // USD and COP settle via ACH; MXN uses EPaymentMethod.SPEI
+  inputAmount: "100",
+  inputCurrency: FiatToken.COP,
+  network: Networks.Polygon,
+  outputCurrency: EvmToken.USDC,
+  rampType: RampDirection.BUY,
+  to: Networks.Polygon
+});
+
+const { rampProcess } = await sdk.registerRamp(quote, {
+  destinationAddress: "0x1234567890123456789012345678901234567890",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+  // fiatAccountId is optional for onramp.
+});
+
+// Inspect off-chain fiat payment instructions before starting.
+const startedRamp = await sdk.startRamp(rampProcess.id);
+console.log("Pay via:", startedRamp.achPaymentData);
+```
+
+Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), not a `publicKey` alone, a partner-scoped key, or a Supabase Bearer token. The same user must have completed Alfredpay KYC for the country — the key and the KYC record belong to the same account, so registration resolves to the user's Alfredpay customer automatically.
+
+> The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation) with the SDK.
+
+### Alfredpay (USD / MXN / COP / ARS) offramp
+
+```typescript
+const quote = await sdk.createQuote({
+  from: Networks.Polygon,
+  inputAmount: "10",
+  inputCurrency: EvmToken.USDC,
+  network: Networks.Polygon,
+  outputCurrency: FiatToken.MXN,
+  rampType: RampDirection.SELL,
+  to: EPaymentMethod.SPEI // USD and COP settle via EPaymentMethod.ACH
+});
+
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  fiatAccountId: "<the user's Alfredpay fiat account id>",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+});
+
+// Sign or broadcast each user-side transaction before starting the ramp.
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => walletClient.signTypedData(payload),
+  sendTransaction: tx => walletClient.sendTransaction(tx)
+});
+
+const startedRamp = await sdk.startRamp(rampProcess.id);
+```
+
+> `fiatAccountId` is opaque to the SDK. It is required for offramp and optional for onramp. Consumers create or look up the user's Alfredpay fiat account out-of-band (via the Vortex backend) and pass the ID in.
+
 ## Core Features
 - **Ephemerals abstracted**: No need to keep track of the ephemeral accounts used in the ramp process. If `storeEphemeralKeys` is enabled, keys are stored in a JSON file in Node.js.
 - **Stateless Design**: No internal state management - you control persistence of the rampId for status checking
@@ -77,13 +142,31 @@ Retrieves an existing quote by ID.
 Gets the current status of a ramp process.
 
 ##### `registerRamp<Q extends QuoteResponse>(quote: Q, additionalData: RegisterRampAdditionalData<Q>): Promise<{ rampProcess: RampProcess; unsignedTransactions: UnsignedTx[] }>`
-Registers a new ramp process. Creates fresh ephemeral accounts on Stellar, Pendulum, and Moonbeam, submits the quote and ephemeral addresses to the API, then signs and submits the returned unsigned transactions. Returns the ramp process and the list of unsigned transactions returned by the API for the caller's reference.
+Registers a new ramp process. Creates fresh Substrate and EVM ephemeral accounts, submits the quote and ephemeral addresses to the API, then signs and submits the returned ephemeral-owned transactions. Returns the ramp process and the user-owned `unsignedTransactions` that the caller must sign or broadcast.
 
 ##### `updateRamp<Q extends QuoteResponse>(quote: Q, rampId: string, additionalUpdateData: UpdateRampAdditionalData<Q>): Promise<RampProcess>`
 Submits route-specific transaction hashes after off-chain steps complete. Used for sell flows. Buy flows do not require a separate update call.
 
 ##### `startRamp(rampId: string): Promise<RampProcess>`
 Starts a registered ramp process.
+
+##### `getUserTransactionType(tx: UnsignedTx): "evm-typed-data" | "evm-transaction" | "unsupported"`
+Classifies a user-owned transaction returned by `registerRamp`. Unsupported transactions require a network-specific wallet flow outside the SDK helpers.
+
+##### `getTypedDataToSign(tx: UnsignedTx, options?: { includeDomainType?: boolean }): SignedTypedData[]`
+Returns the EIP-712 payloads to sign for an `"evm-typed-data"` transaction. Sign every payload in order and submit the signatures with `submitUserSignature`.
+
+##### `submitUserSignature(rampId: string, tx: UnsignedTx, signatures: string | string[]): Promise<RampProcess>`
+Attaches user EIP-712 signatures to the original unsigned transaction and submits them to Vortex.
+
+##### `getTransactionToBroadcast(tx: UnsignedTx): EvmTransactionData`
+Returns the EVM transaction data for an `"evm-transaction"` transaction. Throws for typed-data or unsupported transaction shapes.
+
+##### `submitUserTxHash(rampId: string, tx: UnsignedTx, hash: string): Promise<RampProcess>`
+Submits the on-chain transaction hash for a user-broadcast EVM transaction.
+
+##### `submitUserTransactions(rampId: string, unsignedTransactions: UnsignedTx[], handlers: SubmitUserTransactionsHandlers): Promise<RampProcess>`
+Processes every user-owned transaction returned by `registerRamp`. The SDK classifies each entry, calls your `signTypedData` or `sendTransaction` callback, and submits the resulting signatures or hashes back to Vortex. Wallet prompts stay under your application's control; the SDK never receives a wallet object or private key.
 
 ## Error Handling
 

@@ -1,6 +1,6 @@
-# Alfredpay Onramp Flow — USD, MXN, COP
+# Alfredpay Onramp Flow — USD, MXN, COP, ARS
 
-Alfredpay is a fiat-to-crypto (onramp) and crypto-to-fiat (offramp) payment provider integrated into Vortex. It supports three fiat currencies: **USD** (USA), **MXN** (Mexico), **COP** (Colombia). All three route through the same backend transaction phases; KYC/KYB onboarding differs per country.
+Alfredpay is a fiat-to-crypto (onramp) and crypto-to-fiat (offramp) payment provider integrated into Vortex. It supports **USD** (USA), **MXN** (Mexico), **COP** (Colombia), and **ARS** (Argentina). These currencies route through the same backend transaction phases; KYC/KYB onboarding differs per country.
 
 ---
 
@@ -11,8 +11,9 @@ Alfredpay is a fiat-to-crypto (onramp) and crypto-to-fiat (offramp) payment prov
 | USD | US | iFrame redirect (Persona) |
 | MXN | MX | API form + ID document upload |
 | COP | CO | API form + ID document upload |
+| ARS | AR | API form + ID document upload |
 
-`isAlfredpayToken` in `packages/shared/src/services/alfredpay/types.ts` gates all three tokens into the Alfredpay path.
+`isAlfredpayToken` in `packages/shared/src/services/alfredpay/types.ts` gates these fiat tokens into the Alfredpay path.
 
 ---
 

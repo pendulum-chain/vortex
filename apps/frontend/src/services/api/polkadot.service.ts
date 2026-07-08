@@ -76,11 +76,14 @@ class PolkadotApiService {
     if (!config.isSandbox && nodeName === NodeName.Paseo) {
       throw new Error("Paseo only available in sandbox mode");
     }
-    if (!this.apiComponents.has(nodeName)) {
-      const promise = createApiComponents(nodeUrls[nodeName]);
-      this.apiComponents.set(nodeName, promise);
+    const existing = this.apiComponents.get(nodeName);
+    if (existing) {
+      return existing;
     }
-    return this.apiComponents.get(nodeName)!;
+
+    const promise = createApiComponents(nodeUrls[nodeName]);
+    this.apiComponents.set(nodeName, promise);
+    return promise;
   }
 }
 

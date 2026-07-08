@@ -98,13 +98,15 @@ export interface OnchainSwapQuoteParams {
   inputCurrency: BrlaCurrency;
   inputAmount: string;
   outputCurrency: BrlaCurrency;
+  outputPaymentMethod?: AveniaPaymentMethod;
 }
 
 export enum AveniaTicketStatus {
   ON_HOLD = "ON-HOLD",
   PENDING = "PENDING",
   PAID = "PAID",
-  FAILED = "FAILED"
+  FAILED = "FAILED",
+  PARTIAL_FAILED = "PARTIAL-FAILED"
 }
 
 // /account/tickets endpoint related types

@@ -37,20 +37,22 @@ export function Menu({ isOpen, onClose, title, children, animationDirection }: M
         };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.section
-          animate={animationProps.animate}
-          className="absolute top-0 right-0 bottom-0 left-0 z-40 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
-          exit={animationProps.exit}
-          initial={shouldReduceMotion ? false : animationProps.initial}
-          transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
-        >
-          <PageHeader onClose={onClose} title={title} />
-          <hr />
-          <div className="no-scrollbar flex-1 overflow-y-auto">{children}</div>
-        </motion.section>
-      )}
-    </AnimatePresence>
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.section
+            animate={animationProps.animate}
+            className="pointer-events-auto absolute top-0 right-0 bottom-0 left-0 z-40 flex w-full flex-col overflow-hidden rounded-lg bg-white px-4 pt-4 pb-2 shadow-lg"
+            exit={animationProps.exit}
+            initial={shouldReduceMotion ? false : animationProps.initial}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: durations.slow, ease: easings.easeOutCubic }}
+          >
+            <PageHeader onClose={onClose} title={title} />
+            <hr />
+            <div className="no-scrollbar flex-1 overflow-y-auto">{children}</div>
+          </motion.section>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

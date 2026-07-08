@@ -1,5 +1,5 @@
 import { WalletAccount } from "@talismn/connect-wallets";
-import { PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
+import { FiatToken, PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ActorRef, ActorRefFrom, Snapshot, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
 import { KYCFormData } from "../hooks/brla/useKYCForm";
@@ -45,7 +45,14 @@ export interface RampContext {
   isAuthenticated: boolean;
   isAuthLoading?: boolean;
   alfredpayCustomer?: unknown;
-  postAuthTarget?: "QuoteReady" | "RegisterRamp";
+  postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
+  // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
+  kybLink?: {
+    // Drives KYC provider routing when there is no quote (set from the region selector).
+    fiatToken?: FiatToken;
+    // `?kybLocked=` pins the region; going back to the selector is disabled.
+    regionLocked?: boolean;
+  };
 }
 
 export type RampMachineEvents =
@@ -81,7 +88,9 @@ export type RampMachineEvents =
   | { type: "AUTH_SUCCESS"; tokens: { accessToken: string; refreshToken: string; userId: string; userEmail?: string } }
   | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
-  | { type: "GO_BACK" };
+  | { type: "GO_BACK" }
+  | { type: "START_KYB_LINK"; region?: string; locked?: boolean }
+  | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
 export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;
 export type RampMachineSnapshot = SnapshotFrom<RampMachineActor>;

@@ -1,6 +1,7 @@
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useAppKitAccount } from "@reown/appkit/react";
 import { useParams, useRouter } from "@tanstack/react-router";
-import { isNetworkEVM, RampDirection } from "@vortexfi/shared";
+import { FiatToken, isNetworkEVM, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { FC, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,7 +10,7 @@ import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
 import { useRampActor } from "../../contexts/rampState";
 import { useRampValidation } from "../../hooks/ramp/useRampValidation";
 import { useMaintenanceAwareButton } from "../../hooks/useMaintenanceAware";
-import { useInputAmount } from "../../stores/quote/useQuoteFormStore";
+import { useFiatToken, useInputAmount } from "../../stores/quote/useQuoteFormStore";
 import { useQuoteStore } from "../../stores/quote/useQuoteStore";
 import { useRampDirection } from "../../stores/rampDirectionStore";
 import { ConnectWalletButton } from "../buttons/ConnectWalletButton";
@@ -63,6 +64,7 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   const rampActor = useRampActor();
   const router = useRouter();
   const params = useParams({ strict: false });
+  const fiatToken = useFiatToken();
 
   const currentErrorMessage = getCurrentErrorMessage();
 
@@ -73,7 +75,8 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
   const hasInputAmount = Boolean(inputAmount) && !Big(inputAmount).eq(0);
   const isQuoteOutdated =
     (!!quoteInputAmount && !!inputAmount && !Big(quoteInputAmount).eq(Big(inputAmount))) || quote?.rampType !== rampDirection;
-  const isSubmitButtonDisabled = disabled || Boolean(currentErrorMessage) || !quote || isQuoteOutdated;
+  const isEurDisabled = fiatToken === FiatToken.EURC;
+  const isSubmitButtonDisabled = disabled || Boolean(currentErrorMessage) || !quote || isQuoteOutdated || isEurDisabled;
   const showSpinner = hasInputAmount && (isQuoteOutdated || pending) && !currentErrorMessage;
 
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton(isSubmitButtonDisabled || pending);
@@ -106,6 +109,14 @@ export const QuoteSubmitButton: FC<QuoteSubmitButtonProps> = ({ className, disab
 
   return (
     <div className={className}>
+      {isEurDisabled && (
+        <div className="mb-4 rounded-lg border border-blue-100 bg-blue-50 p-4">
+          <div className="flex items-center space-x-3">
+            <InformationCircleIcon className="h-6 w-6 flex-shrink-0 text-blue-500" />
+            <p className="text-gray-700 text-sm">{t("pages.widget.details.eurRampUnavailable")}</p>
+          </div>
+        </div>
+      )}
       <button className="btn-vortex-primary btn w-full" disabled={isSubmitButtonDisabled} onClick={onClick}>
         {showSpinner && <Spinner />}
         {isMaintenanceDisabled ? buttonProps.title : buttonText}

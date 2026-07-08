@@ -2,7 +2,10 @@ import { RampPhase } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-// TODO how to take this from other types?
+// Known subsidy tokens for callers that reference fixed symbols. The DB column
+// is a plain VARCHAR (migration 037): final-settlement subsidies record the
+// assetSymbol from the dynamic SquidRouter registry, so the reachable set of
+// symbols is open-ended and must not be constrained by an enum.
 export enum SubsidyToken {
   GLMR = "GLMR",
   PEN = "PEN",
@@ -13,7 +16,8 @@ export enum SubsidyToken {
   USDC = "USDC",
   MATIC = "MATIC",
   BRL = "BRL",
-  ETH = "ETH"
+  ETH = "ETH",
+  USDT = "USDT"
 }
 
 export interface SubsidyAttributes {
@@ -21,7 +25,7 @@ export interface SubsidyAttributes {
   rampId: string;
   phase: RampPhase;
   amount: number;
-  token: SubsidyToken;
+  token: string;
   paymentDate: Date;
   payerAccount: string;
   transactionHash: string;
@@ -40,7 +44,7 @@ class Subsidy extends Model<SubsidyAttributes, SubsidyCreationAttributes> implem
 
   declare amount: number;
 
-  declare token: SubsidyToken;
+  declare token: string;
 
   declare paymentDate: Date;
 
@@ -104,7 +108,7 @@ Subsidy.init(
     token: {
       allowNull: false,
       comment: "Token used for the subsidy payment",
-      type: DataTypes.ENUM(...Object.values(SubsidyToken))
+      type: DataTypes.STRING(32)
     },
     transactionHash: {
       allowNull: false,

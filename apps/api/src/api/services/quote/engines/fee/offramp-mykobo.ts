@@ -1,5 +1,6 @@
-import { EvmToken, FiatToken, MykoboApiService, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { EvmToken, FiatToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { QuoteContext } from "../../core/types";
+import { resolveMykoboWithdrawFee } from "../mykobo-fee";
 import { BaseFeeEngine, FeeComputation, FeeConfig } from "./index";
 
 export class OffRampFeeMykoboEngine extends BaseFeeEngine {
@@ -18,11 +19,11 @@ export class OffRampFeeMykoboEngine extends BaseFeeEngine {
     // biome-ignore lint/style/noNonNullAssertion: validated above
     const swapOutputEurc = ctx.nablaSwapEvm!.outputAmountDecimal.toFixed(2, 0);
 
-    const mykoboFee = await MykoboApiService.getInstance().defaultWithdrawFee(swapOutputEurc);
+    const mykoboFeeTotal = await resolveMykoboWithdrawFee(swapOutputEurc);
     const anchorFeeCurrency = FiatToken.EURC as RampCurrency;
 
     return {
-      anchor: { amount: mykoboFee.total, currency: anchorFeeCurrency },
+      anchor: { amount: mykoboFeeTotal, currency: anchorFeeCurrency },
       network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
     };
   }

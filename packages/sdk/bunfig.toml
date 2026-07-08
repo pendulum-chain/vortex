@@ -1,0 +1,6 @@
+[test]
+# Coverage report config; the gate itself lives in scripts/check-coverage.ts.
+# Without the ignore pattern, the built shared bundle dominates the denominator
+# and the ratchet measures shared's coverage instead of the SDK's.
+coverageSkipTestFiles = true
+coveragePathIgnorePatterns = ["**/packages/shared/dist/**"]
