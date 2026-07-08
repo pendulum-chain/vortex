@@ -83,6 +83,16 @@ export function getConfig() {
 
   return {
     alchemyApiKey: process.env.ALCHEMY_API_KEY,
+
+    // BlindPay is used purely to log an observational comparison price (fiat BRL -> stablecoin)
+    // against the executed routes. Optional: when apiKey/instanceId are missing, the comparison
+    // is skipped and the rebalancer keeps working as before.
+    blindpayApiKey: process.env.BLINDPAY_API_KEY,
+    blindpayBaseUrl: process.env.BLINDPAY_BASE_URL || "https://api.blindpay.com/v1",
+    blindpayInstanceId: process.env.BLINDPAY_INSTANCE_ID,
+    // Sandbox/dev instances only support the "USDB" token; production uses "USDC"/"USDT".
+    blindpayToken: process.env.BLINDPAY_TOKEN || "USDT",
+
     brlaBaseUrl: BRLA_BASE_URL,
 
     brlaBusinessAccountAddress: process.env.BRLA_BUSINESS_ACCOUNT_ADDRESS || "0xDF5Fb34B90e5FDF612372dA0c774A516bF5F08b2",
