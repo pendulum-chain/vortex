@@ -44,6 +44,17 @@ import rampService from "../services/ramp/ramp.service";
  */
 const MAX_LOGGED_PROVIDER_BODY_LENGTH = 300;
 
+/**
+ * Collapse control characters (CR/LF, ESC, etc.) in the untrusted provider response body to a
+ * single space before it is embedded in a log line. The body is external input echoed from the
+ * provider's HTTP response, so an embedded newline could split the line or forge a fake log
+ * entry (CWE-117), and an ESC could inject terminal color codes. The other fields we log
+ * (provider, endpoint, method, numeric status) are code-defined constants and need no escaping.
+ */
+function sanitizeProviderBody(body: string): string {
+  return body.replace(/[\x00-\x1F\x7F]+/g, " ");
+}
+
 export function mapProviderFailure(error: unknown): { error: unknown; logContext: Record<string, unknown> } {
   if (!(error instanceof ProviderHttpError)) {
     return { error, logContext: {} };
@@ -64,7 +75,7 @@ export function mapProviderFailure(error: unknown): { error: unknown; logContext
       provider: error.provider,
       providerEndpoint: error.endpoint,
       providerMethod: error.method,
-      providerResponseBody: error.responseBody.slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
+      providerResponseBody: sanitizeProviderBody(error.responseBody).slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
       providerStatus: error.status
     }
   };
