@@ -39,6 +39,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
 | Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
+| Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
@@ -73,7 +74,8 @@ Every spec file uses exactly four sections:
 | **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
 | **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
-| **FastForex** | Fiat exchange-rate provider used as the primary source for USD-to-fiat quote/conversion rates |
+| **Binance** | Crypto exchange whose USDT/fiat spot ticker is the primary USD-to-fiat rate source for currencies with a liquid market (currently BRL via `USDTBRL`) |
+| **FastForex** | Fiat exchange-rate provider used as the USD-to-fiat rate source for currencies without a Binance market, and the fallback after Binance for those that have one |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
 | **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |
 | **Avenia** | BRLA's internal settlement platform; handles BRLA transfers, swaps, and PIX payouts |

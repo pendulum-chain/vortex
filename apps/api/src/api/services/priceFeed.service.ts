@@ -10,12 +10,19 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
-const FASTFOREX_SANITY_SPREAD_LIMITS: Record<string, number> = {
+const FIAT_SANITY_SPREAD_LIMITS: Record<string, number> = {
   ARS: 0.25,
   BRL: 0.02,
   COP: 0.03,
   EUR: 0.02,
   MXN: 0.03
+};
+
+// Binance spot symbols quoted against USDT (treated as USD) and priced in fiat.
+// Only currencies with a liquid Binance USDT market are listed; any fiat not
+// present here skips Binance and falls straight through to fastforex.
+const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
+  BRL: "USDTBRL"
 };
 
 /**
@@ -37,6 +44,8 @@ export class PriceFeedService {
 
   private fastforexApiBaseUrl: string;
 
+  private binanceApiBaseUrl: string;
+
   // Cache configuration
   private cryptoCacheTtlMs: number;
 
@@ -57,6 +66,8 @@ export class PriceFeedService {
     this.fastforexApiKey = config.priceProviders.fastforex.apiKey;
     this.fastforexApiBaseUrl = config.priceProviders.fastforex.baseUrl;
 
+    this.binanceApiBaseUrl = config.priceProviders.binance.baseUrl;
+
     this.cryptoCacheTtlMs = config.priceProviders.coingecko.cryptoCacheTtlMs;
     this.fiatCacheTtlMs = config.priceProviders.coingecko.fiatCacheTtlMs;
 
@@ -70,6 +81,7 @@ export class PriceFeedService {
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
     logger.info(`PriceFeedService initialized with fastforex API URL: ${this.fastforexApiBaseUrl}`);
+    logger.info(`PriceFeedService initialized with Binance API URL: ${this.binanceApiBaseUrl}`);
     logger.info(`Cache TTLs configured - Crypto: ${this.cryptoCacheTtlMs}ms, Fiat: ${this.fiatCacheTtlMs}ms`);
   }
 
@@ -178,6 +190,10 @@ export class PriceFeedService {
   /**
    * Get the exchange rate from USD to another fiat currency. The source currency is always USD.
    *
+   * Provider priority: Binance USDT spot (for currencies with a liquid market, e.g. BRL) is
+   * tried first, then fastforex, then CoinGecko. The Binance USDT/fiat price reflects the crypto
+   * spot rate local users transact at, which can diverge from the official fiat FX mid-market rate.
+   *
    * @param toCurrency - The target currency code (e.g., 'BRL', 'ARS')
    * @returns The exchange rate (how much of toCurrency equals 1 unit of fromCurrency)
    */
@@ -202,12 +218,27 @@ export class PriceFeedService {
       return cachedEntry.value;
     }
 
+    if (BINANCE_USDT_FIAT_SYMBOLS[targetCurrency]) {
+      logger.debug(`Cache miss for ${cacheKey}. Fetching from Binance spot.`);
+
+      try {
+        const rate = await this.getBinanceUsdtToFiatRate(targetCurrency);
+        await this.assertRateWithinSanityBand("Binance", targetCurrency, rate);
+        this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
+        return rate;
+      } catch (binanceError) {
+        logger.warn(
+          `Binance failed for ${fromCurrency}-${targetCurrency}, falling back to fastforex: ${binanceError instanceof Error ? binanceError.message : binanceError}`
+        );
+      }
+    }
+
     if (this.fastforexApiKey) {
       logger.debug(`Cache miss for ${cacheKey}. Fetching from fastforex.`);
 
       try {
         const rate = await this.getFastforexRate(fromCurrency, targetCurrency);
-        await this.assertFastforexRateWithinSanityBand(targetCurrency, rate);
+        await this.assertRateWithinSanityBand("fastforex", targetCurrency, rate);
         this.fiatExchangeRateCache.set(cacheKey, { expiresAt: now + this.fiatCacheTtlMs, value: rate });
         return rate;
       } catch (ffError) {
@@ -395,8 +426,57 @@ export class PriceFeedService {
     return rate;
   }
 
-  private async assertFastforexRateWithinSanityBand(targetCurrency: RampCurrency, fastforexRate: number): Promise<void> {
-    this.assertValidFiatRate("fastforex", "USD", targetCurrency, fastforexRate);
+  /**
+   * Probe every mapped Binance market at startup so an unreachable or geo-blocked
+   * endpoint (e.g. HTTP 451) surfaces loudly in the logs instead of silently
+   * degrading to the fastforex/CoinGecko fallback. Never throws — this is a
+   * diagnostic only, and Binance failures are already handled at request time.
+   */
+  public async verifyBinanceReachability(): Promise<void> {
+    for (const [currency, symbol] of Object.entries(BINANCE_USDT_FIAT_SYMBOLS)) {
+      try {
+        const rate = await this.getBinanceUsdtToFiatRate(currency as RampCurrency);
+        logger.info(`Binance price feed reachable: USD-${currency} spot rate ${rate} (${symbol})`);
+      } catch (error) {
+        logger.error(
+          `Binance price feed UNREACHABLE for USD-${currency} (${symbol}); USD-${currency} rates will silently fall back to fastforex/CoinGecko. If the egress IP is geo-blocked Binance returns HTTP 451. Error: ${
+            error instanceof Error ? error.message : error
+          }`
+        );
+      }
+    }
+  }
+
+  private async getBinanceUsdtToFiatRate(targetCurrency: RampCurrency): Promise<number> {
+    const symbol = BINANCE_USDT_FIAT_SYMBOLS[targetCurrency];
+    if (!symbol) {
+      throw new Error(`No Binance USDT symbol mapping for ${targetCurrency}`);
+    }
+
+    const normalizedBaseUrl = this.binanceApiBaseUrl.endsWith("/") ? this.binanceApiBaseUrl : `${this.binanceApiBaseUrl}/`;
+    const url = new URL("api/v3/ticker/price", normalizedBaseUrl);
+    url.searchParams.append("symbol", symbol);
+
+    const response = await fetchWithTimeout(url.toString(), { headers: new Headers({ Accept: "application/json" }) });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Binance API error (${response.status}): ${errorText}`);
+    }
+
+    const data = (await response.json()) as { symbol: string; price: string };
+    const rate = Number(data.price);
+
+    if (!Number.isFinite(rate) || rate <= 0) {
+      throw new Error(`Binance returned invalid rate for ${symbol}: ${data.price}`);
+    }
+
+    logger.debug(`Binance spot rate ${symbol}: ${rate}`);
+    return rate;
+  }
+
+  private async assertRateWithinSanityBand(provider: string, targetCurrency: RampCurrency, rate: number): Promise<void> {
+    this.assertValidFiatRate(provider, "USD", targetCurrency, rate);
 
     let referenceRate: number;
     try {
@@ -404,19 +484,19 @@ export class PriceFeedService {
       this.assertValidFiatRate("CoinGecko", "USD", targetCurrency, referenceRate);
     } catch (error) {
       logger.warn(
-        `Unable to sanity-check fastforex USD-${targetCurrency} rate against CoinGecko; accepting fastforex rate: ${
+        `Unable to sanity-check ${provider} USD-${targetCurrency} rate against CoinGecko; accepting ${provider} rate: ${
           error instanceof Error ? error.message : error
         }`
       );
       return;
     }
 
-    const spread = Big(fastforexRate).minus(referenceRate).abs().div(referenceRate).toNumber();
-    const limit = FASTFOREX_SANITY_SPREAD_LIMITS[targetCurrency] ?? 0.03;
+    const spread = Big(rate).minus(referenceRate).abs().div(referenceRate).toNumber();
+    const limit = FIAT_SANITY_SPREAD_LIMITS[targetCurrency] ?? 0.03;
 
     if (spread > limit) {
       throw new Error(
-        `fastforex USD-${targetCurrency} rate ${fastforexRate} differs from CoinGecko reference ${referenceRate} by ${(
+        `${provider} USD-${targetCurrency} rate ${rate} differs from CoinGecko reference ${referenceRate} by ${(
           spread * 100
         ).toFixed(2)}%, above ${(limit * 100).toFixed(2)}% limit`
       );
