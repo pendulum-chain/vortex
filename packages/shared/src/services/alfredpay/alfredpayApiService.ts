@@ -1,7 +1,7 @@
 import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
-import { ProviderApiError } from "../providerApiError";
+import { ProviderHttpError } from "../providerHttpError";
 import {
   AlfredpayCustomerType,
   AlfredpayFee,
@@ -43,10 +43,10 @@ import {
 } from "./types";
 
 /**
- * Error thrown when an Alfredpay HTTP request returns a non-ok response. See
- * {@link ProviderApiError} for the carried fields and the message-format invariant.
+ * Error thrown when an Alfredpay HTTP request fails. See {@link ProviderHttpError} for the
+ * carried fields and the message-format invariant.
  */
-export class AlfredpayApiError extends ProviderApiError {
+export class AlfredpayApiError extends ProviderHttpError {
   constructor(params: { status: number; endpoint: string; method: string; responseBody: string }) {
     super({ ...params, provider: "alfredpay" });
   }
@@ -108,7 +108,19 @@ export class AlfredpayApiService {
     const fullUrl = `${ALFREDPAY_BASE_URL}${url}`;
     logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
-    const response = await fetch(fullUrl, options);
+    let response: Response;
+    try {
+      response = await fetch(fullUrl, options);
+    } catch (error) {
+      // Transport failure (DNS/timeout/connection reset) — no HTTP response. Surface it as a
+      // provider error with status 0 so callers can normalize it to a 502 instead of a 500.
+      throw new AlfredpayApiError({
+        endpoint: path,
+        method,
+        responseBody: error instanceof Error ? error.message : String(error),
+        status: 0
+      });
+    }
 
     if (response.status === 401) {
       throw new Error("Authorization error.");

@@ -25,11 +25,12 @@ describe("mapProviderFailure", () => {
     expect(apiError.message.toLowerCase()).not.toContain("blocked");
     expect(apiError.message).not.toContain("user is blocked");
 
-    // Logging pinpoints exactly which provider call failed.
+    // Logging pinpoints exactly which provider call failed, and why (server-side only).
     expect(logContext).toEqual({
       provider: "avenia",
       providerEndpoint: "/v2/account/tickets",
       providerMethod: "POST",
+      providerResponseBody: JSON.stringify({ error: "user is blocked" }),
       providerStatus: 400
     });
   });
@@ -84,9 +85,37 @@ describe("mapProviderFailure", () => {
       provider: "alfredpay",
       providerEndpoint: "/customers",
       providerMethod: "POST",
+      providerResponseBody: JSON.stringify({ error: "customer rejected" }),
       providerStatus: 422
     });
     expect(classifyApiClientError(error)).toBe("provider_error");
+  });
+
+  it("maps a transport failure (status 0, no HTTP response) to a 502", () => {
+    const providerError = new BrlaApiError({
+      endpoint: "/v2/account/tickets",
+      method: "POST",
+      responseBody: "fetch failed: ECONNRESET",
+      status: 0
+    });
+
+    const { error, logContext } = mapProviderFailure(providerError);
+
+    expect((error as APIError).status).toBe(httpStatus.BAD_GATEWAY);
+    expect(logContext.providerStatus).toBe(0);
+  });
+
+  it("truncates the logged provider response body to bound size/PII", () => {
+    const providerError = new BrlaApiError({
+      endpoint: "/v2/account/tickets",
+      method: "POST",
+      responseBody: "x".repeat(5000),
+      status: 400
+    });
+
+    const { logContext } = mapProviderFailure(providerError);
+
+    expect((logContext.providerResponseBody as string).length).toBe(300);
   });
 
   it("returns non-provider errors unchanged with empty log context", () => {

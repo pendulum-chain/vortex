@@ -5,7 +5,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusRequest,
   GetRampStatusResponse,
-  ProviderApiError,
+  ProviderHttpError,
   RampProcess,
   StartRampRequest,
   StartRampResponse,
@@ -29,8 +29,11 @@ import rampService from "../services/ramp/ramp.service";
  * Translate a raw fiat-provider (Avenia/BRLA, Alfredpay) failure raised while handling a ramp
  * request into a caller-facing `APIError` plus structured log context.
  *
- * - Logging: for a `ProviderApiError` we surface the exact `provider`/`endpoint`/`method`/
- *   `status` of the failing call so operators can tell *where* it failed without guessing.
+ * - Logging: for a `ProviderHttpError` we surface the exact `provider`/`endpoint`/`method`/
+ *   `status` of the failing call plus a truncated response body (the reason, e.g. "user is
+ *   blocked") so operators can tell *where* and *why* it failed without guessing. The body is
+ *   logged server-side only and never returned to the caller. A transport failure carries
+ *   `status: 0`, which maps to the same 502 as an upstream `5xx`.
  * - Caller message: the provider's raw body (e.g. `{"error":"user is blocked"}`) is never
  *   forwarded. A `4xx` means the account/request was rejected (unprocessable), a `5xx`/
  *   transport failure means the provider is unavailable (bad gateway). Both messages indicate
@@ -39,8 +42,10 @@ import rampService from "../services/ramp/ramp.service";
  *
  * Non-provider errors (validation, ownership, quote state, …) are returned unchanged.
  */
+const MAX_LOGGED_PROVIDER_BODY_LENGTH = 300;
+
 export function mapProviderFailure(error: unknown): { error: unknown; logContext: Record<string, unknown> } {
-  if (!(error instanceof ProviderApiError)) {
+  if (!(error instanceof ProviderHttpError)) {
     return { error, logContext: {} };
   }
 
@@ -59,6 +64,7 @@ export function mapProviderFailure(error: unknown): { error: unknown; logContext
       provider: error.provider,
       providerEndpoint: error.endpoint,
       providerMethod: error.method,
+      providerResponseBody: error.responseBody.slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
       providerStatus: error.status
     }
   };

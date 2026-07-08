@@ -1,7 +1,7 @@
 import * as forge from "node-forge";
 import { BRLA_API_KEY, BRLA_BASE_URL, BRLA_PRIVATE_KEY, DocumentUploadRequest, DocumentUploadResponse } from "../..";
 import logger from "../../logger";
-import { ProviderApiError } from "../providerApiError";
+import { ProviderHttpError } from "../providerHttpError";
 import { Endpoint, EndpointMapping, Endpoints, Methods } from "./mappings";
 import {
   AccountLimitsResponse,
@@ -41,10 +41,10 @@ const QUOTE_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
 const QUOTE_CACHE_MAX_SIZE = 100; // Maximum number of cached entries
 
 /**
- * Error thrown when an Avenia/BRLA HTTP request returns a non-ok response. See
- * {@link ProviderApiError} for the carried fields and the message-format invariant.
+ * Error thrown when an Avenia/BRLA HTTP request fails. See {@link ProviderHttpError} for the
+ * carried fields and the message-format invariant.
  */
-export class BrlaApiError extends ProviderApiError {
+export class BrlaApiError extends ProviderHttpError {
   constructor(params: { status: number; endpoint: string; method: string; responseBody: string }) {
     super({ ...params, provider: "avenia" });
   }
@@ -156,7 +156,19 @@ export class BrlaApiService {
     const fullUrl = `${BRLA_BASE_URL}${requestUri}`;
     logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
-    const response = await fetch(fullUrl, options);
+    let response: Response;
+    try {
+      response = await fetch(fullUrl, options);
+    } catch (error) {
+      // Transport failure (DNS/timeout/connection reset) — no HTTP response. Surface it as a
+      // provider error with status 0 so callers can normalize it to a 502 instead of a 500.
+      throw new BrlaApiError({
+        endpoint: endpoint as string,
+        method: method as string,
+        responseBody: error instanceof Error ? error.message : String(error),
+        status: 0
+      });
+    }
 
     if (response.status === 401) {
       throw new Error("Authorization error.");
