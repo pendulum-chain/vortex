@@ -17,18 +17,16 @@ const FASTFOREX_TEST_FIATS = [EUR, ARS, BRL, MXN, COP] as const;
 const originalEnv = { ...process.env };
 const originalFetch = global.fetch;
 
-const testEnv: Record<string, string> = {
-  COINGECKO_API_KEY: "test-api-key",
-  COINGECKO_API_URL: "https://api.coingecko.com/api/v3",
-  CRYPTO_CACHE_TTL_MS: "300000",
-  FASTFOREX_API_KEY: "test-fastforex-key",
-  FASTFOREX_API_URL: "https://api.fastforex.io",
-  FIAT_CACHE_TTL_MS: "300000"
+// config/vars snapshots the environment at first import (which may happen in an
+// earlier test file), so deterministic values are set on the instance instead.
+const testInstanceConfig = {
+  coingeckoApiBaseUrl: "https://api.coingecko.com/api/v3",
+  coingeckoApiKey: "test-api-key",
+  cryptoCacheTtlMs: 300000,
+  fastforexApiBaseUrl: "https://api.fastforex.io",
+  fastforexApiKey: "test-fastforex-key",
+  fiatCacheTtlMs: 300000
 };
-
-for (const [key, value] of Object.entries(testEnv)) {
-  process.env[key] = value;
-}
 
 const loggerMock = {
   debug: mock(() => {}),
@@ -53,6 +51,7 @@ mock.module("../../config/logger", () => ({
 mock.module("../../../index", () => ({}));
 
 const { PriceFeedService, priceFeedService } = await import("./priceFeed.service");
+const { config } = await import("../../config/vars");
 
 describe("PriceFeedService", () => {
   let originalDateNow: () => number;
@@ -76,6 +75,7 @@ describe("PriceFeedService", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
     Object.values(loggerMock).forEach(logger => logger.mockClear());
     Reflect.set(PriceFeedService, "instance", undefined);
+    Object.assign(PriceFeedService.getInstance(), testInstanceConfig);
   });
 
   afterEach(() => {
@@ -85,7 +85,7 @@ describe("PriceFeedService", () => {
   });
 
   afterAll(() => {
-    for (const key of Object.keys(testEnv)) {
+    for (const key of ["COINGECKO_API_URL", "CRYPTO_CACHE_TTL_MS", "FIAT_CACHE_TTL_MS"]) {
       const originalValue = originalEnv[key];
       if (originalValue === undefined) {
         delete process.env[key];
@@ -534,17 +534,19 @@ describe("PriceFeedService", () => {
   });
 
   describe("Configuration", () => {
-    it("should read fastforex config", () => {
+    it("should read fastforex config from config/vars", () => {
+      Reflect.set(PriceFeedService, "instance", undefined);
       const instance = PriceFeedService.getInstance();
-      expect(Reflect.get(instance, "fastforexApiBaseUrl")).toBe("https://api.fastforex.io");
-      expect(Reflect.get(instance, "fastforexApiKey")).toBe("test-fastforex-key");
+      expect(Reflect.get(instance, "fastforexApiBaseUrl")).toBe(config.priceProviders.fastforex.baseUrl);
+      expect(Reflect.get(instance, "fastforexApiKey")).toBe(config.priceProviders.fastforex.apiKey);
     });
 
-    it("should read CoinGecko config", () => {
+    it("should read CoinGecko config from config/vars", () => {
+      Reflect.set(PriceFeedService, "instance", undefined);
       const instance = PriceFeedService.getInstance();
-      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe("https://api.coingecko.com/api/v3");
-      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(300000);
-      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(300000);
+      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe(config.priceProviders.coingecko.baseUrl);
+      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(config.priceProviders.coingecko.cryptoCacheTtlMs);
+      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(config.priceProviders.coingecko.fiatCacheTtlMs);
     });
 
     it("should keep loaded configuration values when environment variables change after import", () => {
@@ -555,9 +557,9 @@ describe("PriceFeedService", () => {
       Reflect.set(PriceFeedService, "instance", undefined);
       const instance = PriceFeedService.getInstance();
 
-      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe("https://api.coingecko.com/api/v3");
-      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(300000);
-      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(300000);
+      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe(config.priceProviders.coingecko.baseUrl);
+      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(config.priceProviders.coingecko.cryptoCacheTtlMs);
+      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(config.priceProviders.coingecko.fiatCacheTtlMs);
     });
   });
 });
