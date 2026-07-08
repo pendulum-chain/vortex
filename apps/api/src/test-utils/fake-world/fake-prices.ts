@@ -49,14 +49,13 @@ export class FakePrices {
   }
 }
 
-type PatchedMethods = "getCryptoPrice" | "getUsdToFiatExchangeRate" | "convertCurrency" | "getOnchainOraclePrice";
+type PatchedMethods = "getCryptoPrice" | "getUsdToFiatExchangeRate" | "convertCurrency";
 
 export function installFakePrices(): { fakePrices: FakePrices; restore: () => void } {
   const fakePrices = new FakePrices();
   const originals: Partial<Record<PatchedMethods, unknown>> = {
     convertCurrency: priceFeedService.convertCurrency,
     getCryptoPrice: priceFeedService.getCryptoPrice,
-    getOnchainOraclePrice: priceFeedService.getOnchainOraclePrice,
     getUsdToFiatExchangeRate: priceFeedService.getUsdToFiatExchangeRate
   };
 
@@ -72,12 +71,6 @@ export function installFakePrices(): { fakePrices: FakePrices; restore: () => vo
     const converted = usd.times(fakePrices.getPerUsd(toCurrency as string));
     return decimals != null ? converted.toFixed(decimals, 0) : converted.toString();
   };
-  priceFeedService.getOnchainOraclePrice = async (currency: RampCurrency) => ({
-    lastUpdateTimestamp: Date.now(),
-    name: currency as string,
-    price: new Big(1).div(fakePrices.getPerUsd(currency as string))
-  });
-
   return {
     fakePrices,
     restore: () => {

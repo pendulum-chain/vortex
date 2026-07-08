@@ -132,6 +132,10 @@ interface Config {
       cryptoCacheTtlMs: number;
       fiatCacheTtlMs: number;
     };
+    fastforex: {
+      apiKey: string | undefined;
+      baseUrl: string;
+    };
   };
   spreadsheet: SpreadsheetConfig;
   database: {
@@ -232,6 +236,10 @@ export const config: Config = {
       baseUrl: process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3",
       cryptoCacheTtlMs: parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10),
       fiatCacheTtlMs: parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10)
+    },
+    fastforex: {
+      apiKey: process.env.FASTFOREX_API_KEY,
+      baseUrl: process.env.FASTFOREX_API_URL || "https://api.fastforex.io"
     },
     moonpay: {
       apiKey: process.env.MOONPAY_API_KEY,

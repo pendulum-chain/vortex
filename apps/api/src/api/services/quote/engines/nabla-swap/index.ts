@@ -1,6 +1,5 @@
 import { PendulumTokenDetails, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
-import logger from "../../../../../config/logger";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateNablaSwapOutput } from "../../core/nabla";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
@@ -46,16 +45,9 @@ export abstract class BaseNablaSwapEngine implements Stage {
       rampType: request.rampType
     });
 
-    let oraclePrice;
-    try {
-      oraclePrice = await priceFeedService.getOnchainOraclePrice(
-        request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency
-      );
-    } catch (error) {
-      logger.warn(
-        `OffRampSwapEngine: Unable to fetch on-chain oracle price for ${request.outputCurrency}, proceeding without it. Error: ${error}`
-      );
-    }
+    const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(
+      request.rampType === RampDirection.BUY ? request.inputCurrency : request.outputCurrency
+    );
 
     this.assignNablaSwapContext(
       ctx,
@@ -64,7 +56,7 @@ export abstract class BaseNablaSwapEngine implements Stage {
       inputAmountForSwapRaw,
       inputTokenPendulumDetails,
       outputTokenPendulumDetails,
-      oraclePrice?.price
+      oraclePrice
     );
 
     this.addNote(ctx, inputTokenPendulumDetails, outputTokenPendulumDetails, inputAmountForSwap, result);
