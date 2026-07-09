@@ -30,6 +30,15 @@ export function providerForRail(rail: string): ProviderName {
 // Statuses are stored verbatim per provider; these are the terminal outcomes.
 const APPROVED_STATUSES = new Set<string>([MykoboCustomerStatus.APPROVED, AlfredPayStatus.Success, AveniaKycStatus.Accepted]);
 const RESTRICTED_STATUSES = new Set<string>([MykoboCustomerStatus.REJECTED, AlfredPayStatus.Failed, AveniaKycStatus.Rejected]);
+// Non-terminal statuses where the customer has submitted and the provider is actively
+// reviewing — distinct from "pending", which still awaits the customer (no profile yet,
+// link not completed, or update required).
+const IN_REVIEW_STATUSES = new Set<string>([
+  MykoboCustomerStatus.PENDING,
+  AlfredPayStatus.UserCompleted,
+  AlfredPayStatus.Verifying,
+  AveniaKycStatus.Requested
+]);
 
 export function isProviderApproved(status: string): boolean {
   return APPROVED_STATUSES.has(status);
@@ -37,6 +46,10 @@ export function isProviderApproved(status: string): boolean {
 
 export function isProviderRestricted(status: string): boolean {
   return RESTRICTED_STATUSES.has(status);
+}
+
+export function isProviderInReview(status: string): boolean {
+  return IN_REVIEW_STATUSES.has(status);
 }
 
 /**

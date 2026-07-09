@@ -4,14 +4,21 @@ import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer from "../../models/providerCustomer.model";
-import { isProviderApproved, isProviderRestricted } from "../services/recipients/transfer-eligibility.service";
+import {
+  isProviderApproved,
+  isProviderInReview,
+  isProviderRestricted
+} from "../services/recipients/transfer-eligibility.service";
 
-function providerState(status: string): "approved" | "rejected" | "pending" {
+function providerState(status: string): "approved" | "rejected" | "in_review" | "pending" {
   if (isProviderApproved(status)) {
     return "approved";
   }
   if (isProviderRestricted(status)) {
     return "rejected";
+  }
+  if (isProviderInReview(status)) {
+    return "in_review";
   }
   return "pending";
 }
@@ -19,7 +26,7 @@ function providerState(status: string): "approved" | "rejected" | "pending" {
 /**
  * GET /v1/onboarding/status — aggregated onboarding view for the authenticated profile
  * (plan D5), read directly from `provider_customers` + `kyc_cases`. Statuses are the
- * provider-verbatim values; `state` is the normalized approved/pending/rejected rollup.
+ * provider-verbatim values; `state` is the normalized approved/in_review/pending/rejected rollup.
  */
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
   const userId = req.userId;

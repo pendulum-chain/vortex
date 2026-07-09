@@ -13,5 +13,5 @@ const WIDGET_URL: string = import.meta.env.VITE_WIDGET_URL ?? "http://127.0.0.1:
  */
 export function onboardingUrl(corridorId: CorridorId): string {
   const region = CORRIDOR_KYB_REGION[corridorId];
-  return region ? `${WIDGET_URL}/?kybLocked=${region}` : WIDGET_URL;
+  return region ? `${WIDGET_URL}/widget?kybLocked=${region}` : `${WIDGET_URL}/widget`;
 }

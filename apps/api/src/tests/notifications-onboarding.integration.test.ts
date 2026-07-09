@@ -163,7 +163,8 @@ describe("GET /v1/onboarding/status", () => {
     expect(aveniaAccount?.kycCase?.status).toBe(AveniaKycStatus.Accepted);
 
     const alfredpayAccount = accounts.find(account => account.provider === "alfredpay");
-    expect(alfredpayAccount?.state).toBe("pending");
+    // VERIFYING means the customer has submitted and the provider is actively reviewing.
+    expect(alfredpayAccount?.state).toBe("in_review");
     expect(alfredpayAccount?.kycCase).toBeNull();
   });
 

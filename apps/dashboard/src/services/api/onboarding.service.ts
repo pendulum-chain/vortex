@@ -1,6 +1,6 @@
 import { apiClient } from "./api-client";
 
-export type OnboardingState = "approved" | "pending" | "rejected";
+export type OnboardingState = "approved" | "in_review" | "pending" | "rejected";
 
 /** A provider/KYC account under a customer entity (GET /v1/onboarding/status). */
 export interface OnboardingAccountDto {

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { CORRIDOR_LIST } from "@/domain/corridors";
 import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccount } from "@/domain/types";
-import type { OnboardingStatusResponse } from "@/services/api/onboarding.service";
+import type { OnboardingState, OnboardingStatusResponse } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
 import { useOnboardingStatusQuery } from "./useApprovedCorridors";
@@ -10,8 +10,9 @@ const LIVE_CORRIDORS: CorridorId[] = CORRIDOR_LIST.filter(corridor => corridor.a
   corridor => corridor.id
 );
 
-const STATE_TO_STATUS: Record<"approved" | "pending" | "rejected", OnboardingStatus> = {
+const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
   approved: "approved",
+  in_review: "in_review",
   pending: "pending",
   rejected: "rejected"
 };
