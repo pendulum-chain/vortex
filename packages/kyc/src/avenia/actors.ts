@@ -25,10 +25,6 @@ export function createSubaccountActor(api: AveniaKycApi) {
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
-    if (!quoteId && !input.kybLink) {
-      throw new Error("createSubaccountActor: Missing quoteId in input");
-    }
-
     try {
       ({ subAccountId } = await api.getUser(taxId));
 

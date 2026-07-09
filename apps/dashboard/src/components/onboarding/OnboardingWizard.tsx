@@ -8,6 +8,7 @@ import { notifyOnboardingStatus } from "@/lib/notify";
 import { getOnboardingSteps } from "@/machines/onboardingSteps";
 import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 import { AlfredpayKycFlow } from "./alfredpay/AlfredpayKycFlow";
+import { AveniaKycFlow } from "./avenia/AveniaKycFlow";
 import { ExternalFlow } from "./ExternalFlow";
 import { HeadlessFlow } from "./HeadlessFlow";
 
@@ -18,10 +19,9 @@ interface OnboardingWizardProps {
 }
 
 /**
- * Sender onboarding. Individual KYC on the Alfredpay corridors (MX/CO/AR) runs the real provider
- * machine and submits real data; everything else — Alfredpay company KYB included — is still the
- * mocked wizard, which submits nothing and fakes its status via `useOnboardingOverrideStore`.
- * So this dialog is real or mocked depending on `account.type`, until the KYB screens land.
+ * Sender onboarding. Individual KYC on Alfredpay corridors (MX/CO/AR) runs the real provider
+ * machine and submits real data. BRL individual KYC runs the shared live Avenia machine.
+ * Everything else still uses the generic mocked wizard.
  */
 export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizardProps) {
   const setOverride = useOnboardingOverrideStore(state => state.set);
@@ -29,6 +29,8 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
   const kind = onboardingKindFor(corridor, account.type);
   const route = routeFor(corridor.id, kind);
   const isRealAlfredpayKyc = corridor.provider === "alfredpay" && kind === "kyc" && route === "headless";
+  const isLiveAveniaKyc = corridor.provider === "avenia" && kind === "kyc" && route === "headless";
+  const steps = getOnboardingSteps(corridor.id, kind);
 
   /** Mocked flows have no backend to read from, so they fake the corridor's status locally. */
   const onStatusChange = (status: OnboardingStatus) => {
@@ -60,14 +62,10 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
 
         {isRealAlfredpayKyc ? (
           <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
+        ) : isLiveAveniaKyc ? (
+          <AveniaKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
         ) : route === "headless" ? (
-          <HeadlessFlow
-            corridor={corridor}
-            kind={kind}
-            onClose={onClose}
-            onStatusChange={onStatusChange}
-            steps={getOnboardingSteps(corridor.id, kind)}
-          />
+          <HeadlessFlow corridor={corridor} kind={kind} onClose={onClose} onStatusChange={onStatusChange} steps={steps} />
         ) : (
           <ExternalFlow corridor={corridor} kind={kind} onClose={onClose} onStatusChange={onStatusChange} route={route} />
         )}

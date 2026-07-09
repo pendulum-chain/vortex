@@ -171,6 +171,29 @@ describe("aveniaKycMachine", () => {
     expect(actor.getSnapshot().context.kycStatus).toBe(KycStatus.PENDING);
   });
 
+  it("creates an individual subaccount without a quote for authenticated dashboard onboarding", async () => {
+    const api = {
+      createSubaccount: async () => ({ subAccountId: "sub-dashboard" }),
+      getUser: async () => {
+        throw new Error("not found");
+      }
+    } as unknown as AveniaKycApi;
+    const actor = createActor(createAveniaKycMachine({ api }), { input: { taxId: "" } });
+    const originalLog = console.log;
+    console.log = () => {};
+
+    try {
+      actor.start();
+      actor.send({ formData: { ...formData, fullName: "Dashboard User" }, type: "FORM_SUBMIT" });
+
+      await waitFor(actor, s => s.matches("DocumentUpload"));
+      expect(actor.getSnapshot().context.subAccountId).toBe("sub-dashboard");
+    } finally {
+      console.log = originalLog;
+      actor.stop();
+    }
+  });
+
   it("subaccount creation failure lands in Failure and RETRY returns to the form", async () => {
     const actor = createTestActor({
       createSubaccountActor: fromPromise<SubaccountOutput, AveniaKycContext>(async () => {
