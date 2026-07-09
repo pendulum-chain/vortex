@@ -1,8 +1,8 @@
+import { KycStatus } from "@vortexfi/kyc";
 import { motion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useAveniaKycActor, useAveniaKycSelector } from "../../../contexts/rampState";
-import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
 
 export const AveniaKYBVerificationStatus: React.FC = () => {

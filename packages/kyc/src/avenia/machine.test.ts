@@ -1,24 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
+import { KycFailureReason } from "@vortexfi/shared";
+import type { BrlaGetKycStatusResponse } from "@vortexfi/shared";
+import { describe, expect, it } from "bun:test";
 import { createActor, fromPromise, waitFor } from "xstate";
+import type { AveniaKycApi, KybLevel1Response } from "./api";
+import { createAveniaKycMachine } from "./machine";
+import {
+  type AveniaKycContext,
+  type AveniaKycFormData,
+  AveniaKycMachineErrorType,
+  KycStatus,
+  KycSubmissionRejectedError,
+  type UploadIds,
+  type VerifyStatusActorOutput
+} from "./types";
 
-// The real module instantiates a Supabase client at import time, which fails in a node test environment.
-vi.mock("../services/auth", () => ({
-  AuthService: {
-    getTokens: vi.fn(),
-    refreshAccessToken: vi.fn(),
-    storeTokens: vi.fn()
-  }
-}));
-
-import { BrlaGetKycStatusResponse, KycFailureReason } from "@vortexfi/shared";
-import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { KybLevel1Response } from "../services/api";
-import { KycStatus, KycSubmissionRejectedError } from "../services/signingService";
-import { VerifyStatusActorOutput } from "./actors/brla/verifyLevel1Status.actor";
-import { AveniaKycMachineErrorType, aveniaKycMachine, UploadIds } from "./brlaKyc.machine";
-import { AveniaKycContext } from "./kyc.states";
-import { initialRampContext } from "./ramp.context";
-import { RampContext } from "./types";
+const aveniaKycMachine = createAveniaKycMachine({ api: {} as AveniaKycApi });
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -30,7 +26,6 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-// Must match the exact output type of the real createSubaccountActor (actor logic is invariant in its output).
 type SubaccountOutput = {
   subAccountId: string;
   maybeKycAttemptStatus?: BrlaGetKycStatusResponse;
@@ -38,13 +33,13 @@ type SubaccountOutput = {
   kybUrls?: KybLevel1Response;
 };
 
-const baseInput: RampContext = {
-  ...initialRampContext,
-  connectedWalletAddress: "0x1111111111111111111111111111111111111111",
-  quoteId: "quote-1"
+const baseInput: AveniaKycContext = {
+  externalSessionId: undefined,
+  quoteId: "quote-1",
+  taxId: ""
 };
 
-const formData = { taxId: "12345678900" } as KYCFormData;
+const formData = { taxId: "12345678900" } as AveniaKycFormData;
 const uploadIds: UploadIds = {
   livenessUrl: "https://liveness.example",
   uploadedDocumentId: "doc-1",
@@ -87,7 +82,6 @@ describe("aveniaKycMachine", () => {
     expect(actor.getSnapshot().value).toBe("LivenessCheck");
     expect(actor.getSnapshot().context.documentUploadIds).toEqual(uploadIds);
 
-    // LIVENESS_DONE is guarded: it must be ignored until the liveness check was actually opened.
     actor.send({ type: "LIVENESS_DONE" });
     expect(actor.getSnapshot().value).toBe("LivenessCheck");
 
@@ -96,7 +90,6 @@ describe("aveniaKycMachine", () => {
     actor.send({ type: "LIVENESS_DONE" });
     expect(actor.getSnapshot().value).toBe("Submit");
     expect(actor.getSnapshot().context.kycStatus).toBe(KycStatus.PENDING);
-    // Exiting LivenessCheck resets the opened flag.
     expect(actor.getSnapshot().context.livenessCheckOpened).toBe(false);
 
     submit.resolve(undefined);
@@ -127,7 +120,7 @@ describe("aveniaKycMachine", () => {
       })
     });
     actor.start();
-    actor.send({ formData: { taxId: "12345678000199" } as KYCFormData, type: "FORM_SUBMIT" });
+    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
 
     await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
     let context = actor.getSnapshot().context;
@@ -331,10 +324,6 @@ describe("aveniaKycMachine", () => {
     expect(actor.getSnapshot().context.documentUploadIds).toEqual(uploadIds);
   });
 
-  // NOTE: documents current behavior — GO_BACK from the *initial* FormFilling state jumps forward to
-  // DocumentUpload even though the user never created a subaccount. This looks unintended: the
-  // transition presumably exists for returning from DocumentUpload, but it is reachable straight
-  // from the initial state too (brlaKyc.machine.ts, FormFilling.on.GO_BACK).
   it("GO_BACK from the initial FormFilling state moves to DocumentUpload", () => {
     const actor = createTestActor({});
     actor.start();

@@ -1,10 +1,7 @@
-import { AlfredpayKycContext, AlfredpayKycOutput } from "@vortexfi/kyc";
-import { FiatToken, KycFailureReason } from "@vortexfi/shared";
+import { AlfredpayKycContext, AlfredpayKycOutput, type AveniaKycContext } from "@vortexfi/kyc";
+import { FiatToken } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
-import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { KycStatus } from "../services/signingService";
-import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
 import { RampContext } from "./types";
 
@@ -23,26 +20,6 @@ const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
 // KYB deep-link flow it comes from the region the user picked (kybLink.fiatToken).
 const resolveKycFiatToken = (context: RampContext): FiatToken | undefined =>
   context.executionInput?.fiatToken ?? context.kybLink?.fiatToken;
-
-export interface AveniaKycContext extends RampContext {
-  taxId: string;
-  subAccountId?: string;
-  kycFormData?: KYCFormData;
-  livenessCheckOpened?: boolean;
-  kycStatus?: KycStatus;
-  rejectReason?: KycFailureReason | string;
-  documentUploadIds?: UploadIds;
-  error?: AveniaKycMachineError;
-  isCompany?: boolean;
-  kybAttemptId?: string;
-  kybUrls?: {
-    authorizedRepresentativeUrl: string;
-    basicCompanyDataUrl: string;
-  };
-  kybStep?: "company" | "representative" | "verification";
-  companyVerificationStarted?: boolean;
-  representativeVerificationStarted?: boolean;
-}
 
 export interface MykoboKycContext extends RampContext {
   formData?: MykoboKycFormData;

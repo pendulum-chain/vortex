@@ -1,5 +1,5 @@
 import { WalletAccount } from "@talismn/connect-wallets";
-import { AlfredpayKycContext } from "@vortexfi/kyc";
+import { AlfredpayKycContext, AveniaKycContext } from "@vortexfi/kyc";
 import { FiatToken, PaymentData, QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ActorRef, ActorRefFrom, Snapshot, SnapshotFrom } from "xstate";
 import { ToastMessage } from "../helpers/notifications";
@@ -7,7 +7,7 @@ import { KYCFormData } from "../hooks/brla/useKYCForm";
 import { RampExecutionInput, RampSigningPhase, RampState } from "../types/phases";
 import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
-import { AveniaKycContext, MykoboKycContext } from "./kyc.states";
+import { MykoboKycContext } from "./kyc.states";
 import { mykoboKycMachine } from "./mykoboKyc.machine";
 
 export type { RampState } from "../types/phases";

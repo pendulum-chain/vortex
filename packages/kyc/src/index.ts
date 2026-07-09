@@ -25,3 +25,18 @@ export {
   type KybPersonFiles,
   type MxnKycFiles
 } from "./alfredpay/types";
+export type { AveniaKycApi, AveniaKycDeps, KybLevel1Response } from "./avenia/api";
+export { type AveniaKycMachine, createAveniaKycMachine } from "./avenia/machine";
+export { type AveniaKycApiClient, createAveniaKycApi } from "./avenia/service";
+export {
+  type AveniaKybFormData,
+  type AveniaKycContext,
+  type AveniaKycFormData,
+  AveniaKycMachineError,
+  AveniaKycMachineErrorType,
+  type AveniaKycOutput,
+  KycStatus,
+  KycSubmissionRejectedError,
+  type UploadIds,
+  type VerifyStatusActorOutput
+} from "./avenia/types";
