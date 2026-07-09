@@ -482,12 +482,17 @@ KYC/KYB flow, which already calls the AlfredPay/BRLA/Mykobo endpoints and handle
 provider redirects internally. `apps/dashboard/src/lib/widget.ts` (`onboardingUrl`) holds the
 deep-link construction; it is retained for this path.
 
-**Known gap — the widget cannot serve every corridor.** `KYB_REGIONS`
-(`apps/frontend/src/constants/kybRegions.ts`) contains only **BR, MX, CO, US**. There is no EU and
-no AR entry, so `onboardingUrl("EU")` / `onboardingUrl("AR")` fall back to the widget home with no
-indication of why the user was sent there. EU **company** KYB is the sharp edge: the dashboard
-routes it to a Google Form (§6.1), and the widget has no equivalent destination. Recipient
-onboarding in EU/AR is therefore **not yet reachable end-to-end**; see §12.9.
+**Known gap — EU only.** `KYB_REGIONS` (`apps/frontend/src/constants/kybRegions.ts`) now covers
+**BR, MX, CO, AR, US**. AR was previously absent from that list purely by omission — the
+`alfredpayKyc` machine already handled it everywhere it handled MX/CO (plus an AR-only selfie
+upload), `ArKycFormScreen` existed, and `KYC_CHILD_BY_FIAT[ARS]` already routed to it; adding the
+region entry was a one-line fix (2026-07).
+
+**EU remains genuinely blocked**, for the reason `kybRegions.ts` gives: Mykobo is individual KYC
+only and requires a connected wallet, so it cannot complete a quote-less KYB deep link.
+`onboardingUrl("EU")` falls back to the widget home. EU **company** KYB is the sharp edge — the
+dashboard routes it to a Google Form (§6.1) and the widget has no equivalent destination. Recipient
+onboarding in EU is therefore **not yet reachable end-to-end**; see §12.9.
 
 ---
 
@@ -662,10 +667,13 @@ the product surface) and are individually additive.
    the real KYC machines, **no sender can actually onboard from the dashboard** — they must still
    use the widget directly. Unmocking (reuse vs. port of the widget's KYC machines) is specified in
    `dashboard-followup-plan.md`. This is the highest-priority dashboard follow-up.
-9. **Recipient onboarding is unreachable for EU and AR (§6.2).** The widget's `KYB_REGIONS` covers
-   only BR, MX, CO, US, so `onboardingUrl` drops EU/AR recipients on the widget home. EU company
-   KYB has no widget destination at all (the dashboard routes it to a Google Form). Decide per
-   corridor: add the region to the widget, or give the dashboard a recipient-facing equivalent.
+9. **Recipient onboarding is unreachable for EU (§6.2).** AR was fixed by adding it to
+   `KYB_REGIONS` (the machine already supported it). EU cannot be fixed the same way: Mykobo is
+   individual-KYC-only and needs a connected wallet, so it cannot complete a quote-less KYB deep
+   link, and EU **company** KYB has no widget destination at all (the dashboard routes it to a
+   Google Form). Decide: teach the widget a wallet-less EU flow, or give the dashboard a
+   recipient-facing EU equivalent. Couples to §7.1, since a recipient needs a payout instrument
+   regardless.
 
 ---
 

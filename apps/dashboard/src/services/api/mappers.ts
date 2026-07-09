@@ -58,11 +58,13 @@ export const CORRIDOR_BY_FIAT: Partial<Record<FiatToken, CorridorId>> = Object.f
 ) as Partial<Record<FiatToken, CorridorId>>;
 
 /**
- * Region code for the widget's KYB deep link (`?kybLocked=`). Only these corridors are
- * deep-linkable — EU (individual KYC, needs a wallet) and AR are not offered by the widget's
- * quote-less KYB flow, so they fall back to the widget home.
+ * Region code for the widget's KYB deep link (`?kybLocked=`). Mirrors `KYB_REGIONS` in
+ * `apps/frontend/src/constants/kybRegions.ts`. EU is the only corridor missing: it is
+ * individual KYC only and needs a connected wallet, so it cannot complete a quote-less
+ * KYB deep link and falls back to the widget home.
  */
 export const CORRIDOR_KYB_REGION: Partial<Record<CorridorId, string>> = {
+  AR: "AR",
   BR: "BR",
   CO: "CO",
   MX: "MX",

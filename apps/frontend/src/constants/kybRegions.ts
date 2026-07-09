@@ -14,7 +14,7 @@ export interface KybRegion {
 
 /**
  * Regions offered in the KYB deep-link selector. Each maps to the fiat token
- * that determines the KYC/B provider (Brazil → Avenia, Mexico/Colombia/USA → Alfredpay).
+ * that determines the KYC/B provider (Brazil → Avenia, Mexico/Colombia/Argentina/USA → Alfredpay).
  * Europe/Mykobo is intentionally excluded: it is individual KYC only and requires a connected
  * wallet, so it cannot complete a quote-less KYB deep link. Add or remove entries here.
  */
@@ -27,6 +27,7 @@ export const KYB_REGIONS: KybRegion[] = [
   },
   { code: "MX", fiatToken: FiatToken.MXN, labelKey: "components.regionSelectStep.regions.MX" },
   { code: "CO", fiatToken: FiatToken.COP, labelKey: "components.regionSelectStep.regions.CO" },
+  { code: "AR", fiatToken: FiatToken.ARS, labelKey: "components.regionSelectStep.regions.AR" },
   { code: "US", fiatToken: FiatToken.USD, labelKey: "components.regionSelectStep.regions.US" }
 ];
 

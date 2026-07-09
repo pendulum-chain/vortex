@@ -242,13 +242,14 @@ rejects in §7.1(B).
 ### What exists in the widget
 
 Orchestrator `apps/frontend/src/machines/kyc.states.ts` (259 L) picks a child machine by
-`FiatToken` and spawns it. The three children differ sharply in how portable they are:
+`FiatToken` and spawns it. All three import the frontend's provider services (see below); they
+differ in how much *ramp* coupling sits on top of that:
 
-| Machine | Lines | Corridors | `sendParent` | Ramp coupling | Portability |
+| Machine | Lines | Corridors | `sendParent` | Ramp coupling | Extra work to lift |
 | :-- | --: | :-- | --: | --: | :-- |
-| `alfredpayKyc.machine.ts` | 935 | MX, CO, AR, US | 0 | none | **Directly reusable** — imports only `@vortexfi/shared` types, `AlfredpayService`, `kyc.states` |
-| `brlaKyc.machine.ts` | 399 | BR | 0 | 2 refs (`RampContext`) | Light — decouple `RampContext` from its input |
-| `mykoboKyc.machine.ts` | 228 | EU | 2 | 2 refs (`RampSigningPhase`) | **Hardest** — `sendParent`s into the ramp machine and requires a `walletAddress` |
+| `alfredpayKyc.machine.ts` | 935 | MX, CO, AR, US | 0 | none | **None beyond service injection** — go first |
+| `brlaKyc.machine.ts` | 399 | BR | 0 | 2 refs (`RampContext`) | Narrow the input type off `RampContext` |
+| `mykoboKyc.machine.ts` | 228 | EU | 2 | 2 refs (`RampSigningPhase`) | **Hardest** — `sendParent` → callback, and it requires a `walletAddress` |
 
 Form components alongside them: `components/Avenia/*` (KYC/KYB + liveness) and
 `components/Alfredpay/*` (per-country `ArKycFormScreen`, `MxnKycFormScreen`, `ColKycFormScreen`,
@@ -258,39 +259,78 @@ Note the shape mismatch to close: the dashboard mock has **one** generic `person
 a "Tax ID" field for every corridor, while the widget has **distinct per-country screens**. The
 mock's step list is a simplification, not a spec — the widget's screens win.
 
-### The two options
+### Packaging is not the blocker — coupling is
 
-- **(A) — Reuse via a shared package.** Lift `kyc.states.ts` + the three child machines + their
-  form components into `packages/` (or a new `packages/kyc`), consumed by both apps. Single
-  source of provider logic; fixes land once. **Cost:** `mykoboKyc` `sendParent`s to the ramp
-  machine and `brlaKyc` reads `RampContext`, so the ramp coupling must be severed first —
-  replace `sendParent` with an injected callback and pass a narrow input type instead of
-  `RampContext`. `mykoboKyc` also needs `walletAddress`, which a dashboard sender may not have
-  connected; decide whether EU KYC requires a wallet or whether that dependency can be deferred.
-- **(B) — Port into the dashboard.** Copy the machines and adapt. Faster to a working EU/BR
-  screen, no refactor of the widget's ramp machine. **Cost:** two copies of provider logic that
-  will drift; a provider API change must then be fixed twice. Explicitly the outcome §7.1(B)
-  calls "the fragmentation we're otherwise avoiding."
+The obvious framings are "move it to `packages/shared`" and "leave it in the frontend and import
+the file." **Neither works as stated**, and the reason is the same for both: the machines reach
+for the frontend's module-scoped HTTP layer.
 
-**Leaning (A)**, staged: start with `alfredpayKyc` (zero coupling, four corridors — MX/CO/AR/US),
-which proves the shared-package shape without touching the ramp machine at all. Then `brlaKyc`
-(light). Leave `mykoboKyc` last, since severing `sendParent` and the wallet dependency is the
-real work and EU is one corridor.
+**Why "just import from `apps/frontend`" is not available.** `vortex-frontend` is `private: true`
+with **no `exports` and no `main`** — it is not resolvable as a package. `apps/dashboard`'s
+`tsconfig.json` aliases only `@/*` → `./src/*`, and `apps/dashboard/package.json` does not depend
+on it. Enabling it needs either an `exports` map on an *application* package or a cross-app Vite
+alias plus tsconfig path. Nothing in this monorepo has an app importing from another app, and the
+dashboard's own precedent went the other way: `transfer.machine.ts` was **copied** from the
+widget's ramp machine (main plan §9), and that copy will drift.
 
-### Change set (sketch — refine once (A)/(B) is chosen)
+**Why "move to `packages/shared`" does not work either, yet.** The four machines directly import:
 
-1. Sever ramp coupling in `brlaKyc.machine.ts` (narrow input type, drop `RampContext`) and
-   `mykoboKyc.machine.ts` (`sendParent` → injected callback). Verify the widget still onboards.
-2. Extract the machines + `kyc.states.ts` + form components to the shared location; repoint
-   `apps/frontend` imports. **No behavior change** — this step is a pure move, gated on the
-   widget's existing KYC tests (`brlaKyc.machine.test.ts`, `alfredpayKyc.machine.test.ts`,
-   `mykoboKyc.machine.test.ts`, `validateKyc.actor.test.ts`) passing unchanged.
-3. Replace `HeadlessFlow`'s `WizardStepFields` with the real per-country form components; drop
-   `headlessOnboarding.machine.ts` in favour of the real machine. Keep `ExternalFlow` for the
-   US redirect and EU-company Google Form, which have no provider machine.
+| Import | Why it blocks a move |
+| :-- | :-- |
+| `../services/api`, `alfredpay.service`, `mykobo.service` | The **frontend's** provider services |
+| `../services/api/api-client` | Module-scoped, carries the frontend's auth |
+| `../services/signingService` | A `.tsx` module |
+| `../hooks/brla/useKYCForm`, `useKYBForm` | `KYCFormData`/`KYBFormData` are `z.infer` types, but written as **value** imports from React hook modules — a bundler drags `react-hook-form` + the zod schemas |
+| `./types` (`RampContext`), `sendParent` | Couples to the ramp machine |
+
+The api-client point is the sharp one. `apps/dashboard/src/services/api/api-client.ts` (106 L) is
+already a trimmed copy of the frontend's (176 L) — same single-flight refresh, same `Bearer`
+header. The HTTP layer is **already forked**, so a machine that imports `AlfredpayService` at
+module scope silently binds to whichever app it was compiled against.
+
+`packages/shared` is also the wrong home even after decoupling: it carries `@polkadot/api` /
+`stellar-sdk` peer deps and is DTO/util-shaped. Adding XState machines and React form components
+there makes every consumer inherit that graph.
+
+### Proposal: decouple in place, then extract to `packages/kyc`
+
+1. **Decouple first, inside `apps/frontend`.** Pass the provider service as machine `input`
+   instead of importing it. Replace `mykoboKyc`'s two `sendParent` calls with an injected
+   `onPhaseChange` callback. Narrow `brlaKyc`'s input so it stops reading `RampContext`. Convert
+   the `KYCFormData`/`KYBFormData` imports to `import type`. **This is the whole job** — once the
+   machines take their dependencies as input, where the files live is mechanical.
+2. **Then extract to a new `packages/kyc`** — a sibling package with `xstate` and `react` as peer
+   deps, the shape `packages/sdk` already models. Not `packages/shared`.
+3. **Each app injects its own api-client.** That is the seam that lets one copy of the provider
+   logic serve two apps with two auth paths.
+
+**Staging.** Start with `alfredpayKyc`: zero ramp coupling, zero `sendParent`, and it covers four
+of six corridors (MX, CO, **AR**, US). It proves the package shape without touching the widget's
+live ramp machine at all. Then `brlaKyc` (two `RampContext` refs). Leave `mykoboKyc` last —
+severing `sendParent` *and* the `walletAddress` dependency is the real work, for a single corridor
+that is blocked on the EU question anyway (main plan §12.9).
+
+### Change set (sketch — refine when step 1 lands)
+
+1. **Injection seam, in `apps/frontend`.** Give each machine a provider-service dependency via
+   `input` rather than a module import; replace `mykoboKyc`'s `sendParent` with an injected
+   callback; narrow `brlaKyc`'s input off `RampContext`; make the brla form-data imports
+   `import type`. Widget behavior unchanged.
+2. **Extract to `packages/kyc`** (`xstate` + `react` as peers): `kyc.states.ts`, the three child
+   machines, `actors/brla/*`, and the `Avenia*` / `Alfredpay*` form components. Repoint
+   `apps/frontend` imports. **Pure move, no behavior change** — gated on the widget's existing KYC
+   tests (`brlaKyc.machine.test.ts`, `alfredpayKyc.machine.test.ts`, `mykoboKyc.machine.test.ts`,
+   `validateKyc.actor.test.ts`) passing unchanged.
+3. **Dashboard consumes it**, injecting `apps/dashboard/src/services/api/api-client.ts`. Replace
+   `HeadlessFlow`'s `WizardStepFields` with the real per-country form components; drop
+   `headlessOnboarding.machine.ts` in favour of the real machine. Keep `ExternalFlow` for the US
+   redirect and EU-company Google Form, which have no provider machine.
 4. Delete `useOnboardingOverrideStore` and its overlay in `useActiveAccount` — the corridor card
    then reads real status from `/v1/onboarding/status` alone, and `rejected` becomes reachable.
-5. Reconcile `getOnboardingSteps` with the widget's real screen sets (per-country, not generic).
+5. Reconcile `getOnboardingSteps` with the widget's real screen sets (per-country, not generic:
+   `ArKycFormScreen` / `MxnKycFormScreen` / `ColKycFormScreen`, not one shared `personalInfo`).
+6. Consider collapsing the two forked `api-client.ts` copies once both apps inject the same
+   interface — out of scope here, but this work is what makes it possible.
 
 ### Spec updates (same change set — Security Spec Sync)
 
@@ -309,11 +349,16 @@ to (dashboard session vs. widget session for the same `customer_entity`).
 
 ### Risks / caveats
 
-- Step 1 edits the widget's live ramp machine. That is a real regression surface on the shipping
-  product to unblock a mocked dashboard flow — do it behind the widget's existing tests, and land
-  it separately from the dashboard work.
+- Step 1 edits the widget's live ramp machine (for `mykoboKyc`/`brlaKyc`). That is a real
+  regression surface on the shipping product to unblock a mocked dashboard flow — do it behind the
+  widget's existing tests, and land it separately from the dashboard work. `alfredpayKyc` avoids
+  this entirely, which is why it goes first.
 - `alfredpayKyc.machine.ts` is 935 lines and spans MX/CO/AR/US with per-country file-upload
-  requirements. "Directly reusable" means *no ramp coupling*, not *small*.
+  requirements (AR additionally uploads a selfie). "No ramp coupling" means *easy to lift*, not
+  *small to review*.
 - EU is the corridor where the dashboard and widget disagree most: the dashboard routes company
   KYB to a Google Form, and `mykoboKyc` wants a connected wallet. Resolve EU alongside main plan
   §12.9, not in isolation.
+- The extraction moves React form components into a package. Confirm the i18n boundary before
+  step 2: the `Alfredpay*` / `Avenia*` screens call the frontend's translation hooks, so either
+  the package takes a translator as a prop or `packages/kyc` owns its own message catalog.
