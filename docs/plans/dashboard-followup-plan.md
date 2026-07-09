@@ -2,7 +2,7 @@
 
 Deferred, non-blocking work items surfaced while wiring the dashboard to the real
 backend. Each item is self-contained: it states the finding, the rationale, the concrete
-change set, and how to verify. Nothing here is started yet — this is the queue, not a diff.
+change set, and how to verify. This is the queue for unresolved follow-up work, not a diff.
 
 Companion to `dashboard-full-product-connection.md` (the main product-connection plan).
 
@@ -78,151 +78,122 @@ a second column to reason about in the security spec.
 
 ---
 
-## 2. Unmock sender onboarding — reuse or port the widget's KYC state machines
+## 2. Add AlfredPay fiat-account management to the dashboard
 
-**Status:** decided in principle (reuse over re-implement); reuse-vs-port not chosen; nothing
-implemented. **This is the highest-priority dashboard follow-up** — see main plan §12.8.
+**Status:** planned, not started.
 
 ### Finding
 
-Sender onboarding now lives in the dashboard (main plan §6.1), but every screen is a mock. The
-wizard renders the right steps and fields, and **submits nothing**:
+The dashboard already derives AlfredPay self-recipients from saved provider-side fiat accounts:
 
-- `WizardStepFields.tsx` — uncontrolled `Input`s, no form state, no schema, no validation. Its
-  own header comment says "Visual-only mock fields… Nothing is submitted."
-- `DocumentDropzone.tsx` — renders a dropzone; no file is read or uploaded ("demo — no file is
-  sent").
-- `headlessOnboarding.machine.ts` / `externalOnboarding.machine.ts` — the
-  `verifying → in_review → approved` tail is `setTimeout` (`VERIFY_DELAY` 1600ms, `REVIEW_DELAY`
-  2800ms). No provider is ever called. `rejected` is **unreachable** from either machine.
-- `useOnboardingOverrideStore` (`stores/onboardingOverride.store.ts`) — a session-only overlay
-  so the corridor card advances despite `GET /v1/onboarding/status` never seeing the submission.
-  **Delete this store as part of this work**; it exists only to make the mock coherent.
+- `apps/dashboard/src/hooks/useRecipients.ts` fetches `GET /v1/alfredpay/fiatAccounts` for the
+  approved AlfredPay corridors (`US`, `MX`, `CO`, `AR`).
+- `apps/dashboard/src/services/api/recipient.mappers.ts` turns each returned fiat account into one
+  `isSelf` recipient whose `fiatAccountId` is later sent during transfer registration.
+- BR and EU use a fallback self-recipient, but AlfredPay does **not**: no saved fiat account means
+  no self-recipient row.
 
-The widget already has the real thing, wired to the real provider endpoints. Re-implementing it
-in the dashboard would fork provider logic across two apps — the fragmentation the main plan
-rejects in §7.1(B).
+That makes a KYC-approved sender look partially onboarded: Mexico/Colombia/US/Argentina can be
+approved in `GET /v1/onboarding/status`, but the Recipients and Transfer pages still show no
+AlfredPay self destination until at least one fiat account exists for the corresponding country.
 
-### What exists in the widget
+The backend endpoint to create the provider-side object already exists:
 
-Orchestrator `apps/frontend/src/machines/kyc.states.ts` (259 L) picks a child machine by
-`FiatToken` and spawns it. All three import the frontend's provider services (see below); they
-differ in how much *ramp* coupling sits on top of that:
+- `POST /v1/alfredpay/fiatAccounts` creates the AlfredPay fiat account for the authenticated
+  effective user and country.
+- `GET /v1/alfredpay/fiatAccounts?country=XX` lists saved accounts.
+- `DELETE /v1/alfredpay/fiatAccounts/:fiatAccountId?country=XX` deletes one.
 
-| Machine | Lines | Corridors | `sendParent` | Ramp coupling | Extra work to lift |
-| :-- | --: | :-- | --: | --: | :-- |
-| `alfredpayKyc.machine.ts` | 935 | MX, CO, AR, US | 0 | none | **None beyond service injection** — go first |
-| `brlaKyc.machine.ts` | 399 | BR | 0 | 2 refs (`RampContext`) | Narrow the input type off `RampContext` |
-| `mykoboKyc.machine.ts` | 228 | EU | 2 | 2 refs (`RampSigningPhase`) | **Hardest** — `sendParent` → callback, and it requires a `walletAddress` |
+The dashboard only wraps the list call today. It does not expose a UI to add or remove accounts.
 
-Form components alongside them: `components/Avenia/*` (KYC/KYB + liveness) and
-`components/Alfredpay/*` (per-country `ArKycFormScreen`, `MxnKycFormScreen`, `ColKycFormScreen`,
-plus `KybFormScreen`, `KybBusinessDocsScreen`, `KybPersonDocsScreen`, `FailureKycScreen`).
+### Product rule
 
-Note the shape mismatch to close: the dashboard mock has **one** generic `personalInfo` step with
-a "Tax ID" field for every corridor, while the widget has **distinct per-country screens**. The
-mock's step list is a simplification, not a spec — the widget's screens win.
+For every approved AlfredPay corridor, the dashboard must make the missing payout-account step
+obvious and completable in place:
 
-### Packaging is not the blocker — coupling is
+| Corridor | Country | Fiat account method | Provider type sent to API |
+| :-- | :-- | :-- | :-- |
+| Mexico | `MX` | CLABE / SPEI | `SPEI` |
+| Colombia | `CO` | Account number / ACH Colombia | `ACH` |
+| United States | `US` | ACH/Wire-style bank details | `BANK_USA` |
+| Argentina | `AR` | CBU/CVU/Alias | `COELSA` |
 
-The obvious framings are "move it to `packages/shared`" and "leave it in the frontend and import
-the file." **Neither works as stated**, and the reason is the same for both: the machines reach
-for the frontend's module-scoped HTTP layer.
+The UI should create provider-side AlfredPay fiat accounts for **self recipients**. Third-party
+recipient payout references remain governed by main plan §7.1 and still need the separate
+recipient-payout decision; do not conflate this work with `recipient_payout_references` for invited
+recipients.
 
-**Why "just import from `apps/frontend`" is not available.** `vortex-frontend` is `private: true`
-with **no `exports` and no `main`** — it is not resolvable as a package. `apps/dashboard`'s
-`tsconfig.json` aliases only `@/*` → `./src/*`, and `apps/dashboard/package.json` does not depend
-on it. Enabling it needs either an `exports` map on an *application* package or a cross-app Vite
-alias plus tsconfig path. Nothing in this monorepo has an app importing from another app, and the
-dashboard's own precedent went the other way: `transfer.machine.ts` was **copied** from the
-widget's ramp machine (main plan §9), and that copy will drift.
+### UX spec
 
-**Why "move to `packages/shared`" does not work either, yet.** The four machines directly import:
+1. **Recipients page empty state.** If an AlfredPay corridor is approved but its fiat-account query
+   returns zero accounts, show a corridor-scoped call to action: "Add your Mexico CLABE", "Add your
+   Colombia account", etc. Do not silently omit the corridor.
+2. **Self-recipient list.** For each saved fiat account, keep rendering one self-recipient with the
+   masked label from the provider response. Multiple accounts in the same corridor produce multiple
+   self-recipient rows.
+3. **Add-account entry points.** Add an "Add payout account" action from the Recipients page and
+   from the Transfer page when the selected/only approved AlfredPay corridor has no account.
+4. **Form shape.** Reuse the widget's existing form definitions and validation patterns rather than
+   inventing new field requirements:
+   - `apps/frontend/src/constants/fiatAccountMethods.ts` for corridor → method mapping.
+   - `apps/frontend/src/constants/fiatAccountForms.ts` for per-method field lists.
+   - `apps/frontend/src/pages/alfredpay/FiatAccountRegistration/RegisterFiatAccountScreen.tsx` for
+     request mapping and validation rules.
+5. **Dashboard implementation home.** Do not import from `apps/frontend` directly. Either copy the
+   small constants/form into the dashboard first, or extract the provider-neutral form config to a
+   small shared package/module in the same change. Prefer the smallest change that avoids a
+   cross-app import.
+6. **Submission behavior.** On successful `POST /v1/alfredpay/fiatAccounts`, invalidate the
+   relevant `['fiatAccounts', corridorId]` query and `['recipients']` query so the new self-recipient
+   appears immediately.
+7. **Delete/disable behavior.** Expose deletion only if product wants self-recipient removal in v1.
+   If deletion ships, call `DELETE /v1/alfredpay/fiatAccounts/:fiatAccountId` and invalidate the
+   same queries. If deletion does not ship, leave no dead UI affordance.
+8. **Errors.** Treat `404` from list as "no AlfredPay customer for this country" and show an
+   onboarding-required message, not the add-account form. Treat validation/provider errors from
+   create as form errors without storing entered bank details locally.
 
-| Import | Why it blocks a move |
-| :-- | :-- |
-| `../services/api`, `alfredpay.service`, `mykobo.service` | The **frontend's** provider services |
-| `../services/api/api-client` | Module-scoped, carries the frontend's auth |
-| `../services/signingService` | A `.tsx` module |
-| `../hooks/brla/useKYCForm`, `useKYBForm` | `KYCFormData`/`KYBFormData` are `z.infer` types, but written as **value** imports from React hook modules — a bundler drags `react-hook-form` + the zod schemas |
-| `./types` (`RampContext`), `sendParent` | Couples to the ramp machine |
+### API / backend notes
 
-The api-client point is the sharp one. `apps/dashboard/src/services/api/api-client.ts` (106 L) is
-already a trimmed copy of the frontend's (176 L) — same single-flight refresh, same `Bearer`
-header. The HTTP layer is **already forked**, so a machine that imports `AlfredpayService` at
-module scope silently binds to whichever app it was compiled against.
-
-`packages/shared` is also the wrong home even after decoupling: it carries `@polkadot/api` /
-`stellar-sdk` peer deps and is DTO/util-shaped. Adding XState machines and React form components
-there makes every consumer inherit that graph.
-
-### Proposal: decouple in place, then extract to `packages/kyc`
-
-1. **Decouple first, inside `apps/frontend`.** Pass the provider service as machine `input`
-   instead of importing it. Replace `mykoboKyc`'s two `sendParent` calls with an injected
-   `onPhaseChange` callback. Narrow `brlaKyc`'s input so it stops reading `RampContext`. Convert
-   the `KYCFormData`/`KYBFormData` imports to `import type`. **This is the whole job** — once the
-   machines take their dependencies as input, where the files live is mechanical.
-2. **Then extract to a new `packages/kyc`** — a sibling package with `xstate` and `react` as peer
-   deps, the shape `packages/sdk` already models. Not `packages/shared`.
-3. **Each app injects its own api-client.** That is the seam that lets one copy of the provider
-   logic serve two apps with two auth paths.
-
-**Staging.** Start with `alfredpayKyc`: zero ramp coupling, zero `sendParent`, and it covers four
-of six corridors (MX, CO, **AR**, US). It proves the package shape without touching the widget's
-live ramp machine at all. Then `brlaKyc` (two `RampContext` refs). Leave `mykoboKyc` last —
-severing `sendParent` *and* the `walletAddress` dependency is the real work, for a single corridor
-that is blocked on the EU question anyway (main plan §12.9).
-
-### Change set (sketch — refine when step 1 lands)
-
-1. **Injection seam, in `apps/frontend`.** Give each machine a provider-service dependency via
-   `input` rather than a module import; replace `mykoboKyc`'s `sendParent` with an injected
-   callback; narrow `brlaKyc`'s input off `RampContext`; make the brla form-data imports
-   `import type`. Widget behavior unchanged.
-2. **Extract to `packages/kyc`** (`xstate` + `react` as peers): `kyc.states.ts`, the three child
-   machines, `actors/brla/*`, and the `Avenia*` / `Alfredpay*` form components. Repoint
-   `apps/frontend` imports. **Pure move, no behavior change** — gated on the widget's existing KYC
-   tests (`brlaKyc.machine.test.ts`, `alfredpayKyc.machine.test.ts`, `mykoboKyc.machine.test.ts`,
-   `validateKyc.actor.test.ts`) passing unchanged.
-3. **Dashboard consumes it**, injecting `apps/dashboard/src/services/api/api-client.ts`. Replace
-   `HeadlessFlow`'s `WizardStepFields` with the real per-country form components; drop
-   `headlessOnboarding.machine.ts` in favour of the real machine. Keep `ExternalFlow` for the US
-   redirect and EU-company Google Form, which have no provider machine.
-4. Delete `useOnboardingOverrideStore` and its overlay in `useActiveAccount` — the corridor card
-   then reads real status from `/v1/onboarding/status` alone, and `rejected` becomes reachable.
-5. Reconcile `getOnboardingSteps` with the widget's real screen sets (per-country, not generic:
-   `ArKycFormScreen` / `MxnKycFormScreen` / `ColKycFormScreen`, not one shared `personalInfo`).
-6. Consider collapsing the two forked `api-client.ts` copies once both apps inject the same
-   interface — out of scope here, but this work is what makes it possible.
+- The dashboard service should grow `addFiatAccount(payload)` and, optionally,
+  `deleteFiatAccount(fiatAccountId, country)` alongside its existing `listFiatAccounts` wrapper.
+- The main plan mentions `GET /fiatAccountRequirements`, but `apps/api` does not currently expose
+  that route. Do not depend on it unless it is added in the same change. The widget already uses
+  local static field definitions, which are sufficient for the supported v1 methods above.
+- The backend stores no local fiat-account table for self recipients; AlfredPay is the source of
+  truth. The local recipient list remains derived at read time from `GET /v1/alfredpay/fiatAccounts`.
 
 ### Spec updates (same change set — Security Spec Sync)
 
-The dashboard becomes a second origin submitting KYC/KYB PII and documents to the provider
-endpoints. `docs/security-spec/05-integrations/{brla,alfredpay,mykobo}.md` must record that the
-dashboard is now a caller, and `01-auth/*` must cover which principal the submission is attributed
-to (dashboard session vs. widget session for the same `customer_entity`).
+- `docs/security-spec/05-integrations/alfredpay.md`: document that the dashboard can create/list
+  and optionally delete provider-side fiat accounts for the authenticated effective user, and that
+  bank-account PII is passed through to AlfredPay but not persisted locally.
+- `docs/security-spec/03-ramp-engine/recipient-transfers.md`: clarify that AlfredPay self transfers
+  use `additionalData.fiatAccountId` from a provider-side account owned by the sender; third-party
+  recipient payout references remain a separate unresolved product path.
+- `docs/plans/dashboard-full-product-connection.md`: update §7.1 if the product decision changes
+  from "TBD" to "dashboard owns self fiat-account setup only" so it does not imply invited-recipient
+  payout capture is solved.
 
 ### Verification
 
-- Widget KYC/KYB behavior is **unchanged**: its existing machine tests pass without edits after
-  the extract/decouple steps.
-- A dashboard sender completes BR KYC end-to-end and `GET /v1/onboarding/status` reports the real
-  provider status — with `useOnboardingOverrideStore` deleted, so nothing can fake it.
-- A provider rejection surfaces `rejected` on the corridor card (unreachable in the mock).
+- With an approved MX AlfredPay account and no fiat accounts, Recipients shows an "Add Mexico CLABE"
+  CTA instead of hiding Mexico entirely.
+- Submitting a valid MX CLABE calls `POST /v1/alfredpay/fiatAccounts`, refetches fiat accounts, and
+  renders a `self_MX_<fiatAccountId>` recipient.
+- Selecting that self-recipient on Transfer includes `additionalData.fiatAccountId` during ramp
+  registration.
+- Repeat the same happy path for CO, US, and AR with their method-specific fields.
+- Failed provider validation does not create a self-recipient and does not persist entered bank
+  details in local state after leaving the form.
 
 ### Risks / caveats
 
-- Step 1 edits the widget's live ramp machine (for `mykoboKyc`/`brlaKyc`). That is a real
-  regression surface on the shipping product to unblock a mocked dashboard flow — do it behind the
-  widget's existing tests, and land it separately from the dashboard work. `alfredpayKyc` avoids
-  this entirely, which is why it goes first.
-- `alfredpayKyc.machine.ts` is 935 lines and spans MX/CO/AR/US with per-country file-upload
-  requirements (AR additionally uploads a selfie). "No ramp coupling" means *easy to lift*, not
-  *small to review*.
-- EU is the corridor where the dashboard and widget disagree most: the dashboard routes company
-  KYB to a Google Form, and `mykoboKyc` wants a connected wallet. Resolve EU alongside main plan
-  §12.9, not in isolation.
-- The extraction moves React form components into a package. Confirm the i18n boundary before
-  step 2: the `Alfredpay*` / `Avenia*` screens call the frontend's translation hooks, so either
-  the package takes a translator as a prop or `packages/kyc` owns its own message catalog.
+- The form handles bank-account PII. Keep it client-side only until submit; do not add local DB
+  storage, logs, analytics payloads, or notification metadata containing raw account fields.
+- The widget form currently carries frontend UI/i18n dependencies. A direct cross-app import is a
+  maintenance trap; copy surgically or extract the tiny config/validation layer.
+- Multiple fiat accounts per corridor are valid and should stay visible, because each maps to a
+  different `fiatAccountId` payout target.
+- This solves **self-recipient** AlfredPay payouts. It does not solve invited-recipient payout setup
+  or the `recipient_payout_references` verification gate.
