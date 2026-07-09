@@ -1,35 +1,25 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createActor, fromPromise, waitFor } from "xstate";
-
-// The real module instantiates a Supabase client at import time, which fails in a node test environment.
-vi.mock("../services/auth", () => ({
-  AuthService: {
-    getTokens: vi.fn(),
-    refreshAccessToken: vi.fn(),
-    storeTokens: vi.fn()
-  }
-}));
-
+import { beforeEach, describe, expect, it } from "bun:test";
 import {
   AlfredPayStatus,
-  AlfredpayCreateCustomerResponse,
-  AlfredpayGetKycRedirectLinkResponse,
-  AlfredpayGetKycStatusResponse,
-  AlfredpayKybCustomerAndBusiness,
-  AlfredpayStatusResponse,
-  SubmitKybInformationResponse,
-  SubmitKycInformationResponse
+  type AlfredpayCreateCustomerResponse,
+  type AlfredpayGetKycRedirectLinkResponse,
+  type AlfredpayGetKycStatusResponse,
+  type AlfredpayKybCustomerAndBusiness,
+  type AlfredpayStatusResponse,
+  type SubmitKybInformationResponse,
+  type SubmitKycInformationResponse
 } from "@vortexfi/shared";
+import { createActor, fromPromise, waitFor } from "xstate";
+import type { AlfredpayKycApi } from "./api";
+import { createAlfredpayKycMachine } from "./machine";
 import {
-  AlfredpayKycFormData,
+  type AlfredpayKycContext,
+  type AlfredpayKycFormData,
   AlfredpayKycMachineErrorType,
-  alfredpayKycMachine,
-  KybBusinessFiles,
-  KybFormData,
-  MxnKycFiles
-} from "./alfredpayKyc.machine";
-import { AlfredpayKycContext } from "./kyc.states";
-import { initialRampContext } from "./ramp.context";
+  type KybBusinessFiles,
+  type KybFormData,
+  type MxnKycFiles
+} from "./types";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -41,9 +31,13 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-// XState actor logic is invariant in its output type, so fakes must declare the exact output of the real actor.
-type SubmitFilesInput = AlfredpayKycContext & { mxnFormData?: AlfredpayKycFormData; mxnFiles?: MxnKycFiles };
-type KybFilesInput = AlfredpayKycContext & { kybBusinessFiles?: KybBusinessFiles };
+// Every test replaces the actors it exercises, so the API is never reached — which is the point of
+// the injection seam: the machine can be driven with no HTTP client and no DOM in scope.
+let openedUrls: string[] = [];
+const alfredpayKycMachine = createAlfredpayKycMachine({
+  api: {} as AlfredpayKycApi,
+  openVerificationUrl: url => openedUrls.push(url)
+});
 
 const notifyActor = () => fromPromise<{ success: boolean }, AlfredpayKycContext>(async () => ({ success: true }));
 
@@ -51,10 +45,7 @@ const statusOf = (status: AlfredPayStatus) => ({ status }) as AlfredpayStatusRes
 const kycStatusOf = (status: AlfredPayStatus, lastFailure?: string) =>
   ({ lastFailure, status }) as AlfredpayGetKycStatusResponse;
 
-const baseInput: AlfredpayKycContext = {
-  ...initialRampContext,
-  country: "US"
-};
+const baseInput: AlfredpayKycContext = { country: "US" };
 
 const kycLink: AlfredpayGetKycRedirectLinkResponse = {
   submissionId: "link-sub-1",
@@ -79,8 +70,8 @@ function createTestActor(
   return createActor(alfredpayKycMachine.provide({ actors }), { input });
 }
 
-afterEach(() => {
-  vi.unstubAllGlobals();
+beforeEach(() => {
+  openedUrls = [];
 });
 
 describe("alfredpayKycMachine", () => {
@@ -203,9 +194,6 @@ describe("alfredpayKycMachine", () => {
 
   describe("iFrame link flow (US)", () => {
     it("gets a link, opens it, and reports a failed verification with the lastFailure message", async () => {
-      const openSpy = vi.fn();
-      vi.stubGlobal("window", { open: openSpy });
-
       const poll = deferred<AlfredpayGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
@@ -222,7 +210,7 @@ describe("alfredpayKycMachine", () => {
       expect(actor.getSnapshot().context.verificationUrl).toBe("https://verify.alfred.example");
 
       actor.send({ type: "OPEN_LINK" });
-      expect(openSpy).toHaveBeenCalledWith("https://verify.alfred.example", "_blank");
+      expect(openedUrls).toEqual(["https://verify.alfred.example"]);
 
       await waitFor(actor, s => s.matches("FillingKyc"));
 
@@ -236,7 +224,6 @@ describe("alfredpayKycMachine", () => {
     });
 
     it("background validation completing moves FillingKyc to PollingStatus without user action", async () => {
-      vi.stubGlobal("window", { open: vi.fn() });
       const validation = deferred<AlfredpayGetKycStatusResponse>();
       const actor = createTestActor({
         checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
@@ -253,6 +240,24 @@ describe("alfredpayKycMachine", () => {
 
       validation.resolve(kycStatusOf(AlfredPayStatus.Verifying));
       await waitFor(actor, s => s.matches("PollingStatus"));
+    });
+
+    it("re-opens the verification link from FillingKyc without leaving the state", async () => {
+      const actor = createTestActor({
+        checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
+        getKycLink: fromPromise(async () => kycLink),
+        notifyOpened: notifyActor(),
+        waitForValidation: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {}))
+      });
+      actor.start();
+
+      await waitFor(actor, s => s.matches("LinkReady"));
+      actor.send({ type: "OPEN_LINK" });
+      await waitFor(actor, s => s.matches("FillingKyc"));
+
+      actor.send({ type: "OPEN_LINK" });
+      expect(actor.getSnapshot().value).toBe("FillingKyc");
+      expect(openedUrls).toEqual(["https://verify.alfred.example", "https://verify.alfred.example"]);
     });
 
     it("moves to Failure when fetching the KYC link fails", async () => {
@@ -279,7 +284,7 @@ describe("alfredpayKycMachine", () => {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
           pollStatus: fromPromise(() => poll.promise),
           sendSubmission: fromPromise<void, AlfredpayKycContext>(async () => undefined),
-          submitFiles: fromPromise<void, SubmitFilesInput>(async () => undefined),
+          submitFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKycInfo: fromPromise(async () => ({ submissionId: "kyc-sub-9" }) as SubmitKycInformationResponse)
         },
         mxInput
@@ -323,7 +328,7 @@ describe("alfredpayKycMachine", () => {
       const actor = createTestActor(
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
-          submitFiles: fromPromise<void, SubmitFilesInput>(async () => {
+          submitFiles: fromPromise<void, AlfredpayKycContext>(async () => {
             throw new Error("upload failed");
           }),
           submitKycInfo: fromPromise(async () => ({ submissionId: "kyc-sub-9" }) as SubmitKycInformationResponse)
@@ -354,9 +359,9 @@ describe("alfredpayKycMachine", () => {
           ),
           pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
           sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
-          submitKybBusinessFiles: fromPromise<void, KybFilesInput>(async () => undefined),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse),
-          submitKybRelatedPersonBundleFiles: fromPromise<void, KybFilesInput>(async () => undefined)
+          submitKybRelatedPersonBundleFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined)
         },
         kybInput
       );
@@ -398,7 +403,7 @@ describe("alfredpayKycMachine", () => {
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
           findKybCustomerAndBusiness: fromPromise(async () => [] as AlfredpayKybCustomerAndBusiness[]),
-          submitKybBusinessFiles: fromPromise<void, KybFilesInput>(async () => undefined),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
           submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-1" }) as SubmitKybInformationResponse)
         },
         kybInput
@@ -415,9 +420,8 @@ describe("alfredpayKycMachine", () => {
     });
 
     // NOTE: documents current behavior — for country AR with business=true, CheckingStatus routes to the
-    // *individual* KYC form (FillingKycForm) because its business guard only covers MX/CO
-    // (alfredpayKyc.machine.ts:388), while CreatingCustomer and Retrying include AR in their business
-    // guards (alfredpayKyc.machine.ts:434, :674). This inconsistency looks unintended.
+    // *individual* KYC form (FillingKycForm) because its business guard only covers MX/CO, while
+    // CreatingCustomer and Retrying include AR in their business guards. This inconsistency looks unintended.
     it("AR business customers are routed to the individual KYC form from CheckingStatus", async () => {
       const actor = createTestActor(
         {

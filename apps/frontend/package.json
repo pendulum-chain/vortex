@@ -35,6 +35,7 @@
     "@tanstack/zod-adapter": "^1.144.0",
     "@types/crypto-js": "^4.2.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vortexfi/kyc": "workspace:*",
     "@vortexfi/shared": "workspace:*",
     "@wagmi/core": "catalog:",
     "@walletconnect/modal": "^2.7.0",

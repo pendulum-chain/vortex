@@ -3,6 +3,7 @@
     "@hookform/resolvers": "^3.9.1",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
+    "@vortexfi/kyc": "workspace:*",
     "@vortexfi/shared": "workspace:*",
     "@xstate/react": "^6.0.0",
     "class-variance-authority": "^0.7.1",

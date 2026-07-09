@@ -50,14 +50,16 @@ async function apiFetch<T>(
     }
   }
 
-  const body = options.data !== undefined ? JSON.stringify(options.data) : undefined;
+  // Document uploads post FormData; the browser must set its own multipart boundary.
+  const isFormData = options.data instanceof FormData;
+  const body = isFormData ? (options.data as FormData) : options.data !== undefined ? JSON.stringify(options.data) : undefined;
 
   const doFetch = (accessToken: string | undefined) =>
     fetch(url.toString(), {
       body,
       headers: {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        "Content-Type": "application/json",
+        ...(!isFormData ? { "Content-Type": "application/json" } : {}),
         ...options.headers
       },
       method,

@@ -1,8 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { KybFormData } from "@vortexfi/kyc";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { z } from "zod";
-import type { KybFormData } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
 
 const schema = z.object({

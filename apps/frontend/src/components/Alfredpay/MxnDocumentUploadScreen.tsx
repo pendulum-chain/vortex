@@ -1,10 +1,11 @@
+import {
+  KYC_FILE_ACCEPTED_TYPES as ACCEPTED_TYPES,
+  KYC_FILE_MAX_BYTES as MAX_FILE_SIZE,
+  type MxnKycFiles
+} from "@vortexfi/kyc";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { MxnKycFiles } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 interface MxnDocumentUploadScreenProps {
   error?: string;

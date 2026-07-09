@@ -1,6 +1,6 @@
+import type { KybPersonFiles } from "@vortexfi/kyc";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { KybPersonFiles } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;

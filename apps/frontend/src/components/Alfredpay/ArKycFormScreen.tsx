@@ -1,35 +1,9 @@
+import { type AlfredpayKycFormData, AR_KYC_DEFAULTS, type ArKycFormValues, arKycSchema, toArPhoneNumber } from "@vortexfi/kyc";
 import { AlfredpayArgentinaDocumentType } from "@vortexfi/shared";
 import type { UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
-import type { AlfredpayKycFormData } from "../../machines/alfredpayKyc.machine";
 import { type KycFormConfig, KycFormScreen, kycInputClass } from "./KycFormScreen";
 
-const schema = z
-  .object({
-    address: z.string().min(1),
-    city: z.string().min(1),
-    countryCode: z.literal("AR"),
-    cuit: z.string().optional(),
-    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-    dni: z.string().min(1),
-    email: z.string().email(),
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-    nationalities: z.array(z.string().regex(/^[A-Z]{2}$/)).optional(),
-    pep: z.boolean(),
-    phoneNumber: z.string().regex(/^\+54\d{7,}$/, "Use Argentina format (+54...)"),
-    state: z.string().min(1),
-    typeDocumentAr: z.nativeEnum(AlfredpayArgentinaDocumentType),
-    zipCode: z.string().min(1)
-  })
-  .superRefine((data, ctx) => {
-    if (data.cuit && !/^\d{11}$/.test(data.cuit)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CUIT must be exactly 11 digits", path: ["cuit"] });
-    }
-  });
-
-type ArKycFormValues = z.infer<typeof schema>;
 type ArForm = UseFormReturn<ArKycFormValues>;
 
 function DocumentTypeField({ form }: { form: ArForm }) {
@@ -80,26 +54,14 @@ function PhoneNumberField({ form }: { form: ArForm }) {
         pattern="[0-9]*"
         placeholder="5491112345678"
         type="tel"
-        {...form.register("phoneNumber", {
-          setValueAs: (value: string) => {
-            if (!value) return value;
-            const digits = value.replace(/\D/g, "");
-            return digits.startsWith("54") ? `+${digits}` : `+54${digits}`;
-          }
-        })}
+        {...form.register("phoneNumber", { setValueAs: toArPhoneNumber })}
       />
     </div>
   );
 }
 
 const config: KycFormConfig<ArKycFormValues> = {
-  defaultValues: {
-    countryCode: "AR",
-    cuit: "",
-    nationalities: ["AR"],
-    pep: false,
-    typeDocumentAr: AlfredpayArgentinaDocumentType.DNI
-  },
+  defaultValues: AR_KYC_DEFAULTS,
   fields: [
     {
       fields: [
@@ -172,7 +134,7 @@ const config: KycFormConfig<ArKycFormValues> = {
   ],
   i18nNamespace: "components.arKycForm",
   idPrefix: "ar",
-  schema
+  schema: arKycSchema
 };
 
 interface ArKycFormScreenProps {

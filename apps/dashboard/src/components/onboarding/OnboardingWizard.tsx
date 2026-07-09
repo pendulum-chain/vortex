@@ -1,9 +1,13 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
 import type { Corridor, OnboardingStatus, SenderAccount } from "@/domain/types";
+import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { notifyOnboardingStatus } from "@/lib/notify";
 import { getOnboardingSteps } from "@/machines/onboardingSteps";
 import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
+import { AlfredpayKycFlow } from "./alfredpay/AlfredpayKycFlow";
 import { ExternalFlow } from "./ExternalFlow";
 import { HeadlessFlow } from "./HeadlessFlow";
 
@@ -13,15 +17,33 @@ interface OnboardingWizardProps {
   onClose: () => void;
 }
 
+/**
+ * Sender onboarding. Individual KYC on the Alfredpay corridors (MX/CO/AR) runs the real provider
+ * machine and submits real data; everything else — Alfredpay company KYB included — is still the
+ * mocked wizard, which submits nothing and fakes its status via `useOnboardingOverrideStore`.
+ * So this dialog is real or mocked depending on `account.type`, until the KYB screens land.
+ */
 export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizardProps) {
   const setOverride = useOnboardingOverrideStore(state => state.set);
+  const queryClient = useQueryClient();
   const kind = onboardingKindFor(corridor, account.type);
   const route = routeFor(corridor.id, kind);
+  const isRealAlfredpayKyc = corridor.provider === "alfredpay" && kind === "kyc" && route === "headless";
 
+  /** Mocked flows have no backend to read from, so they fake the corridor's status locally. */
   const onStatusChange = (status: OnboardingStatus) => {
     setOverride(corridor.id, status);
     notifyOnboardingStatus(corridor.name, kind, status);
   };
+
+  /** The real flow already moved the provider's status — refetch it rather than override it. */
+  const onSettled = useCallback(
+    (status: OnboardingStatus) => {
+      notifyOnboardingStatus(corridor.name, kind, status);
+      queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_QUERY_KEY });
+    },
+    [corridor.name, kind, queryClient]
+  );
 
   return (
     <Dialog onOpenChange={isOpen => !isOpen && onClose()} open>
@@ -36,7 +58,9 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
           </DialogDescription>
         </DialogHeader>
 
-        {route === "headless" ? (
+        {isRealAlfredpayKyc ? (
+          <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
+        ) : route === "headless" ? (
           <HeadlessFlow
             corridor={corridor}
             kind={kind}

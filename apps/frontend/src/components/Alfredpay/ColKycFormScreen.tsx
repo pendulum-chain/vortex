@@ -1,31 +1,10 @@
+import { type AlfredpayKycFormData, type ColKycFormValues, colKycSchema, toColPhoneNumber } from "@vortexfi/kyc";
 import { AlfredpayColombiaDocumentType } from "@vortexfi/shared";
 import { Controller, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
-import type { AlfredpayKycFormData } from "../../machines/alfredpayKyc.machine";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { type KycFormConfig, KycFormScreen, kycInputClass } from "./KycFormScreen";
 
-const schema = z
-  .object({
-    address: z.string().min(1),
-    city: z.string().min(1),
-    dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-    dni: z.string().min(6).max(10).regex(/^\d+$/, "Must be numeric"),
-    firstName: z.string().min(1),
-    lastName: z.string().min(1),
-    phoneNumber: z.string().regex(/^\+\d{1,3}\d{9,10}$/, "Use international format, e.g. +573000000000"),
-    state: z.string().min(1),
-    typeDocumentCol: z.nativeEnum(AlfredpayColombiaDocumentType),
-    zipCode: z.string().min(1)
-  })
-  .superRefine((data, ctx) => {
-    if (data.typeDocumentCol === AlfredpayColombiaDocumentType.CC && data.dni.length !== 10) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "CC must be exactly 10 digits", path: ["dni"] });
-    }
-  });
-
-type ColKycFormValues = z.infer<typeof schema>;
 type ColForm = UseFormReturn<ColKycFormValues>;
 
 function DocumentTypeField({ form }: { form: ColForm }) {
@@ -82,9 +61,7 @@ function PhoneNumberField({ form }: { form: ColForm }) {
         inputMode="tel"
         placeholder="573000000000"
         type="tel"
-        {...form.register("phoneNumber", {
-          setValueAs: (v: string) => (v ? `+${v.replace(/^\+/, "").replace(/\D/g, "")}` : v)
-        })}
+        {...form.register("phoneNumber", { setValueAs: toColPhoneNumber })}
       />
     </div>
   );
@@ -147,7 +124,7 @@ const config: KycFormConfig<ColKycFormValues> = {
   ],
   i18nNamespace: "components.colKycForm",
   idPrefix: "col",
-  schema
+  schema: colKycSchema
 };
 
 interface ColKycFormScreenProps {

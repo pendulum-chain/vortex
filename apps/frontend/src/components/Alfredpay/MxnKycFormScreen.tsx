@@ -1,20 +1,5 @@
-import { z } from "zod";
-import type { AlfredpayKycFormData } from "../../machines/alfredpayKyc.machine";
+import { type AlfredpayKycFormData, type MxnKycFormValues, mxnKycSchema } from "@vortexfi/kyc";
 import { type KycFormConfig, KycFormScreen } from "./KycFormScreen";
-
-const schema = z.object({
-  address: z.string().min(1),
-  city: z.string().min(1),
-  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-  dni: z.string().min(1),
-  email: z.string().email(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  state: z.string().min(1),
-  zipCode: z.string().min(1)
-});
-
-type MxnKycFormValues = z.infer<typeof schema>;
 
 const config: KycFormConfig<MxnKycFormValues> = {
   fields: [
@@ -64,7 +49,7 @@ const config: KycFormConfig<MxnKycFormValues> = {
   ],
   i18nNamespace: "components.mxnKycForm",
   idPrefix: "mxn",
-  schema
+  schema: mxnKycSchema
 };
 
 interface MxnKycFormScreenProps {
