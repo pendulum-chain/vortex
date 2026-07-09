@@ -13,6 +13,7 @@ export {
   toArPhoneNumber,
   toColPhoneNumber
 } from "./alfredpay/schemas";
+export { type AlfredpayKycApiClient, createAlfredpayKycApi } from "./alfredpay/service";
 export {
   type AlfredpayKycContext,
   type AlfredpayKycFormData,
