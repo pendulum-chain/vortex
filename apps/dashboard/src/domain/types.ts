@@ -14,6 +14,9 @@ export type CorridorId = "BR" | "EU" | "MX" | "CO" | "US" | "AR";
 
 export type OnboardingKind = "kyb" | "kyc";
 
+/** How a corridor's onboarding is collected: in-dashboard wizard, external form, or partner redirect. */
+export type OnboardingRoute = "headless" | "google_form" | "redirect";
+
 export type AccountType = "company" | "individual";
 
 export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected";

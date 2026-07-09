@@ -4,6 +4,7 @@ import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccou
 import type { OnboardingState, OnboardingStatusResponse } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
+import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 import { useOnboardingStatusQuery } from "./useApprovedCorridors";
 
 const LIVE_CORRIDORS: CorridorId[] = CORRIDOR_LIST.filter(corridor => corridor.availability === "live").map(
@@ -57,23 +58,32 @@ function deriveOnboardings(
  * The authenticated sender account, derived from the Supabase session (identity) and
  * GET /v1/onboarding/status (type + per-corridor status). No seed data — undefined until
  * the user is authenticated.
+ *
+ * Statuses the mocked onboarding wizard advanced this session take precedence, since the
+ * wizard submits nothing and the aggregator cannot see them.
  */
 export function useActiveAccount(): SenderAccount | undefined {
   const user = useAuthStore(state => state.user);
   const { data } = useOnboardingStatusQuery(!!user);
+  const overrides = useOnboardingOverrideStore(state => state.statuses);
 
   return useMemo(() => {
     if (!user) {
       return undefined;
     }
     const type = deriveType(data);
+    const kind = type === "company" ? "kyb" : "kyc";
+    const onboardings = deriveOnboardings(data, type);
+    for (const [corridorId, status] of Object.entries(overrides) as [CorridorId, OnboardingStatus][]) {
+      onboardings[corridorId] = { corridorId, kind, status, updatedAt: new Date().toISOString() };
+    }
     return {
       id: user.userId,
       identifier: user.email,
       name: user.name,
-      onboardings: deriveOnboardings(data, type),
+      onboardings,
       selectedCorridors: LIVE_CORRIDORS,
       type
     };
-  }, [user, data]);
+  }, [user, data, overrides]);
 }

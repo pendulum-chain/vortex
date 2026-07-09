@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { CorridorCard } from "@/components/onboarding/CorridorCard";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { CORRIDORS } from "@/domain/corridors";
+import type { CorridorId } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
-import { onboardingUrl } from "@/lib/widget";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage
@@ -12,6 +14,7 @@ export const Route = createFileRoute("/_app/overview")({
 
 function OverviewPage() {
   const account = useActiveAccount();
+  const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
 
   if (!account) {
     return null;
@@ -39,16 +42,19 @@ function OverviewPage() {
             whileHover={{ y: -4 }}
             whileTap={{ scale: 0.99 }}
           >
-            <CorridorCard
-              account={account}
-              corridor={corridor}
-              onStart={() => {
-                window.location.href = onboardingUrl(corridor.id);
-              }}
-            />
+            <CorridorCard account={account} corridor={corridor} onStart={() => setActiveCorridor(corridor.id)} />
           </StaggerItem>
         ))}
       </Stagger>
+
+      {activeCorridor && (
+        <OnboardingWizard
+          account={account}
+          corridor={CORRIDORS[activeCorridor]}
+          key={`${account.id}-${activeCorridor}`}
+          onClose={() => setActiveCorridor(null)}
+        />
+      )}
     </Stagger>
   );
 }

@@ -80,7 +80,12 @@ a second column to reason about in the security spec.
 
 ## 2. Skip the second login on the dashboard → widget onboarding hand-off
 
-**Status:** analysis done; strategy not chosen, nothing implemented.
+**Status:** analysis done; strategy not chosen, nothing implemented. **Scope narrowed (2026-07):**
+sender onboarding moved back into the dashboard (main plan §6.1), so the sender no longer hits
+this hand-off. What remains is the **recipient** hand-off (§6.2) — a recipient arrives from an
+invite link with no dashboard session at all, so "skip the second login" only applies if they
+already have one. Re-evaluate whether this item is still worth the auth-surface change before
+picking a strategy; the analysis below is preserved because it is still correct about origins.
 
 > Note: the adjacent redirect bug is **already fixed**. `onboardingUrl()`
 > (`apps/dashboard/src/lib/widget.ts`) previously emitted `${WIDGET_URL}/?kybLocked=<region>`,
@@ -206,3 +211,109 @@ with **(B)** for dev / future subdomains.
   re-select the strategy, or SSO regresses to a second login.
 - **(C)** touches the whole auth model and every authenticated route — not a "skip login" tweak;
   scope it as its own project with CSRF handling if pursued.
+
+---
+
+## 3. Unmock sender onboarding — reuse or port the widget's KYC state machines
+
+**Status:** decided in principle (reuse over re-implement); reuse-vs-port not chosen; nothing
+implemented. **This is the highest-priority dashboard follow-up** — see main plan §12.8.
+
+### Finding
+
+Sender onboarding now lives in the dashboard (main plan §6.1), but every screen is a mock. The
+wizard renders the right steps and fields, and **submits nothing**:
+
+- `WizardStepFields.tsx` — uncontrolled `Input`s, no form state, no schema, no validation. Its
+  own header comment says "Visual-only mock fields… Nothing is submitted."
+- `DocumentDropzone.tsx` — renders a dropzone; no file is read or uploaded ("demo — no file is
+  sent").
+- `headlessOnboarding.machine.ts` / `externalOnboarding.machine.ts` — the
+  `verifying → in_review → approved` tail is `setTimeout` (`VERIFY_DELAY` 1600ms, `REVIEW_DELAY`
+  2800ms). No provider is ever called. `rejected` is **unreachable** from either machine.
+- `useOnboardingOverrideStore` (`stores/onboardingOverride.store.ts`) — a session-only overlay
+  so the corridor card advances despite `GET /v1/onboarding/status` never seeing the submission.
+  **Delete this store as part of this work**; it exists only to make the mock coherent.
+
+The widget already has the real thing, wired to the real provider endpoints. Re-implementing it
+in the dashboard would fork provider logic across two apps — the fragmentation the main plan
+rejects in §7.1(B).
+
+### What exists in the widget
+
+Orchestrator `apps/frontend/src/machines/kyc.states.ts` (259 L) picks a child machine by
+`FiatToken` and spawns it. The three children differ sharply in how portable they are:
+
+| Machine | Lines | Corridors | `sendParent` | Ramp coupling | Portability |
+| :-- | --: | :-- | --: | --: | :-- |
+| `alfredpayKyc.machine.ts` | 935 | MX, CO, AR, US | 0 | none | **Directly reusable** — imports only `@vortexfi/shared` types, `AlfredpayService`, `kyc.states` |
+| `brlaKyc.machine.ts` | 399 | BR | 0 | 2 refs (`RampContext`) | Light — decouple `RampContext` from its input |
+| `mykoboKyc.machine.ts` | 228 | EU | 2 | 2 refs (`RampSigningPhase`) | **Hardest** — `sendParent`s into the ramp machine and requires a `walletAddress` |
+
+Form components alongside them: `components/Avenia/*` (KYC/KYB + liveness) and
+`components/Alfredpay/*` (per-country `ArKycFormScreen`, `MxnKycFormScreen`, `ColKycFormScreen`,
+plus `KybFormScreen`, `KybBusinessDocsScreen`, `KybPersonDocsScreen`, `FailureKycScreen`).
+
+Note the shape mismatch to close: the dashboard mock has **one** generic `personalInfo` step with
+a "Tax ID" field for every corridor, while the widget has **distinct per-country screens**. The
+mock's step list is a simplification, not a spec — the widget's screens win.
+
+### The two options
+
+- **(A) — Reuse via a shared package.** Lift `kyc.states.ts` + the three child machines + their
+  form components into `packages/` (or a new `packages/kyc`), consumed by both apps. Single
+  source of provider logic; fixes land once. **Cost:** `mykoboKyc` `sendParent`s to the ramp
+  machine and `brlaKyc` reads `RampContext`, so the ramp coupling must be severed first —
+  replace `sendParent` with an injected callback and pass a narrow input type instead of
+  `RampContext`. `mykoboKyc` also needs `walletAddress`, which a dashboard sender may not have
+  connected; decide whether EU KYC requires a wallet or whether that dependency can be deferred.
+- **(B) — Port into the dashboard.** Copy the machines and adapt. Faster to a working EU/BR
+  screen, no refactor of the widget's ramp machine. **Cost:** two copies of provider logic that
+  will drift; a provider API change must then be fixed twice. Explicitly the outcome §7.1(B)
+  calls "the fragmentation we're otherwise avoiding."
+
+**Leaning (A)**, staged: start with `alfredpayKyc` (zero coupling, four corridors — MX/CO/AR/US),
+which proves the shared-package shape without touching the ramp machine at all. Then `brlaKyc`
+(light). Leave `mykoboKyc` last, since severing `sendParent` and the wallet dependency is the
+real work and EU is one corridor.
+
+### Change set (sketch — refine once (A)/(B) is chosen)
+
+1. Sever ramp coupling in `brlaKyc.machine.ts` (narrow input type, drop `RampContext`) and
+   `mykoboKyc.machine.ts` (`sendParent` → injected callback). Verify the widget still onboards.
+2. Extract the machines + `kyc.states.ts` + form components to the shared location; repoint
+   `apps/frontend` imports. **No behavior change** — this step is a pure move, gated on the
+   widget's existing KYC tests (`brlaKyc.machine.test.ts`, `alfredpayKyc.machine.test.ts`,
+   `mykoboKyc.machine.test.ts`, `validateKyc.actor.test.ts`) passing unchanged.
+3. Replace `HeadlessFlow`'s `WizardStepFields` with the real per-country form components; drop
+   `headlessOnboarding.machine.ts` in favour of the real machine. Keep `ExternalFlow` for the
+   US redirect and EU-company Google Form, which have no provider machine.
+4. Delete `useOnboardingOverrideStore` and its overlay in `useActiveAccount` — the corridor card
+   then reads real status from `/v1/onboarding/status` alone, and `rejected` becomes reachable.
+5. Reconcile `getOnboardingSteps` with the widget's real screen sets (per-country, not generic).
+
+### Spec updates (same change set — Security Spec Sync)
+
+The dashboard becomes a second origin submitting KYC/KYB PII and documents to the provider
+endpoints. `docs/security-spec/05-integrations/{brla,alfredpay,mykobo}.md` must record that the
+dashboard is now a caller, and `01-auth/*` must cover which principal the submission is attributed
+to (dashboard session vs. widget session for the same `customer_entity`).
+
+### Verification
+
+- Widget KYC/KYB behavior is **unchanged**: its existing machine tests pass without edits after
+  the extract/decouple steps.
+- A dashboard sender completes BR KYC end-to-end and `GET /v1/onboarding/status` reports the real
+  provider status — with `useOnboardingOverrideStore` deleted, so nothing can fake it.
+- A provider rejection surfaces `rejected` on the corridor card (unreachable in the mock).
+
+### Risks / caveats
+
+- Step 1 edits the widget's live ramp machine. That is a real regression surface on the shipping
+  product to unblock a mocked dashboard flow — do it behind the widget's existing tests, and land
+  it separately from the dashboard work.
+- `alfredpayKyc.machine.ts` is 935 lines and spans MX/CO/AR/US with per-country file-upload
+  requirements. "Directly reusable" means *no ramp coupling*, not *small*.
+- EU is the corridor where the dashboard and widget disagree most: the dashboard routes company
+  KYB to a Google Form, and `mykoboKyc` wants a connected wallet. Resolve EU alongside main plan
+  §12.9, not in isolation.

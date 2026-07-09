@@ -1,4 +1,4 @@
-import type { AccountType, Corridor, CorridorId, OnboardingKind } from "./types";
+import type { AccountType, Corridor, CorridorId, OnboardingKind, OnboardingRoute } from "./types";
 
 export const CORRIDORS: Record<CorridorId, Corridor> = {
   AR: {
@@ -74,4 +74,18 @@ export const PROVIDER_LABEL: Record<Corridor["provider"], string> = {
 /** Companies run KYB, individuals run KYC — in every supported corridor. */
 export function onboardingKindFor(_corridor: Corridor, accountType: AccountType): OnboardingKind {
   return accountType === "company" ? "kyb" : "kyc";
+}
+
+/**
+ * Routing method per the supported-onboarding matrix (§2): USA always redirects to a
+ * partner, EU company KYB uses an external Google Form, everything else is headless.
+ */
+export function routeFor(corridorId: CorridorId, kind: OnboardingKind): OnboardingRoute {
+  if (corridorId === "US") {
+    return "redirect";
+  }
+  if (corridorId === "EU" && kind === "kyb") {
+    return "google_form";
+  }
+  return "headless";
 }

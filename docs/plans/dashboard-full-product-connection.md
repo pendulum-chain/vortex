@@ -18,7 +18,7 @@ dashboard wiring, and the product decisions layered on top.
 3. Compatibility — why the frontend & SDK survive
 4. The full target schema (both docs)
 5. Phased migration plan (Phase 0 connects the core; Phase 1 recipient product; 2–6 identity cleanup)
-6. Onboarding = hand off to the frontend widget (`kybLocked`)
+6. Onboarding — sender in the dashboard, recipient via the widget
 7. Recipient routes + transfer eligibility
 8. Notifications & email (beyond the docs)
 9. `packages/shared` + `apps/dashboard` workstreams
@@ -63,7 +63,8 @@ These refine or resolve open questions in the two docs.
 | # | Topic | Decision |
 | :-- | :-- | :-- |
 | D1 | **Invite model** | **Link-based, not email.** `token_hash` is the primary redemption key; `invitee_email` is optional metadata; acceptance is **token-bound** (match email only if one was recorded). Refines `recipient-transfers-schema.md` (which was email-first) to match the shipped dashboard (`apps/dashboard/src/domain/recipient.ts`). |
-| D2 | **Recipient onboarding** | A recipient is a full `customer_entity` and onboards through the **frontend widget** via `?kybLocked=<region>` — same KYC/KYB as senders, no dashboard KYC UI. Resolves recipient-doc open-Q "onboarding reusable across senders" → **yes** (recipient owns their own entity/onboarding). |
+| D2 | **Recipient onboarding** | A recipient is a full `customer_entity` and onboards through the **frontend widget** via `?kybLocked=<region>` — link-out, **for now** (§6.2). Resolves recipient-doc open-Q "onboarding reusable across senders" → **yes** (recipient owns their own entity/onboarding). |
+| D2b | **Sender onboarding** | **Revised 2026-07: in the dashboard**, not the widget (§6.1). The original plan link-ed senders out to `?kybLocked=`; that bounced an authenticated sender to another origin with no return path. The dashboard owns the sender KYC/KYB wizard; it is **mocked today** and will be unmocked by reusing/porting the widget's KYC machines. No new onboarding backend either way. |
 | D3 | **Payout instrument** | `recipient_payout_references` is a **thin pointer** — `provider_instrument_id` + masked label to a provider-side instrument (AlfredPay `fiatAccounts`, BRLA PIX key). No reusable payout PII stored. Resolves recipient-doc open-Q "multiple refs per corridor" → single verified reference per corridor for v1. |
 | D4 | **Multi-account** | **Not in v1.** One `customer_entity` per profile (individual *or* business). Switching accounts = logout/login. Resolves unified-doc open-Q "multiple customer_entities per profile" → **no, for v1** (schema stays capable via a non-unique `profile_id`). |
 | D5 | **Per-corridor status** | A single read surface (`GET /v1/onboarding/status`) that returns `[{country, rail, status}]`. Pre-Phase-3 it fans out over the existing provider tables; post-Phase-3 it's a clean query over `provider_customers` + `kyc_cases`. |
@@ -330,13 +331,16 @@ The fastest path to a live dashboard: the endpoints it needs already exist. **Ze
 - **CORS** — add `:5174` (dev) to `config/express.ts` (prod is same-origin under `/dashboard/`).
 - **`apps/dashboard` D** — real `api-client` (mirror `apiFetch`); real Supabase OTP auth →
   `/v1/auth/*`; `.env.example`; swap the quote/ramp/history mocks for the existing
-  `/v1/quotes`, `/v1/ramp/*` endpoints; onboarding → widget redirect (§6).
+  `/v1/quotes`, `/v1/ramp/*` endpoints; onboarding *status* → `/v1/onboarding/status` (D5).
+  The sender onboarding **wizard stays in the dashboard and stays mocked** (§6.1) — unmocking
+  it is follow-up work, not Phase 0.
 
-**Result:** login, quote, ramp, status, history, and onboarding all run against the real backend.
-No recipient/transfer features yet — but the dashboard is genuinely connected.
+**Result:** login, quote, ramp, status, history all run against the real backend; per-corridor
+onboarding status is read from the aggregator. No recipient/transfer features yet — but the
+dashboard is genuinely connected.
 
 **Verify:** `bun --cwd apps/dashboard typecheck` / `build`; manual walkthrough — login → quote →
-ramp → status → history; a widget onboarding round-trip.
+ramp → status → history; corridor cards reflect real `/v1/onboarding/status` on load.
 
 ### Phase 1 — Recipient product (additive migrations) — **landed (2026-07)**
 Adds the net-new invite/transfer surface. All additive; nothing existing is altered.
@@ -424,18 +428,66 @@ onboarding → verified payout → transfer allowed.
 
 ---
 
-## 6. Onboarding = hand off to the frontend widget (`kybLocked`)
+## 6. Onboarding — sender in the dashboard, recipient via the widget
 
-Verified real: `apps/frontend/src/types/searchParams.ts:26`, `?kybLocked=BR` pins the KYB region
+**Revised 2026-07.** An earlier revision of this plan routed *both* sender and recipient
+onboarding to the widget via `?kybLocked=`, and Phase 0 deleted the dashboard's mocked wizards on
+that basis. That decision is **reversed for senders**: a sender who logged into the dashboard
+should not be bounced to a different origin, lose their session context, and have no way back —
+the widget's redirect carries no `returnUrl`. Sender onboarding is a first-class dashboard
+surface. Recipient onboarding stays on the widget **for now** (§6.2).
+
+### 6.1 Sender onboarding = in the dashboard
+
+The sender completes KYC/KYB inside `apps/dashboard`, on the Onboarding (overview) page. The
+wizard is `OnboardingWizard` → `HeadlessFlow` | `ExternalFlow`, routed per corridor by
+`routeFor(corridorId, kind)` in `apps/dashboard/src/domain/corridors.ts`:
+
+| Route | Corridors | Surface |
+| :-- | :-- | :-- |
+| `headless` | BR, EU (individual), MX, CO, AR | In-dashboard stepped form (`HeadlessFlow`) |
+| `google_form` | EU **company** KYB | External Google Form, then confirm in-dashboard |
+| `redirect` | US (both kinds) | Partner redirect, then confirm in-dashboard |
+
+Headless steps come from `getOnboardingSteps(corridorId, kind)`: company KYB collects company
+details → authorized representative → documents; individual KYC collects personal details →
+documents, with Brazil (Avenia) additionally running a liveness selfie step.
+
+**Status today: the wizard is a mock.** `WizardStepFields` renders uncontrolled inputs, the
+dropzones send no file, and nothing is submitted — the `verifying → in_review → approved` tail is
+simulated latency in `headlessOnboarding.machine.ts` / `externalOnboarding.machine.ts`. Because
+the wizard submits nothing, `GET /v1/onboarding/status` (D5) cannot see it, so a session-only
+`useOnboardingOverrideStore` overlays wizard-advanced statuses on top of the aggregator's real
+ones (`useActiveAccount`). A reload drops back to real provider status. **This overlay is
+scaffolding and must be deleted when the wizard drives real KYC** — tracked in the follow-up
+plan (`dashboard-followup-plan.md`, "Unmock sender onboarding").
+
+**Unmocking it** means reusing or porting the widget's KYC/KYB state machines and provider calls
+(`apps/frontend/src/machines/{brlaKyc,alfredpayKyc,mykoboKyc}.machine.ts`, `kyc.states.ts`, and
+the `Avenia*` / `Alfredpay*` form components) rather than re-implementing them. The provider
+endpoints already exist; **no new onboarding backend is required** — that part of the original
+§6 still holds. See the follow-up plan for the reuse-vs-port analysis.
+
+### 6.2 Recipient onboarding = widget link-out (for now)
+
+Unchanged, and still the right call for v1: a recipient has no dashboard account, no wallet, and
+no session — sending them to the widget is the shortest path to a `customer_entity` with an
+approved provider account. The sender creates an invite (`POST /v1/recipients/invite`) and shares
+`inviteUrl(token)`; redemption resolves the recipient's entity, and their KYC/KYB runs in the
+widget. Status returns via the D5 aggregator exactly as before.
+
+Verified real: `apps/frontend/src/types/searchParams.ts:26` — `?kybLocked=BR` pins the KYB region
 and skips the selector (also `?kyb=` for the non-locked case), driving the widget's existing
-KYC/KYB flow — which already calls the AlfredPay/BRLA/Mykobo endpoints and handles external
-provider redirects internally.
+KYC/KYB flow, which already calls the AlfredPay/BRLA/Mykobo endpoints and handles external
+provider redirects internally. `apps/dashboard/src/lib/widget.ts` (`onboardingUrl`) holds the
+deep-link construction; it is retained for this path.
 
-**Therefore the dashboard implements no KYC/KYB UI and needs no new onboarding backend.** Sender
-and recipient onboarding both become: open `vortexfinance.co/widget?kybLocked=<region>` (or the
-individual variant), let the widget run KYC/KYB, then read status back via the D5 aggregator. The
-dashboard's mocked `HeadlessFlow`/`ExternalFlow` wizards are replaced by this redirect. Account
-type (individual vs business) simply selects which widget flow to open.
+**Known gap — the widget cannot serve every corridor.** `KYB_REGIONS`
+(`apps/frontend/src/constants/kybRegions.ts`) contains only **BR, MX, CO, US**. There is no EU and
+no AR entry, so `onboardingUrl("EU")` / `onboardingUrl("AR")` fall back to the widget home with no
+indication of why the user was sent there. EU **company** KYB is the sharp edge: the dashboard
+routes it to a Google Form (§6.1), and the widget has no equivalent destination. Recipient
+onboarding in EU/AR is therefore **not yet reachable end-to-end**; see §12.9.
 
 ---
 
@@ -530,12 +582,13 @@ route-level code splitting keeps the blockchain graph out of non-transfer pages.
 **`apps/dashboard` — D (partially landed 2026-07):** ✅ real `api-client` + Supabase OTP auth →
 `/v1/auth/*` + `.env.example`; ✅ quote/ramp mocks swapped (payout-driven quote inversion;
 `transfer.machine.ts` = ported widget ramp core: register → ephemeral presign → user wallet
-sign → start → poll). Still mocked: recipients page → `/v1/recipients/*`, notifications →
-`/v1/notifications`, onboarding wizards → widget redirect (§6) + `/v1/onboarding/status`,
-transactions history. Original scope: real `api-client` (mirror the frontend's `apiFetch`); real
-Supabase OTP auth → `/v1/auth/*`; `.env.example`; swap **all** mocks — quote/ramp → existing endpoints,
-recipients/transfers → `/v1/recipients/*`, onboarding → widget redirect (§6), notifications →
-`/v1/notifications`; adopt `@vortexfi/shared/types`. No backend logic — replaces the app's mocks.
+sign → start → poll); ✅ onboarding *status* → `/v1/onboarding/status`. Still mocked: recipients
+page → `/v1/recipients/*`, notifications → `/v1/notifications`, transactions history, and the
+**sender onboarding wizard** (§6.1 — screens are real, submission is not). Original scope: real
+`api-client` (mirror the frontend's `apiFetch`); real Supabase OTP auth → `/v1/auth/*`;
+`.env.example`; swap **all** mocks — quote/ramp → existing endpoints, recipients/transfers →
+`/v1/recipients/*`, notifications → `/v1/notifications`; adopt `@vortexfi/shared/types`. No
+backend logic — replaces the app's mocks.
 
 ---
 
@@ -553,9 +606,11 @@ token-bound redemption, sender↔recipient authorization, transfer gating) and
 ## 11. Sequencing
 
 1. **Phase 0** — connect the core flow (S1 shared types + CORS + dashboard wiring, **no
-   migrations**). Verify: login → quote → ramp → status → history walkthrough; widget onboarding.
+   migrations**). Verify: login → quote → ramp → status → history walkthrough; corridor cards
+   reflect `/v1/onboarding/status`.
 2. **Phase 1** — recipient product (migrations `034`–`036` + routes + eligibility + notifications).
-   Verify: invite → widget onboarding → verified payout → transfer allowed; `bun migrate` clean.
+   Verify: invite → widget onboarding (recipient, §6.2) → verified payout → transfer allowed;
+   `bun migrate` clean.
 3. **Phase 2** (partners split). Verify: pricing parity, `bun test`.
 4. **Phase 3** (provider_customers + kyc_cases). Verify: provider-read parity; swap aggregator +
    eligibility internals.
@@ -602,6 +657,15 @@ the product surface) and are individually additive.
    the recipient's customer + fiat account — provider design question; mykobo: withdraw intent
    under the recipient's profile). Couples to §7.1; BRL is the cheapest first corridor. See
    `docs/security-spec/03-ramp-engine/recipient-transfers.md`.
+8. **Sender onboarding is mocked (§6.1).** The dashboard renders every KYC/KYB screen but submits
+   nothing; `useOnboardingOverrideStore` fakes the status advance for the session. Until it drives
+   the real KYC machines, **no sender can actually onboard from the dashboard** — they must still
+   use the widget directly. Unmocking (reuse vs. port of the widget's KYC machines) is specified in
+   `dashboard-followup-plan.md`. This is the highest-priority dashboard follow-up.
+9. **Recipient onboarding is unreachable for EU and AR (§6.2).** The widget's `KYB_REGIONS` covers
+   only BR, MX, CO, US, so `onboardingUrl` drops EU/AR recipients on the widget home. EU company
+   KYB has no widget destination at all (the dashboard routes it to a Google Form). Decide per
+   corridor: add the region to the widget, or give the dashboard a recipient-facing equivalent.
 
 ---
 
