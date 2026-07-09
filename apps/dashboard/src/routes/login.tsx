@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -27,7 +27,7 @@ function LoginPage() {
   const [email, setEmail] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const form = useForm<FormValues>({ defaultValues: { email: "" }, resolver: zodResolver(schema) });
+  const form = useForm<FormValues>({ defaultValues: { email: "" }, resolver: standardSchemaResolver(schema) });
 
   if (user) {
     return <Navigate to="/overview" />;

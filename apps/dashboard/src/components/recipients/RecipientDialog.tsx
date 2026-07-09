@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Building2, Check, Copy, Link2, Plus, User } from "lucide-react";
 import { useState } from "react";
@@ -52,7 +52,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
       corridorId: approvedCorridors[0]?.id ?? "BR",
       recipientType: "individual"
     },
-    resolver: zodResolver(schema)
+    resolver: standardSchemaResolver(schema)
   });
 
   const corridorId = form.watch("corridorId");

@@ -1,15 +1,10 @@
 import { useMemo } from "react";
-import { CORRIDOR_LIST } from "@/domain/corridors";
 import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccount } from "@/domain/types";
 import type { OnboardingState, OnboardingStatusResponse } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
 import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 import { useOnboardingStatusQuery } from "./useApprovedCorridors";
-
-const LIVE_CORRIDORS: CorridorId[] = CORRIDOR_LIST.filter(corridor => corridor.availability === "live").map(
-  corridor => corridor.id
-);
 
 const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
   approved: "approved",
@@ -77,12 +72,13 @@ export function useActiveAccount(): SenderAccount | undefined {
     for (const [corridorId, status] of Object.entries(overrides) as [CorridorId, OnboardingStatus][]) {
       onboardings[corridorId] = { corridorId, kind, status, updatedAt: new Date().toISOString() };
     }
+    const selectedCorridors = Object.keys(onboardings) as CorridorId[];
     return {
       id: user.userId,
       identifier: user.email,
       name: user.name,
       onboardings,
-      selectedCorridors: LIVE_CORRIDORS,
+      selectedCorridors,
       type
     };
   }, [user, data, overrides]);

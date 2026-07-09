@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import {
   type AlfredpayKycFormData,
   AR_KYC_DEFAULTS,
@@ -148,7 +148,7 @@ function MxKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
       state: "",
       zipCode: ""
     },
-    resolver: zodResolver(mxnKycSchema)
+    resolver: standardSchemaResolver(mxnKycSchema)
   });
 
   return (
@@ -177,7 +177,7 @@ function ColKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">)
       typeDocumentCol: AlfredpayColombiaDocumentType.CC,
       zipCode: ""
     },
-    resolver: zodResolver(colKycSchema)
+    resolver: standardSchemaResolver(colKycSchema)
   });
 
   return (
@@ -234,7 +234,7 @@ function ArKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
       state: "",
       zipCode: ""
     },
-    resolver: zodResolver(arKycSchema)
+    resolver: standardSchemaResolver(arKycSchema)
   });
 
   return (

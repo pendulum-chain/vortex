@@ -6,6 +6,12 @@ import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 
 export const ONBOARDING_STATUS_QUERY_KEY = ["onboarding-status"] as const;
 
+function hasOpenOnboarding(data: OnboardingStatusResponse | undefined): boolean {
+  return (data?.entities ?? []).some(entity =>
+    entity.accounts.some(account => account.state === "pending" || account.state === "in_review")
+  );
+}
+
 /** Corridors the authenticated profile is provider-approved for — the real approval gate. */
 export function approvedCorridorsFrom(data: OnboardingStatusResponse | undefined): Set<CorridorId> {
   const approved = new Set<CorridorId>();
@@ -29,6 +35,7 @@ export function useOnboardingStatusQuery(enabled = true) {
     enabled,
     queryFn: () => OnboardingService.status(),
     queryKey: ONBOARDING_STATUS_QUERY_KEY,
+    refetchInterval: query => (hasOpenOnboarding(query.state.data) ? 15_000 : false),
     staleTime: 30_000
   });
 }

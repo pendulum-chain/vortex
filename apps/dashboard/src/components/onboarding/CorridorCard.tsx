@@ -98,9 +98,8 @@ function CorridorAction({ status, kind, onStart }: { status: OnboardingStatus; k
   }
   if (status === "pending") {
     return (
-      <Button className="w-full" onClick={onStart} variant="outline">
-        Continue {kind.toUpperCase()}
-        <ArrowRight />
+      <Button className="w-full" disabled variant="outline">
+        Verification pending
       </Button>
     );
   }
