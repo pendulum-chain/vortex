@@ -37,29 +37,59 @@ export function AveniaLivenessScreen({
           </p>
         </div>
 
-        <div className="rounded-lg border bg-muted/30 p-4">
-          <div className="flex items-start gap-3">
+        <div className="min-w-0 max-w-full overflow-hidden rounded-lg border bg-muted/30 p-4">
+          <div className="flex min-w-0 max-w-full items-start gap-3 overflow-hidden">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <ShieldCheck className="size-5" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 overflow-hidden">
               <p className="font-medium text-sm">Avenia liveness link</p>
-              <p className="truncate text-muted-foreground text-xs">
+              <p className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground text-xs">
                 {isRefreshing ? "Refreshing liveness link..." : (livenessUrl ?? "No liveness link is available yet.")}
               </p>
             </div>
           </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="mt-4 grid min-w-0 max-w-full gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            {isOpened ? (
+              <Button
+                className="min-w-0 w-full shrink whitespace-normal"
+                disabled={isRefreshing}
+                onClick={onDone}
+                type="button"
+              >
+                <ShieldCheck className="size-4" />
+                I've verified
+              </Button>
+            ) : (
+              <Button
+                className="min-w-0 w-full shrink whitespace-normal"
+                disabled={!livenessUrl || isRefreshing}
+                onClick={openLiveness}
+                type="button"
+              >
+                <ExternalLink className="size-4" />
+                Open face verification
+              </Button>
+            )}
+            {isOpened && (
+              <Button
+                className="min-w-0 w-full shrink whitespace-normal"
+                disabled={!livenessUrl || isRefreshing}
+                onClick={openLiveness}
+                type="button"
+                variant="outline"
+              >
+                <ExternalLink className="size-4" />
+                Open again
+              </Button>
+            )}
             <Button
-              disabled={!livenessUrl || isRefreshing}
-              onClick={openLiveness}
+              className="min-w-0 w-full shrink whitespace-normal"
+              disabled={isRefreshing}
+              onClick={onRefresh}
               type="button"
-              variant={isOpened ? "outline" : "default"}
+              variant="outline"
             >
-              <ExternalLink className="size-4" />
-              {isOpened ? "Open again" : "Open face verification"}
-            </Button>
-            <Button disabled={isRefreshing} onClick={onRefresh} type="button" variant="outline">
               {isRefreshing ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
               Refresh link
             </Button>
@@ -71,9 +101,7 @@ export function AveniaLivenessScreen({
         <Button disabled={isRefreshing} onClick={onBack} variant="ghost">
           Back
         </Button>
-        <Button disabled={!isOpened || isRefreshing} onClick={onDone}>
-          I completed face verification
-        </Button>
+        {!isOpened && <Button disabled>I've verified</Button>}
       </DialogFooter>
     </>
   );

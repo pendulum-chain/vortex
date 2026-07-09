@@ -1,4 +1,4 @@
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import type { AveniaKycFormData } from "@vortexfi/kyc";
 import { type Control, type FieldPath, type FieldValues, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -42,7 +42,7 @@ const aveniaKycFormSchema = z.object({
 export function AveniaKycFormScreen({ initialData, onCancel, onSubmit }: AveniaKycFormScreenProps) {
   const form = useForm<AveniaKycFormData>({
     defaultValues: initialData ?? DEFAULT_VALUES,
-    resolver: zodResolver(aveniaKycFormSchema)
+    resolver: standardSchemaResolver(aveniaKycFormSchema)
   });
 
   return (
