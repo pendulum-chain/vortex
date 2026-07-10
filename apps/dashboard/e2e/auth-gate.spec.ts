@@ -24,9 +24,10 @@ test("a seeded session renders the app shell instead of redirecting", async ({ p
   await expect(page.getByRole("link", { name: "New transfer" })).toBeVisible();
   await expect(page).toHaveURL(/\/dashboard\/overview/);
 
-  // Nothing reached for an API route the mock does not serve — a new endpoint would otherwise
-  // 404 here and hit a real server outside the suite.
+  // Nothing reached for an API route the mock does not serve, and nothing escaped to an
+  // unblocked external origin.
   expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
 test("an authenticated user is redirected away from the login page", async ({ page }) => {

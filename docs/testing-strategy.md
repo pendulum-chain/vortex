@@ -22,7 +22,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
-| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard's auth surface (login, route gate) runs as a separate Playwright project | `apps/frontend/e2e/`, `apps/dashboard/e2e/` | Playwright (non-blocking) |
+| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config: auth surface (login, route gate) + the MXN offramp transfer journey | `apps/frontend/e2e/`, `apps/dashboard/e2e/` | Playwright (non-blocking) |
 | 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); currently SquidRouter | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
 
 ### The invariants the suite protects
@@ -57,6 +57,10 @@ the other two entry points. Corridor-agnostic invariants (auth matrix, quote con
 fee immutability, pricing goldens, ownership) are not repeated per row — they run once against
 shared code and are listed in the invariants section above. **Update this table in the same PR
 as any new corridor, rail, or entry-point test.**
+
+The **E2E journey** column tracks the widget (`apps/frontend/e2e/`). The dashboard is a fourth
+entry point with its own suite (`apps/dashboard/e2e/`), currently covering MXN SELL only; see the
+dashboard Playwright section below rather than reading it out of this table.
 
 Legend: ✅ directly tested · ◐ covered only via shared code/another corridor (see footnote) ·
 ❌ missing · — not applicable · 🚫 kill-switched.
@@ -169,24 +173,41 @@ They run nightly via `.github/workflows/e2e.yml` (never PR-blocking) and locally
 
 The dashboard has its own `playwright.config.ts` (its own Vite server on port 5174, served under
 the `/dashboard/` base path) and its own `e2e/support/mockBackend.ts`, since it consumes a
-different set of endpoints than the widget. Covered so far: the email/OTP **login** flow incl. a
-rejected code, and the **route gate** — an unauthenticated deep link redirects to `/login`, a
-seeded session renders the app shell, and an authenticated user is bounced off `/login`.
+different set of endpoints than the widget. Covered so far:
+
+- **Login** (`login.spec.ts`): the email/OTP flow incl. a rejected code.
+- **Route gate** (`auth-gate.spec.ts`): an unauthenticated deep link redirects to `/login`, a
+  seeded session renders the app shell, and an authenticated user is bounced off `/login`.
+- **Transfer** (`transfer-mxn-journey.spec.ts`): the money path — a SELL offramp of USDC-on-Polygon
+  to an MXN payout account. Approved MX corridor → auto-selected self-recipient from the saved
+  Alfredpay fiat account → quote → registration with fresh ephemeral keypairs → in-page ephemeral
+  signing asserted via the raw EIP-1559 txs posted to `/ramp/update` → USER-WALLET broadcast of the
+  `squidRouterNoPermitTransfer` with its hash reported in a second update → `/ramp/start` → status
+  polling to a terminal phase while the form navigates to `/transactions`. A second test pins
+  payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
+  one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
+
+Notes:
 
 - Specs other than the login one skip the OTP walk by seeding the session directly into
   `localStorage` (`e2e/support/session.ts`) — `useAuthStore` reads it at module init. The login
   spec asserts the flow writes exactly that session, so the shortcut cannot drift from reality.
-- The dashboard uses ConnectKit (not the widget's AppKit), and `main.tsx` always mounts
-  `WagmiProvider`, so the WalletConnect/Reown origins are blocked even though no spec connects a
-  wallet. The mock backend records unmatched API paths and a spec asserts that list is empty, so a
-  newly-called endpoint fails the suite instead of escaping to a real server.
-- **Not yet covered**: the transfer (offramp) journey — the money path. Two constraints already
-  established for it: every ephemeral `unsignedTx` in the register fixture must be an EVM tx on
-  `network: "polygon"` (`src/machines/transfer.actors.ts` opens real WebSockets for Pendulum /
-  Hydration / substrate-Moonbeam txs), and Polygon + mainnet public RPCs need `page.route`
-  handlers because `src/lib/wagmi.ts` uses `http()` with no URL. Also uncovered: the Avenia KYC
-  liveness step, which redirects to an external Avenia-hosted page and cannot complete
-  hermetically — the same limitation as the widget's BRL onramp.
+- The register fixture's transactions are **all EVM txs on `network: "polygon"`** on purpose:
+  `src/machines/transfer.actors.ts` opens a real WebSocket RPC for any ephemeral tx on Pendulum,
+  Hydration, or a substrate-format Moonbeam tx.
+- `src/lib/wagmi.ts` uses `http()` with no URL, so viem falls back to per-chain public RPCs. Both
+  are genuinely reached: Polygon (the user transaction's receipt is awaited through the wagmi
+  transport, not the wallet stub) and Ethereum mainnet (ConnectKit's ENS lookup after connect).
+  They are answered by a JSON-RPC responder in `e2e/support/mockBackend.ts`.
+- Hermeticity is enforced, not assumed. A catch-all route aborts every request outside the app
+  origin that is not in `THIRD_PARTY_BLOCKLIST` (WalletConnect/Reown, ConnectKit's Family probe,
+  the Coinbase Wallet SDK, Google Fonts), and unmatched API paths 404. Both lists are recorded and
+  asserted empty, so a new endpoint or a changed default RPC URL fails the suite instead of
+  silently reaching the network.
+- **Not covered**: the Avenia KYC liveness step, which redirects to an external Avenia-hosted page
+  and cannot complete hermetically (the same limitation as the widget's BRL onramp); the
+  permit/TokenRelayer cross-chain SELL variant, which needs relayer-contract execution the mock
+  does not model; and the overview/recipients/transactions tables.
 
 ### EUR re-enablement precondition
 

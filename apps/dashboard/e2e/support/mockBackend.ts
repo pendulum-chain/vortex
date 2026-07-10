@@ -1,5 +1,16 @@
 import type { Page } from "@playwright/test";
+import { MOCK_WALLET_ADDRESS } from "./mockWallet";
 import { E2E_USER_ID } from "./session";
+
+export const APP_ORIGIN = "http://127.0.0.1:5174";
+export const E2E_RAMP_ID = "ramp-e2e-1";
+export const E2E_QUOTE_ID = "quote-e2e-1";
+export const E2E_FIAT_ACCOUNT_ID = "fiat-account-e2e-mx";
+export const E2E_FIAT_ACCOUNT_ID_2 = "fiat-account-e2e-mx-2";
+/** USDC_RATES.MX in src/domain/transfer.ts — the rate the form inverts to size the payin. */
+export const MX_USDC_RATE = 18.5;
+
+const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
 
 /**
  * One approved MX/Alfredpay account under an individual entity, as served by
@@ -31,28 +42,242 @@ export function buildOnboardingStatus() {
   };
 }
 
-interface MockBackendOptions {
-  // Full response for POST /v1/auth/verify-otp. Default: a successful session.
-  verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
+/**
+ * AlfredpayListFiatAccountsResponse is a bare array; selfRecipientsFromFiatAccounts reads these
+ * fields and turns each account into its own "send to yourself" recipient. Two accounts, so the
+ * recipient selector has something to choose between: the first is auto-selected, and picking the
+ * second must change the fiatAccountId the offramp registers against.
+ */
+export function buildFiatAccounts() {
+  return [
+    {
+      accountName: "Vortex E2E CLABE",
+      accountNumber: "646180157000000004",
+      accountType: "CLABE",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      customerId: "alfred-customer-e2e-1",
+      fiatAccountId: E2E_FIAT_ACCOUNT_ID,
+      metadata: { accountHolderName: "Vortex E2E" },
+      type: "SPEI"
+    },
+    {
+      accountName: "Vortex E2E Savings",
+      accountNumber: "646180157000000099",
+      accountType: "CLABE",
+      createdAt: "2026-01-02T00:00:00.000Z",
+      customerId: "alfred-customer-e2e-1",
+      fiatAccountId: E2E_FIAT_ACCOUNT_ID_2,
+      metadata: { accountHolderName: "Vortex E2E" },
+      type: "SPEI"
+    }
+  ];
 }
 
 /**
- * Intercepts the API origin (http://localhost:3000) so the auth specs run without a backend,
- * and blocks the ConnectKit/WalletConnect endpoints the always-mounted WagmiProvider reaches
- * for. Unmatched API paths 404 and are recorded, so a route this app starts calling cannot
- * silently escape to a real server.
+ * The SELL quote the dashboard's QuoteSummary and FundingMethods render. outputAmount is derived
+ * from the requested inputAmount at the same rate the form used to size it, so fetchOfframpQuote's
+ * refinement pass never fires and exactly one quote request is made.
+ */
+export function buildQuoteResponse(inputAmount: string, overrides: Record<string, unknown> = {}) {
+  return {
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+    feeCurrency: "MXN",
+    from: "polygon",
+    id: E2E_QUOTE_ID,
+    inputAmount,
+    inputCurrency: "USDC",
+    network: "polygon",
+    networkFeeFiat: "2.00",
+    networkFeeUsd: "0.11",
+    outputAmount: (Number(inputAmount) * MX_USDC_RATE).toFixed(2),
+    outputCurrency: "MXN",
+    paymentMethod: "spei",
+    processingFeeFiat: "8.00",
+    processingFeeUsd: "0.43",
+    rampType: "SELL",
+    to: "spei",
+    totalFeeFiat: "10.00",
+    totalFeeUsd: "0.54",
+    ...overrides
+  };
+}
+
+/** RampProcess (packages/shared/src/endpoints/ramp.endpoints.ts) for a SELL USDC-on-Polygon -> MXN ramp. */
+export function buildRampProcess(overrides: Record<string, unknown> = {}) {
+  return {
+    createdAt: new Date().toISOString(),
+    currentPhase: "initial",
+    from: "polygon",
+    id: E2E_RAMP_ID,
+    inputAmount: "54.054054",
+    inputCurrency: "USDC",
+    outputAmount: "1000.00",
+    outputCurrency: "MXN",
+    paymentMethod: "spei",
+    quoteId: E2E_QUOTE_ID,
+    to: "spei",
+    type: "SELL",
+    unsignedTxs: [],
+    updatedAt: new Date().toISOString(),
+    ...overrides
+  };
+}
+
+/**
+ * Mirrors the API's evm-to-alfredpay offramp preparation on the direct Polygon no-permit path:
+ * the USER wallet signs one squidRouterNoPermitTransfer, and the EVM ephemeral signs the
+ * Alfredpay deposit transfer, its fallback (both nonce 0 — only one executes) and the cleanup.
+ *
+ * Every transaction is an EVM tx on Polygon on purpose. registerTransfer (src/machines/
+ * transfer.actors.ts) opens a real WebSocket RPC for any ephemeral tx on Pendulum, Hydration or
+ * substrate-format Moonbeam, which would make the run non-hermetic.
+ */
+export function buildSellUnsignedTxs(evmEphemeral: string) {
+  const evmTx = (signer: string, nonce: number, phase: string) => ({
+    meta: {},
+    network: "polygon",
+    nonce,
+    phase,
+    signer,
+    txData: {
+      data: `0xa9059cbb${"00".repeat(12)}${evmEphemeral.slice(2).toLowerCase()}${"00".repeat(30)}04c4`,
+      gas: "150000",
+      maxFeePerGas: "5000000000",
+      maxPriorityFeePerGas: "5000000000",
+      nonce,
+      to: POLYGON_USDT,
+      value: "0"
+    }
+  });
+  return [
+    evmTx(MOCK_WALLET_ADDRESS, 0, "squidRouterNoPermitTransfer"),
+    evmTx(evmEphemeral, 0, "alfredpayOfframpTransfer"),
+    evmTx(evmEphemeral, 0, "alfredpayOfframpTransferFallback"),
+    evmTx(evmEphemeral, 1, "polygonCleanupAxlUsdc")
+  ];
+}
+
+interface MockBackendOptions {
+  // Full response for POST /v1/auth/verify-otp. Default: a successful session.
+  verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
+  // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
+  pendingStatusPolls?: number;
+}
+
+// Chains the dashboard's wagmi config can reach (src/lib/wagmi.ts uses http() with no URL, so
+// viem falls back to these per-chain defaults). Polygon is genuinely exercised — the user
+// transaction's receipt is awaited through the wagmi transport, not the wallet — and mainnet is
+// hit by ConnectKit's ENS lookup after connect.
+const RPC_ENDPOINTS: Array<{ chainIdHex: string; pattern: string }> = [
+  { chainIdHex: "0x89", pattern: "https://polygon.drpc.org/**" },
+  { chainIdHex: "0x1", pattern: "https://eth.merkle.io/**" },
+  { chainIdHex: "0xa4b1", pattern: "https://arb1.arbitrum.io/**" },
+  { chainIdHex: "0x2105", pattern: "https://mainnet.base.org/**" }
+];
+
+// Third parties the app reaches for but does not need. main.tsx always mounts WagmiProvider +
+// ConnectKitProvider, which probes for the Family wallet and loads the Coinbase Wallet SDK; the
+// Topbar renders a connect button. index.html pulls a Google font. All have graceful fallbacks.
+const THIRD_PARTY_BLOCKLIST = [
+  "**/*.walletconnect.com/**",
+  "**/*.walletconnect.org/**",
+  "**/*.web3modal.org/**",
+  "https://app.family.co/**",
+  "https://cca-lite.coinbase.com/**",
+  "https://fonts.googleapis.com/**",
+  "https://fonts.gstatic.com/**"
+];
+
+type RpcRequest = { id?: number; method?: string; params?: unknown[] };
+
+function answerRpc(chainIdHex: string) {
+  const answerOne = (req: RpcRequest) => {
+    const hash = (req.params?.[0] as string) ?? `0x${"cd".repeat(32)}`;
+    let result: unknown = null;
+    switch (req.method) {
+      case "eth_chainId":
+        result = chainIdHex;
+        break;
+      // Contract reads (ENS resolution): empty return data, which viem surfaces as a failed
+      // read. ConnectKit falls back to the truncated address.
+      case "eth_call":
+        result = "0x";
+        break;
+      case "eth_blockNumber":
+        result = "0x1";
+        break;
+      case "eth_getBlockByNumber":
+        result = { baseFeePerGas: "0x1", number: "0x1" };
+        break;
+      case "eth_getTransactionByHash":
+        result = { blockHash: `0x${"ef".repeat(32)}`, blockNumber: "0x1", from: null, hash, input: "0x", value: "0x0" };
+        break;
+      case "eth_getTransactionReceipt":
+        result = {
+          blockHash: `0x${"ef".repeat(32)}`,
+          blockNumber: "0x1",
+          contractAddress: null,
+          cumulativeGasUsed: "0x5208",
+          effectiveGasPrice: "0x3b9aca00",
+          gasUsed: "0x5208",
+          logs: [],
+          logsBloom: `0x${"00".repeat(256)}`,
+          status: "0x1",
+          transactionHash: hash,
+          transactionIndex: "0x0",
+          type: "0x2"
+        };
+        break;
+    }
+    return { id: req.id ?? 1, jsonrpc: "2.0", result };
+  };
+  return (body: RpcRequest | RpcRequest[]) => (Array.isArray(body) ? body.map(answerOne) : answerOne(body));
+}
+
+/**
+ * Intercepts the API origin (http://localhost:3000) so specs run without a backend, answers the
+ * chain RPCs hermetically, and aborts every other external request.
+ *
+ * Two escape hatches are recorded rather than tolerated: `unmatchedRequests` (an API path this
+ * mock does not serve, 404ed) and `unexpectedExternalRequests` (any origin outside the app that
+ * is not in THIRD_PARTY_BLOCKLIST). Specs assert both are empty, so a newly-called endpoint or a
+ * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
   const requestOtpRequests: Array<Record<string, unknown>> = [];
   const verifyOtpRequests: Array<Record<string, unknown>> = [];
+  const quoteRequests: Array<Record<string, unknown>> = [];
+  const registerRequests: Array<Record<string, unknown>> = [];
+  const updateRequests: Array<Record<string, unknown>> = [];
+  const startRequests: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
+  const unexpectedExternalRequests: string[] = [];
+  const status = { polls: 0 };
+
+  // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
+  // the user-wallet transaction from that response.
+  let unsignedTxs: unknown[] = [];
+
+  // Registered first so the specific routes below take precedence: Playwright runs route
+  // handlers in reverse registration order.
+  await page.route("**/*", async route => {
+    const url = route.request().url();
+    if (url.startsWith(APP_ORIGIN) || url.startsWith("data:") || url.startsWith("blob:")) {
+      await route.continue();
+      return;
+    }
+    unexpectedExternalRequests.push(url);
+    await route.abort();
+  });
 
   await page.route("http://localhost:3000/**", async route => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const url = new URL(request.url());
+    const path = url.pathname;
     const method = request.method();
 
-    const fulfillJson = (body: unknown, status = 200) => route.fulfill({ json: body as object, status });
+    const fulfillJson = (body: unknown, code = 200) => route.fulfill({ json: body as object, status: code });
 
     // Auth shapes mirror apps/api/src/api/controllers/auth.controller.ts: snake_case on the
     // wire, mapped to camelCase by src/services/api/auth.api.ts.
@@ -86,16 +311,94 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
+    // Saved payout accounts: each becomes a "send to yourself" recipient. Only the approved
+    // corridor (MX) is ever queried.
+    if (path === "/v1/alfredpay/fiatAccounts" && method === "GET") {
+      await fulfillJson(url.searchParams.get("country") === "MX" ? buildFiatAccounts() : []);
+      return;
+    }
+    // Third-party recipients: none, so the auto-selected self-recipient stays selected.
+    if (path === "/v1/recipients" && method === "GET") {
+      await fulfillJson({ pendingInvitations: [], recipients: [] });
+      return;
+    }
+
+    if (path === "/v1/quotes" && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      quoteRequests.push(body);
+      await fulfillJson(buildQuoteResponse(body.inputAmount as string));
+      return;
+    }
+
+    // Ramp lifecycle. The ephemeral EVM address is echoed back from the registration request so
+    // the returned transactions are owned by the keys the page just generated.
+    if (path === "/v1/ramp/register" && method === "POST") {
+      const body = request.postDataJSON() as {
+        signingAccounts?: Array<{ address: string; type: string }>;
+      } & Record<string, unknown>;
+      registerRequests.push(body);
+      const evmEphemeral = body.signingAccounts?.find(account => account.type === "EVM")?.address ?? POLYGON_USDT;
+      unsignedTxs = buildSellUnsignedTxs(evmEphemeral);
+      await fulfillJson(buildRampProcess({ unsignedTxs }));
+      return;
+    }
+    if (path === "/v1/ramp/update" && method === "POST") {
+      updateRequests.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson(buildRampProcess({ unsignedTxs }));
+      return;
+    }
+    if (path === "/v1/ramp/start" && method === "POST") {
+      startRequests.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson(buildRampProcess({ currentPhase: "squidRouterPay", status: "PENDING", unsignedTxs }));
+      return;
+    }
+    // Checked before the /v1/ramp/:id status route below, which would otherwise swallow it.
+    if (path.startsWith("/v1/ramp/history/") && method === "GET") {
+      await fulfillJson({ totalCount: 0, transactions: [] });
+      return;
+    }
+    if (path === `/v1/ramp/${E2E_RAMP_ID}` && method === "GET") {
+      status.polls++;
+      const complete = status.polls > (options.pendingStatusPolls ?? 1);
+      await fulfillJson(
+        buildRampProcess({
+          currentPhase: complete ? "complete" : "squidRouterPay",
+          feeCurrency: "MXN",
+          networkFeeFiat: "2.00",
+          processingFeeFiat: "8.00",
+          status: complete ? "COMPLETE" : "PENDING",
+          totalFeeFiat: "10.00",
+          unsignedTxs
+        })
+      );
+      return;
+    }
+
     unmatchedRequests.push(`${method} ${path}`);
     await route.fulfill({ json: {}, status: 404 });
   });
 
-  // main.tsx always mounts WagmiProvider + ConnectKitProvider, and the Topbar renders a connect
-  // button — so these are reached even though no spec connects a wallet. The app renders fine
-  // without them.
-  for (const pattern of ["**/*.walletconnect.com/**", "**/*.walletconnect.org/**", "**/*.web3modal.org/**"]) {
+  for (const { chainIdHex, pattern } of RPC_ENDPOINTS) {
+    const answer = answerRpc(chainIdHex);
+    await page.route(pattern, async route => {
+      const body = route.request().postDataJSON() as Parameters<typeof answer>[0];
+      await route.fulfill({ json: answer(body) });
+    });
+  }
+
+  for (const pattern of THIRD_PARTY_BLOCKLIST) {
     await page.route(pattern, route => route.abort());
   }
 
-  return { requestOtpRequests, unmatchedRequests, verifyOtpRequests };
+  return {
+    quoteRequests,
+    registerRequests,
+    requestOtpRequests,
+    startRequests,
+    status,
+    unexpectedExternalRequests,
+    unmatchedRequests,
+    updateRequests,
+    verifyOtpRequests
+  };
 }
