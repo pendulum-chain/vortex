@@ -22,6 +22,8 @@ When you point an AI coding agent at Vortex:
 | Browser, mobile, WebView | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
+Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU). The corridor determines the register-time fields and the fiat settlement step, not the integration shape — see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
+
 Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
 
 ## C. Python (`vortex-sdk-python`)
@@ -133,13 +135,18 @@ Body includes the `rampId`, the transaction reference, and either the signed pay
 
 ### D.5 Fiat Payment And Start
 
-- **BRL buy**: the register response contains `depositQrCode` (PIX). Show it; wait for the user to pay. Then call `POST /v1/ramp/start`.
-- **BRL sell**: the user signs the user-owned transaction(s) and you submit them via update. Then call start. Vortex pays out to the user's PIX key.
-
 ```
 POST /v1/ramp/start
 X-API-Key: sk_*
 ```
+
+On a **buy**, where the fiat payment instructions appear depends on the corridor:
+
+- **BRL**: the register response contains `depositQrCode` (PIX). Show it; wait for the user to pay; then call start.
+- **EUR**: the register response contains `ibanPaymentData` (IBAN, receiver name, payment reference). Show it; the user completes the SEPA transfer; then call start.
+- **USD, MXN, COP, ARS**: call start first; the start response's `achPaymentData` contains the bank transfer instructions for the corridor's rail (ACH, SPEI, CBU). Display them verbatim; the ramp continues automatically once the deposit is confirmed.
+
+On a **sell**, the flow is the same in every corridor: the user signs the user-owned transaction(s), you submit them via update, then call start. Vortex pays out on the corridor's rail — the user's PIX key (BRL), SEPA account (EUR), or the saved bank account referenced by `fiatAccountId` (USD, MXN, COP, ARS).
 
 ### D.6 Track
 

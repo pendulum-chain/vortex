@@ -1,6 +1,6 @@
 ---
 name: vortex-integration
-description: Use when integrating Vortex or @vortexfi/sdk, including quotes, BRL PIX onramps/offramps, ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
+description: Use when integrating Vortex or @vortexfi/sdk, including quotes, onramps/offramps for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU), ramp register/update/start/status flows, webhook verification, ephemeral key custody, supported corridors, sandbox/production auth, and recovery from ramp errors.
 ---
 
 # Vortex Integration Skill
@@ -14,14 +14,17 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 ## Global Context (read once)
 
 - **SDK**: `@vortexfi/sdk` (JavaScript/TypeScript). Install: `npm i @vortexfi/sdk`.
-- **API base URLs**: production `https://api.vortexfinance.co`, sandbox `https://api.sandbox.vortexfinance.co`.
+- **API base URLs**: production `https://api.vortexfinance.co`, sandbox `https://api-sandbox.vortexfinance.co`.
 - **Auth keys**: partner integrations use a key pair.
   - `pk_live_*` / `pk_test_*` — public key, sent in request bodies for partner attribution.
   - `sk_live_*` / `sk_test_*` — secret key, sent in the `X-API-Key` header. **Never expose `sk_*` in a browser or mobile app.**
+  - For USD/MXN/COP/ARS ramps the `sk_*` key must be the **user's own user-linked key** — registration resolves the user's KYC and payment profile from the authenticated account.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Ramp counts**: ephemeral keys sign exactly 5 presigned transactions per ramp. The API rejects anything else.
-- **Currently implemented corridors**: BRL (PIX) onramp and offramp. EUR (SEPA) types exist in the SDK but the handlers throw `"Euro onramp handler not implemented yet"` / `"Euro offramp handler not implemented yet"` at runtime. Treat EUR as `status: planned`.
+- **Currently implemented corridors** (all live in the SDK): BRL via PIX, EUR via SEPA (Mykobo), USD via ACH, MXN via SPEI, COP via ACH, ARS via CBU. All support both onramp (BUY) and offramp (SELL). EUR and the bank-transfer corridors deliver to EVM networks only (no AssetHub).
+- **EUR enum value**: EUR quotes use `FiatToken.EURC` (not `EUR`) as the currency value, with `"sepa"` as the rail identifier.
+- **taxId is deprecated for BRL**: the user's tax ID is derived server-side from the user-linked `sk_*` key. Sending a `taxId` that mismatches the derived one is rejected; stop sending it in new integrations.
 - **No secret in markdown**: never paste API keys into source files, logs, screenshots, or support tickets.
 
 ---
@@ -100,7 +103,6 @@ For the best price across all networks, use `POST /v1/quotes/best` (same body, o
 ## Common failures
 - `MissingRequiredFieldsError` — missing input/output/amount/network.
 - `InvalidNetworkError` — `network` not in the supported list (see `discover-supported-corridors`).
-- `400` with `EuroOnrampHandlerNotImplemented` — EUR corridors are planned, not active.
 - Quote returned but unused for > TTL → `QuoteExpiredError` on subsequent `registerRamp`. Re-quote.
 
 ---
@@ -119,18 +121,17 @@ triggers:
 ```
 
 ## When to use
-The user is in Brazil (or has BRL/PIX access) and wants to buy crypto. KYC must be completed beforehand through the Vortex app or Widget — `taxId` (CPF/CNPJ) is the required link.
+The user is in Brazil (or has BRL/PIX access) and wants to buy crypto. KYC must be completed beforehand through the Vortex app or Widget; the user's CPF/CNPJ is resolved server-side from their user-linked `sk_*` key.
 
 ## Prerequisites
 - Fresh quote with `rampType: BUY`, `from: "pix"`, `inputCurrency: FiatToken.BRL`.
 - `destinationAddress` — the user's wallet on the target network.
-- `taxId` — the user's CPF or CNPJ; must match a KYC'd Vortex subaccount.
+- The user has completed BRL KYC; `taxId` is **deprecated** — it is derived from the authenticated key, and a mismatching value is rejected.
 
 ## SDK recipe
 ```js
 const { rampProcess } = await vortex.registerRamp(quote, {
-  destinationAddress: "0xUserWalletAddress",
-  taxId: "12345678900"
+  destinationAddress: "0xUserWalletAddress"
 });
 
 // Show user the PIX payment instructions
@@ -159,8 +160,7 @@ curl -X POST https://api.vortexfinance.co/v1/ramp/register \
       { "type": "Stellar",   "address": "G..."  }
     ],
     "additionalData": {
-      "destinationAddress": "0xUserWalletAddress",
-      "taxId": "12345678900"
+      "destinationAddress": "0xUserWalletAddress"
     },
     "publicKey": "'"$VORTEX_PUBLIC_KEY"'"
   }'
@@ -178,10 +178,10 @@ curl -X POST https://api.vortexfinance.co/v1/ramp/start \
 If you implement this without the SDK, follow the raw-API contract in [`AI_AGENT_INTEGRATION` § D.3–D.5](https://api-docs.vortexfinance.co/ai-agent-integration).
 
 ## Common failures
-- `SubaccountNotFoundError` — the `taxId` has no KYC'd Vortex subaccount. Direct the user to KYC first.
+- `SubaccountNotFoundError` — the tax ID derived from the authenticated key has no KYC'd Vortex subaccount. Direct the user to KYC first.
 - `KycInvalidError` — KYC exists but is not approved.
 - `AmountExceedsLimitError` — quote amount above the user's KYC tier limit.
-- `MissingBrlParametersError` — `destinationAddress` or `taxId` missing.
+- `MissingBrlParametersError` — `destinationAddress` missing.
 - `QuoteExpiredError` — re-quote and call `registerRamp` again.
 - `TimeWindowExceededError` on `startRamp` — too long elapsed since `registerRamp`; restart the flow.
 
@@ -206,25 +206,26 @@ The user holds crypto on an EVM chain and wants to receive BRL via PIX. Unlike o
 ## Prerequisites
 - Fresh quote with `rampType: SELL`, `to: "pix"`, `outputCurrency: FiatToken.BRL`.
 - `pixDestination` — recipient's PIX key (validate via `GET /v1/brla/validatePixKey` if uncertain).
-- `receiverTaxId` — CPF/CNPJ of the PIX recipient.
-- `taxId` — the user's KYC'd CPF/CNPJ.
 - `walletAddress` — the user's source wallet address.
+- Optional: `receiverTaxId` — CPF/CNPJ of the PIX recipient when paying out to someone other than the user. `taxId` is **deprecated** (derived from the authenticated key).
 
 ## SDK recipe
 ```js
 const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
   pixDestination: "user@example.com",
-  receiverTaxId: "12345678900",
-  taxId: "12345678900",
   walletAddress: "0xUserWalletAddress"
 });
 
-// Identify which txs the END USER must sign (vs. ephemerals, which SDK signed already)
+// Easiest path: let the SDK classify, sign, broadcast, and submit the user-owned txs
+// via your wallet callbacks (e.g. @wagmi/core):
+await vortex.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
+
+// Lower-level alternative: filter the user txs yourself, have the user sign and
+// broadcast them, then push the hashes back:
 const userTxs = await vortex.getUserTransactions(rampProcess, "0xUserWalletAddress");
-
-// userTxs typically includes: SquidRouter approve, SquidRouter swap, AssetHub→Pendulum XCM
-// Have the user sign each one and submit on-chain. Collect the resulting tx hashes.
-
 await vortex.updateRamp(quote, rampProcess.id, {
   squidRouterApproveHash: "0xapprove...",
   squidRouterSwapHash:    "0xswap...",
@@ -239,11 +240,169 @@ await vortex.startRamp(rampProcess.id);
 Same three-step pattern: `POST /v1/ramp/register` → user signs → `POST /v1/ramp/update` with the collected hashes → `POST /v1/ramp/start`. See [`AI_AGENT_INTEGRATION` § D.3–D.5](https://api-docs.vortexfinance.co/ai-agent-integration) for the exact body shapes.
 
 ## Common failures
-- `MissingBrlOfframpParametersError` — `receiverTaxId`, `pixDestination`, or `taxId` missing.
+- `MissingBrlOfframpParametersError` — `pixDestination` or `walletAddress` missing.
 - `InvalidPixKeyError` — PIX key format invalid or unreachable. Validate beforehand with `GET /v1/brla/validatePixKey`.
 - `InvalidPresignedTxsError` on `updateRamp` — hash format wrong, or the on-chain tx does not match the unsigned tx that was issued. Re-sign exactly what `getUserTransactions` returned.
 - `NoPresignedTransactionsError` on `startRamp` — `updateRamp` was not called or did not include the required hashes.
 - `RampNotUpdatableError` — ramp already started or terminal; restart from `createQuote`.
+
+---
+
+```yaml
+---
+name: start-ramp-eur-sepa
+description: Initiate a EUR onramp or offramp via SEPA. Onramp shows IBAN transfer instructions; offramp requires user-signed on-chain transactions.
+triggers:
+  - "EUR onramp"
+  - "EUR offramp"
+  - "SEPA"
+  - "buy crypto with euro"
+  - "sell crypto for euro"
+  - "IBAN payment"
+---
+```
+
+## When to use
+The user has a SEPA bank account and wants to buy or sell crypto for EUR. EUR onboarding is individual KYC only and requires a connected wallet; complete it through the Vortex app or Widget first. EUR delivers to EVM networks only (no AssetHub).
+
+## Prerequisites
+- Quote with `inputCurrency: FiatToken.EURC` and `from: "sepa"` (buy), or `outputCurrency: FiatToken.EURC` and `to: "sepa"` (sell). Note: the enum value is `EURC`, not `EUR`.
+- `destinationAddress`, `email`, `ipAddress` — required for both directions.
+- `walletAddress` — additionally required for offramp (the user's source wallet).
+
+## SDK recipe (onramp)
+```js
+const quote = await vortex.createQuote({
+  rampType: RampDirection.BUY,
+  from: EPaymentMethod.SEPA,
+  to: Networks.Base,
+  network: Networks.Base,
+  inputAmount: "100",
+  inputCurrency: FiatToken.EURC,
+  outputCurrency: EvmToken.USDC
+});
+
+const { rampProcess } = await vortex.registerRamp(quote, {
+  destinationAddress: "0xUserWalletAddress",
+  email: "user@example.com",
+  ipAddress: "203.0.113.1"
+});
+
+// SEPA transfer instructions are on the ramp after registration:
+console.log(rampProcess.ibanPaymentData.iban);
+console.log(rampProcess.ibanPaymentData.receiverName);
+console.log(rampProcess.ibanPaymentData.reference);
+
+// After the user completed the SEPA transfer:
+await vortex.startRamp(rampProcess.id);
+```
+
+No user-signed on-chain transactions are required for EUR onramps.
+
+## SDK recipe (offramp)
+```js
+const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
+  destinationAddress: "0xUserWalletAddress",
+  email: "user@example.com",
+  ipAddress: "203.0.113.1",
+  walletAddress: "0xUserWalletAddress"
+});
+
+// User signs and broadcasts squidRouterApprove + squidRouterSwap, then:
+await vortex.updateRamp(quote, rampProcess.id, {
+  squidRouterApproveHash: "0xapprove...",
+  squidRouterSwapHash: "0xswap..."
+});
+await vortex.startRamp(rampProcess.id);
+```
+
+`submitUserTransactions` (see `start-offramp-brl`) works here as well.
+
+## Common failures
+- `MissingMykoboOnrampParametersError` / `MissingMykoboOfframpParametersError` — `destinationAddress`, `email`, `ipAddress`, or `walletAddress` missing.
+- `MykoboKycRequiredError` — the user has not completed EUR KYC; onboard via the Vortex app or Widget.
+- EUR can be gated off server-side per environment; a rejected EUR quote does not necessarily mean a client bug.
+
+---
+
+```yaml
+---
+name: start-ramp-bank-transfer
+description: Initiate an onramp or offramp for USD (ACH), MXN (SPEI), COP (ACH), or ARS (CBU) through Vortex's local payment partners.
+triggers:
+  - "USD onramp"
+  - "MXN onramp"
+  - "COP offramp"
+  - "ARS ramp"
+  - "SPEI"
+  - "ACH"
+  - "CBU"
+  - "bank transfer ramp"
+---
+```
+
+## When to use
+The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. These corridors **require a user-linked `sk_*` key**: registration resolves the user's KYC and payment profile from the authenticated account. Partner-scoped keys cannot register ramps here. EVM networks only (no AssetHub).
+
+| Fiat | Rail identifier | Payment rail |
+|------|-----------------|--------------|
+| `USD` | `"ach"` | ACH bank transfer |
+| `MXN` | `"spei"` | SPEI transfer |
+| `COP` | `"ach"` | Colombian bank transfer |
+| `ARS` | `"cbu"` | CBU bank transfer |
+
+## Prerequisites
+- The user completed KYC for the corridor's country via the Vortex app or Widget, and the SDK is authenticated with that user's own `sk_*` key.
+- Buy: `destinationAddress` (required); `fiatAccountId`, `walletAddress` optional.
+- Sell: `fiatAccountId` and `walletAddress` (both required). List saved accounts with `vortex.listAlfredpayFiatAccounts(country)`.
+
+## SDK recipe (onramp, MXN shown — substitute fiat + rail for USD/COP/ARS)
+```js
+const quote = await vortex.createQuote({
+  rampType: RampDirection.BUY,
+  from: EPaymentMethod.SPEI,
+  to: Networks.Polygon,
+  network: Networks.Polygon,
+  inputAmount: "201",
+  inputCurrency: FiatToken.MXN,
+  outputCurrency: EvmToken.USDC
+});
+
+const { rampProcess } = await vortex.registerRamp(quote, {
+  destinationAddress: "0xUserWalletAddress"
+});
+
+const started = await vortex.startRamp(rampProcess.id);
+
+// Bank transfer instructions the user must pay are on the START response:
+console.log(started.achPaymentData);
+```
+
+No user-signed on-chain transactions on buys. Unlike BRL there is no QR code — display the `achPaymentData` deposit instructions verbatim; the ramp continues automatically once the fiat deposit is confirmed.
+
+## SDK recipe (offramp)
+```js
+const accounts = await vortex.listAlfredpayFiatAccounts("MEX");
+
+const { rampProcess, unsignedTransactions } = await vortex.registerRamp(quote, {
+  fiatAccountId: accounts[0].id,
+  walletAddress: "0xUserWalletAddress"
+});
+
+await vortex.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
+await vortex.startRamp(rampProcess.id);
+```
+
+The SDK cannot **create** fiat accounts; they are created during onboarding in the Vortex app or Widget. `fiatAccountId` is opaque to the SDK.
+
+## Common failures
+- `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
+- `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
+- `401` on register — the `sk_*` key is partner-scoped, not user-linked. Mint a user key after email OTP sign-in.
+- `InsufficientBalanceError` — the offramp pre-flight found the source wallet balance below the quote's input amount.
 
 ---
 
@@ -322,7 +481,8 @@ First-time integration, environment migration, or when an agent needs to decide 
 | Key | Where it goes | Purpose |
 |-----|---------------|---------|
 | `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent inside request bodies as `publicKey`. |
-| `sk_live_*` / `sk_test_*` | Server-side only | API auth. Sent as `X-API-Key` header. **Never** ship to browser/mobile bundles. |
+| `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | API auth for BRL/EUR ramps and webhook management. Sent as `X-API-Key` header. **Never** ship to browser/mobile bundles. |
+| `sk_live_*` / `sk_test_*` (user-linked) | Server-side only | Required for USD/MXN/COP/ARS ramps; also derives the BRL `taxId`. Minted programmatically after email OTP sign-in; shown once at creation. |
 
 ## SDK recipe
 ```js
@@ -492,7 +652,7 @@ try {
   const quote = await vortex.createQuote({ /* candidate combination */ });
   // → corridor is live
 } catch (err) {
-  if (err.name === "InvalidNetworkError" || err.message.includes("not implemented")) {
+  if (err.name === "InvalidNetworkError" || err.name === "MissingRequiredFieldsError") {
     // → corridor not supported
   } else {
     throw err;
@@ -500,11 +660,11 @@ try {
 }
 ```
 
-## Current corridor reality (May 2026)
-- **BRL via PIX**: onramp and offramp both live.
-- **EUR via SEPA**: SDK types exist (`EurOnrampQuote`, `EurOfframpQuote`) but handlers throw `"Euro onramp/offramp handler not implemented yet"` at runtime. Treat as `planned`.
-- **ARS via CBU**: supported via the AlfredPay corridor; route resolver determines availability per-combination.
-- **USD / MXN / COP via ACH / SPEI / WIRE**: supported via the AlfredPay corridor; route resolver determines availability per-combination.
+## Current corridor reality (July 2026)
+- **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
+- **EUR via SEPA (Mykobo)**: onramp and offramp both live in the SDK (`FiatToken.EURC`, rail `"sepa"`). May be gated off server-side per environment; verify with a quote.
+- **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; requires a user-linked `sk_*` key. Route resolver determines availability per-combination.
+- All corridors deliver to EVM networks; AssetHub is only available for BRL routes.
 
 ## Common failures
 - Filtering by a fiat that has no payment methods → empty array, not an error.
@@ -551,8 +711,11 @@ Include this payload (with secrets redacted) in any support ticket.
 | `QuoteNotFoundError` | Wrong env or stale id | Verify base URL; re-quote |
 | `InvalidNetworkError` | Network not in `Networks` enum | Use `discover-supported-corridors` |
 | `MissingRequiredFieldsError` / `MissingBrlParametersError` / `MissingBrlOfframpParametersError` | Body field missing | Fill the missing field; do not retry blindly |
-| `SubaccountNotFoundError` / `KycInvalidError` | KYC issue | Direct user through KYC; do not retry programmatically |
+| `SubaccountNotFoundError` / `KycInvalidError` | BRL KYC issue | Direct user through KYC; do not retry programmatically |
+| `MykoboKycRequiredError` / `AlfredpayOnrampKycRequiredError` | EUR / bank-transfer-corridor KYC issue | Onboard the user via the Vortex app or Widget; do not retry programmatically |
 | `AmountExceedsLimitError` | Above KYC tier | Lower amount or upgrade KYC |
+| `InsufficientBalanceError` | Offramp pre-flight: source wallet balance below the quoted input | Top up the wallet or lower the amount, then re-register from a fresh quote |
+| `EphemeralNotFreshError` / `EphemeralFreshnessCheckError` | Generated ephemeral account was not fresh, or freshness could not be verified | Safe to retry `registerRamp` — the SDK generates new ephemerals each attempt |
 | `InvalidPixKeyError` | Bad recipient PIX key | Validate via `GET /v1/brla/validatePixKey`, then re-register |
 | `InvalidPresignedTxsError` | Submitted signed tx does not match the issued unsigned tx (chainId, nonce, gas, recipient, or value mismatch) | Re-sign exactly what `getUserTransactions` returned; do not reuse old signatures |
 | `NoPresignedTransactionsError` | `startRamp` called before `updateRamp` | Submit the required hashes via `updateRamp` first |

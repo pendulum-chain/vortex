@@ -51,78 +51,225 @@
   "pages": [
     {
       "order": 1,
+      "seo": {
+        "keywords": [
+          "crypto on-ramp API",
+          "crypto off-ramp API",
+          "fiat to crypto API",
+          "stablecoin payments API",
+          "cross-border payments",
+          "USDC",
+          "USDT",
+          "Vortex API"
+        ],
+        "metaDescription": "Vortex is a fiat-to-crypto on/off-ramp API supporting BRL, EUR, USD, MXN, COP, and ARS with USDC and USDT payouts across major EVM networks and AssetHub.",
+        "metaTitle": "Vortex API Overview — Fiat-to-Crypto On/Off-Ramp Gateway"
+      },
       "slug": "overview",
       "source": "docs/api/pages/01-overview.md",
       "title": "Overview"
     },
     {
       "order": 2,
+      "seo": {
+        "keywords": [
+          "Vortex SDK",
+          "@vortexfi/sdk",
+          "crypto on-ramp SDK",
+          "Node.js on-ramp integration",
+          "PIX crypto API",
+          "SPEI crypto API",
+          "buy USDC API"
+        ],
+        "metaDescription": "Run your first fiat-to-crypto ramp with the Vortex Node.js SDK: install @vortexfi/sdk, create a quote, register the ramp, sign transactions, and track it to completion.",
+        "metaTitle": "Quick Start — Vortex Node.js SDK (@vortexfi/sdk)"
+      },
       "slug": "quick-start-with-the-sdk",
       "source": "docs/api/pages/02-quick-start-with-the-sdk.md",
       "title": "Quick Start With The SDK"
     },
     {
       "order": 3,
+      "seo": {
+        "keywords": [
+          "Vortex API keys",
+          "API authentication",
+          "secret key",
+          "public key",
+          "partner key",
+          "OTP sign-in",
+          "crypto ramp authentication"
+        ],
+        "metaDescription": "How Vortex authenticates API clients: pk_*/sk_* key pairs, partner-scoped vs user-linked keys, email OTP sign-in, and minting user API keys programmatically.",
+        "metaTitle": "Authentication And API Keys — Vortex API"
+      },
       "slug": "authentication-and-partner-keys",
       "source": "docs/api/pages/03-authentication-and-partner-keys.md",
       "title": "Authentication And API Keys"
     },
     {
       "order": 4,
+      "seo": {
+        "keywords": [
+          "ramp lifecycle",
+          "crypto ramp flow",
+          "quote register start",
+          "unsigned transactions",
+          "ramp status",
+          "on-ramp process"
+        ],
+        "metaDescription": "The full Vortex ramp lifecycle: create a quote, register with ephemeral accounts, sign and update transactions, settle fiat, start the ramp, and track it to a terminal state.",
+        "metaTitle": "Ramp Lifecycle — Quote, Register, Sign, Start, Track"
+      },
       "slug": "ramp-lifecycle",
       "source": "docs/api/pages/04-ramp-lifecycle.md",
       "title": "Ramp Lifecycle"
     },
     {
       "order": 5,
+      "seo": {
+        "keywords": [
+          "ephemeral keys",
+          "key custody",
+          "non-custodial ramp",
+          "crypto key management",
+          "ramp recovery",
+          "secure key storage"
+        ],
+        "metaDescription": "Vortex never receives ephemeral secret keys. Learn what your integration must store, for how long, and how to recover in-flight ramps safely.",
+        "metaTitle": "Ephemeral Key Custody — Vortex Security Model"
+      },
       "slug": "ephemeral-key-custody",
       "source": "docs/api/pages/05-ephemeral-key-custody.md",
       "title": "Ephemeral Key Custody"
     },
     {
       "order": 6,
+      "seo": {
+        "keywords": [
+          "crypto quote API",
+          "exchange rate API",
+          "on-ramp pricing",
+          "off-ramp fees",
+          "best route quote",
+          "stablecoin conversion rates"
+        ],
+        "metaDescription": "Create and read Vortex quotes: request shapes for buys and sells, fee breakdowns, best-route selection, expiry handling, and partner pricing.",
+        "metaTitle": "Quotes And Pricing — Vortex API"
+      },
       "slug": "quotes-and-pricing",
       "source": "docs/api/pages/06-quotes-and-pricing.md",
       "title": "Quotes And Pricing"
     },
     {
       "order": 7,
+      "seo": {
+        "keywords": [
+          "webhooks",
+          "webhook signature verification",
+          "RSA-PSS",
+          "ramp status events",
+          "payment notifications",
+          "crypto payment webhooks"
+        ],
+        "metaDescription": "Subscribe to Vortex ramp lifecycle events, verify RSA-PSS webhook signatures, and handle retries and auto-deactivation correctly.",
+        "metaTitle": "Webhooks — Real-Time Ramp Events And Verification"
+      },
       "slug": "webhooks",
       "source": "docs/api/pages/07-webhooks.md",
       "title": "Webhooks"
     },
     {
       "order": 8,
+      "seo": {
+        "keywords": [
+          "crypto widget",
+          "hosted on-ramp checkout",
+          "embed crypto on-ramp",
+          "fiat to crypto widget",
+          "buy crypto widget",
+          "white-label ramp"
+        ],
+        "metaDescription": "Embed the hosted Vortex Widget for browser and mobile flows: session creation, quote handoff, theming, and the custody model it handles for you.",
+        "metaTitle": "Vortex Widget — Hosted Crypto On/Off-Ramp Checkout"
+      },
       "slug": "widget-integration",
       "source": "docs/api/pages/08-widget-integration.md",
       "title": "Widget Integration"
     },
     {
       "order": 9,
+      "seo": {
+        "keywords": [
+          "PIX crypto",
+          "SEPA crypto",
+          "ACH crypto",
+          "SPEI crypto",
+          "CBU crypto",
+          "BRL on-ramp",
+          "EUR off-ramp",
+          "Brazil Mexico Colombia Argentina crypto"
+        ],
+        "metaDescription": "Corridor requirements for BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU): payment rails, KYC prerequisites, fiat accounts, and limits.",
+        "metaTitle": "Fiat Corridors — PIX, SEPA, ACH, SPEI, CBU"
+      },
       "slug": "fiat-corridors",
       "source": "docs/api/pages/09-fiat-corridors.md",
       "title": "Fiat Corridors"
     },
     {
       "order": 10,
+      "seo": {
+        "keywords": ["sandbox", "test environment", "crypto API testing", "test API keys", "mock KYC accounts"],
+        "metaDescription": "Test Vortex integrations end-to-end in the sandbox: base URLs, pk_test_/sk_test_ keys, and pre-configured KYC-approved mock accounts.",
+        "metaTitle": "Sandbox — Test Your Vortex Integration"
+      },
       "slug": "sandbox",
       "source": "docs/api/pages/10-sandbox.md",
       "title": "Sandbox"
     },
     {
       "order": 11,
+      "seo": {
+        "keywords": [
+          "production checklist",
+          "go live",
+          "crypto API security",
+          "key management checklist",
+          "payment integration launch"
+        ],
+        "metaDescription": "Everything to verify before taking a Vortex integration live: key handling, ephemeral custody, webhook verification, idempotency, and recovery runbooks.",
+        "metaTitle": "Production Checklist — Go Live With Vortex"
+      },
       "slug": "production-checklist",
       "source": "docs/api/pages/11-production-checklist.md",
       "title": "Production Checklist"
     },
     {
       "order": 12,
+      "seo": {
+        "keywords": [
+          "AI agent integration",
+          "coding agent API docs",
+          "LLM integration guide",
+          "reimplement SDK",
+          "crypto ramp API contract",
+          "machine-readable API docs"
+        ],
+        "metaDescription": "Build a production-quality Vortex client in any language — with or without an AI coding agent. Covers the full raw-API contract, signing rules, and mandatory client responsibilities.",
+        "metaTitle": "AI Agent Integration — Build A Vortex Client In Any Language"
+      },
       "slug": "ai-agent-integration",
       "source": "docs/api/pages/12-ai-agent-integration.md",
       "title": "AI Agent Integration"
     },
     {
       "order": 13,
+      "seo": {
+        "keywords": ["KYB", "business verification", "know your business", "KYB deep link", "business onboarding crypto"],
+        "metaDescription": "Send business users straight into KYB verification with a single Vortex Widget URL — no quote required. Flow, query parameters, and locking behavior.",
+        "metaTitle": "KYB Deep Link — Business Verification Without A Quote"
+      },
       "slug": "kyb-deep-link",
       "source": "docs/api/pages/13-kyb-deep-link.md",
       "title": "KYB Deep Link"
