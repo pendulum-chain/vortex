@@ -30,9 +30,18 @@ out against another tenant's relationship.
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its
    canonical (trimmed, lowercased) form, else `403 INVITE_EMAIL_MISMATCH`.
-3. **Invites are single-use and expiring.** `pending` is the only redeemable status: accepted →
-   `409`, revoked/expired → `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption past
-   `expires_at` transitions the row to `expired`.
+3. **Invites bind to one recipient, and expire.** A `pending` invite is redeemable by anyone
+   holding the token (subject to 2). Once accepted it binds to `accepted_by_profile_id`: any
+   *other* profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
+   `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a *pending* invite past `expires_at`
+   transitions the row to `expired`.
+3a. **Re-entry.** The accepting recipient may re-present the token to resume onboarding: the accept
+   endpoint is idempotent for that profile, returning `200` with the existing relationship instead
+   of `201`. Re-entry does not re-notify the sender, does not move `accepted_at`, and does not
+   revive an `archived` relationship. It survives `expires_at` passing — the relationship already
+   exists, and KYC can outlast the invite's TTL. It does **not** survive sender revocation
+   (`410 INVITE_REVOKED`) or a `blocked` relationship (`409 RELATIONSHIP_BLOCKED`), which remain the
+   kill switches.
 4. **Redemption requires authentication and cannot be self-directed.** The redeemer must hold a
    valid session; a redeemer whose profile owns the sender entity gets
    `409 CANNOT_ACCEPT_OWN_INVITE`.
@@ -90,7 +99,9 @@ payout-instrument decision (no code path writes `verified` payout references yet
   `404` with no timing-relevant branching before the hash lookup.
 - **Intercepted link redeemed by the wrong party**: optional email binding rejects mismatched
   accounts; unbound links are deliberately bearer-redeemable (shareable-link product) and rely on
-  TTL + single-use + sender review of the resulting relationship.
+  TTL + first-redeemer binding + sender review of the resulting relationship. An intercepted link
+  is only useful *before* the intended recipient redeems it; after that it is inert to everyone
+  else (invariant 3).
 - **Cross-tenant access to relationships**: entity-scoped queries; PATCH/eligibility of a foreign
   relationship returns `404` (no existence oracle).
 - **Blocked-recipient bypass via re-invite**: invariant 5.

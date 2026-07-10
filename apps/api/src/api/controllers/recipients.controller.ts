@@ -114,7 +114,11 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       sendError(res, httpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "Invite not found");
       return;
     }
-    if (invitation.status === "accepted") {
+    // Re-entry: the recipient who accepted may reopen their link to resume onboarding — accepting
+    // is not a one-shot that burns the link. Anyone else still bounces off an accepted invite.
+    const isReEntry = invitation.status === "accepted" && invitation.acceptedByProfileId === userId;
+
+    if (invitation.status === "accepted" && !isReEntry) {
       sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
       return;
     }
@@ -122,7 +126,9 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
       return;
     }
-    if (invitation.status === "expired" || (invitation.expiresAt && invitation.expiresAt < new Date())) {
+    // Expiry closes a *pending* invite only. Once accepted, the relationship exists and KYC may run
+    // for days — an expiry passing mid-onboarding must not lock the recipient out of their own link.
+    if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
       if (invitation.status !== "expired") {
         await invitation.update({ status: "expired" });
       }
@@ -175,10 +181,16 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
           // The sender blocked this recipient; a new invite acceptance must not undo that.
           return null;
         }
-        await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
+        // Re-entry reads the relationship, it does not revive it: the sender may have archived
+        // this recipient, and reopening the link must not silently undo that.
+        if (!isReEntry) {
+          await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
+        }
       }
 
-      await invitation.update({ acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" }, { transaction });
+      if (!isReEntry) {
+        await invitation.update({ acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" }, { transaction });
+      }
       return row;
     });
 
@@ -187,7 +199,8 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       return;
     }
 
-    if (senderEntity.profileId) {
+    // Only a first acceptance is news to the sender; re-entry is the recipient resuming onboarding.
+    if (senderEntity.profileId && !isReEntry) {
       await emitNotification(senderEntity.profileId, {
         customerEntityId: senderEntity.id,
         metadata: { invitationId: invitation.id, senderRecipientId: relationship.id },
@@ -196,7 +209,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       });
     }
 
-    res.status(httpStatus.CREATED).json({
+    res.status(isReEntry ? httpStatus.OK : httpStatus.CREATED).json({
       id: relationship.id,
       invitation: {
         country: invitation.country,

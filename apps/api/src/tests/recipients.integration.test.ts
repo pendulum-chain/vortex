@@ -117,15 +117,104 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
     expect(senderNotifications.map(n => n.type)).toContain("recipient_invite_accepted");
   });
 
-  it("rejects a second acceptance of the same invite", async () => {
+  it("lets the accepting recipient re-enter their own link without re-notifying the sender", async () => {
     const sender = await createAuthedUser("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
 
-    await acceptInvite(recipient.token, invite.body.token as string);
+    const first = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(first.status).toBe(201);
+    const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
+    const originalAcceptedAt = invitation?.acceptedAt;
+
+    // Reopening the link mid-KYC resumes the same relationship rather than 409-ing.
     const second = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(second.status).toBe(200);
+    expect(second.body.id).toBe(first.body.id as string);
+    expect(second.body.relationshipStatus).toBe("active");
+
+    const reread = await RecipientInvitation.findByPk(invite.body.id as string);
+    expect(reread?.acceptedAt).toEqual(originalAcceptedAt as Date);
+
+    const accepted = (await Notification.findAll({ where: { profileId: sender.user.id } })).filter(
+      n => n.type === "recipient_invite_accepted"
+    );
+    expect(accepted).toHaveLength(1);
+  });
+
+  it("rejects a second acceptance by a different recipient", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const stranger = await createAuthedUser("stranger@example.com");
+    const invite = await createInvite(sender.token);
+
+    await acceptInvite(recipient.token, invite.body.token as string);
+    const second = await acceptInvite(stranger.token, invite.body.token as string);
     expect(second.status).toBe(409);
     expect((second.body.error as { code: string }).code).toBe("INVITE_ALREADY_ACCEPTED");
+  });
+
+  it("lets the recipient re-enter after the invite's expiry passes", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token);
+    await acceptInvite(recipient.token, invite.body.token as string);
+
+    // KYC can take days; an expiry passing after acceptance must not strand the recipient.
+    await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
+
+    const { status } = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(status).toBe(200);
+    const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
+    expect(invitation?.status).toBe("accepted");
+  });
+
+  it("does not revive an archived relationship on re-entry", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token);
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+
+    await api.request(`/v1/recipients/${accepted.body.id}`, {
+      body: JSON.stringify({ status: "archived" }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+
+    const { status } = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(status).toBe(200);
+    const relationship = await SenderRecipient.findByPk(accepted.body.id as string);
+    expect(relationship?.relationshipStatus).toBe("archived");
+  });
+
+  it("still blocks re-entry once the sender has blocked the relationship", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token);
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+
+    await api.request(`/v1/recipients/${accepted.body.id}`, {
+      body: JSON.stringify({ status: "blocked" }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+
+    const retry = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(retry.status).toBe(409);
+    expect((retry.body.error as { code: string }).code).toBe("RELATIONSHIP_BLOCKED");
+  });
+
+  it("still rejects re-entry on a revoked invite", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token);
+    await acceptInvite(recipient.token, invite.body.token as string);
+
+    await RecipientInvitation.update({ status: "revoked" }, { where: { id: invite.body.id as string } });
+
+    const { status, body } = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(status).toBe(410);
+    expect((body.error as { code: string }).code).toBe("INVITE_REVOKED");
   });
 
   it("binds redemption to the invitee email when one was recorded (case-insensitive)", async () => {

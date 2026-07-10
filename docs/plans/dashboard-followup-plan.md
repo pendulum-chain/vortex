@@ -288,9 +288,10 @@ to it.
 5. **`inviteUrl`** (`domain/recipient.ts:9`) — point at the widget with `?kybLocked=&invite=`.
    `lib/widget.ts` (`onboardingUrl`) already builds the corridor→region half; use it instead of
    deleting it, and give it the token.
-6. **Already-accepted is not an error on re-entry.** A recipient who reopens the link mid-KYC must
-   land back in the flow, not on a `409`. Either treat `INVITE_ALREADY_ACCEPTED` as success when the
-   accepting profile is the current one, or check state before posting.
+6. ~~**Already-accepted is not an error on re-entry.**~~ **Done (backend, 2026-07-10.)**
+   `acceptInvite` is idempotent for the accepting profile: `200` + the existing relationship, no
+   re-notification, and it survives the invite's expiry. The widget can POST accept unconditionally
+   after login and treat `200`/`201` alike. Revocation and `blocked` still reject.
 7. **Do not touch the dashboard's sender wizard.**
 
 ### Open questions
