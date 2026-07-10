@@ -127,6 +127,7 @@
         "zustand": "^5.0.2",
       },
       "devDependencies": {
+        "@playwright/test": "^1.61.1",
         "@tailwindcss/vite": "^4.0.3",
         "@tanstack/router-plugin": "^1.168.11",
         "@types/react": "^19.2.0",

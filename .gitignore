@@ -67,6 +67,8 @@ contracts/*/.env
 # Playwright E2E artifacts
 apps/frontend/test-results/
 apps/frontend/playwright-report/
+apps/dashboard/test-results/
+apps/dashboard/playwright-report/
 
 # Local credentials and agent-tool artifacts
 .api-key.json

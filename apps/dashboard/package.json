@@ -25,6 +25,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/vite": "^4.0.3",
     "@tanstack/router-plugin": "^1.168.11",
     "@types/react": "^19.2.0",
@@ -41,6 +42,7 @@
     "build": "vite build",
     "dev": "vite dev --port 5174 --host",
     "preview": "vite preview --port 5174",
+    "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "verify": "biome check --no-errors-on-unmatched"
   },

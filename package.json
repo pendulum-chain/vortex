@@ -132,6 +132,7 @@
     "test:db:start": "bun run --cwd apps/api test:db:start",
     "test:db:stop": "bun run --cwd apps/api test:db:stop",
     "test:e2e": "cd apps/frontend && bun run test:e2e",
+    "test:e2e:dashboard": "cd apps/dashboard && bun run test:e2e",
     "test:frontend": "cd apps/frontend && bunx vitest run",
     "test:kyc": "bun run --cwd packages/kyc test",
     "test:rebalancer": "cd apps/rebalancer && bun test",

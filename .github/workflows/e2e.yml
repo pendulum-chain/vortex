@@ -45,6 +45,26 @@ jobs:
           path: apps/frontend/playwright-report/
           retention-days: 7
 
+      # The dashboard runs its own Playwright config (own Vite server on 5174). Always run it,
+      # even when the frontend journeys failed — one broken app should not hide the other's status.
+      - name: 🌐 Install Playwright browsers (dashboard)
+        if: always()
+        working-directory: apps/dashboard
+        run: bunx playwright install --with-deps chromium
+
+      - name: 🧪 Dashboard E2E journeys
+        if: always()
+        working-directory: apps/dashboard
+        run: bun run test:e2e
+
+      - name: 📤 Upload dashboard report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-dashboard
+          path: apps/dashboard/playwright-report/
+          retention-days: 7
+
       # Non-blocking runs are only useful if somebody hears about failures.
       # Uses the same webhook token the backend's Slack notifier uses
       # (repo secret SLACK_WEB_HOOK_TOKEN); skips silently when unset.
