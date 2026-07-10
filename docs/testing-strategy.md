@@ -178,6 +178,16 @@ different set of endpoints than the widget. Covered so far:
 - **Login** (`login.spec.ts`): the email/OTP flow incl. a rejected code.
 - **Route gate** (`auth-gate.spec.ts`): an unauthenticated deep link redirects to `/login`, a
   seeded session renders the app shell, and an authenticated user is bounced off `/login`.
+- **Onboarding / KYC** (`onboarding-alfredpay-mxn.spec.ts`): real Alfredpay MX individual KYC end
+  to end — add the corridor, create the customer, fill the form, upload the ID documents, reach
+  the "In review" screen. Three variants cover how approval surfaces, which is the part the
+  dashboard wires (the machine itself is unit-tested in `packages/kyc`): (a) approval arrives while
+  the wizard stays open and the machine's own status poll advances it to "Approved"; (b) the user
+  clicks "Continue in background" and the corridor card flips to approved with no reload, purely
+  via the onboarding-status refetch — the KYC machine is gone by then; (c) the wizard is dismissed
+  mid-review and reopened, resuming into "In review" and then approval. Approval timing is driven
+  deterministically: the mock's route handlers are Node closures, so the spec flips a `kyc.approved`
+  flag between assertions and the browser's next poll observes it.
 - **Transfer** (`transfer-mxn-journey.spec.ts`): the money path — a SELL offramp of USDC-on-Polygon
   to an MXN payout account. Approved MX corridor → auto-selected self-recipient from the saved
   Alfredpay fiat account → quote → registration with fresh ephemeral keypairs → in-page ephemeral

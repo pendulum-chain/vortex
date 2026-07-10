@@ -12,13 +12,15 @@ export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
 
+type OnboardingState = "approved" | "in_review" | "pending" | "rejected";
+
 /**
- * One approved MX/Alfredpay account under an individual entity, as served by
- * GET /v1/onboarding/status (OnboardingStatusResponse in src/services/api/onboarding.service.ts).
- * corridorFromProviderAccount resolves by rail first, then provider + country — both are set
- * here so the corridor maps to MX whichever branch runs.
+ * One MX/Alfredpay account under an individual entity, as served by GET /v1/onboarding/status
+ * (OnboardingStatusResponse in src/services/api/onboarding.service.ts). corridorFromProviderAccount
+ * resolves by rail first, then provider + country — both are set so the corridor maps to MX
+ * whichever branch runs; `state` (not `status`) is what the approval gate reads.
  */
-export function buildOnboardingStatus() {
+export function buildOnboardingStatus(state: OnboardingState = "approved") {
   return {
     entities: [
       {
@@ -30,17 +32,19 @@ export function buildOnboardingStatus() {
             kycCase: null,
             provider: "alfredpay",
             rail: "mxn",
-            state: "approved",
-            status: "approved"
+            state,
+            status: state
           }
         ],
         id: "entity-e2e-1",
-        status: "approved",
+        status: state,
         type: "individual"
       }
     ]
   };
 }
+
+const NO_ONBOARDING = { entities: [] as unknown[] };
 
 /**
  * AlfredpayListFiatAccountsResponse is a bare array; selfRecipientsFromFiatAccounts reads these
@@ -163,7 +167,15 @@ interface MockBackendOptions {
   verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
   pendingStatusPolls?: number;
+  // Drives the Alfredpay MX KYC endpoints and, unless reflectOnboarding is false, makes
+  // GET /v1/onboarding/status mirror KYC progress (empty → in_review once submitted → approved).
+  // Default onboarding status (an already-approved MX corridor) applies when this is unset.
+  alfredpayKyc?: { reflectOnboarding?: boolean };
 }
+
+// AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
+const ALFREDPAY_SUCCESS = "SUCCESS";
+const ALFREDPAY_VERIFYING = "VERIFYING";
 
 // Chains the dashboard's wagmi config can reach (src/lib/wagmi.ts uses http() with no URL, so
 // viem falls back to these per-chain defaults). Polygon is genuinely exercised — the user
@@ -251,9 +263,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const registerRequests: Array<Record<string, unknown>> = [];
   const updateRequests: Array<Record<string, unknown>> = [];
   const startRequests: Array<Record<string, unknown>> = [];
+  const kycFormSubmissions: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
+  // Alfredpay KYC progress. Route handlers are Node closures, so a spec flips `kyc.approved`
+  // between assertions and the browser's next poll (machine getKycStatus, or the card's
+  // onboarding-status refetch) observes it — deterministic, no reliance on poll counts.
+  const kyc = { approved: false, customerCreated: false, submitted: false };
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
   // the user-wallet transaction from that response.
@@ -307,7 +324,68 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
 
     if (path === "/v1/onboarding/status" && method === "GET") {
-      await fulfillJson(buildOnboardingStatus());
+      if (!options.alfredpayKyc) {
+        await fulfillJson(buildOnboardingStatus());
+        return;
+      }
+      // KYC test: reflect progress so the card tracks it (empty keeps the card action enabled for
+      // reopen; in_review turns on the 15s background refetch that flips it to approved live).
+      if (options.alfredpayKyc.reflectOnboarding === false) {
+        await fulfillJson(NO_ONBOARDING);
+      } else if (kyc.approved) {
+        await fulfillJson(buildOnboardingStatus("approved"));
+      } else if (kyc.submitted) {
+        await fulfillJson(buildOnboardingStatus("in_review"));
+      } else {
+        await fulfillJson(NO_ONBOARDING);
+      }
+      return;
+    }
+
+    // --- Alfredpay MX individual KYC (packages/kyc alfredpay machine drives this sequence) ---
+    // getAlfredpayStatus (machine entry): 404 before a customer exists → CustomerDefinition;
+    // once submitted → VERIFYING so a reopened wizard resumes into PollingStatus.
+    if (path === "/v1/alfredpay/alfredpayStatus" && method === "GET") {
+      if (!kyc.customerCreated) {
+        await fulfillJson({ error: "Customer not found" }, 404);
+      } else {
+        await fulfillJson({
+          country: "MX",
+          creationTime: new Date().toISOString(),
+          status: kyc.approved ? ALFREDPAY_SUCCESS : ALFREDPAY_VERIFYING
+        });
+      }
+      return;
+    }
+    if (path === "/v1/alfredpay/createIndividualCustomer" && method === "POST") {
+      kyc.customerCreated = true;
+      await fulfillJson({ createdAt: new Date().toISOString() });
+      return;
+    }
+    if (path === "/v1/alfredpay/submitKycInformation" && method === "POST") {
+      kycFormSubmissions.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson({ submissionId: "kyc-submission-e2e-1" });
+      return;
+    }
+    // Document uploads post multipart FormData — never call postDataJSON on these.
+    if (path === "/v1/alfredpay/submitKycFile" && method === "POST") {
+      await fulfillJson({ success: true });
+      return;
+    }
+    if (path === "/v1/alfredpay/sendKycSubmission" && method === "POST") {
+      kyc.submitted = true;
+      await fulfillJson({ success: true });
+      return;
+    }
+    // getKycStatus (machine PollingStatus): VERIFYING keeps the machine polling; SUCCESS lands it
+    // on VerificationDone. The spec flips kyc.approved to make approval "arrive".
+    if (path === "/v1/alfredpay/getKycStatus" && method === "GET") {
+      await fulfillJson({
+        alfred_pay_id: "alfred-e2e-1",
+        country: "MX",
+        status: kyc.approved ? ALFREDPAY_SUCCESS : ALFREDPAY_VERIFYING,
+        updated_at: new Date().toISOString()
+      });
       return;
     }
 
@@ -391,6 +469,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   }
 
   return {
+    kyc,
+    kycFormSubmissions,
     quoteRequests,
     registerRequests,
     requestOtpRequests,
