@@ -18,7 +18,7 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 - **Auth keys**: partner integrations use a key pair.
   - `pk_live_*` / `pk_test_*` — public key, sent in request bodies for partner attribution.
   - `sk_live_*` / `sk_test_*` — secret key, sent in the `X-API-Key` header. **Never expose `sk_*` in a browser or mobile app.**
-  - For USD/MXN/COP/ARS ramps the `sk_*` key must be the **user's own user-linked key** — registration resolves the user's KYC and payment profile from the authenticated account.
+  - **Ramp registration requires a user-linked `sk_*` key in every corridor** — the register call is rejected unless the authenticated key resolves to a user account. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from that account, never from request fields.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Ramp counts**: ephemeral keys sign exactly 5 presigned transactions per ramp. The API rejects anything else.
@@ -321,7 +321,7 @@ await vortex.startRamp(rampProcess.id);
 ## Common failures
 - `MissingMykoboOnrampParametersError` / `MissingMykoboOfframpParametersError` — `destinationAddress`, `email`, `ipAddress`, or `walletAddress` missing.
 - `MykoboKycRequiredError` — the user has not completed EUR KYC; onboard via the Vortex app or Widget.
-- EUR can be gated off server-side per environment; a rejected EUR quote does not necessarily mean a client bug.
+- `503` "EUR ramps are currently disabled" on **register** — EUR is feature-gated server-side. EURC quotes still succeed while the gate is on, so a successful quote does not prove the corridor is enabled; probe registration in sandbox before shipping.
 
 ---
 
@@ -401,7 +401,7 @@ The SDK cannot **create** fiat accounts; they are created during onboarding in t
 ## Common failures
 - `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
 - `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
-- `401` on register — the `sk_*` key is partner-scoped, not user-linked. Mint a user key after email OTP sign-in.
+- `400` "requires an API key linked to a user" on register — the `sk_*` key is partner-scoped, not user-linked. Mint a user key after email OTP sign-in.
 - `InsufficientBalanceError` — the offramp pre-flight found the source wallet balance below the quote's input amount.
 
 ---
@@ -481,8 +481,8 @@ First-time integration, environment migration, or when an agent needs to decide 
 | Key | Where it goes | Purpose |
 |-----|---------------|---------|
 | `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent inside request bodies as `publicKey`. |
-| `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | API auth for BRL/EUR ramps and webhook management. Sent as `X-API-Key` header. **Never** ship to browser/mobile bundles. |
-| `sk_live_*` / `sk_test_*` (user-linked) | Server-side only | Required for USD/MXN/COP/ARS ramps; also derives the BRL `taxId`. Minted programmatically after email OTP sign-in; shown once at creation. |
+| `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | Webhook management and partner attribution. Sent as `X-API-Key` header. **Cannot register ramps** unless the key is also linked to a user. **Never** ship to browser/mobile bundles. |
+| `sk_live_*` / `sk_test_*` (user-linked) | Server-side only | Required for ramp registration in every corridor; corridor identity (BRL taxId, Alfredpay/Mykobo customer) is derived from the linked account. Minted programmatically after email OTP sign-in; shown once at creation. |
 
 ## SDK recipe
 ```js
@@ -594,7 +594,7 @@ export async function verifyVortexWebhook(req, apiBaseUrl) {
     "sessionId": "...",
     "transactionId": "...",
     "transactionStatus": "PENDING | COMPLETE | FAILED",
-    "transactionType": "onramp | offramp"
+    "transactionType": "BUY | SELL"
   }
 }
 ```
@@ -662,7 +662,7 @@ try {
 
 ## Current corridor reality (July 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
-- **EUR via SEPA (Mykobo)**: onramp and offramp both live in the SDK (`FiatToken.EURC`, rail `"sepa"`). May be gated off server-side per environment; verify with a quote.
+- **EUR via SEPA (Mykobo)**: onramp and offramp fully implemented in the SDK (`FiatToken.EURC`, rail `"sepa"`), but registration is feature-gated server-side and currently returns `503` "EUR ramps are currently disabled" when the gate is on. Quotes succeed regardless — probe registration, not quoting.
 - **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; requires a user-linked `sk_*` key. Route resolver determines availability per-combination.
 - All corridors deliver to EVM networks; AssetHub is only available for BRL routes.
 

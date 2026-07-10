@@ -142,8 +142,8 @@ X-API-Key: sk_*
 
 On a **buy**, where the fiat payment instructions appear depends on the corridor:
 
-- **BRL**: the register response contains `depositQrCode` (PIX). Show it; wait for the user to pay; then call start.
-- **EUR**: the register response contains `ibanPaymentData` (IBAN, receiver name, payment reference). Show it; the user completes the SEPA transfer; then call start.
+- **BRL**: `depositQrCode` (PIX) is released once the presigned transactions submitted via update pass validation — on the update response and on `GET /v1/ramp/{id}`, not on the register response. Show it; wait for the user to pay; then call start. (The SDK performs the update inside `registerRamp`, so SDK callers see it on the returned ramp process.)
+- **EUR**: `ibanPaymentData` (IBAN, receiver name, payment reference) follows the same release rule as `depositQrCode`. Show it; the user completes the SEPA transfer; then call start.
 - **USD, MXN, COP, ARS**: call start first; the start response's `achPaymentData` contains the bank transfer instructions for the corridor's rail (ACH, SPEI, CBU). Display them verbatim; the ramp continues automatically once the deposit is confirmed.
 
 On a **sell**, the flow is the same in every corridor: the user signs the user-owned transaction(s), you submit them via update, then call start. Vortex pays out on the corridor's rail — the user's PIX key (BRL), SEPA account (EUR), or the saved bank account referenced by `fiatAccountId` (USD, MXN, COP, ARS).

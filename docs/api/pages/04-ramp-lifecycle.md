@@ -20,11 +20,13 @@ Only public addresses are sent to Vortex. The matching ephemeral secret keys mus
 
 Use `POST /v1/ramp/update` to submit signed transactions and route-specific transaction hashes.
 
-The SDK performs this automatically for supported flows. On BRL buy flows, the SDK calls `POST /v1/ramp/update` inside `registerRamp` to submit presigned transactions. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase.
+The SDK performs this automatically for supported flows. On buy flows, the SDK calls `POST /v1/ramp/update` inside `registerRamp` to submit presigned transactions. Direct API integrations must ensure that each signature or transaction hash matches the transaction returned by Vortex for the same ramp and phase.
+
+On buys, the fiat payment instructions (`depositQrCode` for BRL, `ibanPaymentData` for EUR) are withheld until the presigned transactions pass validation: they are released on the update response and on `GET /v1/ramp/{id}`, not on the register response. SDK integrations receive them directly from `registerRamp`, which performs the update internally.
 
 ## 4. Start The Ramp
 
-Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fiat payment steps are complete. For BRL buy flows, call start after the user completes the PIX payment.
+Use `POST /v1/ramp/start` after required signatures, transaction hashes, and fiat payment steps are complete. For BRL buys, call start after the user completes the PIX payment; for EUR buys, after the SEPA transfer. For USD, MXN, COP, and ARS buys the order is inverted: call start first — the start response's `achPaymentData` contains the bank transfer instructions the user must pay.
 
 ## 5. Track Status
 
