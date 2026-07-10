@@ -1,4 +1,8 @@
-# Plan — Connect `apps/dashboard` to the live backend, realizing the full unified schema
+# [DEPRECATED] Plan — Connect `apps/dashboard` to the live backend, realizing the full unified schema
+
+**Deprecated (2026-07-10).** Superseded by `docs/dashboard-app-spec.md` for purpose, user
+stories and strategy. Retained for its migration phasing (§5), schema inventory (§4) and
+open decisions (§12), which the spec does not duplicate.
 
 **Status:** Approved plan, not yet implemented.
 **Goal:** Turn `apps/dashboard` into a real consumer of the same API + shared package the
