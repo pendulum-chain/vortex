@@ -139,8 +139,9 @@ const config: KycFormConfig<ArKycFormValues> = {
 
 interface ArKycFormScreenProps {
   onSubmit: (data: AlfredpayKycFormData) => void;
+  userEmail?: string;
 }
 
-export function ArKycFormScreen({ onSubmit }: ArKycFormScreenProps) {
-  return <KycFormScreen config={config} onSubmit={onSubmit as (data: ArKycFormValues) => void} />;
+export function ArKycFormScreen({ onSubmit, userEmail }: ArKycFormScreenProps) {
+  return <KycFormScreen config={config} lockedEmail={userEmail} onSubmit={onSubmit as (data: ArKycFormValues) => void} />;
 }

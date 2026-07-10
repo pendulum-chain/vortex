@@ -1,6 +1,6 @@
 import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, KybPersonFiles, MxnKycFiles } from "@vortexfi/kyc";
 import { useCallback } from "react";
-import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { useAlfredpayKycActor, useAlfredpayKycSelector, useRampStateSelector } from "../../contexts/rampState";
 import { DoneScreen } from "../DoneScreen";
 import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
@@ -21,6 +21,7 @@ import { PollingScreen } from "./PollingScreen";
 export const AlfredpayKycFlow = () => {
   const actor = useAlfredpayKycActor();
   const state = useAlfredpayKycSelector();
+  const userEmail = useRampStateSelector(snapshot => snapshot.context.userEmail);
 
   const confirmSuccess = useCallback(() => actor?.send({ type: "CONFIRM_SUCCESS" }), [actor]);
   const openLink = useCallback(() => actor?.send({ type: "OPEN_LINK" }), [actor]);
@@ -71,7 +72,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKycForm" && isMxn) {
-    return <MxnKycFormScreen onSubmit={submitForm} />;
+    return <MxnKycFormScreen onSubmit={submitForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "FillingKycForm" && isCo) {
@@ -79,7 +80,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKycForm" && isAr) {
-    return <ArKycFormScreen onSubmit={submitForm} />;
+    return <ArKycFormScreen onSubmit={submitForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
@@ -96,7 +97,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKybForm") {
-    return <KybFormScreen country={context.country} onSubmit={submitKybForm} />;
+    return <KybFormScreen country={context.country} onSubmit={submitKybForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "UploadingKybBusinessDocs") {

@@ -26,6 +26,7 @@ interface KycFormScreenProps {
   country: AlfredpayKycCountry;
   onSubmit: (data: AlfredpayKycFormData) => void;
   onCancel: () => void;
+  userEmail?: string;
 }
 
 interface TextFieldProps<T extends FieldValues> {
@@ -33,10 +34,11 @@ interface TextFieldProps<T extends FieldValues> {
   name: FieldPath<T>;
   label: string;
   placeholder?: string;
+  readOnly?: boolean;
   type?: string;
 }
 
-function TextField<T extends FieldValues>({ control, name, label, placeholder, type = "text" }: TextFieldProps<T>) {
+function TextField<T extends FieldValues>({ control, name, label, placeholder, readOnly, type = "text" }: TextFieldProps<T>) {
   return (
     <FormField
       control={control}
@@ -45,7 +47,14 @@ function TextField<T extends FieldValues>({ control, name, label, placeholder, t
         <FormItem>
           <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Input placeholder={placeholder} type={type} {...field} value={field.value ?? ""} />
+            <Input
+              className={readOnly ? "cursor-not-allowed bg-muted text-muted-foreground" : undefined}
+              placeholder={placeholder}
+              readOnly={readOnly}
+              type={type}
+              {...field}
+              value={field.value ?? ""}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
@@ -135,14 +144,14 @@ function FormShell({
   );
 }
 
-function MxKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) {
+function MxKycForm({ onSubmit, onCancel, userEmail }: Omit<KycFormScreenProps, "country">) {
   const form = useForm<MxnKycFormValues>({
     defaultValues: {
       address: "",
       city: "",
       dateOfBirth: "",
       dni: "",
-      email: "",
+      email: userEmail ?? "",
       firstName: "",
       lastName: "",
       state: "",
@@ -155,7 +164,7 @@ function MxKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
     <Form {...form}>
       <FormShell onCancel={onCancel} onSubmit={form.handleSubmit(onSubmit)}>
         <NameAndBirth control={form.control} />
-        <TextField control={form.control} label="Email" name="email" type="email" />
+        <TextField control={form.control} label="Email" name="email" readOnly={!!userEmail} type="email" />
         <TextField control={form.control} label="CURP / INE number" name="dni" />
         <AddressFields control={form.control} />
       </FormShell>
@@ -219,7 +228,7 @@ function ColKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">)
   );
 }
 
-function ArKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) {
+function ArKycForm({ onSubmit, onCancel, userEmail }: Omit<KycFormScreenProps, "country">) {
   const form = useForm<ArKycFormValues>({
     defaultValues: {
       ...AR_KYC_DEFAULTS,
@@ -227,7 +236,7 @@ function ArKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
       city: "",
       dateOfBirth: "",
       dni: "",
-      email: "",
+      email: userEmail ?? "",
       firstName: "",
       lastName: "",
       phoneNumber: "",
@@ -241,7 +250,7 @@ function ArKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
     <Form {...form}>
       <FormShell onCancel={onCancel} onSubmit={form.handleSubmit(onSubmit)}>
         <NameAndBirth control={form.control} />
-        <TextField control={form.control} label="Email" name="email" type="email" />
+        <TextField control={form.control} label="Email" name="email" readOnly={!!userEmail} type="email" />
         <PhoneField
           control={form.control}
           label="Phone number"
@@ -289,12 +298,12 @@ function ArKycForm({ onSubmit, onCancel }: Omit<KycFormScreenProps, "country">) 
   );
 }
 
-export function KycFormScreen({ country, onSubmit, onCancel }: KycFormScreenProps) {
+export function KycFormScreen({ country, onSubmit, onCancel, userEmail }: KycFormScreenProps) {
   if (country === "MX") {
-    return <MxKycForm onCancel={onCancel} onSubmit={onSubmit} />;
+    return <MxKycForm onCancel={onCancel} onSubmit={onSubmit} userEmail={userEmail} />;
   }
   if (country === "CO") {
     return <ColKycForm onCancel={onCancel} onSubmit={onSubmit} />;
   }
-  return <ArKycForm onCancel={onCancel} onSubmit={onSubmit} />;
+  return <ArKycForm onCancel={onCancel} onSubmit={onSubmit} userEmail={userEmail} />;
 }

@@ -26,16 +26,17 @@ type KybFormFields = z.infer<typeof schema>;
 interface KybFormScreenProps {
   onSubmit: (data: KybFormData) => void;
   country: string;
+  userEmail?: string;
 }
 
-export function KybFormScreen({ onSubmit, country }: KybFormScreenProps) {
+export function KybFormScreen({ onSubmit, country, userEmail }: KybFormScreenProps) {
   const { t } = useTranslation();
 
   const {
     formState: { errors },
     handleSubmit,
     register
-  } = useForm<KybFormFields>({ resolver: zodResolver(schema) });
+  } = useForm<KybFormFields>({ defaultValues: { repEmail: userEmail ?? "" }, resolver: zodResolver(schema) });
 
   const inputClass = (hasError: boolean) =>
     `input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${hasError ? "border-error" : "border-neutral-300"}`;
@@ -202,9 +203,10 @@ export function KybFormScreen({ onSubmit, country }: KybFormScreenProps) {
           </label>
           <input
             autoComplete="email"
-            className={inputClass(!!errors.repEmail)}
+            className={`${inputClass(!!errors.repEmail)} ${userEmail ? "cursor-not-allowed bg-base-200 text-gray-500" : ""}`}
             id="kyb-repEmail"
             inputMode="email"
+            readOnly={!!userEmail}
             type="email"
             {...register("repEmail")}
           />

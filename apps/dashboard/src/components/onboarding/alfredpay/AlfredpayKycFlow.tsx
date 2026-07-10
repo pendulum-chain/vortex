@@ -15,6 +15,7 @@ interface AlfredpayKycFlowProps {
   /** Fired once per status the provider reports, so the caller can notify and refetch. */
   onSettled: (status: OnboardingStatus) => void;
   onClose: () => void;
+  userEmail?: string;
 }
 
 /** Machine states that correspond to a status the rest of the dashboard cares about. */
@@ -37,7 +38,7 @@ function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 py-8 text-center">{children}</div>;
 }
 
-export function AlfredpayKycFlow({ corridor, onSettled, onClose }: AlfredpayKycFlowProps) {
+export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: AlfredpayKycFlowProps) {
   const [state, send] = useMachine(alfredpayKycMachine, { input: { country: CORRIDOR_COUNTRY[corridor.id] } });
 
   const value = String(state.value);
@@ -88,6 +89,7 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose }: AlfredpayKycF
         country={country as AlfredpayKycCountry}
         onCancel={onClose}
         onSubmit={(data: AlfredpayKycFormData) => send({ data, type: "SUBMIT_FORM" })}
+        userEmail={userEmail}
       />
     );
   }

@@ -52,7 +52,7 @@ export function AveniaLivenessScreen({
           <div className="mt-4 grid min-w-0 max-w-full gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             {isOpened ? (
               <Button
-                className="min-w-0 w-full shrink whitespace-normal"
+                className="w-full min-w-0 shrink whitespace-normal"
                 disabled={isRefreshing}
                 onClick={onDone}
                 type="button"
@@ -62,7 +62,7 @@ export function AveniaLivenessScreen({
               </Button>
             ) : (
               <Button
-                className="min-w-0 w-full shrink whitespace-normal"
+                className="w-full min-w-0 shrink whitespace-normal"
                 disabled={!livenessUrl || isRefreshing}
                 onClick={openLiveness}
                 type="button"
@@ -73,7 +73,7 @@ export function AveniaLivenessScreen({
             )}
             {isOpened && (
               <Button
-                className="min-w-0 w-full shrink whitespace-normal"
+                className="w-full min-w-0 shrink whitespace-normal"
                 disabled={!livenessUrl || isRefreshing}
                 onClick={openLiveness}
                 type="button"
@@ -84,7 +84,7 @@ export function AveniaLivenessScreen({
               </Button>
             )}
             <Button
-              className="min-w-0 w-full shrink whitespace-normal"
+              className="w-full min-w-0 shrink whitespace-normal"
               disabled={isRefreshing}
               onClick={onRefresh}
               type="button"

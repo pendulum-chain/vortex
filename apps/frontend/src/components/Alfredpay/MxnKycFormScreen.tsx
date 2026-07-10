@@ -54,8 +54,9 @@ const config: KycFormConfig<MxnKycFormValues> = {
 
 interface MxnKycFormScreenProps {
   onSubmit: (data: AlfredpayKycFormData) => void;
+  userEmail?: string;
 }
 
-export function MxnKycFormScreen({ onSubmit }: MxnKycFormScreenProps) {
-  return <KycFormScreen config={config} onSubmit={onSubmit as (data: MxnKycFormValues) => void} />;
+export function MxnKycFormScreen({ onSubmit, userEmail }: MxnKycFormScreenProps) {
+  return <KycFormScreen config={config} lockedEmail={userEmail} onSubmit={onSubmit as (data: MxnKycFormValues) => void} />;
 }

@@ -61,7 +61,7 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
         </DialogHeader>
 
         {isRealAlfredpayKyc ? (
-          <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
+          <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} userEmail={account.identifier} />
         ) : isLiveAveniaKyc ? (
           <AveniaKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
         ) : route === "headless" ? (
