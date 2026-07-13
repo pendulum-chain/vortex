@@ -1,8 +1,9 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { AlfredPayCountry, AlfredPayStatus } from "@vortexfi/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
+import { AlfredPayCountry, AlfredPayStatus, AlfredpayCustomerType, BrlaApiService } from "@vortexfi/shared";
+import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { emitNotification } from "../api/services/notifications/notification.service";
 import KycCase from "../models/kycCase.model";
-import ProviderCustomer, { AveniaKycStatus } from "../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
 import { createTestAlfredpayCustomer, createTestTaxId, createTestUser } from "../test-utils/factories";
@@ -130,6 +131,27 @@ describe("GET /v1/onboarding/status", () => {
     expect(response.status).toBe(401);
   });
 
+  it("maps initial AlfredPay customer creation to started", async () => {
+    const { user } = await createAuthedUser("alfredpay-started@example.com");
+    const view = await createAlfredpayCustomer(user.id, {
+      alfredPayId: "alfredpay-started",
+      country: AlfredPayCountry.MX,
+      status: AlfredPayStatus.Consulted,
+      type: AlfredpayCustomerType.INDIVIDUAL
+    });
+
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "alfredpay-started" } });
+    const kycCase = await KycCase.findOne({ where: { providerCustomerId: customer?.id } });
+    expect(customer?.status).toBe(VerificationStatus.Started);
+    expect(kycCase?.status).toBe(VerificationStatus.Started);
+
+    await view.update({ statusExternal: null, verificationStatus: VerificationStatus.Pending });
+    await customer?.reload();
+    await kycCase?.reload();
+    expect(customer?.status).toBe(VerificationStatus.Pending);
+    expect(kycCase?.status).toBe(VerificationStatus.Pending);
+  });
+
   it("aggregates provider accounts and KYC cases per entity with a normalized state", async () => {
     const { user, token } = await createAuthedUser("user@example.com");
     const avenia = await createTestTaxId(user.id);
@@ -138,11 +160,11 @@ describe("GET /v1/onboarding/status", () => {
       level: "level_1",
       provider: "avenia",
       providerCustomerId: avenia.id,
-      status: AveniaKycStatus.Accepted,
+      status: VerificationStatus.Approved,
       type: "kyc"
     });
     const alfredpay = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
-    await alfredpay.update({ status: AlfredPayStatus.Verifying });
+    await alfredpay.update({ status: VerificationStatus.InReview });
 
     const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
     expect(response.status).toBe(200);
@@ -159,8 +181,8 @@ describe("GET /v1/onboarding/status", () => {
 
     const aveniaAccount = accounts.find(account => account.provider === "avenia");
     expect(aveniaAccount?.state).toBe("approved");
-    expect(aveniaAccount?.status).toBe(AveniaKycStatus.Accepted);
-    expect(aveniaAccount?.kycCase?.status).toBe(AveniaKycStatus.Accepted);
+    expect(aveniaAccount?.status).toBe(VerificationStatus.Approved);
+    expect(aveniaAccount?.kycCase?.status).toBe(VerificationStatus.Approved);
 
     const alfredpayAccount = accounts.find(account => account.provider === "alfredpay");
     // VERIFYING means the customer has submitted and the provider is actively reviewing.
@@ -176,5 +198,31 @@ describe("GET /v1/onboarding/status", () => {
     // The lazy entity fallback only runs on entity-scoped writes; a fresh profile
     // that never onboarded may legitimately have no entities yet.
     expect(Array.isArray(body.entities)).toBe(true);
+  });
+
+  it("hydrates a missing Avenia business name without exposing it for personal accounts", async () => {
+    const { user, token } = await createAuthedUser("business@example.com");
+    const business = await createTestTaxId(user.id, { customerType: "business", subAccountId: "business-subaccount" });
+    await business.update({ companyName: null });
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          subaccountInfo: mock(async () => ({ accountInfo: { fullName: "", name: "Acme Ltda" } }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        entities: Array<{ accounts: Array<{ companyName: string | null; provider: string }> }>;
+      };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.companyName).toBe("Acme Ltda");
+      await business.reload();
+      expect(business.companyName).toBe("Acme Ltda");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
   });
 });

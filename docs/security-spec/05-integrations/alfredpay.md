@@ -109,14 +109,15 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
 `provider_customers` (`provider = 'alfredpay'`), owned via `customer_entities`:
 
-- `alfred_pay_id` → `provider_customer_id` (still the durable Alfredpay-side key,
-  UNIQUE per provider); the internal status machine (CONSULTED/LINK_OPENED/USER_COMPLETED/
-  VERIFYING/FAILED/SUCCESS/UPDATE_REQUIRED) is carried verbatim, and the new schema
-  legitimately admits UPDATE_REQUIRED (the legacy Postgres enum lacked it — writes of that
-  status used to crash).
+- `alfred_pay_id` → `provider_customer_id` (still the durable Alfredpay-side key, UNIQUE per
+  provider). Database status is the shared canonical verification enum. Provider responses are
+  stored unmodified in `status_external`; provider-specific APIs continue mapping them to the
+  existing Alfredpay workflow contract. `CREATED` and pre-submission interactions map to
+  `started`; missing or stale submissions map to `pending`; `IN_REVIEW`, `COMPLETED`, and `FAILED`
+  map to `in_review`, `approved`, and `rejected` respectively.
 - All controller lookups go through `findAlfredpayCustomer(userId, country[, type])`, which
   resolves the caller's `customer_entity` first and preserves the legacy updatedAt-DESC
   tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
   type-ASC precedence ('business' < 'individual').
-- Status transitions mirror into the account's `kyc_cases` row in the same code path.
+- Canonical and external status transitions mirror into the account's `kyc_cases` row in the same code path.
 - The legacy `alfredpay_customers` table is a read-only backup with no remaining readers.

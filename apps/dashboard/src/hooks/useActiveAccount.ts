@@ -10,18 +10,20 @@ const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
   approved: "approved",
   in_review: "in_review",
   pending: "pending",
-  rejected: "rejected"
+  rejected: "rejected",
+  started: "started"
 };
 
 const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
 
 // When a corridor has several provider accounts, surface the furthest-along one.
 const STATUS_RANK: Record<OnboardingStatus, number> = {
-  approved: 4,
-  in_review: 3,
+  approved: 5,
+  in_review: 4,
   not_started: 0,
-  pending: 2,
-  rejected: 1
+  pending: 3,
+  rejected: 1,
+  started: 2
 };
 
 function deriveType(data: OnboardingStatusResponse | undefined): AccountType {

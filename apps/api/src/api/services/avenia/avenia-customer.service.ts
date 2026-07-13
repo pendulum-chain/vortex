@@ -1,7 +1,7 @@
 import { AveniaAccountType, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
 import KycCase from "../../../models/kycCase.model";
-import ProviderCustomer, { AveniaKycStatus, ProviderCustomerType } from "../../../models/providerCustomer.model";
+import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 
 export function hashTaxReference(taxId: string): string {
   return crypto.createHash("sha256").update(normalizeTaxId(taxId), "utf8").digest("hex");
@@ -38,16 +38,20 @@ export async function findAveniaCustomerBySubaccountId(subAccountId: string): Pr
  * migration backfilled exactly one case per provider account; runtime transitions update
  * it in the same code path — these are two new tables, not a legacy dual-write).
  */
-export async function upsertAveniaKycCase(record: ProviderCustomer, status: AveniaKycStatus): Promise<void> {
+export async function upsertAveniaKycCase(
+  record: ProviderCustomer,
+  status: VerificationStatus,
+  statusExternal: string | null = record.statusExternal
+): Promise<void> {
   const lifecycle = {
-    ...(status === AveniaKycStatus.Requested ? { submittedAt: new Date() } : {}),
-    ...(status === AveniaKycStatus.Accepted ? { approvedAt: new Date() } : {}),
-    ...(status === AveniaKycStatus.Rejected ? { rejectedAt: new Date() } : {})
+    ...(status === VerificationStatus.InReview ? { submittedAt: new Date() } : {}),
+    ...(status === VerificationStatus.Approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+    ...(status === VerificationStatus.Rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
   };
 
   const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
   if (existing) {
-    await existing.update({ status, ...lifecycle });
+    await existing.update({ status, statusExternal, ...lifecycle });
     return;
   }
   await KycCase.create({
@@ -56,6 +60,7 @@ export async function upsertAveniaKycCase(record: ProviderCustomer, status: Aven
     provider: "avenia",
     providerCustomerId: record.id,
     status,
+    statusExternal,
     type: record.customerType === "business" ? "kyb" : "kyc",
     ...lifecycle
   });
@@ -68,12 +73,13 @@ export async function upsertAveniaKycCase(record: ProviderCustomer, status: Aven
  */
 export async function updateAveniaKycOutcome(
   taxId: string,
-  outcome: AveniaKycStatus.Accepted | AveniaKycStatus.Rejected
+  outcome: VerificationStatus.Approved | VerificationStatus.Rejected,
+  statusExternal: string
 ): Promise<void> {
   const record = await findAveniaCustomerByTaxId(taxId);
-  if (!record || record.status !== AveniaKycStatus.Requested) {
+  if (!record || record.status !== VerificationStatus.InReview) {
     return;
   }
-  await record.update({ status: outcome });
-  await upsertAveniaKycCase(record, outcome);
+  await record.update({ status: outcome, statusExternal });
+  await upsertAveniaKycCase(record, outcome, statusExternal);
 }

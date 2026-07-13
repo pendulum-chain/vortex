@@ -1,8 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { AlfredPayStatus } from "@vortexfi/shared";
 import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
-import ProviderCustomer from "../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import RecipientInvitation from "../models/recipientInvitation.model";
 import RecipientPayoutReference from "../models/recipientPayoutReference.model";
 import SenderRecipient from "../models/senderRecipient.model";
@@ -386,7 +385,7 @@ describe("GET /v1/recipients/:id/eligibility", () => {
       provider: "alfredpay",
       providerCustomerId: "alfredpay-recipient-1",
       rail: "mxn",
-      status: AlfredPayStatus.Verifying
+      status: VerificationStatus.InReview
     });
     expect(await eligibilityOf(sender.token, relationshipId)).toEqual({
       blockingReasonCode: "recipient_onboarding_pending",
@@ -394,7 +393,7 @@ describe("GET /v1/recipients/:id/eligibility", () => {
     });
 
     // Onboarding approved, but no verified payout reference.
-    await providerCustomer.update({ status: AlfredPayStatus.Success });
+    await providerCustomer.update({ status: VerificationStatus.Approved });
     expect(await eligibilityOf(sender.token, relationshipId)).toEqual({
       blockingReasonCode: "provider_payout_reference_unverified",
       canCreateTransfer: false
@@ -416,14 +415,14 @@ describe("GET /v1/recipients/:id/eligibility", () => {
     expect(await eligibilityOf(sender.token, relationshipId)).toEqual({ canCreateTransfer: true });
 
     // Provider later restricts the account.
-    await providerCustomer.update({ status: AlfredPayStatus.Failed });
+    await providerCustomer.update({ status: VerificationStatus.Rejected });
     expect(await eligibilityOf(sender.token, relationshipId)).toEqual({
       blockingReasonCode: "provider_restricted",
       canCreateTransfer: false
     });
 
     // Payout reference disabled → back to unverified even when provider recovers.
-    await providerCustomer.update({ status: AlfredPayStatus.Success });
+    await providerCustomer.update({ status: VerificationStatus.Approved });
     await payoutReference.update({ status: "disabled" });
     expect(await eligibilityOf(sender.token, relationshipId)).toEqual({
       blockingReasonCode: "provider_payout_reference_unverified",

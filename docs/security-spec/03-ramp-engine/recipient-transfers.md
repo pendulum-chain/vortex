@@ -58,9 +58,9 @@ out against another tenant's relationship.
    provider instrument id + masked label + status only; senders only ever see the mask.
 8. **Transfer eligibility requires the full gate** (`transfer-eligibility.service.ts`): invite
    accepted ∧ relationship `active` ∧ recipient approved with the corridor's provider (rail →
-   provider: `eur`→mykobo, `brl`→avenia, else alfredpay, country-scoped for alfredpay; statuses
-   provider-verbatim, approved = `APPROVED`/`SUCCESS`/`Accepted`, restricted =
-   `REJECTED`/`FAILED`/`Rejected`) ∧ a `verified` payout reference for the relationship + rail.
+   provider: `eur`→monerium, `brl`→avenia, else alfredpay, country-scoped for alfredpay;
+   canonical status must be `approved`, while `rejected` is provider-restricted) ∧ a `verified`
+   payout reference for the relationship + rail.
    First failing check returns its `blockingReasonCode`.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**

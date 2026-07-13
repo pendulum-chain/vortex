@@ -1,4 +1,3 @@
-import { AlfredPayStatus, MykoboCustomerStatus } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
@@ -6,24 +5,19 @@ export type ProviderName = "mykobo" | "alfredpay" | "avenia" | "monerium";
 export type ProviderCustomerType = "individual" | "business";
 export type MoneriumStatus = "PENDING" | "APPROVED" | "REJECTED";
 
-// Same values as the legacy TaxIdInternalStatus — the Avenia KYC workflow vocabulary,
-// carried verbatim so existing status comparisons survive the cutover.
-export enum AveniaKycStatus {
-  Consulted = "Consulted",
-  Requested = "Requested",
-  Accepted = "Accepted",
-  Rejected = "Rejected"
+export enum VerificationStatus {
+  Pending = "pending",
+  Started = "started",
+  InReview = "in_review",
+  Approved = "approved",
+  Rejected = "rejected"
 }
-
-// Existing providers retain their native status machines. Monerium is normalized on write
-// to PENDING/APPROVED/REJECTED while its raw profile state is kept in statusExternal.
-export type ProviderCustomerStatus = MykoboCustomerStatus | AlfredPayStatus | AveniaKycStatus | MoneriumStatus;
 
 // One anchor for every provider/rail account, owned by exactly
 // one customer_entity. Folds the legacy mykobo_customers/alfredpay_customers tables and the
 // Avenia half of tax_ids. taxReference holds the raw normalized tax id (avenia only — it is
 // the join/aggregation key for in-flight ramp state); the sha256 hash backs the uniqueness
-// guard and hashed lookups, the masked value is for display.
+// guard and hashed lookups. Masked display values are derived from taxReference at read time.
 export interface ProviderCustomerAttributes {
   id: string;
   customerEntityId: string;
@@ -32,11 +26,11 @@ export interface ProviderCustomerAttributes {
   country: string | null;
   providerCustomerId: string | null;
   providerSubaccountId: string | null;
+  companyName: string | null;
   taxReference: string | null;
   taxReferenceHash: string | null;
-  taxReferenceMasked: string | null;
   customerType: ProviderCustomerType;
-  status: ProviderCustomerStatus;
+  status: VerificationStatus;
   statusExternal: string | null;
   lastFailureReasons: string[] | null;
   createdAt: Date;
@@ -50,9 +44,9 @@ type ProviderCustomerCreationAttributes = Optional<
   | "country"
   | "providerCustomerId"
   | "providerSubaccountId"
+  | "companyName"
   | "taxReference"
   | "taxReferenceHash"
-  | "taxReferenceMasked"
   | "customerType"
   | "statusExternal"
   | "lastFailureReasons"
@@ -71,11 +65,11 @@ class ProviderCustomer
   declare country: string | null;
   declare providerCustomerId: string | null;
   declare providerSubaccountId: string | null;
+  declare companyName: string | null;
   declare taxReference: string | null;
   declare taxReferenceHash: string | null;
-  declare taxReferenceMasked: string | null;
   declare customerType: ProviderCustomerType;
-  declare status: ProviderCustomerStatus;
+  declare status: VerificationStatus;
   declare statusExternal: string | null;
   declare lastFailureReasons: string[] | null;
   declare createdAt: Date;
@@ -84,6 +78,11 @@ class ProviderCustomer
 
 ProviderCustomer.init(
   {
+    companyName: {
+      allowNull: true,
+      field: "company_name",
+      type: DataTypes.STRING(255)
+    },
     country: {
       allowNull: true,
       type: DataTypes.STRING(4)
@@ -157,11 +156,6 @@ ProviderCustomer.init(
     taxReferenceHash: {
       allowNull: true,
       field: "tax_reference_hash",
-      type: DataTypes.STRING(64)
-    },
-    taxReferenceMasked: {
-      allowNull: true,
-      field: "tax_reference_masked",
       type: DataTypes.STRING(64)
     },
     updatedAt: {

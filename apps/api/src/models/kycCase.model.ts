@@ -1,6 +1,6 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
-import type { ProviderCustomerStatus, ProviderName } from "./providerCustomer.model";
+import type { ProviderName, VerificationStatus } from "./providerCustomer.model";
 
 export type KycCaseType = "kyc" | "kyb";
 
@@ -13,7 +13,7 @@ export interface KycCaseAttributes {
   provider: ProviderName;
   level: string | null;
   type: KycCaseType;
-  status: ProviderCustomerStatus;
+  status: VerificationStatus;
   statusExternal: string | null;
   providerCaseId: string | null;
   failureReasons: string[] | null;
@@ -47,7 +47,7 @@ class KycCase extends Model<KycCaseAttributes, KycCaseCreationAttributes> implem
   declare provider: ProviderName;
   declare level: string | null;
   declare type: KycCaseType;
-  declare status: ProviderCustomerStatus;
+  declare status: VerificationStatus;
   declare statusExternal: string | null;
   declare providerCaseId: string | null;
   declare failureReasons: string[] | null;

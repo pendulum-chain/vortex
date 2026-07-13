@@ -1,6 +1,6 @@
 import { AveniaAccountType, normalizeTaxId } from "@vortexfi/shared";
 import httpStatus from "http-status";
-import ProviderCustomer, { AveniaKycStatus } from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
 import { customerTypeToAccountType } from "./avenia/avenia-customer.service";
 import { getOrCreateCustomerEntityForProfile } from "./customer-entity.service";
@@ -22,7 +22,7 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
     where: {
       customerEntityId: entity.id,
       provider: "avenia",
-      status: AveniaKycStatus.Accepted
+      status: VerificationStatus.Approved
     }
   });
 

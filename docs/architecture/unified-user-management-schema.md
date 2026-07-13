@@ -83,14 +83,15 @@ One anchor for every provider/rail account, including the durable provider refer
 | Column | Notes |
 | :-- | :-- |
 | `customer_entity_id` | FK to `customer_entities.id`. **NOT NULL** — every provider account has exactly one owner. |
-| `provider` | `mykobo`, `alfredpay`, `avenia`. (Avenia *is* the BRLA integration — the code is mid-rename, service dir `brla/` + `BrlaApiService` but `Avenia*` types. Use one provider value, not two.) |
+| `provider` | `mykobo`, `alfredpay`, `avenia`, `monerium`. (Avenia *is* the BRLA integration — the code is mid-rename, service dir `brla/` + `BrlaApiService` but `Avenia*` types. Use one provider value, not two.) |
 | `rail` | `eur`, `mxn`, `cop`, `ars`, `brl`. |
 | `country` | Provider/customer country. |
 | `provider_customer_id` | External provider customer ID, if any. |
 | `provider_subaccount_id` | External subaccount ID. For Avenia/BRLA this is the durable key (`subAccountId`) used to fetch profile/tax data on demand. |
-| `tax_reference_masked` | Provider-masked tax display value only — never the raw tax ID. |
+| `company_name` | Nullable provider-recognized company name for business accounts. Avenia fills this on creation and lazily hydrates legacy rows from account info. |
+| `tax_reference`, `tax_reference_hash` | Avenia normalized tax ID and its sha256 lookup key. Masked display is derived at read time with `maskTaxReference`; no masked copy is persisted. |
 | `customer_type` | `individual` or `business`. |
-| `status`, `status_external` | Internal + provider-native status. |
+| `status`, `status_external` | Canonical `started`/`pending`/`in_review`/`approved`/`rejected` status plus the unmodified provider status when one was returned. |
 | `last_failure_reasons` | Structured (JSONB), PII-restricted. |
 
 ```sql
@@ -112,12 +113,58 @@ Verification attempts/outcomes, independent of the provider account row.
 | `provider` | Provider handling verification. |
 | `level` | `level_1`, `level_2`, or mapped provider level. |
 | `type` | `kyc` or `kyb`. |
-| `status`, `status_external` | Internal + provider-native status. |
+| `status`, `status_external` | Canonical `started`/`pending`/`in_review`/`approved`/`rejected` status plus the unmodified provider status when one was returned. |
 | `provider_case_id` | External case ID, if any. |
 | `failure_reasons` | Structured (JSONB), PII-restricted. |
 | `submitted_at`, `approved_at`, `rejected_at` | Lifecycle timestamps. |
 
 > The dashboard's per-country KYC status view is just a query over `provider_customers` + `kyc_cases`. Add a database view if/when the dashboard needs it; no extra table required.
+
+Canonical progression is `not_started → started → pending → in_review → approved/rejected`.
+`not_started` is represented by the absence of a provider account, not a database status.
+`pending` is reserved for missing or stale provider data and is only used where applicable.
+
+`status_external` stores the provider value unchanged whenever one was returned. It is null for
+local-only transitions and missing provider data. `authorization_started` is a synthetic Monerium
+state rather than a provider response, but is retained in `status_external` to distinguish the
+OAuth hand-off from provider review.
+
+| Provider | Provider/workflow state | Source | Canonical `status` | Persisted `status_external` |
+| :-- | :-- | :-- | :-- | :-- |
+| Avenia | Initial tax consultation (`Consulted`) | Local workflow | `started` | `null` |
+| Avenia | Missing KYC attempt | Missing provider data | `pending` | `null` |
+| Avenia | Attempt `EXPIRED` | Provider | `pending` | `EXPIRED` |
+| Avenia | Submitted (`Requested`) | Local workflow | `in_review` | `null` until polled |
+| Avenia | Attempt `PENDING` | Provider | `in_review` | `PENDING` |
+| Avenia | Attempt `PROCESSING` | Provider | `in_review` | `PROCESSING` |
+| Avenia | `COMPLETED` with result `APPROVED` | Provider | `approved` | `COMPLETED` |
+| Avenia | `COMPLETED` with result `REJECTED` | Provider | `rejected` | `COMPLETED` |
+| Avenia | Account identity `CONFIRMED` fallback | Provider | `approved` | `CONFIRMED` |
+| AlfredPay | Customer created before provider status is fetched | Local workflow | `started` | `null` |
+| AlfredPay | Provider `CREATED` | Provider | `started` | `CREATED` |
+| AlfredPay | KYC/KYB link opened | Local workflow | `started` | `null` |
+| AlfredPay | `UPDATE_REQUIRED` | Provider | `started` | `UPDATE_REQUIRED` |
+| AlfredPay | Missing or stale submission | Missing provider data | `pending` | `null` |
+| AlfredPay | User finished the redirect | Local workflow | `in_review` | `null` until polled |
+| AlfredPay | `IN_REVIEW` | Provider | `in_review` | `IN_REVIEW` |
+| AlfredPay | `COMPLETED` | Provider | `approved` | `COMPLETED` |
+| AlfredPay | `FAILED` | Provider | `rejected` | `FAILED` |
+| Mykobo | Profile submission begins | Local workflow | `started` | `null` |
+| Mykobo | Profile creation failed | Missing provider data | `pending` | `null` |
+| Mykobo | Profile lookup returns `404` | Missing provider data | `pending` | `null` |
+| Mykobo | Missing review status | Missing provider data | `pending` | `null` |
+| Mykobo | Unknown review status | Provider | `pending` | Exact provider value |
+| Mykobo | `pending` | Provider | `in_review` | Exact provider value |
+| Mykobo | `approved` | Provider | `approved` | Exact provider value |
+| Mykobo | `rejected` | Provider | `rejected` | Exact provider value |
+| Monerium | OAuth authorization started | Synthetic local state | `started` | `authorization_started` |
+| Monerium | `created` | Provider | `started` | `created` |
+| Monerium | `incomplete` | Provider | `started` | `incomplete` |
+| Monerium | Missing or stale mirrored status | Missing provider data | `pending` | `null` |
+| Monerium | `pending` | Provider | `in_review` | `pending` |
+| Monerium | Another submitted non-terminal state, such as `submitted` | Provider | `in_review` | Exact provider value |
+| Monerium | `approved` | Provider | `approved` | `approved` |
+| Monerium | `rejected` | Provider | `rejected` | `rejected` |
 
 ### `api_keys` (refactor)
 
@@ -192,7 +239,9 @@ erDiagram
         TEXT country
         TEXT provider_customer_id
         TEXT provider_subaccount_id
-        TEXT tax_reference_masked
+        TEXT company_name
+        TEXT tax_reference
+        TEXT tax_reference_hash
         TEXT customer_type
         TEXT status
         TEXT status_external

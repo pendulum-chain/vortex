@@ -42,8 +42,9 @@ two people.
 - **To be confirmed:** the current assumption is that Vortex cannot retrieve a user's Monerium
   status unless the user has authenticated and Vortex holds app-specific Monerium authorization.
   Under that assumption, missing authorization produces a `404` and the custom error above.
-- As a sender, I see each corridor's real status — `not_started · pending · in_review · approved ·
-  rejected` — read from the provider, surviving reload.
+- As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
+  approved/rejected` — read from the provider, surviving reload. `pending` is only used for
+  missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
   Monerium's hosted OAuth KYC/KYB; US applicants are redirected to the partner and return to confirm.
 - As a sender, everything downstream (recipients, transfers) stays locked until at least one

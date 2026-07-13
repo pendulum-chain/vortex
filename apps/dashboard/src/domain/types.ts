@@ -8,7 +8,7 @@
  *   - Monerium (Europe/EURC): normalized profile status (PENDING|APPROVED|REJECTED)
  */
 
-export type OnboardingStatus = "not_started" | "pending" | "in_review" | "approved" | "rejected";
+export type OnboardingStatus = "not_started" | "pending" | "started" | "in_review" | "approved" | "rejected";
 
 export type CorridorId = "BR" | "EU" | "MX" | "CO" | "US" | "AR";
 

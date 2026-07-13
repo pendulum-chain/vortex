@@ -1,17 +1,19 @@
 import { apiClient } from "./api-client";
 
-export type OnboardingState = "approved" | "in_review" | "pending" | "rejected";
+export type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "started";
 
 /** A provider/KYC account under a customer entity (GET /v1/onboarding/status). */
 export interface OnboardingAccountDto {
   id: string;
   provider: string;
   country: string | null;
+  companyName: string | null;
   rail: string | null;
   customerType: string | null;
   error: { code: string; message: string } | null;
   status: string;
-  /** Normalized rollup of the provider-verbatim `status`. */
+  statusExternal: string | null;
+  /** Alias retained for dashboard account-state consumers. */
   state: OnboardingState;
   kycCase: unknown | null;
 }

@@ -1,44 +1,16 @@
+import { BrlaApiService } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
-import ProviderCustomer from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
-import {
-  isProviderApproved,
-  isProviderInReview,
-  isProviderRestricted
-} from "../services/recipients/transfer-eligibility.service";
-
-function providerState(
-  status: string,
-  provider: string,
-  statusExternal: string | null
-): "approved" | "rejected" | "in_review" | "pending" {
-  if (isProviderApproved(status)) {
-    return "approved";
-  }
-  if (isProviderRestricted(status)) {
-    return "rejected";
-  }
-  if (
-    provider === "monerium" &&
-    ["authorization_started", "created", "incomplete"].includes(statusExternal?.toLowerCase() ?? "")
-  ) {
-    return "pending";
-  }
-  if (isProviderInReview(status)) {
-    return "in_review";
-  }
-  return "pending";
-}
 
 /**
  * GET /v1/onboarding/status — aggregated onboarding view for the authenticated profile
- * (plan D5), read directly from `provider_customers` + `kyc_cases`. Statuses are the
- * provider-verbatim values; `state` is the normalized approved/in_review/pending/rejected rollup.
+ * (plan D5), read directly from `provider_customers` + `kyc_cases`.
  */
 export async function getOnboardingStatus(req: Request, res: Response): Promise<void> {
   const userId = req.userId;
@@ -60,11 +32,20 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
 
     await Promise.all(
       providerCustomers
-        .filter(customer => customer.provider === "monerium" && customer.status !== "REJECTED")
+        .filter(customer => customer.provider === "monerium" && customer.status !== VerificationStatus.Rejected)
         .map(async customer => {
           try {
             const refreshed = await getMoneriumStatus(userId, customer.customerType);
-            customer.set("status", refreshed.status);
+            customer.set(
+              "status",
+              refreshed.status === "APPROVED"
+                ? VerificationStatus.Approved
+                : refreshed.status === "REJECTED"
+                  ? VerificationStatus.Rejected
+                  : ["authorization_started", "created", "incomplete"].includes(refreshed.statusExternal.toLowerCase())
+                    ? VerificationStatus.Started
+                    : VerificationStatus.InReview
+            );
             customer.set("statusExternal", refreshed.statusExternal);
           } catch (error) {
             if (error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED) {
@@ -74,6 +55,28 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
               });
             }
             // Status aggregation remains available if Monerium is unavailable or in-memory credentials were lost.
+          }
+        })
+    );
+
+    await Promise.all(
+      providerCustomers
+        .filter(
+          customer =>
+            customer.provider === "avenia" &&
+            customer.customerType === "business" &&
+            !customer.companyName?.trim() &&
+            customer.providerSubaccountId
+        )
+        .map(async customer => {
+          try {
+            const account = await BrlaApiService.getInstance().subaccountInfo(customer.providerSubaccountId ?? "");
+            const companyName = account?.accountInfo.name?.trim() || account?.accountInfo.fullName?.trim();
+            if (companyName) {
+              await customer.update({ companyName });
+            }
+          } catch {
+            // The local onboarding view remains available when Avenia cannot hydrate optional metadata.
           }
         })
     );
@@ -94,6 +97,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
           accounts: accounts.map(customer => {
             const kycCase = kycCasesByProviderCustomer.get(customer.id) ?? null;
             return {
+              companyName: customer.customerType === "business" ? customer.companyName : null,
               country: customer.country,
               customerType: customer.customerType,
               error: providerErrors.get(customer.id) ?? null,
@@ -105,14 +109,16 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                     level: kycCase.level,
                     rejectedAt: kycCase.rejectedAt,
                     status: kycCase.status,
+                    statusExternal: kycCase.statusExternal,
                     submittedAt: kycCase.submittedAt,
                     type: kycCase.type
                   }
                 : null,
               provider: customer.provider,
               rail: customer.rail,
-              state: providerState(customer.status, customer.provider, customer.statusExternal),
-              status: customer.status
+              state: customer.status,
+              status: customer.status,
+              statusExternal: customer.statusExternal
             };
           }),
           id: entity.id,

@@ -13,11 +13,12 @@ mock.module("../../../config/database", () => ({
   default: { close: async () => undefined, transaction: async (callback: (transaction: object) => Promise<void>) => callback({}) }
 }));
 mock.module("../../../models/providerCustomer.model", () => ({
-  AveniaKycStatus: {
-    Accepted: "Accepted",
-    Consulted: "Consulted",
-    Rejected: "Rejected",
-    Requested: "Requested"
+  VerificationStatus: {
+    Approved: "approved",
+    InReview: "in_review",
+    Pending: "pending",
+    Rejected: "rejected",
+    Started: "started"
   },
   default: { findOne: providerFindOne, findOrCreate: providerFindOrCreate }
 }));
@@ -96,11 +97,11 @@ describe("Monerium OAuth", () => {
       provider: "monerium",
       providerCustomerId: null,
       rail: "eur",
-      status: "PENDING",
+      status: "started",
       statusExternal: "authorization_started"
     });
     expect(customerUpdate).toHaveBeenCalledWith(
-      { status: "PENDING", statusExternal: "authorization_started" },
+      { status: "started", statusExternal: "authorization_started" },
       expect.any(Object)
     );
   });
@@ -159,13 +160,13 @@ describe("Monerium OAuth", () => {
       provider: "monerium",
       providerCustomerId: "profile-a",
       rail: "eur",
-      status: "APPROVED",
+      status: "approved",
       statusExternal: "approved"
     });
     expect(kycCreate.mock.calls[0]?.[0]).toMatchObject({
       provider: "monerium",
       providerCaseId: "profile-a",
-      status: "APPROVED",
+      status: "approved",
       statusExternal: "approved",
       type: "kyc"
     });
@@ -232,7 +233,7 @@ describe("Monerium OAuth", () => {
   it("returns a persisted terminal status after in-memory credentials are lost", async () => {
     providerFindOne.mockResolvedValueOnce({
       providerCustomerId: "profile-approved",
-      status: "APPROVED",
+      status: "approved",
       statusExternal: "approved"
     });
 

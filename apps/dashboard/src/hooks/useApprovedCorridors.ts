@@ -8,7 +8,7 @@ export const ONBOARDING_STATUS_QUERY_KEY = ["onboarding-status"] as const;
 
 function hasOpenOnboarding(data: OnboardingStatusResponse | undefined): boolean {
   return (data?.entities ?? []).some(entity =>
-    entity.accounts.some(account => account.state === "pending" || account.state === "in_review")
+    entity.accounts.some(account => account.state === "pending" || account.state === "started" || account.state === "in_review")
   );
 }
 

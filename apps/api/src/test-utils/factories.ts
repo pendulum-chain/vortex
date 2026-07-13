@@ -1,6 +1,5 @@
 import {
   AlfredPayCountry,
-  AlfredPayStatus,
   AlfredPayType,
   AveniaAccountType,
   type DestinationType,
@@ -13,7 +12,7 @@ import {
   type UnsignedTx
 } from "@vortexfi/shared";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/apiKeyAuth.helpers";
-import { hashTaxReference, maskTaxReference } from "../api/services/avenia/avenia-customer.service";
+import { hashTaxReference } from "../api/services/avenia/avenia-customer.service";
 import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
@@ -21,7 +20,7 @@ import { config } from "../config/vars";
 import ApiKey from "../models/apiKey.model";
 import Partner, { type PartnerAttributes } from "../models/partner.model";
 import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
-import ProviderCustomer, { AveniaKycStatus } from "../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import QuoteTicket, { type QuoteTicketAttributes } from "../models/quoteTicket.model";
 import RampState, { type RampStateAttributes } from "../models/rampState.model";
 import User from "../models/user.model";
@@ -190,27 +189,30 @@ export async function createTestAlfredpayCustomer(
     customerType: "individual",
     provider: "alfredpay",
     providerCustomerId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
-    status: AlfredPayStatus.Success
+    status: VerificationStatus.Approved
   });
 }
 
 /** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
 /** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
-export async function createTestTaxId(userId: string, overrides: Partial<{ taxId: string; subAccountId: string }> = {}) {
+export async function createTestTaxId(
+  userId: string,
+  overrides: Partial<{ companyName: string; customerType: "individual" | "business"; taxId: string; subAccountId: string }> = {}
+) {
   const seq = nextSeq();
   const taxReference = normalizeTaxId(overrides.taxId ?? `1234567890${seq}`);
   const entity = await getOrCreateCustomerEntityForProfile(userId);
   return ProviderCustomer.create({
+    companyName: overrides.customerType === "business" ? (overrides.companyName ?? "Test Company") : null,
     country: "BR",
     customerEntityId: entity.id,
-    customerType: "individual",
+    customerType: overrides.customerType ?? "individual",
     provider: "avenia",
     providerSubaccountId: overrides.subAccountId ?? "test-subaccount-id",
     rail: "brl",
-    status: AveniaKycStatus.Accepted,
+    status: VerificationStatus.Approved,
     taxReference,
-    taxReferenceHash: hashTaxReference(taxReference),
-    taxReferenceMasked: maskTaxReference(taxReference)
+    taxReferenceHash: hashTaxReference(taxReference)
   });
 }
 

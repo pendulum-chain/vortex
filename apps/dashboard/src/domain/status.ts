@@ -9,10 +9,11 @@ interface StatusMeta {
 
 export const STATUS_META: Record<OnboardingStatus, StatusMeta> = {
   approved: { badgeVariant: "success", label: "Approved", progress: 100 },
-  in_review: { badgeVariant: "warning", label: "In review", progress: 66 },
+  in_review: { badgeVariant: "warning", label: "In review", progress: 75 },
   not_started: { badgeVariant: "secondary", label: "Not started", progress: 0 },
-  pending: { badgeVariant: "info", label: "Pending", progress: 33 },
-  rejected: { badgeVariant: "destructive", label: "Rejected", progress: 100 }
+  pending: { badgeVariant: "warning", label: "Pending", progress: 50 },
+  rejected: { badgeVariant: "destructive", label: "Rejected", progress: 100 },
+  started: { badgeVariant: "info", label: "Started", progress: 25 }
 };
 
 export const TX_STATUS_META: Record<TransactionStatus, { label: string; badgeVariant: StatusMeta["badgeVariant"] }> = {

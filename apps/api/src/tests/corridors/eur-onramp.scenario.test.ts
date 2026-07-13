@@ -23,7 +23,7 @@ import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ram
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { prepareMykoboToEvmOnrampTransactions } from "../../api/services/transactions/onramp/routes/mykobo-to-evm";
 import CustomerEntity from "../../models/customerEntity.model";
-import ProviderCustomer from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -351,7 +351,7 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
       expect(
         (await ProviderCustomer.findOne({ where: { customerEntityId: entity?.id as string, provider: "mykobo" } }))?.status
       ).toBe(
-        MykoboCustomerStatus.APPROVED
+        VerificationStatus.Approved
       );
     },
     30000

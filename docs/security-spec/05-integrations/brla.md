@@ -139,6 +139,14 @@ Key properties:
   value is retained in `tax_reference` because it is the join/aggregation key for in-flight
   ramp state (`ramp_states.state.taxId`, `getPendingBrlVolume`) — a documented deviation from
   the unified doc's "no raw tax IDs" non-goal, to be revisited once legacy ramp state drains.
+  No masked copy is persisted; masked display is derived with `maskTaxReference` at read time.
+- `status` uses the shared canonical verification enum. Avenia's unmodified attempt status is
+  mirrored to `status_external` whenever polling returns one; the attempt result determines the
+  canonical terminal status. The initial `Consulted` interaction maps to `started`, while
+  `Requested` and active attempt processing map to `in_review`; a missing or expired attempt maps
+  to `pending`.
+- Business rows may store a nullable `company_name`. It is set from the name accepted during
+  subaccount creation and missing legacy values are lazily refreshed from Avenia account info.
 - The legacy `tax_ids` table is a read-only backup. Its only remaining read is the
   createSubaccount legacy-adoption probe: quarantined (ownerless) legacy rows can be claimed
   by an authenticated caller exactly as before; owned legacy rows still 409.
@@ -147,6 +155,6 @@ Key properties:
   KNOWN RESIDUAL: `getKybAttemptStatus` proxies an opaque `attemptId` to BRLA with no tenancy
   check — the KYB attempt response carries no subaccount linkage, so server-side binding is
   impossible without a provider API change.
-- KYC/KYB state transitions update `provider_customers.status` and the account's `kyc_cases`
-  row in the same code path (`updateAveniaKycOutcome` preserves the idempotent
-  `WHERE status = 'Requested'` transition guard that makes a subaccount ramp-ready).
+- KYC/KYB state transitions update canonical status and provider status on both
+  `provider_customers` and the account's `kyc_cases` row in the same code path
+  (`updateAveniaKycOutcome` preserves the idempotent `in_review` transition guard).

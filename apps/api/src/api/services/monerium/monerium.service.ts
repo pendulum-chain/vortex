@@ -4,7 +4,11 @@ import NodeCache from "node-cache";
 import sequelize from "../../../config/database";
 import { config } from "../../../config/vars";
 import KycCase from "../../../models/kycCase.model";
-import ProviderCustomer, { MoneriumStatus, ProviderCustomerType } from "../../../models/providerCustomer.model";
+import ProviderCustomer, {
+  MoneriumStatus,
+  ProviderCustomerType,
+  VerificationStatus
+} from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 import { cache } from "../index";
@@ -91,6 +95,15 @@ export function mapMoneriumProfileState(state: string): MoneriumStatus {
     default:
       return "PENDING";
   }
+}
+
+function toVerificationStatus(status: MoneriumStatus, statusExternal: string): VerificationStatus {
+  if (status === "APPROVED") return VerificationStatus.Approved;
+  if (status === "REJECTED") return VerificationStatus.Rejected;
+  if (["authorization_started", "created", "incomplete"].includes(statusExternal.trim().toLowerCase())) {
+    return VerificationStatus.Started;
+  }
+  return VerificationStatus.InReview;
 }
 
 export function selectMoneriumProfile(
@@ -224,6 +237,7 @@ async function mirrorProfile(
   profile: MoneriumProfile
 ): Promise<MoneriumStatusResponse> {
   const status = mapMoneriumProfileState(profile.state);
+  const verificationStatus = toVerificationStatus(status, profile.state);
   await sequelize.transaction(async transaction => {
     const [customer] = await ProviderCustomer.findOrCreate({
       defaults: {
@@ -232,22 +246,25 @@ async function mirrorProfile(
         provider: "monerium",
         providerCustomerId: profile.id,
         rail: "eur",
-        status,
+        status: verificationStatus,
         statusExternal: profile.state
       },
       transaction,
       where: { customerEntityId, customerType, provider: "monerium", rail: "eur" }
     });
-    await customer.update({ providerCustomerId: profile.id, status, statusExternal: profile.state }, { transaction });
+    await customer.update(
+      { providerCustomerId: profile.id, status: verificationStatus, statusExternal: profile.state },
+      { transaction }
+    );
 
     const existingCase = await KycCase.findOne({ transaction, where: { providerCustomerId: customer.id } });
     if (existingCase) {
       await existingCase.update(
         {
-          approvedAt: status === "APPROVED" ? (existingCase.approvedAt ?? new Date()) : null,
+          approvedAt: verificationStatus === VerificationStatus.Approved ? (existingCase.approvedAt ?? new Date()) : null,
           providerCaseId: profile.id,
-          rejectedAt: status === "REJECTED" ? (existingCase.rejectedAt ?? new Date()) : null,
-          status,
+          rejectedAt: verificationStatus === VerificationStatus.Rejected ? (existingCase.rejectedAt ?? new Date()) : null,
+          status: verificationStatus,
           statusExternal: profile.state
         },
         { transaction }
@@ -259,12 +276,12 @@ async function mirrorProfile(
           provider: "monerium",
           providerCaseId: profile.id,
           providerCustomerId: customer.id,
-          status,
+          status: verificationStatus,
           statusExternal: profile.state,
           submittedAt: new Date(),
           type: customerType === "business" ? "kyb" : "kyc",
-          ...(status === "APPROVED" ? { approvedAt: new Date() } : {}),
-          ...(status === "REJECTED" ? { rejectedAt: new Date() } : {})
+          ...(verificationStatus === VerificationStatus.Approved ? { approvedAt: new Date() } : {}),
+          ...(verificationStatus === VerificationStatus.Rejected ? { rejectedAt: new Date() } : {})
         },
         { transaction }
       );
@@ -293,14 +310,14 @@ export async function startMoneriumOAuth(
         provider: "monerium",
         providerCustomerId: null,
         rail: "eur",
-        status: "PENDING",
+        status: VerificationStatus.Started,
         statusExternal: "authorization_started"
       },
       transaction,
       where: { customerEntityId: entity.id, customerType, provider: "monerium", rail: "eur" }
     });
-    if (!created && customer.status !== "APPROVED") {
-      await customer.update({ status: "PENDING", statusExternal: "authorization_started" }, { transaction });
+    if (!created && customer.status !== VerificationStatus.Approved) {
+      await customer.update({ status: VerificationStatus.Started, statusExternal: "authorization_started" }, { transaction });
     }
   });
   const state = base64Url(crypto.randomBytes(32));
@@ -372,12 +389,12 @@ export async function getMoneriumStatus(userId: string, customerType: ProviderCu
     if (
       persisted?.providerCustomerId &&
       persisted.statusExternal &&
-      (persisted.status === "APPROVED" || persisted.status === "REJECTED")
+      (persisted.status === VerificationStatus.Approved || persisted.status === VerificationStatus.Rejected)
     ) {
       return {
         customerType,
         profileId: persisted.providerCustomerId,
-        status: persisted.status,
+        status: mapMoneriumProfileState(persisted.statusExternal),
         statusExternal: persisted.statusExternal
       };
     }
