@@ -1,7 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import { AlfredPayStatus, MykoboCustomerStatus } from "@vortexfi/shared";
 import { AveniaKycStatus } from "../../../models/providerCustomer.model";
-import { isProviderApproved, isProviderInReview, isProviderRestricted } from "./transfer-eligibility.service";
+import {
+  isFreshMoneriumApproval,
+  isProviderApproved,
+  isProviderInReview,
+  isProviderRestricted,
+  providerForRail
+} from "./transfer-eligibility.service";
 
 // Mirrors providerState() in onboarding.controller.ts: the same precedence the dashboard
 // rollup relies on (approved > rejected > in_review > pending).
@@ -13,6 +19,16 @@ function classify(status: string): "approved" | "rejected" | "in_review" | "pend
 }
 
 describe("provider status classification", () => {
+  it("uses Monerium as the EUR onboarding provider", () => {
+    expect(providerForRail("eur")).toBe("monerium");
+  });
+
+  it("fails closed when a mirrored Monerium approval is stale", () => {
+    const now = Date.UTC(2026, 6, 13, 12, 0, 0);
+    expect(isFreshMoneriumApproval(new Date(now - 4 * 60 * 1000), now)).toBe(true);
+    expect(isFreshMoneriumApproval(new Date(now - 6 * 60 * 1000), now)).toBe(false);
+  });
+
   it("classifies terminal approved statuses", () => {
     expect(classify(MykoboCustomerStatus.APPROVED)).toBe("approved");
     expect(classify(AlfredPayStatus.Success)).toBe("approved");

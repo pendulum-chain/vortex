@@ -38,7 +38,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Integration Template | `05-integrations/_template.md` | Template for new provider specs |
 | BRLA | `05-integrations/brla.md` | BRLA anchor for BRL on/off-ramp |
 | Mykobo | `05-integrations/mykobo.md` | Mykobo EUR on/off-ramp on Base (currently registration-gated) |
-| Monerium | `05-integrations/monerium.md` | (Deprecated) Monerium EUR on-ramp — replaced by Mykobo |
+| Monerium | `05-integrations/monerium.md` | Server-side OAuth KYC/KYB and verification status mirroring |
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
@@ -72,7 +72,7 @@ Every spec file uses exactly four sections:
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
 | **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |
-| **Monerium** | (Deprecated) EUR stablecoin issuer; previously used for EUR on-ramp via SEPA. Replaced by Mykobo. |
+| **Monerium** | European e-money provider used for OAuth-based KYC/KYB verification and EUR profile status. |
 | **Alfredpay** | Fiat payment provider supporting multiple currencies |
 | **Squid Router** | Cross-chain swap/routing protocol for EVM chains |
 | **Axelar** | Cross-chain messaging protocol used by SquidRouter for EVM-to-EVM bridging |

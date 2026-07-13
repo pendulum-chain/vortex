@@ -37,7 +37,7 @@ export const CORRIDORS: Record<CorridorId, Corridor> = {
     flag: "🇪🇺",
     id: "EU",
     name: "Europe",
-    provider: "mykobo",
+    provider: "monerium",
     recipientLabel: "IBAN",
     recipientMethod: "iban"
   },
@@ -68,6 +68,7 @@ export const CORRIDOR_LIST: Corridor[] = [CORRIDORS.BR, CORRIDORS.EU, CORRIDORS.
 export const PROVIDER_LABEL: Record<Corridor["provider"], string> = {
   alfredpay: "Alfredpay",
   avenia: "Avenia",
+  monerium: "Monerium",
   mykobo: "Mykobo"
 };
 
@@ -78,14 +79,11 @@ export function onboardingKindFor(_corridor: Corridor, accountType: AccountType)
 
 /**
  * Routing method per the supported-onboarding matrix (§2): USA always redirects to a
- * partner, EU company KYB uses an external Google Form, everything else is headless.
+ * partner, while every other supported corridor uses its provider flow.
  */
 export function routeFor(corridorId: CorridorId, kind: OnboardingKind): OnboardingRoute {
   if (corridorId === "US") {
     return "redirect";
-  }
-  if (corridorId === "EU" && kind === "kyb") {
-    return "google_form";
   }
   return "headless";
 }

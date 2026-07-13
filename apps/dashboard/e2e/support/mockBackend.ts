@@ -44,6 +44,30 @@ export function buildOnboardingStatus(state: OnboardingState = "approved") {
   };
 }
 
+export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved") {
+  return {
+    entities: [
+      {
+        accounts: [
+          {
+            country: null,
+            customerType: "individual",
+            id: "acct-e2e-eu",
+            kycCase: null,
+            provider: "monerium",
+            rail: "eur",
+            state,
+            status: state
+          }
+        ],
+        id: "entity-e2e-1",
+        status: state,
+        type: "individual"
+      }
+    ]
+  };
+}
+
 const NO_ONBOARDING = { entities: [] as unknown[] };
 
 /**
@@ -171,6 +195,8 @@ interface MockBackendOptions {
   // GET /v1/onboarding/status mirror KYC progress (empty → in_review once submitted → approved).
   // Default onboarding status (an already-approved MX corridor) applies when this is unset.
   alfredpayKyc?: { reflectOnboarding?: boolean };
+  moneriumKyc?: boolean;
+  moneriumRequireRefresh?: boolean;
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -271,6 +297,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   // between assertions and the browser's next poll (machine getKycStatus, or the card's
   // onboarding-status refetch) observes it — deterministic, no reliance on poll counts.
   const kyc = { approved: false, customerCreated: false, submitted: false };
+  const monerium = { approved: false, completed: false, startRequests: [] as Array<Record<string, unknown>> };
+  const auth = { refreshes: 0 };
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
   // the user-wallet transaction from that response.
@@ -319,11 +347,18 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
     if (path === "/v1/auth/refresh" && method === "POST") {
+      auth.refreshes += 1;
       await fulfillJson({ access_token: "e2e-access-token", refresh_token: "e2e-refresh-token", success: true });
       return;
     }
 
     if (path === "/v1/onboarding/status" && method === "GET") {
+      if (options.moneriumKyc) {
+        await fulfillJson(
+          monerium.completed ? buildMoneriumOnboardingStatus(monerium.approved ? "approved" : "in_review") : NO_ONBOARDING
+        );
+        return;
+      }
       if (!options.alfredpayKyc) {
         await fulfillJson(buildOnboardingStatus());
         return;
@@ -339,6 +374,41 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillJson(NO_ONBOARDING);
       }
+      return;
+    }
+
+    if (path === "/v1/monerium/status" && method === "GET" && options.moneriumKyc) {
+      if (!monerium.completed) {
+        await fulfillJson({ error: "Monerium authorization is required" }, 401);
+      } else {
+        await fulfillJson({
+          customerType: "individual",
+          profileId: "monerium-profile-e2e",
+          status: monerium.approved ? "APPROVED" : "PENDING",
+          statusExternal: monerium.approved ? "approved" : "pending"
+        });
+      }
+      return;
+    }
+    if (path === "/v1/monerium/oauth/start" && method === "POST" && options.moneriumKyc) {
+      monerium.startRequests.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson({
+        authorizationUrl: `${APP_ORIGIN}/dashboard/monerium/callback?code=e2e-code&state=e2e-state`
+      });
+      return;
+    }
+    if (path === "/v1/monerium/oauth/complete" && method === "POST" && options.moneriumKyc) {
+      if (options.moneriumRequireRefresh && request.headers().authorization === "Bearer eyJhbGciOiJub25lIn0.eyJleHAiOjF9.") {
+        await fulfillJson({ error: "Access token expired" }, 401);
+        return;
+      }
+      monerium.completed = true;
+      await fulfillJson({
+        customerType: "individual",
+        profileId: "monerium-profile-e2e",
+        status: "PENDING",
+        statusExternal: "pending"
+      });
       return;
     }
 
@@ -469,8 +539,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   }
 
   return {
+    auth,
     kyc,
     kycFormSubmissions,
+    monerium,
     quoteRequests,
     registerRequests,
     requestOtpRequests,

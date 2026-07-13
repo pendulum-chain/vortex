@@ -16,10 +16,16 @@ export interface TransferEligibility {
   blockingReasonCode?: BlockingReasonCode;
 }
 
+const MONERIUM_APPROVAL_FRESHNESS_MS = 5 * 60 * 1000;
+
+export function isFreshMoneriumApproval(updatedAt: Date, now = Date.now()): boolean {
+  return now - updatedAt.getTime() <= MONERIUM_APPROVAL_FRESHNESS_MS;
+}
+
 /** Which provider onboards a recipient for a given payout rail. */
 export function providerForRail(rail: string): ProviderName {
   if (rail === "eur") {
-    return "mykobo";
+    return "monerium";
   }
   if (rail === "brl") {
     return "avenia";
@@ -77,8 +83,9 @@ export async function getTransferEligibility(relationship: SenderRecipient): Pro
     order: [["updatedAt", "DESC"]],
     where: {
       customerEntityId: relationship.recipientCustomerEntityId,
+      customerType: invitation.inviteeType,
       provider,
-      // Alfredpay accounts are per-country; mykobo/avenia accounts are not.
+      // Alfredpay accounts are per-country; Monerium/Avenia accounts are not.
       ...(provider === "alfredpay" ? { country: invitation.country } : {})
     }
   });
@@ -90,6 +97,9 @@ export async function getTransferEligibility(relationship: SenderRecipient): Pro
     return { blockingReasonCode: "provider_restricted", canCreateTransfer: false };
   }
   if (!isProviderApproved(providerCustomer.status)) {
+    return { blockingReasonCode: "recipient_onboarding_pending", canCreateTransfer: false };
+  }
+  if (provider === "monerium" && !isFreshMoneriumApproval(providerCustomer.updatedAt)) {
     return { blockingReasonCode: "recipient_onboarding_pending", canCreateTransfer: false };
   }
 

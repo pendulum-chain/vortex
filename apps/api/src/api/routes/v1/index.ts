@@ -15,6 +15,7 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
+import moneriumRoutes from "./monerium.route";
 import mykoboRoutes from "./mykobo.route";
 import notificationsRoutes from "./notifications.route";
 import onboardingRoutes from "./onboarding.route";
@@ -154,6 +155,11 @@ router.use("/alfredpay", alfredpayRoutes);
  * POST v1/mykobo/profiles
  */
 router.use("/mykobo", mykoboRoutes);
+
+/**
+ * Server-side Monerium OAuth and KYC/KYB status synchronization.
+ */
+router.use("/monerium", moneriumRoutes);
 
 /**
  * POST v1/webhook

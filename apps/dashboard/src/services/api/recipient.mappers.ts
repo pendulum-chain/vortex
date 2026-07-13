@@ -24,7 +24,7 @@ export function corridorFromProviderAccount(account: {
   if (account.provider === "avenia") {
     return "BR";
   }
-  if (account.provider === "mykobo") {
+  if (account.provider === "monerium" || account.provider === "mykobo") {
     return "EU";
   }
   if (account.provider === "alfredpay" && account.country) {

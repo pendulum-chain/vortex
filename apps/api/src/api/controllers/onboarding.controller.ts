@@ -4,18 +4,26 @@ import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer from "../../models/providerCustomer.model";
+import { getMoneriumStatus } from "../services/monerium/monerium.service";
 import {
   isProviderApproved,
   isProviderInReview,
   isProviderRestricted
 } from "../services/recipients/transfer-eligibility.service";
 
-function providerState(status: string): "approved" | "rejected" | "in_review" | "pending" {
+function providerState(
+  status: string,
+  provider: string,
+  statusExternal: string | null
+): "approved" | "rejected" | "in_review" | "pending" {
   if (isProviderApproved(status)) {
     return "approved";
   }
   if (isProviderRestricted(status)) {
     return "rejected";
+  }
+  if (provider === "monerium" && ["created", "incomplete"].includes(statusExternal?.toLowerCase() ?? "")) {
+    return "pending";
   }
   if (isProviderInReview(status)) {
     return "in_review";
@@ -41,12 +49,25 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
     const entities = await CustomerEntity.findAll({ where: { profileId: userId } });
     const entityIds = entities.map(entity => entity.id);
 
-    const [providerCustomers, kycCases] = await Promise.all([
-      entityIds.length
-        ? ProviderCustomer.findAll({ order: [["updatedAt", "DESC"]], where: { customerEntityId: entityIds } })
-        : [],
-      entityIds.length ? KycCase.findAll({ where: { customerEntityId: entityIds } }) : []
-    ]);
+    const providerCustomers = entityIds.length
+      ? await ProviderCustomer.findAll({ order: [["updatedAt", "DESC"]], where: { customerEntityId: entityIds } })
+      : [];
+
+    await Promise.all(
+      providerCustomers
+        .filter(customer => customer.provider === "monerium" && customer.status !== "REJECTED")
+        .map(async customer => {
+          try {
+            const refreshed = await getMoneriumStatus(userId, customer.customerType);
+            customer.set("status", refreshed.status);
+            customer.set("statusExternal", refreshed.statusExternal);
+          } catch {
+            // Status aggregation remains available if Monerium is unavailable or in-memory credentials were lost.
+          }
+        })
+    );
+
+    const kycCases = entityIds.length ? await KycCase.findAll({ where: { customerEntityId: entityIds } }) : [];
 
     const kycCasesByProviderCustomer = new Map<string, KycCase>();
     for (const kycCase of kycCases) {
@@ -78,7 +99,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
                 : null,
               provider: customer.provider,
               rail: customer.rail,
-              state: providerState(customer.status),
+              state: providerState(customer.status, customer.provider, customer.statusExternal),
               status: customer.status
             };
           }),

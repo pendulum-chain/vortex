@@ -33,13 +33,12 @@ two people.
 
 ### Onboarding (KYC/KYB)
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
-- As a sender, I complete KYC (individual) or KYB (company) per corridor **inside the dashboard**,
-  not by being bounced to another origin.
+- As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
+  Monerium uses its hosted OAuth portal and returns to the dashboard callback.
 - As a sender, I see each corridor's real status — `not_started · pending · in_review · approved ·
   rejected` — read from the provider, surviving reload.
-- As a Brazilian individual, my flow includes a liveness selfie; as an EU company, my KYB is
-  collected out-of-band and confirmed in-dashboard; as a US applicant, I am redirected to the
-  partner and return to confirm.
+- As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
+  Monerium's hosted OAuth KYC/KYB; US applicants are redirected to the partner and return to confirm.
 - As a sender, everything downstream (recipients, transfers) stays locked until at least one
   corridor is approved.
 
@@ -96,11 +95,10 @@ provider-shaped rather than UI-shaped.
   `src/machines/`. Three flows are machines: onboarding (headless / external), the provider KYC
   bindings, and the transfer.
 
-- **Reuse the KYC machines, don't re-implement them.** `@vortexfi/kyc` already holds the Avenia
-  and AlfredPay provider machines, shared by widget and dashboard; each app binds them to its own
-  API services and its own "open the provider page" side effect. Mykobo still lives in the widget
-  and needs the same extraction. The provider endpoints already exist — **no new onboarding
-  backend**.
+- **Reuse the KYC machines, don't re-implement them.** `@vortexfi/kyc` holds the Avenia,
+  AlfredPay, and Monerium provider machines. Each app binds them to its API client and browser
+  side effects. Monerium OAuth state, PKCE, code exchange, and tokens stay in the backend; the
+  shared machine receives only an authorization URL and normalized profile status.
 
 - **Reuse the ramp core.** `transfer.machine.ts` is the widget's ramp machine reduced to the
   dashboard's flow: register → presign ephemeral → user wallet signature → start → poll to
@@ -134,8 +132,8 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - **EU recipients remain unreachable** — the widget's `KYB_REGIONS` excludes EU, because Mykobo is
-    individual-KYC-only and needs a connected wallet. Unchanged by this decision. `#review`
+  - **EU recipient onboarding remains a separate follow-up.** Sender onboarding now supports
+    Monerium KYC and KYB in the dashboard, but the widget invite route still excludes EU. `#review`
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`

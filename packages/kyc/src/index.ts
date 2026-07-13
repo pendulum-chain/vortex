@@ -40,3 +40,16 @@ export {
   type UploadIds,
   type VerifyStatusActorOutput
 } from "./avenia/types";
+export type { MoneriumKycApi, MoneriumKycDeps } from "./monerium/api";
+export { createMoneriumKycMachine, type MoneriumKycMachine } from "./monerium/machine";
+export { createMoneriumKycApi, type MoneriumKycApiClient } from "./monerium/service";
+export {
+  MoneriumAuthorizationRequiredError,
+  type MoneriumCustomerType,
+  type MoneriumKycContext,
+  type MoneriumKycInput,
+  type MoneriumKycOutput,
+  type MoneriumKycStatus,
+  type MoneriumOAuthCallback,
+  type MoneriumStatusResponse
+} from "./monerium/types";

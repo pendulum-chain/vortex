@@ -2,8 +2,9 @@ import { AlfredPayStatus, MykoboCustomerStatus } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-export type ProviderName = "mykobo" | "alfredpay" | "avenia";
+export type ProviderName = "mykobo" | "alfredpay" | "avenia" | "monerium";
 export type ProviderCustomerType = "individual" | "business";
+export type MoneriumStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 // Same values as the legacy TaxIdInternalStatus — the Avenia KYC workflow vocabulary,
 // carried verbatim so existing status comparisons survive the cutover.
@@ -14,11 +15,11 @@ export enum AveniaKycStatus {
   Rejected = "Rejected"
 }
 
-// Statuses are stored verbatim per provider (mykobo/alfredpay uppercase machines, avenia
-// mixed-case workflow). The dashboard aggregator normalizes at read time.
-export type ProviderCustomerStatus = MykoboCustomerStatus | AlfredPayStatus | AveniaKycStatus;
+// Existing providers retain their native status machines. Monerium is normalized on write
+// to PENDING/APPROVED/REJECTED while its raw profile state is kept in statusExternal.
+export type ProviderCustomerStatus = MykoboCustomerStatus | AlfredPayStatus | AveniaKycStatus | MoneriumStatus;
 
-// One anchor for every provider/rail account (Mykobo, AlfredPay, Avenia), owned by exactly
+// One anchor for every provider/rail account, owned by exactly
 // one customer_entity. Folds the legacy mykobo_customers/alfredpay_customers tables and the
 // Avenia half of tax_ids. taxReference holds the raw normalized tax id (avenia only — it is
 // the join/aggregation key for in-flight ramp state); the sha256 hash backs the uniqueness

@@ -78,7 +78,10 @@ a second column to reason about in the security spec.
 
 ---
 
-## 1.1: normalize `status` from kyc_cases and provider_costumers to a single enum across rails (currently Mykobo flow at least, sets to approved not SUCCESS, Avenia to accepted ...)
+## 1.1: normalize `status` from kyc_cases and provider_costumers to a single enum across rails.
+Currently Mykobo flow at least, sets to approved not SUCCESS, Avenia to accepted ...
+
+Also, add changes to store name of Companies on table for quick lookup. + backend change to fill it up on kyb create + status to fill existing ones.
 ---
 
 ## 2. Add AlfredPay fiat-account management to the dashboard

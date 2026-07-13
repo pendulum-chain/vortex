@@ -11,6 +11,7 @@ import { AlfredpayKycFlow } from "./alfredpay/AlfredpayKycFlow";
 import { AveniaKycFlow } from "./avenia/AveniaKycFlow";
 import { ExternalFlow } from "./ExternalFlow";
 import { HeadlessFlow } from "./HeadlessFlow";
+import { MoneriumKycFlow } from "./monerium/MoneriumKycFlow";
 
 interface OnboardingWizardProps {
   account: SenderAccount;
@@ -30,6 +31,7 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
   const route = routeFor(corridor.id, kind);
   const isRealAlfredpayKyc = corridor.provider === "alfredpay" && kind === "kyc" && route === "headless";
   const isLiveAveniaKyc = corridor.provider === "avenia" && kind === "kyc" && route === "headless";
+  const isLiveMoneriumKyc = corridor.provider === "monerium" && route === "headless";
   const steps = getOnboardingSteps(corridor.id, kind);
 
   /** Mocked flows have no backend to read from, so they fake the corridor's status locally. */
@@ -64,6 +66,13 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
           <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} userEmail={account.identifier} />
         ) : isLiveAveniaKyc ? (
           <AveniaKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
+        ) : isLiveMoneriumKyc ? (
+          <MoneriumKycFlow
+            corridor={corridor}
+            customerType={account.type === "company" ? "business" : "individual"}
+            onClose={onClose}
+            onSettled={onSettled}
+          />
         ) : route === "headless" ? (
           <HeadlessFlow corridor={corridor} kind={kind} onClose={onClose} onStatusChange={onStatusChange} steps={steps} />
         ) : (

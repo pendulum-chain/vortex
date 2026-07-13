@@ -5,7 +5,7 @@
  * this layer is swappable for the live integrations later:
  *   - Avenia (Brazil/BRL): KycAttemptStatus (PENDING|PROCESSING|COMPLETED|EXPIRED)
  *     + KycAttemptResult (APPROVED|REJECTED)
- *   - Mykobo (Europe/EURC): MykoboCustomerStatus (CONSULTED|PENDING|APPROVED|REJECTED)
+ *   - Monerium (Europe/EURC): normalized profile status (PENDING|APPROVED|REJECTED)
  */
 
 export type OnboardingStatus = "not_started" | "pending" | "in_review" | "approved" | "rejected";
@@ -23,7 +23,7 @@ export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected
 
 export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
 
-export type KycProvider = "avenia" | "mykobo" | "alfredpay";
+export type KycProvider = "alfredpay" | "avenia" | "monerium" | "mykobo";
 
 /** Brazil & Europe are live; Alfredpay corridors are selectable but not yet verifiable. */
 export type CorridorAvailability = "live" | "coming_soon";

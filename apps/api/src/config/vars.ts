@@ -157,6 +157,11 @@ interface Config {
   mykobo: {
     feeFallback: MykoboFeeFallback;
   };
+  monerium: {
+    apiUrl: string;
+    clientId: string;
+    redirectUri: string;
+  };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
 
@@ -216,6 +221,13 @@ export const config: Config = {
   },
   logs: nodeEnv === "production" ? "combined" : "dev",
   metricsDashboardSecret: process.env.METRICS_DASHBOARD_SECRET || "",
+  monerium: {
+    apiUrl:
+      process.env.MONERIUM_API_URL ||
+      (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
+    clientId: process.env.MONERIUM_CLIENT_ID || "",
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/dashboard/monerium/callback"
+  },
   mykobo: {
     feeFallback: readMykoboFeeFallback()
   },
@@ -306,6 +318,8 @@ if (config.env === "production") {
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
+  if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

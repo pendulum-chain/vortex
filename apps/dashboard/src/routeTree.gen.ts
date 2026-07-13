@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MoneriumCallbackRouteImport } from './routes/monerium.callback'
 import { Route as AppTransferRouteImport } from './routes/_app/transfer'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
@@ -30,6 +31,11 @@ const AppRoute = AppRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoneriumCallbackRoute = MoneriumCallbackRouteImport.update({
+  id: '/monerium/callback',
+  path: '/monerium/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTransferRoute = AppTransferRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
+  '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
+  '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/_app/transfer': typeof AppTransferRoute
+  '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transactions'
     | '/transfer'
+    | '/monerium/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transactions'
     | '/transfer'
+    | '/monerium/callback'
   id:
     | '__root__'
     | '/'
@@ -116,12 +127,14 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/transactions'
     | '/_app/transfer'
+    | '/monerium/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MoneriumCallbackRoute: typeof MoneriumCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,6 +158,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monerium/callback': {
+      id: '/monerium/callback'
+      path: '/monerium/callback'
+      fullPath: '/monerium/callback'
+      preLoaderRoute: typeof MoneriumCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/transfer': {
@@ -207,6 +227,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  MoneriumCallbackRoute: MoneriumCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
