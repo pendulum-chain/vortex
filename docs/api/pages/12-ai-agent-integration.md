@@ -97,8 +97,8 @@ X-API-Key: sk_*
 
 Before calling register, **generate the two ephemeral accounts** the ramp uses. The API accepts exactly two account types, and one account of each covers every leg of the route:
 
-- One EVM account → a fresh secp256k1 keypair (used for all EVM legs).
-- One Substrate account → a fresh sr25519 keypair (used for all Substrate legs: Pendulum, AssetHub, Moonbeam, Hydration).
+- One EVM account → a fresh secp256k1 keypair (used for all EVM legs, including Moonbeam — Moonbeam is an EVM chain and takes an `EVM` signing account).
+- One Substrate account → a fresh sr25519 keypair (used for all Substrate legs: Pendulum, AssetHub, Hydration).
 
 Send **only the public addresses**, in the `signingAccounts` array of the register body:
 
@@ -113,7 +113,7 @@ Send **only the public addresses**, in the `signingAccounts` array of the regist
 }
 ```
 
-`type` must be exactly `"Substrate"` or `"EVM"`; no other value is accepted. There is no `publicKey` field on register — partner attribution rides on the quote's `apiKey`. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
+`type` must be `"Substrate"` or `"EVM"` — these are the only recognized values, and any other type is ignored. There is no `publicKey` field on register — partner attribution rides on the quote's `apiKey`. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
 
 The response contains:
 
