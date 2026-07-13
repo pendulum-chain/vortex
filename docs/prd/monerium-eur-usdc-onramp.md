@@ -1,233 +1,297 @@
 # PRD: Quoteless EUR → USDC (Ethereum) Onramp via Monerium Whitelabel
 
-**Status:** Draft for architecture review
+**Version:** 2.0 (response to [architecture review](./monerium-eur-usdc-onramp-architecture-review.md); v1 in git history)
+**Status:** Revised draft — awaiting re-review and external gates (§13)
 **Date:** 2026-07-13
 **Owner:** Vortex team
-**Reviewer instructions:** see [§14 Reviewer checklist](#14-reviewer-checklist)
+
+**Changes since v1 (for the re-reviewer):**
+
+- Trust model rewritten as scoped guarantees per lifecycle stage; the absolute "Vortex can never redirect funds" claim is retracted (F01, F02, F17).
+- Monerium control-plane authority (`PATCH /ibans/{iban}` on bearer auth alone) verified against live docs and added as launch gate G1 (F01).
+- One-signature claim corrected: provisioning is a trusted step, made verifiable via a published configuration manifest; no cryptographic-consent claim (F02, F03).
+- Module topology fixed: one immutable singleton with Safe-keyed configuration, atomic initialization, Safe-only mutation (F04).
+- Automatic EIP-1271 redeem validator **removed from v1**; recovery redesigned around a mandatory independent recovery owner (F05, F11).
+- Keeper-supplied route calldata removed: the module constructs Uniswap calldata internally; generic router registry removed from v1; instant pause vs. timelocked expansion (F06).
+- CoW removed from the "same interface" claim; deferred to a separate v2 specification (F07).
+- ERC-4337 removed from v1 entirely; rescue path is plain `execTransaction` (F18, F05).
+- Backend redesigned around persistent `MoneriumAccount` / `FiatDeposit` / `ConversionExecution` models with idempotency and per-Safe serialization; does not reuse the one-shot ramp state machine (F08, F13).
+- Oracle math specified with raw-unit pseudocode, explicit USDC/USD assumption, weekend policy (F09).
+- Fee finalized structurally: `feeBps` in per-account config (pilot = 0), immutable `MAX_FEE_BPS` and treasury in the singleton; I1 updated (F10).
+- Liquidity caps reframed as availability parameters; `minOut` is the safety condition; reproducible measurement + monitoring required (F12).
+- Incident, migration, compliance, dust, and destination-edge sections added (F14, F15, F16).
+- Failure-mode corrections applied, incl. atomic-revert behavior on blacklisted destination (F17).
+- Filled review response table embedded as Appendix A.
 
 ---
 
 ## 1. Summary
 
-Vortex adds a new onramp flow: a user onboards once, receives a **dedicated virtual IBAN** (issued by Monerium under Vortex's whitelabel integration), and from then on any EUR they wire to that IBAN is **automatically converted to USDC on Ethereum mainnet and forwarded to a pre-configured, static destination address** — with no per-transfer quote, signature, or interaction.
+Vortex adds a new onramp: a user onboards once, receives a **dedicated virtual IBAN** (issued by Monerium under Vortex's whitelabel integration) linked to a **user-owned Safe** on Ethereum. EUR wired to that IBAN is minted as EURe into the Safe and automatically converted to USDC and forwarded to a **destination address fixed at onboarding** — no per-transfer quote, signature, or interaction.
 
-The user's IBAN is linked to a **user-owned smart contract account (Safe)** on Ethereum. Monerium mints EURe directly into that Safe. A constrained, **immutable Vortex module** on the Safe performs the EURe→USDC swap and forwards proceeds to the fixed destination. The design goal is that **Vortex is never a custodian**: at no point can Vortex redirect, withhold, or seize user funds — provably, at the contract level.
+**Security posture (honest version):** this design does *not* claim Vortex can never touch user funds. It provides **scoped guarantees per lifecycle stage** (§4): before mint, Vortex and Monerium are trusted parties with defined, monitored, contractually constrained authority; after mint, an immutable on-chain policy limits Vortex's authority to executing a fixed conversion, pausing it, and tuning bounded availability parameters — it cannot redirect minted principal outside the enumerated policy, under the stated assumptions.
 
-## 2. Background
+## 2. Scope (reduced v1)
 
-- Monerium is a licensed EMI issuing EURe (ERC-20 e-money token, 1:1 EUR). Each KYC'd profile can link blockchain addresses (per chain) and receives a personal IBAN; incoming SEPA payments are minted as EURe to the linked address, typically within seconds (SEPA Instant: "within 5 seconds, including the time to mint or burn EURe tokens onchain" — [monerium.com/partners](https://monerium.com/partners/)).
-- Vortex will operate Monerium's **Whitelabel plan**: profile creation, KYC/KYB submission, address linking, and IBAN issuance all run through the Monerium API under the Vortex brand ([docs.monerium.com/whitelabel](https://docs.monerium.com/whitelabel)). Monerium has confirmed (commercially) that users onboarded earlier via OAuth/legacy integrations can be taken over.
-- Address linking requires a one-time signature over the exact message `"I hereby declare that I am the address owner."`. For contract accounts Monerium validates via **EIP-1271** `isValidSignature` on-chain ([docs.monerium.com/oauth/#eip-1271](https://docs.monerium.com/oauth/#eip-1271)). **The contract must already be deployed when the link is validated** — the docs do not mention ERC-6492/counterfactual signature support. Linking is **per-chain** (`ethereum` for this flow).
-- Redeem orders (EURe → SEPA payout) also accept EIP-1271 signatures — relevant for the recovery path (§8.4).
-- **Precedent:** Gnosis Pay uses the same primitive stack (Safe + Monerium EURe + constrained Zodiac modules) to build a non-custodial card product. This validates the general architecture; our module constraints differ but the trust model is analogous.
+**In scope:**
 
-### 2.1 Verified liquidity facts (as of 2026-07-10 — re-verify at build time)
+- Personal Monerium profiles only; **newly onboarded users only** (legacy migration deferred).
+- Ethereum mainnet only.
+- One swap route: EURe V2 → EURC → USDC via one pinned Uniswap v3 router; calldata constructed by the module.
+- One destination per account, set at onboarding; changeable only by the Safe's owners.
+- Explicit minimum deposit and processing SLA (§10.3).
+- Mandatory independent recovery owner (§8).
+- Zero on-chain fee for the pilot; fee structure finalized in the contract regardless (§9).
 
-- EURe **V2** on Ethereum: `0x39b8B6385416f4cA36a20319F70D28621895279D`. The V1 token (`0x3231Cb...273f`) is deprecated; several stale V1 pools still show TVL — must not be used.
-- There is **no meaningful direct EURe/USDC pool on Ethereum**. The real route is **EURe → EURC → USDC**:
-  - EURe/EURC Uniswap v3 0.05% (`0x2a817bd5018f9782f84398067639230121e07d4c`): ~$104k TVL — the bottleneck hop.
-  - EURC/USDC Uniswap v3 0.05% (`0x95dbb3c7546f22bce375900abfdd64a4e5bd73d6`) + v4 pools: >$5M TVL, ~$2.6M daily volume — effectively unconstrained at our sizes.
-- Measured aggregator quotes: 10k EURe → USDC at spot (~zero impact); 50k EURe via pure AMM routing suffers **~3.6% impact** (bottleneck pool exhausted), while CoW Swap quoted ~spot at 50k via solver/RFQ liquidity.
-- Consequence: v1 must enforce **per-swap size caps** (§7.3) and the routing layer must be replaceable (§7.4).
+**Out of scope for v1** (each requires its own future spec): offramp/automated redeem, CoW or any aggregator, ERC-4337, corporate profiles, legacy-user migration, other chains, per-transfer destinations, memo-routing features.
 
-## 3. Goals
+## 3. Verified external facts
 
-1. One-time onboarding: single passkey ceremony; **exactly one signature** (the Monerium link message). No wallet extension required.
-2. Fully automatic post-onboarding flow: EUR in → USDC at destination, no user action.
-3. **Non-custodial by construction**: Vortex cannot change the destination, cannot withdraw funds, cannot upgrade logic into something that can. Bounded worst-case loss from any Vortex compromise (§8.3).
-4. Swap routing is replaceable over time (pools/DEXes change) **without** weakening guarantee 3.
-5. Reasonable execution quality: bounded slippage vs. EUR/USD oracle rate.
+Re-verify all before build; dates note when checked.
 
-### Non-goals (v1)
+- **Monerium link message** (2026-07-13): fixed string `"I hereby declare that I am the address owner."`; smart-contract accounts validated via on-chain EIP-1271 `isValidSignature(bytes32,bytes)`; contract must be deployed at validation time (no ERC-6492 documented); linking is per-chain. Redeem orders also accept EIP-1271. ([docs.monerium.com/oauth/#eip-1271](https://docs.monerium.com/oauth/#eip-1271))
+- **Monerium control plane** (2026-07-13, **F01 verified**): `PATCH /ibans/{iban}` — "Move an existing IBAN to a specified address an chain. All incoming EUR payments will automatically be routed to the address on that chain." Authorization: **API client bearer token only**; no signature from the currently linked address. `POST /addresses` requires a signature only from the **new** address's owner. Consequence: whoever holds Vortex's whitelabel credentials can redirect future mints. Memo-based routing was **not** found in current docs (review's sub-claim unconfirmed). ([docs.monerium.com/api](https://docs.monerium.com/api))
+- **Safe passkeys**: WebAuthn credentials as Safe owners via Safe's WebAuthn signer contracts; Ethereum mainnet has the EIP-7951 P-256 precompile since Fusaka (Dec 2025). Exact signer contracts, addresses, and gas to be pinned and benchmarked in spike G0.
+- **Liquidity snapshot** (2026-07-10; see methodology caveat §7.4): no meaningful direct EURe/USDC pool on Ethereum. Route: EURe/EURC Uniswap v3 0.05% (`0x2a817bd5018f9782f84398067639230121e07d4c`, ~$104k TVL — bottleneck) → EURC/USDC 0.05% (`0x95dbb3c7546f22bce375900abfdd64a4e5bd73d6`, >$5M TVL). Aggregator quotes: ~spot at 10k EURe; ~3.6% impact at 50k via pure AMM. These are **snapshots, not durable bounds** (F12).
+- **EURe V2 (Ethereum)**: `0x39b8B6385416f4cA36a20319F70D28621895279D`. V1 (`0x3231Cb...273f`) is deprecated; several stale V1 pools still show TVL and must be excluded from routing and tests.
 
-- Offramp (USDC → EUR) — future work; the same account layout supports it via Monerium redeem orders.
-- Quotes, limit prices, or user-selectable destinations per transfer.
-- Chains other than Ethereum mainnet for mint/swap/delivery.
-- Supporting user-supplied external wallets as the deposit target.
+## 4. Trust model — scoped guarantees by lifecycle stage
 
-## 4. Actors & trust model
+Replaces v1 §4/§8.3. Every user-facing security claim must be traceable to one row.
 
-| Actor | Role | Trust required |
-|---|---|---|
-| User | Owns passkey → owns Safe; sends EUR from their bank | Trusts Monerium (fiat/e-money layer) and audited contracts; does **not** need to trust Vortex for fund safety |
-| Vortex backend | Whitelabel API client: onboarding, KYC submission, webhooks; runs the keeper | Can censor (not execute) and delay; cannot steal beyond bounded slippage margin (§8.3) |
-| Monerium | EMI: KYC of record, IBAN issuance, EURe mint/burn | Fully trusted for fiat layer (licensed, regulated); EURe token has issuer admin powers (freeze/upgrade) inherent to e-money |
-| Keeper (Vortex-operated) | Triggers swap+forward when EURe arrives | Untrusted for safety — all safety is enforced in the module; trusted only for liveness |
-| Safe (per user) | Holds EURe transiently; owner = user passkey **only** | Battle-tested Safe v1.4.1+ contracts |
-| VortexSwapModule | Immutable module enabled on the Safe at setup | The security-critical component — see invariants §8.2 |
+| Stage | Guarantee | Trusted dependencies | Vortex's authority | Excluded / residual |
+|---|---|---|---|---|
+| **S0 Provisioning** (onboarding) | Deployed account configuration is **verifiable** against a published manifest before first deposit; fraud is detectable, not cryptographically prevented | Vortex frontend + backend + deployment path at time of onboarding; Safe & signer contracts as audited | Full (Vortex constructs the account) | A compromised provisioning pipeline can deploy a hostile account. Mitigation: manifest + independent verifier (§6.4); no cryptographic consent claim is made (F03) |
+| **S1 Fiat ingress** (bank → Monerium → mint) | Deposits mint to the linked Safe **while the IBAN association is unchanged**; association changes are monitored and alarmed | Monerium (regulated EMI); **Vortex's Monerium API credentials** (F01) | Can re-associate the IBAN via `PATCH /ibans` (bearer token only) → redirect *future* mints, absent Monerium-side controls (gate G1) | Monerium insolvency/compliance action; credential theft. Mitigations: G1 contractual/technical pinning, credential isolation (HSM/scoped tokens if available), continuous association monitoring + user alert + pause |
+| **S2 On-chain conversion** (EURe in Safe → USDC) | Under assumptions A1–A4 (below): minted assets cannot leave the Safe except (a) into the fixed swap returning ≥ `minOut` USDC to the Safe, (b) USDC to `destination`, (c) fee ≤ `feeBps` (pilot 0) to the immutable treasury. Max adverse extraction per swap relative to the oracle model = slippage margin + configured fee | Chainlink EUR/USD (A1); EURe/EURC/USDC token contracts behave as modeled, incl. issuer powers (A2); audited Safe + module code (A3); USDC/USD ≈ 1 within the slippage margin (A4) | Execute the fixed policy; pause instantly; tune availability params within immutable bounds (§7.3); nothing else | Oracle compromise, stablecoin depeg beyond margin, token-issuer freeze/blacklist, undiscovered contract bugs. Not covered: unrelated assets/approvals the user adds to the Safe (§7.2) |
+| **S3 Delivery** | USDC reaches `destination` exactly as forwarded | Destination remains valid, non-blacklisted, and accessible to the user | None (cannot change destination) | Destination attestation is legal, not cryptographic (§6.3); exchange address rotation, blacklisting (§10.4) |
+| **S4 Recovery / exit** | The user can always exit with assets using their owners (passkey and/or recovery owner) without Vortex's API, given public tooling + any funded relayer | User retains ≥1 owner credential; Ethereum RPC access | None (cannot block `execTransaction`) | Passkey RP-ID depends on Vortex's domain (§8.2); loss of **all** owner credentials strands user-initiated actions (automation continues) |
 
-**Custody analysis:** the Safe's only owner is the user's passkey. Vortex is not an owner, holds no keys to the account, and its module cannot move assets anywhere except (a) into a swap that must return oracle-checked USDC, and (b) USDC to the immutable destination. Vortex's practical powers are limited to *not acting* (censorship/liveness failure), which does not constitute control of funds. Formal legal sign-off required (§13).
+**Liveness vs. safety:** Vortex can always *fail to act* (keeper down, pause engaged, Monerium relationship terminated). Liveness failures leave funds as EURe in the user's Safe (S2) or as unminted fiat claims at Monerium (S1); they do not move assets.
 
 ## 5. End-to-end flows
 
-### 5.1 Onboarding (one passkey ceremony, one signature)
+### 5.1 Onboarding
 
-1. User completes Vortex-branded KYC (whitelabel: Vortex submits identity data / SumSub applicant token to Monerium via `POST /profiles` + KYC endpoints; approval via webhook).
-2. Browser creates a **passkey** (WebAuthn platform authenticator — Face ID / fingerprint / Windows Hello; synced via iCloud Keychain / Google Password Manager).
-3. Vortex backend deploys, in one transaction (Vortex pays gas):
-   - the Safe (v1.4.1+, CREATE2, deterministic address), owner = the passkey's `SafeWebAuthnSigner`, threshold 1;
-   - enables `VortexSwapModule` (immutable, points at this Safe's immutable `destination` and config);
-   - (optional, §8.4) enables `RecoveryValidatorModule`.
-   Deployment **must complete before linking** (no counterfactual link — §2).
-4. User performs **the one signature**: passkey signs `"I hereby declare that I am the address owner."` (WebAuthn assertion wrapped for Safe EIP-1271 verification).
-5. Vortex backend calls Monerium `POST /addresses` (link address to profile, `chain: ethereum`, with signature). Monerium validates via `isValidSignature` on the deployed Safe.
-6. Monerium issues the dedicated IBAN. Vortex shows the user: their IBAN + the fixed destination address + fee/rate disclosure.
+1. Vortex-branded KYC (personal profiles only), submitted to Monerium via whitelabel API; approval via webhook.
+2. **Passkey creation.** RP ID = Vortex's apex domain (pinned in docs); credential required to be discoverable and backup-eligible (enforced via WebAuthn `residentKey: required`, attestation-checked where possible). Documented explicitly: sync is typical, not guaranteed (F17.5).
+3. **Recovery owner setup (mandatory, F11).** User chooses: second passkey on another device, an existing EOA/hardware wallet, or a **printable one-time recovery key** (EOA generated client-side, shown once, never stored by Vortex). Safe owners = [WebAuthnSigner, recoveryOwner], threshold 1.
+4. **Destination collection.** Validation per §10.4; user attests ownership of the destination (checkbox + legal language — this is *legal consent*, not cryptographic proof; F03).
+5. **Atomic deployment** via canonical Safe components (§6.1): proxy factory → Safe setup with a minimal audited setup library that enables `VortexSwapModule` and calls `initialize(destination, feeBps)` in the same transaction. Vortex pays gas.
+6. **Manifest publication + verification (§6.4).** Onboarding halts unless the independent verifier confirms the deployed account matches the manifest.
+7. **The Monerium link signature**: passkey signs the fixed link message; validated via the Safe's EIP-1271 (CompatibilityFallbackHandler → WebAuthn signer). This is the single signature the *flow* requires; the recovery setup may involve its own ceremony. "One signature" is a UX goal for the Monerium step, not a security claim (F03).
+8. Vortex calls `POST /addresses` (chain: ethereum); Monerium issues the IBAN.
+9. **Disclosure screen**: fee rule, rate basis (Chainlink EUR/USD ± slippage bound), minimum deposit, processing SLA, weekend behavior, failure behavior, S0–S4 trust summary in plain language.
 
-The **destination address** is collected and confirmed during onboarding (see Open Question Q2 on ownership attestation) and is baked into the module config before the user signs the link message — the user's single signature therefore implicitly ratifies the destination.
+### 5.2 Steady-state deposit
 
-### 5.2 Steady-state transfer
+1. User wires EUR (SEPA / SEPA Instant) to their IBAN. Monerium mints EURe (V2) to the Safe.
+2. Backend ingests the Monerium webhook (HMAC-verified, deduplicated; §11.2) and/or the on-chain Transfer watcher; records a `FiatDeposit`.
+3. Keeper calls `swapAndForward(safe)` (§7.1) under a per-Safe database lock; submits via private orderflow (Flashbots Protect).
+4. On confirmed execution: record `ConversionExecution`, allocate output to deposits (§11.4), notify the user with amounts and tx hash (notification correction path per §11.3).
 
-1. User wires EUR (SEPA/SEPA Instant) to their IBAN.
-2. Monerium mints EURe (V2) to the user's Safe on Ethereum. Vortex detects via Monerium webhook **and** an on-chain `Transfer` watcher (defense in depth).
-3. Keeper calls `VortexSwapModule.swapAndForward(safe, routeData)`:
-   - module reads the Safe's full EURe balance (subject to per-swap cap; splits large balances across multiple executions);
-   - computes `minOut` from Chainlink EUR/USD (§7.2);
-   - approves exactly `amountIn` EURe to the route's router (allowlisted, §7.4), executes the swap **from the Safe's context via `execTransactionFromModule` (call only, no delegatecall)**;
-   - verifies post-conditions (USDC delta ≥ `minOut`, EURe delta ≤ `amountIn`, approval reset to 0);
-   - transfers the Safe's full USDC balance to `destination`;
-   - emits an event; keeper tx submitted via private orderflow (Flashbots Protect) to avoid sandwiching.
-4. Vortex notifies the user (email/app): amount received, USDC delivered, tx hash.
+### 5.3 Exit and recovery
 
-### 5.3 Exit / recovery
+- Any owner (passkey or recovery owner) can execute arbitrary Safe transactions via plain `execTransaction` — withdraw, disable the module, change `destination`, or sign a Monerium redeem order (EIP-1271). No ERC-4337 in v1: Vortex relays owner-signed transactions and pays gas; **independently**, any funded account can submit `execTransaction` with valid owner signatures.
+- **Disaster-recovery package (mandatory deliverable, F11):** public, versioned tooling that reconstructs the account from chain data + manifest, produces the WebAuthn assertion under the correct RP ID (requires the RP domain — see §8.2), builds and submits `execTransaction` against any RPC, without any Vortex service. Tested in CI against a fork.
+- **Passkey loss:** automation continues (keeper needs no user signature); the recovery owner restores user control. Loss of **both** owners: automation still delivers future deposits to `destination`; stranded EURe (paused route) is unrecoverable — disclosed at onboarding.
 
-- **User-initiated (passkey):** the user is the Safe owner and can always execute arbitrary transactions — withdraw EURe/USDC, disable modules, change destination, or abandon the flow. User-initiated actions are rare; they run through ERC-4337 with a Vortex paymaster (or a Vortex-relayed Safe tx) so the user never needs ETH.
-- **Passkey loss:** the automated flow **keeps working** (keeper needs no user signature), so in-flight and future deposits still reach the destination. Only user-initiated recovery is lost. Mitigations: passkeys are cloud-synced by default; optionally add a user-controlled recovery owner (email-based recoverer such as Candide/Safe Recovery Hub) — decide in Q3.
-- **Stranded EURe** (swap route dead, or swaps paused): see §8.4 recovery module — EURe can be redeemed back to the **user's own bank IBAN** via a Monerium redeem order pre-authorized at setup. Never sweep raw EURe to `destination` — if destination is an exchange deposit address, EURe would be unsupported and lost.
+## 6. Account provisioning
 
-## 6. System components
+### 6.1 Components (exact pins required before audit)
 
-1. **Vortex backend (apps/api)** — new Monerium whitelabel service: profile/KYC lifecycle, address linking, webhook ingestion (profile approved, payment received, order state), IBAN issuance; persistence of user ↔ Safe ↔ destination mapping; keeper job scheduling. Follows the existing phase/state-machine pattern (new ramp type `monerium_onramp` with phases: `awaitDeposit → detectMint → swapAndForward → notifyComplete`).
-2. **Frontend** — onboarding flow (KYC UI, passkey ceremony, destination input + confirmation, disclosure screen); status page (deposits, conversions, tx links). No wallet-connect requirement.
-3. **Contracts** (new package or `contracts/` dir):
-   - `VortexAccountFactory` — deploys Safe + WebAuthn signer + module wiring atomically via CREATE2.
-   - `VortexSwapModule` — immutable per-deployment singleton, parameterized per Safe (see §8).
-   - `RouterRegistry` — Vortex-owned allowlist of swap routers, behind a timelock (§7.4).
-   - `RecoveryValidatorModule` (optional v1, §8.4).
-4. **Keeper service** — watches mints, builds route calldata (v1: Uniswap path; later: aggregator calldata), submits via private relay, retries, alerts.
-5. **Oracle** — Chainlink EUR/USD feed on mainnet (verify address, heartbeat ~24h / deviation ~0.15% at build time; staleness guard in module).
+- Canonical Safe v1.4.1: singleton, `SafeProxyFactory`, `CompatibilityFallbackHandler` — pinned by address **and runtime hash** in the manifest schema. No custom factory; deployment uses `createProxyWithNonce` + a minimal audited `VortexSetupLib` (delegatecalled from Safe `setup`) whose only job is `enableModule` + `module.initialize` (F04 Q4: the custom surface is one small library, not a factory).
+- Safe WebAuthn signer contracts (shared verifier or per-user signer proxy — decide in G0 with gas benchmarks; EIP-7951 path preferred).
+- Fallback handler is the canonical `CompatibilityFallbackHandler` **only** (needed for EIP-1271 link validation). No 4337 module, no custom handlers (F05, F18).
 
-## 7. Swap routing
+### 6.2 `VortexSwapModule` topology (F04 — Option B)
 
-### 7.1 v1 route: Uniswap v3 multi-hop, single call
+One immutable singleton deployment; per-Safe configuration in storage.
 
-Uniswap v3's router supports multi-hop swaps in **one call**: `exactInput(path)` with the encoded path `EURe → (0.05%) → EURC → (0.05%) → USDC`. No aggregator dependency, fully on-chain, deterministic. This answers the "can Uniswap swap over two pools in one call" question: yes, natively.
+```solidity
+// Immutable (constructor): EURE, EURC, USDC, UNISWAP_ROUTER, ORACLE, ORACLE_DECIMALS,
+//   MAX_ORACLE_AGE, SLIPPAGE_BPS, MAX_FEE_BPS, FEE_RECIPIENT, PATH (EURe -0.05%- EURC -0.05%- USDC),
+//   MIN_SWAP_FLOOR, CAP_CEILING, LIVENESS_FALLBACK_DELAY
+// Storage:
+//   struct Config { address destination; uint16 feeBps; uint64 initializedAt; bool userPaused; }
+//   mapping(address safe => Config) config;
+//   Ops params (bounded): minSwapAmount ∈ [MIN_SWAP_FLOOR, ...], perSwapCap ∈ [..., CAP_CEILING];
+//   globalPaused; guardian (Vortex ops multisig); paramTimelock.
+```
 
-### 7.2 Execution bounds
+- `initialize(destination, feeBps)`: callable once per Safe, **only** with `msg.sender == safe` (holds during atomic setup: the setup library runs in the Safe's context and the module sees the Safe proxy as caller). `feeBps ≤ MAX_FEE_BPS`. Reverts on re-init. Not front-runnable: config is keyed by `msg.sender`, so only the Safe can create its own entry.
+- `setDestination(addr)` / `setUserPaused(bool)`: `msg.sender == safe` only (i.e., an owner-signed Safe transaction). `feeBps` immutable after init.
+- Every mutation emits events with a config version counter (F04, F14).
 
-- `minOut = amountIn × chainlinkEURUSD × (1 − maxSlippageBps) × 10^(−12)` (EURe 18 decimals → USDC 6 decimals).
-- `maxSlippageBps` is an **immutable constant** in the module (proposal: 100 bps). Note this bound implicitly tolerates EURe/EUR and USDC/USD depegs up to the same margin; a hard depeg beyond it makes swaps revert (fail-safe: funds sit as EURe until resolved or recovered via §8.4).
-- Oracle staleness check: revert if `updatedAt` older than heartbeat + grace.
+### 6.3 Destination semantics
 
-### 7.3 Size caps & batching
+Set at onboarding, part of the manifest and the disclosure. Changeable only via the Safe (S3). Ownership attestation is legal, not cryptographic — requiring a signature from the destination key would contradict the wallet-less UX and is explicitly not claimed (F03).
 
-- Per-swap cap (proposal: **€10,000 equivalent**, constant in module or registry) — sized to the bottleneck EURe/EURC pool. Larger balances are swapped in successive keeper executions spaced over time.
-- Min-swap threshold (proposal: €25) to avoid uneconomical dust swaps; dust accumulates until threshold.
-- These parameters should live in the `RouterRegistry` (timelocked, bounded: cap can never exceed a module-immutable ceiling; slippage never above the immutable 100 bps).
+### 6.4 Configuration manifest and verification (F02)
 
-### 7.4 Route replaceability without custody risk
+Per account, a versioned JSON manifest: chain ID; Safe address; singleton + proxy factory + fallback handler addresses and runtime hashes; owners and threshold; enabled modules; module address, runtime hash, and full config (destination, feeBps); signer contract coordinates; oracle and router addresses; setup tx hash. Published to a public transparency log (repo + API). An **independent verifier** (open-source script, runnable by anyone against public RPC) checks live chain state against the manifest; onboarding blocks on it, and it re-runs continuously with alerting. This makes provisioning fraud *detectable before first deposit* — the claim stops there.
 
-The module's **logic is immutable**; only **route data** is replaceable:
+## 7. Conversion policy (on-chain)
 
-- `RouterRegistry` (owned by Vortex multisig behind a **7-day timelock**, all changes evented/public) maps `routeId → (router address, selector allowlist)`.
-- Keeper passes `(routeId, calldata)`; module checks router is registered, executes, then enforces post-conditions (§8.2). Because post-conditions are checked in the immutable module, **even a malicious registered router cannot extract more than the slippage margin** (§8.3).
-- v2 candidates behind the same interface: 1inch/Paraswap executor calldata (validated by the same balance-delta checks), or **CoW Protocol programmatic orders** (ComposableCoW handler signing "sell all EURe for USDC, min = oracle × (1−slippage), receiver = destination" via EIP-1271) — this is the route that quoted the 50k clip at spot in testing and removes keeper gas + MEV concerns entirely. Recommended as the first post-launch iteration.
+### 7.1 `swapAndForward(safe)`
 
-### 7.5 MEV
+Caller: authorized keeper set; **permissionless fallback** — anyone may call once the Safe's EURe balance has exceeded `minSwapAmount` for longer than `LIVENESS_FALLBACK_DELAY` (proposal: 24h). Timing-grief within the slippage bound is accepted and bounded (F06 Q, review §6.4).
 
-Keeper transactions go through private orderflow (Flashbots Protect / MEV-blocker). Worst-case sandwich loss is already capped by `minOut`, private submission just avoids donating the margin.
+Atomic sequence (reverts as a unit; reentrancy-guarded; all external calls `CALL` with `value == 0`; safe-ERC20 handling for return values):
 
-## 8. Smart contract specification
+1. Require: not `globalPaused`, not `userPaused`, config initialized.
+2. `balance = EURE.balanceOf(safe)`; require `balance ≥ minSwapAmount`; `amountIn = min(balance, perSwapCap)`.
+3. Compute `minOut` (§7.3).
+4. Via `execTransactionFromModule` (CALL only): `EURE.approve(UNISWAP_ROUTER, amountIn)` (force-approve pattern).
+5. Via `execTransactionFromModule`: `UNISWAP_ROUTER.exactInput({path: PATH, recipient: safe, amountIn, amountOutMinimum: minOut})` — **calldata constructed entirely by the module** (F06); path, router, recipient hard-pinned; deadline semantics per the pinned router version (SwapRouter takes an explicit deadline — set `block.timestamp`; SwapRouter02 omits it — decide at pin time in G0).
+6. Verify: EURe allowance to router == 0 (reset if router pulled less; then also verify EURe delta == amount actually swapped), `usdcDelta = USDC.balanceOf(safe) − pre ≥ minOut`.
+7. `fee = usdcDelta × feeBps / 10_000` → `FEE_RECIPIENT` (pilot: 0); remaining full USDC balance → `config.destination`. If the destination transfer reverts (e.g. Circle blacklist), **the whole execution reverts and funds remain EURe** (F17.1).
+8. Emit `SwapExecuted(safe, amountIn, usdcOut, fee, roundId)`.
 
-### 8.1 Per-user configuration (set at Safe deployment, before the link signature)
+Scope statement (F06): the guarantee covers **EURe and USDC in a dedicated Safe provisioned by this flow**. Assets or approvals the user independently adds to the Safe are outside the policy's protection (the module never touches them, but a future user-granted allowance is the user's own act).
 
-| Param | Mutability |
-|---|---|
-| `EURE` (V2 token addr) | immutable |
-| `USDC` token addr | immutable |
-| `destination` | **immutable to Vortex**; changeable only via Safe owner (user passkey) transaction |
-| `oracle` (Chainlink EUR/USD) | immutable (module version) |
-| `maxSlippageBps` | immutable constant |
-| `routerRegistry` | immutable pointer; registry contents timelocked (§7.4) |
+### 7.2 What was removed (F06, F07)
 
-### 8.2 Module invariants (the security core — reviewer: attack these)
+No keeper-supplied calldata, no selector allowlists, no generic router registry, no aggregators, no CoW. Route governance in v1 is binary: the single pinned route can be **paused instantly** by the guardian (protective, instant) ; any expansion (new route/module version) is a new deployment + per-user owner-authorized migration (§12) — i.e., additions are maximally slow, removals are instant.
 
-- **I1**: The module can move only two tokens: EURe (into a registered router, exact-amount approval) and USDC (only to `destination`, full balance).
-- **I2**: After `swapAndForward`: `usdcReceived ≥ minOut(oracle)`, `eureSpent ≤ amountIn`, EURe allowance to router reset to 0. Otherwise revert (atomic).
-- **I3**: `execTransactionFromModule` is used with `operation = CALL` only — **no delegatecall ever** (a delegatecall would let a router rewrite Safe storage/owners).
-- **I4**: The module cannot add/remove Safe owners, change threshold, or enable/disable modules.
-- **I5**: The module has no upgrade mechanism, no `selfdestruct`, no owner-privileged functions beyond `swapAndForward` (keeper-gated or permissionless — see Q5) and view functions.
-- **I6**: Vortex's only levers are: registry contents (timelocked, bounded by immutable caps) and choosing when/whether to call the keeper function.
-- **I7**: Reentrancy-guarded; balance deltas measured against pre-call snapshots on the Safe itself.
-- **I8**: Only the user (Safe owner) can disable the module or change `destination`.
-- **I9**: The module rejects `routeData` whose router is not currently registered, and enforces a calldata selector allowlist per router entry.
+### 7.3 Oracle math (F09)
 
-### 8.3 Bounded worst-case (full Vortex compromise)
+```text
+(roundId, answer, , updatedAt, ) = ORACLE.latestRoundData()
+require(answer > 0 && updatedAt != 0)
+require(block.timestamp − updatedAt ≤ MAX_ORACLE_AGE)        // immutable ceiling
+// EURe: 18 dec; ORACLE_DECIMALS: read once at deploy (expect 8); USDC: 6 dec
+// scale = 10^(18 + ORACLE_DECIMALS − 6)  → 10^20 for an 8-dec feed
+minOut = mulDiv(amountIn, uint256(answer) × (10_000 − SLIPPAGE_BPS),
+                10 ** (12 + ORACLE_DECIMALS) × 10_000)        // floor; conservative direction, error < 1 unit
+```
 
-If Vortex's registry multisig is compromised AND the 7-day timelock elapses unnoticed AND a malicious router is registered: the router still must return `minOut` USDC to pass I2, so the maximum extractable value is **`maxSlippageBps` (+ oracle deviation) per swap** — ~1.15% of throughput, not principal. Vortex compromise can additionally *halt* swaps (liveness), never redirect principal. This bound should be stated in user-facing terms and verified by the auditor.
+- **A4 stated:** USDC/USD is assumed 1.0; the SLIPPAGE_BPS margin absorbs both stablecoin bases. USDC below the margin ⇒ swaps revert (protective). No USDC/USD feed in v1 (documented decision; revisit if margin proves tight).
+- **Weekend policy:** Chainlink FX feeds hold the last market price outside trading hours. Verify in G0 whether heartbeat updates continue (staleness passes) or stop (swaps revert Fri→Mon). If they continue: execute normally — the slippage margin has historically absorbed weekend EUR/USD gaps — but keeper policy defers swaps above a size threshold to market hours; disclosed. If they stop: deposits queue until Monday; SLA disclosure reflects it.
+- Loss statement (F09): *the swap cannot deliver less than `(1 − SLIPPAGE_BPS)` of the oracle-model value, assuming an honest oracle and modeled token behavior.* This is not a principal bound under oracle or stablecoin failure (see S2 assumptions).
 
-### 8.4 Recovery path for stranded EURe (recommended for v1)
+### 7.4 Liquidity: measurement, caps, monitoring (F12)
 
-`RecoveryValidatorModule`: an immutable module that makes the Safe's EIP-1271 `isValidSignature` return valid **only** for messages matching Monerium's redeem template `"Send EUR <amount> to <IBAN> at <timestamp>"` where `<IBAN>` hash-matches a `refundIban` pinned at setup (the user's own external bank account, collected at onboarding; changeable only by user passkey). This lets the Vortex backend place a Monerium redeem order returning stranded EURe **to the user's own bank account** with no user signature — non-custodial because the only authorizable payout target is the user's own pinned IBAN. Constraints: template must be parsed/validated strictly (amount ≤ balance, timestamp freshness); coordinate with Monerium that link-message validation is unaffected (the link message must also validate — the validator whitelists exactly these two message shapes).
+- `minOut` is the **safety** condition. `perSwapCap` / `minSwapAmount` are **availability** parameters (bounded by immutable floor/ceiling; lowering instant, raising behind the ops timelock).
+- Launch methodology: record block-numbered `QuoterV2` static-call quotes at {1k, 5k, 10k, 25k} EURe plus active-tick liquidity for both pools; archive parameters for reproducibility. TVL alone never justifies raising caps.
+- Continuous monitoring: executable quote at `perSwapCap` vs oracle; alert and auto-engage keeper pause when impact at `minSwapAmount` exceeds SLIPPAGE_BPS for a sustained period (launch/pause thresholds defined in runbook).
+- Rapid successive executions beyond depth **revert on `minOut`** (availability loss, keeper gas waste — not fund loss); pacing is keeper policy, best-effort, and documented as such.
 
-### 8.5 Known external powers (accepted, disclose)
+## 8. Keys and recovery
 
-- EURe and USDC are issuer-controlled tokens (upgradeable; freeze/blacklist powers). A blacklisted `destination` (USDC) or frozen Safe (EURe) strands funds pending issuer/compliance resolution — inherent to fiat-backed stablecoins, mitigated by §8.4 and user-changeable destination.
-- Chainlink feed failure → swaps revert (fail-safe, funds idle as EURe).
+### 8.1 Owners
 
-## 9. Fees & unit economics (open — Q1)
+Safe owners: `[SafeWebAuthnSigner(passkey), recoveryOwner]`, threshold 1. Either owner has full unilateral control — both are user-controlled; this is disclosed. Vortex holds no owner key.
 
-- Costs per user: one-time Safe+module deployment (mainnet, Vortex-paid — estimate and monitor; low at current basefees) + per-swap keeper gas (~350–600k gas).
-- No quote is shown, so the fee must be a **disclosed, deterministic rule**, e.g. an immutable `feeBps` in the module skimmed to a Vortex treasury address at forward time (transparent, auditable, part of the signed-off config), plus disclosure "conversion at market rate, max slippage 1%". Spread-capture (silently keeping the slippage margin) is rejected: it's opaque and undermines the non-custody story.
-- MiCA/consumer transparency: even quoteless, the flow needs pre-contractual disclosure of fee rule and rate mechanism (legal review, Q7).
+### 8.2 RP-ID dependence (F11)
 
-## 10. Compliance notes
+The passkey works only via an origin under Vortex's RP ID. Mitigations: (a) the mandatory recovery owner is RP-independent (EOA/hardware/second passkey); (b) the disaster-recovery package includes a static, self-hostable page for the RP domain, and Vortex commits to a domain-continuity plan (registrar lock, escrowed transfer instructions) — documented limitation, not fully eliminable; (c) credentials required discoverable + backup-eligible.
 
-- Monerium whitelabel MSA covers the "client money / third-party use" ToS restriction at the fiat layer: each user is Monerium's e-money customer; Vortex never holds fiat or e-money on its own account in this flow.
-- Non-custody at the crypto layer per §4/§8.3 — needs formal legal opinion for target jurisdictions (MiCA CASP analysis: does orchestrating an automatic conversion constitute an exchange service even without custody?).
-- **Destination ownership (Q2)**: if `destination` must be user-owned (attested at onboarding), the flow is self-transfer-shaped (cleaner: no travel-rule counterparty, weaker "payment service" characterization). Allowing third-party destinations turns this into a payments product with materially heavier obligations. v1 recommendation: require attestation of user ownership.
-- Monerium performs AML screening on incoming SEPA; large/first-party-mismatched deposits may be held for review — surface "pending compliance review" state in UX. Verify with Monerium whether incoming mints have amount thresholds analogous to the €15k redeem-document rule.
+### 8.3 Removed from v1 (F05)
 
-## 11. Failure modes
+The automatic EIP-1271 redeem validator ("redeem to pinned refund IBAN without user signature") is removed: it was wrong-layered (EIP-1271 lives in the fallback handler, not a module), required a bespoke signature-encoding protocol, risked weakening link-message validation, and gave Vortex unilateral disposal authority that changes the custody analysis. Stranded-EURe recovery in v1 = owner-signed redeem or withdrawal. Residual: loss of both owners + paused route strands EURe (disclosed; accepted).
 
-| Failure | Behavior | Mitigation |
+## 9. Fees (F10)
+
+- Structure finalized now: per-account `feeBps` set at `initialize`, **immutable thereafter**; global immutable `MAX_FEE_BPS` (proposal: 100) and immutable `FEE_RECIPIENT` in the singleton. Fee assessed per execution on gross swap output; batching therefore charges each batched deposit pro-rata by construction (§11.4).
+- **Pilot: `feeBps = 0`** (loss-leader; Vortex pays deployment + keeper gas). GA fee value is a business decision (OQ1) — changing it means new accounts get a different `feeBps`; existing accounts keep theirs.
+- I1 (S2 guarantee) enumerates the treasury as a permitted recipient bounded by `feeBps ≤ MAX_FEE_BPS`. Disclosure separates fee (deterministic) from slippage bound (worst-case market execution).
+
+## 10. Product behavior: minimums, dust, destinations (F16)
+
+### 10.1 Minimum deposit & SLA
+
+User-facing: deposits ≥ €25 convert within a stated SLA (proposal: 1 business hour under normal conditions; next FX market open under the weekend policy). Deposits < €25 **accumulate** until the threshold is crossed; always recoverable via owner-signed exit. `minSwapAmount` is gas-responsive within its immutable floor.
+
+### 10.2 Gas griefing
+
+Many small SEPA transfers can force keeper gas. Bounded by: min threshold + natural batching (balance sweep), sender is a KYC'd bank customer (low realistic abuse), and per-account keeper budget alerts. Vortex cannot prevent inbound SEPA to an issued IBAN; accepted operational cost.
+
+### 10.3 Batching
+
+Deposits arriving before conversion batch naturally (module sweeps balance). Allocation rule in §11.4; batching latency covered by the SLA disclosure.
+
+### 10.4 Destination validation
+
+At onboarding: EIP-55 checksum; deny zero/dead addresses, precompiles, the Safe itself, the module, the router, known token contracts; warn for contract destinations (recoverability unprovable) and exchange deposit addresses (rotation, minimum-deposit thresholds — user attests awareness); sanctions/blacklist screen at onboarding and **periodic re-screening** with conversion pause + user notification on a hit (F15, F16). Blacklisted destination at execution time ⇒ atomic revert, funds stay EURe (§7.1.7).
+
+## 11. Backend (F08, F13)
+
+### 11.1 Data model — replaces the one-shot ramp machine for this product
+
+The existing `PhaseProcessor` is **not** reused: its documented non-atomic multi-instance lock (spec finding F-003) and retry-exhaustion gap (F-004) are unacceptable for a permanent, repeatedly funded account.
+
+```text
+MoneriumAccount: profileId, iban, safeAddress, configVersion, status (onboarding|active|suspended|closed), complianceState
+FiatDeposit:     moneriumOrderId (unique), amount, currency, paymentStatus, mintTx {chainId, txHash, logIndex, blockHash}, complianceStatus
+ConversionExecution: safeAddress, includedDepositIds[], eureIn, usdcGross, fee, usdcNet, destination, txHash, status, error
+```
+
+Idempotency keys: `moneriumOrderId` (accounting identity) and `(chainId, txHash, logIndex)` (on-chain identity). **On-chain balance is the execution-safety source; Monerium order IDs are the accounting source.**
+
+### 11.2 Webhooks
+
+HMAC verification over raw request bytes, constant-time compare, timestamp/replay window, persisted webhook-ID dedup, immediate `200` + async processing, out-of-order tolerance (state machine on `FiatDeposit.paymentStatus` accepts only forward transitions).
+
+### 11.3 Chain handling
+
+Confirmation policy: detect mints at 1 confirmation; execution reads live balance (safety source) so reorged mints self-correct; user **notifications** only after the execution tx reaches N confirmations (proposal: 32 blocks) with block-hash re-verification; a reorg after notification triggers a correction notice. Keeper: unique nonce manager, stale private-relay tx replacement policy.
+
+### 11.4 Concurrency & attribution
+
+Per-Safe serialization via Postgres advisory lock (`pg_advisory_xact_lock(hash(safeAddress))`) — contract reentrancy guards do not serialize separate keeper processes (F13). Batched output allocation: pro-rata by deposit amount, floor to 6 dp, remainder to the largest deposit — deterministic and auditable; fees allocated identically.
+
+### 11.5 Partner/API surface (F08 Q)
+
+The public API exposes `MoneriumAccount` (long-lived) and per-deposit `FiatDeposit`/`ConversionExecution` objects with webhooks per deposit — **not** one eternal ramp object.
+
+## 12. Incidents and migration (F14)
+
+- **Pause:** guardian pauses globally or per-account **instantly** (protective-only action). Unpause instant (config is user/immutable-controlled, so unpause cannot enact a hostile change).
+- **02:00-UTC module vulnerability runbook:** pause all → ask Monerium to suspend affected IBANs (capability to be confirmed in MSA — G1) → notify users to stop sending EUR (email/app + status page) → assess → ship migration.
+- **Migration:** deploy new module singleton (new audit) → each user authorizes `enableModule(new)` + `disableModule(old)` via an owner signature (relayed by Vortex; also possible via the DR package). The Safe address — and therefore the IBAN link — **does not change**, avoiding F01's re-association path. Users who never migrate keep the paused old module; funds remain owner-recoverable.
+- Module/config version discovery: on-chain events + manifest log. Old-version support/sunset policy published.
+- Users who lost all owners: automation (if unpaused) still forwards; otherwise funds sit; no backdoor exists by design — disclosed.
+
+## 13. Launch gates (external dependencies)
+
+- **G0 — Technical spike:** Monerium sandbox E2E (deploy → EIP-1271 link → mint → swap on fork); pin Safe/WebAuthn contracts + gas benchmark (EIP-7951 path); confirm router version & deadline semantics; confirm Chainlink EUR/USD feed address, decimals, heartbeat, and **weekend update behavior**; reproducible liquidity baseline (§7.4).
+- **G1 — Monerium MSA (blocking for the S1 claim, F01):** written + sandbox-verified answers on: authorization required for `PATCH /ibans` and `POST /addresses` on whitelabel profiles; whether an IBAN/profile can be locked to a single non-movable address absent end-user authorization; credential scoping; association-change event feed; per-IBAN suspension capability; SEPA recall/fraud loss allocation **after** conversion+forwarding; behavior of conversions during profile review/suspension. If pinning is unavailable: launch is still possible with the S1 trust statement as written (Vortex trusted pre-mint) + monitoring — a product/legal decision to make explicitly.
+- **G2 — Legal/compliance sign-off (F15):** custody analysis covering module authority **and** Monerium control-plane authority; MiCA scoping; DPA/controller-processor roles with Monerium; retention/access table and data-flow diagram; sanctions screening procedure; disclosure texts.
+- **G3 — Audit:** contracts (module + setup lib) with invariant/fuzz suites covering §7.1 post-conditions, init front-running, pause semantics, oracle edge cases, V1-token poisoning; DR package tested on fork.
+- **G4 — Pilot:** invite-only, personal profiles, `feeBps = 0`, `perSwapCap` conservative (≈ €5–10k), €1k/user/day operational limit, full monitoring live.
+
+## 14. Open questions (reduced)
+
+- **OQ1** — GA fee value (structure is finalized; §9).
+- **OQ2** — `LIVENESS_FALLBACK_DELAY`, SLA numbers, cap/threshold launch values (G0 data).
+- **OQ3** — Weekend policy final form (depends on G0 feed behavior).
+- **OQ4** — G1 outcome: does the S1 statement get upgraded (Monerium pinning) or stay trust-based?
+- **OQ5** — Recovery-owner UX default (second passkey vs printable key as the recommended path).
+
+---
+
+## Appendix A — Response to architecture review findings
+
+| ID | Disposition | Response / change |
 |---|---|---|
-| Swap reverts (slippage/oracle stale/pool drained) | EURe idles in Safe | Keeper retries with backoff; alerting; route change via registry; §8.4 recovery after timelock |
-| Keeper down | No swaps (funds safe in Safe) | Redundant keepers; optionally make `swapAndForward` permissionless (Q5) so anyone can execute |
-| Monerium webhook missed | Delayed detection | On-chain Transfer watcher as second trigger |
-| Deposit > per-swap cap | Multiple sequential swaps | Automatic split; disclose timing to user |
-| EUR sent from a bank account not matching profile name | Monerium compliance hold or return | Surface state; instruct users to send from own account |
-| Passkey lost | Automation unaffected; user-initiated actions blocked | Cloud-synced passkeys; optional recovery owner (Q3) |
-| Destination blacklisted by Circle | Forward reverts; USDC stuck in Safe | User changes destination via passkey; support runbook |
-| EURe frozen by issuer | Nothing moves | Compliance resolution with Monerium |
-| Depeg beyond slippage bound | Swaps revert (by design) | Monitor; product decision to pause/notify |
+| F01 | **Accept** (independently verified) | `PATCH /ibans` bearer-auth redirect confirmed against live docs; memo-routing sub-claim not found in current docs (noted, immaterial). Trust model rewritten (S1); Monerium controls made launch gate G1; association monitoring + credential isolation added. Absolute non-custody claim retracted |
+| F02 | **Accept** | §8.3 replaced by per-stage guarantee matrix (§4); versioned config manifest + independent verifier + continuous re-verification (§6.4) |
+| F03 | **Modify** | Finding accepted: link signature binds nothing beyond address ownership; "implicitly ratifies" retracted. Resolution = review's Option 3 (trusted provisioning, stated plainly) + manifest verification. Review's Option 1 (extra EIP-712 passkey signature) **rejected as a trust upgrade**: WebAuthn lacks what-you-see-is-what-you-sign, so under a compromised frontend it yields an audit artifact, not consent — equivalent to Option 3 in the threat model it targets. Destination attestation is legal consent (§6.3). "One signature" demoted to UX description (§5.1.7) |
+| F04 | **Accept** | Option B selected: immutable singleton + Safe-keyed config, `initialize` once with `msg.sender == safe` (atomic via setup library; keyed-by-caller ⇒ not front-runnable), `setDestination` Safe-only, `feeBps` immutable post-init, versioned events (§6.2). Safe v1.4.1 pinned by address + runtime hash; custom factory dropped for canonical factory + minimal setup lib |
+| F05 | **Accept** | Correct on all points (module ≠ fallback handler; hash-only 1271 input; IBAN canonicalization; replay; link-message weakening; unilateral-disposal custody impact). Auto-redeem validator removed from v1 (§8.3); recovery = mandatory independent owner + owner-signed redeems. Fallback handler = canonical CompatibilityFallbackHandler only |
+| F06 | **Accept resolution; correct one argument** | v1: module constructs all calldata; pinned router/path/recipient; no keeper calldata; no registry; guarantee scoped to EURe/USDC in the dedicated Safe; instant pause vs deployment-grade additions (§7.1–7.2). Correction: balance-delta post-conditions already defeat recipient/path redirection of swap output atomically — the genuine residual was other assets/approvals and nested calls, which the scoping + internal-calldata resolution addresses |
+| F07 | **Accept** | CoW removed from same-interface claim; deferred to a standalone v2 spec with its own lifecycle/threat model (order authorization, watchtower, settlement-time 1271, partial fills, fallback-handler coexistence) |
+| F08 | **Accept** (verified in-repo) | Spec findings F-003/F-004 confirmed in `docs/security-spec/03-ramp-engine/state-machine.md`. New persistent model (§11.1), idempotency keys, advisory-lock serialization, per-deposit API objects (§11.5). New security-spec file required per repo sync rule; legacy `05-integrations/monerium.md` superseded-by link |
+| F09 | **Accept** | Raw-unit pseudocode with `10^(12+ORACLE_DECIMALS)` scaling (=10^20 at 8 dec), read-once decimals, staleness ceiling, floor rounding, explicit A4 (USDC/USD = 1 within margin), weekend policy pending G0 feed-behavior check; loss statement rewritten as oracle-model-relative (§7.3) |
+| F10 | **Accept** | Fee structurally finalized: per-account immutable `feeBps` (pilot 0), immutable `MAX_FEE_BPS` + treasury; I1/S2 updated to enumerate the fee recipient; per-execution assessment with pro-rata batch allocation (§9, §11.4) |
+| F11 | **Accept** | RP-ID dependence acknowledged (§8.2). Independent recovery owner **mandatory** at onboarding (§5.1.3); DR package (Vortex-independent, fork-tested, incl. self-hostable RP page) a launch deliverable; domain-continuity plan documented; credentials discoverable + backup-eligible required |
+| F12 | **Accept resolution; correct one argument** | Caps reframed as availability parameters; `minOut` is the safety condition; block-numbered reproducible quoting methodology + continuous executable-depth monitoring + pause thresholds (§7.4). Correction: rapid cap-sized executions revert on `minOut` rather than execute at bad prices — availability/gas loss, not fund loss |
+| F13 | **Accept** | Full webhook (HMAC/dedup/replay), confirmation/reorg, nonce, advisory-lock, and allocation spec added (§11.2–11.4); balance = safety source, order IDs = accounting source |
+| F14 | **Accept** | Instant guardian pause; incident runbook incl. Monerium IBAN suspension (G1 question); owner-authorized module migration that **keeps the Safe address** (avoids F01 re-association); version discovery; sunset policy (§12) |
+| F15 | **Accept** | v1 = personal, newly onboarded only; G2 gate for legal/DPA/retention/sanctions; SEPA-recall loss allocation moved into G1 MSA questions; destination re-screening added (§10.4) |
+| F16 | **Accept** | Min deposit + accumulation + SLA disclosure (§10.1); gas-griefing bounded and accepted (§10.2); destination validation/denylist/warnings/re-screening (§10.4). Noted: griefing realism is low (KYC'd bank senders) but policy specified regardless |
+| F17 | **Accept** | All six corrections applied: atomic revert on blacklisted destination (funds remain EURe); "Vortex executes only the constrained policy"; withhold/censor language scoped; extraction bound restated as oracle-model-relative incl. fee; passkey-sync nuance; EIP-7951 treated as live with G0 benchmarking of the pinned implementation |
+| F18 | **Accept** | v1 composition cut to: canonical Safe + passkey signer + recovery owner + one module (internal calldata) + canonical fallback handler. Removed: 4337, custom factory, generic registry, aggregator calldata, CoW, auto-redeem validator, mutable fees. Matches review §6 with one divergence: module topology is Option B (singleton+config) rather than per-Safe clones — one audited deployment, no per-user bytecode, equivalent immutability of logic |
 
-## 12. Rollout
-
-1. **M0 — Spike:** deploy Safe+passkey+module on Sepolia/fork; validate Monerium sandbox EIP-1271 link end-to-end (sandbox.monerium.dev); confirm WebAuthn signer gas on mainnet (EIP-7951 precompile path post-Fusaka vs Solidity fallback).
-2. **M1 — Contracts:** module + registry + factory, full test suite (fork tests against real pools incl. V1-pool poisoning tests), invariant/fuzz tests on I1–I9, external audit.
-3. **M2 — Backend/Frontend:** whitelabel onboarding, keeper, state machine, notifications; internal pilot with capped amounts (e.g. €1k/user/day).
-4. **M3 — GA:** raise caps; add CoW programmatic-order route (§7.4) for large-clip execution.
-
-## 13. Open questions
-
-- **Q1 — Fee model:** immutable `feeBps` in-module vs off-chain billing vs loss-leader. Blocks module finalization.
-- **Q2 — Destination ownership:** require user-owned destination attestation in v1? (Recommended: yes.)
-- **Q3 — Passkey recovery:** rely on platform sync only, or add an opt-in recovery owner in v1?
-- **Q4 — Recovery module (§8.4) in v1 scope?** (Recommended: yes — it's the only fix for stranded EURe + lost passkey.)
-- **Q5 — Keeper gating:** `swapAndForward` restricted to Vortex keeper vs fully permissionless (better liveness/decentralization; safe because all safety is in invariants — but consider griefing via unfavorable-timing executions within the slippage bound).
-- **Q6 — Monerium specifics to confirm in sandbox/MSA:** whitelabel address-link flow identical to the OAuth EIP-1271 docs; ERC-6492 support (else deploy-before-link stands); incoming-payment compliance thresholds; who bears mint gas (expected: Monerium); redeem-order EIP-1271 details for §8.4.
-- **Q7 — Legal:** non-custody opinion; MiCA CASP scoping; disclosure requirements for quoteless conversion.
-
-## 14. Reviewer checklist
-
-You are reviewing for architectural flaws. Specifically attempt to break:
-
-1. **Theft vectors:** any path where Vortex (backend, keeper, registry multisig, module deployer) redirects or extracts user principal. Include: malicious router within I1–I9; oracle manipulation (Chainlink EUR/USD compromise or staleness games); approval leakage; reentrancy through router callbacks; delegatecall smuggling; CREATE2 redeployment tricks; malicious `SafeWebAuthnSigner` substitution at factory level; front-running the link (linking a Monerium profile to a Safe the user doesn't actually control — who verifies factory integrity?).
-2. **The one-signature claim:** does anything in practice require a second user signature (Monerium re-verification, destination change, 4337 deployment quirks)?
-3. **Stranding vectors:** enumerate every state where funds are stuck and no §8.4/§5.3 path applies.
-4. **Liveness/censorship:** consequences of Vortex disappearing permanently — can users self-rescue with only their passkey and public docs?
-5. **§8.3 bound:** verify the claimed worst-case (slippage margin, not principal) holds under composed failures (compromised registry + compromised keeper + oracle at deviation edge).
-6. **Liquidity math:** per-swap cap vs the $104k bottleneck pool; behavior under pool migration/deprecation; V1-token poisoning.
-7. **Compliance shape:** does the §10 reasoning hold; is the "not a custodian" claim defensible given the module is Vortex-authored and Vortex-deployed?
-8. **Recovery module (§8.4):** can the message-template validator be abused (IBAN substring games, amount/timestamp manipulation, replay across chains/profiles, interference with the link-message validation)?
-9. **Operational realism:** webhook loss, chain reorgs around mint detection, multiple rapid deposits, decimals (EURe 18 / USDC 6), gas spikes.
+**Requested end-to-end statement (review §8):** the composition now supports this security statement — *"Once EURe is minted to the user's Safe, Vortex's total authority is: execute the fixed EURe→USDC→destination conversion within an oracle-checked slippage bound and a disclosed fee; pause it; and tune bounded availability parameters. Redirecting or extracting minted principal beyond the slippage margin + fee requires breaking a stated assumption (oracle integrity, token-contract behavior, audited-code correctness) — not merely abusing any authority Vortex holds. Before mint, Vortex and Monerium hold monitored, contractually constrained, but real authority over deposit routing; users are told so."*
