@@ -95,13 +95,25 @@ POST /v1/ramp/register
 X-API-Key: sk_*
 ```
 
-Before calling register, **generate per-chain ephemeral accounts** for the chains involved in the route:
+Before calling register, **generate the two ephemeral accounts** the ramp uses. The API accepts exactly two account types, and one account of each covers every leg of the route:
 
-- EVM legs → a fresh secp256k1 keypair.
-- Substrate legs (Pendulum, AssetHub, Moonbeam, Hydration) → fresh sr25519 keypairs.
-- Stellar legs → a fresh Ed25519 keypair.
+- One EVM account → a fresh secp256k1 keypair (used for all EVM legs).
+- One Substrate account → a fresh sr25519 keypair (used for all Substrate legs: Pendulum, AssetHub, Moonbeam, Hydration).
 
-Send **only the public addresses** in the register request. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
+Send **only the public addresses**, in the `signingAccounts` array of the register body:
+
+```json
+{
+  "quoteId": "QUOTE_ID",
+  "signingAccounts": [
+    { "type": "Substrate", "address": "5..." },
+    { "type": "EVM", "address": "0x..." }
+  ],
+  "additionalData": { "destinationAddress": "0x..." }
+}
+```
+
+`type` must be exactly `"Substrate"` or `"EVM"`; no other value is accepted. There is no `publicKey` field on register — partner attribution rides on the quote's `apiKey`. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
 
 The response contains:
 
@@ -109,7 +121,7 @@ The response contains:
 - current ramp state and phase
 - `unsignedTxs` — an ordered list of transactions to sign
 
-Each unsigned transaction declares its `network`, `signer` address, transaction format (`evm-transaction`, `evm-typed-data`, `substrate-extrinsic`, `stellar-transaction`), and the payload bytes or fields to sign.
+Each unsigned transaction declares its `network`, `signer` address, transaction format (`evm-transaction`, `evm-typed-data`, or `substrate-extrinsic`), and the payload bytes or fields to sign.
 
 ### D.4 Sign And Update
 

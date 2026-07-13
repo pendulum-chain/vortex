@@ -148,21 +148,22 @@ The SDK generates ephemeral keypairs, signs internal txs, and submits them in `r
 
 ## REST fallback
 ```bash
-# 1. Register
+# 1. Register. signingAccounts holds the PUBLIC addresses of the ephemerals you
+#    generated for this ramp: one Substrate and one EVM account (the only two
+#    account types the API accepts). Partner attribution is carried by the quote's
+#    apiKey, so register takes no publicKey field.
 curl -X POST https://api.vortexfinance.co/v1/ramp/register \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $VORTEX_SECRET_KEY" \
   -d '{
     "quoteId": "QUOTE_ID",
-    "ephemeralAccounts": [
-      { "type": "EVM",       "address": "0x..." },
+    "signingAccounts": [
       { "type": "Substrate", "address": "5..."  },
-      { "type": "Stellar",   "address": "G..."  }
+      { "type": "EVM",       "address": "0x..." }
     ],
     "additionalData": {
       "destinationAddress": "0xUserWalletAddress"
-    },
-    "publicKey": "'"$VORTEX_PUBLIC_KEY"'"
+    }
   }'
 
 # 2. Sign the returned `unsignedTxs` with the corresponding ephemeral keys (see AI_AGENT_INTEGRATION D.4)
@@ -181,7 +182,7 @@ If you implement this without the SDK, follow the raw-API contract in [`AI_AGENT
 - `SubaccountNotFoundError` — the tax ID derived from the authenticated key has no KYC'd Vortex subaccount. Direct the user to KYC first.
 - `KycInvalidError` — KYC exists but is not approved.
 - `AmountExceedsLimitError` — quote amount above the user's KYC tier limit.
-- `MissingBrlParametersError` — `destinationAddress` missing.
+- Missing `destinationAddress` → `400 "Parameter destinationAddress is required for onramp"`. (The SDK's `MissingBrlParametersError` maps only the legacy `"...destinationAddress and taxId..."` message and will not fire for this; treat the raw 400 message as authoritative.)
 - `QuoteExpiredError` — re-quote and call `registerRamp` again.
 - `TimeWindowExceededError` on `startRamp` — too long elapsed since `registerRamp`; restart the flow.
 
@@ -240,7 +241,7 @@ await vortex.startRamp(rampProcess.id);
 Same three-step pattern: `POST /v1/ramp/register` → user signs → `POST /v1/ramp/update` with the collected hashes → `POST /v1/ramp/start`. See [`AI_AGENT_INTEGRATION` § D.3–D.5](https://api-docs.vortexfinance.co/ai-agent-integration) for the exact body shapes.
 
 ## Common failures
-- `MissingBrlOfframpParametersError` — `pixDestination` or `walletAddress` missing.
+- Missing `pixDestination` → `400 "pixDestination is required for offramp to BRL"`. Missing `walletAddress` → `400 "User address must be provided for offramping."` (The SDK's `MissingBrlOfframpParametersError` maps only the legacy `"receiverTaxId, pixDestination and taxId..."` message and will not fire for these; treat the raw 400 message as authoritative.)
 - `InvalidPixKeyError` — PIX key format invalid or unreachable. Validate beforehand with `GET /v1/brla/validatePixKey`.
 - `InvalidPresignedTxsError` on `updateRamp` — hash format wrong, or the on-chain tx does not match the unsigned tx that was issued. Re-sign exactly what `getUserTransactions` returned.
 - `NoPresignedTransactionsError` on `startRamp` — `updateRamp` was not called or did not include the required hashes.
