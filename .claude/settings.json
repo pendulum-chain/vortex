@@ -1,0 +1,15 @@
+{
+  "$comment": "Team-shared, version-controlled Claude Code settings. Personal overrides go in the git-ignored settings.local.json. deny takes precedence over any allow.",
+  "permissions": {
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git push origin --force*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(./.api-key.json)"
+    ]
+  }
+}
