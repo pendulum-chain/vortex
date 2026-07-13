@@ -168,7 +168,6 @@ interface Config {
   secrets: {
     pendulumFundingSeed: string | undefined;
     moonbeamExecutorPrivateKey: string | undefined;
-    clientDomainSecret: string | undefined;
     webhookPrivateKey: string | undefined;
   };
 
@@ -266,7 +265,6 @@ export const config: Config = {
   sandboxEnabled: process.env.SANDBOX_ENABLED === "true",
 
   secrets: {
-    clientDomainSecret: process.env.CLIENT_DOMAIN_SECRET,
     moonbeamExecutorPrivateKey: process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY,
     pendulumFundingSeed: process.env.PENDULUM_FUNDING_SEED,
     webhookPrivateKey: process.env.WEBHOOK_PRIVATE_KEY

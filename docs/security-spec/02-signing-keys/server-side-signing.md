@@ -7,8 +7,7 @@ The API server holds several private keys used for platform operations. These ar
 1. **Stellar funding operations** — `FUNDING_SECRET`: Stellar secret key used to create and fund ephemeral Stellar accounts, co-sign ephemeral transactions (as the second signer in the 2-of-2 multisig), and reclaim funds from orphaned ephemerals.
 2. **Pendulum funding** — `PENDULUM_FUNDING_SEED`: Seed phrase for the Pendulum account that funds ephemeral Substrate accounts with native PEN tokens for transaction fees.
 3. **Moonbeam execution** — `MOONBEAM_EXECUTOR_PRIVATE_KEY`: EVM private key used to execute transactions on Moonbeam (funding ephemerals with GLMR, executing subsidization transfers, XCM operations).
-4. **Stellar client domain** — `CLIENT_DOMAIN_SECRET`: Used for SEP-10 (Stellar Web Authentication) client domain verification with Stellar anchors.
-5. **Webhook signing** — `WEBHOOK_PRIVATE_KEY`: RSA private key (PEM format) used to sign webhook payloads with RSA-PSS + SHA-256. If missing, the `CryptoService` generates an ephemeral RSA keypair at startup (non-persistent).
+4. **Webhook signing** — `WEBHOOK_PRIVATE_KEY`: RSA private key (PEM format) used to sign webhook payloads with RSA-PSS + SHA-256. If missing, the `CryptoService` generates an ephemeral RSA keypair at startup (non-persistent).
 
 All keys are loaded from environment variables. There is no HSM, secrets manager, or rotation mechanism.
 

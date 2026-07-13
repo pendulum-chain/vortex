@@ -37,7 +37,7 @@ export function MoneriumKycFlow({ corridor, customerType, onClose, onSettled }: 
     onSettled(status);
   }, [onSettled, value]);
 
-  if (value === "Routing" || value === "CheckingStatus" || value === "StartingAuthorization") {
+  if (value === "Routing" || value === "CheckingStatus" || value === "StartingAuthorization" || value === "Redirecting") {
     return (
       <Centered>
         <Loader2 className="size-8 animate-spin text-primary" />

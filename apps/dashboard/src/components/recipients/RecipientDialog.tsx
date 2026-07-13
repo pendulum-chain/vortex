@@ -218,11 +218,14 @@ function InviteShare({ created, onDone }: { created: CreatedInvite; onDone: () =
           you can pay them.
         </DialogDescription>
       </DialogHeader>
-      <div className="grid gap-2">
+      <div className="grid min-w-0 gap-2">
         <span className="text-muted-foreground text-xs">Invite link</span>
-        <div className="flex items-center gap-2 rounded-md border bg-background p-2">
-          <code className="flex-1 truncate font-mono text-xs">{created.url}</code>
-          <Button onClick={copy} size="sm" type="button" variant={copied ? "outline" : "default"}>
+        <div
+          className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md border bg-background p-2"
+          data-testid="invite-link-preview"
+        >
+          <code className="min-w-0 flex-1 truncate font-mono text-xs">{created.url}</code>
+          <Button className="shrink-0" onClick={copy} size="sm" type="button" variant={copied ? "outline" : "default"}>
             {copied ? <Check /> : <Copy />}
             {copied ? "Copied" : "Copy link"}
           </Button>

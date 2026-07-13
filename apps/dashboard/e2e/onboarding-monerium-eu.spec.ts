@@ -17,7 +17,21 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   await page.getByRole("button", { name: "Start KYC" }).click();
   const wizard = page.getByRole("dialog");
   await expect(wizard.getByText("Verify with Monerium")).toBeVisible({ timeout: 20_000 });
-  await wizard.getByRole("button", { name: "Continue to Monerium" }).click();
+  let continueNavigation: () => void;
+  const navigationGate = new Promise<void>(resolve => {
+    continueNavigation = resolve;
+  });
+  await page.route(`${page.url().split("/dashboard/")[0]}/dashboard/monerium/callback?**`, async route => {
+    await navigationGate;
+    await route.continue();
+  });
+  const navigation = wizard.getByRole("button", { name: "Continue to Monerium" }).click();
+  try {
+    await expect(wizard.getByText("Connecting to Monerium")).toBeVisible();
+  } finally {
+    continueNavigation();
+  }
+  await navigation;
 
   await expect(page.getByText("Verification in review")).toBeVisible({ timeout: 20_000 });
   await expect.poll(() => new URL(page.url()).search).toBe("");

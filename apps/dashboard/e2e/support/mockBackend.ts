@@ -470,6 +470,19 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson({ pendingInvitations: [], recipients: [] });
       return;
     }
+    if (path === "/v1/recipients/invite" && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      await fulfillJson({
+        ...body,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        id: "invite-e2e-1",
+        inviteeEmail: null,
+        status: "pending",
+        token: `e2e-${"long-token-".repeat(30)}`
+      });
+      return;
+    }
 
     if (path === "/v1/quotes" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
