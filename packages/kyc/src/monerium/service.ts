@@ -24,7 +24,7 @@ export function createMoneriumKycApi(apiClient: MoneriumKycApiClient): MoneriumK
       try {
         return await apiClient.get<MoneriumStatusResponse>("/monerium/status", { params: { customerType } });
       } catch (error) {
-        if (getErrorStatus(error) === 401) {
+        if (getErrorStatus(error) === 401 || getErrorStatus(error) === 404) {
           throw new MoneriumAuthorizationRequiredError();
         }
         throw error;

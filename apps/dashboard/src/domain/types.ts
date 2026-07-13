@@ -42,6 +42,7 @@ export interface Corridor {
 export interface Onboarding {
   corridorId: CorridorId;
   kind: OnboardingKind;
+  reauthenticationRequired?: boolean;
   status: OnboardingStatus;
   updatedAt: string;
 }

@@ -78,3 +78,19 @@ test("Monerium callback refreshes an expired dashboard session before exchange",
   await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
   expect(backend.auth.refreshes).toBe(1);
 });
+
+test("in-review Monerium onboarding offers reauthentication when the status response requires it", async ({ page }) => {
+  const backend = await mockBackend(page, { moneriumKyc: true });
+  backend.monerium.completed = true;
+  await seedSession(page);
+  await page.goto("/dashboard/overview");
+
+  const reauthenticateButton = page.getByRole("button", { name: "Re-authenticate with Monerium" });
+  await expect(reauthenticateButton).toBeVisible({ timeout: 20_000 });
+  await reauthenticateButton.click();
+
+  const wizard = page.getByRole("dialog");
+  await expect(wizard.getByText("Verify with Monerium")).toBeVisible();
+  await expect(wizard.getByRole("button", { name: "Continue to Monerium" })).toBeVisible();
+  expect(backend.unmatchedRequests).toEqual([]);
+});

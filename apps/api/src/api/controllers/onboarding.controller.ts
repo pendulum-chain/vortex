@@ -4,7 +4,8 @@ import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer from "../../models/providerCustomer.model";
-import { getMoneriumStatus } from "../services/monerium/monerium.service";
+import { APIError } from "../errors/api-error";
+import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
 import {
   isProviderApproved,
   isProviderInReview,
@@ -55,6 +56,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
     const providerCustomers = entityIds.length
       ? await ProviderCustomer.findAll({ order: [["updatedAt", "DESC"]], where: { customerEntityId: entityIds } })
       : [];
+    const providerErrors = new Map<string, { code: string; message: string }>();
 
     await Promise.all(
       providerCustomers
@@ -64,7 +66,13 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             const refreshed = await getMoneriumStatus(userId, customer.customerType);
             customer.set("status", refreshed.status);
             customer.set("statusExternal", refreshed.statusExternal);
-          } catch {
+          } catch (error) {
+            if (error instanceof APIError && error.type === MONERIUM_REAUTHENTICATION_REQUIRED) {
+              providerErrors.set(customer.id, {
+                code: MONERIUM_REAUTHENTICATION_REQUIRED,
+                message: error.message
+              });
+            }
             // Status aggregation remains available if Monerium is unavailable or in-memory credentials were lost.
           }
         })
@@ -88,6 +96,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             return {
               country: customer.country,
               customerType: customer.customerType,
+              error: providerErrors.get(customer.id) ?? null,
               id: customer.id,
               kycCase: kycCase
                 ? {

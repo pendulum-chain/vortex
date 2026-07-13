@@ -11,6 +11,7 @@ import { cache } from "../index";
 
 const OAUTH_TRANSACTION_TTL_SECONDS = 10 * 60;
 const FETCH_TIMEOUT_MS = 10_000;
+export const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
 const TOKEN_EXPIRY_SKEW_MS = 30_000;
 const CREDENTIAL_TTL_SECONDS = 24 * 60 * 60;
 const API_V2_ACCEPT = "application/vnd.monerium.api-v2+json";
@@ -170,7 +171,11 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
   const key = credentialsCacheKey(customerEntityId, customerType);
   const credentials = credentialCache.get<MoneriumCredentials>(key);
   if (!credentials) {
-    throw new APIError({ message: "Monerium authorization is required", status: httpStatus.UNAUTHORIZED });
+    throw new APIError({
+      message: "Monerium reauthentication is required",
+      status: httpStatus.NOT_FOUND,
+      type: MONERIUM_REAUTHENTICATION_REQUIRED
+    });
   }
   if (credentials.expiresAt - TOKEN_EXPIRY_SKEW_MS > Date.now()) {
     credentialCache.ttl(key, CREDENTIAL_TTL_SECONDS);

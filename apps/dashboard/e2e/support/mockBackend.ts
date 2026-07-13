@@ -44,7 +44,7 @@ export function buildOnboardingStatus(state: OnboardingState = "approved") {
   };
 }
 
-export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved") {
+export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved", reauthenticationRequired = false) {
   return {
     entities: [
       {
@@ -52,6 +52,12 @@ export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved
           {
             country: null,
             customerType: "individual",
+            error: reauthenticationRequired
+              ? {
+                  code: "MONERIUM_REAUTHENTICATION_REQUIRED",
+                  message: "Monerium reauthentication is required"
+                }
+              : null,
             id: "acct-e2e-eu",
             kycCase: null,
             provider: "monerium",
@@ -297,7 +303,12 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   // between assertions and the browser's next poll (machine getKycStatus, or the card's
   // onboarding-status refetch) observes it — deterministic, no reliance on poll counts.
   const kyc = { approved: false, customerCreated: false, submitted: false };
-  const monerium = { approved: false, completed: false, startRequests: [] as Array<Record<string, unknown>> };
+  const monerium = {
+    approved: false,
+    authorized: false,
+    completed: false,
+    startRequests: [] as Array<Record<string, unknown>>
+  };
   const auth = { refreshes: 0 };
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
@@ -355,7 +366,9 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/onboarding/status" && method === "GET") {
       if (options.moneriumKyc) {
         await fulfillJson(
-          monerium.completed ? buildMoneriumOnboardingStatus(monerium.approved ? "approved" : "in_review") : NO_ONBOARDING
+          monerium.completed
+            ? buildMoneriumOnboardingStatus(monerium.approved ? "approved" : "in_review", !monerium.authorized)
+            : NO_ONBOARDING
         );
         return;
       }
@@ -378,8 +391,11 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
 
     if (path === "/v1/monerium/status" && method === "GET" && options.moneriumKyc) {
-      if (!monerium.completed) {
-        await fulfillJson({ error: "Monerium authorization is required" }, 401);
+      if (!monerium.authorized) {
+        await fulfillJson(
+          { message: "Monerium reauthentication is required", type: "MONERIUM_REAUTHENTICATION_REQUIRED" },
+          404
+        );
       } else {
         await fulfillJson({
           customerType: "individual",
@@ -403,6 +419,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         return;
       }
       monerium.completed = true;
+      monerium.authorized = true;
       await fulfillJson({
         customerType: "individual",
         profileId: "monerium-profile-e2e",

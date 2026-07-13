@@ -75,7 +75,12 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
 
       <CardFooter>
         {onboarding ? (
-          <CorridorAction kind={kind} onStart={onStart} status={onboarding.status} />
+          <CorridorAction
+            kind={kind}
+            onStart={onStart}
+            reauthenticationRequired={onboarding.reauthenticationRequired === true}
+            status={onboarding.status}
+          />
         ) : (
           <Button className="w-full" onClick={onStart}>
             Start {kind.toUpperCase()}
@@ -87,7 +92,17 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
   );
 }
 
-function CorridorAction({ status, kind, onStart }: { status: OnboardingStatus; kind: "kyb" | "kyc"; onStart: () => void }) {
+function CorridorAction({
+  status,
+  kind,
+  onStart,
+  reauthenticationRequired
+}: {
+  status: OnboardingStatus;
+  kind: "kyb" | "kyc";
+  onStart: () => void;
+  reauthenticationRequired: boolean;
+}) {
   if (status === "not_started") {
     return (
       <Button className="w-full" onClick={onStart}>
@@ -112,6 +127,13 @@ function CorridorAction({ status, kind, onStart }: { status: OnboardingStatus; k
     );
   }
   if (status === "in_review") {
+    if (reauthenticationRequired) {
+      return (
+        <Button className="w-full" onClick={onStart} variant="outline">
+          Re-authenticate with Monerium
+        </Button>
+      );
+    }
     return (
       <Button className="w-full" disabled variant="outline">
         Awaiting provider review

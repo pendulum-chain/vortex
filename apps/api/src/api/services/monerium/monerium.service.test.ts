@@ -222,6 +222,13 @@ describe("Monerium OAuth", () => {
     expect(JSON.stringify(result)).not.toContain("rotated-refresh");
   });
 
+  it("returns the custom reauthentication error when credentials are unavailable", async () => {
+    await expect(service.getMoneriumStatus("owner", "individual")).rejects.toMatchObject({
+      status: 404,
+      type: service.MONERIUM_REAUTHENTICATION_REQUIRED
+    });
+  });
+
   it("returns a persisted terminal status after in-memory credentials are lost", async () => {
     providerFindOne.mockResolvedValueOnce({
       providerCustomerId: "profile-approved",

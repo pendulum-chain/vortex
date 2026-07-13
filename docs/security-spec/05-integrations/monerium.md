@@ -26,6 +26,7 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 14. Dashboard onboarding-status polling SHOULD refresh pending Monerium profiles while credentials remain in memory, but a provider outage MUST NOT make the aggregate onboarding endpoint unavailable.
 15. The requested customer type MUST match the authenticated legal entity; recipient eligibility MUST match the invitation type and MUST NOT rely on a Monerium approval older than five minutes.
 16. Local `authorization_started` and Monerium `created` and `incomplete` profiles MUST remain awaiting-user states; only provider `pending` is displayed as in review.
+17. Missing app-specific Monerium authorization MUST surface as `MONERIUM_REAUTHENTICATION_REQUIRED` on the affected onboarding account without failing aggregate status loading.
 
 ## Threat Vectors & Mitigations
 
@@ -52,6 +53,7 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 - [x] Tokens and OAuth transaction secrets use backend `NodeCache`; no credential table or encryption-at-rest mechanism exists because credentials are never persisted.
 - [x] Access and refresh tokens are absent from API responses and model writes.
 - [x] Expired access tokens are refreshed server-side and rotated refresh tokens replace previous values.
+- [x] Missing Monerium authorization is isolated to the affected onboarding account so the dashboard can offer reauthentication without hiding other corridors.
 - [x] Context/profile calls request API v2 and all provider calls use an explicit timeout.
 - [x] Profile selection and status normalization are covered by focused unit tests.
 - [x] `provider_customers` and `kyc_cases` constraints include `monerium` through a forward migration; migration 040 remains unchanged.

@@ -13,6 +13,8 @@ const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
   rejected: "rejected"
 };
 
+const MONERIUM_REAUTHENTICATION_REQUIRED = "MONERIUM_REAUTHENTICATION_REQUIRED";
+
 // When a corridor has several provider accounts, surface the furthest-along one.
 const STATUS_RANK: Record<OnboardingStatus, number> = {
   approved: 4,
@@ -42,7 +44,13 @@ function deriveOnboardings(
       const status = STATE_TO_STATUS[account.state];
       const existing = onboardings[corridorId];
       if (!existing || STATUS_RANK[status] > STATUS_RANK[existing.status]) {
-        onboardings[corridorId] = { corridorId, kind, status, updatedAt: new Date().toISOString() };
+        onboardings[corridorId] = {
+          corridorId,
+          kind,
+          reauthenticationRequired: account.error?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
+          status,
+          updatedAt: new Date().toISOString()
+        };
       }
     }
   }

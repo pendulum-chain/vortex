@@ -9,6 +9,7 @@ export interface OnboardingAccountDto {
   country: string | null;
   rail: string | null;
   customerType: string | null;
+  error: { code: string; message: string } | null;
   status: string;
   /** Normalized rollup of the provider-verbatim `status`. */
   state: OnboardingState;

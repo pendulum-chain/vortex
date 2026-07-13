@@ -37,6 +37,11 @@ two people.
   Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor pending; it moves to
   in review only after Monerium reports that all required information was submitted.
+- As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
+  action only when the backend returns `MONERIUM_REAUTHENTICATION_REQUIRED` while loading the corridor.
+- **To be confirmed:** the current assumption is that Vortex cannot retrieve a user's Monerium
+  status unless the user has authenticated and Vortex holds app-specific Monerium authorization.
+  Under that assumption, missing authorization produces a `404` and the custom error above.
 - As a sender, I see each corridor's real status — `not_started · pending · in_review · approved ·
   rejected` — read from the provider, surviving reload.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
