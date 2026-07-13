@@ -1,179 +1,112 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) working in this repository. This root file
+holds **cross-cutting** context only. Each app/package has its own `CLAUDE.md` with
+scoped architecture and commands — `cd` into the relevant one before working there, and
+read it first.
 
 ## Project Overview
 
-Vortex is a cross-border payments gateway built on the Pendulum blockchain. It enables on-ramping and off-ramping of fiat currencies through stablecoins using cross-chain swaps via XCM (Cross-Consensus Messaging).
+Vortex is a cross-border payments gateway built on the Pendulum blockchain. It enables
+on-ramping and off-ramping of fiat currencies through stablecoins using cross-chain swaps
+via XCM (Cross-Consensus Messaging).
 
-## Monorepo Structure
+## Repository Map
 
-This is a **Bun monorepo** using workspaces:
+Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using workspaces:
 
-- **apps/frontend** - React 19 + Vite web application
-- **apps/api** - Express backend service (PostgreSQL + Sequelize)
-- **apps/rebalancer** - Liquidity rebalancing service
-- **packages/shared** - Shared utilities, types, token configs, and helpers
-- **packages/sdk** - Public SDK for Vortex API integration
+- **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
+- **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
+- **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)
+- **packages/shared** — `@vortexfi/shared` utilities/configs → [`packages/shared/CLAUDE.md`](packages/shared/CLAUDE.md)
+- **packages/sdk** — `@vortexfi/sdk` public SDK → [`packages/sdk/CLAUDE.md`](packages/sdk/CLAUDE.md)
 
-## Essential Commands
+## Monorepo Commands
 
-> Always use `bun`- never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code change.
+> Always use `bun` — never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code
+> change — **except in `packages/sdk`, which is linted by ESLint** (`bun lint` inside that
+> package); Biome does not govern it. Per-app test/dev/migrate commands live in each
+> subdirectory's `CLAUDE.md`.
 
 ```bash
-# Install all dependencies
-bun install
-
-# Development (runs frontend, backend, and shared concurrently)
-bun dev
-
-# Individual app development
-bun dev:frontend    # Frontend at http://127.0.0.1:5173
-bun dev:backend     # Backend at http://localhost:3000
+bun install          # install all dependencies
+bun dev              # frontend + backend + shared concurrently
+bun dev:frontend     # http://127.0.0.1:5173
+bun dev:backend      # http://localhost:3000
 bun dev:rebalancer
 
-# Build
-bun build           # Build all (shared -> sdk -> frontend -> backend)
-bun build:shared    # Must build shared first when making changes
-bun build:frontend
-bun build:backend
+bun build            # build all (shared -> sdk -> frontend -> backend)
+bun build:shared     # rebuild shared (see below)
 
-# Linting and formatting (uses Biome)
-bun lint            # Run linter
-bun lint:fix        # Auto-fix lint issues
-bun format          # Format all files
-bun verify          # Check without fixing
-
-# Type checking
-bun typecheck
-
-# Database (from apps/api)
-cd apps/api
-bun migrate                  # Run migrations
-bun migrate:revert           # Revert all migrations
-bun migrate:revert-last      # Revert last migration
-bun seed:phase-metadata      # Seed phase configuration
-
-# Testing
-cd apps/frontend && bun test    # Frontend tests (Vitest)
-cd apps/api && bun test         # Backend tests
+bun lint             # Biome lint          bun lint:fix   # auto-fix
+bun format           # format all           bun verify     # check without fixing
+bun typecheck        # type check
 ```
 
-## Architecture
+### Always rebuild shared after changing it
 
-### State Machine Pattern
-
-The ramping process uses a state machine with defined phases:
-- **Offramp**: prepareTransactions → squidRouter → pendulumFundEphemeral → subsidizePreSwap → nablaApprove → nablaSwap → subsidizePostSwap → performBrlaPayout → pendulumCleanup
-- **Onramp**: brlaTeleport → createMoonbeamEphemeral → executeMoonbeamToPendulumXCM → subsidizePreSwap → nablaApprove → nablaSwap → executePendulumToAssetHubXCM → pendulumCleanup
-
-Phase metadata and valid transitions are stored in PostgreSQL and seeded via `seed:phase-metadata`.
-
-### Frontend Architecture
-
-- **State**: Zustand stores (`stores/`) + React Context (`contexts/`)
-- **Forms**: React Hook Form with Zod validation (not Yup)
-- **Data Fetching**: TanStack Query
-- **Routing**: TanStack Router (route tree auto-generated in `routeTree.gen.ts`)
-- **State Machines**: XState machines in `machines/` for complex flows (KYC, ramp process)
-- **Wallet Integration**: Wagmi/AppKit (EVM) + Talisman (Polkadot)
-
-### Backend Architecture
-
-- **API Layer**: Express routes in `api/routes/`, controllers in `api/controllers/`
-- **Services**: Business logic in `api/services/`
-- **Models**: Sequelize models in `models/` (RampState, QuoteTicket, Partner, etc.)
-- **Workers**: Background jobs in `api/workers/`
-- **Cross-chain**: XCM handlers, Nabla AMM integration, Stellar/BRLA APIs
-
-### Shared Package (`@vortexfi/shared`)
-
-Contains cross-package utilities:
-- Token configurations and network definitions
-- Endpoint helpers for API calls
-- Contract ABIs and addresses
-- Decimal/BigNumber helpers
-- Logger configuration
-
-**Important**: Always rebuild shared when making changes: `bun build:shared`
-
-After ANY change to `packages/shared`, run `bun build:shared` before running frontend/api.
-
-## Code Style Guidelines
-
-From `.clinerules/`:
-
-### General
-- Prefer composition over inheritance
-- Create ADRs in `/docs/adr` for major architectural changes
-
-### Frontend-Specific
-- Avoid `useState` unless absolutely needed; prefer derived data and `useRef`
-- Avoid `useEffect` except for external system synchronization
-- Avoid `setTimeout` (always comment why if used)
-- Extract complex conditional rendering into new components
-- Skip useless comments; only comment race conditions, TODOs, or genuinely confusing code
-
-### XState v5
-- Use `setup({ ... }).createMachine(...)` API- not `createMachine` directly
-- Actor refs from `useActor` / `useSelector` from `@xstate/react`
-- Machine files live in `apps/frontend/src/machines/`
-
-### Biome Configuration
-- Line width: 128
-- Indent: 2 spaces
-- Semicolons: always
-- Trailing commas: none
-- Quote style: double
-- Sorted Tailwind classes enforced via `useSortedClasses` rule
+`packages/shared` is consumed as built output. **After ANY change to `packages/shared`,
+run `bun build:shared` before running frontend/api** — otherwise they use stale code.
 
 ## Token Exhaustiveness
 
 `FiatToken` currently has 6 values: `EURC`, `ARS`, `BRL`, `USD`, `MXN`, `COP`.
 
 Any `Record<FiatToken, X>` must include ALL six. Missing entries cause TypeScript errors
-when shared is rebuilt. Check: tokenAvailability, mapFiatToDestination, success page
-ARRIVAL_TEXT_BY_TOKEN, sep10 tokenMapping.
+when shared is rebuilt. Check: `tokenAvailability`, `mapFiatToDestination`, success page
+`ARRIVAL_TEXT_BY_TOKEN`, sep10 `tokenMapping`.
+
+## Code Style
+
+Biome config: line width 128, 2-space indent, semicolons always, no trailing commas,
+double quotes, sorted Tailwind classes (`useSortedClasses`). General: prefer composition
+over inheritance; create ADRs in `/docs/adr` for major architectural changes.
+Frontend-specific and XState conventions live in
+[`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md).
 
 ## No Over-Engineering
 
-- Don't add features, refactors, or "improvements" beyond what was asked
-- Don't add docstrings/comments to code you didn't touch
-- Don't create helpers/utilities for one-time operations
-- Don't validate inputs that can't be invalid (internal calls, typed params)
-- Three similar lines is better than a premature abstraction
+- Don't add features, refactors, or "improvements" beyond what was asked.
+- Don't add docstrings/comments to code you didn't touch.
+- Don't create helpers/utilities for one-time operations.
+- Don't validate inputs that can't be invalid (internal calls, typed params).
+- Three similar lines is better than a premature abstraction.
 
 ## Testing
 
-### Test Coverage Requirements
-
 These apply to every agent working in this repo:
 
-- **Bug fixes and regressions**: if a bug or regression slipped past the existing tests, add a test that reproduces it (and fails without the fix) before/with the fix — so it can't silently come back. Write the test at the level that actually covers the gap (unit or integration). Only skip when a test genuinely can't capture it (e.g. purely cosmetic, environment/config, or third-party behavior) — and say why you skipped.
-- **New features**: always ship the appropriate tests alongside the feature. Cover the core behavior and the edge cases that matter, not just the happy path.
+- **Bug fixes and regressions**: if a bug slipped past existing tests, add a test that
+  reproduces it (and fails without the fix) before/with the fix, so it can't silently
+  come back. Write it at the level that covers the gap (unit or integration). Only skip
+  when a test genuinely can't capture it (purely cosmetic, environment/config, or
+  third-party behavior) — and say why you skipped.
+- **New features**: always ship the appropriate tests alongside the feature. Cover the
+  core behavior and the edge cases that matter, not just the happy path.
 
-### Backend Integration Tests
-```bash
-cd apps/api
-bun test phase-processor.integration.test.ts --timeout X
-```
-State is stored in `lastRampState.json`. For recovery testing, copy failed state to `failedRampStateRecovery.json` and run the recovery test.
-
-### Frontend Tests
-```bash
-cd apps/frontend
-bun test
-```
+Per-app test commands and integration-test state handling live in each subdirectory's
+`CLAUDE.md`.
 
 ## Security Spec Sync
 
-`docs/security-spec/` is the audit-facing source of truth for security-sensitive behavior, and it must not go stale. Any change to an API feature or its business logic — auth, admin routes, quote/ramp state, signing, fees, partner pricing, integrations, migrations/schema that affect invariants, or cross-chain fund flow — must be cross-checked against the matching spec file and updated in the same change whenever the behavior it documents changed. This applies to every agent working in this repo, not just the one that first touched the code.
+`docs/security-spec/` is the audit-facing source of truth for security-sensitive
+behavior, and it must not go stale. Any change to an API feature or its business logic —
+auth, admin routes, quote/ramp state, signing, fees, partner pricing, integrations,
+migrations/schema that affect invariants, or cross-chain fund flow — must be cross-checked
+against the matching spec file and updated in the same change whenever the behavior it
+documents changed. This applies to every agent working in this repo.
 
-Keep this lightweight: grep/read only the relevant spec path from `docs/security-spec/README.md`; skip this for cosmetic refactors, test-only changes, or implementation changes that do not alter security-relevant behavior. If a change alters documented behavior but you are unsure which spec file owns it, say so rather than leaving the spec silently stale.
+Keep this lightweight: grep/read only the relevant spec path from
+`docs/security-spec/README.md`; skip it for cosmetic refactors, test-only changes, or
+implementation changes that do not alter security-relevant behavior. If a change alters
+documented behavior but you are unsure which spec file owns it, say so rather than leaving
+the spec silently stale.
 
 ## Type Issues
 
-If IDE doesn't detect `@pendulum-chain/types` properly, ensure all `@polkadot/*` packages match versions in the types package. The root `package.json` uses `catalog:` for version management.
+If the IDE doesn't detect `@pendulum-chain/types` properly, ensure all `@polkadot/*`
+packages match versions in the types package. The root `package.json` uses `catalog:` for
+version management.
 
 ---
 
@@ -233,4 +166,5 @@ For multi-step tasks, state a brief plan:
 3. [Step] → verify: [check]
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+Strong success criteria let you loop independently. Weak criteria ("make it work")
+require constant clarification.
