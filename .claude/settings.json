@@ -9,7 +9,8 @@
       "Read(./.env.*)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(./.api-key.json)"
+      "Read(./.api-key.json)",
+      "Read(**/.api-key.json)"
     ]
   }
 }

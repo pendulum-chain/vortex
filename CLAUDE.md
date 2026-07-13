@@ -24,7 +24,9 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 ## Monorepo Commands
 
 > Always use `bun` — never `npm`, `yarn`, or `pnpm`. Run `bun lint:fix` after any code
-> change. Per-app test/dev/migrate commands live in each subdirectory's `CLAUDE.md`.
+> change — **except in `packages/sdk`, which is linted by ESLint** (`bun lint` inside that
+> package); Biome does not govern it. Per-app test/dev/migrate commands live in each
+> subdirectory's `CLAUDE.md`.
 
 ```bash
 bun install          # install all dependencies
