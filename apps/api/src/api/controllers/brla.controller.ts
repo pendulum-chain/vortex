@@ -44,6 +44,7 @@ import {
   findAveniaCustomerBySubaccountId,
   findAveniaCustomerByTaxId,
   hashTaxReference,
+  hydrateAveniaCompanyName,
   updateAveniaKycOutcome,
   upsertAveniaKycCase
 } from "../services/avenia/avenia-customer.service";
@@ -481,6 +482,9 @@ export const fetchSubaccountKycStatus = async (
     }
 
     const subAccountId = record.providerSubaccountId ?? "";
+    // Backfill `companyName` for business rows created before the field was populated
+    // (mirrors the onboarding aggregation's lazy hydration so KYC-only callers recover too).
+    await hydrateAveniaCompanyName(record);
     const brlaApiService = BrlaApiService.getInstance();
     const kycAttemptStatuses = await brlaApiService.getKycAttempts(subAccountId);
     const kycAttemptStatus = kycAttemptStatuses.attempts[0]; // Get the latest attempt

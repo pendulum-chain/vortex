@@ -1,4 +1,3 @@
-import { BrlaApiService } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -6,6 +5,7 @@ import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
+import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
 
 /**
@@ -68,17 +68,7 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             !customer.companyName?.trim() &&
             customer.providerSubaccountId
         )
-        .map(async customer => {
-          try {
-            const account = await BrlaApiService.getInstance().subaccountInfo(customer.providerSubaccountId ?? "");
-            const companyName = account?.accountInfo.name?.trim() || account?.accountInfo.fullName?.trim();
-            if (companyName) {
-              await customer.update({ companyName });
-            }
-          } catch {
-            // The local onboarding view remains available when Avenia cannot hydrate optional metadata.
-          }
-        })
+        .map(async customer => hydrateAveniaCompanyName(customer))
     );
 
     const kycCases = entityIds.length ? await KycCase.findAll({ where: { customerEntityId: entityIds } }) : [];

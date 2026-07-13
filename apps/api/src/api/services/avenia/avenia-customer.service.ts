@@ -1,5 +1,6 @@
-import { AveniaAccountType, normalizeTaxId } from "@vortexfi/shared";
+import { AveniaAccountType, BrlaApiService, normalizeTaxId } from "@vortexfi/shared";
 import crypto from "crypto";
+import logger from "../../../config/logger";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 
@@ -82,4 +83,28 @@ export async function updateAveniaKycOutcome(
   }
   await record.update({ status: outcome, statusExternal });
   await upsertAveniaKycCase(record, outcome, statusExternal);
+}
+
+/**
+ * Best-effort hydration of `company_name` for business Avenia accounts whose row was
+ * created before the field was backfilled (or whose provider read was unavailable at
+ * creation). Idempotent: a no-op once a non-empty name is stored, and never runs for
+ * individual accounts. Swallows provider failures so callers can keep serving status.
+ */
+export async function hydrateAveniaCompanyName(customer: ProviderCustomer): Promise<void> {
+  if (customer.provider !== "avenia" || customer.customerType !== "business") {
+    return;
+  }
+  if (customer.companyName?.trim() || !customer.providerSubaccountId) {
+    return;
+  }
+  try {
+    const account = await BrlaApiService.getInstance().subaccountInfo(customer.providerSubaccountId);
+    const companyName = account?.accountInfo.name?.trim() || account?.accountInfo.fullName?.trim();
+    if (companyName) {
+      await customer.update({ companyName });
+    }
+  } catch (error) {
+    logger.warn({ error }, "hydrateAveniaCompanyName: Avenia subaccountInfo unavailable, skipping backfill");
+  }
 }
