@@ -14,6 +14,7 @@ import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { mykoboKycMachine } from "./mykoboKyc.machine";
 import {
+  acceptRecipientInviteActor,
   checkAndRefreshTokenActor,
   cleanUrlActor,
   createQuoteRefresher,
@@ -94,6 +95,7 @@ export const rampMachine = setup({
     }
   },
   actors: {
+    acceptRecipientInvite: fromPromise(acceptRecipientInviteActor),
     alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
@@ -191,6 +193,7 @@ export const rampMachine = setup({
           const region = findKybRegionByCode(event.region);
           return {
             fiatToken: region?.fiatToken,
+            invite: event.invite,
             // Only honor the lock when the region code is valid; an unknown code degrades to the open selector.
             regionLocked: !!event.locked && region !== undefined
           };
@@ -532,6 +535,10 @@ export const rampMachine = setup({
     PostAuthRouting: {
       always: [
         {
+          guard: ({ context }) => context.kybLink?.invite !== undefined,
+          target: "RedeemingInvite"
+        },
+        {
           guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
           target: "RegisterRamp"
         },
@@ -643,6 +650,25 @@ export const rampMachine = setup({
         SummaryConfirm: {
           target: "RegisterRamp"
         }
+      }
+    },
+    RedeemingInvite: {
+      invoke: {
+        input: ({ context }) => {
+          const token = context.kybLink?.invite;
+          if (!token) {
+            throw new Error("Invite token is required.");
+          }
+          return { token };
+        },
+        onDone: {
+          target: "SelectRegion"
+        },
+        onError: {
+          actions: [{ type: "setErrorMessage" }],
+          target: "Error"
+        },
+        src: "acceptRecipientInvite"
       }
     },
     RedirectCallback: {

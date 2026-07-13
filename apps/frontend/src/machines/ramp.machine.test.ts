@@ -13,6 +13,7 @@ vi.mock("../services/auth", () => ({
 import { FiatToken, QuoteResponse, RampDirection, RampProcess } from "@vortexfi/shared";
 import { ToastMessage } from "../helpers/notifications";
 import { CheckEmailResponse, VerifyOTPResponse } from "../services/api/auth.api";
+import type { AcceptedRecipientInvite } from "../services/api/recipients.service";
 import { AuthService, type AuthTokens } from "../services/auth";
 import { RampExecutionInput } from "../types/phases";
 import { SignRampError, SignRampErrorType } from "./actors/sign.actor";
@@ -64,6 +65,12 @@ type CheckTokenOutput = { success: boolean; tokens: null } | { success: boolean;
 type LoadQuoteOutput = { isExpired: boolean; quote: QuoteResponse };
 type ValidateKycOutput = { kycNeeded: boolean; brlaEvmAddress?: string };
 
+const acceptedInvite: AcceptedRecipientInvite = {
+  id: "relationship-1",
+  invitation: { country: "BR", id: "invitation-1", payoutCurrency: "brl", rail: "brl" },
+  relationshipStatus: "active"
+};
+
 type ProvideArg = Parameters<typeof rampMachine.provide>[0];
 
 function buildImplementations(actors?: ProvideArg["actors"], actions?: ProvideArg["actions"]): ProvideArg {
@@ -76,6 +83,7 @@ function buildImplementations(actors?: ProvideArg["actors"], actions?: ProvideAr
       ...actions
     },
     actors: {
+      acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => acceptedInvite),
       checkAndRefreshToken: fromPromise(async (): Promise<CheckTokenOutput> => ({ success: true, tokens: authedTokens })),
       checkEmail: fromPromise(async (): Promise<CheckEmailResponse> => ({ action: "signin", exists: true })),
       loadQuote: fromPromise(async (): Promise<LoadQuoteOutput> => ({ isExpired: false, quote })),
@@ -600,6 +608,61 @@ describe("rampMachine", () => {
 
       actor.send({ fiatToken: FiatToken.BRL, type: "SELECT_REGION" });
       await waitFor(actor, s => s.matches("KybLinkComplete"));
+    });
+
+    it("accepts an invite after checking an existing session and before region selection", async () => {
+      const acceptance = deferred<AcceptedRecipientInvite>();
+      const acceptRecipientInvite = vi.fn(({ input }: { input: { token: string } }) => acceptance.promise);
+      const actor = createRampActor({ acceptRecipientInvite: fromPromise(acceptRecipientInvite) });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: false, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("RedeemingInvite"));
+
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: false
+      });
+      expect(acceptRecipientInvite).toHaveBeenCalledWith(expect.objectContaining({ input: { token: "invite-token" } }));
+
+      acceptance.resolve(acceptedInvite);
+      await waitFor(actor, s => s.matches("SelectRegion"));
+    });
+
+    it("accepts an invite only after a new user completes OTP authentication", async () => {
+      const acceptRecipientInvite = vi.fn(async (): Promise<AcceptedRecipientInvite> => acceptedInvite);
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(acceptRecipientInvite),
+        checkAndRefreshToken: fromPromise(async (): Promise<CheckTokenOutput> => ({ success: false, tokens: null }))
+      });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: false, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("EnterEmail"));
+      expect(acceptRecipientInvite).not.toHaveBeenCalled();
+
+      actor.send({ email: "new@user.com", type: "ENTER_EMAIL" });
+      await waitFor(actor, s => s.matches("EnterOTP"));
+      expect(acceptRecipientInvite).not.toHaveBeenCalled();
+
+      actor.send({ code: "123456", type: "VERIFY_OTP" });
+      await waitFor(actor, s => s.matches("SelectRegion"));
+      expect(acceptRecipientInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops onboarding when invite acceptance fails", async () => {
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => {
+          throw new Error("This invitation has expired");
+        })
+      });
+      actor.start();
+
+      actor.send({ invite: "expired-token", locked: true, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("Error"));
+
+      expect(actor.getSnapshot().context.errorMessage).toBe("This invitation has expired");
     });
   });
 

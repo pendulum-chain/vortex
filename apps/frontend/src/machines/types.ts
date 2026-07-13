@@ -51,6 +51,8 @@ export interface RampContext {
   kybLink?: {
     // Drives KYC provider routing when there is no quote (set from the region selector).
     fiatToken?: FiatToken;
+    // Bearer token redeemed after authentication and before KYC starts.
+    invite?: string;
     // `?kybLocked=` pins the region; going back to the selector is disabled.
     regionLocked?: boolean;
   };
@@ -90,7 +92,7 @@ export type RampMachineEvents =
   | { type: "AUTH_ERROR"; error: string }
   | { type: "LOGOUT" }
   | { type: "GO_BACK" }
-  | { type: "START_KYB_LINK"; region?: string; locked?: boolean }
+  | { type: "START_KYB_LINK"; invite?: string; region?: string; locked?: boolean }
   | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
 export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;

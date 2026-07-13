@@ -77,7 +77,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
       // Show the new invite as a pending recipient the moment it's created.
       queryClient.invalidateQueries({ queryKey: RECIPIENTS_QUERY_KEY });
       // The raw token is returned exactly once — this is the only chance to build the link.
-      setCreated({ corridorName: selected.name, id: invite.id, url: inviteUrl(invite.token) });
+      setCreated({ corridorName: selected.name, id: invite.id, url: inviteUrl(invite.token, values.corridorId) });
     }
   });
 

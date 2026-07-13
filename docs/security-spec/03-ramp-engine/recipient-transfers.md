@@ -44,7 +44,9 @@ out against another tenant's relationship.
    kill switches.
 4. **Redemption requires authentication and cannot be self-directed.** The redeemer must hold a
    valid session; a redeemer whose profile owns the sender entity gets
-   `409 CANNOT_ACCEPT_OWN_INVITE`.
+   `409 CANNOT_ACCEPT_OWN_INVITE`. The widget retains the `invite` query parameter through email
+   OTP authentication and calls `POST /recipients/invite/:token/accept` before starting the locked
+   region's onboarding flow.
 5. **A `blocked` relationship is never resurrected by a new invite.** Acceptance against a
    blocked pair returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs
@@ -117,8 +119,9 @@ payout-instrument decision (no code path writes `verified` payout references yet
 
 - [ ] `recipient_invitations.token_hash` is sha256 hex; no raw token column exists; the create
       response is the only place the token appears.
-- [ ] Accepting an invite twice returns `409`; revoked and expired invites return `410`; expiry
-      lazily transitions status.
+- [ ] The accepting recipient can redeem an invite twice and receives the existing relationship;
+      other profiles receive `409`. Revoked and expired invites return `410`; expiry lazily
+      transitions status.
 - [ ] Email-bound invites reject a mismatched authenticated email with `403` (case-insensitive
       match on the canonical form).
 - [ ] Self-acceptance returns `409`; acceptance runs in a transaction.

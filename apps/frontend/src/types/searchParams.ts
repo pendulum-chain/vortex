@@ -19,6 +19,7 @@ export const rampSearchSchema = z.object({
   externalSessionId: z.string().optional(),
   fiat: z.string().optional(),
   inputAmount: stringOrNumberParam,
+  invite: z.string().optional(),
   // KYB deep link, no quote. Presence enables it; a region-code value (e.g. `?kyb=BR`) prefills the selector.
   // Union with boolean so a bare `?kyb` flag validates too.
   kyb: z.union([z.string(), z.boolean()]).optional(),

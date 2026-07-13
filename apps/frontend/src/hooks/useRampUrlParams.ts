@@ -48,6 +48,7 @@ interface RampUrlParams {
   callbackUrl?: string;
   externalSessionId?: string;
   kybMode?: boolean;
+  invite?: string;
   region?: string;
   kybRegionLocked?: boolean;
 }
@@ -206,6 +207,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const walletLockedParam = searchParams.walletAddressLocked;
     const callbackUrlParam = searchParams.callbackUrl;
     const externalSessionIdParam = searchParams.externalSessionId;
+    const inviteParam = searchParams.invite;
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -225,6 +227,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
+      invite: inviteParam || undefined,
       kybMode,
       kybRegionLocked,
       network,
@@ -256,6 +259,7 @@ export const useSetRampUrlParams = () => {
     walletLocked,
     callbackUrl,
     externalSessionId,
+    invite,
     kybMode,
     region,
     kybRegionLocked
@@ -302,7 +306,7 @@ export const useSetRampUrlParams = () => {
       }
       setPartnerIdFn(partnerId || null);
       setApiKeyFn(apiKey || null);
-      rampActor.send({ locked: kybRegionLocked, region, type: "START_KYB_LINK" });
+      rampActor.send({ invite, locked: kybRegionLocked, region, type: "START_KYB_LINK" });
       hasInitialized.current = true;
       return;
     }

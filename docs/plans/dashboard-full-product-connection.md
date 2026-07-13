@@ -477,8 +477,9 @@ endpoints already exist; **no new onboarding backend is required** — that part
 Unchanged, and still the right call for v1: a recipient has no dashboard account, no wallet, and
 no session — sending them to the widget is the shortest path to a `customer_entity` with an
 approved provider account. The sender creates an invite (`POST /v1/recipients/invite`) and shares
-`inviteUrl(token)`; redemption resolves the recipient's entity, and their KYC/KYB runs in the
-widget. Status returns via the D5 aggregator exactly as before.
+`inviteUrl(token)`, which opens `/widget?kybLocked=<region>&invite=<token>`. After OTP
+authentication, the widget redeems the token before entering the locked-region KYC/KYB flow.
+Status returns via the D5 aggregator exactly as before.
 
 Verified real: `apps/frontend/src/types/searchParams.ts:26` — `?kybLocked=BR` pins the KYB region
 and skips the selector (also `?kyb=` for the non-locked case), driving the widget's existing

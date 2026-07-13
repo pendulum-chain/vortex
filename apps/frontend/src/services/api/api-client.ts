@@ -72,6 +72,7 @@ const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
   mykobo: SentryDomain.Kyc,
   quotes: SentryDomain.Quote,
   ramp: SentryDomain.Ramp,
+  recipients: SentryDomain.Ramp,
   siwe: SentryDomain.Auth,
   subsidize: SentryDomain.Ramp
 };

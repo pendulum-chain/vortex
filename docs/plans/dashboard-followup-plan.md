@@ -78,6 +78,9 @@ a second column to reason about in the security spec.
 
 ---
 
+## 1.1: normalize `status` from kyc_cases and provider_costumers to a single enum across rails (currently Mykobo flow at least, sets to approved not SUCCESS, Avenia to accepted ...)
+---
+
 ## 2. Add AlfredPay fiat-account management to the dashboard
 
 **Status:** planned, not started.
@@ -202,7 +205,7 @@ recipients.
 
 ## 3. Wire invite redemption into the widget's `?kybLocked=` flow
 
-**Status:** decided (2026-07-10), not started. Locks main plan §6.2. Recorded in
+**Status:** complete (2026-07-13). Locks main plan §6.2. Recorded in
 `docs/dashboard-app-spec.md`.
 
 ### Decision
@@ -221,21 +224,19 @@ and the dashboard now *can* run KYC (`@vortexfi/kyc` + `AveniaKycFlow`/`Alfredpa
 duplicates a KYC surface the widget already ships and exercises, for a login the recipient pays only
 once. Revisit if recipients gain a reason to live in the dashboard.
 
-### Finding — what exists and what does not
+### Implementation
 
-The **sender half is real**: `RecipientDialog.tsx:62` calls `RecipientsService.createInvite` →
-`POST /v1/recipients/invite`, and renders `inviteUrl(invite.token)` to copy.
+The sender creates an invite through `RecipientDialog.tsx`, which calls
+`RecipientsService.createInvite` → `POST /v1/recipients/invite`. `inviteUrl` now delegates to
+`onboardingUrl`, producing the widget link with both `kybLocked` and `invite` query parameters.
 
-The **recipient half does not exist**, in either app:
+The widget parses the optional `invite` parameter, preserves it through authentication, then
+calls `POST /v1/recipients/invite/:token/accept` in `RedeemingInvite` before routing to the locked
+region's existing KYC/KYB flow. `RecipientsService.acceptInvite` is the thin API client for this
+call.
 
-- `inviteUrl` (`domain/recipient.ts:9`) returns `https://app.vortexfinance.co/invite/{token}` — a
-  route in neither app. The shared link 404s today.
-- `RecipientsService` has no `acceptInvite` method. Nothing anywhere calls
-  `POST /v1/recipients/invite/:token/accept`, though the endpoint is fully implemented.
-- `lib/widget.ts` (`onboardingUrl`) is called from nowhere; its own docstring says so.
-
-The **backend is complete**: create, accept, list, patch, eligibility (`recipients.route.ts`), with
-token hashing, expiry, revocation, email binding and a self-invite guard.
+The backend provides create, accept, list, patch, and eligibility (`recipients.route.ts`), with
+token hashing, expiry, revocation, email binding, and a self-invite guard.
 
 ### What the token is (it is not the invitation id)
 
@@ -270,29 +271,8 @@ to it.
 5. Widget proceeds into the existing KYB flow for the locked region.
 6. Payout instrument capture (§7.1) follows in the same session.
 
-### Change set
-
-1. **`apps/frontend/src/types/searchParams.ts`** — add `invite: z.string().optional()` to
-   `rampSearchSchema`.
-2. **`ramp.machine.ts`** — carry the token in the `kybLink` context (assigned alongside `kybLocked`
-   around `:190`). Add a `RedeemingInvite` state on the post-auth path: `:531` is already documented
-   as "the single place that routes a successful login (CheckAuth or OTP) to the state recorded in
-   `postAuthTarget`" — redeem there, before `SelectRegion`/the locked-region transition at `:721`.
-   Invoke an actor that POSTs the accept endpoint.
-3. **Widget recipients service** — a thin `acceptInvite(token)` call; the widget has no
-   `RecipientsService` today.
-4. **Error states.** Expired / revoked / already-accepted / email-mismatch / sender-gone /
-   own-invite each return a distinct code from `acceptInvite`. Render them as terminal screens, not
-   as a generic `Error` — a recipient who hits an expired link must be told to ask the sender for a
-   new one, not shown a retry.
-5. **`inviteUrl`** (`domain/recipient.ts:9`) — point at the widget with `?kybLocked=&invite=`.
-   `lib/widget.ts` (`onboardingUrl`) already builds the corridor→region half; use it instead of
-   deleting it, and give it the token.
-6. ~~**Already-accepted is not an error on re-entry.**~~ **Done (backend, 2026-07-10.)**
-   `acceptInvite` is idempotent for the accepting profile: `200` + the existing relationship, no
-   re-notification, and it survives the invite's expiry. The widget can POST accept unconditionally
-   after login and treat `200`/`201` alike. Revocation and `blocked` still reject.
-7. **Do not touch the dashboard's sender wizard.**
+The machine accepts both `200` and `201` responses, so the accepting recipient can reopen their
+link and resume onboarding. Revoked and blocked relationships still reject redemption.
 
 ### Open questions
 
@@ -312,7 +292,7 @@ to it.
   must not be locked out.
 - **US** is a partner redirect inside the widget's own KYC; unaffected.
 
-### Spec updates (same change set — Security Spec Sync)
+### Spec updates
 
 - `docs/security-spec/03-ramp-engine/recipient-transfers.md` — redemption happens on the **widget**
   origin; the token now appears in a widget URL (browser history, referrer). Document that the
@@ -325,19 +305,21 @@ to it.
 
 - An invited recipient with no Vortex account opens the link, signs in with OTP, and lands directly
   in the locked-region KYB flow without ever choosing a region.
-- After OTP, `POST /v1/recipients/invite/:token/accept` fires exactly once; the sender's Recipients
-  table shows the relationship as `active`.
+- After OTP, `POST /v1/recipients/invite/:token/accept` fires before the locked-region KYC flow; the
+  sender's Recipients table shows the relationship as `active`.
 - On KYC approval + payout reference, `GET /v1/recipients/:id/eligibility` returns
   `canCreateTransfer: true`.
-- Expired, revoked, email-mismatched, and own-invite tokens each render their own terminal screen.
+- Expired, revoked, email-mismatched, and own-invite tokens do not enter KYC and show the widget
+  error screen.
 - Reopening the link after accepting resumes KYC rather than erroring.
 - An invite for EU is rejected at creation (or, until then, is a known dead link).
 
 ### Risks / caveats
 
 - **The token lands in a URL on the widget origin** — browser history, referrer headers, embedder
-  logs if the widget is iframed. It is single-use, hashed at rest, and expires; that is the
-  mitigation. Do not add it to any analytics or Sentry payload.
+  logs if the widget is iframed. It is hashed at rest, expires, and binds to the accepting
+  recipient on first redemption; that is the mitigation. Do not add it to any analytics or Sentry
+  payload.
 - **The widget is embeddable.** A partner iframing the widget could now receive an invite deep link.
   Confirm redemption is acceptable in an embedded context, or restrict it to the top-level origin.
 - **A second login** is the accepted cost. If recipients later need the dashboard routinely, this

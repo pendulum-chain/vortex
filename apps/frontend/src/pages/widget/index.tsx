@@ -98,7 +98,7 @@ const WidgetContent = () => {
     isInitialQuoteFailed: state.matches("InitialFetchFailed"),
     isKybComplete: state.matches("KybLinkComplete"),
     isKybLinkMode: !!state.context.kybLink,
-    isLoadingAuthEmail: state.matches("CheckAuth"),
+    isLoadingAuthEmail: state.matches("CheckAuth") || state.matches("RedeemingInvite"),
     isRedirectCallback: state.matches("RedirectCallback"),
     isSelectRegion: state.matches("SelectRegion"),
     rampState: state.value
