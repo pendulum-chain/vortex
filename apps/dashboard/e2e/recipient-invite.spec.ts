@@ -7,7 +7,7 @@ test("long recipient invite links stay within the share dialog", async ({ page }
   await seedSession(page);
   await page.goto("/dashboard/recipients");
 
-  await page.getByRole("button", { name: "Add recipient" }).click();
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel(/I will send you/).fill("100");
   await dialog.getByRole("button", { name: "Create invite link" }).click();

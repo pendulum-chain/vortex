@@ -4,7 +4,7 @@
 
 The backend provides authenticated Monerium OAuth authorization-code endpoints for individual KYC and business KYB. It generates OAuth state and PKCE material server-side, exchanges codes directly with Monerium, keeps access and rotating refresh tokens only in backend memory, reads the authenticated Monerium context and API-v2 profile, and mirrors only normalized verification metadata into `provider_customers` and `kyc_cases`.
 
-The endpoints are `POST /v1/monerium/oauth/start`, `POST /v1/monerium/oauth/complete`, and `GET /v1/monerium/status`. They use the Supabase-authenticated user identity. `MONERIUM_REDIRECT_URI` is the exact dashboard callback URI registered with Monerium and is never derived from request input.
+The endpoints are `POST /v1/monerium/oauth/start`, `POST /v1/monerium/oauth/complete`, and `GET /v1/monerium/status`. They use the Supabase-authenticated user identity. `MONERIUM_REDIRECT_URI` is the exact dashboard callback URI registered with Monerium and is never derived from request input. After a successful callback exchange, the callback route restores any refreshed dashboard session and replace-navigates to the overview with the EU onboarding modal open; callback failures remain on the callback route so their error is preserved.
 
 Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR recipient-eligibility provider. This change does not restore the historical Monerium EURe payment rail. EUR ramp registration remains disabled, and the dormant Mykobo settlement path must not be re-enabled until its separate Mykobo-profile gate is reconciled with Monerium identity.
 
@@ -19,13 +19,13 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 7. Code exchange and refresh MUST use the configured client ID and the same exact redirect URI used at authorization start.
 8. All Monerium API calls MUST have an explicit timeout and request API v2 for context/profile reads.
 9. Individual onboarding MUST select a profile with kind `personal` and business onboarding MUST select one with kind `corporate`. The matching `defaultProfile` is preferred; multiple matching profiles without a matching default MUST be rejected rather than choosing an arbitrary legal identity.
-10. Persisted Monerium status MUST be normalized to `PENDING`, `APPROVED`, or `REJECTED`; the raw profile state belongs in `status_external`.
+10. Starting OAuth MUST persist `PENDING` with `status_external = authorization_started` without downgrading an existing approval. Provider profile status MUST be normalized to `PENDING`, `APPROVED`, or `REJECTED`; the raw profile state belongs in `status_external`.
 11. Monerium rows MUST use provider `monerium`, rail `eur`, customer type `individual` or `business`, the Monerium profile ID as the provider identifier, and KYC case type `kyc` or `kyb` respectively.
 12. Production startup MUST fail without a Monerium auth-code client ID and exact callback URI. Credentials MUST NOT be accepted from client requests.
 13. A persisted terminal approval or rejection MUST remain readable after in-memory credentials are lost. A pending profile requires reauthorization before its live state can be refreshed.
 14. Dashboard onboarding-status polling SHOULD refresh pending Monerium profiles while credentials remain in memory, but a provider outage MUST NOT make the aggregate onboarding endpoint unavailable.
 15. The requested customer type MUST match the authenticated legal entity; recipient eligibility MUST match the invitation type and MUST NOT rely on a Monerium approval older than five minutes.
-16. Monerium `created` and `incomplete` profiles MUST remain awaiting-user states; only provider `pending` is displayed as in review.
+16. Local `authorization_started` and Monerium `created` and `incomplete` profiles MUST remain awaiting-user states; only provider `pending` is displayed as in review.
 
 ## Threat Vectors & Mitigations
 
@@ -45,6 +45,7 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 
 - [x] All three Monerium endpoints require Supabase authentication.
 - [x] State and PKCE are generated server-side with `crypto.randomBytes`; S256 is used.
+- [x] OAuth start creates or updates the Monerium account to `PENDING`/`authorization_started` without downgrading an approved account.
 - [x] OAuth transactions have a 10-minute TTL and bind owner, entity, type, and redirect URI.
 - [x] Foreign ownership is rejected before state is consumed; owner completion consumes state atomically before exchange.
 - [x] Canonical authenticated email is used and optional request email is equality-only.

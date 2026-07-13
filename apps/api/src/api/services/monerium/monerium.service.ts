@@ -280,6 +280,24 @@ export async function startMoneriumOAuth(
   if (entity.type !== customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
   }
+  await sequelize.transaction(async transaction => {
+    const [customer, created] = await ProviderCustomer.findOrCreate({
+      defaults: {
+        customerEntityId: entity.id,
+        customerType,
+        provider: "monerium",
+        providerCustomerId: null,
+        rail: "eur",
+        status: "PENDING",
+        statusExternal: "authorization_started"
+      },
+      transaction,
+      where: { customerEntityId: entity.id, customerType, provider: "monerium", rail: "eur" }
+    });
+    if (!created && customer.status !== "APPROVED") {
+      await customer.update({ status: "PENDING", statusExternal: "authorization_started" }, { transaction });
+    }
+  });
   const state = base64Url(crypto.randomBytes(32));
   const verifier = base64Url(crypto.randomBytes(64));
   const transaction: OAuthTransaction = {

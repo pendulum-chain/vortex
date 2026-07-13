@@ -1,7 +1,7 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { createMoneriumKycApi, createMoneriumKycMachine, type MoneriumOAuthCallback } from "@vortexfi/kyc";
 import { useMachine } from "@xstate/react";
-import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useEffect } from "react";
 import { z } from "zod";
 import { VortexLogo } from "@/components/layout/VortexLogo";
@@ -30,6 +30,8 @@ const moneriumCallbackMachine = createMoneriumKycMachine({
   openAuthorizationUrl: url => window.location.assign(url)
 });
 
+const DASHBOARD_STATES = new Set(["Approved", "InReview", "Ready", "Rejected"]);
+
 function callbackFrom(search: z.infer<typeof searchSchema>): MoneriumOAuthCallback {
   if (search.code && search.state) return { code: search.code, state: search.state };
   return {
@@ -39,6 +41,7 @@ function callbackFrom(search: z.infer<typeof searchSchema>): MoneriumOAuthCallba
 }
 
 function MoneriumCallbackPage() {
+  const restoreSession = useAuthStore(state => state.restoreSession);
   const user = useAuthStore(state => state.user);
   const search = Route.useSearch();
   const navigate = useNavigate();
@@ -52,18 +55,17 @@ function MoneriumCallbackPage() {
   }, []);
 
   useEffect(() => {
-    if (value === "Approved" || value === "InReview" || value === "Rejected") {
+    if (DASHBOARD_STATES.has(value)) {
       queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_QUERY_KEY });
+      restoreSession();
+      navigate({ replace: true, search: { onboarding: "EU" }, to: "/overview" });
     }
-  }, [value]);
+  }, [navigate, restoreSession, value]);
 
   if (!user && !AuthService.getTokens()) return <Navigate to="/login" />;
 
   const goToDashboard = () => navigate({ to: "/overview" });
-  const isLoading = value === "Routing" || value === "CompletingAuthorization";
-  const isApproved = value === "Approved";
-  const isInReview = value === "InReview";
-  const needsAction = value === "Ready";
+  const isLoading = value === "Routing" || value === "CompletingAuthorization" || DASHBOARD_STATES.has(value);
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
@@ -81,23 +83,6 @@ function MoneriumCallbackPage() {
               <>
                 <Loader2 className="size-9 animate-spin text-primary" />
                 <p className="text-muted-foreground text-sm">Confirming your authorization...</p>
-              </>
-            ) : isApproved ? (
-              <>
-                <CheckCircle2 className="size-10 text-success" />
-                <p className="font-medium">Verification approved</p>
-              </>
-            ) : isInReview ? (
-              <>
-                <ShieldCheck className="size-10 text-primary" />
-                <p className="font-medium">Verification in review</p>
-                <p className="text-muted-foreground text-sm">Monerium is reviewing your information.</p>
-              </>
-            ) : needsAction ? (
-              <>
-                <ShieldCheck className="size-10 text-primary" />
-                <p className="font-medium">More information is required</p>
-                <p className="text-muted-foreground text-sm">Return to the dashboard to continue with Monerium.</p>
               </>
             ) : (
               <>

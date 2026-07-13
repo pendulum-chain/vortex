@@ -11,6 +11,7 @@ interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   requestOtp: (email: string) => Promise<void>;
+  restoreSession: () => void;
   verifyOtp: (email: string, code: string) => Promise<void>;
   logout: () => void;
 }
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>()(set => ({
   requestOtp: async email => {
     await AuthAPI.requestOTP(email);
   },
+  restoreSession: () => set({ user: userFromSession() }),
   user: userFromSession(),
   verifyOtp: async (email, code) => {
     const result = await AuthAPI.verifyOTP(email, code);

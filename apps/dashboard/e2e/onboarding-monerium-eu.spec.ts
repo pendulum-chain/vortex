@@ -25,19 +25,33 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
     await navigationGate;
     await route.continue();
   });
+  const connectingShown = page.evaluate(
+    () =>
+      new Promise<boolean>(resolve => {
+        const observer = new MutationObserver(() => {
+          if (document.body.textContent?.includes("Connecting to Monerium")) {
+            observer.disconnect();
+            resolve(true);
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      })
+  );
   const navigation = wizard.getByRole("button", { name: "Continue to Monerium" }).click();
   try {
-    await expect(wizard.getByText("Connecting to Monerium")).toBeVisible();
+    await expect(connectingShown).resolves.toBe(true);
   } finally {
     continueNavigation();
   }
   await navigation;
 
-  await expect(page.getByText("Verification in review")).toBeVisible({ timeout: 20_000 });
-  await expect.poll(() => new URL(page.url()).search).toBe("");
+  await expect(page).toHaveURL(/\/dashboard\/overview\?onboarding=EU$/, { timeout: 20_000 });
+  await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue in background" })).toBeVisible();
   expect(backend.monerium.startRequests).toEqual([{ customerType: "individual" }]);
 
-  await page.getByRole("button", { name: "Return to dashboard" }).click();
+  await page.getByRole("button", { name: "Continue in background" }).click();
+  await expect.poll(() => new URL(page.url()).search).toBe("");
   await expect(page.getByRole("button", { name: "Awaiting provider review" })).toBeVisible({ timeout: 20_000 });
 
   backend.monerium.approved = true;
@@ -60,7 +74,7 @@ test("Monerium callback refreshes an expired dashboard session before exchange",
 
   await page.goto("/dashboard/monerium/callback?code=e2e-code&state=e2e-state");
 
-  await expect(page.getByText("Verification in review")).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/dashboard\/overview\?onboarding=EU$/, { timeout: 20_000 });
+  await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
   expect(backend.auth.refreshes).toBe(1);
-  await expect.poll(() => new URL(page.url()).search).toBe("");
 });

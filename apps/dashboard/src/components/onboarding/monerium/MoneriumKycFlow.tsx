@@ -16,7 +16,7 @@ interface MoneriumKycFlowProps {
 
 const moneriumKycMachine = createMoneriumKycMachine({
   api: createMoneriumKycApi(apiClient),
-  openAuthorizationUrl: url => window.location.assign(url)
+  openAuthorizationUrl: url => requestAnimationFrame(() => window.location.assign(url))
 });
 
 const STATUS_BY_STATE: Record<string, OnboardingStatus> = {

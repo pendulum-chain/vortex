@@ -86,6 +86,25 @@ describe("Monerium OAuth", () => {
     expect(next.mock.calls[0]?.[0]).toMatchObject({ status: 400 });
   });
 
+  it("records pending onboarding when authorization starts", async () => {
+    await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+
+    expect(providerFindOrCreate).toHaveBeenCalledTimes(1);
+    const options = providerFindOrCreate.mock.calls[0]?.[0] as { defaults: Record<string, unknown> };
+    expect(options.defaults).toMatchObject({
+      customerType: "individual",
+      provider: "monerium",
+      providerCustomerId: null,
+      rail: "eur",
+      status: "PENDING",
+      statusExternal: "authorization_started"
+    });
+    expect(customerUpdate).toHaveBeenCalledWith(
+      { status: "PENDING", statusExternal: "authorization_started" },
+      expect.any(Object)
+    );
+  });
+
   it("generates PKCE server-side, binds ownership, consumes state once, and mirrors the selected profile", async () => {
     const requests: Array<{ init?: RequestInit; url: string }> = [];
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
@@ -133,8 +152,8 @@ describe("Monerium OAuth", () => {
     );
     expect(tokenBody.get("code")).toBe("authorization-code");
     expect(tokenBody.get("redirect_uri")).toBe(config.monerium.redirectUri);
-    expect(providerFindOrCreate).toHaveBeenCalledTimes(1);
-    const providerOptions = providerFindOrCreate.mock.calls[0]?.[0] as { defaults: Record<string, unknown> };
+    expect(providerFindOrCreate).toHaveBeenCalledTimes(2);
+    const providerOptions = providerFindOrCreate.mock.calls[1]?.[0] as { defaults: Record<string, unknown> };
     expect(providerOptions.defaults).toMatchObject({
       customerType: "individual",
       provider: "monerium",

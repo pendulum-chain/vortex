@@ -22,7 +22,10 @@ function providerState(
   if (isProviderRestricted(status)) {
     return "rejected";
   }
-  if (provider === "monerium" && ["created", "incomplete"].includes(statusExternal?.toLowerCase() ?? "")) {
+  if (
+    provider === "monerium" &&
+    ["authorization_started", "created", "incomplete"].includes(statusExternal?.toLowerCase() ?? "")
+  ) {
     return "pending";
   }
   if (isProviderInReview(status)) {

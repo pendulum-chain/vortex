@@ -34,7 +34,9 @@ two people.
 ### Onboarding (KYC/KYB)
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
-  Monerium uses its hosted OAuth portal and returns to the dashboard callback.
+  Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+- As a sender, opening Monerium onboarding immediately marks the EU corridor pending; it moves to
+  in review only after Monerium reports that all required information was submitted.
 - As a sender, I see each corridor's real status — `not_started · pending · in_review · approved ·
   rejected` — read from the provider, surviving reload.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use

@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { z } from "zod";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
 import { CorridorCard } from "@/components/onboarding/CorridorCard";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
@@ -13,11 +14,14 @@ import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/overview")({
-  component: OverviewPage
+  component: OverviewPage,
+  validateSearch: z.object({ onboarding: z.literal("EU").optional() })
 });
 
 function OverviewPage() {
   const account = useActiveAccount();
+  const navigate = useNavigate();
+  const search = Route.useSearch();
   const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
   const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -31,6 +35,7 @@ function OverviewPage() {
   const corridors = visibleCorridorIds.map(id => CORRIDORS[id]);
   const availableToAdd = Object.values(CORRIDORS).filter(corridor => !visibleCorridorIds.includes(corridor.id));
   const approved = corridors.filter(corridor => account.onboardings[corridor.id]?.status === "approved").length;
+  const openCorridor = activeCorridor ?? search.onboarding ?? null;
 
   function addCorridor() {
     if (!selectedToAdd) {
@@ -39,6 +44,13 @@ function OverviewPage() {
     setAddedCorridors(current => (current.includes(selectedToAdd) ? current : [...current, selectedToAdd]));
     setSelectedToAdd("");
     setIsAddOpen(false);
+  }
+
+  function closeOnboarding() {
+    setActiveCorridor(null);
+    if (search.onboarding) {
+      navigate({ replace: true, search: {}, to: "/overview" });
+    }
   }
 
   return (
@@ -109,12 +121,12 @@ function OverviewPage() {
         </DialogContent>
       </Dialog>
 
-      {activeCorridor && (
+      {openCorridor && (
         <OnboardingWizard
           account={account}
-          corridor={CORRIDORS[activeCorridor]}
-          key={`${account.id}-${activeCorridor}`}
-          onClose={() => setActiveCorridor(null)}
+          corridor={CORRIDORS[openCorridor]}
+          key={`${account.id}-${openCorridor}`}
+          onClose={closeOnboarding}
         />
       )}
     </Stagger>
