@@ -184,9 +184,11 @@ export class AlfredpayApiService {
   /**
    * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
    * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   * Alfredpay renamed the route: the former /configurations path now returns
+   * 400 errorCode 111301 (caught by the nightly contract suite, 2026-07-14).
    */
   public async getAllConfigs(): Promise<GetAllConfigsResponse> {
-    const path = "/api/v1/third-party-service/penny/configurations";
+    const path = "/api/v1/third-party-service/penny/allConfigs";
     return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 

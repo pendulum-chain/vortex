@@ -49,22 +49,27 @@ type ConsumedKycStatus = Pick<GetKycStatusResponse, "status"> & {
 };
 
 const DECIMAL_STRING = /^\d+(\.\d+)?$/;
-const DIGITS = /^\d+$/;
+const DIGITS_OR_EMPTY = /^\d*$/;
 const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 // expiration is consumed via `new Date(...)` — the property that matters is parseability.
 const parseableTimestamp = z.string().refine(value => !Number.isNaN(Date.parse(value)), "not a parseable timestamp");
 
-/** One entry of the GET …/configurations `supportedPairs` array. */
+/**
+ * One entry of the GET …/allConfigs `supportedPairs` array. The listing contains junk
+ * rows (observed live, 2026-07-14): `decimals` may be null or "", `fromCurrency` may be
+ * null. The limits indexer skips rows without a digit-string `decimals`, so the per-row
+ * contract is correspondingly loose.
+ */
 export const alfredpayConfigPairSchema = z.looseObject({
-  decimals: z.string().regex(DIGITS),
-  fromCurrency: z.string().min(1),
+  decimals: z.string().regex(DIGITS_OR_EMPTY).nullable(),
+  fromCurrency: z.string().min(1).nullable(),
   maxQuantity: z.string().regex(DECIMAL_STRING),
   minQuantity: z.string().regex(DECIMAL_STRING),
   toCurrency: z.string().min(1),
   typeCustomer: z.enum(AlfredpayCustomerType).nullable()
 }) satisfies z.ZodType<ConsumedConfigPair>;
 
-/** The body of a GET …/configurations response. */
+/** The body of a GET …/allConfigs response. */
 export const alfredpayConfigsResponseSchema = z.looseObject({
   supportedPairs: z.array(alfredpayConfigPairSchema)
 }) satisfies z.ZodType<{ supportedPairs: ConsumedConfigPair[] }>;
