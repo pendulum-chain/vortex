@@ -2,10 +2,13 @@ import type { CorridorId } from "@/domain/types";
 import { CORRIDOR_KYB_REGION } from "@/services/api/mappers";
 
 /**
- * The Vortex widget origin. Dev default targets the local widget dev server; set
- * VITE_WIDGET_URL for other environments (prod is /widget on the main site).
+ * The Vortex widget origin. Dev default targets the local widget dev server; production
+ * builds fall back to the page origin (the dashboard is served under /dashboard/ on the
+ * same origin as the widget's /widget). Set VITE_WIDGET_URL wherever that doesn't hold —
+ * a wrong origin here burns the invite's one-time token on an unreachable link.
  */
-const WIDGET_URL: string = import.meta.env.VITE_WIDGET_URL ?? "http://127.0.0.1:5173";
+const WIDGET_URL: string =
+  import.meta.env.VITE_WIDGET_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5173" : window.location.origin);
 
 /**
  * Widget onboarding entry point for a corridor — the **recipient** hand-off (plan §6.2).

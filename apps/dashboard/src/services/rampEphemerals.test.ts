@@ -27,7 +27,7 @@ describe("ramp ephemeral storage", () => {
 
   it("keeps previous ramp keys when binding a new registered ramp", () => {
     values.set(
-      "rampEphemerals",
+      "vortex_dashboard_rampEphemerals",
       JSON.stringify({
         "previous-ramp": {
           evmEphemeral: { address: "0xprevious", secret: "0xprevious-secret" },

@@ -1,6 +1,9 @@
 import type { EphemeralAccount } from "@vortexfi/shared";
 
-const RAMP_EPHEMERALS_STORAGE_KEY = "rampEphemerals";
+// Namespaced away from the widget's "rampEphemerals": both apps share the origin (the dashboard
+// is served under /dashboard/), and the widget prunes its map to 50 entries — sharing the key
+// would let a widget ramp evict an in-flight dashboard ramp's recovery keys.
+const RAMP_EPHEMERALS_STORAGE_KEY = "vortex_dashboard_rampEphemerals";
 
 export interface RampEphemeralEntry {
   substrateEphemeral: EphemeralAccount;
