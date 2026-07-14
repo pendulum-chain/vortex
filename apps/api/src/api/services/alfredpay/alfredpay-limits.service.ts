@@ -120,8 +120,10 @@ export class AlfredpayLimitsService {
   private indexPair(target: Map<string, RawAmountLimits>, pair: AlfredpayConfigPair): void {
     // The /allConfigs listing contains junk rows: decimals null/"" and even null
     // currencies. Only digit-string decimals are trustworthy — Number(null) is 0 and
-    // would silently shrink the raw limits by 10^decimals.
-    if (typeof pair.decimals !== "string" || !/^\d+$/.test(pair.decimals)) return;
+    // would silently shrink the raw limits by 10^decimals. Capped at two digits (sane
+    // currency precision): an oversized exponent would make Big(10).pow throw and
+    // abort the whole refresh on one bad row.
+    if (typeof pair.decimals !== "string" || !/^\d{1,2}$/.test(pair.decimals)) return;
     const decimals = Number(pair.decimals);
 
     const axes = this.deriveAxes(pair);

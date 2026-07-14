@@ -40,7 +40,9 @@ const configsResponse: GetAllConfigsResponse = {
     pair({ decimals: null, id: "junk-individual", typeCustomer: AlfredpayCustomerType.INDIVIDUAL }),
     pair({ decimals: null, id: "junk-wildcard" }),
     pair({ decimals: "", id: "junk-empty-decimals" }),
-    pair({ decimals: null, fromCurrency: null, id: "junk-null-currency" })
+    pair({ decimals: null, fromCurrency: null, id: "junk-null-currency" }),
+    // Oversized decimals would make Big(10).pow throw and abort the whole refresh.
+    pair({ decimals: "999999999999999999999999", id: "junk-huge-decimals", typeCustomer: AlfredpayCustomerType.INDIVIDUAL })
   ]
 };
 
