@@ -44,7 +44,7 @@ the sections below that describe them are target-state, not current behavior.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
-- As a sender, opening Monerium onboarding immediately marks the EU corridor pending; it moves to
+- As a sender, opening Monerium onboarding immediately marks the EU corridor started; it moves to
   in review only after Monerium reports that all required information was submitted.
 - As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
   action only when the backend returns `MONERIUM_REAUTHENTICATION_REQUIRED` while loading the corridor.
@@ -59,10 +59,10 @@ the sections below that describe them are target-state, not current behavior.
   missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
   Monerium's hosted OAuth KYC/KYB.
-- Corridor/kind combinations without an implemented provider flow — company KYB on the
-  Alfredpay/Avenia corridors (MX/CO/AR/BR) and all US onboarding (partner redirect) — are shown
-  as **not yet available** and cannot be started. They are disabled rather than simulated: a
-  mocked approval would be contradicted by the backend at transfer registration.
+- Corridor/kind combinations without an implemented provider flow — US individual onboarding
+  (the partner redirect is not wired) and AR company KYB (provider support unconfirmed) — are
+  shown as **not yet available** and cannot be started. They are disabled rather than simulated:
+  a mocked approval would be contradicted by the backend at transfer registration.
 - As a sender, everything downstream (recipients, transfers) stays locked until at least one
   corridor is approved.
 
@@ -159,7 +159,10 @@ provider-shaped rather than UI-shaped.
   authenticate: `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
 
 - **Redemption and recipient KYC happen in the widget. `#decided`** The invite link opens the widget
-  pinned to the invite's corridor (`?kybLocked=<country>`), carrying the token. The widget already
+  carrying the token (`?invite=`) plus `?kybLocked=<country>`, which pre-pins the corridor when the
+  widget recognizes the region. The token alone is sufficient: the widget enters the recipient flow
+  for any link carrying `?invite=`, and after acceptance the invitation response — not the editable
+  URL — is authoritative for both corridor and individual/business onboarding. The widget already
   has OTP login and the shipped KYC/KYB flows; it gains one new step — after login, redeem the token
   against the accept endpoint, then proceed into the existing KYB flow. The dashboard needs no
   `/invite` route.
@@ -168,13 +171,15 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - **EU recipient onboarding is currently contradictory and therefore disabled in the widget's
-    region selector.** The widget's EURC KYC child is Mykobo (individual-only, needs a connected
-    wallet), while the recipient backend's `eur` rail requires a Monerium provider record
-    (`providerForRail`). Until recipient EU onboarding is routed through Monerium (or the rail
-    mapping changes), an EU invite cannot produce a payable recipient — EU invites should not be
-    issued. After acceptance of any invite, the invitation response remains authoritative for
-    both corridor and individual/business onboarding even if the URL is edited.
+  - **EU recipient onboarding is currently contradictory.** The widget's EURC KYC child is Mykobo
+    (individual-only, needs a connected wallet), while the recipient backend's `eur` rail requires
+    a Monerium provider record (`providerForRail`) — and Monerium onboards in the dashboard, not
+    the widget. EU is therefore excluded from the widget's KYB region list: an EU link's
+    `?kybLocked=EU` is not recognized, and the corridor locks only from the acceptance response.
+    The dashboard does **not** yet prevent creating EU invites — all six corridors are selectable
+    in the recipient dialog — so an EU invite can be issued but cannot produce a payable recipient
+    until recipient EU onboarding is routed through Monerium (or the rail mapping changes). Known
+    gap, tracked with the EUR corridor reconciliation.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`

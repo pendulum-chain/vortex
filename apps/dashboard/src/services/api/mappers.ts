@@ -59,9 +59,9 @@ export const CORRIDOR_BY_FIAT: Partial<Record<FiatToken, CorridorId>> = Object.f
 
 /**
  * Region code for the widget's KYB deep link (`?kybLocked=`). Mirrors `KYB_REGIONS` in
- * `apps/frontend/src/constants/kybRegions.ts`. EU is the only corridor missing: it is
- * individual KYC only and needs a connected wallet, so it cannot complete a quote-less
- * KYB deep link and falls back to the widget home.
+ * `apps/frontend/src/constants/kybRegions.ts`, plus EU, which the widget's region list
+ * excludes (EU recipients onboard via Monerium): an EU link's `?kybLocked=EU` is not
+ * recognized, and the corridor locks from the accepted invitation response instead.
  */
 export const CORRIDOR_KYB_REGION: Partial<Record<CorridorId, string>> = {
   AR: "AR",

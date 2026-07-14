@@ -42,9 +42,12 @@ out against another tenant's relationship.
    endpoint is idempotent for that profile, returning `200` with the existing relationship instead
    of `201`. Re-entry does not re-notify the sender, does not move `accepted_at`, and does not
    revive an `archived` relationship. It survives `expires_at` passing — the relationship already
-   exists, and KYC can outlast the invite's TTL. It does **not** survive sender revocation
-   (`410 INVITE_REVOKED`) or a `blocked` relationship (`409 RELATIONSHIP_BLOCKED`), which remain the
-   kill switches.
+   exists, and KYC can outlast the invite's TTL. It does **not** survive a `blocked` relationship
+   (`409 RELATIONSHIP_BLOCKED`) or sender revocation (`410 INVITE_REVOKED`) — but revocation is
+   currently enforced on redemption only: **no endpoint, service, or dashboard action writes
+   `status = 'revoked'` yet** (TODO — see Next Steps). Until a revoke path ships, the operable
+   mitigations for a leaked pending invite are the 14-day TTL, first-redeemer binding, and
+   blocking the resulting relationship.
 4. **Redemption requires authentication and cannot be self-directed.** The redeemer must hold a
    valid session; a redeemer whose profile owns the sender entity gets
    `409 CANNOT_ACCEPT_OWN_INVITE`. The widget retains the `invite` query parameter through email
@@ -65,10 +68,14 @@ out against another tenant's relationship.
    provider instrument id + masked label + status only; senders only ever see the mask.
 8. **Transfer eligibility requires the full gate** (`transfer-eligibility.service.ts`): invite
    accepted ∧ relationship `active` ∧ recipient approved with the corridor's provider (rail →
-   provider: `eur`→monerium, `brl`→avenia, else alfredpay, country-scoped for alfredpay;
+   provider: `eur`→monerium, `brl`→avenia, else alfredpay; the provider-record lookup is
+   country-scoped for alfredpay and always scoped to the invite's `invitee_type`
+   (`customer_type`), so a business invite is never satisfied by an individual approval;
    canonical status must be `approved`, while `rejected` is provider-restricted) ∧ a `verified`
    payout reference for the relationship + rail.
-   First failing check returns its `blockingReasonCode`.
+   First failing check returns its `blockingReasonCode`. The `GET /v1/recipients` onboarding
+   summary applies the same provider/type/country scoping, so the status a sender sees in the
+   list agrees with the eligibility gate.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 
@@ -138,3 +145,11 @@ payout-instrument decision (no code path writes `verified` payout references yet
       (`recipients.integration.test.ts`).
 - [ ] Eligibility walks the full ladder; each blocking reason is covered by the integration test.
 - [ ] No route or table stores raw PIX/IBAN/CLABE/account values for recipients.
+
+## Next Steps
+
+- **Implement sender-side invite revocation.** The redemption path already returns
+  `410 INVITE_REVOKED` for `status = 'revoked'` rows, but nothing writes that status — no
+  endpoint, service, or dashboard action exists. Ship a sender-scoped revoke route (writing
+  `status` / `revoked_at`) so the invariant-3a kill switch becomes operable pre-acceptance;
+  today only TTL expiry and first-redeemer binding neutralize a leaked pending invite.
