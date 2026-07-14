@@ -48,6 +48,7 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
+import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
 import {
   ActivePartner,
@@ -220,6 +221,42 @@ export class RampService extends BaseRampService {
         throw new APIError({
           message: "Invalid quote: this route requires an API key linked to a user or Supabase user authentication.",
           status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const user = await User.findByPk(effectiveUserId, { lock: Transaction.LOCK.UPDATE, transaction });
+      if (!user) {
+        throw new APIError({
+          message: "Authenticated user profile not found.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const startDeadline = new Date(Date.now() - RAMP_START_EXPIRATION_TIME_SECONDS * 1000);
+      await RampState.update(
+        { currentPhase: "timedOut" },
+        {
+          transaction,
+          where: {
+            createdAt: { [Op.lt]: startDeadline },
+            currentPhase: "initial",
+            userId: effectiveUserId
+          }
+        }
+      );
+
+      const activeRamp = await RampState.findOne({
+        attributes: ["id"],
+        transaction,
+        where: {
+          currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] },
+          userId: effectiveUserId
+        }
+      });
+      if (activeRamp) {
+        throw new APIError({
+          message: `An active ramp already exists for this user: ${activeRamp.id}`,
+          status: httpStatus.CONFLICT
         });
       }
 

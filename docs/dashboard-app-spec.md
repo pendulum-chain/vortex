@@ -114,6 +114,12 @@ provider-shaped rather than UI-shaped.
   blockchain graph off the non-transfer pages. The fiat-funded shapes drop the signature step
   entirely, so the machine needs a payin-wait state, not a wallet.
 
+- **Only one ramp may be active per user.** Registration takes a database row lock on the user and
+  rejects a second nonterminal ramp, including requests from another tab, client, or API instance.
+  Unstarted ramps stop blocking after the existing 15-minute start window. The dashboard stores
+  each ramp's EVM and Substrate ephemeral secrets locally before registration and retains earlier
+  ramp entries independently of disposable transfer-machine state.
+
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is
   an onramp chained to an offramp, not a ramp. Open: one backend object or two chained ramps, who

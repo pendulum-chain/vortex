@@ -17,6 +17,7 @@ import {
   type UnsignedTx
 } from "@vortexfi/shared";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
+import { bindRampEphemerals, storePendingRampEphemerals } from "@/services/rampEphemerals";
 import { signAndSubmitEvmTransaction, signMultipleTypedData } from "@/services/transactions/userSigning";
 
 const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY;
@@ -43,12 +44,14 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
 
   const substrateEphemeral = await createPendulumEphemeral();
   const evmEphemeral = createMoonbeamEphemeral();
+  storePendingRampEphemerals(quote.id, { evmEphemeral, substrateEphemeral });
   const signingAccounts: AccountMeta[] = [
     { address: evmEphemeral.address, type: EphemeralAccountType.EVM },
     { address: substrateEphemeral.address, type: EphemeralAccountType.Substrate }
   ];
 
   const rampProcess = await RampService.registerRamp(quote.id, signingAccounts, additionalData);
+  bindRampEphemerals(quote.id, rampProcess.id);
 
   // The dashboard wallet is EVM-only, so every transaction not signed by the connected
   // address belongs to an ephemeral (substrate signers can never match).

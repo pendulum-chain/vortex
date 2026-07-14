@@ -76,9 +76,15 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   }
 
   // The transfer machine (ported widget ramp core) owns register → sign → start → track.
-  const submitting = useSelector(
+  const transferState = useSelector(transferActor, snapshot => snapshot.value);
+  const submitting = transferState === "Registering" || transferState === "SigningUserTxs" || transferState === "Starting";
+  const activeTransfer = useSelector(
     transferActor,
-    snapshot => snapshot.matches("Registering") || snapshot.matches("SigningUserTxs") || snapshot.matches("Starting")
+    snapshot =>
+      snapshot.matches("Registering") ||
+      snapshot.matches("SigningUserTxs") ||
+      snapshot.matches("Starting") ||
+      snapshot.matches("Tracking")
   );
   const signing = useSelector(transferActor, snapshot => snapshot.matches("SigningUserTxs"));
 
@@ -87,7 +93,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
   function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isSendable || !quote || submitting || !pixReady) {
+    if (!selected || !isSendable || !quote || activeTransfer || !pixReady) {
       return;
     }
     const label = recipientLabel(selected);
@@ -235,7 +241,12 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             </Select>
           </div>
 
-          {error ? (
+          {activeTransfer && !submitting ? (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <Lock className="mt-px size-4 shrink-0 text-primary" />
+              <p>A transfer is already in progress. Wait for it to finish before starting another.</p>
+            </div>
+          ) : error ? (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
               <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
               <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
