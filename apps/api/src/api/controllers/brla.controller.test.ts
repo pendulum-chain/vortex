@@ -34,7 +34,11 @@ function createResponse() {
 }
 
 // getOrCreateCustomerEntityForProfile resolves each profile to a deterministic entity id.
+// Type-less lookups resolve via findOne (oldest-entity default); typed ones via findOrCreate.
 function mockEntityPerProfile() {
+  CustomerEntity.findOne = mock(async (options: { where: { profileId: string } }) => ({
+    id: `entity-${options.where.profileId}`
+  })) as unknown as typeof CustomerEntity.findOne;
   CustomerEntity.findOrCreate = mock(async (options: { where: { profileId: string } }) => [
     { id: `entity-${options.where.profileId}` },
     false
@@ -53,6 +57,7 @@ afterEach(() => {
 
 describe("getAveniaUser", () => {
   const originalFindOne = ProviderCustomer.findOne;
+  const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalGetInstance = BrlaApiService.getInstance;
   const originalLoggerError = logger.error;
@@ -65,6 +70,7 @@ describe("getAveniaUser", () => {
 
   afterEach(() => {
     ProviderCustomer.findOne = originalFindOne;
+    CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     BrlaApiService.getInstance = originalGetInstance;
     logger.error = originalLoggerError;
@@ -214,6 +220,7 @@ describe("getAveniaUser", () => {
 describe("recordInitialKycAttempt", () => {
   const originalProviderFindOne = ProviderCustomer.findOne;
   const originalProviderCreate = ProviderCustomer.create;
+  const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
@@ -221,6 +228,7 @@ describe("recordInitialKycAttempt", () => {
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
     ProviderCustomer.create = originalProviderCreate;
+    CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
@@ -244,12 +252,14 @@ describe("recordInitialKycAttempt", () => {
 
 describe("fetchSubaccountKycStatus", () => {
   const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalGetInstance = BrlaApiService.getInstance;
 
   afterEach(() => {
     ProviderCustomer.findOne = originalProviderFindOne;
+    CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
     KycCase.findOne = originalKycCaseFindOne;
     BrlaApiService.getInstance = originalGetInstance;

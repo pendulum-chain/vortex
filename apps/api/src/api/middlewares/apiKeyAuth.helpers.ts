@@ -122,12 +122,21 @@ export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPub
       logger.error("Failed to update lastUsedAt for public key:", err);
     });
 
+    // A partner-created key whose partner row was deleted (FK ON DELETE SET NULL) is
+    // revoked — it must not degrade into a partnerless public key.
+    if (!keyRecord.partnerId && keyRecord.partnerName) {
+      return null;
+    }
+
     // Resolve the partner name through the FK; downstream quote resolution looks the
     // partner up by its (unique) name and applies its own is-active filtering.
     let partnerName: string | null = null;
     if (keyRecord.partnerId) {
       const partner = await Partner.findByPk(keyRecord.partnerId);
-      partnerName = partner?.name ?? null;
+      if (!partner) {
+        return null; // Partner row gone: treat the key as revoked.
+      }
+      partnerName = partner.name;
     }
 
     return { partnerName };
@@ -171,7 +180,14 @@ export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSec
           continue; // Key expired, try next
         }
 
-        // User-scoped keys (no partner_id) authenticate purely as the linked
+        // A partner-created key keeps partner_name even after its partner row is deleted
+        // (the FK is ON DELETE SET NULL). It must be rejected, not degraded into a
+        // user-scoped key — deleting a partner is key revocation.
+        if (!keyRecord.partnerId && keyRecord.partnerName) {
+          continue;
+        }
+
+        // User-scoped keys (no partner binding at all) authenticate purely as the linked
         // user; skip the Partner lookup so they remain usable without a partner row.
         if (!keyRecord.partnerId) {
           if (!keyRecord.userId) {

@@ -32,13 +32,30 @@ export async function getOrCreateCustomerEntityForProfile(
     }
   }
 
+  if (!type) {
+    // Without an explicit active-entity selection, type-less callers get the profile's
+    // default entity. Once a profile has both an individual and a business entity,
+    // resolution must not depend on row order — the oldest entity is the one created at
+    // sign-up (or by the 038 backfill).
+    const existing = await CustomerEntity.findOne({
+      order: [
+        ["createdAt", "ASC"],
+        ["id", "ASC"]
+      ],
+      where: { profileId }
+    });
+    if (existing) {
+      return existing;
+    }
+  }
+
   const [entity] = await CustomerEntity.findOrCreate({
     defaults: {
       profileId,
       status: "active",
       type: type ?? "individual"
     },
-    where: { profileId, ...(type ? { type } : {}) }
+    where: { profileId, type: type ?? "individual" }
   });
   return entity;
 }

@@ -34,7 +34,10 @@ out against another tenant's relationship.
    holding the token (subject to 2). Once accepted it binds to `accepted_by_profile_id`: any
    *other* profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
    `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a *pending* invite past `expires_at`
-   transitions the row to `expired`.
+   transitions the row to `expired`. This holds under concurrency: the acceptance transaction
+   re-reads the invitation `FOR UPDATE` and re-checks acceptance/revocation under the lock, so
+   two profiles redeeming the same token simultaneously produce exactly one relationship
+   (integration-tested with parallel accepts).
 3a. **Re-entry.** The accepting recipient may re-present the token to resume onboarding: the accept
    endpoint is idempotent for that profile, returning `200` with the existing relationship instead
    of `201`. Re-entry does not re-notify the sender, does not move `accepted_at`, and does not
@@ -54,7 +57,10 @@ out against another tenant's relationship.
    in one transaction.
 6. **All sender-side routes are entity-scoped.** List/PATCH/eligibility resolve the caller's
    `customer_entity` from `req.userId` and filter on `sender_customer_entity_id`; foreign ids
-   return a uniform `404`.
+   return a uniform `404`. Entity resolution is deterministic: a partial unique index on
+   `customer_entities (profile_id, type)` (migration 049) makes the acceptance-path
+   `findOrCreate` race-safe, and `getOrCreateCustomerEntityForProfile` resolves type-less
+   lookups to the profile's oldest entity rather than arbitrary row order.
 7. **No recipient payout PII is stored locally (plan D3).** `recipient_payout_references` holds a
    provider instrument id + masked label + status only; senders only ever see the mask.
 8. **Transfer eligibility requires the full gate** (`transfer-eligibility.service.ts`): invite

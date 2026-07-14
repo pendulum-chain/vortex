@@ -167,6 +167,29 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
     expect((second.body.error as { code: string }).code).toBe("INVITE_ALREADY_ACCEPTED");
   });
 
+  // Invariant 3 (one relationship per invite) under concurrency: both requests pass the
+  // unlocked pre-checks; the row-locked re-check inside the transaction must let exactly
+  // one of them create a relationship.
+  it("lets exactly one of two concurrent acceptances by different recipients through", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const stranger = await createAuthedUser("stranger@example.com");
+    const invite = await createInvite(sender.token);
+
+    const [first, second] = await Promise.all([
+      acceptInvite(recipient.token, invite.body.token as string),
+      acceptInvite(stranger.token, invite.body.token as string)
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([201, 409]);
+    expect(await SenderRecipient.count()).toBe(1);
+
+    const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
+    const winner = first.status === 201 ? recipient : stranger;
+    expect(invitation?.acceptedByProfileId).toBe(winner.user.id);
+  });
+
   it("lets the recipient re-enter after the invite's expiry passes", async () => {
     const sender = await createAuthedUser("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");

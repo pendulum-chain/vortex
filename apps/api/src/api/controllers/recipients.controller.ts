@@ -154,6 +154,20 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
     }
 
     const relationship = await sequelize.transaction(async transaction => {
+      // Re-read under a row lock and re-check acceptance: the status checks above ran on an
+      // unlocked read, so two users redeeming the same token concurrently could otherwise
+      // both pass them and each create an active relationship from one invite.
+      const lockedInvitation = await RecipientInvitation.findByPk(invitation.id, {
+        lock: transaction.LOCK.UPDATE,
+        transaction
+      });
+      if (!lockedInvitation || lockedInvitation.status === "revoked") {
+        return "invite_gone" as const;
+      }
+      if (lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId !== userId) {
+        return "already_accepted" as const;
+      }
+
       // Business invitees onboard as a business entity (KYB); individuals reuse the
       // profile's default entity.
       const [recipientEntity] = await CustomerEntity.findOrCreate({
@@ -161,6 +175,10 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
         transaction,
         where: { profileId: userId, type: invitation.inviteeType }
       });
+
+      // Recomputed under the lock: a double-submit by the accepting user may have turned a
+      // pending invite into a re-entry between the unlocked pre-check and this transaction.
+      const reEntry = lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId === userId;
 
       const [row, created] = await SenderRecipient.findOrCreate({
         defaults: {
@@ -179,38 +197,51 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       if (!created) {
         if (row.relationshipStatus === "blocked") {
           // The sender blocked this recipient; a new invite acceptance must not undo that.
-          return null;
+          return "blocked" as const;
         }
         // Re-entry reads the relationship, it does not revive it: the sender may have archived
         // this recipient, and reopening the link must not silently undo that.
-        if (!isReEntry) {
+        if (!reEntry) {
           await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
         }
       }
 
-      if (!isReEntry) {
-        await invitation.update({ acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" }, { transaction });
+      if (!reEntry) {
+        await lockedInvitation.update(
+          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" },
+          { transaction }
+        );
       }
-      return row;
+      return { reEntry, row };
     });
 
-    if (!relationship) {
+    if (relationship === "invite_gone") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    if (relationship === "already_accepted") {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (relationship === "blocked") {
       sendError(res, httpStatus.CONFLICT, "RELATIONSHIP_BLOCKED", "The sender has blocked this relationship");
       return;
     }
 
+    const effectiveReEntry = relationship.reEntry;
+
     // Only a first acceptance is news to the sender; re-entry is the recipient resuming onboarding.
-    if (senderEntity.profileId && !isReEntry) {
+    if (senderEntity.profileId && !effectiveReEntry) {
       await emitNotification(senderEntity.profileId, {
         customerEntityId: senderEntity.id,
-        metadata: { invitationId: invitation.id, senderRecipientId: relationship.id },
+        metadata: { invitationId: invitation.id, senderRecipientId: relationship.row.id },
         title: "Your recipient invite was accepted",
         type: "recipient_invite_accepted"
       });
     }
 
-    res.status(isReEntry ? httpStatus.OK : httpStatus.CREATED).json({
-      id: relationship.id,
+    res.status(effectiveReEntry ? httpStatus.OK : httpStatus.CREATED).json({
+      id: relationship.row.id,
       invitation: {
         country: invitation.country,
         id: invitation.id,
@@ -218,7 +249,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail
       },
-      relationshipStatus: relationship.relationshipStatus
+      relationshipStatus: relationship.row.relationshipStatus
     });
   } catch (error) {
     logger.error("Error accepting recipient invite:", error);

@@ -284,20 +284,15 @@ describe("PUT /v1/onboarding/active-entity", () => {
     expect(statusBody.selectionRequired).toBe(false);
   });
 
-  it("rejects an ambiguous same-type selection", async () => {
-    const { user, token } = await createAuthedUser("ambiguous@example.com");
-    await CustomerEntity.bulkCreate([
-      { profileId: user.id, status: "active", type: "individual" },
-      { profileId: user.id, status: "active", type: "individual" }
-    ]);
+  it("cannot reach an ambiguous same-type state: the unique index rejects duplicate entities", async () => {
+    // The ACTIVE_ENTITY_AMBIGUOUS branch in selectActiveCustomerEntity is defense-in-depth:
+    // migration 049's partial unique index on (profile_id, type) makes the duplicate state
+    // it guards against impossible to create in the first place.
+    const { user } = await createAuthedUser("ambiguous@example.com");
+    await CustomerEntity.create({ profileId: user.id, status: "active", type: "individual" });
 
-    const response = await api.request("/v1/onboarding/active-entity", {
-      body: JSON.stringify({ type: "individual" }),
-      headers: authHeaders(token),
-      method: "PUT"
-    });
-    expect(response.status).toBe(409);
-    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("ACTIVE_ENTITY_AMBIGUOUS");
+    const duplicate = CustomerEntity.create({ profileId: user.id, status: "active", type: "individual" });
+    await expect(duplicate).rejects.toMatchObject({ name: "SequelizeUniqueConstraintError" });
   });
 
   it("rejects a persisted selection owned by another profile", async () => {
