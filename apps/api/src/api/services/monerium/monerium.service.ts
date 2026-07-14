@@ -23,6 +23,7 @@ const API_V2_ACCEPT = "application/vnd.monerium.api-v2+json";
 interface OAuthTransaction {
   customerEntityId: string;
   customerType: ProviderCustomerType;
+  expectedEmail: string;
   redirectUri: string;
   userId: string;
   verifier: string;
@@ -47,7 +48,9 @@ interface ProfileReference {
 
 interface MoneriumContext {
   defaultProfile?: unknown;
+  email?: unknown;
   profiles?: unknown;
+  userId?: unknown;
 }
 
 export interface MoneriumProfile {
@@ -216,9 +219,15 @@ async function getValidCredentials(customerEntityId: string, customerType: Provi
   }
 }
 
-async function readProfile(credentials: MoneriumCredentials, customerType: ProviderCustomerType): Promise<MoneriumProfile> {
+async function readProfile(
+  credentials: MoneriumCredentials,
+  customerType: ProviderCustomerType
+): Promise<{ context: MoneriumContext & { email: string; userId: string }; profile: MoneriumProfile }> {
   const headers = { Accept: API_V2_ACCEPT, Authorization: `Bearer ${credentials.accessToken}` };
   const context = (await fetchJson(`${config.monerium.apiUrl}/auth/context`, { headers, method: "GET" })) as MoneriumContext;
+  if (typeof context.email !== "string" || typeof context.userId !== "string") {
+    throw upstreamError("Monerium context did not contain an authenticated identity");
+  }
   const selected = selectMoneriumProfile(context.profiles, customerType, context.defaultProfile);
   const rawProfile = (await fetchJson(`${config.monerium.apiUrl}/profiles/${encodeURIComponent(selected.id)}`, {
     headers,
@@ -228,7 +237,10 @@ async function readProfile(credentials: MoneriumCredentials, customerType: Provi
   if (rawProfile.id !== selected.id || rawProfile.kind !== selected.kind || typeof rawProfile.state !== "string") {
     throw upstreamError("Monerium returned an invalid profile");
   }
-  return rawProfile as unknown as MoneriumProfile;
+  return {
+    context: context as MoneriumContext & { email: string; userId: string },
+    profile: rawProfile as unknown as MoneriumProfile
+  };
 }
 
 async function mirrorProfile(
@@ -252,6 +264,9 @@ async function mirrorProfile(
       transaction,
       where: { customerEntityId, customerType, provider: "monerium", rail: "eur" }
     });
+    if (customer.providerCustomerId && customer.providerCustomerId !== profile.id) {
+      throw new APIError({ message: "Monerium profile does not match the existing account", status: httpStatus.CONFLICT });
+    }
     await customer.update(
       { providerCustomerId: profile.id, status: verificationStatus, statusExternal: profile.state },
       { transaction }
@@ -316,7 +331,7 @@ export async function startMoneriumOAuth(
       transaction,
       where: { customerEntityId: entity.id, customerType, provider: "monerium", rail: "eur" }
     });
-    if (!created && customer.status !== VerificationStatus.Approved) {
+    if (!created && !customer.providerCustomerId && customer.status !== VerificationStatus.Approved) {
       await customer.update({ status: VerificationStatus.Started, statusExternal: "authorization_started" }, { transaction });
     }
   });
@@ -325,6 +340,7 @@ export async function startMoneriumOAuth(
   const transaction: OAuthTransaction = {
     customerEntityId: entity.id,
     customerType,
+    expectedEmail: email.trim().toLowerCase(),
     redirectUri: config.monerium.redirectUri,
     userId,
     verifier
@@ -372,9 +388,13 @@ export async function completeMoneriumOAuth(userId: string, code: string, state:
       redirect_uri: pending.redirectUri
     })
   );
+  const { context, profile } = await readProfile(credentials, pending.customerType);
+  if (context.email.trim().toLowerCase() !== pending.expectedEmail) {
+    throw new APIError({ message: "Monerium account does not match the authenticated user", status: httpStatus.CONFLICT });
+  }
+  const result = await mirrorProfile(entity.id, pending.customerType, profile);
   credentialCache.set(credentialsCacheKey(entity.id, pending.customerType), credentials);
-  const profile = await readProfile(credentials, pending.customerType);
-  return mirrorProfile(entity.id, pending.customerType, profile);
+  return result;
 }
 
 export async function getMoneriumStatus(userId: string, customerType: ProviderCustomerType): Promise<MoneriumStatusResponse> {
@@ -400,7 +420,7 @@ export async function getMoneriumStatus(userId: string, customerType: ProviderCu
     }
   }
   const credentials = await getValidCredentials(entity.id, customerType);
-  const profile = await readProfile(credentials, customerType);
+  const { profile } = await readProfile(credentials, customerType);
   return mirrorProfile(entity.id, customerType, profile);
 }
 

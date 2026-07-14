@@ -106,6 +106,22 @@ describe("Monerium OAuth", () => {
     );
   });
 
+  it("preserves review status when reauthorizing an already-bound profile", async () => {
+    providerFindOrCreate.mockResolvedValueOnce([
+      {
+        id: "provider-customer-id",
+        providerCustomerId: "profile-a",
+        status: "in_review",
+        update: customerUpdate
+      },
+      false
+    ]);
+
+    await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+
+    expect(customerUpdate).not.toHaveBeenCalled();
+  });
+
   it("generates PKCE server-side, binds ownership, consumes state once, and mirrors the selected profile", async () => {
     const requests: Array<{ init?: RequestInit; url: string }> = [];
     globalThis.fetch = mock(async (input: string | URL | Request, init?: RequestInit) => {
@@ -117,11 +133,13 @@ describe("Monerium OAuth", () => {
       if (url.endsWith("/auth/context")) {
         return jsonResponse({
           defaultProfile: "profile-a",
+          email: "owner@example.com",
           profiles: [
             { id: "profile-z", kind: "personal" },
             { id: "profile-a", kind: "personal" },
             { id: "corporate-a", kind: "corporate" }
-          ]
+          ],
+          userId: "monerium-user-a"
         });
       }
       return jsonResponse({ id: "profile-a", kind: "personal", state: "approved" });
@@ -177,6 +195,62 @@ describe("Monerium OAuth", () => {
     expect(requests).toHaveLength(3);
   });
 
+  it("rejects a different Monerium account before changing the bound profile", async () => {
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        return jsonResponse({ access_token: "access-token", expires_in: 3600, refresh_token: "refresh-token" });
+      }
+      if (url.endsWith("/auth/context")) {
+        return jsonResponse({
+          defaultProfile: "profile-attacker",
+          email: "attacker@example.com",
+          profiles: [{ id: "profile-attacker", kind: "personal" }],
+          userId: "monerium-user-attacker"
+        });
+      }
+      return jsonResponse({ id: "profile-attacker", kind: "personal", state: "approved" });
+    }) as unknown as typeof fetch;
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    customerUpdate.mockClear();
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+
+    await expect(service.completeMoneriumOAuth("owner", "authorization-code", state)).rejects.toMatchObject({ status: 409 });
+    expect(customerUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects replacement of an existing Monerium profile binding", async () => {
+    globalThis.fetch = mock(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        return jsonResponse({ access_token: "access-token", expires_in: 3600, refresh_token: "refresh-token" });
+      }
+      if (url.endsWith("/auth/context")) {
+        return jsonResponse({
+          defaultProfile: "profile-b",
+          email: "owner@example.com",
+          profiles: [{ id: "profile-b", kind: "personal" }],
+          userId: "monerium-user-a"
+        });
+      }
+      return jsonResponse({ id: "profile-b", kind: "personal", state: "approved" });
+    }) as unknown as typeof fetch;
+    providerFindOrCreate.mockResolvedValueOnce([
+      { id: "provider-customer-id", providerCustomerId: "profile-a", status: "in_review", update: customerUpdate },
+      false
+    ]);
+
+    const { authorizationUrl } = await service.startMoneriumOAuth("owner", "owner@example.com", "individual");
+    providerFindOrCreate.mockResolvedValueOnce([
+      { id: "provider-customer-id", providerCustomerId: "profile-a", status: "in_review", update: customerUpdate },
+      false
+    ]);
+    const state = new URL(authorizationUrl).searchParams.get("state") as string;
+
+    await expect(service.completeMoneriumOAuth("owner", "authorization-code", state)).rejects.toMatchObject({ status: 409 });
+  });
+
   it("rejects an expired or missing transaction before token exchange", async () => {
     const fetchMock = mock(async () => jsonResponse({}));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -201,7 +275,11 @@ describe("Monerium OAuth", () => {
       }
       authorizationHeaders.push((init?.headers as Record<string, string>).Authorization);
       if (url.endsWith("/auth/context")) {
-        return jsonResponse({ profiles: [{ id: "profile-a", kind: "personal" }] });
+        return jsonResponse({
+          email: "owner@example.com",
+          profiles: [{ id: "profile-a", kind: "personal" }],
+          userId: "monerium-user-a"
+        });
       }
       return jsonResponse({ id: "profile-a", kind: "personal", state: "pending" });
     }) as unknown as typeof fetch;

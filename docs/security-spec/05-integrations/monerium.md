@@ -15,18 +15,19 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 3. OAuth state MUST be atomically consumed before code exchange. A foreign user MUST NOT be able to consume another user's transaction.
 4. The authorization code, state, verifier, access token, refresh token, authorization URL query, and raw provider bodies MUST NOT be logged or persisted.
 5. Access and rotating refresh tokens MUST remain in backend memory only and MUST never be returned by an API response.
-6. The optional start email MUST match the canonical authenticated email; the backend MUST send only that canonical email to Monerium.
+6. The optional start email MUST match the canonical authenticated email; the backend MUST send only that canonical email to Monerium. Because Monerium documents the authorization `email` parameter as a prefill rather than an identity restriction, the callback MUST also match the authoritative `/auth/context.email` to the canonical authenticated email before accepting credentials or profile data.
 7. Code exchange and refresh MUST use the configured client ID and the same exact redirect URI used at authorization start.
 8. All Monerium API calls MUST have an explicit timeout and request API v2 for context/profile reads.
 9. Individual onboarding MUST select a profile with kind `personal` and business onboarding MUST select one with kind `corporate`. The matching `defaultProfile` is preferred; multiple matching profiles without a matching default MUST be rejected rather than choosing an arbitrary legal identity.
-10. Starting OAuth MUST persist canonical `started` with `status_external = authorization_started` without downgrading an existing approval. Provider profile state MUST map to the shared canonical verification enum; the raw profile state belongs unmodified in `status_external`. Monerium-specific API responses may continue returning `PENDING`, `APPROVED`, or `REJECTED` for compatibility.
-11. Monerium rows MUST use provider `monerium`, rail `eur`, customer type `individual` or `business`, the Monerium profile ID as the provider identifier, and KYC case type `kyc` or `kyb` respectively.
+10. Starting OAuth for an unbound account MUST persist canonical `started` with `status_external = authorization_started`. Starting reauthorization for an account with a profile ID MUST preserve its status. Provider profile state MUST map to the shared canonical verification enum; the raw profile state belongs unmodified in `status_external`. Monerium-specific API responses may continue returning `PENDING`, `APPROVED`, or `REJECTED` for compatibility.
+11. Monerium rows MUST use provider `monerium`, rail `eur`, customer type `individual` or `business`, the Monerium profile ID as the provider identifier, and KYC case type `kyc` or `kyb` respectively. Once a row has a Monerium profile ID, later authorization MUST match that ID and MUST NOT replace the binding.
 12. Production startup MUST fail without a Monerium auth-code client ID and exact callback URI. Credentials MUST NOT be accepted from client requests.
 13. A persisted terminal approval or rejection MUST remain readable after in-memory credentials are lost. A pending profile requires reauthorization before its live state can be refreshed.
 14. Dashboard onboarding-status polling SHOULD refresh pending Monerium profiles while credentials remain in memory, but a provider outage MUST NOT make the aggregate onboarding endpoint unavailable.
 15. The requested customer type MUST match the authenticated legal entity; recipient eligibility MUST match the invitation type and MUST NOT rely on a Monerium approval older than five minutes.
 16. Local `authorization_started` and Monerium `created` and `incomplete` profiles MUST map to `started`; only provider `pending` is displayed as in review.
 17. Missing app-specific Monerium authorization MUST surface as `MONERIUM_REAUTHENTICATION_REQUIRED` on the affected onboarding account without failing aggregate status loading.
+18. Starting reauthorization for an account that already has a bound Monerium profile MUST preserve its canonical verification status. The account status changes to `started` only before the first profile is bound.
 
 ## Threat Vectors & Mitigations
 
@@ -41,15 +42,17 @@ Monerium replaces Mykobo as the EU dashboard onboarding provider and the EUR rec
 | Refresh replay/race | Concurrent status reads use the same rotating refresh token | Refreshes are coalesced per entity/customer type and the rotated token replaces the prior in-memory value |
 | Provider hangs | Monerium does not respond | Every provider fetch has an explicit 10-second abort timeout |
 | Wrong profile association | A context contains multiple legal profiles | Requested customer type is enforced, the matching default is preferred, and ambiguous matches are rejected |
+| Different Monerium login | A user ignores the prefilled email and authorizes a different Monerium account or profile | The callback matches `/auth/context.email` to the authenticated Vortex email and rejects replacement of an existing Monerium profile ID |
 
 ## Audit Checklist
 
 - [x] All three Monerium endpoints require Supabase authentication.
 - [x] State and PKCE are generated server-side with `crypto.randomBytes`; S256 is used.
-- [x] OAuth start creates or updates the Monerium account to `started`/`authorization_started` without downgrading an approved account.
+- [x] OAuth start creates or updates an unbound Monerium account to `started`/`authorization_started`; reauthorization preserves the status of an account that already has a profile ID.
 - [x] OAuth transactions have a 10-minute TTL and bind owner, entity, type, and redirect URI.
 - [x] Foreign ownership is rejected before state is consumed; owner completion consumes state atomically before exchange.
 - [x] Canonical authenticated email is used and optional request email is equality-only.
+- [x] Callback context email matches the authenticated Vortex email, and an existing Monerium profile binding is immutable.
 - [x] Tokens and OAuth transaction secrets use backend `NodeCache`; no credential table or encryption-at-rest mechanism exists because credentials are never persisted.
 - [x] Access and refresh tokens are absent from API responses and model writes.
 - [x] Expired access tokens are refreshed server-side and rotated refresh tokens replace previous values.
