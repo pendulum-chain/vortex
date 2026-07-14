@@ -13,6 +13,13 @@ export type CreateSubaccountActorOutput = {
   kybUrls?: KybLevel1Response;
 };
 
+function isNotFoundError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const status = "status" in error && typeof error.status === "number" ? error.status : undefined;
+  const message = "message" in error && typeof error.message === "string" ? error.message : "";
+  return status === 404 || message.includes("404") || message.toLowerCase().includes("not found");
+}
+
 export function createSubaccountActor(api: AveniaKycApi) {
   return fromPromise(async ({ input }: { input: AveniaKycContext }): Promise<CreateSubaccountActorOutput> => {
     const { taxId, kycFormData, quoteId } = input;
@@ -25,32 +32,12 @@ export function createSubaccountActor(api: AveniaKycApi) {
     if (!kycFormData) {
       throw new Error("Invalid input state. This is a Bug.");
     }
+    let existingSubaccount = true;
     try {
       ({ subAccountId } = await api.getUser(taxId));
-
-      if (quoteId) {
-        try {
-          maybeKycAttemptStatus = await api.getKycStatus(taxId, quoteId, input.externalSessionId);
-        } catch (e) {
-          console.log("Debug: could not fetch kyc status", e);
-        }
-      }
-
-      if (isCompany) {
-        try {
-          kybUrls = await api.initiateKybLevel1(subAccountId);
-        } catch (e) {
-          console.log("Debug: failed to initiate KYB Level 1", e);
-        }
-      }
-
-      if (maybeKycAttemptStatus?.status === KycAttemptStatus.PROCESSING) {
-        return { isCompany, kybUrls, maybeKycAttemptStatus, subAccountId };
-      }
-
-      return { isCompany, kybUrls, subAccountId };
     } catch (error: unknown) {
-      console.log("Debug: failed to fetch existing Avenia subaccount", error);
+      if (!isNotFoundError(error)) throw error;
+      existingSubaccount = false;
       const nameToUse = isCompany && kycFormData.companyName ? kycFormData.companyName : kycFormData.fullName;
 
       if (!nameToUse) {
@@ -66,17 +53,70 @@ export function createSubaccountActor(api: AveniaKycApi) {
         sessionId: input.externalSessionId,
         taxId
       }));
+    }
 
-      if (isCompany) {
-        try {
-          kybUrls = await api.initiateKybLevel1(subAccountId);
-        } catch (e) {
-          console.log("Debug: failed to initiate KYB Level 1 for new account", e);
+    if (existingSubaccount && quoteId) {
+      try {
+        maybeKycAttemptStatus = await api.getKycStatus(taxId, quoteId, input.externalSessionId);
+      } catch (e) {
+        console.log("Debug: could not fetch kyc status", e);
+      }
+    }
+
+    if (isCompany) {
+      kybUrls = await api.initiateKybLevel1(subAccountId);
+    }
+
+    return {
+      isCompany,
+      kybUrls,
+      ...(maybeKycAttemptStatus?.status === KycAttemptStatus.PROCESSING ? { maybeKycAttemptStatus } : {}),
+      subAccountId
+    };
+  });
+}
+
+export function createVerifyKybStatusActor(api: AveniaKycApi) {
+  return fromPromise<VerifyStatusActorOutput, AveniaKycContext>(async ({ input, signal }) => {
+    if (!input.kybAttemptId) throw new Error("KYB attempt ID is required");
+
+    let failureCount = 0;
+    while (!signal.aborted) {
+      try {
+        const response = await api.getKybAttemptStatus(input.kybAttemptId, signal);
+        failureCount = 0;
+
+        if (response.status === KycAttemptStatus.COMPLETED && response.result === KycAttemptResult.APPROVED) {
+          return { type: "APPROVED" };
+        }
+        if (response.status === KycAttemptStatus.EXPIRED) {
+          return { reason: response.failureReason ?? "KYB attempt expired", type: "REJECTED" };
+        }
+        if (response.status === KycAttemptStatus.COMPLETED && response.result === KycAttemptResult.REJECTED) {
+          return { reason: response.failureReason ?? "KYB verification was rejected", type: "REJECTED" };
+        }
+      } catch (error) {
+        if (signal.aborted) throw error;
+        failureCount++;
+        if (failureCount >= MAX_FAILURES) {
+          throw new Error(`Failed to fetch KYB status after ${MAX_FAILURES} attempts.`);
         }
       }
 
-      return { isCompany, kybUrls, subAccountId };
+      await new Promise<void>((resolve, reject) => {
+        const onAbort = () => {
+          clearTimeout(timeout);
+          reject(signal.reason ?? new Error("KYB status check aborted"));
+        };
+        const timeout = setTimeout(() => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        }, POLLING_INTERVAL_MS);
+        signal.addEventListener("abort", onAbort, { once: true });
+      });
     }
+
+    throw signal.reason ?? new Error("KYB status check aborted");
   });
 }
 

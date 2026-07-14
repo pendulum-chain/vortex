@@ -1,8 +1,9 @@
-import { KycFailureReason } from "@vortexfi/shared";
+import { KycAttemptResult, KycAttemptStatus, KycFailureReason } from "@vortexfi/shared";
 import type { BrlaGetKycStatusResponse } from "@vortexfi/shared";
 import { describe, expect, it } from "bun:test";
 import { createActor, fromPromise, waitFor } from "xstate";
 import type { AveniaKycApi, KybLevel1Response } from "./api";
+import { createVerifyKybStatusActor } from "./actors";
 import { createAveniaKycMachine } from "./machine";
 import {
   type AveniaKycContext,
@@ -55,6 +56,28 @@ function subaccountActorWith(output: SubaccountOutput) {
 }
 
 describe("aveniaKycMachine", () => {
+  it("accepts KYB only when Avenia reports COMPLETED and APPROVED", async () => {
+    const logic = createVerifyKybStatusActor({
+      getKybAttemptStatus: async () => ({ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED })
+    } as unknown as AveniaKycApi);
+    const actor = createActor(logic, { input: { kybAttemptId: "attempt-1", taxId: "" } });
+    actor.start();
+
+    const snapshot = await waitFor(actor, state => state.status === "done");
+    expect(snapshot.output).toEqual({ type: "APPROVED" });
+  });
+
+  it("maps an expired KYB attempt to rejection", async () => {
+    const logic = createVerifyKybStatusActor({
+      getKybAttemptStatus: async () => ({ status: KycAttemptStatus.EXPIRED })
+    } as unknown as AveniaKycApi);
+    const actor = createActor(logic, { input: { kybAttemptId: "attempt-1", taxId: "" } });
+    actor.start();
+
+    const snapshot = await waitFor(actor, state => state.status === "done");
+    expect(snapshot.output).toEqual({ reason: "KYB attempt expired", type: "REJECTED" });
+  });
+
   it("walks the individual happy path from form filling to Finish", async () => {
     const subaccount = deferred<SubaccountOutput>();
     const submit = deferred<void>();
@@ -108,6 +131,7 @@ describe("aveniaKycMachine", () => {
   });
 
   it("routes companies with KYB URLs into the KYB flow and through its steps", async () => {
+    const verifyKyb = deferred<VerifyStatusActorOutput>();
     const actor = createTestActor({
       createSubaccountActor: subaccountActorWith({
         isCompany: true,
@@ -117,7 +141,8 @@ describe("aveniaKycMachine", () => {
           basicCompanyDataUrl: "https://company.example"
         },
         subAccountId: "sub-2"
-      })
+      }),
+      verifyKybStatusActor: fromPromise(() => verifyKyb.promise)
     });
     actor.start();
     actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
@@ -151,8 +176,49 @@ describe("aveniaKycMachine", () => {
     expect(context.kybStep).toBe("verification");
     expect(context.kycStatus).toBe(KycStatus.PENDING);
 
-    actor.send({ type: "KYB_COMPLETE" });
-    expect(actor.getSnapshot().value).toBe("Success");
+    actor.send({ type: "KYB_COMPLETE" } as never);
+    expect(actor.getSnapshot().value).toEqual({ KYBFlow: "StatusVerification" });
+    expect(actor.getSnapshot().context.kycStatus).toBe(KycStatus.PENDING);
+
+    verifyKyb.resolve({ type: "APPROVED" });
+    await waitFor(actor, s => s.context.kycStatus === KycStatus.APPROVED);
+    expect(actor.getSnapshot().value).toEqual({ KYBFlow: "StatusVerification" });
+
+    actor.send({ type: "CLOSE_SUCCESS_MODAL" });
+    expect(actor.getSnapshot().value).toBe("Finish");
+    expect(actor.getSnapshot().output?.kycStatus).toBe(KycStatus.APPROVED);
+  });
+
+  it("keeps a rejected company KYB out of success and allows a retry", async () => {
+    const actor = createTestActor({
+      createSubaccountActor: subaccountActorWith({
+        isCompany: true,
+        kybUrls: {
+          attemptId: "attempt-rejected",
+          authorizedRepresentativeUrl: "https://rep.example",
+          basicCompanyDataUrl: "https://company.example"
+        },
+        subAccountId: "sub-2"
+      }),
+      verifyKybStatusActor: fromPromise<VerifyStatusActorOutput, AveniaKycContext>(async () => ({
+        reason: "KYB attempt expired",
+        type: "REJECTED"
+      }))
+    });
+    actor.start();
+    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
+    await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
+    actor.send({ type: "KYB_COMPANY_DONE" });
+    actor.send({ type: "KYB_REPRESENTATIVE_DONE" });
+
+    await waitFor(actor, s => s.context.kycStatus === KycStatus.REJECTED);
+    expect(actor.getSnapshot().value).toEqual({ KYBFlow: "StatusVerification" });
+    expect(actor.getSnapshot().context.rejectReason).toBe("KYB attempt expired");
+
+    actor.send({ type: "CLOSE_SUCCESS_MODAL" });
+    expect(actor.getSnapshot().value).toEqual({ KYBFlow: "StatusVerification" });
+    actor.send({ type: "RETRY" });
+    expect(actor.getSnapshot().value).toBe("SubaccountSetup");
   });
 
   it("resumes into Verifying when a KYC attempt is already in progress", async () => {
@@ -194,6 +260,44 @@ describe("aveniaKycMachine", () => {
     }
   });
 
+  it("does not create a replacement subaccount when getUser fails with a non-404 error", async () => {
+    let createCalls = 0;
+    const api = {
+      createSubaccount: async () => {
+        createCalls++;
+        return { subAccountId: "unexpected" };
+      },
+      getUser: async () => {
+        throw Object.assign(new Error("service unavailable"), { status: 503 });
+      }
+    } as unknown as AveniaKycApi;
+    const actor = createActor(createAveniaKycMachine({ api }), { input: { taxId: "" } });
+    actor.start();
+    actor.send({ formData: { ...formData, fullName: "Dashboard User" }, type: "FORM_SUBMIT" });
+
+    await waitFor(actor, s => s.matches("Failure"));
+    expect(createCalls).toBe(0);
+    expect(actor.getSnapshot().context.error?.message).toBe("service unavailable");
+  });
+
+  it("surfaces company KYB initiation failures instead of falling through to document upload", async () => {
+    const api = {
+      getUser: async () => ({ subAccountId: "sub-company" }),
+      initiateKybLevel1: async () => {
+        throw new Error("KYB initiation failed");
+      }
+    } as unknown as AveniaKycApi;
+    const actor = createActor(createAveniaKycMachine({ api }), { input: { taxId: "" } });
+    actor.start();
+    actor.send({
+      formData: { fullName: "Acme", taxId: "12345678000199" } as AveniaKycFormData,
+      type: "FORM_SUBMIT"
+    });
+
+    await waitFor(actor, s => s.matches("Failure"));
+    expect(actor.getSnapshot().context.error?.message).toBe("KYB initiation failed");
+  });
+
   it("subaccount creation failure lands in Failure and RETRY returns to the form", async () => {
     const actor = createTestActor({
       createSubaccountActor: fromPromise<SubaccountOutput, AveniaKycContext>(async () => {
@@ -209,6 +313,7 @@ describe("aveniaKycMachine", () => {
 
     actor.send({ type: "RETRY" });
     expect(actor.getSnapshot().value).toBe("FormFilling");
+    expect(actor.getSnapshot().context.error).toBeUndefined();
   });
 
   it("cancelling from Failure finishes with a UserCancelled error output", async () => {
@@ -248,6 +353,7 @@ describe("aveniaKycMachine", () => {
 
     actor.send({ type: "RETRY" });
     expect(actor.getSnapshot().value).toBe("FormFilling");
+    expect(actor.getSnapshot().context.rejectReason).toBeUndefined();
   });
 
   it("a generic submission error moves to Failure", async () => {

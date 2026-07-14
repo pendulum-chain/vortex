@@ -4,21 +4,34 @@ import sequelize from "../config/database";
 export interface UserAttributes {
   id: string; // UUID from Supabase Auth
   email: string;
+  activeCustomerEntityId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type UserCreationAttributes = Optional<UserAttributes, "createdAt" | "updatedAt">;
+type UserCreationAttributes = Optional<UserAttributes, "activeCustomerEntityId" | "createdAt" | "updatedAt">;
 
 class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   declare id: string;
   declare email: string;
+  declare activeCustomerEntityId: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
 
 User.init(
   {
+    activeCustomerEntityId: {
+      allowNull: true,
+      field: "active_customer_entity_id",
+      onDelete: "SET NULL",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "customer_entities"
+      },
+      type: DataTypes.UUID
+    },
     createdAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,

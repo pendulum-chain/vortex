@@ -19,7 +19,7 @@ Three concrete problems it fixes:
 
 | Current table | What happens | Why |
 | :-- | :-- | :-- |
-| `profiles` | **Keep**, unchanged. Login identity only. | A profile is a sign-in, not a customer. |
+| `profiles` | **Keep** as login identity, with a nullable active-entity pointer. | A profile is a sign-in, not a customer; the pointer records which owned legal identity the dashboard uses. |
 | `partners` | **Split** into `partners` (unique `name`) + `partner_pricing_configs` (per `ramp_type`). | Separate commercial identity from per-direction pricing; gives a stable `partner_id`. |
 | `profile_partner_assignments` | **Keep**, collapse `buy_partner_id`/`sell_partner_id` → one `partner_id`. | The buy/sell split only exists because `partners` is split by direction; one `partner_id` replaces it. |
 | `api_keys` | **Refactor**: drop `partner_name`; add `partner_id` FK + `profile_id`; keep `key_type`/`key_value`. | Resolve by FK, and bind each key to one customer (enables SDK ownership checks). |
@@ -50,6 +50,13 @@ The legal/compliance customer — the owner of provider accounts and KYC. Sits b
 | `status` | `active`, `archived`, `blocked`. |
 
 One profile may own many customer entities (e.g. individual + business); the product can start with one.
+
+`profiles.active_customer_entity_id` is a nullable FK to `customer_entities.id`. Migration 048
+backfills an unambiguous active entity only when it already owns provider or recipient data. Empty
+legacy individual entities remain unselected so existing users can still choose company. Profiles with
+multiple entities stay unselected. The authenticated dashboard makes one initial `individual` or
+`business` selection; the API verifies ownership, rejects ambiguous same-type matches, and does not
+permit changing the selection afterward.
 
 ### `partners` + `partner_pricing_configs` (split)
 
@@ -223,6 +230,7 @@ erDiagram
     profiles {
         UUID id PK
         TEXT email UK
+        UUID active_customer_entity_id FK
     }
     customer_entities {
         UUID id PK
@@ -312,7 +320,7 @@ Each step is additive (add → backfill → dual-write → cut over reads → dr
 
 ## Open questions
 
-1. Can one profile own multiple customer entities (individual + business) on day one, or later?
+1. Resolved: one profile may own multiple customer entities, but the dashboard persists exactly one immutable active entity.
 2. Was `tax_ids`' "one tax ID globally" (raw tax ID as PK) an intentional dedup/fraud guard to reproduce on `provider_customers`, or can it relax?
 3. What parts of `kyc_level_2.upload_data` / provider failure payloads may be retained locally?
 4. Retention policy when a profile is deleted but compliance records must remain?

@@ -80,6 +80,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 18. **`/v1/brla/createSubaccount` MUST require an authenticated principal** — The route now uses `requirePartnerOrUserAuth()` and the controller requires an effective user. Bare partner keys and anonymous callers receive `400`; the Avenia API is not called and no `TaxId` row is created. This closes the anonymous subaccount creation DoS surface.
 19. **BRL quote creation MUST remain anonymous-eligible while register/start remain user-gated** — `POST /v1/quotes` and `POST /v1/quotes/best` accept BRL corridors from anonymous callers and partner-key callers (with or without a `userId` binding). The Avenia `createPayInQuote` calls used by the BRL engines do not require a user-bound principal. The actual Avenia subaccount/taxId resolution still happens server-side at register time via `resolveAveniaAccountForRamp(effectiveUserId, additionalData.taxId)`. `POST /v1/ramp/register` requires Supabase or secret-key credentials, and `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`. **An anonymous BRL quote may be claimed by an authenticated caller** (the normal web-app funnel: quote before login, register after) — claiming is not an escalation because the anonymous quote carries no owner and the Avenia identity is derived from the claimer's own KYC records, never from the quote or request body.
 20. **`brlaPayoutOnBase` MUST verify the ephemeral's BRLA balance before the first broadcast of the presigned transfer** — The presigned payout is single-use (its nonce is consumed even on revert), so the handler calls `ensurePresignedTransferFunded` before `sendRawTransaction`: sender/token/amount are decoded from the signed raw tx and the ephemeral balance is polled (3-minute timeout); a shortfall raises a recoverable error instead of burning the nonce. The Avenia-side balance poll (invariant 4) runs after this on-chain transfer and does not replace it. See `03-ramp-engine/ramp-phase-flows.md` invariant 12.
+21. **Avenia company KYB completion MUST be provider-confirmed and ownership-bound** — `POST /v1/brla/kyb/new-level-1/web-sdk` stores the returned Avenia `attemptId` as the owned business `kyc_cases.provider_case_id`. `GET /v1/brla/kyb/attempt-status` accepts only a case owned by the effective user, queries that exact attempt, persists normalized status on both the case and provider customer, and returns only `status`, optional `result`, and optional normalized `failureReason`. Client-side events cannot assert completion: only provider `COMPLETED` plus `APPROVED` may complete onboarding; `REJECTED`, `EXPIRED`, `PENDING`, and `PROCESSING` must not pass the parent verification gate.
 
 ## Threat Vectors & Mitigations
 
@@ -99,6 +100,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **Anonymous BRL register on someone else's subaccount** | An anonymous SDK caller (no Supabase session, no linked secret key) uses an anonymous BRL quote to register a ramp on top of another user's Avenia subaccount via the quoteId guess | `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`; an attacker cannot bind a BRL ramp to a subaccount they do not own. |
 | **Claiming an anonymous BRL estimate at register time** | Attacker mints an anonymous BRL quote, then presents a Supabase token (or a different user's linked secret API key) at register time to bind the resulting ramp to a different user's `TaxId` | `RampService.registerRamp` rejects with `403` when `quote.userId == null && request.userId != null` (inv. 19). The register principal must re-quote with their identity so `quote.userId` is bound at quote time. |
 | **Destination-token decimal under-delivery** | A BRL on-ramp targets an 18-decimal token such as BSC USDT, but the quote output is truncated to 6 decimals before `destinationTransfer` raw amount construction. | On-ramp finalization uses destination-token decimals for BRL EVM outputs; Squid metadata preserves destination raw output from `route.estimate.toAmount`. |
+| **Company KYB status bypass or cross-user attempt lookup** | A browser asserts that hosted verification finished, or probes another user's Avenia attempt ID and receives provider submission metadata. | Initiation binds the attempt to the authenticated user's KYB case; status lookup checks that binding before the provider call, minimizes its response, and the client/parent accept only provider-confirmed `COMPLETED` + `APPROVED`. |
 
 ## Audit Checklist
 
@@ -151,10 +153,10 @@ Key properties:
   createSubaccount legacy-adoption probe: quarantined (ownerless) legacy rows can be claimed
   by an authenticated caller exactly as before; owned legacy rows still 409.
 - Ownership gaps closed in the cutover: `fetchSubaccountKycStatus` (which also WRITES status
-  transitions) and `getSelfieLivenessUrl` now require the effective user to own the account.
-  KNOWN RESIDUAL: `getKybAttemptStatus` proxies an opaque `attemptId` to BRLA with no tenancy
-  check — the KYB attempt response carries no subaccount linkage, so server-side binding is
-  impossible without a provider API change.
+  transitions) and `getSelfieLivenessUrl` require the effective user to own the account.
+  KYB initiation stores Avenia's opaque attempt ID in the owned `kyc_cases.provider_case_id`;
+  `getKybAttemptStatus` resolves that binding and verifies entity ownership before querying Avenia.
+  The browser receives only normalized status/result fields, never provider submission data.
 - KYC/KYB state transitions update canonical status and provider status on both
   `provider_customers` and the account's `kyc_cases` row in the same code path
   (`updateAveniaKycOutcome` preserves the idempotent `in_review` transition guard).

@@ -1,4 +1,4 @@
-import { AlfredpayKycContext, AlfredpayKycOutput, type AveniaKycContext } from "@vortexfi/kyc";
+import { AlfredpayKycContext, AlfredpayKycOutput, type AveniaKycContext, KycStatus } from "@vortexfi/kyc";
 import { FiatToken } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
@@ -118,7 +118,8 @@ export const kycStateNode = {
             actions: assign({
               kycFormData: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => event.output.kycFormData
             }),
-            guard: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => !event.output.error,
+            guard: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) =>
+              !event.output.error && event.output.kycStatus === KycStatus.APPROVED,
             target: "VerificationComplete"
           },
           {

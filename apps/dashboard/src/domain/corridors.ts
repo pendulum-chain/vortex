@@ -77,6 +77,11 @@ export function onboardingKindFor(_corridor: Corridor, accountType: AccountType)
   return accountType === "company" ? "kyb" : "kyc";
 }
 
+/** Alfredpay supports Argentina for individuals only; every other live corridor supports both account types. */
+export function isCorridorAvailableForAccountType(corridorId: CorridorId, accountType: AccountType): boolean {
+  return !(corridorId === "AR" && accountType === "company");
+}
+
 /**
  * Routing method per the supported-onboarding matrix (§2): USA always redirects to a
  * partner, while every other supported corridor uses its provider flow.

@@ -80,4 +80,4 @@ export interface AveniaKycContext {
 
 export type AveniaKycOutput = AveniaKycContext;
 
-export type VerifyStatusActorOutput = { type: "APPROVED" } | { type: "REJECTED"; reason: KycFailureReason };
+export type VerifyStatusActorOutput = { type: "APPROVED" } | { type: "REJECTED"; reason: KycFailureReason | string };

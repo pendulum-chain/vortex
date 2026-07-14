@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
+import { isCorridorAvailableForAccountType, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
 import type { Corridor, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { notifyOnboardingStatus } from "@/lib/notify";
@@ -20,17 +20,18 @@ interface OnboardingWizardProps {
 }
 
 /**
- * Sender onboarding. Individual KYC on Alfredpay corridors (MX/CO/AR) runs the real provider
- * machine and submits real data. BRL individual KYC runs the shared live Avenia machine.
- * Everything else still uses the generic mocked wizard.
+ * Sender onboarding backed by the shared provider machines where the corridor supports the
+ * selected legal entity type. Unsupported combinations keep using the generic placeholder.
  */
 export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizardProps) {
   const setOverride = useOnboardingOverrideStore(state => state.set);
   const queryClient = useQueryClient();
   const kind = onboardingKindFor(corridor, account.type);
   const route = routeFor(corridor.id, kind);
-  const isRealAlfredpayKyc = corridor.provider === "alfredpay" && kind === "kyc" && route === "headless";
-  const isLiveAveniaKyc = corridor.provider === "avenia" && kind === "kyc" && route === "headless";
+  const isAvailable = isCorridorAvailableForAccountType(corridor.id, account.type);
+  const isRealAlfredpayKyc =
+    corridor.provider === "alfredpay" && isAvailable && (route === "headless" || (corridor.id === "US" && kind === "kyb"));
+  const isLiveAveniaKyc = corridor.provider === "avenia" && isAvailable && route === "headless";
   const isLiveMoneriumKyc = corridor.provider === "monerium" && route === "headless";
   const steps = getOnboardingSteps(corridor.id, kind);
 
@@ -63,9 +64,15 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
         </DialogHeader>
 
         {isRealAlfredpayKyc ? (
-          <AlfredpayKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} userEmail={account.identifier} />
+          <AlfredpayKycFlow
+            business={kind === "kyb"}
+            corridor={corridor}
+            onClose={onClose}
+            onSettled={onSettled}
+            userEmail={account.identifier}
+          />
         ) : isLiveAveniaKyc ? (
-          <AveniaKycFlow corridor={corridor} onClose={onClose} onSettled={onSettled} />
+          <AveniaKycFlow business={kind === "kyb"} corridor={corridor} onClose={onClose} onSettled={onSettled} />
         ) : isLiveMoneriumKyc ? (
           <MoneriumKycFlow
             corridor={corridor}

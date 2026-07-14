@@ -42,7 +42,8 @@ export async function findAveniaCustomerBySubaccountId(subAccountId: string): Pr
 export async function upsertAveniaKycCase(
   record: ProviderCustomer,
   status: VerificationStatus,
-  statusExternal: string | null = record.statusExternal
+  statusExternal: string | null = record.statusExternal,
+  providerCaseId?: string
 ): Promise<void> {
   const lifecycle = {
     ...(status === VerificationStatus.InReview ? { submittedAt: new Date() } : {}),
@@ -52,13 +53,14 @@ export async function upsertAveniaKycCase(
 
   const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
   if (existing) {
-    await existing.update({ status, statusExternal, ...lifecycle });
+    await existing.update({ ...(providerCaseId ? { providerCaseId } : {}), status, statusExternal, ...lifecycle });
     return;
   }
   await KycCase.create({
     customerEntityId: record.customerEntityId,
     level: "level_1",
     provider: "avenia",
+    providerCaseId,
     providerCustomerId: record.id,
     status,
     statusExternal,

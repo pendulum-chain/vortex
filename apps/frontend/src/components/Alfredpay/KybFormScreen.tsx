@@ -1,27 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { KybFormData } from "@vortexfi/kyc";
+import { type KybFormData, type KybFormValues, kybFormSchema, mapKybFormValues } from "@vortexfi/kyc";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { z } from "zod";
 import { MenuButtons } from "../MenuButtons";
-
-const schema = z.object({
-  address: z.string().min(1),
-  businessName: z.string().min(1),
-  city: z.string().min(1),
-  repDateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format"),
-  repDni: z.string().optional(),
-  repEmail: z.string().email(),
-  repFirstName: z.string().min(1),
-  repLastName: z.string().min(1),
-  repNationality: z.string().length(2, "Enter a 2-letter country code"),
-  state: z.string().min(1),
-  taxId: z.string().min(1),
-  website: z.string().url("Enter a valid URL"),
-  zipCode: z.string().min(1)
-});
-
-type KybFormFields = z.infer<typeof schema>;
 
 interface KybFormScreenProps {
   onSubmit: (data: KybFormData) => void;
@@ -36,32 +17,12 @@ export function KybFormScreen({ onSubmit, country, userEmail }: KybFormScreenPro
     formState: { errors },
     handleSubmit,
     register
-  } = useForm<KybFormFields>({ defaultValues: { repEmail: userEmail ?? "" }, resolver: zodResolver(schema) });
+  } = useForm<KybFormValues>({ defaultValues: { repEmail: userEmail ?? "" }, resolver: zodResolver(kybFormSchema) });
 
   const inputClass = (hasError: boolean) =>
     `input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${hasError ? "border-error" : "border-neutral-300"}`;
 
-  const handleFormSubmit = (fields: KybFormFields) => {
-    onSubmit({
-      address: fields.address,
-      businessName: fields.businessName,
-      city: fields.city,
-      relatedPersons: [
-        {
-          dateOfBirth: fields.repDateOfBirth,
-          dni: fields.repDni || undefined,
-          email: fields.repEmail,
-          firstName: fields.repFirstName,
-          lastName: fields.repLastName,
-          nationalities: [fields.repNationality]
-        }
-      ],
-      state: fields.state,
-      taxId: fields.taxId,
-      website: fields.website,
-      zipCode: fields.zipCode
-    });
-  };
+  const handleFormSubmit = (fields: KybFormValues) => onSubmit(mapKybFormValues(fields));
 
   return (
     <div className="flex grow-1 flex-col">

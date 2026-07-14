@@ -35,6 +35,9 @@ two people.
 - As a sender, I pick the corridors I care about (BR, EU, MX, CO, US, AR) and track only those.
 - As a sender, I complete KYC (individual) or KYB (company) per corridor from the dashboard.
   Monerium uses its hosted OAuth portal; after the callback exchange, the dashboard reopens the EU onboarding modal.
+- BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
+  AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
+  AlfredPay company onboarding is not offered for AR until provider support is confirmed.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor pending; it moves to
   in review only after Monerium reports that all required information was submitted.
 - As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
@@ -154,6 +157,14 @@ provider-shaped rather than UI-shaped.
 
 - **Backend is the same API.** Shared `/v1/quotes`, `/v1/ramp/*`, `/v1/auth/*`,
   `/v1/onboarding/status`, plus dashboard-only `/v1/recipients/*` and `/v1/notifications`.
+- **The sender entity is selected once.** Account-dependent dashboard routes require an active
+  customer entity. `PUT /v1/onboarding/active-entity` persists the initial individual/company
+  choice, and `GET /v1/onboarding/status` returns `activeEntityId` and `selectionRequired`. Legacy
+  profiles with one meaningful entity are backfilled when it already owns provider or recipient
+  data; empty legacy entities do not silently force an individual selection. Profiles with mixed
+  entities must choose. The dashboard derives account type, onboarding status, and approval gates
+  only from the exact active sender entity. Explicitly typed invitation onboarding may still use a
+  second recipient entity without changing the active sender entity.
 
 ## Acknowledged gaps
 
@@ -176,10 +187,8 @@ provider-shaped rather than UI-shaped.
 
 ## Open questions
 
-- Where is account type selected and persisted independently of provider onboarding, and which
-  identifier should Settings display for profiles that have both individual and business entities?
-- Should an account expose one active sender entity at a time, or allow explicit switching between
-  individual and company entities?
+- Settings still needs a provider-safe display identifier for business entities; email remains the
+  fallback until that display contract is defined.
 
 ---
 

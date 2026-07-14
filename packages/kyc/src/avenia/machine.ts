@@ -1,5 +1,5 @@
 import { assign, type DoneActorEvent, fromPromise, setup } from "xstate";
-import { createSubaccountActor, createSubmitActor, createVerifyStatusActor } from "./actors";
+import { createSubaccountActor, createSubmitActor, createVerifyKybStatusActor, createVerifyStatusActor } from "./actors";
 import type { AveniaKycDeps } from "./api";
 import {
   type AveniaKybFormData,
@@ -28,6 +28,7 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
         }
       ),
       submitActor: createSubmitActor(api),
+      verifyKybStatusActor: createVerifyKybStatusActor(api),
       verifyStatusActor: createVerifyStatusActor(api)
     },
     types: {
@@ -43,7 +44,6 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
         | { type: "LIVENESS_OPENED" }
         | { type: "REFRESH_LIVENESS_URL" }
         | { type: "GO_BACK" }
-        | { type: "KYB_COMPLETE" }
         | { type: "KYB_COMPANY_DONE" }
         | { type: "KYB_REPRESENTATIVE_DONE" }
         | { type: "KYB_COMPANY_BACK" }
@@ -80,6 +80,7 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
             target: "Finish"
           },
           RETRY: {
+            actions: assign({ error: () => undefined, rejectReason: () => undefined }),
             target: "FormFilling"
           }
         }
@@ -172,9 +173,45 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
               kybStep: () => "verification" as const,
               kycStatus: () => KycStatus.PENDING
             }),
+            invoke: {
+              input: ({ context }: { context: AveniaKycContext }) => context,
+              onDone: [
+                {
+                  actions: assign({ kycStatus: () => KycStatus.APPROVED }),
+                  guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "APPROVED"
+                },
+                {
+                  actions: assign({
+                    kycStatus: () => KycStatus.REJECTED,
+                    rejectReason: ({ event }) => (event.output.type === "REJECTED" ? event.output.reason : undefined)
+                  }),
+                  guard: ({ event }: { event: DoneActorEvent<VerifyStatusActorOutput> }) => event.output.type === "REJECTED"
+                }
+              ],
+              onError: {
+                actions: assign({
+                  error: ({ event }) =>
+                    new AveniaKycMachineError((event.error as Error).message, AveniaKycMachineErrorType.UnknownError)
+                }),
+                target: "#brlaKyc.Failure"
+              },
+              src: "verifyKybStatusActor"
+            },
             on: {
-              KYB_COMPLETE: {
-                target: "#brlaKyc.Success"
+              CANCEL_RETRY: {
+                actions: assign({
+                  error: () =>
+                    new AveniaKycMachineError("User cancelled the operation", AveniaKycMachineErrorType.UserCancelled)
+                }),
+                target: "#brlaKyc.Finish"
+              },
+              CLOSE_SUCCESS_MODAL: {
+                guard: ({ context }) => context.kycStatus === KycStatus.APPROVED,
+                target: "#brlaKyc.Finish"
+              },
+              RETRY: {
+                actions: assign({ error: () => undefined, rejectReason: () => undefined }),
+                target: "#brlaKyc.SubaccountSetup"
               }
             }
           }
@@ -246,6 +283,7 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
             target: "Finish"
           },
           RETRY: {
+            actions: assign({ error: () => undefined, rejectReason: () => undefined }),
             target: "FormFilling"
           }
         }

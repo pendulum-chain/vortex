@@ -419,19 +419,42 @@ describe("alfredpayKycMachine", () => {
       expect(actor.getSnapshot().context.error?.message).toContain("did not return relatedPersons[].idRelatedPerson");
     });
 
-    // NOTE: documents current behavior — for country AR with business=true, CheckingStatus routes to the
-    // *individual* KYC form (FillingKycForm) because its business guard only covers MX/CO, while
-    // CreatingCustomer and Retrying include AR in their business guards. This inconsistency looks unintended.
-    it("AR business customers are routed to the individual KYC form from CheckingStatus", async () => {
+    it("rejects AR business before making a provider request", async () => {
+      let statusCalls = 0;
       const actor = createTestActor(
         {
-          checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted))
+          checkStatus: fromPromise(async () => {
+            statusCalls += 1;
+            return statusOf(AlfredPayStatus.Consulted);
+          })
         },
         { ...baseInput, business: true, country: "AR" }
       );
       actor.start();
 
-      await waitFor(actor, s => s.matches("FillingKycForm"));
+      await waitFor(actor, s => s.matches("Failure"));
+      expect(statusCalls).toBe(0);
+      expect(actor.getSnapshot().context.error?.message).toBe("Alfredpay business verification is not supported in Argentina");
+
+      actor.send({ type: "RETRY_PROCESS" });
+      await waitFor(actor, s => s.matches("Failure"));
+      expect(statusCalls).toBe(0);
+    });
+
+    it("does not allow an AR individual to toggle to business", async () => {
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise<AlfredpayStatusResponse, AlfredpayKycContext>(async () => {
+            throw new Error("Request failed with status 404");
+          })
+        },
+        { ...baseInput, country: "AR" }
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("CustomerDefinition"));
+      actor.send({ type: "TOGGLE_BUSINESS" });
+      expect(actor.getSnapshot().context.business).toBeFalsy();
     });
   });
 });

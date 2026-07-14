@@ -34,6 +34,7 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
+import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
@@ -370,7 +371,7 @@ export const createSubaccount = async (
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
     let existing = await findAveniaCustomerByTaxId(normalizedTaxId);
-    if (existing && existing.status !== VerificationStatus.Started && existing.customerEntityId !== entity.id) {
+    if (existing && existing.customerEntityId !== entity.id) {
       res.status(httpStatus.CONFLICT).json({
         error: "A subaccount already exists for this taxId"
       });
@@ -665,7 +666,7 @@ export const getUploadUrls = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
+    const entity = await getOrCreateCustomerEntityForProfile(req.userId, "business");
     if (record.customerEntityId !== entity.id) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
@@ -784,8 +785,27 @@ export const initiateKybLevel1 = async (
       return;
     }
 
+    if (record.status === VerificationStatus.Approved) {
+      res.status(httpStatus.CONFLICT).json({ error: "This company is already approved" });
+      return;
+    }
+
+    const existingKybCase = await KycCase.findOne({
+      where: { providerCustomerId: record.id, type: "kyb" }
+    });
+    if (
+      existingKybCase?.providerCaseId &&
+      record.status !== VerificationStatus.Rejected &&
+      existingKybCase.statusExternal !== KycAttemptStatus.EXPIRED
+    ) {
+      res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const response = await brlaApiService.initiateKybLevel1(subAccountId);
+    await record.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PENDING });
+    await upsertAveniaKycCase(record, VerificationStatus.InReview, KycAttemptStatus.PENDING, response.attemptId);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {
@@ -813,10 +833,78 @@ export const getKybAttemptStatus = async (
       return;
     }
 
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
+      return;
+    }
+
+    const kycCase = await KycCase.findOne({
+      where: { provider: "avenia", providerCaseId: attemptId, type: "kyb" }
+    });
+    if (!kycCase) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "KYB attempt not found" });
+      return;
+    }
+
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, "business");
+    if (kycCase.customerEntityId !== entity.id) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This KYB attempt is not linked to your user profile." });
+      return;
+    }
+
+    const record = kycCase.providerCustomerId ? await ProviderCustomer.findByPk(kycCase.providerCustomerId) : null;
+    if (!record || record.customerEntityId !== entity.id || record.provider !== "avenia") {
+      res.status(httpStatus.NOT_FOUND).json({ error: "KYB account not found" });
+      return;
+    }
+
+    if (record.status === VerificationStatus.Approved) {
+      res.status(httpStatus.OK).json({ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const response = await brlaApiService.getKybAttemptStatus(attemptId);
+    const attempt = response.attempt;
+    if (attempt.id !== attemptId) {
+      throw new APIError({ message: "Avenia returned a mismatched KYB attempt", status: httpStatus.BAD_GATEWAY });
+    }
 
-    res.status(httpStatus.OK).json(response);
+    const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
+    const rejected =
+      attempt.status === KycAttemptStatus.EXPIRED ||
+      (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+    const normalizedStatus = approved
+      ? VerificationStatus.Approved
+      : rejected
+        ? VerificationStatus.Rejected
+        : attempt.status === KycAttemptStatus.PROCESSING
+          ? VerificationStatus.InReview
+          : VerificationStatus.Pending;
+    const failureReason = rejected ? mapKycFailureReason(attempt.resultMessage) : undefined;
+    const lifecycle = {
+      ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+      ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
+    };
+
+    await record.update({
+      lastFailureReasons: failureReason ? [failureReason] : [],
+      status: normalizedStatus,
+      statusExternal: attempt.status
+    });
+    await kycCase.update({
+      failureReasons: failureReason ? [failureReason] : [],
+      status: normalizedStatus,
+      statusExternal: attempt.status,
+      ...lifecycle
+    });
+
+    res.status(httpStatus.OK).json({
+      ...(failureReason ? { failureReason } : {}),
+      ...(attempt.result ? { result: attempt.result } : {}),
+      status: attempt.status
+    });
   } catch (error) {
     handleApiError(error, res, "getKybAttemptStatus");
   }

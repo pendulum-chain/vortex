@@ -3,8 +3,7 @@ import { AlfredpayService } from "@/services/api/alfredpay.service";
 
 /**
  * The dashboard's binding of the shared Alfredpay KYC machine. `openVerificationUrl` only fires on
- * the redirect corridors (US), which `routeFor` still sends to `ExternalFlow` — so it is unused
- * today, but the machine requires a way to reach the provider page.
+ * US hosted KYC/KYB opens in a new tab; MX/CO KYC/KYB stays inside the dashboard.
  */
 export const alfredpayKycMachine = createAlfredpayKycMachine({
   api: AlfredpayService,

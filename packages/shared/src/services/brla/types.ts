@@ -351,12 +351,18 @@ export interface KybLevel1Response {
 }
 
 export interface KybAttemptStatusResponse {
+  failureReason?: string;
+  result?: KycAttemptResult;
+  status: KycAttemptStatus;
+}
+
+export interface AveniaKybAttemptStatusResponse {
   attempt: {
     id: string;
     levelName: string;
     submissionData: Record<string, unknown>;
     status: KycAttemptStatus;
-    result: KycAttemptResult;
+    result?: KycAttemptResult;
     resultMessage: string;
     retryable: boolean;
     createdAt: string;

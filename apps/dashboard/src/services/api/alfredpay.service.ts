@@ -4,9 +4,8 @@ import { apiClient } from "./api-client";
 
 /**
  * The dashboard's Alfredpay endpoints. The KYC subset satisfies `AlfredpayKycApi`, which is what
- * `createAlfredpayKycMachine` verifies senders with. The KYB methods are part of that port but are
- * unreachable from the dashboard today: `OnboardingWizard` only drives the machine for individual
- * KYC, so company accounts still use the mocked wizard.
+ * `createAlfredpayKycMachine` verifies senders with. The same port drives MX/CO API-based company
+ * KYB and US provider-hosted KYB.
  */
 export const AlfredpayService: AlfredpayKycApi & {
   listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse>;

@@ -65,6 +65,7 @@ Partner.hasMany(ProfilePartnerAssignment, { as: "profileAssignments", foreignKey
 // Customer entity — owner anchor between profiles and provider/KYC records
 User.hasMany(CustomerEntity, { as: "customerEntities", foreignKey: "profileId" });
 CustomerEntity.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+User.belongsTo(CustomerEntity, { as: "activeCustomerEntity", foreignKey: "activeCustomerEntityId" });
 CustomerEntity.hasMany(ProviderCustomer, { as: "providerCustomers", foreignKey: "customerEntityId" });
 ProviderCustomer.belongsTo(CustomerEntity, { as: "customerEntity", foreignKey: "customerEntityId" });
 CustomerEntity.hasMany(KycCase, { as: "kycCases", foreignKey: "customerEntityId" });

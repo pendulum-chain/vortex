@@ -27,7 +27,7 @@ async function driveToInReview(page: Page): Promise<Locator> {
   // Start KYC → the machine checks status (404, no customer) → customer-definition screen.
   await page.getByRole("button", { name: "Start KYC" }).click();
   const wizard = page.getByRole("dialog");
-  await expect(wizard.getByText("We'll create your Mexico verification profile")).toBeVisible({ timeout: 20_000 });
+  await expect(wizard.getByText("We'll create your Mexico individual verification profile")).toBeVisible({ timeout: 20_000 });
   await wizard.getByRole("button", { name: "Continue" }).click();
 
   // Customer created → the MX KYC form.

@@ -115,10 +115,10 @@ function stubMykoboMachine(output: { profileApproved?: boolean; error?: MykoboKy
   }) as unknown as typeof mykoboKycMachine;
 }
 
-/** Minimal child machine standing in for the Avenia KYC machine that completes immediately without error. */
+/** Minimal child machine standing in for an approved Avenia KYC machine. */
 const stubAveniaMachine = setup({}).createMachine({
   initial: "Done",
-  output: () => ({}),
+  output: () => ({ kycStatus: "APPROVED" }),
   states: { Done: { type: "final" } }
 }) as unknown as typeof aveniaKycMachine;
 
@@ -137,7 +137,7 @@ function stubAlfredpayMachine(output: { error?: AlfredpayKycMachineError } = {})
 }
 
 /** Waiting variant of the Avenia stub so the test can observe the {KYC: "Avenia"} state. */
-function stubWaitingAveniaMachine(output: { error?: { message: string } } = {}) {
+function stubWaitingAveniaMachine(output: { error?: { message: string }; kycStatus?: string } = { kycStatus: "APPROVED" }) {
   return setup({}).createMachine({
     initial: "Waiting",
     output: () => output,
@@ -596,6 +596,21 @@ describe("rampMachine", () => {
 
       (actor.getSnapshot().children.aveniaKyc as AnyActorRef).send({ type: "FINISH" });
       await waitFor(actor, s => s.matches("KycComplete"));
+    });
+
+    it("does not accept an error-free but unapproved Avenia child completion", async () => {
+      const actor = createRampActor({
+        aveniaKyc: stubWaitingAveniaMachine({ kycStatus: "PENDING" }),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.BRL);
+      await waitFor(actor, s => s.matches({ KYC: "Avenia" }));
+
+      (actor.getSnapshot().children.aveniaKyc as AnyActorRef).send({ type: "FINISH" });
+      await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("An unknown error occurred");
     });
 
     it("completes the quote-less KYB deep link via SelectRegion and lands in KybLinkComplete", async () => {

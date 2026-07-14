@@ -8,7 +8,10 @@ export {
   colKycSchema,
   KYC_FILE_ACCEPTED_TYPES,
   KYC_FILE_MAX_BYTES,
+  type KybFormValues,
+  kybFormSchema,
   type MxnKycFormValues,
+  mapKybFormValues,
   mxnKycSchema,
   toArPhoneNumber,
   toColPhoneNumber

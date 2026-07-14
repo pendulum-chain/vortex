@@ -22,6 +22,7 @@ type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "star
  */
 export function buildOnboardingStatus(state: OnboardingState = "approved") {
   return {
+    activeEntityId: "entity-e2e-1",
     entities: [
       {
         accounts: [
@@ -40,12 +41,14 @@ export function buildOnboardingStatus(state: OnboardingState = "approved") {
         status: state,
         type: "individual"
       }
-    ]
+    ],
+    selectionRequired: false
   };
 }
 
 export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved", reauthenticationRequired = false) {
   return {
+    activeEntityId: "entity-e2e-1",
     entities: [
       {
         accounts: [
@@ -70,11 +73,54 @@ export function buildMoneriumOnboardingStatus(state: OnboardingState = "approved
         status: state,
         type: "individual"
       }
-    ]
+    ],
+    selectionRequired: false
   };
 }
 
-const NO_ONBOARDING = { entities: [] as unknown[] };
+export function buildCompanyOnboardingStatus(provider: "alfredpay" | "avenia", country: "BR" | "MX", state: OnboardingState) {
+  return {
+    activeEntityId: "entity-e2e-company-1",
+    entities: [
+      {
+        accounts: [
+          {
+            companyName: "Vortex E2E Ltda",
+            country,
+            customerType: "business",
+            error: null,
+            id: `acct-e2e-${country.toLowerCase()}-company`,
+            kycCase: null,
+            provider,
+            rail: country === "BR" ? "pix" : "mxn",
+            state,
+            status: state,
+            statusExternal: state
+          }
+        ],
+        id: "entity-e2e-company-1",
+        status: state,
+        type: "business"
+      }
+    ],
+    selectionRequired: false
+  };
+}
+
+export function buildEmptyOnboardingStatus(companyMode = false) {
+  return {
+    activeEntityId: companyMode ? "entity-e2e-company-1" : "entity-e2e-1",
+    entities: [
+      {
+        accounts: [],
+        id: companyMode ? "entity-e2e-company-1" : "entity-e2e-1",
+        status: "active",
+        type: companyMode ? "business" : "individual"
+      }
+    ],
+    selectionRequired: false
+  };
+}
 
 /**
  * AlfredpayListFiatAccountsResponse is a bare array; selfRecipientsFromFiatAccounts reads these
@@ -194,6 +240,8 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 
 interface MockBackendOptions {
   onboardingState?: OnboardingState;
+  companyMode?: boolean;
+  selectionRequired?: boolean;
   // Full response for POST /v1/auth/verify-otp. Default: a successful session.
   verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
@@ -202,6 +250,7 @@ interface MockBackendOptions {
   // GET /v1/onboarding/status mirror KYC progress (empty → in_review once submitted → approved).
   // Default onboarding status (an already-approved MX corridor) applies when this is unset.
   alfredpayKyc?: { reflectOnboarding?: boolean };
+  aveniaKyb?: boolean;
   moneriumKyc?: boolean;
   moneriumRequireRefresh?: boolean;
 }
@@ -297,6 +346,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const updateRequests: Array<Record<string, unknown>> = [];
   const startRequests: Array<Record<string, unknown>> = [];
   const kycFormSubmissions: Array<Record<string, unknown>> = [];
+  const kybFormSubmissions: Array<Record<string, unknown>> = [];
+  const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
@@ -304,6 +355,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   // between assertions and the browser's next poll (machine getKycStatus, or the card's
   // onboarding-status refetch) observes it — deterministic, no reliance on poll counts.
   const kyc = { approved: false, customerCreated: false, submitted: false };
+  const kybUploads = { businessFiles: 0, relatedPersonFiles: 0 };
+  const avenia = { approved: false, statusPolls: 0, submitted: false };
   const monerium = {
     approved: false,
     authorized: false,
@@ -311,6 +364,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     startRequests: [] as Array<Record<string, unknown>>
   };
   const auth = { refreshes: 0 };
+  let selectedCompany = options.companyMode ?? false;
+  let hasActiveEntity = options.selectionRequired !== true;
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
   // the user-wallet transaction from that response.
@@ -364,29 +419,66 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
+    if (path === "/v1/onboarding/active-entity" && method === "PUT") {
+      const body = request.postDataJSON() as { type?: string };
+      selectedCompany = body.type === "business";
+      hasActiveEntity = true;
+      await fulfillJson({
+        activeEntityId: selectedCompany ? "entity-e2e-company-1" : "entity-e2e-1",
+        type: selectedCompany ? "business" : "individual"
+      });
+      return;
+    }
+
     if (path === "/v1/onboarding/status" && method === "GET") {
+      if (!hasActiveEntity) {
+        await fulfillJson({ activeEntityId: null, entities: [], selectionRequired: true });
+        return;
+      }
+      if (options.selectionRequired) {
+        await fulfillJson(buildEmptyOnboardingStatus(selectedCompany));
+        return;
+      }
+      if (options.aveniaKyb) {
+        await fulfillJson(
+          avenia.submitted
+            ? buildCompanyOnboardingStatus("avenia", "BR", avenia.approved ? "approved" : "in_review")
+            : buildEmptyOnboardingStatus(true)
+        );
+        return;
+      }
       if (options.moneriumKyc) {
         await fulfillJson(
           monerium.completed
             ? buildMoneriumOnboardingStatus(monerium.approved ? "approved" : "in_review", !monerium.authorized)
-            : NO_ONBOARDING
+            : buildEmptyOnboardingStatus()
         );
         return;
       }
       if (!options.alfredpayKyc) {
-        await fulfillJson(buildOnboardingStatus(options.onboardingState));
+        await fulfillJson(
+          options.companyMode
+            ? buildCompanyOnboardingStatus("alfredpay", "MX", options.onboardingState ?? "approved")
+            : buildOnboardingStatus(options.onboardingState)
+        );
         return;
       }
       // KYC test: reflect progress so the card tracks it (empty keeps the card action enabled for
       // reopen; in_review turns on the 15s background refetch that flips it to approved live).
       if (options.alfredpayKyc.reflectOnboarding === false) {
-        await fulfillJson(NO_ONBOARDING);
+        await fulfillJson(buildEmptyOnboardingStatus(options.companyMode));
       } else if (kyc.approved) {
-        await fulfillJson(buildOnboardingStatus("approved"));
+        await fulfillJson(
+          options.companyMode ? buildCompanyOnboardingStatus("alfredpay", "MX", "approved") : buildOnboardingStatus("approved")
+        );
       } else if (kyc.submitted) {
-        await fulfillJson(buildOnboardingStatus("in_review"));
+        await fulfillJson(
+          options.companyMode
+            ? buildCompanyOnboardingStatus("alfredpay", "MX", "in_review")
+            : buildOnboardingStatus("in_review")
+        );
       } else {
-        await fulfillJson(NO_ONBOARDING);
+        await fulfillJson(buildEmptyOnboardingStatus(options.companyMode));
       }
       return;
     }
@@ -450,6 +542,11 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson({ createdAt: new Date().toISOString() });
       return;
     }
+    if (path === "/v1/alfredpay/createBusinessCustomer" && method === "POST") {
+      kyc.customerCreated = true;
+      await fulfillJson({ createdAt: new Date().toISOString() });
+      return;
+    }
     if (path === "/v1/alfredpay/submitKycInformation" && method === "POST") {
       kycFormSubmissions.push(request.postDataJSON() as Record<string, unknown>);
       await fulfillJson({ submissionId: "kyc-submission-e2e-1" });
@@ -465,6 +562,30 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson({ success: true });
       return;
     }
+    if (path === "/v1/alfredpay/submitKybInformation" && method === "POST") {
+      kybFormSubmissions.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson({ submissionId: "kyb-submission-e2e-1" });
+      return;
+    }
+    if (path === "/v1/alfredpay/submitKybFile" && method === "POST") {
+      kybUploads.businessFiles += 1;
+      await fulfillJson({ success: true });
+      return;
+    }
+    if (path === "/v1/alfredpay/findKybCustomerAndBusiness" && method === "GET") {
+      await fulfillJson([{ relatedPersons: [{ idRelatedPerson: "related-person-e2e-1" }] }]);
+      return;
+    }
+    if (path === "/v1/alfredpay/submitKybRelatedPersonFile" && method === "POST") {
+      kybUploads.relatedPersonFiles += 1;
+      await fulfillJson({ success: true });
+      return;
+    }
+    if (path === "/v1/alfredpay/sendKybSubmission" && method === "POST") {
+      kyc.submitted = true;
+      await fulfillJson({ success: true });
+      return;
+    }
     // getKycStatus (machine PollingStatus): VERIFYING keeps the machine polling; SUCCESS lands it
     // on VerificationDone. The spec flips kyc.approved to make approval "arrive".
     if (path === "/v1/alfredpay/getKycStatus" && method === "GET") {
@@ -474,6 +595,31 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         status: kyc.approved ? ALFREDPAY_SUCCESS : ALFREDPAY_VERIFYING,
         updated_at: new Date().toISOString()
       });
+      return;
+    }
+
+    // --- Avenia BR company KYB (packages/kyc Avenia machine drives this sequence) ---
+    if (path === "/v1/brla/getUser" && method === "GET" && options.aveniaKyb) {
+      await fulfillJson({ error: "User not found" }, 404);
+      return;
+    }
+    if (path === "/v1/brla/createSubaccount" && method === "POST" && options.aveniaKyb) {
+      brlaCreateSubaccountRequests.push(request.postDataJSON() as Record<string, unknown>);
+      await fulfillJson({ subAccountId: "avenia-subaccount-e2e-1" });
+      return;
+    }
+    if (path === "/v1/brla/kyb/new-level-1/web-sdk" && method === "POST" && options.aveniaKyb) {
+      await fulfillJson({
+        attemptId: "avenia-attempt-e2e-1",
+        authorizedRepresentativeUrl: "https://hosted.avenia.example/representative",
+        basicCompanyDataUrl: "https://hosted.avenia.example/company"
+      });
+      return;
+    }
+    if (path === "/v1/brla/kyb/attempt-status" && method === "GET" && options.aveniaKyb) {
+      avenia.statusPolls += 1;
+      avenia.submitted = true;
+      await fulfillJson(avenia.approved ? { result: "APPROVED", status: "COMPLETED" } : { status: "PROCESSING" });
       return;
     }
 
@@ -571,6 +717,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
 
   return {
     auth,
+    avenia,
+    brlaCreateSubaccountRequests,
+    kybFormSubmissions,
+    kybUploads,
     kyc,
     kycFormSubmissions,
     monerium,

@@ -7,23 +7,23 @@ import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 export const ONBOARDING_STATUS_QUERY_KEY = ["onboarding-status"] as const;
 
 function hasOpenOnboarding(data: OnboardingStatusResponse | undefined): boolean {
-  return (data?.entities ?? []).some(entity =>
-    entity.accounts.some(account => account.state === "pending" || account.state === "started" || account.state === "in_review")
+  const activeEntity = data?.entities.find(entity => entity.id === data.activeEntityId);
+  return (activeEntity?.accounts ?? []).some(
+    account => account.state === "pending" || account.state === "started" || account.state === "in_review"
   );
 }
 
 /** Corridors the authenticated profile is provider-approved for — the real approval gate. */
 export function approvedCorridorsFrom(data: OnboardingStatusResponse | undefined): Set<CorridorId> {
   const approved = new Set<CorridorId>();
-  for (const entity of data?.entities ?? []) {
-    for (const account of entity.accounts) {
-      if (account.state !== "approved") {
-        continue;
-      }
-      const corridorId = corridorFromProviderAccount(account);
-      if (corridorId) {
-        approved.add(corridorId);
-      }
+  const activeEntity = data?.entities.find(entity => entity.id === data.activeEntityId);
+  for (const account of activeEntity?.accounts ?? []) {
+    if (account.state !== "approved") {
+      continue;
+    }
+    const corridorId = corridorFromProviderAccount(account);
+    if (corridorId) {
+      approved.add(corridorId);
     }
   }
   return approved;

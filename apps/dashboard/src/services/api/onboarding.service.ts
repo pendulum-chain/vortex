@@ -26,10 +26,17 @@ export interface OnboardingEntityDto {
 }
 
 export interface OnboardingStatusResponse {
+  activeEntityId: string | null;
   entities: OnboardingEntityDto[];
+  selectionRequired: boolean;
 }
 
+export type ActiveEntityType = "business" | "individual";
+
 export const OnboardingService = {
+  selectActiveEntity(type: ActiveEntityType): Promise<{ activeEntityId: string; type: ActiveEntityType }> {
+    return apiClient.put<{ activeEntityId: string; type: ActiveEntityType }>("/onboarding/active-entity", { type });
+  },
   status(): Promise<OnboardingStatusResponse> {
     return apiClient.get<OnboardingStatusResponse>("/onboarding/status");
   }

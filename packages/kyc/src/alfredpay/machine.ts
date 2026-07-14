@@ -51,9 +51,9 @@ function extractKybRelatedPersonIds(payload: unknown): string[] {
  * Alfredpay KYC/KYB flow for the US, MX, CO and AR corridors.
  *
  * US goes out to a provider-hosted verification page and we poll for the outcome; MX, CO and AR
- * collect the form and the identity documents in-app and submit them over the API. A `business`
- * customer runs the KYB variant, which additionally uploads company documents and then one
- * document pair per related person.
+ * collect individual details and identity documents in-app. MX and CO businesses run the KYB
+ * variant, which additionally uploads company documents and one document pair for the
+ * representative. Alfredpay does not support AR businesses.
  *
  * The machine is host-agnostic: pass an {@link AlfredpayKycDeps} and render the states however
  * you like. The widget and the dashboard each bring their own API client and screens.
@@ -303,7 +303,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
   }).createMachine({
     context: ({ input }) => ({ ...input, country: input.country || "US" }),
     id: "alfredpayKyc",
-    initial: "CheckingStatus",
+    initial: "ValidatingInput",
     output: ({ context }) => ({
       error: context.error
     }),
@@ -380,8 +380,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           input: ({ context }) => context,
           onDone: [
             {
-              guard: ({ context }) =>
-                (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
+              guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
               target: "FillingKybForm"
             },
             {
@@ -410,7 +409,8 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           TOGGLE_BUSINESS: {
             actions: assign({
               business: ({ context }) => !context.business
-            })
+            }),
+            guard: ({ context }) => context.country !== "AR"
           },
           USER_ACCEPT: {
             target: "CreatingCustomer"
@@ -426,7 +426,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
             target: "Done"
           },
           RETRY_PROCESS: {
-            target: "CheckingStatus"
+            target: "ValidatingInput"
           }
         }
       },
@@ -612,8 +612,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           input: ({ context }) => context,
           onDone: [
             {
-              guard: ({ context }) =>
-                (context.country === "MX" || context.country === "CO" || context.country === "AR") && !!context.business,
+              guard: ({ context }) => (context.country === "MX" || context.country === "CO") && !!context.business,
               target: "FillingKybForm"
             },
             {
@@ -867,6 +866,22 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
             target: "SubmittingKybPersonFiles"
           }
         }
+      },
+      ValidatingInput: {
+        always: [
+          {
+            actions: assign({
+              error: () =>
+                new AlfredpayKycMachineError(
+                  "Alfredpay business verification is not supported in Argentina",
+                  AlfredpayKycMachineErrorType.UnknownError
+                )
+            }),
+            guard: ({ context }) => context.country === "AR" && !!context.business,
+            target: "Failure"
+          },
+          { target: "CheckingStatus" }
+        ]
       },
       VerificationDone: {
         on: {

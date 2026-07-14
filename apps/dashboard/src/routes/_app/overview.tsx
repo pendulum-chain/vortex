@@ -8,7 +8,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CORRIDORS } from "@/domain/corridors";
+import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
 import type { CorridorId } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
@@ -33,7 +33,9 @@ function OverviewPage() {
 
   const visibleCorridorIds = Array.from(new Set([...account.selectedCorridors, ...addedCorridors]));
   const corridors = visibleCorridorIds.map(id => CORRIDORS[id]);
-  const availableToAdd = Object.values(CORRIDORS).filter(corridor => !visibleCorridorIds.includes(corridor.id));
+  const availableToAdd = Object.values(CORRIDORS).filter(
+    corridor => !visibleCorridorIds.includes(corridor.id) && isCorridorAvailableForAccountType(corridor.id, account.type)
+  );
   const approved = corridors.filter(corridor => account.onboardings[corridor.id]?.status === "approved").length;
   const openCorridor = activeCorridor ?? search.onboarding ?? null;
 

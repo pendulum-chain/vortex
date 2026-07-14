@@ -1,4 +1,4 @@
-import {AveniaAccountType, BrlaApiService} from "@vortexfi/shared";
+import {AveniaAccountType, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -6,7 +6,15 @@ import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import TaxId, {TaxIdInternalStatus} from "../../models/taxId.model";
-import {createSubaccount, fetchSubaccountKycStatus, getAveniaUser, recordInitialKycAttempt} from "./brla.controller";
+import User from "../../models/user.model";
+import {
+  createSubaccount,
+  fetchSubaccountKycStatus,
+  getAveniaUser,
+  getKybAttemptStatus,
+  initiateKybLevel1,
+  recordInitialKycAttempt
+} from "./brla.controller";
 
 function createResponse() {
   const res = {
@@ -32,6 +40,16 @@ function mockEntityPerProfile() {
     false
   ]) as unknown as typeof CustomerEntity.findOrCreate;
 }
+
+const originalUserFindByPk = User.findByPk;
+
+beforeEach(() => {
+  User.findByPk = mock(async () => null) as unknown as typeof User.findByPk;
+});
+
+afterEach(() => {
+  User.findByPk = originalUserFindByPk;
+});
 
 describe("getAveniaUser", () => {
   const originalFindOne = ProviderCustomer.findOne;
@@ -230,6 +248,124 @@ describe("fetchSubaccountKycStatus", () => {
     expect(res.statusCode).toBe(httpStatus.NOT_FOUND);
     expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Pending, statusExternal: null });
     expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }));
+  });
+});
+
+describe("Avenia company KYB", () => {
+  const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalProviderFindByPk = ProviderCustomer.findByPk;
+  const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
+  const originalKycCaseFindOne = KycCase.findOne;
+  const originalKycCaseCreate = KycCase.create;
+  const originalGetInstance = BrlaApiService.getInstance;
+
+  afterEach(() => {
+    ProviderCustomer.findOne = originalProviderFindOne;
+    ProviderCustomer.findByPk = originalProviderFindByPk;
+    CustomerEntity.findOrCreate = originalEntityFindOrCreate;
+    KycCase.findOne = originalKycCaseFindOne;
+    KycCase.create = originalKycCaseCreate;
+    BrlaApiService.getInstance = originalGetInstance;
+  });
+
+  it("binds the initiated provider attempt to the owned KYB case", async () => {
+    mockEntityPerProfile();
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      statusExternal: null,
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findOne;
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOne = mock(async () => ({ update: caseUpdate })) as unknown as typeof KycCase.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          initiateKybLevel1: mock(async () => ({
+            attemptId: "attempt-1",
+            authorizedRepresentativeUrl: "https://avenia.example/representative",
+            basicCompanyDataUrl: "https://avenia.example/company"
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(caseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerCaseId: "attempt-1",
+        status: VerificationStatus.InReview,
+        statusExternal: KycAttemptStatus.PENDING
+      })
+    );
+  });
+
+  it("rejects an attempt owned by another user without querying Avenia", async () => {
+    mockEntityPerProfile();
+    KycCase.findOne = mock(async () => ({
+      customerEntityId: "entity-victim",
+      providerCustomerId: "customer-1"
+    })) as unknown as typeof KycCase.findOne;
+    const providerStatus = mock(async () => ({ attempt: {} }));
+    BrlaApiService.getInstance = mock(
+      () => ({ getKybAttemptStatus: providerStatus }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "attacker" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
+    expect(providerStatus).not.toHaveBeenCalled();
+  });
+
+  it("persists an approved provider result and returns only normalized browser fields", async () => {
+    mockEntityPerProfile();
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      providerCustomerId: "customer-1",
+      update: caseUpdate
+    })) as unknown as typeof KycCase.findOne;
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findByPk = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      provider: "avenia",
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findByPk;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({
+            attempt: {
+              createdAt: "private",
+              id: "attempt-1",
+              levelName: "level-1",
+              result: KycAttemptResult.APPROVED,
+              resultMessage: "",
+              retryable: false,
+              status: KycAttemptStatus.COMPLETED,
+              submissionData: { privateCompanyData: true },
+              updatedAt: "private"
+            }
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.body).toEqual({ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED });
+    expect(customerUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED })
+    );
+    expect(caseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED })
+    );
   });
 });
 
@@ -437,7 +573,7 @@ describe("createSubaccount", () => {
     expect(subaccountInfoMock).toHaveBeenCalledWith("new-subaccount");
   });
 
-  it("allows overwrite when the existing record is only in Consulted state", async () => {
+  it("rejects overwrite when a started record belongs to another entity", async () => {
     mockBrlaApi();
     createAveniaSubaccountMock.mockClear();
     const updateMock = mock(async () => undefined);
@@ -456,8 +592,8 @@ describe("createSubaccount", () => {
       res as any
     );
 
-    expect(res.statusCode).toBe(httpStatus.OK);
-    expect(createAveniaSubaccountMock).toHaveBeenCalled();
-    expect(updateMock).toHaveBeenCalled();
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

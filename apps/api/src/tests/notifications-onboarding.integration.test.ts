@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun
 import { AlfredPayCountry, AlfredPayStatus, AlfredpayCustomerType, BrlaApiService } from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { emitNotification } from "../api/services/notifications/notification.service";
+import CustomerEntity from "../models/customerEntity.model";
 import KycCase from "../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import User from "../models/user.model";
@@ -194,10 +195,16 @@ describe("GET /v1/onboarding/status", () => {
     const { token } = await createAuthedUser("fresh@example.com");
     const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { entities: unknown[] };
+    const body = (await response.json()) as {
+      activeEntityId: string | null;
+      entities: unknown[];
+      selectionRequired: boolean;
+    };
     // The lazy entity fallback only runs on entity-scoped writes; a fresh profile
     // that never onboarded may legitimately have no entities yet.
     expect(Array.isArray(body.entities)).toBe(true);
+    expect(body.activeEntityId).toBeNull();
+    expect(body.selectionRequired).toBe(true);
   });
 
   it("hydrates a missing Avenia business name without exposing it for personal accounts", async () => {
@@ -224,5 +231,87 @@ describe("GET /v1/onboarding/status", () => {
     } finally {
       BrlaApiService.getInstance = getInstance;
     }
+  });
+});
+
+describe("PUT /v1/onboarding/active-entity", () => {
+  it("requires authentication and validates the account type", async () => {
+    const unauthorized = await api.request("/v1/onboarding/active-entity", {
+      body: JSON.stringify({ type: "individual" }),
+      headers: { "Content-Type": "application/json" },
+      method: "PUT"
+    });
+    expect(unauthorized.status).toBe(401);
+
+    const { token } = await createAuthedUser("invalid-type@example.com");
+    const invalid = await api.request("/v1/onboarding/active-entity", {
+      body: JSON.stringify({ type: "company" }),
+      headers: authHeaders(token),
+      method: "PUT"
+    });
+    expect(invalid.status).toBe(400);
+  });
+
+  it("persists an initial selection, is idempotent, and rejects changing it", async () => {
+    const { user, token } = await createAuthedUser("selection@example.com");
+    const request = () =>
+      api.request("/v1/onboarding/active-entity", {
+        body: JSON.stringify({ type: "business" }),
+        headers: authHeaders(token),
+        method: "PUT"
+      });
+
+    const selected = await request();
+    expect(selected.status).toBe(200);
+    const firstBody = (await selected.json()) as { activeEntityId: string; type: string };
+    expect(firstBody.type).toBe("business");
+
+    const retry = await request();
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toEqual(firstBody);
+    expect(await CustomerEntity.count({ where: { profileId: user.id } })).toBe(1);
+
+    const changed = await api.request("/v1/onboarding/active-entity", {
+      body: JSON.stringify({ type: "individual" }),
+      headers: authHeaders(token),
+      method: "PUT"
+    });
+    expect(changed.status).toBe(409);
+
+    const status = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+    const statusBody = (await status.json()) as { activeEntityId: string | null; selectionRequired: boolean };
+    expect(statusBody.activeEntityId).toBe(firstBody.activeEntityId);
+    expect(statusBody.selectionRequired).toBe(false);
+  });
+
+  it("rejects an ambiguous same-type selection", async () => {
+    const { user, token } = await createAuthedUser("ambiguous@example.com");
+    await CustomerEntity.bulkCreate([
+      { profileId: user.id, status: "active", type: "individual" },
+      { profileId: user.id, status: "active", type: "individual" }
+    ]);
+
+    const response = await api.request("/v1/onboarding/active-entity", {
+      body: JSON.stringify({ type: "individual" }),
+      headers: authHeaders(token),
+      method: "PUT"
+    });
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("ACTIVE_ENTITY_AMBIGUOUS");
+  });
+
+  it("rejects a persisted selection owned by another profile", async () => {
+    const { user, token } = await createAuthedUser("owner@example.com");
+    const stranger = await createAuthedUser("stranger-owner@example.com");
+    const entity = await CustomerEntity.create({ profileId: stranger.user.id, status: "active", type: "individual" });
+    await user.update({ activeCustomerEntityId: entity.id });
+
+    const response = await api.request("/v1/onboarding/active-entity", {
+      body: JSON.stringify({ type: "individual" }),
+      headers: authHeaders(token),
+      method: "PUT"
+    });
+    expect(response.status).toBe(409);
+    expect(((await response.json()) as { error: { code: string } }).error.code).toBe("ACTIVE_ENTITY_OWNERSHIP_MISMATCH");
   });
 });

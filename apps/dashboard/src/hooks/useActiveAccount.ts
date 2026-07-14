@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccount } from "@/domain/types";
-import type { OnboardingState, OnboardingStatusResponse } from "@/services/api/onboarding.service";
+import type { OnboardingEntityDto, OnboardingState } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
 import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
@@ -26,34 +26,24 @@ const STATUS_RANK: Record<OnboardingStatus, number> = {
   started: 2
 };
 
-function deriveType(data: OnboardingStatusResponse | undefined): AccountType {
-  const hasBusiness = (data?.entities ?? []).some(entity => entity.type === "business" || entity.type === "company");
-  return hasBusiness ? "company" : "individual";
-}
-
-function deriveOnboardings(
-  data: OnboardingStatusResponse | undefined,
-  type: AccountType
-): Partial<Record<CorridorId, Onboarding>> {
+function deriveOnboardings(entity: OnboardingEntityDto, type: AccountType): Partial<Record<CorridorId, Onboarding>> {
   const kind = type === "company" ? "kyb" : "kyc";
   const onboardings: Partial<Record<CorridorId, Onboarding>> = {};
-  for (const entity of data?.entities ?? []) {
-    for (const account of entity.accounts) {
-      const corridorId = corridorFromProviderAccount(account);
-      if (!corridorId) {
-        continue;
-      }
-      const status = STATE_TO_STATUS[account.state];
-      const existing = onboardings[corridorId];
-      if (!existing || STATUS_RANK[status] > STATUS_RANK[existing.status]) {
-        onboardings[corridorId] = {
-          corridorId,
-          kind,
-          reauthenticationRequired: account.error?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
-          status,
-          updatedAt: new Date().toISOString()
-        };
-      }
+  for (const account of entity.accounts) {
+    const corridorId = corridorFromProviderAccount(account);
+    if (!corridorId) {
+      continue;
+    }
+    const status = STATE_TO_STATUS[account.state];
+    const existing = onboardings[corridorId];
+    if (!existing || STATUS_RANK[status] > STATUS_RANK[existing.status]) {
+      onboardings[corridorId] = {
+        corridorId,
+        kind,
+        reauthenticationRequired: account.error?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
+        status,
+        updatedAt: new Date().toISOString()
+      };
     }
   }
   return onboardings;
@@ -73,18 +63,22 @@ export function useActiveAccount(): SenderAccount | undefined {
   const overrides = useOnboardingOverrideStore(state => state.statuses);
 
   return useMemo(() => {
-    if (!user) {
+    if (!user || !data?.activeEntityId) {
       return undefined;
     }
-    const type = deriveType(data);
+    const entity = data.entities.find(candidate => candidate.id === data.activeEntityId);
+    if (!entity) {
+      return undefined;
+    }
+    const type: AccountType = entity.type === "business" ? "company" : "individual";
     const kind = type === "company" ? "kyb" : "kyc";
-    const onboardings = deriveOnboardings(data, type);
+    const onboardings = deriveOnboardings(entity, type);
     for (const [corridorId, status] of Object.entries(overrides) as [CorridorId, OnboardingStatus][]) {
       onboardings[corridorId] = { corridorId, kind, status, updatedAt: new Date().toISOString() };
     }
     const selectedCorridors = Object.keys(onboardings) as CorridorId[];
     return {
-      id: user.userId,
+      id: entity.id,
       identifier: user.email,
       name: user.name,
       onboardings,

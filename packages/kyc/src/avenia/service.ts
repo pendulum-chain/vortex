@@ -4,6 +4,7 @@ import type {
   BrlaGetKycStatusResponse,
   BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserResponse,
+  KybAttemptStatusResponse,
   KycLevel1Payload
 } from "@vortexfi/shared";
 import type { AveniaKycApi, KybLevel1Response } from "./api";
@@ -36,6 +37,9 @@ export function createAveniaKycApi(apiClient: AveniaKycApiClient): AveniaKycApi 
   return {
     createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse> {
       return apiClient.post<BrlaCreateSubaccountResponse>("/brla/createSubaccount", request);
+    },
+    getKybAttemptStatus(attemptId: string, signal?: AbortSignal): Promise<KybAttemptStatusResponse> {
+      return apiClient.get<KybAttemptStatusResponse>("/brla/kyb/attempt-status", { params: { attemptId }, signal });
     },
     getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse> {
       return apiClient.get<BrlaGetKycStatusResponse>("/brla/getKycStatus", { params: { quoteId, sessionId, taxId } });

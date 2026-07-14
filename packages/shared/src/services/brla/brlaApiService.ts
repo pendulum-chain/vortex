@@ -9,6 +9,7 @@ import {
   AveniaAccountType,
   AveniaDocumentGetResponse,
   AveniaDocumentType,
+  AveniaKybAttemptStatusResponse,
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
@@ -17,7 +18,6 @@ import {
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
-  KybAttemptStatusResponse,
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
@@ -367,7 +367,7 @@ export class BrlaApiService {
    * @param attemptId The KYB attempt ID
    * @returns The KYB attempt status
    */
-  public async getKybAttemptStatus(attemptId: string): Promise<KybAttemptStatusResponse> {
+  public async getKybAttemptStatus(attemptId: string): Promise<AveniaKybAttemptStatusResponse> {
     return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
   }
 

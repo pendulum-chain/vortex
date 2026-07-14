@@ -1,4 +1,4 @@
-import type { AlfredpayKycFormData, MxnKycFiles } from "@vortexfi/kyc";
+import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, MxnKycFiles } from "@vortexfi/kyc";
 import { useMachine } from "@xstate/react";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -8,6 +8,8 @@ import type { Corridor, OnboardingStatus } from "@/domain/types";
 import { alfredpayKycMachine } from "@/machines/alfredpayKyc.machine";
 import { CORRIDOR_COUNTRY } from "@/services/api/mappers";
 import { DocumentUploadScreen } from "./DocumentUploadScreen";
+import { KybDocumentUploadScreen } from "./KybDocumentUploadScreen";
+import { KybFormScreen } from "./KybFormScreen";
 import { type AlfredpayKycCountry, KycFormScreen } from "./KycFormScreen";
 
 interface AlfredpayKycFlowProps {
@@ -16,6 +18,7 @@ interface AlfredpayKycFlowProps {
   onSettled: (status: OnboardingStatus) => void;
   onClose: () => void;
   userEmail?: string;
+  business?: boolean;
 }
 
 /** Machine states that correspond to a status the rest of the dashboard cares about. */
@@ -27,19 +30,29 @@ const STATUS_BY_STATE: Record<string, OnboardingStatus> = {
 
 const BUSY_STATES = new Set([
   "CheckingStatus",
+  "ValidatingInput",
   "CreatingCustomer",
   "SubmittingKycInfo",
   "SubmittingFiles",
   "SendingSubmission",
-  "Retrying"
+  "Retrying",
+  "SubmittingKybInfo",
+  "SubmittingKybBusinessFiles",
+  "FindingKybCustomerAndBusiness",
+  "SubmittingKybRelatedPersonBundle",
+  "SendingKybSubmission",
+  "OpeningLink",
+  "FinishingFilling"
 ]);
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 py-8 text-center">{children}</div>;
 }
 
-export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: AlfredpayKycFlowProps) {
-  const [state, send] = useMachine(alfredpayKycMachine, { input: { country: CORRIDOR_COUNTRY[corridor.id] } });
+export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail, business = false }: AlfredpayKycFlowProps) {
+  const [state, send] = useMachine(alfredpayKycMachine, {
+    input: { business, country: CORRIDOR_COUNTRY[corridor.id] }
+  });
 
   const value = String(state.value);
   const { error, country } = state.context;
@@ -68,7 +81,7 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: Al
       <>
         <Centered>
           <p className="max-w-sm text-muted-foreground text-sm">
-            We'll create your {corridor.name} verification profile with Alfredpay, then collect your details.
+            We'll create your {corridor.name} {business ? "business" : "individual"} verification profile with Alfredpay.
           </p>
         </Centered>
         <DialogFooter>
@@ -94,6 +107,17 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: Al
     );
   }
 
+  if (value === "FillingKybForm" && (country === "MX" || country === "CO")) {
+    return (
+      <KybFormScreen
+        country={country}
+        onCancel={onClose}
+        onSubmit={(data: KybFormData) => send({ data, type: "SUBMIT_KYB_FORM" })}
+        userEmail={userEmail}
+      />
+    );
+  }
+
   if (value === "UploadingDocuments") {
     return (
       <DocumentUploadScreen
@@ -102,6 +126,56 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: Al
         onBack={() => send({ type: "GO_BACK" })}
         onSubmit={(files: MxnKycFiles) => send({ files, type: "SUBMIT_FILES" })}
       />
+    );
+  }
+
+  if (value === "UploadingKybBusinessDocs") {
+    return (
+      <KybDocumentUploadScreen
+        error={error?.message}
+        onBack={() => send({ type: "GO_BACK" })}
+        onSubmit={(files: KybBusinessFiles) => send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" })}
+      />
+    );
+  }
+
+  if (value === "LinkReady") {
+    return (
+      <>
+        <Centered>
+          <div>
+            <p className="font-medium">Continue with Alfredpay</p>
+            <p className="max-w-sm text-muted-foreground text-sm">
+              Alfredpay hosts the US {business ? "KYB" : "KYC"} process in a secure new tab.
+            </p>
+          </div>
+        </Centered>
+        <DialogFooter>
+          <Button onClick={onClose} variant="ghost">
+            Cancel
+          </Button>
+          <Button onClick={() => send({ type: "OPEN_LINK" })}>Open Alfredpay</Button>
+        </DialogFooter>
+      </>
+    );
+  }
+
+  if (value === "FillingKyc") {
+    return (
+      <>
+        <Centered>
+          <div>
+            <p className="font-medium">Complete verification with Alfredpay</p>
+            <p className="max-w-sm text-muted-foreground text-sm">Return here after completing the hosted form.</p>
+          </div>
+        </Centered>
+        <DialogFooter>
+          <Button onClick={() => send({ type: "OPEN_LINK" })} variant="outline">
+            Reopen Alfredpay
+          </Button>
+          <Button onClick={() => send({ type: "COMPLETED_FILLING" })}>I've completed it</Button>
+        </DialogFooter>
+      </>
     );
   }
 
@@ -133,7 +207,9 @@ export function AlfredpayKycFlow({ corridor, onSettled, onClose, userEmail }: Al
           <CheckCircle2 className="size-10 text-success" />
           <div>
             <p className="font-medium">Approved</p>
-            <p className="text-muted-foreground text-sm">{corridor.name} KYC is complete. You can now register recipients.</p>
+            <p className="text-muted-foreground text-sm">
+              {corridor.name} {business ? "KYB" : "KYC"} is complete. You can now register recipients.
+            </p>
           </div>
         </Centered>
         <DialogFooter>

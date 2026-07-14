@@ -1,6 +1,14 @@
 import { describe, expect, it } from "bun:test";
 import { AlfredpayArgentinaDocumentType, AlfredpayColombiaDocumentType } from "@vortexfi/shared";
-import { arKycSchema, colKycSchema, mxnKycSchema, toArPhoneNumber, toColPhoneNumber } from "./schemas";
+import {
+  arKycSchema,
+  colKycSchema,
+  kybFormSchema,
+  mapKybFormValues,
+  mxnKycSchema,
+  toArPhoneNumber,
+  toColPhoneNumber
+} from "./schemas";
 
 const mxn = {
   address: "Av. Reforma 1",
@@ -140,5 +148,57 @@ describe("phone normalisers", () => {
   it("produces phone numbers the schemas accept", () => {
     expect(arKycSchema.safeParse({ ...ar, phoneNumber: toArPhoneNumber("91112345678") }).success).toBe(true);
     expect(colKycSchema.safeParse({ ...col, phoneNumber: toColPhoneNumber("573000000000") }).success).toBe(true);
+  });
+});
+
+describe("kybFormSchema", () => {
+  const kyb = {
+    address: "Av. Reforma 1",
+    businessName: "ACME Mexico",
+    city: "CDMX",
+    repDateOfBirth: "1985-02-14",
+    repDni: "REP123",
+    repEmail: "owner@acme.example",
+    repFirstName: "Ada",
+    repLastName: "Lovelace",
+    repNationality: "MX",
+    state: "CDMX",
+    taxId: "ACM010101ABC",
+    website: "https://acme.example",
+    zipCode: "06600"
+  };
+
+  it("accepts a complete MX/CO company submission", () => {
+    expect(kybFormSchema.safeParse(kyb).success).toBe(true);
+  });
+
+  it("rejects malformed representative and company fields", () => {
+    expect(kybFormSchema.safeParse({ ...kyb, repDateOfBirth: "14/02/1985" }).success).toBe(false);
+    expect(kybFormSchema.safeParse({ ...kyb, repEmail: "owner@" }).success).toBe(false);
+    expect(kybFormSchema.safeParse({ ...kyb, repNationality: "Mexico" }).success).toBe(false);
+    expect(kybFormSchema.safeParse({ ...kyb, website: "acme" }).success).toBe(false);
+  });
+
+  it("maps flat form values to the Alfredpay related-person payload", () => {
+    expect(mapKybFormValues(kyb)).toEqual({
+      address: "Av. Reforma 1",
+      businessName: "ACME Mexico",
+      city: "CDMX",
+      relatedPersons: [
+        {
+          dateOfBirth: "1985-02-14",
+          dni: "REP123",
+          email: "owner@acme.example",
+          firstName: "Ada",
+          lastName: "Lovelace",
+          nationalities: ["MX"]
+        }
+      ],
+      state: "CDMX",
+      taxId: "ACM010101ABC",
+      website: "https://acme.example",
+      zipCode: "06600"
+    });
+    expect(mapKybFormValues({ ...kyb, repDni: "" }).relatedPersons[0]?.dni).toBeUndefined();
   });
 });
