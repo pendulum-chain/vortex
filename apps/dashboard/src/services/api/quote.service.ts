@@ -1,8 +1,8 @@
+import { type CreateQuoteRequest, EvmToken, type QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { USDC_RATES } from "@/domain/transfer";
 import type { CorridorId } from "@/domain/types";
 import { apiClient } from "./api-client";
 import { CORRIDOR_COUNTRY, CORRIDOR_FIAT, CORRIDOR_PAYMENT_METHOD, toWireNetwork } from "./mappers";
-import { type CreateQuoteRequest, type QuoteResponse, RampDirection } from "./types";
 
 export interface OfframpQuoteParams {
   corridorId: CorridorId;
@@ -19,7 +19,7 @@ export function buildOfframpQuoteRequest(params: OfframpQuoteParams, inputAmount
     countryCode: CORRIDOR_COUNTRY[corridorId],
     from: toWireNetwork(network),
     inputAmount,
-    inputCurrency: "USDC",
+    inputCurrency: EvmToken.USDC,
     network: toWireNetwork(network),
     outputCurrency: CORRIDOR_FIAT[corridorId],
     paymentMethod: CORRIDOR_PAYMENT_METHOD[corridorId],

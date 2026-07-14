@@ -1,13 +1,20 @@
-import { type GetRampHistoryTransaction, TransactionStatus as WireTransactionStatus } from "@vortexfi/shared";
+import {
+  type FiatToken,
+  type GetRampHistoryTransaction,
+  RampDirection,
+  TransactionStatus as WireTransactionStatus
+} from "@vortexfi/shared";
 import type { Transaction, TransactionStatus } from "@/domain/types";
 import { CORRIDOR_BY_FIAT } from "./mappers";
-import { type FiatToken, RampDirection } from "./types";
 
-function mapStatus(status: WireTransactionStatus): TransactionStatus {
-  if (status === WireTransactionStatus.COMPLETE) {
+export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "currentPhase" | "status">): TransactionStatus {
+  if (tx.currentPhase === "timedOut") {
+    return "cancelled";
+  }
+  if (tx.status === WireTransactionStatus.COMPLETE) {
     return "completed";
   }
-  if (status === WireTransactionStatus.FAILED) {
+  if (tx.status === WireTransactionStatus.FAILED) {
     return "failed";
   }
   return "processing";
@@ -42,6 +49,6 @@ export function mapRampHistoryTransaction(
     payoutCurrency: String(tx.toCurrency),
     recipientEmail: "",
     recipientId: "",
-    status: mapStatus(tx.status)
+    status: mapTransactionStatus(tx)
   };
 }

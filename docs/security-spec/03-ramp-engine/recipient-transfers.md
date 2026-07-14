@@ -45,8 +45,9 @@ out against another tenant's relationship.
 4. **Redemption requires authentication and cannot be self-directed.** The redeemer must hold a
    valid session; a redeemer whose profile owns the sender entity gets
    `409 CANNOT_ACCEPT_OWN_INVITE`. The widget retains the `invite` query parameter through email
-   OTP authentication and calls `POST /recipients/invite/:token/accept` before starting the locked
-   region's onboarding flow.
+   OTP authentication and calls `POST /recipients/invite/:token/accept` before onboarding. The
+   accepted invitation response, not the editable URL, selects the locked corridor and recipient
+   type. Provider records are attached to the corresponding individual or business entity.
 5. **A `blocked` relationship is never resurrected by a new invite.** Acceptance against a
    blocked pair returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs

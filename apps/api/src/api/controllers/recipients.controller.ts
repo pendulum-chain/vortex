@@ -214,6 +214,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       invitation: {
         country: invitation.country,
         id: invitation.id,
+        inviteeType: invitation.inviteeType,
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail
       },

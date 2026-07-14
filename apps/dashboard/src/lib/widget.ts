@@ -10,7 +10,7 @@ const WIDGET_URL: string = import.meta.env.VITE_WIDGET_URL ?? "http://127.0.0.1:
 /**
  * Widget onboarding entry point for a corridor — the **recipient** hand-off (plan §6.2).
  * Senders onboard in the dashboard (§6.1). Deep-linkable corridors pin the region
- * (`?kybLocked=`); EU has no widget KYB region, so it opens the widget home.
+ * (`?kybLocked=`). The accepted invitation remains authoritative if the URL is edited.
  */
 export function onboardingUrl(corridorId: CorridorId, inviteToken?: string): string {
   const region = CORRIDOR_KYB_REGION[corridorId];

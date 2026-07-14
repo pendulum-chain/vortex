@@ -365,7 +365,7 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
 
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.

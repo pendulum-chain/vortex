@@ -1,5 +1,5 @@
+import { EPaymentMethod, FiatToken, Networks, type PaymentMethod } from "@vortexfi/shared";
 import type { CorridorId } from "@/domain/types";
-import { EPaymentMethod, FiatToken, Networks, type PaymentMethod } from "./types";
 
 /** Dashboard corridor → wire FiatToken (note EURC → "EUR"). */
 export const CORRIDOR_FIAT: Record<CorridorId, FiatToken> = {
@@ -67,6 +67,7 @@ export const CORRIDOR_KYB_REGION: Partial<Record<CorridorId, string>> = {
   AR: "AR",
   BR: "BR",
   CO: "CO",
+  EU: "EU",
   MX: "MX",
   US: "US"
 };

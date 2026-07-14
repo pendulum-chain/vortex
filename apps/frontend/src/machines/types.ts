@@ -49,6 +49,7 @@ export interface RampContext {
   postAuthTarget?: "QuoteReady" | "RegisterRamp" | "SelectRegion";
   // Present only in the quote-less KYB deep-link flow — its presence enables the mode.
   kybLink?: {
+    customerType?: "individual" | "business";
     // Drives KYC provider routing when there is no quote (set from the region selector).
     fiatToken?: FiatToken;
     // Bearer token redeemed after authentication and before KYC starts.
@@ -93,6 +94,7 @@ export type RampMachineEvents =
   | { type: "LOGOUT" }
   | { type: "GO_BACK" }
   | { type: "START_KYB_LINK"; invite?: string; region?: string; locked?: boolean }
+  | { type: "RETRY_INVITE" }
   | { type: "SELECT_REGION"; fiatToken: FiatToken };
 
 export type RampMachineActor = ActorRef<Snapshot<unknown>, RampMachineEvents>;

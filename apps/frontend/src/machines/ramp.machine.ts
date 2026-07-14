@@ -28,6 +28,11 @@ import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./t
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 const QUOTE_REFRESH_RETRY_DELAY_MS = 30000;
 
+function fiatTokenFromInvite(payoutCurrency: string): FiatToken | undefined {
+  const normalized = payoutCurrency.toUpperCase();
+  return Object.values(FiatToken).find(token => token === normalized);
+}
+
 function mergeRampStatePreservingPaymentInfo(prev: RampState | undefined, next: RampState): RampState {
   if (!prev?.ramp) return next;
   const prevRamp = prev.ramp;
@@ -384,6 +389,10 @@ export const rampMachine = setup({
       on: {
         RESET_RAMP: {
           target: "Resetting"
+        },
+        RETRY_INVITE: {
+          guard: ({ context }) => !!context.kybLink?.invite,
+          target: "RedeemingInvite"
         }
       }
     },
@@ -662,6 +671,15 @@ export const rampMachine = setup({
           return { token };
         },
         onDone: {
+          actions: assign({
+            errorMessage: undefined,
+            kybLink: ({ context, event }) => ({
+              ...context.kybLink,
+              customerType: event.output.invitation.inviteeType,
+              fiatToken: fiatTokenFromInvite(event.output.invitation.payoutCurrency),
+              regionLocked: true
+            })
+          }),
           target: "SelectRegion"
         },
         onError: {

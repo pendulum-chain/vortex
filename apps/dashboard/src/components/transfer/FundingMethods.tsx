@@ -1,3 +1,4 @@
+import type { QuoteResponse } from "@vortexfi/shared";
 import { ConnectKitButton } from "connectkit";
 import { ArrowDownToLine, Check, Copy, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -5,7 +6,6 @@ import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { shortenAddress } from "@/domain/transfer";
-import type { QuoteResponse } from "@/services/api/types";
 
 export type FundingSource = "wallet" | "crypto";
 

@@ -17,8 +17,9 @@ export function mapPhaseToStatus(phase: string): DomainTransactionStatus {
     case "complete":
       return "completed";
     case "failed":
-    case "timedOut":
       return "failed";
+    case "timedOut":
+      return "cancelled";
     default:
       return "processing";
   }

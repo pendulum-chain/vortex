@@ -152,7 +152,7 @@ export async function findAlfredpayCustomer(
   country: AlfredPayCountry,
   type?: AlfredpayCustomerType
 ): Promise<AlfredpayCustomerView | null> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, type ? alfredpayTypeToCustomerType(type) : undefined);
   const record = await ProviderCustomer.findOne({
     order: [["updatedAt", "DESC"]],
     where: {
@@ -169,11 +169,12 @@ export async function createAlfredpayCustomer(
   userId: string,
   values: { alfredPayId: string; country: AlfredPayCountry; status: AlfredPayStatus; type: AlfredpayCustomerType }
 ): Promise<AlfredpayCustomerView> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const customerType = alfredpayTypeToCustomerType(values.type);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
   const record = await ProviderCustomer.create({
     country: values.country,
     customerEntityId: entity.id,
-    customerType: alfredpayTypeToCustomerType(values.type),
+    customerType,
     provider: "alfredpay",
     providerCustomerId: values.alfredPayId,
     rail: COUNTRY_RAIL[values.country] ?? null,

@@ -1,15 +1,7 @@
+import type { AcceptedRecipientInvite } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
-export interface AcceptedRecipientInvite {
-  id: string;
-  invitation: {
-    country: string;
-    id: string;
-    payoutCurrency: string;
-    rail: string;
-  };
-  relationshipStatus: "active" | "archived";
-}
+export type { AcceptedRecipientInvite } from "@vortexfi/shared";
 
 export const RecipientsService = {
   acceptInvite: (token: string) =>

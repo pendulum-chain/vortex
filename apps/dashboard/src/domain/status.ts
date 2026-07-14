@@ -18,6 +18,7 @@ export const STATUS_META: Record<OnboardingStatus, StatusMeta> = {
 
 export const TX_STATUS_META: Record<TransactionStatus, { label: string; badgeVariant: StatusMeta["badgeVariant"] }> = {
   awaiting_payin: { badgeVariant: "warning", label: "Awaiting payin" },
+  cancelled: { badgeVariant: "secondary", label: "Cancelled" },
   completed: { badgeVariant: "success", label: "Completed" },
   failed: { badgeVariant: "destructive", label: "Failed" },
   processing: { badgeVariant: "info", label: "Processing" }

@@ -1,7 +1,6 @@
-import type { GetRampStatusResponse, RampProcess, UnsignedTx } from "@vortexfi/shared";
+import type { GetRampStatusResponse, QuoteResponse, RampProcess, UnsignedTx } from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
-import type { QuoteResponse } from "@/services/api/types";
 import {
   pollRampUntilTerminal,
   type RegisterTransferInput,
@@ -86,6 +85,9 @@ export const transferMachine = setup({
   context: initialContext,
   id: "transfer",
   initial: "Idle",
+  on: {
+    RESET: { actions: assign(() => initialContext), target: ".Idle" }
+  },
   states: {
     Done: {
       on: {

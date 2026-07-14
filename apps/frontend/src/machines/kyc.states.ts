@@ -76,8 +76,7 @@ export const kycStateNode = {
           const fiatToken = resolveKycFiatToken(context);
           const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
-            // A KYB deep link is business verification by definition; preselect the business customer type.
-            business: context.kybLink ? true : undefined,
+            business: context.kybLink ? context.kybLink.customerType === "business" : undefined,
             country
           };
         },

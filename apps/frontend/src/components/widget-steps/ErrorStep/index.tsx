@@ -27,13 +27,14 @@ export function ErrorStep({ className }: ErrorStepProps) {
   const { t } = useTranslation();
   const rampActor = useRampActor();
 
-  const { apiKey, errorMessage } = useSelector(rampActor, state => ({
+  const { apiKey, errorMessage, invite } = useSelector(rampActor, state => ({
     apiKey: state.context.apiKey,
-    errorMessage: state.context.errorMessage
+    errorMessage: state.context.errorMessage,
+    invite: state.context.kybLink?.invite
   }));
 
   const handleRetry = () => {
-    rampActor.send({ type: "RESET_RAMP" });
+    rampActor.send({ type: invite ? "RETRY_INVITE" : "RESET_RAMP" });
   };
 
   return (

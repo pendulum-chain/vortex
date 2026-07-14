@@ -13,6 +13,11 @@ export const transferActor = createActor(transferMachine);
 
 const notifiedRampIds = new Set<string>();
 
+export function resetTransferState() {
+  notifiedRampIds.clear();
+  transferActor.send({ type: "RESET" });
+}
+
 function refreshTransactions() {
   queryClient.invalidateQueries({ queryKey: [TRANSACTIONS_QUERY_KEY] });
 }

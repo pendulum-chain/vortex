@@ -67,7 +67,7 @@ type ValidateKycOutput = { kycNeeded: boolean; brlaEvmAddress?: string };
 
 const acceptedInvite: AcceptedRecipientInvite = {
   id: "relationship-1",
-  invitation: { country: "BR", id: "invitation-1", payoutCurrency: "brl", rail: "brl" },
+  invitation: { country: "BR", id: "invitation-1", inviteeType: "individual", payoutCurrency: "brl", rail: "brl" },
   relationshipStatus: "active"
 };
 
@@ -627,7 +627,13 @@ describe("rampMachine", () => {
       expect(acceptRecipientInvite).toHaveBeenCalledWith(expect.objectContaining({ input: { token: "invite-token" } }));
 
       acceptance.resolve(acceptedInvite);
-      await waitFor(actor, s => s.matches("SelectRegion"));
+      await waitFor(actor, s => s.matches("KYC"));
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "individual",
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
     });
 
     it("accepts an invite only after a new user completes OTP authentication", async () => {
@@ -647,7 +653,7 @@ describe("rampMachine", () => {
       expect(acceptRecipientInvite).not.toHaveBeenCalled();
 
       actor.send({ code: "123456", type: "VERIFY_OTP" });
-      await waitFor(actor, s => s.matches("SelectRegion"));
+      await waitFor(actor, s => s.matches("KYC"));
       expect(acceptRecipientInvite).toHaveBeenCalledTimes(1);
     });
 
@@ -663,6 +669,30 @@ describe("rampMachine", () => {
       await waitFor(actor, s => s.matches("Error"));
 
       expect(actor.getSnapshot().context.errorMessage).toBe("This invitation has expired");
+    });
+
+    it("retries invite acceptance without clearing its context", async () => {
+      let attempts = 0;
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => {
+          attempts += 1;
+          if (attempts === 1) throw new Error("Temporary failure");
+          return acceptedInvite;
+        })
+      });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: true, region: "MX", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("Error"));
+      actor.send({ type: "RETRY_INVITE" });
+      await waitFor(actor, s => s.matches("KYC"));
+
+      expect(attempts).toBe(2);
+      expect(actor.getSnapshot().context.kybLink).toMatchObject({
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
     });
   });
 

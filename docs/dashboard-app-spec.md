@@ -140,14 +140,40 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - **EU recipient onboarding remains a separate follow-up.** Sender onboarding now supports
-    Monerium KYC and KYB in the dashboard, but the widget invite route still excludes EU. `#review`
+  - EU invite links use `?kybLocked=EU`; after acceptance, the invitation response remains
+    authoritative for both corridor and individual/business onboarding even if the URL is edited.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`
 
 - **Backend is the same API.** Shared `/v1/quotes`, `/v1/ramp/*`, `/v1/auth/*`,
   `/v1/onboarding/status`, plus dashboard-only `/v1/recipients/*` and `/v1/notifications`.
+
+## Acknowledged gaps
+
+- Only self-offramp is fully functional. Third-party recipient payments and fiat-funded
+  fiat-to-fiat payments remain future work.
+- Recipient payout-instrument registration is not implemented. The product and provider contract
+  must define how payout instruments are created for both senders creating links and recipients
+  redeeming them, while keeping raw bank PII provider-side.
+
+## Next steps
+
+- Display relationship status and authoritative transfer eligibility, including the reason a
+  recipient is not payable, instead of deriving availability from onboarding status alone.
+- Connect the dashboard notification feed and its three preference controls to the backend.
+- Consider persisting intended corridor selection independently of provider entities. A small
+  backend table could support adding/removing tracked corridors and explicit status management;
+  provider-created entities remain the authoritative persisted onboarding state meanwhile.
+- Preserve and display invitation amounts after creation, and add the remaining recipient
+  management actions such as nickname, block, archive, reactivate, and revoke.
+
+## Open questions
+
+- Where is account type selected and persisted independently of provider onboarding, and which
+  identifier should Settings display for profiles that have both individual and business entities?
+- Should an account expose one active sender entity at a time, or allow explicit switching between
+  individual and company entities?
 
 ---
 

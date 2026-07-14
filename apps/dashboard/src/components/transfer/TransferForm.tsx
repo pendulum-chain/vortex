@@ -1,4 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
+import { QuoteError } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
@@ -16,7 +17,6 @@ import type { Recipient, SenderAccount } from "@/domain/types";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
 import { transferActor } from "@/machines/transferActor";
 import { useOfframpQuote } from "@/services/api/hooks";
-import { extractBackendLimit, QuoteError } from "@/services/api/types";
 import { FundingMethods, type FundingSubmit } from "./FundingMethods";
 import { QuoteSummary } from "./QuoteSummary";
 
@@ -24,6 +24,14 @@ interface TransferFormProps {
   account: SenderAccount;
   recipients: Recipient[];
   preselectRecipientId?: string;
+}
+
+function extractBackendLimit(message: string): { value: string; currency: string } | undefined {
+  const match = message.match(/of\s+(\d+(?:\.\d+)?)\s+([A-Z]{3})/);
+  if (!match?.[1] || !match[2]) {
+    return undefined;
+  }
+  return { currency: match[2], value: match[1] };
 }
 
 function friendlyQuoteError(message: string): string {

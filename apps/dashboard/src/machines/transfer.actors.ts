@@ -10,13 +10,13 @@ import {
   isSignedTypedDataArray,
   Networks,
   type PresignedTx,
+  type QuoteResponse,
   type RampProcess,
   type RegisterRampRequest,
   signUnsignedTransactions,
   type UnsignedTx
 } from "@vortexfi/shared";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
-import type { QuoteResponse } from "@/services/api/types";
 import { signAndSubmitEvmTransaction, signMultipleTypedData } from "@/services/transactions/userSigning";
 
 const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY;

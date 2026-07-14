@@ -1,3 +1,4 @@
+import type { CustomerEntityType } from "../../models/customerEntity.model";
 import CustomerEntity from "../../models/customerEntity.model";
 
 /**
@@ -6,14 +7,17 @@ import CustomerEntity from "../../models/customerEntity.model";
  * verify-otp creates one for new sign-ups, but users with pre-existing sessions never
  * re-verify — every entity-scoped read path must tolerate that via this lazy fallback.
  */
-export async function getOrCreateCustomerEntityForProfile(profileId: string): Promise<CustomerEntity> {
+export async function getOrCreateCustomerEntityForProfile(
+  profileId: string,
+  type?: CustomerEntityType
+): Promise<CustomerEntity> {
   const [entity] = await CustomerEntity.findOrCreate({
     defaults: {
       profileId,
       status: "active",
-      type: "individual"
+      type: type ?? "individual"
     },
-    where: { profileId }
+    where: { profileId, ...(type ? { type } : {}) }
   });
   return entity;
 }

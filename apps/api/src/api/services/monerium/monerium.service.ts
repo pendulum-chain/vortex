@@ -313,7 +313,7 @@ export async function startMoneriumOAuth(
   if (!config.monerium.clientId) {
     throw new APIError({ message: "Monerium OAuth is not configured", status: httpStatus.SERVICE_UNAVAILABLE });
   }
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
   if (entity.type !== customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
   }
@@ -357,12 +357,18 @@ export async function startMoneriumOAuth(
   return { authorizationUrl: url.toString() };
 }
 
-function consumeOAuthTransaction(state: string, userId: string, customerEntityId: string): OAuthTransaction {
+function readOAuthTransaction(state: string): OAuthTransaction {
   const key = stateCacheKey(state);
   const pending = cache.get<OAuthTransaction>(key);
   if (!pending) {
     throw new APIError({ message: "Invalid or expired OAuth state", status: httpStatus.BAD_REQUEST });
   }
+  return pending;
+}
+
+function consumeOAuthTransaction(state: string, userId: string, customerEntityId: string): OAuthTransaction {
+  const key = stateCacheKey(state);
+  const pending = readOAuthTransaction(state);
   if (pending.userId !== userId || pending.customerEntityId !== customerEntityId) {
     throw new APIError({ message: "OAuth transaction does not belong to this user", status: httpStatus.FORBIDDEN });
   }
@@ -374,7 +380,8 @@ function consumeOAuthTransaction(state: string, userId: string, customerEntityId
 }
 
 export async function completeMoneriumOAuth(userId: string, code: string, state: string): Promise<MoneriumStatusResponse> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const transaction = readOAuthTransaction(state);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, transaction.customerType);
   const pending = consumeOAuthTransaction(state, userId, entity.id);
   if (entity.type !== pending.customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
@@ -398,7 +405,7 @@ export async function completeMoneriumOAuth(userId: string, code: string, state:
 }
 
 export async function getMoneriumStatus(userId: string, customerType: ProviderCustomerType): Promise<MoneriumStatusResponse> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
   if (entity.type !== customerType) {
     throw new APIError({ message: "customerType does not match the authenticated entity", status: httpStatus.BAD_REQUEST });
   }

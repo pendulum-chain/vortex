@@ -60,7 +60,7 @@ export interface SenderAccount {
 }
 
 /** Wallet-to-fiat payout lifecycle: fund the payin wallet, then settle to the recipient bank. */
-export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | "failed";
+export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | "failed" | "cancelled";
 
 export interface Transaction {
   id: string;

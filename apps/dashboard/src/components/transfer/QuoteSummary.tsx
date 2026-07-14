@@ -1,3 +1,4 @@
+import type { QuoteResponse } from "@vortexfi/shared";
 import { ChevronDown, Info, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -5,11 +6,10 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/cn";
 import { springSnappy } from "@/lib/motion";
-import type { QuoteResponse } from "@/services/api/types";
 
 const QUOTE_TTL_SECONDS = 60;
 
-function useSecondsLeft(expiresAt: string | undefined): number {
+function useSecondsLeft(expiresAt: Date | string | undefined): number {
   const [now, setNow] = useState(() => Date.now());
   // External sync: tick once a second to drive the quote-expiry countdown.
   useEffect(() => {

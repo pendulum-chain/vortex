@@ -96,6 +96,20 @@ describe("POST /v1/recipients/invite", () => {
 });
 
 describe("POST /v1/recipients/invite/:token/accept", () => {
+  it("returns the invitee type and binds business recipients to a business entity", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("business-recipient@example.com");
+    const invite = await createInvite(sender.token, { inviteeType: "business" });
+
+    const { status, body } = await acceptInvite(recipient.token, invite.body.token as string);
+
+    expect(status).toBe(201);
+    expect((body.invitation as { inviteeType: string }).inviteeType).toBe("business");
+    const relationship = await SenderRecipient.findByPk(body.id as string);
+    const entity = await CustomerEntity.findByPk(relationship?.recipientCustomerEntityId);
+    expect(entity?.type).toBe("business");
+  });
+
   it("accepts a pending invite, creating an active relationship and notifying the sender", async () => {
     const sender = await createAuthedUser("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");

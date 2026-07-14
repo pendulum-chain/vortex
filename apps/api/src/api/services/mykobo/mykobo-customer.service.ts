@@ -49,7 +49,7 @@ async function syncKycCase(record: ProviderCustomer): Promise<void> {
 }
 
 async function upsertMykoboCustomer({ userId, email, status, statusExternal }: UpsertArgs): Promise<void> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, "individual");
   const existing = await ProviderCustomer.findOne({
     where: { customerEntityId: entity.id, provider: "mykobo" }
   });
@@ -123,7 +123,7 @@ export async function resolveMykoboCustomerForUser(userId: string, providedEmail
   // Refresh the KYC mirror from the live Mykobo profile, then gate on an approved customer.
   await syncMykoboCustomerKyc(userId, email);
 
-  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const entity = await getOrCreateCustomerEntityForProfile(userId, "individual");
   const customer = await ProviderCustomer.findOne({
     where: { customerEntityId: entity.id, provider: "mykobo" }
   });
