@@ -5,6 +5,13 @@ import { seedSession } from "./support/session";
 // The _app layout route gates every page behind a session (src/routes/_app.tsx), and /login
 // bounces an already-authenticated user back out (src/routes/login.tsx).
 
+test("the local server root redirects into the dashboard", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page).toHaveURL(/\/dashboard\/login/, { timeout: 20_000 });
+  await expect(page.getByText("Connect with Vortex")).toBeVisible();
+});
+
 test("an unauthenticated deep link redirects to the login page", async ({ page }) => {
   await mockBackend(page);
 

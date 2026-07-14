@@ -18,6 +18,21 @@ export default defineConfig({
     "process.env": {}
   },
   plugins: [
+    {
+      configureServer(server) {
+        server.middlewares.use((request, response, next) => {
+          if (request.url !== "/") {
+            next();
+            return;
+          }
+
+          response.statusCode = 302;
+          response.setHeader("Location", "/dashboard/");
+          response.end();
+        });
+      },
+      name: "dashboard-dev-root-redirect"
+    },
     // tanstackRouter() must be before react()
     tanstackRouter({ autoCodeSplitting: true, target: "react" }),
     tailwindcss(),
