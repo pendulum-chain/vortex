@@ -289,6 +289,7 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
             order: [["updatedAt", "DESC"]],
             where: {
               customerEntityId: recipient.id,
+              customerType: invitation.inviteeType,
               provider,
               ...(provider === "alfredpay" ? { country: invitation.country } : {})
             }

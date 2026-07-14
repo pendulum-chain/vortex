@@ -342,6 +342,46 @@ describe("GET /v1/recipients", () => {
     expect(afterBody.recipients[0].onboardingStatus).toBe("pending");
     expect(afterBody.recipients[0].invitation.rail).toBe("mxn");
   });
+
+  it("does not report a business recipient approved off an individual provider approval", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token, { inviteeType: "business" });
+    await acceptInvite(recipient.token, invite.body.token as string);
+
+    const recipientEntity = await CustomerEntity.findOne({ where: { profileId: recipient.user.id, type: "business" } });
+    if (!recipientEntity) throw new Error("recipient business entity missing");
+    // Approved as an individual only — the business invite's corridor is still unonboarded,
+    // so the summary must agree with the eligibility gate and stay pending.
+    await ProviderCustomer.create({
+      country: "MX",
+      customerEntityId: recipientEntity.id,
+      customerType: "individual",
+      provider: "alfredpay",
+      providerCustomerId: "alfredpay-individual-1",
+      rail: "mxn",
+      status: VerificationStatus.Approved
+    });
+
+    const response = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const body = (await response.json()) as { recipients: Array<{ onboardingStatus: string }> };
+    expect(body.recipients).toHaveLength(1);
+    expect(body.recipients[0].onboardingStatus).toBe("pending");
+
+    await ProviderCustomer.create({
+      country: "MX",
+      customerEntityId: recipientEntity.id,
+      customerType: "business",
+      provider: "alfredpay",
+      providerCustomerId: "alfredpay-business-1",
+      rail: "mxn",
+      status: VerificationStatus.Approved
+    });
+
+    const afterBusiness = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const afterBody = (await afterBusiness.json()) as { recipients: Array<{ onboardingStatus: string }> };
+    expect(afterBody.recipients[0].onboardingStatus).toBe("approved");
+  });
 });
 
 describe("PATCH /v1/recipients/:id", () => {

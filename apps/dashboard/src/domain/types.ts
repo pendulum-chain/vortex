@@ -19,7 +19,7 @@ export type OnboardingRoute = "headless" | "google_form" | "redirect";
 
 export type AccountType = "company" | "individual";
 
-export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected";
+export type RecipientStatus = "invite_sent" | "pending" | "approved" | "rejected" | "expired";
 
 export type RecipientMethod = "pix" | "iban" | "spei" | "ach";
 

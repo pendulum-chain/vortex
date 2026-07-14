@@ -300,7 +300,9 @@ export const useSetRampUrlParams = () => {
 
     // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
     // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.
-    if (kybMode) {
+    // An invite token alone implies the recipient hand-off even when the link carries no KYB
+    // region flag — the accepted invitation locks the corridor, so the token must never be dropped.
+    if (kybMode || invite) {
       if (externalSessionId) {
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }

@@ -673,6 +673,25 @@ describe("rampMachine", () => {
       });
     });
 
+    it("locks the corridor from the accepted invite when the link carried no region", async () => {
+      const acceptRecipientInvite = vi.fn(async (): Promise<AcceptedRecipientInvite> => acceptedInvite);
+      const actor = createRampActor({ acceptRecipientInvite: fromPromise(acceptRecipientInvite) });
+      actor.start();
+
+      // A bare ?invite= link (no kyb/kybLocked region) must still redeem the token; the
+      // response's payoutCurrency is the only corridor source.
+      actor.send({ invite: "invite-token", locked: false, region: undefined, type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("KYC"));
+
+      expect(acceptRecipientInvite).toHaveBeenCalledTimes(1);
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "individual",
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
+    });
+
     it("accepts an invite only after a new user completes OTP authentication", async () => {
       const acceptRecipientInvite = vi.fn(async (): Promise<AcceptedRecipientInvite> => acceptedInvite);
       const actor = createRampActor({

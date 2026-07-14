@@ -94,7 +94,7 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
     name: dto.inviteeEmail ?? undefined,
     payoutCurrency: corridor.currency,
     recipientType: toAccountType(dto.inviteeType),
-    status: dto.isExpired ? "rejected" : "invite_sent"
+    status: dto.isExpired ? "expired" : "invite_sent"
   };
 }
 

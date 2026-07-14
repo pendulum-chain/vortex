@@ -93,8 +93,8 @@ function RecipientAction({ recipient, provider }: { recipient: Recipient; provid
     return <span className="text-muted-foreground text-xs">Invite sent</span>;
   }
 
-  if (recipient.status === "rejected") {
-    return <span className="text-muted-foreground text-xs">Expired</span>;
+  if (recipient.status === "expired" || recipient.status === "rejected") {
+    return <span className="text-muted-foreground text-xs">{RECIPIENT_STATUS_META[recipient.status].label}</span>;
   }
 
   return <span className="text-muted-foreground text-xs">Awaiting {provider} review</span>;
