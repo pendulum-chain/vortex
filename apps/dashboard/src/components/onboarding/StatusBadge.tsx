@@ -8,7 +8,8 @@ const ICONS: Record<OnboardingStatus, typeof CheckCircle2> = {
   in_review: Loader2,
   not_started: CircleDashed,
   pending: Clock,
-  rejected: XCircle
+  rejected: XCircle,
+  started: Clock
 };
 
 export function StatusBadge({ status }: { status: OnboardingStatus }) {

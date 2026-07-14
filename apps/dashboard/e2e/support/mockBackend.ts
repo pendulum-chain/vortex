@@ -12,7 +12,7 @@ export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
 
-type OnboardingState = "approved" | "in_review" | "pending" | "rejected";
+type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "started";
 
 /**
  * One MX/Alfredpay account under an individual entity, as served by GET /v1/onboarding/status
@@ -193,6 +193,7 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
+  onboardingState?: OnboardingState;
   // Full response for POST /v1/auth/verify-otp. Default: a successful session.
   verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
@@ -373,7 +374,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         return;
       }
       if (!options.alfredpayKyc) {
-        await fulfillJson(buildOnboardingStatus());
+        await fulfillJson(buildOnboardingStatus(options.onboardingState));
         return;
       }
       // KYC test: reflect progress so the card tracks it (empty keeps the card action enabled for

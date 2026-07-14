@@ -30,6 +30,16 @@ test("a seeded session renders the app shell instead of redirecting", async ({ p
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("a started onboarding account renders without crashing the overview", async ({ page }) => {
+  await mockBackend(page, { onboardingState: "started" });
+  await seedSession(page);
+
+  await page.goto("/dashboard/overview");
+
+  await expect(page.getByText("Started", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Verification started" })).toBeVisible();
+});
+
 test("an authenticated user is redirected away from the login page", async ({ page }) => {
   await mockBackend(page);
   await seedSession(page);

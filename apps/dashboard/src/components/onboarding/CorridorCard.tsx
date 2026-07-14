@@ -25,7 +25,8 @@ const BAR_TONE: Record<OnboardingStatus, string> = {
   in_review: "bg-primary",
   not_started: "bg-primary",
   pending: "bg-primary",
-  rejected: "bg-destructive"
+  rejected: "bg-destructive",
+  started: "bg-primary"
 };
 
 export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) {
@@ -111,10 +112,10 @@ function CorridorAction({
       </Button>
     );
   }
-  if (status === "pending") {
+  if (status === "pending" || status === "started") {
     return (
       <Button className="w-full" disabled variant="outline">
-        Verification pending
+        {status === "started" ? "Verification started" : "Verification pending"}
       </Button>
     );
   }
