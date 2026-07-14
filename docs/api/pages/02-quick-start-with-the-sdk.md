@@ -49,8 +49,7 @@ const quote = await sdk.createQuote({
 });
 
 const { rampProcess } = await sdk.registerRamp(quote, {
-  destinationAddress: "0x1234567890123456789012345678901234567890",
-  taxId: "12345678900"           // user's CPF
+  destinationAddress: "0x1234567890123456789012345678901234567890"
 });
 
 // Show the PIX QR to the user and wait for them to pay.
@@ -60,7 +59,7 @@ console.log(rampProcess.depositQrCode);
 const started = await sdk.startRamp(rampProcess.id);
 ```
 
-The user must have completed BRLA KYC level 1 or higher under the same `taxId`. Partner `sk_*` keys cannot drive BRLA KYC; onboard the user through the Vortex app or Widget first.
+The user must have completed BRL KYC level 1 or higher, and the SDK must be authenticated with that user's own user-linked `sk_*` key: the user's CPF/CNPJ is derived from the authenticated account. The `taxId` field is deprecated — if you still send it, it must match the tax ID on the account or registration is rejected. Partner keys cannot drive KYC and cannot register ramps; onboard the user through the Vortex app or Widget first.
 
 ## BRL Offramp (Sell)
 
@@ -78,14 +77,14 @@ const quote = await sdk.createQuote({
 
 const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
   pixDestination: "user@example.com",
-  receiverTaxId: "12345678900",
-  taxId: "12345678900",
   walletAddress: "0xUSER..."
 });
 
 // unsignedTransactions contains the transactions the SDK could not sign on the
 // user's behalf. Route them to the user's wallet (see below).
 ```
+
+The PIX payout goes to `pixDestination`, which must belong to the user. To pay out to a different recipient, pass `receiverTaxId` with the recipient's CPF/CNPJ; it defaults to the user's own tax ID.
 
 ### Signing The User Transaction With Wagmi
 

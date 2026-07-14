@@ -1,4 +1,4 @@
-import {AveniaAccountType, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
+import {AveniaAccountType, BrlaApiError, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
@@ -174,6 +174,40 @@ describe("getAveniaUser", () => {
 
     expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
     expect(res.body).toEqual({ error: "This tax ID is not linked to your user profile and cannot be used." });
+  });
+
+  it("still parses a BrlaApiError 400 into a 400 'Invalid request' with details (message-format invariant)", async () => {
+    mockEntityPerProfile();
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Approved
+    })) as typeof ProviderCustomer.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          subaccountInfo: mock(async () => {
+            throw new BrlaApiError({
+              endpoint: "/v2/account/account-info",
+              method: "GET",
+              responseBody: JSON.stringify({ error: "user is blocked" }),
+              status: 400
+            });
+          })
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await getAveniaUser(
+      {
+        query: { taxId: "08786985906" },
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect(res.body).toEqual({ details: { error: "user is blocked" }, error: "Invalid request" });
   });
 });
 

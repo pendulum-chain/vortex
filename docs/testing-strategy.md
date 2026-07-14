@@ -22,8 +22,8 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
-| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config: auth surface (login, route gate) + the MXN offramp transfer journey | `apps/frontend/e2e/`, `apps/dashboard/e2e/` | Playwright (non-blocking) |
-| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); currently SquidRouter | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
+| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, and the MXN offramp transfer journey | `apps/frontend/e2e/`, `apps/dashboard/e2e/` | Playwright (non-blocking) |
+| 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); SquidRouter, Alfredpay, Avenia/BRLA, CoinGecko | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
 
 ### The invariants the suite protects
 
@@ -248,9 +248,17 @@ the PR-blocking api suite) and against the real partner API (`RUN_LIVE_TESTS=1`,
 Sandbox shakiness is priced in: an error from the live call itself is *inconclusive*
 (warn + skip); only a successful response that violates the schema fails. The nightly sets
 `CONTRACT_EXPECT_LIVE=1`, which fails a run where zero live calls completed, so credential rot or
-a dead endpoint alerts within a day instead of rotting as green. Covered so far: SquidRouter
-(`/v2/route` live; the status endpoint only hermetically — it needs a real recent transaction
-hash). Next per the PRD: Alfredpay, Avenia, price feeds.
+a dead endpoint alerts within a day instead of rotting as green. Covered: SquidRouter (`/v2/route`
+live; the status endpoint only hermetically — it needs a real recent transaction hash), Alfredpay
+(configs, quotes both directions, the trade-limit 409 error shape live with credentials only;
+order creation/polling, fiat accounts and KYC status live behind pre-provisioned sandbox fixtures,
+see `.env.example`), Avenia/BRLA (quotes live with credentials only; limits/balances/account-info,
+pix-key validation and PIX pay-in ticket creation/listing behind a sandbox subaccount fixture;
+payout tickets hermetically only — creating one live would move funds), and the CoinGecko
+`simple/price` feed (schema in `apps/api/src/api/services/priceFeed.schemas.ts` — the price fake
+patches above the HTTP seam, so its hermetic half is fixture-based). Client methods with no
+production consumers are deliberately uncovered. Next per the PRD: milestone 5, warn-only
+production parsing per endpoint after a quiet week of nightlies.
 
 ## CI
 

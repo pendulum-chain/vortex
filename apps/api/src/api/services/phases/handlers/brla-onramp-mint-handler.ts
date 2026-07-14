@@ -26,10 +26,13 @@ import { BasePhaseHandler } from "../base-phase-handler";
 import { syncAveniaOnHoldState } from "../helpers/brla-onramp-hold";
 import { StateMetadata } from "../meta-state-types";
 
-// The rationale for these difference is that it allows for a finer check over the payment timeout in
-// case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
-// process loop and check for the operation timestamp.
+// The check loops use a smaller timeout than the overall payment timeout so each execution
+// returns to the outer process loop well below the processor's execution timeout and checks
+// the operation timestamp there. The previous 30-minute Avenia wait always outlived the
+// processor's 10-minute race, so the payment-timeout cancellation below never ran for
+// recovered ramps and abandoned executions piled up.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AVENIA_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 
@@ -45,7 +48,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     return "brlaOnrampMint";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const { evmEphemeralAddress } = state.state as StateMetadata;
 
     if (!evmEphemeralAddress) {
@@ -139,7 +142,8 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
-        PAYMENT_TIMEOUT_MS
+        AVENIA_BALANCE_CHECK_TIMEOUT_MS,
+        signal
       );
     } catch (error) {
       const isCheckTimeout = error instanceof Error && error.message.includes("Timeout");
@@ -203,7 +207,8 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Base
+        Networks.Base,
+        signal
       );
     } catch (error) {
       if (!(error instanceof BalanceCheckError)) throw error;

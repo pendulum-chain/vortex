@@ -54,7 +54,9 @@ storybook-static
 
 
 CLAUDE.local.md
-.claude
+# Ignore everything under .claude except the team-shared settings.json
+.claude/*
+!.claude/settings.json
 /.roo/*
 
 # hardhat generated files in workspace contract projects

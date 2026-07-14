@@ -19,6 +19,8 @@ import Big from "big.js";
 import { encodeFunctionData, erc20Abi, type PublicClient } from "viem";
 import { base, polygon } from "viem/chains";
 import { brlaMoonbeamTokenDetails } from "../../constants.ts";
+import { BlindpayApiService } from "../../services/blindpay/blindpayApiService.ts";
+import type { BlindpayStablecoin } from "../../services/blindpay/types.ts";
 import { UsdcBaseRebalanceState, UsdcBaseStateManager, type WinningRoute } from "../../services/stateManager.ts";
 import { getBaseEvmClients, getConfig, getPolygonEvmClients } from "../../utils/config.ts";
 import { NonceManager } from "../../utils/nonce.ts";
@@ -533,6 +535,45 @@ export async function fetchAveniaQuote(brlaAmountDecimal: Big): Promise<string> 
   return outputUsdcRaw;
 }
 
+// BlindPay rejects payin quotes below this amount (in cents of the sender currency).
+const BLINDPAY_MIN_REQUEST_AMOUNT_CENTS = 500;
+
+/**
+ * Observational-only quote: what BlindPay would give for converting the same BRLA amount
+ * into stablecoin (payin BRL -> USDT/USDB). Returned as a USDC-equivalent raw amount
+ * (6 decimals) so it is directly comparable to the executed-route quotes. Never routed.
+ * Returns null when BlindPay is unconfigured or the amount is below its minimum.
+ */
+export async function fetchBlindpayShadowQuoteUsdc(brlaAmountDecimal: Big): Promise<string | null> {
+  if (!BlindpayApiService.isConfigured()) {
+    console.log("BlindPay shadow quote skipped: not configured (set BLINDPAY_API_KEY and BLINDPAY_INSTANCE_ID).");
+    return null;
+  }
+
+  const requestAmountCents = brlaAmountDecimal.mul(100).round(0, 0).toNumber();
+  if (requestAmountCents < BLINDPAY_MIN_REQUEST_AMOUNT_CENTS) {
+    const minBrl = Big(BLINDPAY_MIN_REQUEST_AMOUNT_CENTS).div(100).toString();
+    console.log(
+      `BlindPay shadow quote skipped: ${brlaAmountDecimal.toFixed(4)} BRL is below BlindPay's minimum of ${minBrl} BRL.`
+    );
+    return null;
+  }
+
+  const { blindpayToken } = getConfig();
+  const quote = await BlindpayApiService.getInstance().getPayinFxRate({
+    currency_type: "sender",
+    from: "BRL",
+    request_amount: requestAmountCents,
+    to: blindpayToken as BlindpayStablecoin
+  });
+
+  // `result_amount` is in cents of the target stablecoin (USD-pegged). Convert to a
+  // USDC-equivalent raw amount (6 decimals) for an apples-to-apples comparison.
+  const outputUsdcRaw = multiplyByPowerOfTen(Big(quote.result_amount).div(100), 6).toFixed(0, 0);
+  console.log(`BlindPay shadow quote: ${outputUsdcRaw} ${blindpayToken} (raw, 6 decimals)`);
+  return outputUsdcRaw;
+}
+
 export async function compareRates(brlaAmountDecimal: Big): Promise<{
   winningRoute: "squidrouter" | "avenia";
   squidRouterQuoteUsdc: string | null;
@@ -970,6 +1011,7 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
   squidRouterQuoteUsdc: string | null;
   aveniaQuoteUsdc: string | null;
   mainNablaQuoteUsdc: string | null;
+  blindpayShadowQuoteUsdc: string | null;
 }> {
   console.log("Quoting first Nabla (USDC→BRLA) to estimate BRLA output for route comparison...");
 
@@ -1007,10 +1049,15 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
   const config = getConfig();
   const mainNablaAvailable = !!(config.mainNablaRouter && config.mainNablaQuoter);
 
+  // BlindPay is an observational shadow quote only: fetched alongside the real routes for
+  // comparison, but never added to `candidates` (never actually routed through).
+  let blindpayShadowQuoteUsdc: string | null = null;
+
   const results = await Promise.allSettled([
     fetchSquidRouterQuote(estimatedBrlaDecimal),
     fetchAveniaQuote(estimatedBrlaDecimal),
-    mainNablaAvailable ? fetchMainNablaQuote(estimatedBrlaRaw.toString()) : Promise.reject("not configured")
+    mainNablaAvailable ? fetchMainNablaQuote(estimatedBrlaRaw.toString()) : Promise.reject("not configured"),
+    fetchBlindpayShadowQuoteUsdc(estimatedBrlaDecimal)
   ]);
 
   if (results[0].status === "fulfilled") {
@@ -1029,6 +1076,12 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
     mainNablaQuoteUsdc = results[2].value;
   } else if (mainNablaAvailable) {
     console.warn("Main Nabla quote failed:", results[2].reason);
+  }
+
+  if (results[3].status === "fulfilled") {
+    blindpayShadowQuoteUsdc = results[3].value;
+  } else {
+    console.warn("BlindPay shadow quote failed:", results[3].reason);
   }
 
   // Normalize all quotes to decimal USDC for comparison
@@ -1056,8 +1109,20 @@ export async function compareRoutesUpfront(usdcAmountRaw: string): Promise<{
     console.log(`  ${c.route}: ${c.usdcDecimal.toFixed(6)} USDC ${c.route === winner.route ? "(WINNER)" : ""}`);
   }
 
+  // Observational only: log what BlindPay would have quoted for the same BRLA amount,
+  // alongside the executed routes, to evaluate it as a cheaper stablecoin source over time.
+  if (blindpayShadowQuoteUsdc) {
+    const blindpayUsdcDecimal = multiplyByPowerOfTen(Big(blindpayShadowQuoteUsdc), -6);
+    const deltaVsWinner = blindpayUsdcDecimal.minus(winner.usdcDecimal);
+    console.log(
+      `  blindpay (shadow, not routed): ${blindpayUsdcDecimal.toFixed(6)} USDC-eq ` +
+        `| vs ${winner.route} (winner): ${deltaVsWinner.gte(0) ? "+" : ""}${deltaVsWinner.toFixed(6)} USDC`
+    );
+  }
+
   return {
     aveniaQuoteUsdc,
+    blindpayShadowQuoteUsdc,
     estimatedBrlaRaw: estimatedBrlaRaw.toString(),
     mainNablaQuoteUsdc,
     squidRouterQuoteUsdc,

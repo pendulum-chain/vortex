@@ -1,226 +1,125 @@
 // eslint-disable-next-line import/no-unresolved
 import {afterAll, afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
-// Import the mocked function to check calls
-import {getTokenOutAmount as getTokenOutAmountMock, type RampCurrency} from "@vortexfi/shared";
+import type {RampCurrency} from "@vortexfi/shared";
+// Captured before the mock.module calls below so afterAll can restore the real
+// modules. bun module mocks are process-wide: leaving "@vortexfi/shared" stubbed
+// poisons later test files that resolve real token configs (e.g. the corridor
+// integration tests, whose top-level helpers throw "token config missing").
 import * as sharedNamespace from "@vortexfi/shared";
 import * as loggerNamespace from "../../config/logger";
-import {PriceFeedService, priceFeedService} from "./priceFeed.service";
 
-// Value copies taken before mock.module runs — bun module mocks are
-// process-wide, so afterAll below restores the real modules for later files.
 const sharedReal = { ...sharedNamespace };
 const loggerReal = { ...loggerNamespace };
 
-afterAll(() => {
-  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
-  mock.module("../../config/logger", () => ({ ...loggerReal }));
-});
+const ARS = "ARS" as RampCurrency;
+const BRL = "BRL" as RampCurrency;
+const COP = "COP" as RampCurrency;
+const ETH = "ETH" as RampCurrency;
+const EUR = "EUR" as RampCurrency;
+const MXN = "MXN" as RampCurrency;
+const USD = "USD" as RampCurrency;
+const USDC = "USDC" as RampCurrency;
+const USDT = "USDT" as RampCurrency;
 
-// Mock all external dependencies
+const FASTFOREX_TEST_FIATS = [EUR, ARS, BRL, MXN, COP] as const;
+
+const originalEnv = { ...process.env };
+const originalFetch = global.fetch;
+
+// config/vars snapshots the environment at first import (which may happen in an
+// earlier test file), so deterministic values are set on the instance instead.
+const testInstanceConfig = {
+  binanceApiBaseUrl: "https://api.binance.com",
+  coingeckoApiBaseUrl: "https://api.coingecko.com/api/v3",
+  coingeckoApiKey: "test-api-key",
+  cryptoCacheTtlMs: 300000,
+  fastforexApiBaseUrl: "https://api.fastforex.io",
+  fastforexApiKey: "test-fastforex-key",
+  fiatCacheTtlMs: 300000
+};
+
+const loggerMock = {
+  debug: mock(() => {}),
+  error: mock(() => {}),
+  info: mock(() => {}),
+  warn: mock(() => {})
+};
+
 mock.module("@vortexfi/shared", () => ({
-  ...sharedReal,
-  ApiManager: {
-    getInstance: mock(() => ({
-      getApi: mock(async () => ({
-        api: {},
-        decimals: 12,
-        ss58Format: 42
-      }))
-    }))
-  },
-  EvmToken: {
-    USDC: "USDC",
-    USDCE: "USDC.e",
-    USDT: "USDT"
-  },
-  getPendulumDetails: mock((currency: string) => {
-    // Provide slightly different mock details based on currency for realism
-    if (currency === "USD") {
-      return {
-        pendulumAssetSymbol: "USD",
-        pendulumCurrencyId: { Token: "USD" },
-        pendulumDecimals: 6,
-        pendulumErc20WrapperAddress: "0xUSD"
-      };
-    }
-    if (currency === "BRL") {
-      return {
-        pendulumAssetSymbol: "BRL",
-        pendulumCurrencyId: { Token: "BRL" },
-        pendulumDecimals: 6,
-        pendulumErc20WrapperAddress: "0xBRL"
-      };
-    }
-    return {
-      pendulumAssetSymbol: "TEST",
-      pendulumCurrencyId: { XCM: 1 },
-      pendulumDecimals: 12,
-      // Default fallback
-      pendulumErc20WrapperAddress: "0x123"
-    };
-  }),
-  getTokenOutAmount: mock(async () => ({
-    effectiveExchangeRate: "1.25",
-    preciseQuotedAmountOut: {
-      preciseBigDecimal: {
-        toString: () => "1.25"
-      }
-    },
-    roundedDownQuotedAmountOut: {
-      toString: () => "1.25"
-    },
-    swapFee: {
-      toString: () => "0.01"
-    }
-  })),
-  getTokenUsdPrice: mock(() => undefined),
-  isFiatToken: mock((currency: string) => ["BRL", "EUR", "ARS"].includes(currency)),
-  normalizeTokenSymbol: mock((currency: string) => currency),
-  PENDULUM_USDC_AXL: {
-    pendulumAssetSymbol: "USDC",
-    pendulumCurrencyId: { Token: "USDC" },
-    pendulumDecimals: 6,
-    pendulumErc20WrapperAddress: "0xUSDC"
-  },
-  RampCurrency: {
-    ARS: "ARS",
-    AVAX: "AVAX",
-    BNB: "BNB",
-    BRL: "BRL",
-    ETH: "ETH",
-    EUR: "EUR",
-    GLMR: "GLMR",
-    MATIC: "MATIC",
-    USD: "USD",
-    USDC: "USDC",
-    USDCE: "USDC.e",
-    USDT: "USDT"
-  },
-  UsdLikeEvmToken: {
-    USDC: "USDC",
-    USDCE: "USDC.e",
-    USDT: "USDT"
-  }
+  EvmToken: { USDC: "USDC", USDCE: "USDC.e", USDT: "USDT" },
+  getTokenUsdPrice: () => undefined,
+  isFiatToken: (currency: string) => ["BRL", "EUR", "ARS", "MXN", "COP", "USD"].includes(currency),
+  normalizeTokenSymbol: (symbol: string) => symbol,
+  RampCurrency: { ARS: "ARS", BRL: "BRL", COP: "COP", EUR: "EUR", MXN: "MXN", USD: "USD" },
+  UsdLikeEvmToken: { USDC: "USDC", USDCE: "USDC.e", USDT: "USDT" }
 }));
 
 mock.module("../../config/logger", () => ({
-  default: {
-    debug: mock(() => {
-      /* logger mock */
-    }),
-    error: mock(() => {
-      /* logger mock */
-    }),
-    info: mock(() => {
-      /* logger mock */
-    }),
-    warn: mock(() => {
-      /* logger mock */
-    })
-  }
+  default: loggerMock
 }));
 
-// Mock the app initialization
-mock.module("../../../index", () => ({}));
+const { PriceFeedService, priceFeedService } = await import("./priceFeed.service");
+const { config } = await import("../../config/vars");
 
 describe("PriceFeedService", () => {
-  // Mock data
-  const mockCoinGeckoResponse = {
-    bitcoin: {
-      usd: 50000
-    },
-    ethereum: {
-      usd: 3000
-    },
-    moonbeam: {
-      usd: 100
-    }
-  };
-
-  // Original fetch and env for restoration
-  const originalFetch = global.fetch;
   let originalDateNow: () => number;
-  let originalEnv: NodeJS.ProcessEnv;
   let fetchMock: ReturnType<typeof mock>;
 
-  // Setup and teardown
+  const mockFastforexResponse = (rate: number, currency: RampCurrency = BRL) =>
+    new Response(JSON.stringify({ base: "USD", result: { [currency]: rate }, updated: "2026-06-03T00:00:00Z", ms: 4 }), {
+      headers: { "content-type": "application/json" },
+      status: 200
+    });
+
+  const mockCoinGeckoResponse = (data: unknown) =>
+    new Response(JSON.stringify(data), {
+      headers: { "content-type": "application/json" },
+      status: 200
+    });
+
+  const mockBinanceResponse = (price: number, symbol = "USDTBRL") =>
+    new Response(JSON.stringify({ price: String(price), symbol }), {
+      headers: { "content-type": "application/json" },
+      status: 200
+    });
+
+  const isBinanceUrl = (url: string) => url.includes("/api/v3/ticker/price");
+
   beforeEach(() => {
-    // Store original env and Date.now
-    originalEnv = { ...process.env };
     originalDateNow = Date.now;
-
-    // Mock environment variables for each test
-    process.env = {
-      ...originalEnv, // Start with original to avoid missing Node internal vars
-      COINGECKO_API_KEY: "test-api-key",
-      COINGECKO_API_URL: "https://api.coingecko.com/api/v3",
-      CRYPTO_CACHE_TTL_MS: "300000", // 5 minutes
-      FIAT_CACHE_TTL_MS: "300000" // 5 minutes
-    } as any;
-
-    // Create a fresh fetch mock for each test
-    fetchMock = mock(() =>
-      Promise.resolve({
-        clone() {
-          return this;
-        },
-        headers: new Headers(),
-        json: () => Promise.resolve(mockCoinGeckoResponse),
-        ok: true,
-        redirected: false,
-        status: 200,
-        statusText: "OK",
-        text: () => Promise.resolve(JSON.stringify(mockCoinGeckoResponse)),
-        type: "basic",
-        url: ""
-      } as Response)
-    );
-
-    // Mock fetch
-    global.fetch = fetchMock as any;
-
-    // Reset mocks before each test
-    (getTokenOutAmountMock as any).mockClear();
-    // Reset Nabla mock to default implementation if needed (if tests modify its behavior)
-    (getTokenOutAmountMock as any).mockImplementation(async () => ({
-      effectiveExchangeRate: "1.25",
-      preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => "1.25" } },
-      roundedDownQuotedAmountOut: { toString: () => "1.25" },
-      swapFee: { toString: () => "0.01" }
-    }));
-
-    // Ensure singleton is reset *before* each test to pick up fresh env vars/mocks
-    // @ts-expect-error - accessing private property for testing
-    PriceFeedService.instance = undefined;
-
-    // The exported module-level singleton keeps its caches across tests; without
-    // clearing them, cache-hit/miss and fetch call-count assertions depend on test order.
-    (priceFeedService as any).cryptoPriceCache.clear();
-    (priceFeedService as any).fiatExchangeRateCache.clear();
+    // Route by URL so BRL exercises the Binance-first path while other fiats hit fastforex.
+    fetchMock = mock(async (url: string) => (isBinanceUrl(url) ? mockBinanceResponse(5.85) : mockFastforexResponse(5.85)));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    Object.values(loggerMock).forEach(logger => logger.mockClear());
+    Reflect.set(PriceFeedService, "instance", undefined);
+    Object.assign(PriceFeedService.getInstance(), testInstanceConfig);
   });
 
   afterEach(() => {
-    // Restore fetch
+    Date.now = originalDateNow;
     global.fetch = originalFetch;
+    Reflect.set(PriceFeedService, "instance", undefined);
+  });
 
-    // Restore Date.now if it was mocked
-    if (originalDateNow) {
-      Date.now = originalDateNow;
+  afterAll(() => {
+    for (const key of ["COINGECKO_API_URL", "CRYPTO_CACHE_TTL_MS", "FIAT_CACHE_TTL_MS"]) {
+      const originalValue = originalEnv[key];
+      if (originalValue === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = originalValue;
+      }
     }
-
-    // Restore environment variables
-    process.env = originalEnv;
-
-    // Reset singleton *after* restoring env, ready for next test's beforeEach
-    // @ts-expect-error - accessing private property for testing
-    PriceFeedService.instance = undefined;
+    global.fetch = originalFetch;
+    Reflect.set(PriceFeedService, "instance", undefined);
+    // Restore the real modules so this file's stubs don't leak into later files.
+    mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+    mock.module("../../config/logger", () => ({ ...loggerReal }));
   });
 
   describe("Singleton Pattern", () => {
-    it("should return the same instance when getInstance is called multiple times", () => {
-      const instance1 = PriceFeedService.getInstance();
-      const instance2 = PriceFeedService.getInstance();
-      expect(instance1).toBe(instance2);
+    it("should return the same instance", () => {
+      expect(PriceFeedService.getInstance()).toBe(PriceFeedService.getInstance());
     });
 
     it("should export a singleton instance", () => {
@@ -230,385 +129,571 @@ describe("PriceFeedService", () => {
 
   describe("getCryptoPrice", () => {
     it("should fetch price from CoinGecko API when cache is empty", async () => {
-      const price = await priceFeedService.getCryptoPrice("bitcoin", "usd");
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: { usd: 50000 } }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const price = await instance.getCryptoPrice("bitcoin", "usd");
 
       expect(price).toBe(50000);
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      // Use a more flexible expectation for the URL
-      // Don't check the exact URL, just verify it was called
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-
-    it("should return cached price without API call when cache is valid", async () => {
-      // First call to populate cache
-      await priceFeedService.getCryptoPrice("bitcoin", "usd");
-
-      // Reset mock to verify it's not called again
-      fetchMock.mockClear();
-
-      // Second call should use cache
-      const price = await priceFeedService.getCryptoPrice("bitcoin", "usd");
-
-      expect(price).toBe(50000);
-      expect(fetchMock).not.toHaveBeenCalled();
-    });
-
-    it("should make a new API call when cache expires", async () => {
-      // Override TTL to a small value for testing
-      process.env.CRYPTO_CACHE_TTL_MS = "100";
-
-      // Reset singleton to apply new TTL
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get the new instance
-      Object.assign(serviceInstance, { cryptoCacheTtlMs: 100 });
-
-      // Mock Date.now to return a fixed timestamp
-      const startTime = 1000000;
-      Date.now = () => startTime;
-
-      // First call to populate cache
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      fetchMock.mockClear();
-
-      // Advance time beyond the cache TTL by changing Date.now
-      Date.now = () => startTime + 150; // 150ms later
-
-      // Second call should make a new API call
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-      expect(fetchMock).toHaveBeenCalledTimes(1); // Verify the second call happened
-    });
-
-    it("should throw an error when token ID is not provided", async () => {
-      await expect(priceFeedService.getCryptoPrice("", "usd")).rejects.toThrow("Token ID and currency are required");
-    });
-
-    it("should throw an error when currency is not provided", async () => {
-      await expect(priceFeedService.getCryptoPrice("bitcoin", "")).rejects.toThrow("Token ID and currency are required");
-    });
-
-    it("should throw an error when CoinGecko API returns non-OK response", async () => {
-      // Create a new instance to avoid cache issues
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Override fetch mock for this test with a non-OK response
-      const errorResponse = {
-        clone() {
-          return this;
-        },
-        headers: new Headers(),
-        json: () => Promise.resolve({}),
-        ok: false,
-        redirected: false, // Return empty object instead of rejecting
-        status: 429,
-        statusText: "Too Many Requests",
-        text: () => Promise.resolve("Rate limit exceeded"),
-        type: "basic",
-        url: ""
-      } as Response;
-
-      // Use any type assertion to bypass TypeScript errors
-      global.fetch = (() => Promise.resolve(errorResponse)) as any;
-
-      await expect(freshInstance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow(
-        "CoinGecko API error: 429 Too Many Requests"
-      );
-    });
-
-    it("should throw an error when token is not found in CoinGecko response", async () => {
-      // Override fetch mock for this test with an empty response
-      const emptyResponseMock = mock(() =>
-        Promise.resolve({
-          clone() {
-            return this;
-          },
-          headers: new Headers(), // Empty data
-          json: () => Promise.resolve({}),
-          ok: true,
-          redirected: false,
-          status: 200,
-          statusText: "OK",
-          text: () => Promise.resolve("{}"),
-          type: "basic",
-          url: ""
-        } as Response)
-      );
-
-      global.fetch = emptyResponseMock as any;
-
-      await expect(priceFeedService.getCryptoPrice("unknown-token", "usd")).rejects.toThrow(
-        "Token 'unknown-token' not found in CoinGecko response"
-      );
-    });
-
-    it("should throw an error when currency is not found for token", async () => {
-      // Override fetch mock for this test with a partial response
-      const partialResponseMock = mock(() =>
-        Promise.resolve({
-          clone() {
-            return this;
-          },
-          headers: new Headers(), // Token exists, currency doesn't
-          json: () => Promise.resolve({ bitcoin: {} }),
-          ok: true,
-          redirected: false,
-          status: 200,
-          statusText: "OK",
-          text: () => Promise.resolve('{ "bitcoin": {} }'),
-          type: "basic",
-          url: ""
-        } as Response)
-      );
-
-      global.fetch = partialResponseMock as any;
-
-      await expect(priceFeedService.getCryptoPrice("bitcoin", "unknown-currency")).rejects.toThrow(
-        "Currency 'unknown-currency' not found for token 'bitcoin'"
-      );
-    });
-
-    it("should handle network errors during fetch", async () => {
-      // Create a new instance to avoid cache issues
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Override fetch with a function that rejects
-      global.fetch = (() => Promise.reject(new Error("Network error"))) as any;
-
-      await expect(freshInstance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow("Network error");
-    });
-
-    it("should attach the CoinGecko pro API key header when a key is configured", async () => {
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance();
-      // The constructor reads config/vars (snapshotted at import), so the key is
-      // controlled on the instance rather than via process.env.
-      Object.assign(serviceInstance, { coingeckoApiKey: "test-api-key" });
-
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
-
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.any(String),
+        "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",
         expect.objectContaining({
-          headers: expect.objectContaining({ "x-cg-pro-api-key": "test-api-key" })
+          headers: expect.objectContaining({
+            Accept: "application/json",
+            "x-cg-pro-api-key": "test-api-key"
+          })
         })
       );
     });
 
     it("should work without API key", async () => {
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance();
-      Object.assign(serviceInstance, { coingeckoApiKey: undefined });
+      const instance = PriceFeedService.getInstance();
+      Reflect.set(instance, "coingeckoApiKey", undefined);
+      fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: { usd: 50000 } }));
+      global.fetch = fetchMock as unknown as typeof fetch;
 
-      await serviceInstance.getCryptoPrice("bitcoin", "usd");
+      const price = await instance.getCryptoPrice("bitcoin", "usd");
 
+      expect(price).toBe(50000);
       expect(fetchMock).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           headers: expect.not.objectContaining({
-            "x-cg-pro-api-key": expect.any(String) // The header production actually sets
+            "x-cg-pro-api-key": expect.any(String)
           })
         })
       );
     });
+
+    it("should return cached crypto price without a second API call", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: { usd: 50000 } }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await instance.getCryptoPrice("bitcoin", "usd");
+      fetchMock.mockClear();
+
+      const price = await instance.getCryptoPrice("bitcoin", "usd");
+
+      expect(price).toBe(50000);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("should reject missing token or currency", async () => {
+      const instance = PriceFeedService.getInstance();
+
+      await expect(instance.getCryptoPrice("", "usd")).rejects.toThrow("Token ID and currency are required");
+      await expect(instance.getCryptoPrice("bitcoin", "")).rejects.toThrow("Token ID and currency are required");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("should throw when CoinGecko returns a non-OK response", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("Rate limit exceeded", { status: 429, statusText: "Too Many Requests" }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await expect(instance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow("CoinGecko API error: 429 Too Many Requests");
+    });
+
+    it("should throw when CoinGecko response does not contain the requested token or currency", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => mockCoinGeckoResponse({}));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await expect(instance.getCryptoPrice("bitcoin", "usd")).rejects.toThrow("Token 'bitcoin' not found in CoinGecko response");
+
+      fetchMock = mock(async () => mockCoinGeckoResponse({ bitcoin: {} }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      await expect(instance.getCryptoPrice("bitcoin", "eur")).rejects.toThrow("Currency 'eur' not found for token 'bitcoin'");
+    });
   });
 
-  describe("getFiatExchangeRate", () => {
-    // Add validation to the service mock for these tests
-    beforeEach(() => {
-      // Add validation to the mock implementation
-      (getTokenOutAmountMock as any).mockImplementation(async (params: any) => {
-        if (!params.fromAmountString || !params.inputTokenPendulumDetails || !params.outputTokenPendulumDetails) {
-          throw new Error("Missing required parameters");
-        }
-        return {
-          effectiveExchangeRate: "1.25",
-          preciseQuotedAmountOut: { preciseBigDecimal: { toString: () => "1.25" } },
-          roundedDownQuotedAmountOut: { toString: () => "1.25" },
-          swapFee: { toString: () => "0.01" }
-        };
+  describe("getUsdToFiatExchangeRate", () => {
+    it("should use Binance spot as the primary source for BRL", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL", expect.anything());
+      // fastforex must not be reached when Binance succeeds.
+      expect(fetchMock).not.toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=BRL", expect.anything());
+      // The Binance rate is still sanity-checked against the CoinGecko reference.
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "brl");
+    });
+
+    it("should fall back to fastforex when Binance is unavailable", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(5.85)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=BRL", expect.anything());
+      const [, options] = fetchMock.mock.calls.find(([url]) => !isBinanceUrl(url as string)) as [string, { headers: Headers }];
+      expect(options.headers.get("X-API-Key")).toBe("test-fastforex-key");
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Binance failed for USD-BRL"));
+    });
+
+    it("should fall back to fastforex when Binance returns a mismatched symbol", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? mockBinanceResponse(5.85, "USDTARS") : mockFastforexResponse(5.85)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=BRL", expect.anything());
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Binance returned unexpected symbol for USDTBRL: USDTARS"));
+    });
+
+    it("should fall back to fastforex when the Binance rate is outside the CoinGecko sanity band", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) => (isBinanceUrl(url) ? mockBinanceResponse(6.2) : mockFastforexResponse(5.85)));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.85);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Binance USD-BRL rate 6.2"));
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("above 2.00% limit"));
+    });
+
+    it("should accept the Binance rate when the CoinGecko sanity check is unavailable", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
       });
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("Unable to sanity-check Binance USD-BRL"));
     });
 
-    it("should fetch exchange rate from Nabla when cache is empty", async () => {
-      // Use type assertion to bypass TypeScript's type checking
-      const rate = await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
+    it("should cache an accepted rate even when the CoinGecko sanity check was unavailable", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 0);
 
-      expect(rate).toBe(1.25);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+      expect(rate).toBe(5.85);
+
+      instance.getCryptoPrice = mock(async () => 5.85);
+      fetchMock.mockClear();
+
+      const cachedRate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(cachedRate).toBe(5.85);
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("should return cached exchange rate without Nabla call when cache is valid", async () => {
-      // First call to populate cache
-      await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
+    it("should skip Binance for fiats without a Binance USDT market and use fastforex", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) => {
+        if (isBinanceUrl(url)) {
+          throw new Error("Binance must not be called for EUR");
+        }
+        return mockFastforexResponse(0.86, EUR);
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 0.861);
 
-      // Reset mock to verify it's not called again
-      (getTokenOutAmountMock as any).mockClear();
+      const rate = await instance.getUsdToFiatExchangeRate(EUR);
 
-      // Second call should use cache
-      const rate = await priceFeedService.getUsdToFiatExchangeRate("BRL" as any);
-
-      expect(rate).toBe(1.25);
-      expect(getTokenOutAmountMock).not.toHaveBeenCalled();
+      expect(rate).toBe(0.86);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=EUR", expect.anything());
     });
 
-    it("should make a new Nabla call when cache expires", async () => {
-      // Override TTL to a small value for testing
-      process.env.FIAT_CACHE_TTL_MS = "100";
+    it("should preserve path components in configured fastforex base URL", async () => {
+      const instance = PriceFeedService.getInstance();
+      Reflect.set(instance, "fastforexApiBaseUrl", "https://api.fastforex.io/v1");
+      // Disable Binance so the fastforex path is exercised.
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(5.85)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.86);
 
-      // Reset singleton to apply new TTL
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const serviceInstance = PriceFeedService.getInstance(); // Get new instance
-      Object.assign(serviceInstance, { fiatCacheTtlMs: 100 });
+      await instance.getUsdToFiatExchangeRate(BRL);
 
-      // Mock Date.now to return a fixed timestamp
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/v1/fetch-one?from=USD&to=BRL", expect.anything());
+    });
+
+    it("should return cached rate on second call", async () => {
+      const instance = PriceFeedService.getInstance();
+      const getCryptoPriceMock = mock(async () => 5.86);
+      instance.getCryptoPrice = getCryptoPriceMock;
+
+      await instance.getUsdToFiatExchangeRate(BRL);
+      fetchMock.mockClear();
+      getCryptoPriceMock.mockClear();
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+      expect(rate).toBe(5.85);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(instance.getCryptoPrice).not.toHaveBeenCalled();
+    });
+
+    it("should refetch after cache expires", async () => {
+      const instance = PriceFeedService.getInstance();
+      let callCount = 0;
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? mockBinanceResponse(++callCount === 1 ? 5.85 : 5.9) : mockFastforexResponse(5.85)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => (callCount === 1 ? 5.86 : 5.91));
+
       const startTime = 1000000;
       Date.now = () => startTime;
+      await instance.getUsdToFiatExchangeRate(BRL);
 
-      // First call to populate cache
-      await serviceInstance.getUsdToFiatExchangeRate("BRL" as any);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
-      (getTokenOutAmountMock as any).mockClear();
-
-      // Advance time beyond the cache TTL by changing Date.now
-      Date.now = () => startTime + 150; // 150ms later
-
-      // Second call should make a new Nabla call
-      await serviceInstance.getUsdToFiatExchangeRate("BRL" as any);
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify the second call happened
+      Date.now = () => startTime + 400_000;
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+      expect(rate).toBe(5.9);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it("should throw an error when Nabla call fails", async () => {
-      const nablaError = new Error("Nabla API Error");
-      // Configure the mock to throw an error for this specific test
-      (getTokenOutAmountMock as any).mockRejectedValueOnce(nablaError);
+    it("should fall back to CoinGecko when Binance and fastforex both fail", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("providers down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.92);
 
-      await expect(priceFeedService.getUsdToFiatExchangeRate("EUR" as any)).rejects.toThrow("Nabla API Error");
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1); // Verify it was called
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.92);
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "brl");
     });
 
-    it("should accept a custom input amount", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
-
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
-
-      await freshInstance.getUsdToFiatExchangeRate("BRL" as any, "10.0");
-
-      expect(getTokenOutAmountMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          fromAmountString: "10.0"
-        })
+    it("should skip fastforex and fall back to CoinGecko when fastforex key is missing", async () => {
+      const instance = PriceFeedService.getInstance();
+      Reflect.set(instance, "fastforexApiKey", undefined);
+      // Binance must also be unavailable to reach the CoinGecko fallback.
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(5.85)
       );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.92);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.92);
+      expect(fetchMock).not.toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=BRL", expect.anything());
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "brl");
+    });
+
+    it("should throw when Binance, fastforex and CoinGecko all fail", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("providers down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      await expect(instance.getUsdToFiatExchangeRate(BRL)).rejects.toThrow("cg down");
+    });
+
+    it("should throw when fastforex returns invalid rate and CoinGecko also fails", async () => {
+      const instance = PriceFeedService.getInstance();
+      // Binance down, fastforex returns a zero rate, CoinGecko throws.
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url)
+          ? new Response("binance down", { status: 500 })
+          : new Response(JSON.stringify({ base: "USD", result: { BRL: 0 } }), {
+              headers: { "content-type": "application/json" },
+              status: 200
+            })
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      await expect(instance.getUsdToFiatExchangeRate(BRL)).rejects.toThrow("cg down");
+    });
+
+    it("should reject and fall back when fastforex is outside the CoinGecko sanity band", async () => {
+      const instance = PriceFeedService.getInstance();
+      // Binance down so the fastforex sanity band is exercised.
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(6.2)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 5.85);
+
+      const rate = await instance.getUsdToFiatExchangeRate(BRL);
+
+      expect(rate).toBe(5.85);
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("fastforex USD-BRL rate 6.2"));
+      expect(loggerMock.warn).toHaveBeenCalledWith(expect.stringContaining("above 2.00% limit"));
+    });
+
+    it("should return one for USD without calling external providers", async () => {
+      const instance = PriceFeedService.getInstance();
+
+      const rate = await instance.getUsdToFiatExchangeRate(USD);
+
+      expect(rate).toBe(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("should price every non-USD Vortex fiat currency, using Binance for BRL and fastforex otherwise", async () => {
+      const instance = PriceFeedService.getInstance();
+      const fastforexRates: Record<string, number> = {
+        ARS: 1200,
+        BRL: 5.85,
+        COP: 4100,
+        EUR: 0.86,
+        MXN: 18.5
+      };
+      const coingeckoReferenceRates: Record<string, number> = {
+        ARS: 1199,
+        BRL: 5.86,
+        COP: 4095,
+        EUR: 0.861,
+        MXN: 18.49
+      };
+
+      fetchMock = mock(async (url: string) => {
+        if (isBinanceUrl(url)) {
+          return mockBinanceResponse(fastforexRates.BRL);
+        }
+        const currency = new URL(url).searchParams.get("to");
+        if (!currency) {
+          throw new Error("Missing FastForex target currency in test request");
+        }
+
+        return mockFastforexResponse(fastforexRates[currency], currency as RampCurrency);
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async (_tokenId: string, vsCurrency: string) => {
+        const referenceRate = coingeckoReferenceRates[vsCurrency.toUpperCase()];
+        if (referenceRate === undefined) {
+          throw new Error(`Missing CoinGecko reference rate for ${vsCurrency}`);
+        }
+
+        return referenceRate;
+      });
+
+      for (const currency of FASTFOREX_TEST_FIATS) {
+        const rate = await instance.getUsdToFiatExchangeRate(currency);
+
+        expect(rate).toBe(fastforexRates[currency]);
+        if (currency === BRL) {
+          expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL", expect.anything());
+        } else {
+          expect(fetchMock).toHaveBeenCalledWith(
+            `https://api.fastforex.io/fetch-one?from=USD&to=${currency}`,
+            expect.anything()
+          );
+        }
+        expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", currency.toLowerCase());
+      }
+    });
+
+    it("should reject non-fiat target currencies before fetching", async () => {
+      const instance = PriceFeedService.getInstance();
+
+      await expect(instance.getUsdToFiatExchangeRate(ETH)).rejects.toThrow(
+        "USD-to-fiat exchange rate requires a fiat currency, got ETH"
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("verifyBinanceReachability", () => {
+    it("should log an info line when Binance is reachable", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => mockBinanceResponse(5.2));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await instance.verifyBinanceReachability();
+
+      expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL", expect.anything());
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining("Binance price feed reachable: USD-BRL spot rate 5.2"));
+      expect(loggerMock.error).not.toHaveBeenCalled();
+    });
+
+    it("should log an error line when Binance is unreachable", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("blocked", { status: 451 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await instance.verifyBinanceReachability();
+
+      expect(loggerMock.error).toHaveBeenCalledWith(expect.stringContaining("Binance price feed UNREACHABLE for USD-BRL"));
+    });
+
+    it("should not throw when Binance is unreachable", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => {
+        throw new Error("network down");
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      expect(instance.verifyBinanceReachability()).resolves.toBeUndefined();
     });
   });
 
   describe("convertCurrency", () => {
-    it("should return the original amount when currencies are the same", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "USDC" as any);
-      expect(result).toBe("100.00000000");
+    it("should return the same amount when currencies match", async () => {
+      const result = await PriceFeedService.getInstance().convertCurrency("100", BRL, BRL);
+      expect(result).toBe("100.00");
     });
 
     it("should perform 1:1 conversion between USD-like stablecoins", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "USDT" as any);
+      const result = await PriceFeedService.getInstance().convertCurrency("100", USDC, USDT);
       expect(result).toBe("100");
     });
 
-    it("should convert USD to fiat using getFiatExchangeRate", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+    it("should convert USD to fiat using fastforex rate", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 5.86);
 
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
+      const result = await instance.convertCurrency("100", USDC, BRL);
 
-      const result = await freshInstance.convertCurrency("100", "USDC" as any, "BRL" as any);
-      expect(result).toBe("125.00"); // 100 * 1.25 = 125
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+      expect(result).toBe("585.00");
     });
 
-    it("should convert fiat to USD using inverse of getFiatExchangeRate", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+    it("should convert fiat to USD using inverse fastforex rate", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 5.86);
 
-      // Clear mock before this specific test
-      (getTokenOutAmountMock as any).mockClear();
+      const result = await instance.convertCurrency("585", BRL, USDC);
 
-      const result = await freshInstance.convertCurrency("125", "BRL" as any, "USDC" as any);
-      expect(result).toBe("100.00000000"); // 125 / 1.25 = 100
-      expect(getTokenOutAmountMock).toHaveBeenCalledTimes(1);
+      expect(result).toBe("100.00000000");
     });
 
     it("should convert USD to crypto using getCryptoPrice", async () => {
-      const result = await priceFeedService.convertCurrency("300", "USDC" as any, "ETH" as any);
-      expect(result).toBe("0.10000000"); // 300 / 3000 = 0.1
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 3000);
+
+      const result = await instance.convertCurrency("300", USDC, ETH);
+
+      expect(result).toBe("0.10000000");
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("ethereum", "usd");
     });
 
     it("should convert crypto to USD using getCryptoPrice", async () => {
-      // Reset singleton to ensure a fresh instance
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-      const freshInstance = PriceFeedService.getInstance();
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 3000);
 
-      // Clear fetch mock before this specific test
-      fetchMock.mockClear();
+      const result = await instance.convertCurrency("0.1", ETH, USDC);
 
-      const result = await freshInstance.convertCurrency("0.1", "ETH" as any, "USDC" as any);
-      expect(result).toBe("300.00000000"); // 0.1 * 3000 = 300
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toBe("300.00000000");
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("ethereum", "usd");
     });
 
-    it("should fail closed on conversion errors", async () => {
-      await expect(priceFeedService.convertCurrency("100", "USDC" as RampCurrency, "UNKNOWN" as RampCurrency)).rejects.toThrow(
-        "No CoinGecko token ID mapping for UNKNOWN"
-      );
+    it("should respect custom decimal precision", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const result = await instance.convertCurrency("100", USDC, BRL, 2);
+
+      expect(result).toBe("585.00");
+    });
+
+    it("should throw instead of returning the original amount when conversion providers fail", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("fastforex down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      await expect(instance.convertCurrency("100", USDC, BRL)).rejects.toThrow("cg down");
     });
 
     it("should return the original amount only through the explicit fallback helper", async () => {
-      const result = await priceFeedService.convertCurrencyOrOriginal("100", "USDC" as RampCurrency, "UNKNOWN" as RampCurrency);
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("fastforex down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      const result = await instance.convertCurrencyOrOriginal("100", USDC, BRL);
+
       expect(result).toBe("100");
     });
 
-    it("should use specified decimal precision", async () => {
-      const result = await priceFeedService.convertCurrency("100", "USDC" as any, "BRL" as any, 2);
-      expect(result).toBe("125.00"); // 100 * 1.25 = 125, with 2 decimal places
+    it("should return null through the nullable helper when conversion fails", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("fastforex down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => {
+        throw new Error("cg down");
+      });
+
+      const result = await instance.convertCurrencyOrNull("100", USDC, BRL);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getFiatToUsdExchangeRate", () => {
+    it("should return the inverse of the guarded USD-to-fiat rate", async () => {
+      const instance = PriceFeedService.getInstance();
+      instance.getCryptoPrice = mock(async () => 5.86);
+
+      const rate = await instance.getFiatToUsdExchangeRate(BRL);
+
+      expect(rate.toFixed(8)).toBe("0.17094017");
+    });
+
+    it("should return one for USD without calling external providers", async () => {
+      const instance = PriceFeedService.getInstance();
+
+      const rate = await instance.getFiatToUsdExchangeRate(USD);
+
+      expect(rate.toString()).toBe("1");
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
   describe("Configuration", () => {
+    it("should read fastforex config from config/vars", () => {
+      Reflect.set(PriceFeedService, "instance", undefined);
+      const instance = PriceFeedService.getInstance();
+      expect(Reflect.get(instance, "fastforexApiBaseUrl")).toBe(config.priceProviders.fastforex.baseUrl);
+      expect(Reflect.get(instance, "fastforexApiKey")).toBe(config.priceProviders.fastforex.apiKey);
+    });
+
+    it("should read Binance config from config/vars", () => {
+      Reflect.set(PriceFeedService, "instance", undefined);
+      const instance = PriceFeedService.getInstance();
+      expect(Reflect.get(instance, "binanceApiBaseUrl")).toBe(config.priceProviders.binance.baseUrl);
+    });
+
+    it("should read CoinGecko config from config/vars", () => {
+      Reflect.set(PriceFeedService, "instance", undefined);
+      const instance = PriceFeedService.getInstance();
+      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe(config.priceProviders.coingecko.baseUrl);
+      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(config.priceProviders.coingecko.cryptoCacheTtlMs);
+      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(config.priceProviders.coingecko.fiatCacheTtlMs);
+    });
+
     it("should keep loaded configuration values when environment variables change after import", () => {
-      // Set specific values after the config module has already been imported
       process.env.COINGECKO_API_URL = "https://custom-api.example.com";
       process.env.CRYPTO_CACHE_TTL_MS = "60000";
       process.env.FIAT_CACHE_TTL_MS = "120000";
 
-      // Reset singleton to apply changes
-      // @ts-expect-error - accessing private property for testing
-      PriceFeedService.instance = undefined;
-
-      // Create new instance
+      Reflect.set(PriceFeedService, "instance", undefined);
       const instance = PriceFeedService.getInstance();
 
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.coingeckoApiBaseUrl).toBe("https://pro-api.coingecko.com/api/v3");
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.cryptoCacheTtlMs).toBe(300000);
-      // @ts-expect-error - accessing private properties for testing
-      expect(instance.fiatCacheTtlMs).toBe(300000);
+      expect(Reflect.get(instance, "coingeckoApiBaseUrl")).toBe(config.priceProviders.coingecko.baseUrl);
+      expect(Reflect.get(instance, "cryptoCacheTtlMs")).toBe(config.priceProviders.coingecko.cryptoCacheTtlMs);
+      expect(Reflect.get(instance, "fiatCacheTtlMs")).toBe(config.priceProviders.coingecko.fiatCacheTtlMs);
     });
   });
 });

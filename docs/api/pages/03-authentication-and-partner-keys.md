@@ -7,8 +7,7 @@ Vortex authenticates API clients with public/secret key pairs, and accepts Supab
 | Task | Credential |
 |---|---|
 | Quote attribution and partner pricing | `pk_*` public key (optional on quotes) |
-| BRL and EUR ramps from a partner backend | Partner-scoped or user-linked `sk_*` secret key |
-| USD, MXN, COP, ARS ramps | **User-linked** `sk_*` secret key |
+| Ramp registration, all corridors | **User-linked** `sk_*` secret key |
 | Webhook management | Partner secret key |
 | Minting and managing user API keys | `Authorization: Bearer` session token |
 
@@ -24,14 +23,14 @@ Secret keys use the `sk_live_*` or `sk_test_*` prefix. They authenticate operati
 
 Secret keys come in two scopes:
 
-- **Partner-scoped** keys are issued to a partner organization. They are sufficient for BRL and EUR ramps, where the user is identified by request fields such as the tax ID, and they are required for webhook management.
-- **User-linked** keys are minted by a user's own Vortex account (see the *Provisioning User-Linked Keys* section below). Requests authenticated with them act as that user, so KYC completed by the same account applies automatically. The USD, MXN, COP, and ARS corridors require a user-linked key at ramp registration; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors). A user-linked key works in every corridor, so integrations can use it uniformly.
+- **Partner-scoped** keys are issued to a partner organization. They authenticate webhook management and partner attribution. A partner key that is not linked to a user account cannot register ramps in any corridor.
+- **User-linked** keys are minted by a user's own Vortex account (see the *Provisioning User-Linked Keys* section below). Requests authenticated with them act as that user, so KYC completed by the same account applies automatically. **Ramp registration requires a user identity in every corridor** — the ramp acts as the key's user, and corridor identity fields are derived from that account rather than taken from the request. For BRL, an explicitly provided `taxId` is accepted only as a cross-check: it must match the tax ID on the authenticated account. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
 
 Secret keys must be treated as server-side credentials. Do not expose them in browser bundles, mobile app binaries, URLs, screenshots, analytics tools, logs, or support tickets.
 
 When a request includes `partnerId`, the API may require the secret key to authenticate the matching partner. If the authenticated partner does not match the requested partner, Vortex rejects the request.
 
-Ramp endpoints, including register, update, start, status, history, and error logs, require authentication through either a secret key or a Supabase Bearer token.
+Ramp endpoints, including register, update, start, status, history, and error logs, require authentication through either a secret key or a Supabase Bearer token. Registration additionally requires the authenticated identity to resolve to a user — a secret key with no linked user is rejected with `400`.
 
 Webhook endpoints require a partner secret key and do not accept Supabase Bearer tokens.
 

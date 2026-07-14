@@ -61,7 +61,7 @@ mock.module("../../core/nabla", () => ({
 
 mock.module("../../../priceFeed.service", () => ({
   priceFeedService: {
-    getOnchainOraclePrice: mock(async () => ({ price: new Big("1") }))
+    getFiatToUsdExchangeRate: mock(async () => new Big("1"))
   }
 }));
 

@@ -124,6 +124,7 @@ interface Config {
   };
   priceProviders: {
     alchemyPay: PriceProvider;
+    binance: PriceProvider;
     transak: PriceProvider;
     moonpay: PriceProvider;
     coingecko: {
@@ -131,6 +132,10 @@ interface Config {
       baseUrl: string;
       cryptoCacheTtlMs: number;
       fiatCacheTtlMs: number;
+    };
+    fastforex: {
+      apiKey: string | undefined;
+      baseUrl: string;
     };
   };
   spreadsheet: SpreadsheetConfig;
@@ -238,11 +243,18 @@ export const config: Config = {
       baseUrl: process.env.ALCHEMYPAY_PROD_URL || "https://openapi.alchemypay.org",
       secretKey: process.env.ALCHEMYPAY_SECRET_KEY
     },
+    binance: {
+      baseUrl: process.env.BINANCE_API_URL || "https://api.binance.com"
+    },
     coingecko: {
       apiKey: process.env.COINGECKO_API_KEY,
       baseUrl: process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3",
       cryptoCacheTtlMs: parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10),
       fiatCacheTtlMs: parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10)
+    },
+    fastforex: {
+      apiKey: process.env.FASTFOREX_API_KEY,
+      baseUrl: process.env.FASTFOREX_API_URL || "https://api.fastforex.io"
     },
     moonpay: {
       apiKey: process.env.MOONPAY_API_KEY,

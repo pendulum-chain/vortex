@@ -76,7 +76,7 @@ export const DesktopNavbar = () => {
 
             <div className="flex items-center">
               <Link className="btn btn-vortex-secondary !rounded-3xl" to="/{-$locale}/widget">
-                Open App
+                {t("components.navbar.openApp")}
               </Link>
             </div>
           </>

@@ -22,6 +22,8 @@ When you point an AI coding agent at Vortex:
 | Browser, mobile, WebView | Use the [Vortex Widget](https://api-docs.vortexfinance.co/widget-integration). |
 | Anything else (Go, Rust, Elixir, Java, Ruby, PHP, .NET, Deno, edge runtimes, …) | Reimplement the SDK behavior against the raw API as described in Section D below. |
 
+Every path supports all live fiat corridors: BRL (PIX), EUR (SEPA), USD (ACH), MXN (SPEI), COP, and ARS (CBU). The corridor determines the register-time fields and the fiat settlement step, not the integration shape — see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for per-corridor requirements.
+
 Do not call the raw ramp API from a browser. Browsers cannot safely hold `sk_*` keys or ephemeral secrets. Use the Widget or proxy through a trusted backend.
 
 ## C. Python (`vortex-sdk-python`)
@@ -93,13 +95,25 @@ POST /v1/ramp/register
 X-API-Key: sk_*
 ```
 
-Before calling register, **generate per-chain ephemeral accounts** for the chains involved in the route:
+Before calling register, **generate the two ephemeral accounts** the ramp uses. The API accepts exactly two account types, and one account of each covers every leg of the route:
 
-- EVM legs → a fresh secp256k1 keypair.
-- Substrate legs (Pendulum, AssetHub, Moonbeam, Hydration) → fresh sr25519 keypairs.
-- Stellar legs → a fresh Ed25519 keypair.
+- One EVM account → a fresh secp256k1 keypair (used for all EVM legs, including Moonbeam — Moonbeam is an EVM chain and takes an `EVM` signing account).
+- One Substrate account → a fresh sr25519 keypair (used for all Substrate legs: Pendulum, AssetHub, Hydration).
 
-Send **only the public addresses** in the register request. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
+Send **only the public addresses**, in the `signingAccounts` array of the register body:
+
+```json
+{
+  "quoteId": "QUOTE_ID",
+  "signingAccounts": [
+    { "type": "Substrate", "address": "5..." },
+    { "type": "EVM", "address": "0x..." }
+  ],
+  "additionalData": { "destinationAddress": "0x..." }
+}
+```
+
+`type` must be `"Substrate"` or `"EVM"` — these are the only recognized values, and any other type is ignored. There is no `publicKey` field on register — partner attribution rides on the quote's `apiKey`. Persist the secret keys to your secure store, keyed by the not-yet-issued ramp; once the response returns a `rampId`, rekey the store entry. Never log the secrets.
 
 The response contains:
 
@@ -107,7 +121,7 @@ The response contains:
 - current ramp state and phase
 - `unsignedTxs` — an ordered list of transactions to sign
 
-Each unsigned transaction declares its `network`, `signer` address, transaction format (`evm-transaction`, `evm-typed-data`, `substrate-extrinsic`, `stellar-transaction`), and the payload bytes or fields to sign.
+Each unsigned transaction declares its `network`, `signer` address, transaction format (`evm-transaction`, `evm-typed-data`, or `substrate-extrinsic`), and the payload bytes or fields to sign.
 
 ### D.4 Sign And Update
 
@@ -133,13 +147,18 @@ Body includes the `rampId`, the transaction reference, and either the signed pay
 
 ### D.5 Fiat Payment And Start
 
-- **BRL buy**: the register response contains `depositQrCode` (PIX). Show it; wait for the user to pay. Then call `POST /v1/ramp/start`.
-- **BRL sell**: the user signs the user-owned transaction(s) and you submit them via update. Then call start. Vortex pays out to the user's PIX key.
-
 ```
 POST /v1/ramp/start
 X-API-Key: sk_*
 ```
+
+On a **buy**, where the fiat payment instructions appear depends on the corridor:
+
+- **BRL**: `depositQrCode` (PIX) is released once the presigned transactions submitted via update pass validation — on the update response and on `GET /v1/ramp/{id}`, not on the register response. Show it; wait for the user to pay; then call start. (The SDK performs the update inside `registerRamp`, so SDK callers see it on the returned ramp process.)
+- **EUR**: `ibanPaymentData` (IBAN, receiver name, payment reference) follows the same release rule as `depositQrCode`. Show it; the user completes the SEPA transfer; then call start.
+- **USD, MXN, COP, ARS**: call start first; the start response's `achPaymentData` contains the bank transfer instructions for the corridor's rail (ACH, SPEI, CBU). Display them verbatim; the ramp continues automatically once the deposit is confirmed.
+
+On a **sell**, the flow is the same in every corridor: the user signs the user-owned transaction(s), you submit them via update, then call start. Vortex pays out on the corridor's rail — the user's PIX key (BRL), SEPA account (EUR), or the saved bank account referenced by `fiatAccountId` (USD, MXN, COP, ARS).
 
 ### D.6 Track
 

@@ -1,5 +1,6 @@
 import Big from "big.js";
 import erc20ABI from "../../contracts/ERC20";
+import { sleep } from "../../helpers/functions";
 import { EvmAddress, EvmNetworks, EvmTokenDetails } from "../../index";
 import logger from "../../logger";
 import { EvmClientManager } from "../evm/clientManager";
@@ -80,106 +81,104 @@ export async function getEvmBalance(params: {
   });
 }
 
-export function checkEvmBalancePeriodically(
+export async function checkEvmBalancePeriodically(
   tokenAddress: string,
   brlaEvmAddress: string,
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: EvmNetworks
+  chain: EvmNetworks,
+  signal?: AbortSignal
 ): Promise<Big> {
   const evmClientManager = EvmClientManager.getInstance();
+  const startTime = Date.now();
 
-  return new Promise((resolve, reject) => {
-    const startTime = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error ? signal.reason : new Error("Balance check aborted");
+    }
 
-    const checkBalance = async () => {
-      try {
-        const result = await evmClientManager.readContractWithRetry<string>(chain, {
-          abi: erc20ABI,
-          address: tokenAddress as EvmAddress,
-          args: [brlaEvmAddress],
-          functionName: "balanceOf"
-        });
+    let someBalanceBig: Big;
+    let amountDesiredUnitsBig: Big;
+    try {
+      const result = await evmClientManager.readContractWithRetry<string>(chain, {
+        abi: erc20ABI,
+        address: tokenAddress as EvmAddress,
+        args: [brlaEvmAddress],
+        functionName: "balanceOf"
+      });
 
-        const someBalanceBig = new Big(result);
-        const amountDesiredUnitsBig = new Big(amountDesiredRaw);
+      someBalanceBig = new Big(result);
+      amountDesiredUnitsBig = new Big(amountDesiredRaw);
+    } catch (err: unknown) {
+      throw new BalanceCheckError(
+        BalanceCheckErrorType.ReadFailure,
+        `Error checking balance: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
 
-        logger.current.debug(
-          `checkEvmBalancePeriodically: Balance of ${brlaEvmAddress} for token ${tokenAddress} on ${chain}: ${someBalanceBig.toString()} (target: ${amountDesiredRaw})`
-        );
+    logger.current.debug(
+      `checkEvmBalancePeriodically: Balance of ${brlaEvmAddress} for token ${tokenAddress} on ${chain}: ${someBalanceBig.toString()} (target: ${amountDesiredRaw})`
+    );
 
-        if (someBalanceBig.gte(amountDesiredUnitsBig)) {
-          resolve(someBalanceBig);
-        } else if (Date.now() - startTime > timeoutMs) {
-          reject(new BalanceCheckError(BalanceCheckErrorType.Timeout, `Balance did not meet the limit within ${timeoutMs}ms`));
-        } else {
-          // Schedule next check AFTER this one completes to prevent overlapping calls
-          setTimeout(checkBalance, intervalMs);
-        }
-      } catch (err: unknown) {
-        reject(
-          new BalanceCheckError(
-            BalanceCheckErrorType.ReadFailure,
-            `Error checking balance: ${err instanceof Error ? err.message : String(err)}`
-          )
-        );
-      }
-    };
-
-    // Start the first check immediately
-    checkBalance();
-  });
+    if (someBalanceBig.gte(amountDesiredUnitsBig)) {
+      return someBalanceBig;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new BalanceCheckError(BalanceCheckErrorType.Timeout, `Balance did not meet the limit within ${timeoutMs}ms`);
+    }
+    // Sleep AFTER each check completes to prevent overlapping calls
+    await sleep(intervalMs, signal);
+  }
 }
 
 /**
  * Periodically checks the native token balance of an address until the desired amount is met or the timeout is reached.
  */
-export function checkEvmNativeBalancePeriodically(
+export async function checkEvmNativeBalancePeriodically(
   ownerAddress: string,
   amountDesiredRaw: string,
   intervalMs: number,
   timeoutMs: number,
-  chain: EvmNetworks
+  chain: EvmNetworks,
+  signal?: AbortSignal
 ): Promise<Big> {
   const evmClientManager = EvmClientManager.getInstance();
+  const startTime = Date.now();
 
-  return new Promise((resolve, reject) => {
-    const startTime = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    if (signal?.aborted) {
+      throw signal.reason instanceof Error ? signal.reason : new Error("Balance check aborted");
+    }
 
-    const checkBalance = async () => {
-      try {
-        const balance = await evmClientManager.getBalanceWithRetry(chain, ownerAddress as EvmAddress);
-        const balanceBig = new Big(balance.toString());
-        const amountDesiredUnitsBig = new Big(amountDesiredRaw);
+    let balanceBig: Big;
+    let amountDesiredUnitsBig: Big;
+    try {
+      const balance = await evmClientManager.getBalanceWithRetry(chain, ownerAddress as EvmAddress);
+      balanceBig = new Big(balance.toString());
+      amountDesiredUnitsBig = new Big(amountDesiredRaw);
+    } catch (err: unknown) {
+      throw new BalanceCheckError(
+        BalanceCheckErrorType.ReadFailure,
+        `Error checking native balance: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
 
-        logger.current.debug(
-          `checkEvmNativeBalancePeriodically: Native balance of ${ownerAddress} on ${chain}: ${balanceBig.toString()} (target: ${amountDesiredRaw})`
-        );
+    logger.current.debug(
+      `checkEvmNativeBalancePeriodically: Native balance of ${ownerAddress} on ${chain}: ${balanceBig.toString()} (target: ${amountDesiredRaw})`
+    );
 
-        if (balanceBig.gte(amountDesiredUnitsBig)) {
-          resolve(balanceBig);
-        } else if (Date.now() - startTime > timeoutMs) {
-          reject(
-            new BalanceCheckError(BalanceCheckErrorType.Timeout, `Native balance did not meet the limit within ${timeoutMs}ms`)
-          );
-        } else {
-          // Schedule next check AFTER this one completes to prevent overlapping calls
-          setTimeout(checkBalance, intervalMs);
-        }
-      } catch (err: unknown) {
-        reject(
-          new BalanceCheckError(
-            BalanceCheckErrorType.ReadFailure,
-            `Error checking native balance: ${err instanceof Error ? err.message : String(err)}`
-          )
-        );
-      }
-    };
-
-    // Start the first check immediately
-    checkBalance();
-  });
+    if (balanceBig.gte(amountDesiredUnitsBig)) {
+      return balanceBig;
+    }
+    if (Date.now() - startTime > timeoutMs) {
+      throw new BalanceCheckError(BalanceCheckErrorType.Timeout, `Native balance did not meet the limit within ${timeoutMs}ms`);
+    }
+    // Sleep AFTER each check completes to prevent overlapping calls
+    await sleep(intervalMs, signal);
+  }
 }
 
 /**
@@ -193,11 +192,12 @@ export function checkEvmBalanceForToken(params: {
   intervalMs: number;
   timeoutMs: number;
   chain: EvmNetworks;
+  signal?: AbortSignal;
 }): Promise<Big> {
-  const { tokenDetails, ownerAddress, amountDesiredRaw, intervalMs, timeoutMs, chain } = params;
+  const { tokenDetails, ownerAddress, amountDesiredRaw, intervalMs, timeoutMs, chain, signal } = params;
 
   if (isNativeEvmToken(tokenDetails)) {
-    return checkEvmNativeBalancePeriodically(ownerAddress, amountDesiredRaw, intervalMs, timeoutMs, chain);
+    return checkEvmNativeBalancePeriodically(ownerAddress, amountDesiredRaw, intervalMs, timeoutMs, chain, signal);
   }
 
   return checkEvmBalancePeriodically(
@@ -206,6 +206,7 @@ export function checkEvmBalanceForToken(params: {
     amountDesiredRaw,
     intervalMs,
     timeoutMs,
-    chain
+    chain,
+    signal
   );
 }
