@@ -21,6 +21,12 @@ account-first payments product:
 persistent identity, saved recipients, history, notifications — and money that moves between
 two people.
 
+**Iteration 1 scope.** The first iteration ships the unified schema (customer entities,
+provider customers, KYC cases, recipients, notifications) and sender/recipient KYC/KYB
+onboarding. On/offramping from the dashboard and cross-border transfers — including recipient
+payability and payout-instrument registration — are explicitly out of scope for this iteration;
+the sections below that describe them are target-state, not current behavior.
+
 
 ## User stories
 
@@ -45,11 +51,18 @@ two people.
 - **To be confirmed:** the current assumption is that Vortex cannot retrieve a user's Monerium
   status unless the user has authenticated and Vortex holds app-specific Monerium authorization.
   Under that assumption, missing authorization produces a `404` and the custom error above.
+  Note this assumption is already load-bearing: the user-visible **Re-authenticate with
+  Monerium** affordance is built on it, so confirming (or refuting) it with Monerium changes
+  shipped behavior, not just documentation.
 - As a sender, I see each corridor's real status — `not_started · started · pending · in_review ·
   approved/rejected` — read from the provider, surviving reload. `pending` is only used for
   missing or stale provider data when applicable.
 - As a Brazilian individual, my flow includes a liveness selfie; EU individuals and companies use
-  Monerium's hosted OAuth KYC/KYB; US applicants are redirected to the partner and return to confirm.
+  Monerium's hosted OAuth KYC/KYB.
+- Corridor/kind combinations without an implemented provider flow — company KYB on the
+  Alfredpay/Avenia corridors (MX/CO/AR/BR) and all US onboarding (partner redirect) — are shown
+  as **not yet available** and cannot be started. They are disabled rather than simulated: a
+  mocked approval would be contradicted by the backend at transfer registration.
 - As a sender, everything downstream (recipients, transfers) stays locked until at least one
   corridor is approved.
 
@@ -113,15 +126,21 @@ provider-shaped rather than UI-shaped.
 
 - **Reuse the ramp core.** `transfer.machine.ts` is the widget's ramp machine reduced to the
   dashboard's flow: register → presign ephemeral → user wallet signature → start → poll to
-  terminal. Signing helpers come from `@vortexfi/shared`; route-level code splitting keeps the
-  blockchain graph off the non-transfer pages. The fiat-funded shapes drop the signature step
-  entirely, so the machine needs a payin-wait state, not a wallet.
+  terminal. Signing helpers come from `@vortexfi/shared`. `RampService` is loaded via a dynamic
+  import inside the transfer machine, but there is no route-level code splitting yet — the
+  Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not
+  currently avoid it. The fiat-funded shapes drop the signature step entirely, so the machine
+  needs a payin-wait state, not a wallet.
 
 - **Only one ramp may be active per user.** Registration takes a database row lock on the user and
   rejects a second nonterminal ramp, including requests from another tab, client, or API instance.
-  Unstarted ramps stop blocking after the existing 15-minute start window. The dashboard stores
-  each ramp's EVM and Substrate ephemeral secrets locally before registration and retains earlier
-  ramp entries independently of disposable transfer-machine state.
+  Unstarted ramps stop blocking after the existing 15-minute start window — but only ramps still
+  in `initial` are released that way. A ramp wedged in a mid-flow phase (it may hold user funds)
+  blocks new registrations indefinitely; there is no self-service recovery, only operational
+  intervention that moves it to a terminal phase. The dashboard stores each ramp's EVM and
+  Substrate ephemeral secrets locally before registration (under a dashboard-namespaced
+  localStorage key, so the widget's own ephemeral-store pruning cannot evict them) and retains
+  earlier ramp entries independently of disposable transfer-machine state.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is
@@ -149,8 +168,13 @@ provider-shaped rather than UI-shaped.
     dashboard signs in a second time. Fine for this iteration.
   - **Order is fixed:** authenticate → accept → KYC. The recipient needs a `customer_entity` before
     any provider record can attach to it.
-  - EU invite links use `?kybLocked=EU`; after acceptance, the invitation response remains
-    authoritative for both corridor and individual/business onboarding even if the URL is edited.
+  - **EU recipient onboarding is currently contradictory and therefore disabled in the widget's
+    region selector.** The widget's EURC KYC child is Mykobo (individual-only, needs a connected
+    wallet), while the recipient backend's `eur` rail requires a Monerium provider record
+    (`providerForRail`). Until recipient EU onboarding is routed through Monerium (or the rail
+    mapping changes), an EU invite cannot produce a payable recipient — EU invites should not be
+    issued. After acceptance of any invite, the invitation response remains authoritative for
+    both corridor and individual/business onboarding even if the URL is edited.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`
@@ -169,10 +193,16 @@ provider-shaped rather than UI-shaped.
 ## Acknowledged gaps
 
 - Only self-offramp is fully functional. Third-party recipient payments and fiat-funded
-  fiat-to-fiat payments remain future work.
-- Recipient payout-instrument registration is not implemented. The product and provider contract
-  must define how payout instruments are created for both senders creating links and recipients
-  redeeming them, while keeping raw bank PII provider-side.
+  fiat-to-fiat payments remain future work (out of scope for iteration 1).
+- **No recipient can currently become payable.** The payable gate requires a *verified payout
+  reference*, and nothing in the API creates `RecipientPayoutReference` rows — payout-instrument
+  registration is not implemented. Invitations and recipient KYC work end-to-end, but capability
+  #2 stops at "onboarded", not "payable". The product and provider contract must define how
+  payout instruments are created for both senders creating links and recipients redeeming them,
+  while keeping raw bank PII provider-side.
+- The notification feed rendered in the dashboard shell and the three notification preference
+  toggles on Settings are still client-mocked even though `/v1/notifications` exists; wiring them
+  up is listed under next steps.
 
 ## Next steps
 
@@ -189,6 +219,12 @@ provider-shaped rather than UI-shaped.
 
 - Settings still needs a provider-safe display identifier for business entities; email remains the
   fallback until that display contract is defined.
+- Entity selection is now explicit and immutable: the account-type selector persists
+  `profiles.active_customer_entity_id` once (`ACTIVE_ENTITY_IMMUTABLE` on change attempts), a
+  unique `(profile_id, type)` index precludes duplicate entities, and profiles without a
+  selection fall back deterministically to their oldest entity in
+  `getOrCreateCustomerEntityForProfile`. Whether users will ever be able to *switch* the active
+  entity (individual ↔ company) remains open.
 
 ---
 
