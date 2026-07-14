@@ -111,10 +111,13 @@ export const aveniaAccountLimitsSchema = z.looseObject({
   })
 }) satisfies z.ZodType<{ limitInfo: { limits: ConsumedLimit[] } }>;
 
-/** The body of a GET /v2/account/balances response. */
+/**
+ * The body of a GET /v2/account/balances response. Balances are decimal strings on
+ * the wire (observed live: `"BRLA":"99.8"`), not numbers.
+ */
 export const aveniaAccountBalanceSchema = z.looseObject({
   balances: z.looseObject({
-    BRLA: z.number()
+    BRLA: z.string().regex(DECIMAL_STRING)
   })
 }) satisfies z.ZodType<{ balances: Pick<AveniaAccountBalanceResponse["balances"], "BRLA"> }>;
 

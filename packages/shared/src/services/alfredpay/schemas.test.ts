@@ -119,6 +119,18 @@ describe("alfredpayOfframpTransactionSchema", () => {
     body.depositAddress = "0x5afe00000000000000000000000000000000d0e5";
     expect(() => alfredpayOfframpTransactionSchema.parse(body)).not.toThrow();
   });
+
+  test("accepts the pre-deposit CREATED status of a fresh offramp", () => {
+    const body = {
+      depositAddress: "0x5afe00000000000000000000000000000000d0e5",
+      expiration: "2026-07-07T12:00:00.000Z",
+      fromAmount: "30",
+      status: "CREATED",
+      toCurrency: "MXN",
+      transactionId: "tx-3"
+    };
+    expect(() => alfredpayOfframpTransactionSchema.parse(body)).not.toThrow();
+  });
 });
 
 describe("alfredpayFiatAccountsResponseSchema", () => {

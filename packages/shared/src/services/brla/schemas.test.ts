@@ -63,7 +63,14 @@ describe("aveniaPayoutTicketSchema / aveniaPayinTicketsSchema", () => {
   test("accepts consumed statuses, rejects an unknown one", () => {
     expect(() => aveniaPayoutTicketSchema.parse({ id: "t-1", status: "PAID" })).not.toThrow();
     expect(() => aveniaPayoutTicketSchema.parse({ id: "t-1", status: "SETTLED" })).toThrow();
-    expect(() => aveniaPayinTicketsSchema.parse([{ id: "t-1", status: "PENDING" }])).not.toThrow();
+    // Observed pre-payment lifecycle of a pay-in ticket: UNPAID -> PROCESSING -> PAID.
+    expect(() =>
+      aveniaPayinTicketsSchema.parse([
+        { id: "t-1", status: "UNPAID" },
+        { id: "t-2", status: "PROCESSING" },
+        { id: "t-3", status: "PAID" }
+      ])
+    ).not.toThrow();
     expect(() => aveniaPayinTicketsSchema.parse([{ status: "PENDING" }])).toThrow();
   });
 });
@@ -93,9 +100,11 @@ describe("aveniaAccountLimitsSchema", () => {
 });
 
 describe("aveniaAccountBalanceSchema", () => {
-  test("requires a numeric BRLA balance", () => {
-    expect(() => aveniaAccountBalanceSchema.parse({ balances: { BRLA: 12.5, USDC: 0, USDM: 0, USDT: 0 } })).not.toThrow();
-    expect(() => aveniaAccountBalanceSchema.parse({ balances: { BRLA: "12.5" } })).toThrow();
+  test("requires a decimal-string BRLA balance (wire shape)", () => {
+    expect(() =>
+      aveniaAccountBalanceSchema.parse({ balances: { ARSA: "0", BRLA: "99.8", USDC: "0", USDM: "0", USDT: "0" } })
+    ).not.toThrow();
+    expect(() => aveniaAccountBalanceSchema.parse({ balances: { BRLA: 99.8 } })).toThrow();
   });
 });
 

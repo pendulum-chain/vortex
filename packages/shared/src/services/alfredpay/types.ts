@@ -209,6 +209,9 @@ export interface CreateAlfredpayOfframpRequest {
 }
 
 export enum AlfredpayOfframpStatus {
+  // Initial status of a freshly created offramp, before any on-chain deposit
+  // (observed live, 2026-07-14; surfaced by the nightly contract suite).
+  CREATED = "CREATED",
   ON_CHAIN_DEPOSIT_RECEIVED = "ON_CHAIN_DEPOSIT_RECEIVED",
   TRADE_COMPLETED = "TRADE_COMPLETED",
   FIAT_TRANSFER_INITIATED = "FIAT_TRANSFER_INITIATED",

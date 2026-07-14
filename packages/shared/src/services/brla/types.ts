@@ -104,6 +104,10 @@ export interface OnchainSwapQuoteParams {
 export enum AveniaTicketStatus {
   ON_HOLD = "ON-HOLD",
   PENDING = "PENDING",
+  // Observed pre-payment lifecycle of a PIX pay-in ticket: UNPAID -> PROCESSING -> PAID
+  // (sandbox, 2026-07-14; surfaced by the nightly contract suite).
+  UNPAID = "UNPAID",
+  PROCESSING = "PROCESSING",
   PAID = "PAID",
   FAILED = "FAILED",
   PARTIAL_FAILED = "PARTIAL-FAILED"
@@ -440,10 +444,12 @@ export interface AveniaDocumentGetResponse {
 }
 
 export interface AveniaAccountBalanceResponse {
+  // Wire balances are decimal strings (e.g. "99.8"), not numbers — consumers parse
+  // via Big()/Number(). Surfaced by the nightly contract suite.
   balances: {
-    BRLA: number;
-    USDC: number;
-    USDM: number;
-    USDT: number;
+    BRLA: string;
+    USDC: string;
+    USDM: string;
+    USDT: string;
   };
 }
