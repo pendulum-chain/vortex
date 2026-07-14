@@ -116,9 +116,10 @@ export interface BaseTicket {
   userId: string;
   reason: string;
   failureReason: string;
-  createdAt: Date;
-  updatedAt: Date;
-  expiresAt: Date;
+  // Wire timestamps are ISO strings — JSON cannot contain a Date.
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
   quote: {
     id: string;
     ticketId: string;
@@ -161,7 +162,8 @@ export interface PixInputTicketPayload {
 export interface PixInputTicketOutput {
   id: string;
   brCode: string;
-  expiration: Date;
+  // Wire timestamp is an ISO string — JSON cannot contain a Date.
+  expiration: string;
 }
 
 export interface PixOutputTicketOutput {

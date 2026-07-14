@@ -150,6 +150,8 @@ export class FakeBrla {
   payOutRate = 1;
   subaccountId = "test-subaccount-id";
   subaccountEvmWallet = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
+  /** KYC state served in subaccountInfo().accountInfo; production gates ramps on CONFIRMED. */
+  identityStatus: "NOT-IDENTIFIED" | "CONFIRMED" = "CONFIRMED";
   /** Internal Avenia subaccount balances served by getAccountBalance; script per test. */
   accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
   /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
@@ -184,7 +186,7 @@ export class FakeBrla {
     createPixInputTicket: async () => {
       const ticket = {
         brCode: `brcode-${++this.counter}`,
-        expiration: new Date(Date.now() + 3600_000),
+        expiration: new Date(Date.now() + 3600_000).toISOString(),
         id: `pix-in-${this.counter}`
       };
       this.pixInputTickets.push(ticket);
@@ -219,7 +221,7 @@ export class FakeBrla {
       }
     }),
     subaccountInfo: async () => ({
-      accountInfo: {},
+      accountInfo: { identityStatus: this.identityStatus },
       brCode: "test-brcode",
       createdAt: new Date().toISOString(),
       id: this.subaccountId,
