@@ -33,7 +33,7 @@ export const CORRIDOR_COUNTRY: Record<CorridorId, string> = {
 
 /**
  * Dashboard corridor → payout rail as the recipient backend expects it (the lowercased
- * currency code). `providerForRail` routes eur→mykobo, brl→avenia, everything else→alfredpay.
+ * currency code). `providerForRail` routes eur→monerium, brl→avenia, everything else→alfredpay.
  */
 export const CORRIDOR_RAIL: Record<CorridorId, string> = {
   AR: "ars",

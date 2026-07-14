@@ -619,10 +619,32 @@ describe("rampMachine", () => {
 
       actor.send({ type: "START_KYB_LINK" });
       await waitFor(actor, s => s.matches("SelectRegion"));
-      expect(actor.getSnapshot().context.kybLink).toEqual({ fiatToken: undefined, regionLocked: false });
+      // Regression: a plain ?kyb deep link must preselect business verification — customerType is
+      // only otherwise set during invite redemption, and an unset value routes to individual KYC.
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "business",
+        fiatToken: undefined,
+        invite: undefined,
+        regionLocked: false
+      });
 
       actor.send({ fiatToken: FiatToken.BRL, type: "SELECT_REGION" });
       await waitFor(actor, s => s.matches("KybLinkComplete"));
+    });
+
+    it("a ?kyb deep link starts Alfredpay business verification (KYB), not individual KYC", async () => {
+      const actor = createRampActor({ alfredpayKyc: stubAlfredpayMachine() });
+      actor.start();
+
+      actor.send({ type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("SelectRegion"));
+      actor.send({ fiatToken: FiatToken.MXN, type: "SELECT_REGION" });
+      await waitFor(actor, s => s.matches({ KYC: "Alfredpay" }));
+
+      // Regression: the deep link must preselect the business customer type for the Alfredpay child.
+      const child = actor.getSnapshot().children.alfredpayKyc as AnyActorRef;
+      const capturedInput = child.getSnapshot().context.capturedInput as { business?: boolean };
+      expect(capturedInput.business).toBe(true);
     });
 
     it("accepts an invite after checking an existing session and before region selection", async () => {

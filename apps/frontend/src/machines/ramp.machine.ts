@@ -197,6 +197,9 @@ export const rampMachine = setup({
         kybLink: ({ event }) => {
           const region = findKybRegionByCode(event.region);
           return {
+            // A plain KYB deep link is business verification by definition; an invite link leaves
+            // the customer type open until redemption sets it from the invitation's inviteeType.
+            customerType: event.invite ? undefined : ("business" as const),
             fiatToken: region?.fiatToken,
             invite: event.invite,
             // Only honor the lock when the region code is valid; an unknown code degrades to the open selector.
