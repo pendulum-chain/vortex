@@ -104,8 +104,6 @@ export interface OnchainSwapQuoteParams {
 export enum AveniaTicketStatus {
   ON_HOLD = "ON-HOLD",
   PENDING = "PENDING",
-  // Observed pre-payment lifecycle of a PIX pay-in ticket: UNPAID -> PROCESSING -> PAID
-  // (sandbox, 2026-07-14; surfaced by the nightly contract suite).
   UNPAID = "UNPAID",
   PROCESSING = "PROCESSING",
   PAID = "PAID",
