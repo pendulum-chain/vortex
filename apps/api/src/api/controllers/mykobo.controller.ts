@@ -87,8 +87,8 @@ export const getProfileController = async (req: Request, res: Response): Promise
 };
 
 export const createProfileController = async (req: Request, res: Response): Promise<void> => {
-  const userEmail = req.userEmail;
-  if (!userEmail) {
+  const { userId, userEmail } = req;
+  if (!userId || !userEmail) {
     res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
     return;
   }
@@ -121,9 +121,9 @@ export const createProfileController = async (req: Request, res: Response): Prom
       }
     }
 
-    await markMykoboCustomerStarted(req.userId, userEmail);
+    await markMykoboCustomerStarted(userId, userEmail);
     const { profile } = await MykoboApiService.getInstance().createProfile(formData);
-    await upsertMykoboCustomerFromProfile(req.userId, userEmail, profile);
+    await upsertMykoboCustomerFromProfile(userId, userEmail, profile);
     res.status(httpStatus.CREATED).json({ profile: toFrontendProfile(profile) });
   } catch (error) {
     if (error instanceof MykoboApiError) {

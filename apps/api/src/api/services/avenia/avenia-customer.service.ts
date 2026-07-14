@@ -107,6 +107,6 @@ export async function hydrateAveniaCompanyName(customer: ProviderCustomer): Prom
       await customer.update({ companyName });
     }
   } catch (error) {
-    logger.warn({ error }, "hydrateAveniaCompanyName: Avenia subaccountInfo unavailable, skipping backfill");
+    logger.warn("hydrateAveniaCompanyName: Avenia subaccountInfo unavailable, skipping backfill:", error);
   }
 }

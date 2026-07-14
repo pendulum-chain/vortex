@@ -137,6 +137,7 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
     "verify": "bun test"
   },
   "type": "module",
