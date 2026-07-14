@@ -6,7 +6,6 @@ import { resetTransferState } from "@/machines/transferActor";
 import { AuthAPI } from "@/services/api/auth.api";
 import { AuthService } from "@/services/auth";
 import { useNotificationsStore } from "@/stores/notifications.store";
-import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 
 interface AuthUser {
   name: string;
@@ -44,7 +43,6 @@ function userFromSession(): AuthUser | null {
 function clearAccountState(): void {
   queryClient.clear();
   useNotificationsStore.getState().clear();
-  useOnboardingOverrideStore.getState().clear();
   resetTransferState();
   void disconnect(wagmiConfig);
 }

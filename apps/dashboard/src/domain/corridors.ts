@@ -92,3 +92,16 @@ export function routeFor(corridorId: CorridorId, kind: OnboardingKind): Onboardi
   }
   return "headless";
 }
+
+/**
+ * Whether the corridor's provider flow for this kind is actually implemented. The remaining
+ * combinations (US individual — partner redirect not wired — and AR company) are disabled
+ * until their real flows land — they must not be simulated, or users would see an approval
+ * the backend rejects at transfer registration.
+ */
+export function isOnboardingAvailable(corridor: Corridor, kind: OnboardingKind): boolean {
+  if (corridor.id === "US" && kind === "kyc") {
+    return false;
+  }
+  return isCorridorAvailableForAccountType(corridor.id, kind === "kyb" ? "company" : "individual");
+}

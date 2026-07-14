@@ -1,16 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { isCorridorAvailableForAccountType, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
-import type { Corridor, OnboardingStatus, SenderAccount } from "@/domain/types";
+import type { Corridor, OnboardingKind, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { ONBOARDING_STATUS_QUERY_KEY } from "@/hooks/useApprovedCorridors";
 import { notifyOnboardingStatus } from "@/lib/notify";
-import { getOnboardingSteps } from "@/machines/onboardingSteps";
-import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 import { AlfredpayKycFlow } from "./alfredpay/AlfredpayKycFlow";
 import { AveniaKycFlow } from "./avenia/AveniaKycFlow";
-import { ExternalFlow } from "./ExternalFlow";
-import { HeadlessFlow } from "./HeadlessFlow";
 import { MoneriumKycFlow } from "./monerium/MoneriumKycFlow";
 
 interface OnboardingWizardProps {
@@ -21,10 +18,11 @@ interface OnboardingWizardProps {
 
 /**
  * Sender onboarding backed by the shared provider machines where the corridor supports the
- * selected legal entity type. Unsupported combinations keep using the generic placeholder.
+ * selected legal entity type: Alfredpay KYC/KYB (MX/CO, US companies), Avenia KYC/KYB (BR),
+ * Monerium OAuth for EU. Combinations without a real provider flow (US individuals, AR
+ * companies) are unavailable — never simulated.
  */
 export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizardProps) {
-  const setOverride = useOnboardingOverrideStore(state => state.set);
   const queryClient = useQueryClient();
   const kind = onboardingKindFor(corridor, account.type);
   const route = routeFor(corridor.id, kind);
@@ -33,13 +31,6 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
     corridor.provider === "alfredpay" && isAvailable && (route === "headless" || (corridor.id === "US" && kind === "kyb"));
   const isLiveAveniaKyc = corridor.provider === "avenia" && isAvailable && route === "headless";
   const isLiveMoneriumKyc = corridor.provider === "monerium" && route === "headless";
-  const steps = getOnboardingSteps(corridor.id, kind);
-
-  /** Mocked flows have no backend to read from, so they fake the corridor's status locally. */
-  const onStatusChange = (status: OnboardingStatus) => {
-    setOverride(corridor.id, status);
-    notifyOnboardingStatus(corridor.name, kind, status);
-  };
 
   /** The real flow already moved the provider's status — refetch it rather than override it. */
   const onSettled = useCallback(
@@ -80,12 +71,29 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
             onClose={onClose}
             onSettled={onSettled}
           />
-        ) : route === "headless" ? (
-          <HeadlessFlow corridor={corridor} kind={kind} onClose={onClose} onStatusChange={onStatusChange} steps={steps} />
         ) : (
-          <ExternalFlow corridor={corridor} kind={kind} onClose={onClose} onStatusChange={onStatusChange} route={route} />
+          <UnavailableNotice corridor={corridor} kind={kind} onClose={onClose} />
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Reached only via deep links — the corridor card already disables entry for these combinations. */
+function UnavailableNotice({ corridor, kind, onClose }: { corridor: Corridor; kind: OnboardingKind; onClose: () => void }) {
+  return (
+    <>
+      <div className="flex min-h-[120px] items-center justify-center py-6 text-center">
+        <p className="max-w-sm text-muted-foreground text-sm">
+          {corridor.name} {kind.toUpperCase()} verification is not available yet. Please contact support if you need this
+          corridor.
+        </p>
+      </div>
+      <DialogFooter>
+        <Button onClick={onClose} variant="outline">
+          Close
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

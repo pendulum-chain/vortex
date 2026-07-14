@@ -3,7 +3,6 @@ import type { AccountType, CorridorId, Onboarding, OnboardingStatus, SenderAccou
 import type { OnboardingEntityDto, OnboardingState } from "@/services/api/onboarding.service";
 import { corridorFromProviderAccount } from "@/services/api/recipient.mappers";
 import { useAuthStore } from "@/stores/auth.store";
-import { useOnboardingOverrideStore } from "@/stores/onboardingOverride.store";
 import { useOnboardingStatusQuery } from "./useApprovedCorridors";
 
 const STATE_TO_STATUS: Record<OnboardingState, OnboardingStatus> = {
@@ -53,14 +52,10 @@ function deriveOnboardings(entity: OnboardingEntityDto, type: AccountType): Part
  * The authenticated sender account, derived from the Supabase session (identity) and
  * GET /v1/onboarding/status (type + per-corridor status). No seed data — undefined until
  * the user is authenticated.
- *
- * Statuses the mocked onboarding wizard advanced this session take precedence, since the
- * wizard submits nothing and the aggregator cannot see them.
  */
 export function useActiveAccount(): SenderAccount | undefined {
   const user = useAuthStore(state => state.user);
   const { data } = useOnboardingStatusQuery(!!user);
-  const overrides = useOnboardingOverrideStore(state => state.statuses);
 
   return useMemo(() => {
     if (!user || !data?.activeEntityId) {
@@ -71,11 +66,7 @@ export function useActiveAccount(): SenderAccount | undefined {
       return undefined;
     }
     const type: AccountType = entity.type === "business" ? "company" : "individual";
-    const kind = type === "company" ? "kyb" : "kyc";
     const onboardings = deriveOnboardings(entity, type);
-    for (const [corridorId, status] of Object.entries(overrides) as [CorridorId, OnboardingStatus][]) {
-      onboardings[corridorId] = { corridorId, kind, status, updatedAt: new Date().toISOString() };
-    }
     const selectedCorridors = Object.keys(onboardings) as CorridorId[];
     return {
       id: entity.id,
@@ -85,5 +76,5 @@ export function useActiveAccount(): SenderAccount | undefined {
       selectedCorridors,
       type
     };
-  }, [user, data, overrides]);
+  }, [user, data]);
 }

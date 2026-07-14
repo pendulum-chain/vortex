@@ -2,7 +2,7 @@ import { ArrowRight, ExternalLink, FileText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
+import { isOnboardingAvailable, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
 import { STATUS_META } from "@/domain/status";
 import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
 import { StatusBadge } from "./StatusBadge";
@@ -31,6 +31,7 @@ const BAR_TONE: Record<OnboardingStatus, string> = {
 
 export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) {
   const kind = onboardingKindFor(corridor, account.type);
+  const available = isOnboardingAvailable(corridor, kind);
   const onboarding = account.onboardings[corridor.id];
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
   const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
@@ -75,7 +76,11 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
       </CardContent>
 
       <CardFooter>
-        {onboarding ? (
+        {!available && (!onboarding || onboarding.status === "not_started" || onboarding.status === "rejected") ? (
+          <Button className="w-full" disabled variant="outline">
+            {kind.toUpperCase()} not yet available
+          </Button>
+        ) : onboarding ? (
           <CorridorAction
             kind={kind}
             onStart={onStart}
