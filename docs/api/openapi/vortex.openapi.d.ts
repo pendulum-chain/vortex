@@ -1097,7 +1097,7 @@ export interface components {
              * @description The type of the account.
              * @enum {string}
              */
-            type: "EVM" | "Stellar" | "Substrate";
+            type: "EVM" | "Substrate";
         };
         /** @enum {string} */
         AveniaDocumentType: "ID" | "DRIVERS-LICENSE" | "PASSPORT" | "SELFIE" | "SELFIE-FROM-LIVENESS";
@@ -1559,11 +1559,9 @@ export interface components {
             /**
              * @description Optional additional data for the ramp process.
              *
-             *     For Stellar offramps, paymentData is required.
+             *     For Brazil onramps, destinationAddress is required.
              *
-             *     For Brazil onramps, destinationAddress and taxId  arerequired.
-             *
-             *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
+             *     For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.
              */
             additionalData?: {
                 /** @description Destination address, used for onramp. */
@@ -1587,12 +1585,7 @@ export interface components {
              * @description The unique identifier for the quote.
              */
             quoteId: string;
-            /**
-             * @description Array of accounts that will be used for signing transactions.
-             *
-             *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
-             *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
-             */
+            /** @description Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account. */
             signingAccounts: {
                 /** @description The account address. */
                 address: string;
@@ -1600,7 +1593,7 @@ export interface components {
                  * @description The type of the account.
                  * @enum {string}
                  */
-                type: "EVM" | "Stellar" | "Substrate";
+                type: "EVM" | "Substrate";
             }[];
         };
         /** @description `PENDING`, `FAILED`, `COMPLETED` */
@@ -2710,11 +2703,9 @@ export interface operations {
                     /**
                      * @description Optional additional data for the ramp process.
                      *
-                     *     For Stellar offramps, paymentData is required.
+                     *     For Brazil onramps, destinationAddress is required.
                      *
-                     *     For Brazil onramps, destinationAddress and taxId  arerequired.
-                     *
-                     *     For Brazil offramps, pixDestination, taxId and receiverTaxId are required.
+                     *     For Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.
                      */
                     additionalData?: {
                         /** @description Destination address, used for onramp. */
@@ -2739,12 +2730,7 @@ export interface operations {
                      * @description The unique identifier for the quote.
                      */
                     quoteId: string;
-                    /**
-                     * @description Array of accounts that will be used for signing transactions.
-                     *
-                     *     For Stellar offramps, Stellar and Pendulum ephemerals are required.
-                     *     For Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.
-                     */
+                    /** @description Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account. */
                     signingAccounts: {
                         /** @description The account address. */
                         address: string;
@@ -2752,7 +2738,7 @@ export interface operations {
                          * @description The type of the account.
                          * @enum {string}
                          */
-                        type: "EVM" | "Stellar" | "Substrate";
+                        type: "EVM" | "Substrate";
                     }[];
                 };
             };
