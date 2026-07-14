@@ -118,8 +118,11 @@ export class AlfredpayLimitsService {
   }
 
   private indexPair(target: Map<string, RawAmountLimits>, pair: AlfredpayConfigPair): void {
+    // The /allConfigs listing contains junk rows: decimals null/"" and even null
+    // currencies. Only digit-string decimals are trustworthy — Number(null) is 0 and
+    // would silently shrink the raw limits by 10^decimals.
+    if (typeof pair.decimals !== "string" || !/^\d+$/.test(pair.decimals)) return;
     const decimals = Number(pair.decimals);
-    if (!Number.isFinite(decimals)) return;
 
     const axes = this.deriveAxes(pair);
     if (!axes) return;
@@ -142,6 +145,7 @@ export class AlfredpayLimitsService {
   }
 
   private deriveAxes(pair: AlfredpayConfigPair): DerivedAxes | null {
+    if (!pair.fromCurrency) return null;
     const fromFiat = ALFREDPAY_FIATS[pair.fromCurrency];
     const toFiat = ALFREDPAY_FIATS[pair.toCurrency];
 

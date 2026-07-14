@@ -47,6 +47,17 @@ describe("alfredpayConfigsResponseSchema", () => {
     expect(() => alfredpayConfigsResponseSchema.parse(body)).not.toThrow();
   });
 
+  test("accepts the junk rows the live listing contains (null/empty decimals, null fromCurrency)", () => {
+    const body = {
+      supportedPairs: [
+        { decimals: null, fromCurrency: "MXN", maxQuantity: "170799.99", minQuantity: "50.00", toCurrency: "USDC", typeCustomer: "INDIVIDUAL" },
+        { decimals: "", fromCurrency: "PEN", maxQuantity: "295349602.00", minQuantity: "1.00", toCurrency: "USDC", typeCustomer: null },
+        { decimals: null, fromCurrency: null, maxQuantity: "295349602.00", minQuantity: "1.00", toCurrency: "USDT", typeCustomer: null }
+      ]
+    };
+    expect(() => alfredpayConfigsResponseSchema.parse(body)).not.toThrow();
+  });
+
   test("rejects a pair with a missing consumed field (minQuantity)", () => {
     const body = {
       supportedPairs: [{ decimals: "2", fromCurrency: "MXN", maxQuantity: "100000", toCurrency: "USDC", typeCustomer: null }]
