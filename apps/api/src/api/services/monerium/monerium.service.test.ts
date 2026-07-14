@@ -2,9 +2,31 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, mock 
 // Load this shared consumer before the module mocks below; Bun does not unregister mock.module
 // replacements, and the API suite may import transfer eligibility after this file.
 import "../recipients/transfer-eligibility.service";
+// Value copies taken before the mock.module calls below; restored in afterAll because bun
+// module mocks are process-wide and would poison later test files (e.g. integration tests
+// that need the real sequelize instance and models).
+import * as databaseNamespace from "../../../config/database";
+import * as kycCaseNamespace from "../../../models/kycCase.model";
+import * as providerCustomerNamespace from "../../../models/providerCustomer.model";
+import * as customerEntityNamespace from "../customer-entity.service";
+
+const databaseReal = { ...databaseNamespace };
+const kycCaseReal = { ...kycCaseNamespace };
+const providerCustomerReal = { ...providerCustomerNamespace };
+const customerEntityReal = { ...customerEntityNamespace };
 
 const customerUpdate = mock(async (_values: unknown, _options: unknown) => undefined);
-const providerFindOrCreate = mock(async (_options: unknown) => [{ id: "provider-customer-id", update: customerUpdate }]);
+type MockProviderCustomerRow = {
+  id: string;
+  providerCustomerId?: string | null;
+  status?: string;
+  update: typeof customerUpdate;
+};
+const providerFindOrCreate = mock(
+  async (_options: unknown): Promise<Array<MockProviderCustomerRow | boolean>> => [
+    { id: "provider-customer-id", update: customerUpdate }
+  ]
+);
 const providerFindOne = mock(async (_options: unknown) => null as null | Record<string, unknown>);
 const kycFindOne = mock(async (_options: unknown) => null);
 const kycCreate = mock(async (_values: unknown, _options: unknown) => undefined);
@@ -67,6 +89,10 @@ afterEach(() => {
 });
 
 afterAll(() => {
+  mock.module("../../../config/database", () => ({ ...databaseReal }));
+  mock.module("../../../models/kycCase.model", () => ({ ...kycCaseReal }));
+  mock.module("../../../models/providerCustomer.model", () => ({ ...providerCustomerReal }));
+  mock.module("../customer-entity.service", () => ({ ...customerEntityReal }));
   mock.restore();
 });
 
