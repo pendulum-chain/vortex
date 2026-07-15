@@ -8,16 +8,16 @@ import { seedSession } from "./support/session";
 test("the local server root redirects into the dashboard", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page).toHaveURL(/\/dashboard\/login/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
   await expect(page.getByText("Connect with Vortex")).toBeVisible();
 });
 
 test("an unauthenticated deep link redirects to the login page", async ({ page }) => {
   await mockBackend(page);
 
-  await page.goto("/dashboard/transfer");
+  await page.goto("/transfer");
 
-  await expect(page).toHaveURL(/\/dashboard\/login/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
   await expect(page.getByText("Connect with Vortex")).toBeVisible();
 });
 
@@ -25,11 +25,11 @@ test("a seeded session renders the app shell instead of redirecting", async ({ p
   const backend = await mockBackend(page);
   await seedSession(page);
 
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("link", { name: "New transfer" })).toBeVisible();
-  await expect(page).toHaveURL(/\/dashboard\/overview/);
+  await expect(page).toHaveURL(/\/overview/);
 
   // Nothing reached for an API route the mock does not serve, and nothing escaped to an
   // unblocked external origin.
@@ -41,7 +41,7 @@ test("a started onboarding account renders without crashing the overview", async
   await mockBackend(page, { onboardingState: "started" });
   await seedSession(page);
 
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByText("Started", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole("button", { name: "Verification started" })).toBeVisible();
@@ -51,7 +51,7 @@ test("an authenticated user is redirected away from the login page", async ({ pa
   await mockBackend(page);
   await seedSession(page);
 
-  await page.goto("/dashboard/login");
+  await page.goto("/login");
 
-  await expect(page).toHaveURL(/\/dashboard\/overview/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/overview/, { timeout: 20_000 });
 });

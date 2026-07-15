@@ -7,7 +7,7 @@ const documentFile = { buffer: Buffer.from("e2e-kyb-document"), mimeType: "appli
 test("Alfredpay MX business KYB submits five documents and reaches provider approval", async ({ page }) => {
   const backend = await mockBackend(page, { alfredpayKyc: {}, companyMode: true });
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Add corridor" }).click();

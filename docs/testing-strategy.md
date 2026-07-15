@@ -171,8 +171,8 @@ They run nightly via `.github/workflows/e2e.yml` (never PR-blocking) and locally
 
 ### Playwright E2E — dashboard (`apps/dashboard/e2e/`)
 
-The dashboard has its own `playwright.config.ts` (its own Vite server on port 5174, served under
-the `/dashboard/` base path) and its own `e2e/support/mockBackend.ts`, since it consumes a
+The dashboard has its own `playwright.config.ts` (its own Vite server on port 5174, served at
+the root path) and its own `e2e/support/mockBackend.ts`, since it consumes a
 different set of endpoints than the widget. Covered so far:
 
 - **Login** (`login.spec.ts`): the email/OTP flow incl. a rejected code.

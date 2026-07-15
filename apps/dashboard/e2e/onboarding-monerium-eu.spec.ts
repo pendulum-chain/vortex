@@ -5,7 +5,7 @@ import { E2E_USER_EMAIL, E2E_USER_ID, SESSION_KEYS, seedSession } from "./suppor
 test("Monerium EU OAuth returns securely and refreshes approval", async ({ page }) => {
   const backend = await mockBackend(page, { moneriumKyc: true });
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Add corridor" }).click();
@@ -21,7 +21,7 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   const navigationGate = new Promise<void>(resolve => {
     continueNavigation = resolve;
   });
-  await page.route(`${page.url().split("/dashboard/")[0]}/dashboard/monerium/callback?**`, async route => {
+  await page.route(`${new URL(page.url()).origin}/monerium/callback?**`, async route => {
     await navigationGate;
     await route.continue();
   });
@@ -45,7 +45,7 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   }
   await navigation;
 
-  await expect(page).toHaveURL(/\/dashboard\/overview\?onboarding=EU$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
   await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue in background" })).toBeVisible();
   expect(backend.monerium.startRequests).toEqual([{ customerType: "individual" }]);
@@ -72,9 +72,9 @@ test("Monerium callback refreshes an expired dashboard session before exchange",
     { email: E2E_USER_EMAIL, keys: SESSION_KEYS, userId: E2E_USER_ID }
   );
 
-  await page.goto("/dashboard/monerium/callback?code=e2e-code&state=e2e-state");
+  await page.goto("/monerium/callback?code=e2e-code&state=e2e-state");
 
-  await expect(page).toHaveURL(/\/dashboard\/overview\?onboarding=EU$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
   await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
   expect(backend.auth.refreshes).toBe(1);
 });
@@ -83,7 +83,7 @@ test("in-review Monerium onboarding offers reauthentication when the status resp
   const backend = await mockBackend(page, { moneriumKyc: true });
   backend.monerium.completed = true;
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   const reauthenticateButton = page.getByRole("button", { name: "Re-authenticate with Monerium" });
   await expect(reauthenticateButton).toBeVisible({ timeout: 20_000 });

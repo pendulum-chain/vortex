@@ -230,7 +230,7 @@ export const config: Config = {
       process.env.MONERIUM_API_URL ||
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
-    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/dashboard/monerium/callback"
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
   },
   mykobo: {
     feeFallback: readMykoboFeeFallback()

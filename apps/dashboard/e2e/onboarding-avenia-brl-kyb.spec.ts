@@ -13,7 +13,7 @@ test("Avenia BR business KYB completes company and representative hosted steps b
   });
   const backend = await mockBackend(page, { aveniaKyb: true, companyMode: true });
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });
   await page.getByRole("button", { name: "Add corridor" }).click();

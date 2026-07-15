@@ -46,7 +46,7 @@ app.use(
       config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
       config.env === "development" ? "http://127.0.0.1:5173" : null,
-      // Dashboard dev server (same-origin under /dashboard/ unless DASHBOARD_ORIGINS is set)
+      // Dashboard dev server (deployed origins come from DASHBOARD_ORIGINS)
       config.env === "development" ? "http://localhost:5174" : null,
       config.env === "development" ? "http://127.0.0.1:5174" : null,
       config.env === "development" ? "http://localhost:6006" : null

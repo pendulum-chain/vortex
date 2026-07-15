@@ -5,9 +5,8 @@
 # configured in the Netlify UI — review it against the current UI configuration.
 #
 # Redirect rules live in `_redirects` (copied into dist by the build), not here.
-# If the dashboard is deployed as its own Netlify site, this build no longer produces
-# dist/dashboard — replace the `/dashboard/*` SPA rule in `_redirects` with a 301 to
-# the dashboard site's URL (or drop it) so the path doesn't dead-end in a 404.
+# The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
+# own domain; this build does not include it.
 
 [build]
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend"

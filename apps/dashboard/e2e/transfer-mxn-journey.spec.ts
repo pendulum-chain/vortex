@@ -29,7 +29,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto("/dashboard/transfer");
+  await page.goto("/transfer");
 
   // Stage 1: the only approved corridor is MX, and its single saved payout account becomes an
   // approved self-recipient that the form auto-selects — so the amount field is already live.
@@ -48,7 +48,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   // navigates once the machine reaches Tracking.
   await sendButton.click();
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
-  await expect(page).toHaveURL(/\/dashboard\/transactions/);
+  await expect(page).toHaveURL(/\/transactions/);
 
   // The quote was requested once, for the inverted payin amount on the SELL rail.
   expect(backend.quoteRequests).toHaveLength(1);
@@ -113,7 +113,7 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
 
-  await page.goto("/dashboard/transfer");
+  await page.goto("/transfer");
 
   // The first account is selected on load; the payin-network select is the other combobox.
   const recipientSelect = page.getByRole("combobox").filter({ hasText: "Vortex E2E CLABE" });

@@ -5,7 +5,7 @@ import { seedSession } from "./support/session";
 test("long recipient invite links stay within the share dialog", async ({ page }) => {
   const backend = await mockBackend(page);
   await seedSession(page);
-  await page.goto("/dashboard/recipients");
+  await page.goto("/recipients");
 
   await page.getByRole("button", { name: "Add recipient" }).first().click();
   const dialog = page.getByRole("dialog");

@@ -5,7 +5,7 @@ import { seedSession } from "./support/session";
 test("a new dashboard user selects and persists a company sender entity", async ({ page }) => {
   await mockBackend(page, { selectionRequired: true });
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   await expect(page.getByRole("heading", { name: "How will you use Vortex?" })).toBeVisible();
   await page.getByRole("button", { name: "Continue as company" }).click();

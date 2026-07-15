@@ -3,10 +3,6 @@ import { defineConfig, devices } from "@playwright/test";
 // E2E journeys are non-PR-blocking (see docs/testing-strategy.md): they run nightly in CI
 // and locally via `bun test:e2e`. The backend is mocked per-test with page.route, so no
 // API server, database, or chain access is needed — only the Vite dev server.
-//
-// baseURL deliberately omits the app's "/dashboard/" base path: Playwright resolves a
-// leading-slash goto() against the origin, not the base, so specs navigate to the full
-// "/dashboard/login" instead of silently landing on "/login".
 export default defineConfig({
   forbidOnly: !!process.env.CI,
   fullyParallel: true,
@@ -28,6 +24,6 @@ export default defineConfig({
     // falls back to a placeholder in src/lib/wagmi.ts.
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    url: "http://127.0.0.1:5174/dashboard/"
+    url: "http://127.0.0.1:5174/"
   }
 });

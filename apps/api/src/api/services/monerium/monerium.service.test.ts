@@ -76,7 +76,7 @@ beforeEach(() => {
   service.resetMoneriumMemoryForTests();
   config.monerium.apiUrl = "https://api.monerium.test";
   config.monerium.clientId = "client-id";
-  config.monerium.redirectUri = "https://dashboard.test/dashboard/monerium/callback";
+  config.monerium.redirectUri = "https://dashboard.test/monerium/callback";
   customerUpdate.mockClear();
   providerFindOrCreate.mockClear();
   providerFindOne.mockClear();

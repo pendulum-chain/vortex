@@ -14,7 +14,7 @@ const idDocument = { buffer: Buffer.from("e2e-id-document"), mimeType: "image/pn
  */
 async function driveToInReview(page: Page): Promise<Locator> {
   await seedSession(page);
-  await page.goto("/dashboard/overview");
+  await page.goto("/overview");
 
   // Add the Mexico corridor (onboarding status starts empty, so nothing is pre-added).
   await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });

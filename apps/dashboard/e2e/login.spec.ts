@@ -11,7 +11,7 @@ const OTP_CODE = "123456";
 test("login: email, OTP, lands on the overview with a stored session", async ({ page }) => {
   const backend = await mockBackend(page);
 
-  await page.goto("/dashboard/login");
+  await page.goto("/login");
   await expect(page.getByText("Connect with Vortex")).toBeVisible();
 
   await page.getByLabel("Email").fill(EMAIL);
@@ -24,7 +24,7 @@ test("login: email, OTP, lands on the overview with a stored session", async ({ 
   // submits without a click (AuthOtpStep wires onComplete={onVerify}).
   await page.locator('input[autocomplete="one-time-code"]').pressSequentially(OTP_CODE);
 
-  await expect(page).toHaveURL(/\/dashboard\/overview/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/overview/, { timeout: 20_000 });
   await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible();
 
   expect(backend.requestOtpRequests).toEqual([{ email: EMAIL }]);
@@ -47,7 +47,7 @@ test("login: a rejected OTP surfaces an error and keeps the user signed out", as
     verifyOtp: () => ({ body: { error: "Invalid or expired code" }, status: 401 })
   });
 
-  await page.goto("/dashboard/login");
+  await page.goto("/login");
   await page.getByLabel("Email").fill(EMAIL);
   await page.getByRole("button", { name: "Continue" }).click();
 
@@ -57,7 +57,7 @@ test("login: a rejected OTP surfaces an error and keeps the user signed out", as
   // The toast carries the backend's message; the route gate keeps us on /login.
   await expect(page.getByText("Verification failed")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Invalid or expired code")).toBeVisible();
-  await expect(page).toHaveURL(/\/dashboard\/login/);
+  await expect(page).toHaveURL(/\/login/);
 
   const accessToken = await page.evaluate(key => localStorage.getItem(key), SESSION_KEYS.accessToken);
   expect(accessToken).toBeNull();

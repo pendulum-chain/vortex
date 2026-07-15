@@ -18,9 +18,6 @@
 /pt-br                         /index.html  200
 /pt-br/*                       /index.html  200
 
-# Dashboard sub-app (apps/dashboard built into dist/dashboard) — SPA fallback
-/dashboard/*                   /dashboard/index.html  200
-
 # Everything else is a real 404
 /*                             /404.html    404
 

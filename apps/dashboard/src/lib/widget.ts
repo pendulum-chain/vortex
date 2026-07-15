@@ -2,13 +2,13 @@ import type { CorridorId } from "@/domain/types";
 import { CORRIDOR_KYB_REGION } from "@/services/api/mappers";
 
 /**
- * The Vortex widget origin. Dev default targets the local widget dev server; production
- * builds fall back to the page origin (the dashboard is served under /dashboard/ on the
- * same origin as the widget's /widget). Set VITE_WIDGET_URL wherever that doesn't hold —
+ * The Vortex widget origin. The dashboard is hosted on its own domain, so the widget is
+ * never same-origin: dev falls back to the local widget dev server, production builds to
+ * the production widget site. Set VITE_WIDGET_URL for every other environment (staging!) —
  * a wrong origin here burns the invite's one-time token on an unreachable link.
  */
 const WIDGET_URL: string =
-  import.meta.env.VITE_WIDGET_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5173" : window.location.origin);
+  import.meta.env.VITE_WIDGET_URL ?? (import.meta.env.DEV ? "http://127.0.0.1:5173" : "https://app.vortexfinance.co");
 
 /**
  * Widget onboarding entry point for a corridor — the **recipient** hand-off (plan §6.2).

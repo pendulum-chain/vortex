@@ -9,7 +9,7 @@ const requiredProductionEnv = {
   FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
   MONERIUM_CLIENT_ID: "test-monerium-client-id",
-  MONERIUM_REDIRECT_URI: "https://dashboard.example.com/dashboard/monerium/callback",
+  MONERIUM_REDIRECT_URI: "https://dashboard.example.com/monerium/callback",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
   SUPABASE_URL: "https://example.supabase.co",

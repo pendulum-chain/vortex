@@ -502,7 +502,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/monerium/oauth/start" && method === "POST" && options.moneriumKyc) {
       monerium.startRequests.push(request.postDataJSON() as Record<string, unknown>);
       await fulfillJson({
-        authorizationUrl: `${APP_ORIGIN}/dashboard/monerium/callback?code=e2e-code&state=e2e-state`
+        authorizationUrl: `${APP_ORIGIN}/monerium/callback?code=e2e-code&state=e2e-state`
       });
       return;
     }
