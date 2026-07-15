@@ -253,6 +253,8 @@ interface MockBackendOptions {
   aveniaKyb?: boolean;
   moneriumKyc?: boolean;
   moneriumRequireRefresh?: boolean;
+  // Served as GET /v1/recipients → pendingInvitations (default: none).
+  pendingInvitations?: Array<Record<string, unknown>>;
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -348,6 +350,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const kycFormSubmissions: Array<Record<string, unknown>> = [];
   const kybFormSubmissions: Array<Record<string, unknown>> = [];
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
+  const archiveInvitationRequests: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
@@ -629,9 +632,16 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson(url.searchParams.get("country") === "MX" ? buildFiatAccounts() : []);
       return;
     }
-    // Third-party recipients: none, so the auto-selected self-recipient stays selected.
+    // Third-party recipients: seeded pending invitations only, so the auto-selected
+    // self-recipient stays selected in transfer specs.
     if (path === "/v1/recipients" && method === "GET") {
-      await fulfillJson({ pendingInvitations: [], recipients: [] });
+      await fulfillJson({ pendingInvitations: options.pendingInvitations ?? [], recipients: [] });
+      return;
+    }
+    if (path.startsWith("/v1/recipients/invitations/") && method === "PATCH") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      archiveInvitationRequests.push({ ...body, id: path.split("/").pop() });
+      await fulfillJson({ archived: body.archived, id: path.split("/").pop() });
       return;
     }
     if (path === "/v1/recipients/invite" && method === "POST") {
@@ -716,6 +726,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   }
 
   return {
+    archiveInvitationRequests,
     auth,
     avenia,
     brlaCreateSubaccountRequests,

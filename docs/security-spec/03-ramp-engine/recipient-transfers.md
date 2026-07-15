@@ -11,10 +11,11 @@ transfers (offramps) that pay out to that recipient. Backed by the migration-`04
 
 | Endpoint | Purpose |
 | :-- | :-- |
-| `POST /v1/recipients/invite` | Sender creates an invite; response returns the raw link token **once** |
+| `POST /v1/recipients/invite` | Sender creates an invite (with a sender-local `alias`); response returns the raw link token |
 | `POST /v1/recipients/invite/:token/accept` | Authenticated recipient redeems the token |
-| `GET /v1/recipients` | Sender lists relationships + pending invitations |
-| `PATCH /v1/recipients/:id` | Sender sets nickname / `active` / `blocked` / `archived` |
+| `GET /v1/recipients` | Sender lists relationships + pending invitations; pending items include the raw token for re-copy |
+| `PATCH /v1/recipients/:id` | Sender sets nickname / `active` / `blocked` / `archived` (archived rows are excluded from the list) |
+| `PATCH /v1/recipients/invitations/:id` | Sender archives/unarchives a pending invitation — a cosmetic list hide; the token stays redeemable (this is **not** revocation) |
 | `GET /v1/recipients/:id/eligibility` | Transfer gate: `{ canCreateTransfer, blockingReasonCode? }` |
 
 This matters because the sender↔recipient link is an authorization edge over money movement: a
@@ -23,10 +24,15 @@ out against another tenant's relationship.
 
 ## Security Invariants
 
-1. **Raw invite tokens are never stored.** Tokens are 24 random bytes (base64url,
-   `crypto.randomBytes`); only their sha256 hex hash lands in
-   `recipient_invitations.token_hash` (UNIQUE). The raw token appears exactly once, in the
-   `POST /invite` response (`recipient-invite.service.ts`).
+1. **Raw invite tokens are stored only while redeemable-by-design, and exposed only to their
+   sender.** Tokens are 24 random bytes (base64url, `crypto.randomBytes`). Redemption still looks
+   up exclusively by the sha256 hex hash in `recipient_invitations.token_hash` (UNIQUE) — the raw
+   `token` column is never a lookup key. The raw token is retained on the row **while the invite
+   is pending** (accepted product decision, superseding the earlier never-stored rule) so the
+   sender can re-copy the link from the list; it is exposed only in the `POST /invite` response
+   and in the sender-entity-scoped `GET /v1/recipients` pending list, and is set to `NULL` inside
+   the acceptance transaction, so accepted invites hold no live secret at rest
+   (`recipient-invite.service.ts`, `recipients.controller.ts`).
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its
    canonical (trimmed, lowercased) form, else `403 INVITE_EMAIL_MISMATCH`.
@@ -58,8 +64,9 @@ out against another tenant's relationship.
    blocked pair returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs
    in one transaction.
-6. **All sender-side routes are entity-scoped.** List/PATCH/eligibility resolve the caller's
-   `customer_entity` from `req.userId` and filter on `sender_customer_entity_id`; foreign ids
+6. **All sender-side routes are entity-scoped.** List/PATCH (relationship and invitation
+   archive)/eligibility resolve the caller's `customer_entity` from `req.userId` and filter on
+   `sender_customer_entity_id`; foreign ids
    return a uniform `404`. Entity resolution is deterministic: a partial unique index on
    `customer_entities (profile_id, type)` (migration 049) makes the acceptance-path
    `findOrCreate` race-safe, and `getOrCreateCustomerEntityForProfile` resolves type-less
@@ -110,7 +117,11 @@ payout-instrument decision (no code path writes `verified` payout references yet
 
 ## Threat Vectors & Mitigations
 
-- **DB dump → redeemable invite links**: only sha256 hashes at rest; tokens are not recoverable.
+- **DB dump → redeemable invite links**: a dump now yields the raw tokens of **pending** invites
+  (accepted trade-off for sender re-copy). Bounds: the 14-day TTL, first-redeemer binding, the
+  token being nulled at acceptance (accepted invites hold no live secret), row-level security on
+  the table, sender-entity-scoped API exposure — and redemption still requires an authenticated
+  session (the token alone does not authenticate).
 - **Token brute force / enumeration**: 192-bit random tokens; unknown tokens return a uniform
   `404` with no timing-relevant branching before the hash lookup.
 - **Intercepted link redeemed by the wrong party**: optional email binding rejects mismatched
@@ -131,8 +142,11 @@ payout-instrument decision (no code path writes `verified` payout references yet
 
 ## Audit Checklist
 
-- [ ] `recipient_invitations.token_hash` is sha256 hex; no raw token column exists; the create
-      response is the only place the token appears.
+- [ ] `recipient_invitations.token_hash` is sha256 hex and is the only redemption lookup key;
+      the raw `token` column is populated only for pending invites, nulled inside the acceptance
+      transaction, and surfaced only via the create response and the sender-scoped list.
+- [ ] Archiving an invitation (`PATCH /v1/recipients/invitations/:id`) does not block redemption;
+      archived invitations and `archived` relationships are excluded from `GET /v1/recipients`.
 - [ ] The accepting recipient can redeem an invite twice and receives the existing relationship;
       other profiles receive `409`. Revoked and expired invites return `410`; expiry lazily
       transitions status.
@@ -152,4 +166,6 @@ payout-instrument decision (no code path writes `verified` payout references yet
   `410 INVITE_REVOKED` for `status = 'revoked'` rows, but nothing writes that status — no
   endpoint, service, or dashboard action exists. Ship a sender-scoped revoke route (writing
   `status` / `revoked_at`) so the invariant-3a kill switch becomes operable pre-acceptance;
-  today only TTL expiry and first-redeemer binding neutralize a leaked pending invite.
+  today only TTL expiry and first-redeemer binding neutralize a leaked pending invite. The
+  invitation-archive PATCH is **not** this: it only hides the row from the sender's list and
+  leaves the token redeemable by design.

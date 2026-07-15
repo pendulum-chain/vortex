@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
@@ -37,7 +38,7 @@ interface CreateInviteBody {
   country?: string;
   rail?: string;
   payoutCurrency?: string;
-  amount?: string;
+  alias?: string;
   inviteeEmail?: string;
   inviteeType?: string;
 }
@@ -46,7 +47,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
   const userId = requireUserId(req, res);
   if (!userId) return;
 
-  const { country, rail, payoutCurrency, amount, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
+  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
 
   if (!country || country.length > 4 || !rail || rail.length > 8 || !payoutCurrency || payoutCurrency.length > 8) {
     sendError(
@@ -61,8 +62,8 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITEE_TYPE", "inviteeType must be 'individual' or 'business'");
     return;
   }
-  if (amount !== undefined && (Number.isNaN(Number(amount)) || Number(amount) <= 0)) {
-    sendError(res, httpStatus.BAD_REQUEST, "INVALID_AMOUNT", "amount must be a positive number");
+  if (alias !== undefined && (typeof alias !== "string" || alias.length > 100)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_ALIAS", "alias must be a string of at most 100 characters");
     return;
   }
 
@@ -71,6 +72,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
     const token = generateInviteToken();
 
     const invitation = await RecipientInvitation.create({
+      alias: alias?.trim() || null,
       country: country.toUpperCase(),
       createdByProfileId: userId,
       expiresAt: inviteExpiryDate(),
@@ -80,13 +82,14 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       payoutCurrency: payoutCurrency.toLowerCase(),
       rail: rail.toLowerCase(),
       senderCustomerEntityId: senderEntity.id,
-      tokenHash: hashInviteToken(token),
-      ...(amount !== undefined ? { amount } : {})
+      // The raw token is kept while the invite is pending so the sender can re-copy the
+      // link; redemption looks up by hash only, and acceptance clears the raw token.
+      token,
+      tokenHash: hashInviteToken(token)
     });
 
-    // The raw token is returned exactly once; only its hash is stored.
     res.status(httpStatus.CREATED).json({
-      amount: invitation.amount,
+      alias: invitation.alias,
       country: invitation.country,
       createdAt: invitation.createdAt,
       expiresAt: invitation.expiresAt,
@@ -207,8 +210,10 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       }
 
       if (!reEntry) {
+        // Clearing the raw token bounds its at-rest exposure to pending invites; re-copy
+        // is only offered pre-acceptance and the recipient already holds the link.
         await lockedInvitation.update(
-          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" },
+          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted", token: null },
           { transaction }
         );
       }
@@ -271,7 +276,8 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         { as: "payoutReferences", model: RecipientPayoutReference }
       ],
       order: [["createdAt", "DESC"]],
-      where: { senderCustomerEntityId: senderEntity.id }
+      // Archived relationships are hidden from the sender's list (archive = remove).
+      where: { relationshipStatus: { [Op.ne]: "archived" }, senderCustomerEntityId: senderEntity.id }
     });
 
     const recipients = await Promise.all(
@@ -306,6 +312,7 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
           id: row.id,
           invitation: invitation
             ? {
+                alias: invitation.alias,
                 country: invitation.country,
                 id: invitation.id,
                 inviteeEmail: invitation.inviteeEmail,
@@ -332,11 +339,12 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
 
     const pendingInvitations = await RecipientInvitation.findAll({
       order: [["createdAt", "DESC"]],
-      where: { senderCustomerEntityId: senderEntity.id, status: "pending" }
+      where: { archivedAt: null, senderCustomerEntityId: senderEntity.id, status: "pending" }
     });
 
     res.status(httpStatus.OK).json({
       pendingInvitations: pendingInvitations.map(invitation => ({
+        alias: invitation.alias,
         country: invitation.country,
         createdAt: invitation.createdAt,
         expiresAt: invitation.expiresAt,
@@ -345,7 +353,9 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         inviteeType: invitation.inviteeType,
         isExpired: Boolean(invitation.expiresAt && invitation.expiresAt < new Date()),
         payoutCurrency: invitation.payoutCurrency,
-        rail: invitation.rail
+        rail: invitation.rail,
+        // Raw token for sender re-copy; null for invites created before it was retained.
+        token: invitation.token
       })),
       recipients
     });
@@ -405,6 +415,41 @@ export async function updateRecipient(req: Request<{ id: string }>, res: Respons
   } catch (error) {
     logger.error("Error updating recipient:", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update recipient");
+  }
+}
+
+interface ArchiveInvitationBody {
+  archived?: boolean;
+}
+
+// Sender-side list hide only — the invitation keeps its status and the token stays
+// redeemable, so an archived invite never blocks the recipient's onboarding.
+export async function archiveInvitation(req: Request<{ id: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  const { archived } = (req.body ?? {}) as ArchiveInvitationBody;
+  if (typeof archived !== "boolean") {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_ARCHIVED", "archived must be a boolean");
+    return;
+  }
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+    const invitation = await RecipientInvitation.findOne({
+      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
+    });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
+      return;
+    }
+
+    await invitation.update({ archivedAt: archived ? new Date() : null });
+
+    res.status(httpStatus.OK).json({ archived: Boolean(invitation.archivedAt), id: invitation.id });
+  } catch (error) {
+    logger.error("Error archiving recipient invitation:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to archive invitation");
   }
 }
 

@@ -68,16 +68,25 @@ the sections below that describe them are target-state, not current behavior.
 
 ### Recipients & invitations `#review`
 - As a sender, I invite a recipient for an approved corridor by generating a shareable link; I
-  choose their country, rail, payout currency, and intended amount. Email is optional metadata —
+  choose their country, rail, and payout currency, and type an **alias** — a sender-local label
+  that identifies the link (and later the recipient) in my list. Email is optional metadata —
   the **link token** is what redeems.
 - As a sender, I copy the invite link and deliver it myself.
+- As a sender, I click a row in my recipients list to open a management modal. While the invite
+  is not yet accepted, I can **re-copy the link** from there; once accepted (or when the link is
+  a legacy invite created before tokens were retained), re-copy is no longer offered.
+- As a sender, I **remove** an entry (pending invite or established relationship) from my list
+  via the same modal. Removal is an archive, not a revocation: the link keeps working, the
+  recipient can still sign in and complete KYC — only the entry disappears from my list (and,
+  for an accepted invite, the sender↔recipient relationship is archived).
 - As a recipient, I open the link and land **in the widget**, pinned to my corridor. I sign in with
   an emailed code — which creates my account — the invite is accepted, and I run the same KYC/KYB
   the widget already offers.
 - As a recipient, I register a payout account (PIX key / IBAN / CLABE / ACH) — the sender never sees
   or holds my bank details.
 - As a sender, I see each recipient's relationship status (`invited · active · blocked · archived`)
-  and onboarding status, and I can nickname, block, or archive them.
+  and onboarding status, and I can nickname, block, or archive them. Archived entries — both
+  archived relationships and archived pending invitations — are hidden from my list.
 - As a sender, a recipient becomes payable only when: invite accepted, relationship active,
   their onboarding approved for that corridor, and a payout reference is verified. Otherwise I see
   *why* it is blocked.
@@ -154,9 +163,12 @@ provider-shaped rather than UI-shaped.
   the payout side from the *recipient's* provider identity. BRL is the cheapest first corridor
   (it already accepts a third-party PIX destination). `#review`
 
-- **Invitations are link-based.** The invite link carries a bearer token — 24 random bytes, stored
-  server-side only as a hash, shown once at creation. It is not the invitation id, and it does not
-  authenticate: `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
+- **Invitations are link-based.** The invite link carries a bearer token — 24 random bytes. The
+  sha256 hash remains the redemption key, but the raw token is also retained on the invitation
+  **while it is pending** (a deliberate product decision, so the sender can re-copy the link from
+  the list) and is cleared on first acceptance. It is exposed only to the sender who owns the
+  invitation, it is not the invitation id, and it does not authenticate:
+  `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
 
 - **Redemption and recipient KYC happen in the widget. `#decided`** The invite link opens the widget
   carrying the token (`?invite=`) plus `?kybLocked=<country>`, which pre-pins the corridor when the
@@ -217,8 +229,9 @@ provider-shaped rather than UI-shaped.
 - Consider persisting intended corridor selection independently of provider entities. A small
   backend table could support adding/removing tracked corridors and explicit status management;
   provider-created entities remain the authoritative persisted onboarding state meanwhile.
-- Preserve and display invitation amounts after creation, and add the remaining recipient
-  management actions such as nickname, block, archive, reactivate, and revoke.
+- Add the remaining recipient management actions such as nickname, block, reactivate, and
+  revoke (archive ships as the list-removal action; invitation amounts were dropped in favor of
+  the sender-typed alias).
 
 ## Open questions
 
