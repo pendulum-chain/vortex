@@ -23,6 +23,14 @@ const REQUEST_BODY_LIMIT = "20mb";
  */
 const app = express();
 
+// Extra fixed origins for a separately-hosted dashboard (comma-separated env var,
+// e.g. "https://dashboard-staging.example.com"). Resolved once at boot — this stays
+// an explicit whitelist per the security spec; wildcards are dropped, never honored.
+const dashboardOrigins = (process.env.DASHBOARD_ORIGINS ?? "")
+  .split(",")
+  .map(origin => origin.trim())
+  .filter(origin => origin.length > 0 && !origin.includes("*"));
+
 // enable CORS - Cross Origin Resource Sharing
 app.use(
   cors({
@@ -34,10 +42,11 @@ app.use(
     origin: [
       "https://app.vortexfinance.co",
       "https://metrics.vortexfinance.co",
+      ...dashboardOrigins,
       config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
       config.env === "development" ? "http://127.0.0.1:5173" : null,
-      // Dashboard dev server (prod is same-origin under /dashboard/)
+      // Dashboard dev server (same-origin under /dashboard/ unless DASHBOARD_ORIGINS is set)
       config.env === "development" ? "http://localhost:5174" : null,
       config.env === "development" ? "http://127.0.0.1:5174" : null,
       config.env === "development" ? "http://localhost:6006" : null

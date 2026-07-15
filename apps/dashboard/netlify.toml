@@ -1,0 +1,37 @@
+# Netlify config for deploying the dashboard as its own site.
+#
+# Requires the Netlify site's "Base directory" to be set to `apps/dashboard` so this
+# file is picked up. The build runs from the repo root because the dashboard depends
+# on the workspace packages (@vortexfi/shared must be built first).
+#
+# The app is intentionally kept under the /dashboard/ path even on its own domain:
+# vite `base`, the TanStack router basepath, and the Monerium OAuth callback path
+# (/dashboard/monerium/callback) are all fixed to it, so publishing the parent dist
+# directory (which contains only dashboard/) serves it without any source changes.
+#
+# Required build-time environment variables (set in the Netlify UI):
+#   VITE_API_URL                  – the API origin, e.g. https://api-staging.vortexfinance.co
+#   VITE_WALLETCONNECT_PROJECT_ID – WalletConnect project id
+#   VITE_WIDGET_URL               – the widget site's origin. MANDATORY on a separate
+#                                   dashboard domain: the fallback is the page origin,
+#                                   which is only correct when dashboard and widget
+#                                   share a site. A wrong value burns invite tokens.
+#   VITE_ALCHEMY_API_KEY          – optional, for ephemeral EVM presigning
+#
+# The API's CORS whitelist must also include this site's origin (DASHBOARD_ORIGINS
+# env var on the backend), and the Monerium application must have
+# https://<this-site>/dashboard/monerium/callback registered as a redirect URI.
+
+[build]
+  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:dashboard"
+  publish = "../frontend/dist"
+
+[[redirects]]
+  from = "/"
+  to = "/dashboard/"
+  status = 302
+
+[[redirects]]
+  from = "/dashboard/*"
+  to = "/dashboard/index.html"
+  status = 200

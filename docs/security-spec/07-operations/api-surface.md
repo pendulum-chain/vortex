@@ -5,7 +5,7 @@
 This spec covers the external-facing attack surface of the Vortex API (`apps/api/`): how requests enter the system, what validation is applied, how errors are returned, and what network-level protections exist.
 
 **Express configuration** (`config/express.ts`):
-- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only)
+- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for a separately-hosted dashboard; resolved once at boot, wildcard entries dropped)
 - Rate limiting: 100 requests per minute per IP (global, all endpoints)
 - Helmet: Standard HTTP security headers
 - Body parser: JSON with **20MB limit**
@@ -37,7 +37,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 ## Security Invariants
 
-1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts`. No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header).
+1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts`. No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header). The `DASHBOARD_ORIGINS` env var extends the whitelist with additional *fixed* origins only: it is parsed once at boot and entries containing `*` are silently discarded, so it cannot be used to introduce a wildcard.
 2. **Rate limiting MUST be enforced on all endpoints** — 100 req/min per IP applies globally via `express-rate-limit`. No endpoint should bypass this.
 3. **Body size MUST be bounded** — The JSON body parser has a limit. **⚠️ FINDING: The limit is 20MB (`"20mb"`), which is still large for a JSON API.** A typical API allows 1-10MB. 20MB still enables avoidable memory pressure.
 4. **All user input MUST be validated before reaching controllers** — Validators run as middleware before the controller function. Missing validation on an endpoint means raw user input reaches business logic.
