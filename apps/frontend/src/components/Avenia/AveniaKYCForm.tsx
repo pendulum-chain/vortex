@@ -17,7 +17,12 @@ interface AveniaKYCContentProps {
 }
 
 const AveniaKYCFormStep = ({ aveniaKycActor, aveniaState, fields }: AveniaKYCContentProps) => {
-  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState.context.kycFormData });
+  const { kycForm } = useKYCForm({
+    cpfApiError: null,
+    initialData: aveniaState.context.kycFormData,
+    // No quote-supplied tax ID means the user types the CPF on this form (invite deep link).
+    kybLinkMode: !aveniaState.context.taxId
+  });
   return (
     <AveniaVerificationForm
       fields={fields}
@@ -62,7 +67,9 @@ export const AveniaKYCForm = () => {
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
-  if (!aveniaState.context.taxId) {
+  // Quoted flow pre-supplies the CPF/CNPJ from the quote; the invite deep-link flow has no quote, so the
+  // CPF is entered on this form. Render whenever either source applies.
+  if (!aveniaState.context.taxId && !aveniaState.context.kybLink) {
     return null;
   }
 
