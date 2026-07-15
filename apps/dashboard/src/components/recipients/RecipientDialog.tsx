@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -174,7 +174,6 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                         <FormControl>
                           <Input placeholder={`e.g. Maria · ${corridor.currency}`} {...field} />
                         </FormControl>
-                        <FormDescription>Only you see this — it identifies the link in your list.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}

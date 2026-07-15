@@ -87,6 +87,9 @@ the sections below that describe them are target-state, not current behavior.
 - As a sender, I see each recipient's relationship status (`invited · active · blocked · archived`)
   and onboarding status, and I can nickname, block, or archive them. Archived entries — both
   archived relationships and archived pending invitations — are hidden from my list.
+- The list's status wording is deliberate: a not-yet-accepted invite reads **"Invite created"**
+  (never "sent" — the system sends nothing; the sender delivers the link), and review states are
+  provider-neutral (**"Pending review"**, no provider names in the recipients list).
 - As a sender, a recipient becomes payable only when: invite accepted, relationship active,
   their onboarding approved for that corridor, and a payout reference is verified. Otherwise I see
   *why* it is blocked.

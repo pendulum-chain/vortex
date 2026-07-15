@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CORRIDORS, PROVIDER_LABEL } from "@/domain/corridors";
+import { CORRIDORS } from "@/domain/corridors";
 import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
@@ -67,7 +67,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
                   <Badge variant={status.badgeVariant}>{status.label}</Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <RecipientAction provider={PROVIDER_LABEL[corridor.provider]} recipient={recipient} />
+                  <RecipientAction recipient={recipient} />
                 </TableCell>
               </MotionRow>
             );
@@ -79,7 +79,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
   );
 }
 
-function RecipientAction({ recipient, provider }: { recipient: Recipient; provider: string }) {
+function RecipientAction({ recipient }: { recipient: Recipient }) {
   const navigate = useNavigate();
 
   // Only your own payout accounts are sendable today.
@@ -97,12 +97,12 @@ function RecipientAction({ recipient, provider }: { recipient: Recipient; provid
   }
 
   if (recipient.status === "invite_sent") {
-    return <span className="text-muted-foreground text-xs">Invite sent</span>;
+    return <span className="text-muted-foreground text-xs">Invite created</span>;
   }
 
   if (recipient.status === "expired" || recipient.status === "rejected") {
     return <span className="text-muted-foreground text-xs">{RECIPIENT_STATUS_META[recipient.status].label}</span>;
   }
 
-  return <span className="text-muted-foreground text-xs">Awaiting {provider} review</span>;
+  return <span className="text-muted-foreground text-xs">Pending review</span>;
 }

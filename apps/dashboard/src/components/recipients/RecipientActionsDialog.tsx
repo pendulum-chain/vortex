@@ -59,16 +59,15 @@ export function RecipientActionsDialog({
           <DialogTitle>{recipientLabel(recipient)}</DialogTitle>
           <DialogDescription>
             {canRecopy
-              ? "Share the invite link again, or remove this entry from your list."
-              : "Remove this entry from your list."}
+              ? "Share the invite link again, or remove this recipient from your list."
+              : "Remove this recipient from your list."}
           </DialogDescription>
         </DialogHeader>
 
         {canRecopy && <InviteLinkCopy url={inviteUrl(recipient.inviteCode, recipient.corridorId)} />}
 
         <p className="text-muted-foreground text-xs">
-          Removing does not invalidate the invite link — the recipient can still open it and complete their verification. It
-          only removes the entry from your list.
+          Removing does not invalidate the invite link — the recipient can still open it and complete their verification.
         </p>
 
         <DialogFooter>
