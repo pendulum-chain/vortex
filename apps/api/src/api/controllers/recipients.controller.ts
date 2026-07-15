@@ -133,7 +133,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
     // for days — an expiry passing mid-onboarding must not lock the recipient out of their own link.
     if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
       if (invitation.status !== "expired") {
-        await invitation.update({ status: "expired" });
+        await invitation.update({ status: "expired", token: null });
       }
       sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
       return;
@@ -337,9 +337,26 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       })
     );
 
+    const now = new Date();
+    await RecipientInvitation.update(
+      { status: "expired", token: null },
+      {
+        where: {
+          expiresAt: { [Op.lt]: now },
+          senderCustomerEntityId: senderEntity.id,
+          status: "pending"
+        }
+      }
+    );
+
     const pendingInvitations = await RecipientInvitation.findAll({
       order: [["createdAt", "DESC"]],
-      where: { archivedAt: null, senderCustomerEntityId: senderEntity.id, status: "pending" }
+      where: {
+        archivedAt: null,
+        [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
+        senderCustomerEntityId: senderEntity.id,
+        status: "pending"
+      }
     });
 
     res.status(httpStatus.OK).json({

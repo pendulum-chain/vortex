@@ -168,13 +168,16 @@ describe("Alfredpay KYB PENDING submission", () => {
     const { token } = await createBusinessCustomer("kyb-already-exists@example.com");
 
     const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    let statusCalls = 0;
     AlfredpayApiService.getInstance = mock(
       () =>
         ({
           getKybBusinessDetails: mock(async () => [{ relatedPersons: [], submissionId: "kyb-sub-1" }]),
           // The pre-submit status probe fails, so the controller attempts a fresh POST first.
           getKybStatus: mock(async () => {
-            throw new Error("Request failed with status '500'. Error: sandbox hiccup");
+            statusCalls += 1;
+            if (statusCalls === 1) throw new Error("Request failed with status '500'. Error: sandbox hiccup");
+            return { status: AlfredpayKycStatus.PENDING };
           }),
           getLastKybSubmission: mock(async () => ({})),
           submitKybInformation: mock(async () => {
@@ -199,6 +202,127 @@ describe("Alfredpay KYB PENDING submission", () => {
     const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
     const kycCase = await KycCase.findOne({ where: { providerCustomerId: customer?.id } });
     expect(kycCase?.providerCaseId).toBe("kyb-sub-1");
+  });
+
+  it("does not update an existing KYB unless Alfredpay confirms it is editable", async () => {
+    const { token } = await createBusinessCustomer("kyb-already-completed@example.com");
+
+    const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    let statusCalls = 0;
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => {
+            statusCalls += 1;
+            if (statusCalls === 1) throw new Error("Request failed with status '500'. Error: sandbox hiccup");
+            return { status: AlfredpayKycStatus.COMPLETED };
+          }),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-1" })),
+          submitKybInformation: mock(async () => {
+            throw new Error(
+              'Request failed with status \'400\'. Error: {"errorCode":111405,"errorMessage":"Customer KYB already exists"}'
+            );
+          }),
+          updateKybInformation
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(409);
+    expect(updateKybInformation).not.toHaveBeenCalled();
+  });
+
+  it("prefers a persisted submission id when Alfredpay still returns it", async () => {
+    const { token } = await createBusinessCustomer("kyb-persisted-current@example.com");
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    await KycCase.update({ providerCaseId: "kyb-sub-persisted" }, { where: { providerCustomerId: customer?.id } });
+
+    const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => [
+            { relatedPersons: [], submissionId: "kyb-sub-first" },
+            { relatedPersons: [], submissionId: "kyb-sub-persisted" }
+          ]),
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.PENDING })),
+          getLastKybSubmission: mock(async () => ({})),
+          updateKybInformation
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-persisted");
+  });
+
+  it("falls back to Alfredpay's first submission when the persisted id is stale", async () => {
+    const { token } = await createBusinessCustomer("kyb-persisted-stale@example.com");
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    await KycCase.update({ providerCaseId: "kyb-sub-stale" }, { where: { providerCustomerId: customer?.id } });
+
+    const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => [
+            { relatedPersons: [], submissionId: "kyb-sub-first" },
+            { relatedPersons: [], submissionId: "kyb-sub-second" }
+          ]),
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.PENDING })),
+          getLastKybSubmission: mock(async () => ({})),
+          updateKybInformation
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-first");
+  });
+
+  it("uses the persisted submission id when Alfredpay discovery is unavailable", async () => {
+    const { token } = await createBusinessCustomer("kyb-persisted-recovery@example.com");
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    await KycCase.update({ providerCaseId: "kyb-sub-persisted" }, { where: { providerCustomerId: customer?.id } });
+
+    const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => {
+            throw new Error("details unavailable");
+          }),
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.PENDING })),
+          getLastKybSubmission: mock(async () => {
+            throw new Error("last submission unavailable");
+          }),
+          updateKybInformation
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-persisted");
   });
 
   it("getKycStatus flips a stale started row to pending via the details fallback", async () => {

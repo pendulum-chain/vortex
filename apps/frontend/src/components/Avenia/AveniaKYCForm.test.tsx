@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { AveniaKycActorRef, SelectedAveniaData } from "../../machines/types";
 import "../../test/i18n";
@@ -18,8 +18,10 @@ vi.mock("../../contexts/rampState", () => ({
 vi.mock("../MenuButtons", () => ({ MenuButtons: () => null }));
 
 function mockAveniaState(context: Record<string, unknown>) {
-  mocks.useAveniaKycActor.mockReturnValue({ send: vi.fn() } as unknown as AveniaKycActorRef);
+  const send = vi.fn();
+  mocks.useAveniaKycActor.mockReturnValue({ send } as unknown as AveniaKycActorRef);
   mocks.useAveniaKycSelector.mockReturnValue({ context, stateValue: "FormFilling" } as unknown as SelectedAveniaData);
+  return send;
 }
 
 describe("AveniaKYCForm", () => {
@@ -48,5 +50,31 @@ describe("AveniaKYCForm", () => {
     render(<AveniaKYCForm />);
 
     expect(screen.getByLabelText("CPF")).toBeInTheDocument();
+  });
+
+  it("resubmits the persisted CPF after returning from document upload", async () => {
+    const kycFormData = {
+      birthdate: "1990-01-01",
+      cep: "01001-000",
+      city: "Sao Paulo",
+      email: "maria@example.com",
+      fullName: "Maria Silva",
+      number: "100",
+      pixId: "",
+      state: "SP",
+      street: "Rua Augusta",
+      taxId: "529.982.247-25"
+    };
+    const send = mockAveniaState({
+      kybLink: { customerType: "individual", invite: "invite-token" },
+      kycFormData,
+      taxId: kycFormData.taxId
+    });
+
+    render(<AveniaKYCForm />);
+
+    expect(screen.getByLabelText("CPF")).toHaveValue(kycFormData.taxId);
+    fireEvent.submit(screen.getByLabelText("CPF").closest("form") as HTMLFormElement);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ formData: kycFormData, type: "FORM_SUBMIT" }));
   });
 });

@@ -20,8 +20,8 @@ const AveniaKYCFormStep = ({ aveniaKycActor, aveniaState, fields }: AveniaKYCCon
   const { kycForm } = useKYCForm({
     cpfApiError: null,
     initialData: aveniaState.context.kycFormData,
-    // No quote-supplied tax ID means the user types the CPF on this form (invite deep link).
-    kybLinkMode: !aveniaState.context.taxId
+    // Invite mode remains active after the submitted CPF is persisted in machine context.
+    kybLinkMode: Boolean(aveniaState.context.kybLink)
   });
   return (
     <AveniaVerificationForm

@@ -385,6 +385,20 @@ describe("GET /v1/recipients", () => {
     expect(body.pendingInvitations).toHaveLength(0);
   });
 
+  it("expires and hides pending invitations whose TTL has passed", async () => {
+    const sender = await createAuthedUser("sender@example.com");
+    const invite = await createInvite(sender.token);
+    await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
+
+    const response = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const body = (await response.json()) as { recipients: unknown[]; pendingInvitations: unknown[] };
+    expect(body.pendingInvitations).toHaveLength(0);
+
+    const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
+    expect(invitation?.status).toBe("expired");
+    expect(invitation?.token).toBeNull();
+  });
+
   it("does not report a business recipient approved off an individual provider approval", async () => {
     const sender = await createAuthedUser("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");

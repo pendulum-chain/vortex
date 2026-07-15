@@ -696,6 +696,9 @@ export class AlfredpayController {
               country
             });
             result = { submissionId: existingSubmissionId };
+          } else if (probeStatus === AlfredpayKybStatus.IN_REVIEW || probeStatus === AlfredpayKybStatus.COMPLETED) {
+            res.status(httpStatus.CONFLICT).json({ error: `KYB is in status ${probeStatus}` });
+            return;
           }
         }
       } catch (error) {
@@ -719,6 +722,12 @@ export class AlfredpayController {
             throw error;
           }
           if (kybAlreadyExists) {
+            const statusRes = await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, existingSubmissionId);
+            const providerStatus = normalizeAlfredpayProviderStatus(statusRes.status);
+            if (providerStatus !== AlfredpayKybStatus.PENDING && providerStatus !== AlfredpayKybStatus.CREATED) {
+              res.status(httpStatus.CONFLICT).json({ error: `KYB is in status ${providerStatus}` });
+              return;
+            }
             logger.info(`KYB already exists upstream, updating submission ${existingSubmissionId} in place`);
             await alfredpayService.updateKybInformation(alfredPayCustomer.alfredPayId, existingSubmissionId, {
               ...kybData,

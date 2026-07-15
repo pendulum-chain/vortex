@@ -32,6 +32,14 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
   const isLiveAveniaKyc = corridor.provider === "avenia" && isAvailable && route === "headless";
   const isLiveMoneriumKyc = corridor.provider === "monerium" && route === "headless";
 
+  // A pending company flow whose Avenia subaccount already exists (CNPJ and company name supplied):
+  // resume straight at the verification links instead of re-asking the form.
+  const onboarding = account.onboardings[corridor.id];
+  const aveniaResume =
+    kind === "kyb" && onboarding?.status === "pending" && onboarding.taxReference
+      ? { companyName: onboarding.companyName ?? null, taxId: onboarding.taxReference }
+      : undefined;
+
   /** The real flow already moved the provider's status — refetch it rather than override it. */
   const onSettled = useCallback(
     (status: OnboardingStatus) => {
@@ -63,7 +71,13 @@ export function OnboardingWizard({ account, corridor, onClose }: OnboardingWizar
             userEmail={account.identifier}
           />
         ) : isLiveAveniaKyc ? (
-          <AveniaKycFlow business={kind === "kyb"} corridor={corridor} onClose={onClose} onSettled={onSettled} />
+          <AveniaKycFlow
+            business={kind === "kyb"}
+            corridor={corridor}
+            onClose={onClose}
+            onSettled={onSettled}
+            resume={aveniaResume}
+          />
         ) : isLiveMoneriumKyc ? (
           <MoneriumKycFlow
             corridor={corridor}

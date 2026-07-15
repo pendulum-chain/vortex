@@ -44,6 +44,10 @@ the sections below that describe them are target-state, not current behavior.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
+- As a BR company whose KYB is pending (Avenia profile already created — CNPJ and company name
+  supplied), Continue resumes directly at the hosted verification steps instead of re-asking the
+  form: the status payload exposes the business `taxReference`, and the wizard skips form filling,
+  reusing the existing Avenia subaccount and issuing fresh verification links.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor started; it moves to
   in review only after Monerium reports that all required information was submitted.
 - As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
@@ -230,6 +234,11 @@ provider-shaped rather than UI-shaped.
 
 ## Next steps
 
+- Add self payout-account (AlfredPay fiat-account) management to the Onboarding corridor cards,
+  per `docs/plans/dashboard-followup-plan.md` §2 (reworked 2026-07-15: Onboarding placement
+  instead of Recipients/Transfer CTAs, ~90% blue progress bar for approved corridors without an
+  account, offramp-only messaging, list + add without delete in v1). The backend
+  `/v1/alfredpay/fiatAccounts` routes already exist.
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
 - Connect the dashboard notification feed and its three preference controls to the backend.

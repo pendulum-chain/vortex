@@ -86,7 +86,10 @@ Also, for Avenia, add changes to store name of Companies on table (provider_cust
 
 ## 2. Add AlfredPay fiat-account management to the dashboard
 
-**Status:** planned, not started.
+**Status:** planned, not started. **Reworked 2026-07-15** — this section overrules the earlier
+version of itself: the entry point moves from the Recipients/Transfer pages to the **Onboarding
+section** (corridor cards), v1 is **list + add only (no delete)**, and two product requirements
+were added (approved-without-account progress bar at ~90% blue, offramp-only messaging).
 
 ### Finding
 
@@ -129,40 +132,97 @@ recipient payout references remain governed by main plan §7.1 and still need th
 recipient-payout decision; do not conflate this work with `recipient_payout_references` for invited
 recipients.
 
-### UX spec
+### UX spec (Onboarding section)
 
-1. **Recipients page empty state.** If an AlfredPay corridor is approved but its fiat-account query
-   returns zero accounts, show a corridor-scoped call to action: "Add your Mexico CLABE", "Add your
-   Colombia account", etc. Do not silently omit the corridor.
-2. **Self-recipient list.** For each saved fiat account, keep rendering one self-recipient with the
+1. **Entry point: the Onboarding corridor cards** (`apps/dashboard/src/routes/_app/overview.tsx` →
+   `apps/dashboard/src/components/onboarding/CorridorCard.tsx`). For AlfredPay corridors
+   (`provider === "alfredpay"`) with `status === "approved"`, hoist the fiat-accounts query into
+   the card (enabled only for that combination) and replace the terminal disabled
+   "Verification complete" ghost button with a payout-accounts section:
+   - **0 accounts:** note + primary "Add payout account" button (opens the dialog on the form view).
+   - **n ≥ 1:** "Verification complete · {n} payout account(s)" + outline "View payout accounts"
+     (opens the dialog on the list view).
+   - **404 from list** (no AlfredPay customer — status aggregate and provider records can briefly
+     disagree): muted "Payout setup not available yet — finish verification first", no add button
+     (the POST would 404 too).
+   - **Other errors:** muted "Couldn't load payout accounts" + Retry (refetch).
+   BR/EU cards and all non-approved states render exactly as today.
+2. **Progress bar.** When the fiat-accounts query resolves with **0 accounts**, the card's progress
+   bar shows **~90% with the blue tone (`bg-primary`)** instead of green/100 — verified but not yet
+   payout-ready. Loading, error, and ≥1 account keep the normal green/100 so cards with accounts
+   never flicker. This is a local render override in `CorridorCard`; do **not** add a new
+   `OnboardingStatus` — the backend status stays `approved` and the `StatusBadge` still reads
+   "Approved".
+3. **Offramp-only messaging.** The empty state (and the dialog's form view) must tell the user a
+   payout account is **only needed to receive money (offramps)** — onramps and payments to
+   third-party recipients work without one. Verified in code: `fiatAccountId` is required only by
+   the AlfredPay offramp route
+   (`apps/api/src/api/services/transactions/offramp/routes/evm-to-alfredpay.ts`), and the widget
+   renders `FiatAccountSelector` only when `!isOnramp`.
+4. **Manage dialog.** One controlled, corridor-scoped dialog
+   (`components/onboarding/alfredpay/FiatAccountDialog.tsx`, pattern:
+   `components/recipients/RecipientDialog.tsx`) with a list view (`accountName · ••••last4` +
+   method label) and an add form. **No delete in v1** — list + add only, and per the old rule: no
+   dead UI affordance.
+5. **Self-recipient list.** For each saved fiat account, keep rendering one self-recipient with the
    masked label from the provider response. Multiple accounts in the same corridor produce multiple
    self-recipient rows.
-3. **Add-account entry points.** Add an "Add payout account" action from the Recipients page and
-   from the Transfer page when the selected/only approved AlfredPay corridor has no account.
-4. **Form shape.** Reuse the widget's existing form definitions and validation patterns rather than
+6. **Form shape.** Reuse the widget's existing form definitions and validation patterns rather than
    inventing new field requirements:
    - `apps/frontend/src/constants/fiatAccountMethods.ts` for corridor → method mapping.
    - `apps/frontend/src/constants/fiatAccountForms.ts` for per-method field lists.
    - `apps/frontend/src/pages/alfredpay/FiatAccountRegistration/RegisterFiatAccountScreen.tsx` for
      request mapping and validation rules.
-5. **Dashboard implementation home.** Do not import from `apps/frontend` directly. Either copy the
-   small constants/form into the dashboard first, or extract the provider-neutral form config to a
-   small shared package/module in the same change. Prefer the smallest change that avoids a
-   cross-app import.
-6. **Submission behavior.** On successful `POST /v1/alfredpay/fiatAccounts`, invalidate the
-   relevant `['fiatAccounts', corridorId]` query and `['recipients']` query so the new self-recipient
-   appears immediately.
-7. **Delete/disable behavior.** Expose deletion only if product wants self-recipient removal in v1.
-   If deletion ships, call `DELETE /v1/alfredpay/fiatAccounts/:fiatAccountId` and invalidate the
-   same queries. If deletion does not ship, leave no dead UI affordance.
-8. **Errors.** Treat `404` from list as "no AlfredPay customer for this country" and show an
-   onboarding-required message, not the add-account form. Treat validation/provider errors from
-   create as form errors without storing entered bank details locally.
+7. **Dashboard implementation home.** Do not import from `apps/frontend` directly — **copy** the
+   small constants/validation into the dashboard (decided; `packages/kyc` excludes fiat accounts by
+   documented design, and the widget config carries i18n keys the dashboard doesn't have). Comment
+   the copy with a pointer to the widget source files as canonical origin.
+8. **Submission behavior.** On successful `POST /v1/alfredpay/fiatAccounts`, invalidate the
+   relevant `['fiatAccounts', corridorId]` query only. Invalidating `['recipients']` is
+   unnecessary: self-recipients are derived from the fiatAccounts queries in
+   `apps/dashboard/src/hooks/useRecipients.ts`, so they refresh automatically.
+9. **Errors.** Treat `404` from list as "no AlfredPay customer for this country" (see item 1).
+   Treat validation/provider errors from create as form errors without storing entered bank details
+   locally.
+
+**Deferred follow-ups** (previously in this spec as v1, now explicitly out of scope): the
+Recipients-page empty-state CTA and the Transfer-page "Add payout account" action. The dialog is
+corridor-scoped and controlled precisely so those pages can reuse it later. Account deletion is
+likewise deferred.
+
+### Implementation sketch
+
+- `apps/dashboard/src/services/api/alfredpay.service.ts`: add
+  `addFiatAccount(payload: AlfredpayAddFiatAccountRequest)` → `POST /alfredpay/fiatAccounts`
+  (DTOs already exist in `packages/shared/src/endpoints/alfredpay.endpoints.ts`).
+- New `apps/dashboard/src/domain/fiatAccounts.ts` (pure logic): one method per corridor with
+  widget-identical validation, `buildFiatAccountSchema`, and `toAddFiatAccountRequest` setting
+  `country`, `type`, and `isExternal: false` (self accounts — assumption to note in the PR):
+
+  | Corridor | API `type` | Fields |
+  | :-- | :-- | :-- |
+  | MX | `SPEI` | `accountNumber` "CLABE" `/^\d{18}$/`; `accountName` |
+  | CO | `ACH` | `accountBankCode` (bank name); `accountNumber` `/^\d{10,11}$/`; `accountType` CORRIENTE/AHORRO/NEQUI; `accountName`; `documentType`; `documentNumber` |
+  | US | `BANK_USA` | `accountBankCode`; `routingNumber` `/^\d{9}$/`; `accountType` (CHECKING default); `accountNumber` `/^\d{8,34}$/`; `accountName` |
+  | AR | `COELSA` | `accountNumber` "CBU / CVU or alias" (min 1, no regex — matches widget); `accountType` CBU/CVU/ALIAS; `accountName` |
+
+- New `apps/dashboard/src/hooks/useFiatAccounts.ts`: extract the private `useFiatAccounts` from
+  `useRecipients.ts` unchanged, export `fiatAccountsQueryKey(corridorId)` as the single key
+  source, add `useAddFiatAccount(corridorId)` mutation with the invalidation from item 8.
+- New `components/onboarding/alfredpay/FiatAccountDialog.tsx` and
+  `components/onboarding/PayoutAccountsSection.tsx` (receives the hoisted query result as props).
+- Tests: unit `src/domain/fiatAccounts.test.ts` (`bun test src`, style of `corridors.test.ts`) —
+  per-method schema accept/reject, request mapping (CO→`ACH`, US→`BANK_USA`, `isExternal: false`);
+  Playwright spec with stateful `GET`/`POST /v1/alfredpay/fiatAccounts` handlers in
+  `e2e/support/mockBackend.ts` — assert the 90%/blue bar and offramp note at 0 accounts, the POST
+  body, the flip to green/100 + "1 payout account", and the `self_MX_<id>` recipient appearing on
+  the Recipients page.
 
 ### API / backend notes
 
-- The dashboard service should grow `addFiatAccount(payload)` and, optionally,
-  `deleteFiatAccount(fiatAccountId, country)` alongside its existing `listFiatAccounts` wrapper.
+- The dashboard service should grow `addFiatAccount(payload)` alongside its existing
+  `listFiatAccounts` wrapper. `deleteFiatAccount(fiatAccountId, country)` is deferred with the
+  delete UI (the backend route already exists if it ships later).
 - The main plan mentions `GET /fiatAccountRequirements`, but `apps/api` does not currently expose
   that route. Do not depend on it unless it is added in the same change. The widget already uses
   local static field definitions, which are sufficient for the supported v1 methods above.
@@ -183,10 +243,12 @@ recipients.
 
 ### Verification
 
-- With an approved MX AlfredPay account and no fiat accounts, Recipients shows an "Add Mexico CLABE"
-  CTA instead of hiding Mexico entirely.
-- Submitting a valid MX CLABE calls `POST /v1/alfredpay/fiatAccounts`, refetches fiat accounts, and
-  renders a `self_MX_<fiatAccountId>` recipient.
+- With an approved MX AlfredPay account and no fiat accounts, the Mexico Onboarding card shows the
+  blue ~90% progress bar, the offramp-only note, and an "Add payout account" action ("Approved"
+  badge unchanged).
+- Submitting a valid MX CLABE calls `POST /v1/alfredpay/fiatAccounts`, refetches fiat accounts, the
+  card returns to green/100 with "1 payout account", and Recipients renders a
+  `self_MX_<fiatAccountId>` recipient.
 - Selecting that self-recipient on Transfer includes `additionalData.fiatAccountId` during ramp
   registration.
 - Repeat the same happy path for CO, US, and AR with their method-specific fields.

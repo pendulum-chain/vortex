@@ -200,24 +200,50 @@ export async function findAlfredpayCustomer(
 }
 
 /**
- * Latest Alfredpay KYB submission id for a business customer. The dedicated last-submission
- * endpoint is tried first, but its response can omit `submissionId` (observed in sandbox), so the
- * KYB details — which carry the submission id per business — are the fallback.
+ * Latest Alfredpay KYB submission id for a business customer. Reconciles the locally persisted id
+ * with the provider's last-submission and business-details responses, while retaining the local id
+ * as a recovery fallback when both provider discovery calls fail.
  */
 export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Promise<string | undefined> {
   const service = AlfredpayApiService.getInstance();
+  const customer = await ProviderCustomer.findOne({
+    where: { provider: "alfredpay", providerCustomerId: alfredPayId }
+  });
+  const persistedSubmissionId = customer
+    ? (
+        await KycCase.findOne({
+          order: [["updatedAt", "DESC"]],
+          where: { providerCustomerId: customer.id }
+        })
+      )?.providerCaseId
+    : null;
+  const providerSubmissionIds: string[] = [];
+  let providerLookupSucceeded = false;
+
   try {
     const lastSubmission = await service.getLastKybSubmission(alfredPayId);
-    if (lastSubmission?.submissionId) return lastSubmission.submissionId;
+    providerLookupSucceeded = true;
+    if (lastSubmission?.submissionId) {
+      providerSubmissionIds.push(lastSubmission.submissionId);
+      if (!persistedSubmissionId || persistedSubmissionId === lastSubmission.submissionId) {
+        return lastSubmission.submissionId;
+      }
+    }
   } catch {
     // Fall through to the details lookup.
   }
   try {
     const details = await service.getKybBusinessDetails(alfredPayId);
-    return details.find(business => business.submissionId)?.submissionId;
+    providerLookupSucceeded = true;
+    providerSubmissionIds.push(...details.flatMap(business => (business.submissionId ? [business.submissionId] : [])));
   } catch {
-    return undefined;
+    // Use the successfully returned provider ids, or the persisted id if both lookups failed.
   }
+
+  if (persistedSubmissionId && providerSubmissionIds.includes(persistedSubmissionId)) {
+    return persistedSubmissionId;
+  }
+  return providerSubmissionIds[0] ?? (providerLookupSucceeded ? undefined : (persistedSubmissionId ?? undefined));
 }
 
 /**

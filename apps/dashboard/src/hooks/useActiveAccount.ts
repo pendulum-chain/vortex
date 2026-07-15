@@ -37,10 +37,12 @@ function deriveOnboardings(entity: OnboardingEntityDto, type: AccountType): Part
     const existing = onboardings[corridorId];
     if (!existing || STATUS_RANK[status] > STATUS_RANK[existing.status]) {
       onboardings[corridorId] = {
+        companyName: account.companyName,
         corridorId,
         kind,
         reauthenticationRequired: account.error?.code === MONERIUM_REAUTHENTICATION_REQUIRED,
         status,
+        taxReference: account.taxReference,
         updatedAt: new Date().toISOString()
       };
     }

@@ -30,8 +30,9 @@ out against another tenant's relationship.
    `token` column is never a lookup key. The raw token is retained on the row **while the invite
    is pending** (accepted product decision, superseding the earlier never-stored rule) so the
    sender can re-copy the link from the list; it is exposed only in the `POST /invite` response
-   and in the sender-entity-scoped `GET /v1/recipients` pending list, and is set to `NULL` inside
-   the acceptance transaction, so accepted invites hold no live secret at rest
+   and in the sender-entity-scoped `GET /v1/recipients` pending list. Acceptance and expiry checks
+   set it to `NULL`; sender listing also expires, clears, and excludes pending rows past their TTL,
+   so accepted/expired invites hold no live secret at rest
    (`recipient-invite.service.ts`, `recipients.controller.ts`).
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its
@@ -40,7 +41,8 @@ out against another tenant's relationship.
    holding the token (subject to 2). Once accepted it binds to `accepted_by_profile_id`: any
    *other* profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
    `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a *pending* invite past `expires_at`
-   transitions the row to `expired`. This holds under concurrency: the acceptance transaction
+   transitions the row to `expired`; sender listing performs the same transition and excludes
+   expired rows. This holds under concurrency: the acceptance transaction
    re-reads the invitation `FOR UPDATE` and re-checks acceptance/revocation under the lock, so
    two profiles redeeming the same token simultaneously produce exactly one relationship
    (integration-tested with parallel accepts).

@@ -41,9 +41,13 @@ export interface Corridor {
 
 export interface Onboarding {
   corridorId: CorridorId;
+  /** Provider-registered company name, when the provider account already exists. */
+  companyName?: string | null;
   kind: OnboardingKind;
   reauthenticationRequired?: boolean;
   status: OnboardingStatus;
+  /** Business tax id (CNPJ) already supplied to the provider — enables form-less resume. */
+  taxReference?: string | null;
   updatedAt: string;
 }
 

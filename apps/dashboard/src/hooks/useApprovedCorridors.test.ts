@@ -15,7 +15,8 @@ function account(country: string, state: "approved" | "pending") {
     rail: null,
     state,
     status: state,
-    statusExternal: null
+    statusExternal: null,
+    taxReference: null
   };
 }
 

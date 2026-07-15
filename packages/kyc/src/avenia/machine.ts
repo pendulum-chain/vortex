@@ -55,7 +55,7 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
   }).createMachine({
     context: ({ input }) => ({ ...input }) as AveniaKycContext,
     id: "brlaKyc",
-    initial: "FormFilling",
+    initial: "Start",
     output: ({ context }) => context,
     states: {
       DocumentUpload: {
@@ -287,6 +287,17 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
             target: "FormFilling"
           }
         }
+      },
+      Start: {
+        // Transient dispatch: resuming an existing account (tax id and name already supplied — the
+        // Avenia subaccount exists) skips the form; everyone else starts at FormFilling as before.
+        always: [
+          {
+            guard: ({ context }) => context.resumeExistingAccount === true && !!context.taxId && !!context.kycFormData,
+            target: "SubaccountSetup"
+          },
+          { target: "FormFilling" }
+        ]
       },
       SubaccountSetup: {
         invoke: {

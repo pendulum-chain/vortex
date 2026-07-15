@@ -107,11 +107,15 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             const rejected =
               attempt.status === KycAttemptStatus.EXPIRED ||
               (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+            // A PENDING attempt is one the user never finished (hosted steps not completed) — keep it
+            // pending so the dashboard offers Continue; in_review only once Avenia is PROCESSING.
             const status = approved
               ? VerificationStatus.Approved
               : rejected
                 ? VerificationStatus.Rejected
-                : VerificationStatus.InReview;
+                : attempt.status === KycAttemptStatus.PENDING
+                  ? VerificationStatus.Pending
+                  : VerificationStatus.InReview;
             const lifecycle = {
               ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
               ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
@@ -180,6 +184,16 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
         .map(customer => refreshAlfredpayCustomerStatus(customer))
     );
 
+    // Alfredpay status refresh may update or create a case through a separate model instance.
+    // Re-read cases so the nested response agrees with the freshly updated account state.
+    const refreshedKycCases = entityIds.length ? await KycCase.findAll({ where: { customerEntityId: entityIds } }) : [];
+    kycCasesByProviderCustomer.clear();
+    for (const kycCase of refreshedKycCases) {
+      if (kycCase.providerCustomerId) {
+        kycCasesByProviderCustomer.set(kycCase.providerCustomerId, kycCase);
+      }
+    }
+
     res.status(httpStatus.OK).json({
       activeEntityId,
       entities: entities.map(entity => {
@@ -209,7 +223,10 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
               rail: customer.rail,
               state: customer.status,
               status: customer.status,
-              statusExternal: customer.statusExternal
+              statusExternal: customer.statusExternal,
+              // Business tax id (CNPJ) only — lets the dashboard resume a pending company flow
+              // without re-asking data the owner already supplied. Individual CPFs stay private.
+              taxReference: customer.customerType === "business" ? customer.taxReference : null
             };
           }),
           id: entity.id,

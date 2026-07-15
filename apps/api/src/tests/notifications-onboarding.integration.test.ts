@@ -179,8 +179,12 @@ describe("GET /v1/onboarding/status", () => {
 
     try {
       const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
-      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
-      expect(body.entities[0].accounts.find(account => account.provider === "alfredpay")?.state).toBe("approved");
+      const body = (await response.json()) as {
+        entities: Array<{ accounts: Array<{ kycCase: { status: string } | null; provider: string; state: string }> }>;
+      };
+      const account = body.entities[0].accounts.find(item => item.provider === "alfredpay");
+      expect(account?.state).toBe("approved");
+      expect(account?.kycCase?.status).toBe("approved");
     } finally {
       AlfredpayApiService.getInstance = getInstance;
     }
@@ -216,6 +220,55 @@ describe("GET /v1/onboarding/status", () => {
     expect(customer.status).toBe(VerificationStatus.Approved);
   });
 
+  it("keeps a business KYB pending (resumable) while the Avenia attempt is still PENDING", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-pending@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "kyb-subaccount",
+      taxId: "11222333000181"
+    });
+    // The stuck shape reported from staging: our row says in_review while Avenia's attempt is
+    // still PENDING because the user never finished (or misclicked past) the hosted steps.
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PENDING });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-1",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PENDING,
+      type: "kyb"
+    });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({ attempt: { id: "attempt-1", status: KycAttemptStatus.PENDING } }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        entities: Array<{ accounts: Array<{ provider: string; state: string; taxReference: string | null }> }>;
+      };
+      const aveniaAccount = body.entities[0].accounts.find(account => account.provider === "avenia");
+      expect(aveniaAccount?.state).toBe("pending");
+      // The dashboard resumes the company flow from this — the CNPJ the owner already supplied.
+      expect(aveniaAccount?.taxReference).toBe("11222333000181");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.Pending);
+    expect(kycCase.status).toBe(VerificationStatus.Pending);
+  });
+
   it("aggregates provider accounts and KYC cases per entity with a normalized state", async () => {
     const { user, token } = await createAuthedUser("user@example.com");
     const avenia = await createTestTaxId(user.id);
@@ -235,7 +288,13 @@ describe("GET /v1/onboarding/status", () => {
     const body = (await response.json()) as {
       entities: Array<{
         type: string;
-        accounts: Array<{ provider: string; state: string; status: string; kycCase: { status: string } | null }>;
+        accounts: Array<{
+          provider: string;
+          state: string;
+          status: string;
+          taxReference: string | null;
+          kycCase: { status: string } | null;
+        }>;
       }>;
     };
 
@@ -247,6 +306,8 @@ describe("GET /v1/onboarding/status", () => {
     expect(aveniaAccount?.state).toBe("approved");
     expect(aveniaAccount?.status).toBe(VerificationStatus.Approved);
     expect(aveniaAccount?.kycCase?.status).toBe(VerificationStatus.Approved);
+    // Individual CPFs are never exposed; only business CNPJs are (for company-flow resume).
+    expect(aveniaAccount?.taxReference).toBeNull();
 
     const alfredpayAccount = accounts.find(account => account.provider === "alfredpay");
     // VERIFYING means the customer has submitted and the provider is actively reviewing.

@@ -113,8 +113,8 @@ export const useKYCForm = ({ cpfApiError, initialData, kybLinkMode = false }: Us
   const kycForm = useForm<KYCFormData>({
     defaultValues: {
       ...initialData,
-      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
-      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
+      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || (kybLinkMode ? "" : taxIdFromStore) || "",
+      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || (kybLinkMode ? "" : pixIdFromStore) || ""
     },
     mode: "onBlur",
     resolver: standardSchemaResolver(createKycFormSchema(t, kybLinkMode))
