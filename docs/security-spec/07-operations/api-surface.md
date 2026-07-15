@@ -5,7 +5,7 @@
 This spec covers the external-facing attack surface of the Vortex API (`apps/api/`): how requests enter the system, what validation is applied, how errors are returned, and what network-level protections exist.
 
 **Express configuration** (`config/express.ts`):
-- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for a separately-hosted dashboard; resolved once at boot, wildcard entries dropped)
+- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for non-production dashboard deployments; resolved once at boot, wildcard entries dropped)
 - Rate limiting: 100 requests per minute per IP (global, all endpoints)
 - Helmet: Standard HTTP security headers
 - Body parser: JSON with **20MB limit**

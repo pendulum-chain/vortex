@@ -23,9 +23,9 @@ const REQUEST_BODY_LIMIT = "20mb";
  */
 const app = express();
 
-// Extra fixed origins for a separately-hosted dashboard (comma-separated env var,
-// e.g. "https://dashboard-staging.example.com"). Resolved once at boot — this stays
-// an explicit whitelist per the security spec; wildcards are dropped, never honored.
+// Extra fixed origins for non-production dashboard deployments (comma-separated env
+// var, e.g. a staging or preview URL). Resolved once at boot — this stays an explicit
+// whitelist per the security spec; wildcards are dropped, never honored.
 const dashboardOrigins = (process.env.DASHBOARD_ORIGINS ?? "")
   .split(",")
   .map(origin => origin.trim())
@@ -41,6 +41,7 @@ app.use(
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE", // Explicitly list allowed headers
     origin: [
       "https://app.vortexfinance.co",
+      "https://dashboard.vortexfinance.co",
       "https://metrics.vortexfinance.co",
       ...dashboardOrigins,
       config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
