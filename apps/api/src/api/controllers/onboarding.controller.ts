@@ -7,6 +7,7 @@ import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
+import { refreshAlfredpayCustomerStatus } from "../services/alfredpay/alfredpay-customer.service";
 import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.service";
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
@@ -123,6 +124,60 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             // Status aggregation remains available while Avenia is temporarily unavailable.
           }
         })
+    );
+
+    // Avenia individual KYC: refresh from the latest attempt so an approval/rejection that lands
+    // after the wizard closed is reflected here — nothing else polls Avenia for individuals.
+    await Promise.all(
+      providerCustomers
+        .filter(
+          customer =>
+            customer.provider === "avenia" &&
+            customer.customerType === "individual" &&
+            customer.status !== VerificationStatus.Approved &&
+            customer.status !== VerificationStatus.Rejected &&
+            !!customer.providerSubaccountId
+        )
+        .map(async customer => {
+          const kycCase = kycCasesByProviderCustomer.get(customer.id);
+          try {
+            const { attempts } = await BrlaApiService.getInstance().getKycAttempts(customer.providerSubaccountId as string);
+            const attempt = attempts[0];
+            if (!attempt) return;
+            const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
+            const rejected =
+              attempt.status === KycAttemptStatus.EXPIRED ||
+              (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+            const status = approved
+              ? VerificationStatus.Approved
+              : rejected
+                ? VerificationStatus.Rejected
+                : VerificationStatus.InReview;
+            const lifecycle = {
+              ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+              ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
+            };
+            await Promise.all([
+              customer.update({ status, statusExternal: attempt.status }),
+              kycCase?.update({ status, statusExternal: attempt.status, ...lifecycle })
+            ]);
+          } catch {
+            // Status aggregation remains available while Avenia is temporarily unavailable.
+          }
+        })
+    );
+
+    // Alfredpay: refresh non-terminal accounts against the provider so an outcome that lands after
+    // the KYC wizard closed is reflected here — the machine only polls Alfredpay while it is open.
+    await Promise.all(
+      providerCustomers
+        .filter(
+          customer =>
+            customer.provider === "alfredpay" &&
+            customer.status !== VerificationStatus.Approved &&
+            customer.status !== VerificationStatus.Rejected
+        )
+        .map(customer => refreshAlfredpayCustomerStatus(customer))
     );
 
     res.status(httpStatus.OK).json({

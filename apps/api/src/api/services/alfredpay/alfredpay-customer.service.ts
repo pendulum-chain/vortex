@@ -1,4 +1,4 @@
-import { AlfredPayCountry, AlfredPayStatus, AlfredpayCustomerType } from "@vortexfi/shared";
+import { AlfredPayCountry, AlfredPayStatus, AlfredpayApiService, AlfredpayCustomerType } from "@vortexfi/shared";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
@@ -66,8 +66,13 @@ function toVerificationStatus(status: AlfredPayStatus): VerificationStatus {
   }
 }
 
-function toAlfredPayStatus(record: ProviderCustomer): AlfredPayStatus {
-  switch (record.statusExternal) {
+/**
+ * Maps a decisive Alfredpay status string — a fresh submission status or a stored `statusExternal` —
+ * to our AlfredPayStatus. KYC and KYB share this vocabulary. CREATED and anything not yet decided
+ * return null so callers can leave a stored status untouched. Mirrors AlfredpayController.mapKycStatus.
+ */
+function providerStatusToAlfredPayStatus(status: string | null): AlfredPayStatus | null {
+  switch (status) {
     case "IN_REVIEW":
       return AlfredPayStatus.Verifying;
     case "FAILED":
@@ -76,15 +81,20 @@ function toAlfredPayStatus(record: ProviderCustomer): AlfredPayStatus {
       return AlfredPayStatus.Success;
     case "UPDATE_REQUIRED":
       return AlfredPayStatus.UpdateRequired;
-    case "CREATED":
-      return AlfredPayStatus.Consulted;
     default:
-      if (record.status === VerificationStatus.Approved) return AlfredPayStatus.Success;
-      if (record.status === VerificationStatus.Rejected) return AlfredPayStatus.Failed;
-      if (record.status === VerificationStatus.InReview) return AlfredPayStatus.UserCompleted;
-      if (record.status === VerificationStatus.Started) return AlfredPayStatus.Consulted;
-      return AlfredPayStatus.Consulted;
+      return null;
   }
+}
+
+function toAlfredPayStatus(record: ProviderCustomer): AlfredPayStatus {
+  const decided = providerStatusToAlfredPayStatus(record.statusExternal);
+  if (decided) return decided;
+  if (record.statusExternal === "CREATED") return AlfredPayStatus.Consulted;
+  if (record.status === VerificationStatus.Approved) return AlfredPayStatus.Success;
+  if (record.status === VerificationStatus.Rejected) return AlfredPayStatus.Failed;
+  if (record.status === VerificationStatus.InReview) return AlfredPayStatus.UserCompleted;
+  if (record.status === VerificationStatus.Started) return AlfredPayStatus.Consulted;
+  return AlfredPayStatus.Consulted;
 }
 
 async function syncKycCase(record: ProviderCustomer): Promise<void> {
@@ -163,6 +173,43 @@ export async function findAlfredpayCustomer(
     }
   });
   return record ? toView(record) : null;
+}
+
+/**
+ * Refreshes a stored Alfredpay account against the provider so an outcome that lands after the KYC
+ * wizard was closed (e.g. the provider approving an already-submitted customer) is reflected by the
+ * onboarding-status aggregator without the user reopening the flow. Best-effort: a provider failure
+ * or a customer with no submission yet leaves the stored status untouched so aggregation keeps
+ * serving. The linked kyc_case is synced through the shared view.
+ */
+export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): Promise<void> {
+  const view = toView(record);
+  const service = AlfredpayApiService.getInstance();
+  const isBusiness = record.customerType === "business";
+  try {
+    const lastSubmission = isBusiness
+      ? await service.getLastKybSubmission(view.alfredPayId)
+      : await service.getLastKycSubmission(view.alfredPayId);
+    if (!lastSubmission?.submissionId) {
+      return;
+    }
+    const statusResponse = isBusiness
+      ? await service.getKybStatus(view.alfredPayId, lastSubmission.submissionId)
+      : await service.getKycStatus(view.alfredPayId, lastSubmission.submissionId);
+    const mapped = providerStatusToAlfredPayStatus(statusResponse.status);
+    if (!mapped) {
+      return;
+    }
+    await view.update({
+      status: mapped,
+      statusExternal: statusResponse.status,
+      ...(mapped === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason
+        ? { lastFailureReasons: [statusResponse.metadata.failureReason] }
+        : {})
+    });
+  } catch {
+    // Keep the stored status if the provider is unavailable or has no submission yet.
+  }
 }
 
 export async function createAlfredpayCustomer(

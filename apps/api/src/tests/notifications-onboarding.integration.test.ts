@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredPayCountry, AlfredPayStatus, AlfredpayCustomerType, BrlaApiService } from "@vortexfi/shared";
+import {
+  AlfredPayCountry,
+  AlfredPayStatus,
+  AlfredpayApiService,
+  AlfredpayCustomerType,
+  AlfredpayKycStatus,
+  BrlaApiService,
+  KycAttemptResult,
+  KycAttemptStatus
+} from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { emitNotification } from "../api/services/notifications/notification.service";
 import CustomerEntity from "../models/customerEntity.model";
@@ -151,6 +160,60 @@ describe("GET /v1/onboarding/status", () => {
     await kycCase?.reload();
     expect(customer?.status).toBe(VerificationStatus.Pending);
     expect(kycCase?.status).toBe(VerificationStatus.Pending);
+  });
+
+  it("reflects an Alfredpay approval that lands after the wizard closed, without a reopen", async () => {
+    const { user, token } = await createAuthedUser("alfredpay-late-approval@example.com");
+    const customer = await createTestAlfredpayCustomer(user.id, { alfredPayId: "ap-late", country: AlfredPayCountry.MX });
+    // Submitted, provider still reviewing — the state the card is stuck on once the modal closes.
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = AlfredpayApiService.getInstance;
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKycStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED })),
+          getLastKycSubmission: mock(async () => ({ submissionId: "sub-1" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "alfredpay")?.state).toBe("approved");
+    } finally {
+      AlfredpayApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Approved);
+  });
+
+  it("reflects an Avenia individual approval that lands after the wizard closed, without a reopen", async () => {
+    const { user, token } = await createAuthedUser("avenia-late-approval@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-late" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({
+            attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("approved");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Approved);
   });
 
   it("aggregates provider accounts and KYC cases per entity with a normalized state", async () => {
