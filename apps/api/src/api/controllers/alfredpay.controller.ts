@@ -26,7 +26,12 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { VerificationStatus } from "../../models/providerCustomer.model";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
-import { createAlfredpayCustomer, findAlfredpayCustomer } from "../services/alfredpay/alfredpay-customer.service";
+import {
+  createAlfredpayCustomer,
+  findAlfredpayCustomer,
+  normalizeAlfredpayProviderStatus,
+  resolveAlfredpayKybSubmissionId
+} from "../services/alfredpay/alfredpay-customer.service";
 import { ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE } from "../services/quote/alfredpay-customer";
 
 export class AlfredpayController {
@@ -61,7 +66,7 @@ export class AlfredpayController {
   }
 
   private static mapKycStatus(status: AlfredpayKycStatus): AlfredPayStatus | null {
-    switch (status) {
+    switch (normalizeAlfredpayProviderStatus(status)) {
       case AlfredpayKycStatus.IN_REVIEW:
         return AlfredPayStatus.Verifying;
       case AlfredpayKycStatus.FAILED:
@@ -77,7 +82,7 @@ export class AlfredpayController {
   }
 
   private static mapKybStatus(status: AlfredpayKybStatus): AlfredPayStatus | null {
-    switch (status) {
+    switch (normalizeAlfredpayProviderStatus(status)) {
       case AlfredpayKybStatus.IN_REVIEW:
         return AlfredPayStatus.Verifying;
       case AlfredpayKybStatus.FAILED:
@@ -107,25 +112,36 @@ export class AlfredpayController {
       const isBusiness = alfredPayCustomer.type === AlfredpayCustomerType.BUSINESS;
 
       try {
-        const lastSubmission = isBusiness
-          ? await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId)
-          : await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+        const submissionId = isBusiness
+          ? await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId)
+          : (await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId))?.submissionId;
 
-        if (lastSubmission && lastSubmission.submissionId) {
+        if (submissionId) {
           const statusResponse = isBusiness
-            ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId)
-            : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+            ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, submissionId)
+            : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, submissionId);
 
           const newStatus = isBusiness
             ? AlfredpayController.mapKybStatus(statusResponse.status)
             : AlfredpayController.mapKycStatus(statusResponse.status);
-          const updateData: Partial<{ status: AlfredPayStatus; statusExternal: string | null; lastFailureReasons: string[] }> =
-            {
-              statusExternal: statusResponse.status
-            };
+          const updateData: Partial<{
+            status: AlfredPayStatus;
+            verificationStatus: VerificationStatus;
+            statusExternal: string | null;
+            lastFailureReasons: string[];
+            providerCaseId: string;
+          }> = {
+            providerCaseId: submissionId,
+            statusExternal: normalizeAlfredpayProviderStatus(statusResponse.status)
+          };
 
           if (newStatus && newStatus !== alfredPayCustomer.status) {
             updateData.status = newStatus;
+          }
+
+          // PENDING = unfinalized/invalid submission, not a rejection — reflect it as our Pending.
+          if (normalizeAlfredpayProviderStatus(statusResponse.status) === AlfredpayKycStatus.PENDING) {
+            updateData.verificationStatus = VerificationStatus.Pending;
           }
 
           if (newStatus === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason) {
@@ -238,8 +254,9 @@ export class AlfredpayController {
         const lastSubmission = await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
         if (lastSubmission && lastSubmission.submissionId) {
           const statusRes = await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
-          if (statusRes.status === "COMPLETED" || statusRes.status === "IN_REVIEW") {
-            return res.status(400).json({ error: `KYC is in status ${statusRes.status}` });
+          const probeStatus = normalizeAlfredpayProviderStatus(statusRes.status);
+          if (probeStatus === AlfredpayKycStatus.COMPLETED || probeStatus === AlfredpayKycStatus.IN_REVIEW) {
+            return res.status(400).json({ error: `KYC is in status ${probeStatus}` });
           }
         }
       } catch {
@@ -248,6 +265,10 @@ export class AlfredpayController {
 
       const normalizedCountry = country.toLowerCase() === "us" ? "USA" : country;
       const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, normalizedCountry);
+
+      if (linkResponse.submissionId) {
+        await alfredPayCustomer.update({ providerCaseId: linkResponse.submissionId });
+      }
 
       res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
     } catch (error) {
@@ -313,11 +334,11 @@ export class AlfredpayController {
       const alfredpayService = AlfredpayApiService.getInstance();
       const isBusiness = selectedType === AlfredpayCustomerType.BUSINESS;
 
-      const lastSubmission = isBusiness
-        ? await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId)
-        : await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+      const submissionId = isBusiness
+        ? await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId)
+        : (await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId))?.submissionId;
 
-      if (!lastSubmission || !lastSubmission.submissionId) {
+      if (!submissionId) {
         await alfredPayCustomer.update({
           status: AlfredPayStatus.Consulted,
           statusExternal: null,
@@ -327,18 +348,30 @@ export class AlfredpayController {
       }
 
       const statusResponse = isBusiness
-        ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId)
-        : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+        ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, submissionId)
+        : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, submissionId);
 
       const newStatus = isBusiness
         ? AlfredpayController.mapKybStatus(statusResponse.status)
         : AlfredpayController.mapKycStatus(statusResponse.status);
-      const updateData: Partial<{ status: AlfredPayStatus; statusExternal: string | null; lastFailureReasons: string[] }> = {
-        statusExternal: statusResponse.status
+      const updateData: Partial<{
+        status: AlfredPayStatus;
+        verificationStatus: VerificationStatus;
+        statusExternal: string | null;
+        lastFailureReasons: string[];
+        providerCaseId: string;
+      }> = {
+        providerCaseId: submissionId,
+        statusExternal: normalizeAlfredpayProviderStatus(statusResponse.status)
       };
 
       if (newStatus && newStatus !== alfredPayCustomer.status) {
         updateData.status = newStatus;
+      }
+
+      // PENDING = unfinalized/invalid submission, not a rejection — reflect it as our Pending.
+      if (normalizeAlfredpayProviderStatus(statusResponse.status) === AlfredpayKycStatus.PENDING) {
+        updateData.verificationStatus = VerificationStatus.Pending;
       }
 
       if (newStatus === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason) {
@@ -379,26 +412,30 @@ export class AlfredpayController {
       const alfredpayService = AlfredpayApiService.getInstance();
       const isBusiness = selectedType === AlfredpayCustomerType.BUSINESS;
 
-      const lastSubmission = isBusiness
-        ? await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId)
-        : await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
+      const submissionId = isBusiness
+        ? await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId)
+        : (await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId))?.submissionId;
 
-      if (!lastSubmission || !lastSubmission.submissionId) {
+      if (!submissionId) {
         return res.status(400).json({ error: "No KYC submission found to retry" });
       }
 
       const statusRes = isBusiness
-        ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId)
-        : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+        ? await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, submissionId)
+        : await alfredpayService.getKycStatus(alfredPayCustomer.alfredPayId, submissionId);
 
-      if (statusRes.status !== AlfredpayKycStatus.FAILED) {
+      if (normalizeAlfredpayProviderStatus(statusRes.status) !== AlfredpayKycStatus.FAILED) {
         return res.status(400).json({ error: `Cannot retry KYC. Current status is ${statusRes.status}` });
       }
 
       if (isBusiness) {
-        await alfredpayService.retryKybSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+        await alfredpayService.retryKybSubmission(alfredPayCustomer.alfredPayId, submissionId);
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
-        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
+        await alfredPayCustomer.update({
+          status: AlfredPayStatus.Consulted,
+          statusExternal: null,
+          ...(linkResponse.submissionId ? { providerCaseId: linkResponse.submissionId } : {})
+        });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
       } else if (country === "MX" || country === "CO" || country === "AR") {
         // MX/CO use API-based (form) KYC — no redirect link needed.
@@ -406,9 +443,13 @@ export class AlfredpayController {
         await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
         return res.json({ success: true });
       } else {
-        await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
+        await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, submissionId);
         const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
-        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
+        await alfredPayCustomer.update({
+          status: AlfredPayStatus.Consulted,
+          statusExternal: null,
+          ...(linkResponse.submissionId ? { providerCaseId: linkResponse.submissionId } : {})
+        });
         return res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
       }
     } catch (error) {
@@ -495,8 +536,9 @@ export class AlfredpayController {
         const lastSubmission = await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId);
         if (lastSubmission && lastSubmission.submissionId) {
           const statusRes = await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
-          if (statusRes.status === AlfredpayKybStatus.COMPLETED || statusRes.status === AlfredpayKybStatus.IN_REVIEW) {
-            return res.status(400).json({ error: `KYB is in status ${statusRes.status}` });
+          const probeStatus = normalizeAlfredpayProviderStatus(statusRes.status);
+          if (probeStatus === AlfredpayKybStatus.COMPLETED || probeStatus === AlfredpayKybStatus.IN_REVIEW) {
+            return res.status(400).json({ error: `KYB is in status ${probeStatus}` });
           }
         }
       } catch {
@@ -504,6 +546,10 @@ export class AlfredpayController {
       }
 
       const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
+
+      if (linkResponse.submissionId) {
+        await alfredPayCustomer.update({ providerCaseId: linkResponse.submissionId });
+      }
 
       res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
     } catch (error) {
@@ -542,6 +588,10 @@ export class AlfredpayController {
         } else {
           throw error;
         }
+      }
+
+      if (result.submissionId) {
+        await alfredPayCustomer.update({ providerCaseId: result.submissionId });
       }
 
       res.json(result);
@@ -630,20 +680,59 @@ export class AlfredpayController {
       }
 
       const alfredpayService = AlfredpayApiService.getInstance();
-      let result: Awaited<ReturnType<typeof alfredpayService.submitKybInformation>>;
+      let result: Awaited<ReturnType<typeof alfredpayService.submitKybInformation>> | undefined;
+
+      // Alfredpay refuses a fresh POST while a submission is still PENDING/CREATED (never finalized
+      // or filed with invalid data) — update that submission in place so the flow can resume.
       try {
-        result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
-      } catch (error) {
-        const errorMessage = (error as Error)?.message || "";
-        if (errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried")) {
-          logger.info("KYB record cannot be retried, fetching existing submission");
-          const existingSubmission = await alfredpayService.getLastKybSubmission(alfredPayCustomer.alfredPayId);
-          result = { submissionId: existingSubmission.submissionId } as Awaited<
-            ReturnType<typeof alfredpayService.submitKybInformation>
-          >;
-        } else {
-          throw error;
+        const existingSubmissionId = await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId);
+        if (existingSubmissionId) {
+          const statusRes = await alfredpayService.getKybStatus(alfredPayCustomer.alfredPayId, existingSubmissionId);
+          logger.info(`Existing KYB submission ${existingSubmissionId} has status ${statusRes.status}`);
+          const probeStatus = normalizeAlfredpayProviderStatus(statusRes.status);
+          if (probeStatus === AlfredpayKybStatus.PENDING || probeStatus === AlfredpayKybStatus.CREATED) {
+            await alfredpayService.updateKybInformation(alfredPayCustomer.alfredPayId, existingSubmissionId, {
+              ...kybData,
+              country
+            });
+            result = { submissionId: existingSubmissionId };
+          }
         }
+      } catch (error) {
+        logger.info(
+          `No previous KYB submission found or error probing it, submitting a new one: ${AlfredpayController.getErrorMessage(error)}`
+        );
+      }
+
+      if (!result) {
+        try {
+          result = await alfredpayService.submitKybInformation(alfredPayCustomer.alfredPayId, { ...kybData, country });
+        } catch (error) {
+          const errorMessage = AlfredpayController.getErrorMessage(error);
+          const kybAlreadyExists = errorMessage.includes("111405") || errorMessage.includes("Customer KYB already exists");
+          const cannotRetry = errorMessage.includes("422") && errorMessage.includes("KYC record cannot be retried");
+          if (!kybAlreadyExists && !cannotRetry) {
+            throw error;
+          }
+          const existingSubmissionId = await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId);
+          if (!existingSubmissionId) {
+            throw error;
+          }
+          if (kybAlreadyExists) {
+            logger.info(`KYB already exists upstream, updating submission ${existingSubmissionId} in place`);
+            await alfredpayService.updateKybInformation(alfredPayCustomer.alfredPayId, existingSubmissionId, {
+              ...kybData,
+              country
+            });
+          } else {
+            logger.info("KYB record cannot be retried, reusing existing submission");
+          }
+          result = { submissionId: existingSubmissionId };
+        }
+      }
+
+      if (result.submissionId) {
+        await alfredPayCustomer.update({ providerCaseId: result.submissionId });
       }
 
       res.json(result);

@@ -351,6 +351,20 @@ export class AlfredpayApiService {
   }
 
   /**
+   * Alfredpay: PUT …/customers/kyb — updates an existing (e.g. PENDING) KYB submission in place.
+   * Alfredpay rejects a fresh POST while a submission is pending, so retries must go through here.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_updatekyb-3
+   */
+  public async updateKybInformation(
+    customerId: string,
+    submissionId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<void> {
+    const path = "/api/v1/third-party-service/penny/customers/kyb";
+    await this.executeRequest(path, "PUT", { customerId, kybUpdateSubmission: data, submissionId });
+  }
+
+  /**
    * Alfredpay: GET …/customers/{customerId}/kyb/details — returns the relate-person ids needed for KYB file uploads.
    * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_findcustomerandbusiness-1
    */

@@ -259,7 +259,7 @@ All routes mounted under `/alfredpay/`, protected by `requireAuth` + `validateRe
 | POST | `/submitKycInformation` | MX/CO individual form data |
 | POST | `/submitKycFile` | ID front/back upload (multer, 5 MB limit) |
 | POST | `/sendKycSubmission` | Finalize MX/CO KYC |
-| POST | `/submitKybInformation` | Business info form |
+| POST | `/submitKybInformation` | Business info form (updates a `PENDING`/`CREATED` submission in place via Alfredpay's `PUT …/customers/kyb` instead of POSTing a new one) |
 | POST | `/submitKybFile` | Business document upload |
 | POST | `/submitKybRelatedPersonFile` | Related-person ID upload |
 | PUT | `/sendKybSubmission` | Finalize KYB (PUT, not POST) |
@@ -291,6 +291,8 @@ Customer must have `status = SUCCESS` before any transaction can be prepared.
 1. **`sendKybSubmission` uses PUT, not POST.** All other file/form submissions use POST. This matches Alfredpay's API design for finalizing KYB.
 
 2. **KYB retry on Alfredpay is a no-op.** `retryKybSubmission` returns `{ message: "ok" }` — Alfredpay has no dedicated KYB retry endpoint. The controller handles retry by fetching a new verification URL.
+
+2a. **A `PENDING` submission blocks fresh POSTs.** Alfredpay reports a created-but-never-finalized (or invalid-data) submission as `PENDING` — a status outside the CREATED/IN_REVIEW/COMPLETED/FAILED/UPDATE_REQUIRED set the decisive mappers handle. A fresh POST meanwhile fails with `400 {"errorCode":111405,"errorMessage":"Customer KYB already exists"}`. `PENDING` maps to our canonical `pending` (resumable, not rejected), and `submitKybInformation` detects it (or recovers from the 111405 POST error) and calls Alfredpay's `PUT /api/v1/third-party-service/penny/customers/kyb` (`updateKybInformation`) to update the submission in place, returning the existing `submissionId`. Resolution of that id tries `GET …/customers/kyb/{customerId}` first and falls back to `GET …/kyb/details` (the last-submission response can omit `submissionId` in sandbox). The latest submission id is persisted on the account's `kyc_cases.providerCaseId`. Status strings from Alfredpay arrive in inconsistent casing (sandbox KYB reports lowercase `pending`) — all comparisons and `status_external` writes go through `normalizeAlfredpayProviderStatus` (uppercase).
 
 3. **KYB actors default country to `"MX"`.** If `context.country` is unset inside a KYB actor, it falls back to MX — a silent bug for Colombia KYB if machine context is ever missing.
 

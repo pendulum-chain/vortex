@@ -1,4 +1,10 @@
-import { AlfredPayCountry, AlfredPayStatus, AlfredpayApiService, AlfredpayCustomerType } from "@vortexfi/shared";
+import {
+  AlfredPayCountry,
+  AlfredPayStatus,
+  AlfredpayApiService,
+  AlfredpayCustomerType,
+  AlfredpayKycStatus
+} from "@vortexfi/shared";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
@@ -44,6 +50,9 @@ export interface AlfredpayCustomerView {
       verificationStatus: VerificationStatus;
       statusExternal: string | null;
       lastFailureReasons: string[];
+      // Latest Alfredpay submission id — persisted on the kyc_case (providerCaseId), not on
+      // provider_customers, so a pending submission can be resumed/updated after the wizard closes.
+      providerCaseId: string;
     }>
   ): Promise<void>;
 }
@@ -67,12 +76,20 @@ function toVerificationStatus(status: AlfredPayStatus): VerificationStatus {
 }
 
 /**
+ * Alfredpay reports status casing inconsistently (the sandbox KYB status endpoint returns
+ * lowercase "pending"); normalize to the uppercase enum vocabulary before comparing or storing.
+ */
+export function normalizeAlfredpayProviderStatus(status: string): AlfredpayKycStatus {
+  return status?.toUpperCase() as AlfredpayKycStatus;
+}
+
+/**
  * Maps a decisive Alfredpay status string — a fresh submission status or a stored `statusExternal` —
  * to our AlfredPayStatus. KYC and KYB share this vocabulary. CREATED and anything not yet decided
  * return null so callers can leave a stored status untouched. Mirrors AlfredpayController.mapKycStatus.
  */
 function providerStatusToAlfredPayStatus(status: string | null): AlfredPayStatus | null {
-  switch (status) {
+  switch (status?.toUpperCase()) {
     case "IN_REVIEW":
       return AlfredPayStatus.Verifying;
     case "FAILED":
@@ -89,7 +106,7 @@ function providerStatusToAlfredPayStatus(status: string | null): AlfredPayStatus
 function toAlfredPayStatus(record: ProviderCustomer): AlfredPayStatus {
   const decided = providerStatusToAlfredPayStatus(record.statusExternal);
   if (decided) return decided;
-  if (record.statusExternal === "CREATED") return AlfredPayStatus.Consulted;
+  if (record.statusExternal?.toUpperCase() === "CREATED") return AlfredPayStatus.Consulted;
   if (record.status === VerificationStatus.Approved) return AlfredPayStatus.Success;
   if (record.status === VerificationStatus.Rejected) return AlfredPayStatus.Failed;
   if (record.status === VerificationStatus.InReview) return AlfredPayStatus.UserCompleted;
@@ -97,7 +114,7 @@ function toAlfredPayStatus(record: ProviderCustomer): AlfredPayStatus {
   return AlfredPayStatus.Consulted;
 }
 
-async function syncKycCase(record: ProviderCustomer): Promise<void> {
+async function syncKycCase(record: ProviderCustomer, providerCaseId?: string): Promise<void> {
   const lifecycle = {
     ...(record.status === VerificationStatus.Approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
     ...(record.status === VerificationStatus.Rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
@@ -108,6 +125,7 @@ async function syncKycCase(record: ProviderCustomer): Promise<void> {
       failureReasons: record.lastFailureReasons ?? [],
       status: record.status,
       statusExternal: record.statusExternal,
+      ...(providerCaseId ? { providerCaseId } : {}),
       ...lifecycle
     });
     return;
@@ -117,6 +135,7 @@ async function syncKycCase(record: ProviderCustomer): Promise<void> {
     failureReasons: record.lastFailureReasons ?? [],
     level: "level_1",
     provider: "alfredpay",
+    providerCaseId: providerCaseId ?? null,
     providerCustomerId: record.id,
     status: record.status,
     statusExternal: record.statusExternal,
@@ -145,8 +164,13 @@ function toView(record: ProviderCustomer): AlfredpayCustomerView {
       });
       this.status = changes.status ?? toAlfredPayStatus(record);
       this.lastFailureReasons = record.lastFailureReasons;
-      if (changes.status !== undefined || changes.verificationStatus !== undefined || changes.statusExternal !== undefined) {
-        await syncKycCase(record);
+      if (
+        changes.status !== undefined ||
+        changes.verificationStatus !== undefined ||
+        changes.statusExternal !== undefined ||
+        changes.providerCaseId !== undefined
+      ) {
+        await syncKycCase(record, changes.providerCaseId);
       }
     },
     updatedAt: record.updatedAt
@@ -176,6 +200,27 @@ export async function findAlfredpayCustomer(
 }
 
 /**
+ * Latest Alfredpay KYB submission id for a business customer. The dedicated last-submission
+ * endpoint is tried first, but its response can omit `submissionId` (observed in sandbox), so the
+ * KYB details — which carry the submission id per business — are the fallback.
+ */
+export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Promise<string | undefined> {
+  const service = AlfredpayApiService.getInstance();
+  try {
+    const lastSubmission = await service.getLastKybSubmission(alfredPayId);
+    if (lastSubmission?.submissionId) return lastSubmission.submissionId;
+  } catch {
+    // Fall through to the details lookup.
+  }
+  try {
+    const details = await service.getKybBusinessDetails(alfredPayId);
+    return details.find(business => business.submissionId)?.submissionId;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Refreshes a stored Alfredpay account against the provider so an outcome that lands after the KYC
  * wizard was closed (e.g. the provider approving an already-submitted customer) is reflected by the
  * onboarding-status aggregator without the user reopening the flow. Best-effort: a provider failure
@@ -187,22 +232,34 @@ export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): 
   const service = AlfredpayApiService.getInstance();
   const isBusiness = record.customerType === "business";
   try {
-    const lastSubmission = isBusiness
-      ? await service.getLastKybSubmission(view.alfredPayId)
-      : await service.getLastKycSubmission(view.alfredPayId);
-    if (!lastSubmission?.submissionId) {
+    const submissionId = isBusiness
+      ? await resolveAlfredpayKybSubmissionId(view.alfredPayId)
+      : (await service.getLastKycSubmission(view.alfredPayId))?.submissionId;
+    if (!submissionId) {
       return;
     }
     const statusResponse = isBusiness
-      ? await service.getKybStatus(view.alfredPayId, lastSubmission.submissionId)
-      : await service.getKycStatus(view.alfredPayId, lastSubmission.submissionId);
-    const mapped = providerStatusToAlfredPayStatus(statusResponse.status);
+      ? await service.getKybStatus(view.alfredPayId, submissionId)
+      : await service.getKycStatus(view.alfredPayId, submissionId);
+    const providerStatus = normalizeAlfredpayProviderStatus(statusResponse.status);
+    const mapped = providerStatusToAlfredPayStatus(providerStatus);
     if (!mapped) {
+      // PENDING = a submission that exists but was never finalized (or carried invalid data). It is
+      // not a rejection: surface it as our Pending so the dashboard offers Continue, and keep the
+      // submission id so the retry updates it in place (Alfredpay refuses a fresh POST meanwhile).
+      if (providerStatus === AlfredpayKycStatus.PENDING) {
+        await view.update({
+          providerCaseId: submissionId,
+          statusExternal: providerStatus,
+          verificationStatus: VerificationStatus.Pending
+        });
+      }
       return;
     }
     await view.update({
+      providerCaseId: submissionId,
       status: mapped,
-      statusExternal: statusResponse.status,
+      statusExternal: providerStatus,
       ...(mapped === AlfredPayStatus.Failed && statusResponse.metadata?.failureReason
         ? { lastFailureReasons: [statusResponse.metadata.failureReason] }
         : {})

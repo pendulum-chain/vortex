@@ -11,6 +11,8 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 
 **Verification collection:** MX and CO individual KYC and company KYB are submitted through the authenticated API flow. Company KYB requires tax ID, incorporation, and address documents plus the authorized representative's ID front and back. US individual and company verification use Alfredpay's hosted redirect flow. AR supports individual KYC only; the shared client state machine rejects `country = AR` with `business = true` before making any provider request and does not allow an AR individual flow to toggle to business.
 
+**Stuck-submission recovery (PENDING):** Alfredpay reports a created-but-never-finalized (or invalid-data) submission as `PENDING`. It is not a rejection: status sync maps it to the canonical `pending` state (resumable in the dashboard), and `submitKybInformation` probes the last submission first — when it is `PENDING`/`CREATED`, the controller updates it in place via `PUT …/customers/kyb` (`updateKybInformation`) and returns the existing `submissionId` instead of POSTing a new submission, which Alfredpay refuses while one is pending (error `111405 "Customer KYB already exists"`; the controller also recovers from that POST error by resolving the existing submission and updating it). Submission-id resolution (`resolveAlfredpayKybSubmissionId`) tries the last-submission endpoint and falls back to the KYB details, whose response carries `submissionId` per business — the last-submission response has been observed to omit it. The latest observed Alfredpay `submissionId` is persisted on the account's `kyc_cases.providerCaseId` by the submit, status, redirect-link, and retry paths so recovery survives the wizard closing.
+
 **Phase handlers:**
 - `alfredpay-onramp-mint-handler.ts` — On-ramp: waits for Alfredpay payment confirmation and credits the Alfredpay on-chain token (`ALFREDPAY_EVM_TOKEN`) to the ephemeral on Polygon.
 - `alfredpay-offramp-transfer-handler.ts` — Off-ramp: transfers the Alfredpay on-chain token to Alfredpay's settlement address for fiat payout. Recovers from expired upstream quotes by re-quoting at execute time (see [Quote Lifecycle — AlfredPay Provider Quote TTL](../03-ramp-engine/quote-lifecycle.md)).
@@ -60,6 +62,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 17. **Alfredpay ramp registration MUST derive the customer id from the effective user; quotes carry only tracking metadata** — The off-ramp transaction route, the on-ramp route, the register-time quote refresh, and the off-ramp transfer recovery path all resolve `alfredPayId` via the strict, KYC-gated `resolveAlfredpayCustomerId(fiatCurrency, effectiveUserId)`. Quote creation is anonymous-eligible: the on-ramp initialize engine and off-ramp partner engine use `resolveAlfredpayQuoteCustomerId`, which fills the *tracking-only* quote `metadata.customerId` with the caller's real customer id when a KYC-completed customer resolves, and the `"anonymous"` sentinel otherwise. Alfredpay validates the top-level `customerId` only on order creation, so no provider *order* ever carries a placeholder identity. Public keys and unlinked secret keys can quote but cannot register Alfredpay ramps.
 18. **`alfredpayOfframpTransfer` MUST verify the ephemeral's token balance before the first broadcast of the presigned transfer** — The presigned final transfer is single-use (its nonce is consumed even on revert), so the handler calls `ensurePresignedTransferFunded` before `sendRawTransaction`: sender/token/amount are decoded from the signed raw tx and the Polygon ephemeral balance is polled (3-minute timeout); a shortfall raises a recoverable error instead of burning the nonce. This complements invariant 14 (`finalSettlementSubsidy` ordering) by also catching capped/failed subsidies. See `03-ramp-engine/ramp-phase-flows.md` invariant 12.
 19. **Argentina business onboarding MUST fail before provider access** — Alfredpay does not support AR company KYB. Client hosts using the shared Alfredpay machine MUST pass the account type in machine input; `AR + business` transitions directly to local failure without status, customer creation, or redirect requests. Account selectors MUST not offer the AR business combination.
+20. **A provider `PENDING` submission MUST map to canonical `pending`, never to a decided state** — `PENDING` means the submission was never finalized or its data was invalid; treating it as `in_review`/`approved` would let un-reviewed due diligence advance, and treating it as `rejected` would dead-end a recoverable flow. Re-submission against a `PENDING`/`CREATED` submission MUST update it in place (`updateKybInformation`) rather than create a new one.
 
 ## Threat Vectors & Mitigations
 
@@ -113,11 +116,14 @@ Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
 `provider_customers` (`provider = 'alfredpay'`), owned via `customer_entities`:
 
 - `alfred_pay_id` → `provider_customer_id` (still the durable Alfredpay-side key, UNIQUE per
-  provider). Database status is the shared canonical verification enum. Provider responses are
-  stored unmodified in `status_external`; provider-specific APIs continue mapping them to the
-  existing Alfredpay workflow contract. `CREATED` and pre-submission interactions map to
-  `started`; missing or stale submissions map to `pending`; `IN_REVIEW`, `COMPLETED`, and `FAILED`
-  map to `in_review`, `approved`, and `rejected` respectively.
+  provider). Database status is the shared canonical verification enum. Provider status strings are
+  uppercased (`normalizeAlfredpayProviderStatus`) before being compared or stored in
+  `status_external` — Alfredpay's casing is inconsistent (the sandbox KYB status endpoint returns
+  lowercase `pending`), and case-sensitive matching would silently skip status transitions;
+  provider-specific APIs continue mapping them to the existing Alfredpay workflow contract. `CREATED` and pre-submission interactions map to
+  `started`; missing or stale submissions and unfinalized `PENDING` submissions map to `pending`;
+  `IN_REVIEW`, `COMPLETED`, and `FAILED` map to `in_review`, `approved`, and `rejected`
+  respectively.
 - All controller lookups go through `findAlfredpayCustomer(userId, country[, type])`, which
   resolves the caller's `customer_entity` first and preserves the legacy updatedAt-DESC
   tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
