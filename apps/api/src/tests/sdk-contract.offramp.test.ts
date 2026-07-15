@@ -16,11 +16,16 @@ import {
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { VortexSdk } from "../../../../packages/sdk/src";
-import Partner from "../models/partner.model";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestAlfredpayCustomer, createTestApiKey, createTestTaxId, createTestUser } from "../test-utils/factories";
+import {
+  createTestAlfredpayCustomer,
+  createTestApiKey,
+  createTestTaxId,
+  createTestUser,
+  updatePartnerPricing
+} from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -97,10 +102,7 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
 
   beforeEach(async () => {
     await resetTestDatabase();
-    await Partner.update(
-      { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" },
-      { where: { name: "vortex", rampType: RampDirection.SELL } }
-    );
+    await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
@@ -319,11 +321,11 @@ describe("SDK ↔ API contract (BRL offramp, USDC on Polygon → pix)", () => {
       const user = await createTestUser();
       const { plaintextKey } = await createTestApiKey({ userId: user.id });
       const customer = await createTestAlfredpayCustomer(user.id, { country: AlfredPayCountry.MX });
-      world.alfredpay.fiatAccountsByCustomer.set(customer.alfredPayId, [
+      world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
         {
           accountNumber: "646180157000000004",
           accountType: "checking",
-          customerId: customer.alfredPayId,
+          customerId: customer.providerCustomerId as string,
           fiatAccountId: "fiat-account-1",
           type: AlfredpayFiatAccountType.SPEI
         }

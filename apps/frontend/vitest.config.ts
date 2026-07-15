@@ -23,9 +23,12 @@ export default defineConfig({
       // Ratchet floors, set just under the coverage measured when they were
       // last raised (enforced by `bun run test:coverage`, which CI runs).
       // Raise them as tested code grows; never lower them to make CI pass.
+      // 2026-07: re-baselined (25→22 lines, 42→38 functions) after the KYC machines
+      // and their tests moved to packages/kyc — the moved code is coverage-gated
+      // there (see its test:coverage script), so the overall gate did not weaken.
       thresholds: {
-        functions: 42,
-        lines: 25
+        functions: 38,
+        lines: 22
       }
     },
     // Dummy values so src/config/supabase.ts (pulled in transitively via services/auth)

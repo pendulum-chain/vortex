@@ -293,6 +293,7 @@ export interface GetRampHistoryTransaction {
   fromCurrency: RampCurrency;
   toCurrency: RampCurrency;
   status: TransactionStatus;
+  currentPhase: RampPhase;
   date: string;
   externalTxHash?: string;
   externalTxExplorerLink?: string;

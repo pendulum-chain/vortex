@@ -1,7 +1,8 @@
-import { AlfredPayCountry, AlfredPayStatus, FiatToken, isAlfredpayToken } from "@vortexfi/shared";
+import { AlfredPayCountry, FiatToken, isAlfredpayToken } from "@vortexfi/shared";
 import httpStatus from "http-status";
-import AlfredPayCustomer from "../../../models/alfredPayCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import { APIError } from "../../errors/api-error";
+import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
 const fiatToCountry: Partial<Record<FiatToken, AlfredPayCountry>> = {
   [FiatToken.USD]: AlfredPayCountry.US,
@@ -36,15 +37,16 @@ export async function resolveAlfredpayQuoteCustomerId(fiatCurrency: string, user
     return ALFREDPAY_ANONYMOUS_CUSTOMER_ID;
   }
 
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country, userId }
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const customer = await ProviderCustomer.findOne({
+    where: { country, customerEntityId: entity.id, provider: "alfredpay" }
   });
 
-  if (!customer || customer.status !== AlfredPayStatus.Success) {
+  if (!customer || customer.status !== VerificationStatus.Approved) {
     return ALFREDPAY_ANONYMOUS_CUSTOMER_ID;
   }
 
-  return customer.alfredPayId;
+  return customer.providerCustomerId ?? ALFREDPAY_ANONYMOUS_CUSTOMER_ID;
 }
 
 /**
@@ -71,8 +73,9 @@ export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: s
     });
   }
 
-  const customer = await AlfredPayCustomer.findOne({
-    where: { country, userId }
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const customer = await ProviderCustomer.findOne({
+    where: { country, customerEntityId: entity.id, provider: "alfredpay" }
   });
 
   if (!customer) {
@@ -82,12 +85,12 @@ export async function resolveAlfredpayCustomerId(fiatCurrency: string, userId: s
     });
   }
 
-  if (customer.status !== AlfredPayStatus.Success) {
+  if (customer.status !== VerificationStatus.Approved) {
     throw new APIError({
       message: `Alfredpay KYC status is ${customer.status}. Complete Alfredpay KYC before registering a ramp.`,
       status: httpStatus.BAD_REQUEST
     });
   }
 
-  return customer.alfredPayId;
+  return customer.providerCustomerId ?? "";
 }

@@ -96,9 +96,11 @@ describe("SDK ↔ API contract (BRL onramp, pix → BRLA on Base)", () => {
   });
 
   /** A KYC'd user with a user-linked secret key, and an SDK authenticated as them. */
-  async function createUserSdk(): Promise<{ sdk: VortexSdk; userId: string }> {
+  async function createUserSdk(subAccountId?: string): Promise<{ sdk: VortexSdk; userId: string }> {
     const user = await createTestUser();
-    await createTestTaxId(user.id);
+    // provider_customers enforces UNIQUE(provider, provider_subaccount_id); secondary users
+    // in a test must bring their own (unused) subaccount id.
+    await createTestTaxId(user.id, subAccountId ? { subAccountId } : {});
     const { plaintextKey } = await createTestApiKey({ userId: user.id });
     // storeEphemeralKeys: false keeps the SDK from writing ephemerals_<rampId>.json to disk.
     const sdk = new VortexSdk({ apiBaseUrl: app.baseUrl, secretKey: plaintextKey, storeEphemeralKeys: false });
@@ -298,7 +300,7 @@ describe("SDK ↔ API contract (BRL onramp, pix → BRLA on Base)", () => {
     "a foreign user's ramp surfaces as a typed VortexSdkError with status 403",
     async () => {
       const owner = await createUserSdk();
-      const stranger = await createUserSdk();
+      const stranger = await createUserSdk("test-subaccount-id-stranger");
       const destination = privateKeyToAccount(generatePrivateKey()).address;
 
       const quote = await owner.sdk.createQuote(quoteRequest());

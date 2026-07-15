@@ -3,7 +3,11 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { isAddress } from "viem";
 import logger from "../../config/logger";
-import { upsertMykoboCustomerFromProfile } from "../services/mykobo/mykobo-customer.service";
+import {
+  markMykoboCustomerPending,
+  markMykoboCustomerStarted,
+  upsertMykoboCustomerFromProfile
+} from "../services/mykobo/mykobo-customer.service";
 
 const PROFILE_TEXT_FIELDS = [
   "first_name",
@@ -48,7 +52,7 @@ export const getProfileController = async (req: Request, res: Response): Promise
   const { email, memo } = req.query;
   const userEmail = req.userEmail;
 
-  if (!userEmail) {
+  if (!userEmail || !req.userId) {
     res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
     return;
   }
@@ -83,8 +87,8 @@ export const getProfileController = async (req: Request, res: Response): Promise
 };
 
 export const createProfileController = async (req: Request, res: Response): Promise<void> => {
-  const userEmail = req.userEmail;
-  if (!userEmail) {
+  const { userId, userEmail } = req;
+  if (!userId || !userEmail) {
     res.status(httpStatus.UNAUTHORIZED).json({ error: "Authenticated user email missing" });
     return;
   }
@@ -117,10 +121,19 @@ export const createProfileController = async (req: Request, res: Response): Prom
       }
     }
 
+    await markMykoboCustomerStarted(userId, userEmail);
     const { profile } = await MykoboApiService.getInstance().createProfile(formData);
+    await upsertMykoboCustomerFromProfile(userId, userEmail, profile);
     res.status(httpStatus.CREATED).json({ profile: toFrontendProfile(profile) });
   } catch (error) {
     if (error instanceof MykoboApiError) {
+      if (req.userId && userEmail) {
+        try {
+          await markMykoboCustomerPending(req.userId, userEmail);
+        } catch (mirrorError) {
+          logger.error("Failed to mark Mykobo profile creation as pending:", mirrorError);
+        }
+      }
       logger.warn(`Mykobo /profiles upstream error: status=${error.status}`);
       res.status(error.status).json({ error: "Mykobo profile creation failed" });
       return;

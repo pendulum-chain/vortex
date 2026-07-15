@@ -24,8 +24,9 @@ import {
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
-import AlfredPayCustomer from "../../models/alfredPayCustomer.model";
+import { VerificationStatus } from "../../models/providerCustomer.model";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import { createAlfredpayCustomer, findAlfredpayCustomer } from "../services/alfredpay/alfredpay-customer.service";
 import { ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE } from "../services/quote/alfredpay-customer";
 
 export class AlfredpayController {
@@ -96,10 +97,7 @@ export class AlfredpayController {
       const { country } = req.query as unknown as AlfredpayStatusRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -121,7 +119,10 @@ export class AlfredpayController {
           const newStatus = isBusiness
             ? AlfredpayController.mapKybStatus(statusResponse.status)
             : AlfredpayController.mapKycStatus(statusResponse.status);
-          const updateData: Partial<AlfredPayCustomer> = {};
+          const updateData: Partial<{ status: AlfredPayStatus; statusExternal: string | null; lastFailureReasons: string[] }> =
+            {
+              statusExternal: statusResponse.status
+            };
 
           if (newStatus && newStatus !== alfredPayCustomer.status) {
             updateData.status = newStatus;
@@ -142,10 +143,12 @@ export class AlfredpayController {
         // Reset to Consulted so the frontend re-triggers the KYC flow.
         const errorMessage = AlfredpayController.getErrorMessage(error).toLowerCase();
         if (errorMessage.includes("404") || errorMessage.includes("not found")) {
-          if (alfredPayCustomer.status === AlfredPayStatus.Success) {
-            logger.info("Resetting stale AlfredPay status to Consulted due to upstream 404");
-            await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
-          }
+          logger.info("Resetting stale AlfredPay status to pending due to upstream 404");
+          await alfredPayCustomer.update({
+            status: AlfredPayStatus.Consulted,
+            statusExternal: null,
+            verificationStatus: VerificationStatus.Pending
+          });
         }
       }
 
@@ -173,9 +176,7 @@ export class AlfredpayController {
       }
 
       // Check if customer already exists in our DB
-      const existingDbCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const existingDbCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (existingDbCustomer) {
         return res.status(400).json({ error: "Customer already exists" });
@@ -198,12 +199,11 @@ export class AlfredpayController {
         }
       }
 
-      await AlfredPayCustomer.create({
+      await createAlfredpayCustomer(userId, {
         alfredPayId: customerId,
         country: country as AlfredPayCountry,
         status: AlfredPayStatus.Consulted,
-        type: AlfredpayCustomerType.INDIVIDUAL,
-        userId
+        type: AlfredpayCustomerType.INDIVIDUAL
       });
 
       const response: AlfredpayCreateCustomerResponse = {
@@ -222,9 +222,7 @@ export class AlfredpayController {
       const { country } = req.query as unknown as AlfredpayGetKycRedirectLinkRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -264,16 +262,13 @@ export class AlfredpayController {
       const userId = AlfredpayController.getRequiredUserId(req);
       const selectedType = type || AlfredpayCustomerType.INDIVIDUAL;
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, type: selectedType, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, selectedType);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
 
-      await alfredPayCustomer.update({ status: AlfredPayStatus.LinkOpened });
+      await alfredPayCustomer.update({ status: AlfredPayStatus.LinkOpened, statusExternal: null });
 
       res.json({ success: true });
     } catch (error) {
@@ -288,16 +283,13 @@ export class AlfredpayController {
       const userId = AlfredpayController.getRequiredUserId(req);
       const selectedType = type || AlfredpayCustomerType.INDIVIDUAL;
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, type: selectedType, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, selectedType);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
       }
 
-      await alfredPayCustomer.update({ status: AlfredPayStatus.UserCompleted });
+      await alfredPayCustomer.update({ status: AlfredPayStatus.UserCompleted, statusExternal: null });
 
       res.json({ success: true });
     } catch (error) {
@@ -312,10 +304,7 @@ export class AlfredpayController {
       const userId = AlfredpayController.getRequiredUserId(req);
       const selectedType = type || AlfredpayCustomerType.INDIVIDUAL;
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, type: selectedType, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, selectedType);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -329,6 +318,11 @@ export class AlfredpayController {
         : await alfredpayService.getLastKycSubmission(alfredPayCustomer.alfredPayId);
 
       if (!lastSubmission || !lastSubmission.submissionId) {
+        await alfredPayCustomer.update({
+          status: AlfredPayStatus.Consulted,
+          statusExternal: null,
+          verificationStatus: VerificationStatus.Pending
+        });
         return res.status(404).json({ error: "No KYC attempt found" });
       }
 
@@ -339,7 +333,9 @@ export class AlfredpayController {
       const newStatus = isBusiness
         ? AlfredpayController.mapKybStatus(statusResponse.status)
         : AlfredpayController.mapKycStatus(statusResponse.status);
-      const updateData: Partial<AlfredPayCustomer> = {};
+      const updateData: Partial<{ status: AlfredPayStatus; statusExternal: string | null; lastFailureReasons: string[] }> = {
+        statusExternal: statusResponse.status
+      };
 
       if (newStatus && newStatus !== alfredPayCustomer.status) {
         updateData.status = newStatus;
@@ -374,10 +370,7 @@ export class AlfredpayController {
       const userId = AlfredpayController.getRequiredUserId(req);
       const selectedType = type || AlfredpayCustomerType.INDIVIDUAL;
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, type: selectedType, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, selectedType);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -405,17 +398,17 @@ export class AlfredpayController {
       if (isBusiness) {
         await alfredpayService.retryKybSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
         const linkResponse = await alfredpayService.getKybRedirectLink(alfredPayCustomer.alfredPayId);
-        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
         return res.json(linkResponse as AlfredpayGetKybRedirectLinkResponse);
       } else if (country === "MX" || country === "CO" || country === "AR") {
         // MX/CO use API-based (form) KYC — no redirect link needed.
         // Just reset status so the user can re-fill the form.
-        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
         return res.json({ success: true });
       } else {
         await alfredpayService.retryKycSubmission(alfredPayCustomer.alfredPayId, lastSubmission.submissionId);
         const linkResponse = await alfredpayService.getKycRedirectLink(alfredPayCustomer.alfredPayId, country);
-        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted });
+        await alfredPayCustomer.update({ status: AlfredPayStatus.Consulted, statusExternal: null });
         return res.json(linkResponse as AlfredpayGetKycRedirectLinkResponse);
       }
     } catch (error) {
@@ -436,9 +429,7 @@ export class AlfredpayController {
 
       const type = AlfredpayCustomerType.BUSINESS;
 
-      const existingDbCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type, userId }
-      });
+      const existingDbCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry, type);
 
       if (existingDbCustomer) {
         return res.status(400).json({ error: "Business customer already exists" });
@@ -461,12 +452,11 @@ export class AlfredpayController {
         }
       }
 
-      await AlfredPayCustomer.create({
+      await createAlfredpayCustomer(userId, {
         alfredPayId: customerId,
         country: country as AlfredPayCountry,
         status: AlfredPayStatus.Consulted,
-        type,
-        userId
+        type
       });
 
       const response: AlfredpayCreateCustomerResponse = {
@@ -485,9 +475,11 @@ export class AlfredpayController {
       const { country } = req.query as unknown as AlfredpayGetKycRedirectLinkRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -525,9 +517,11 @@ export class AlfredpayController {
       const { country, ...kycData } = req.body as SubmitKycInformationRequest;
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.INDIVIDUAL
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -567,9 +561,11 @@ export class AlfredpayController {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.INDIVIDUAL
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -597,9 +593,11 @@ export class AlfredpayController {
       const { country, submissionId } = req.body as { country: string; submissionId: string };
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.INDIVIDUAL, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.INDIVIDUAL
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -621,9 +619,11 @@ export class AlfredpayController {
       const { country, ...kybData } = req.body as SubmitKybInformationRequest & { country: string };
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -659,9 +659,11 @@ export class AlfredpayController {
       const { country } = req.query as { country: string };
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -691,9 +693,11 @@ export class AlfredpayController {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -730,9 +734,11 @@ export class AlfredpayController {
         return res.status(400).json({ error: "No file uploaded" });
       }
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -766,9 +772,11 @@ export class AlfredpayController {
       const { country, submissionId } = req.body as { country: string; submissionId: string };
       const userId = AlfredpayController.getRequiredUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        where: { country: country as AlfredPayCountry, type: AlfredpayCustomerType.BUSINESS, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(
+        userId,
+        country as AlfredPayCountry,
+        AlfredpayCustomerType.BUSINESS
+      );
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay business customer not found" });
@@ -811,10 +819,7 @@ export class AlfredpayController {
       } = req.body as AlfredpayAddFiatAccountRequest;
       const userId = AlfredpayController.getFiatAccountUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -896,10 +901,7 @@ export class AlfredpayController {
       const { country } = req.query as { country: string };
       const userId = AlfredpayController.getFiatAccountUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });
@@ -920,10 +922,7 @@ export class AlfredpayController {
       const { country } = req.query as { country: string };
       const userId = AlfredpayController.getFiatAccountUserId(req);
 
-      const alfredPayCustomer = await AlfredPayCustomer.findOne({
-        order: [["updatedAt", "DESC"]],
-        where: { country: country as AlfredPayCountry, userId }
-      });
+      const alfredPayCustomer = await findAlfredpayCustomer(userId, country as AlfredPayCountry);
 
       if (!alfredPayCustomer) {
         return res.status(404).json({ error: "Alfredpay customer not found" });

@@ -1,4 +1,3 @@
-import { RampDirection } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Op, Transaction, UniqueConstraintError, WhereOptions } from "sequelize";
@@ -9,15 +8,6 @@ import ProfilePartnerAssignment, { ProfilePartnerAssignmentAttributes } from "..
 import User from "../../../models/user.model";
 
 const PROFILE_NOT_FOUND_AFTER_LOCK = "PROFILE_NOT_FOUND_AFTER_LOCK";
-
-function getUniquePartnerIdForRamp(partners: Partner[], rampType: RampDirection): string | null {
-  const rampPartners = partners.filter(partner => partner.rampType === rampType);
-  if (rampPartners.length > 1) {
-    throw new Error(`Multiple active ${rampType} partners found with this name`);
-  }
-
-  return rampPartners[0]?.id ?? null;
-}
 
 function parseExpiration(expiresAt: unknown): Date | null {
   if (!expiresAt) {
@@ -38,13 +28,12 @@ function parseExpiration(expiresAt: unknown): Date | null {
 
 function serializeAssignment(assignment: ProfilePartnerAssignment) {
   return {
-    buyPartnerId: assignment.buyPartnerId,
     createdAt: assignment.createdAt,
     expiresAt: assignment.expiresAt,
     id: assignment.id,
     isActive: assignment.isActive,
+    partnerId: assignment.partnerId,
     partnerName: assignment.partnerName,
-    sellPartnerId: assignment.sellPartnerId,
     updatedAt: assignment.updatedAt,
     userId: assignment.userId
   };
@@ -77,14 +66,14 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
       return;
     }
 
-    const partners = await Partner.findAll({
+    const partner = await Partner.findOne({
       where: {
         isActive: true,
         name: partnerName
       }
     });
 
-    if (partners.length === 0) {
+    if (!partner) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
@@ -94,9 +83,6 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
       });
       return;
     }
-
-    const buyPartnerId = getUniquePartnerIdForRamp(partners, RampDirection.BUY);
-    const sellPartnerId = getUniquePartnerIdForRamp(partners, RampDirection.SELL);
 
     const expirationDate = parseExpiration(expiresAt);
 
@@ -123,11 +109,10 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
 
       return ProfilePartnerAssignment.create(
         {
-          buyPartnerId,
           expiresAt: expirationDate,
           isActive: true,
+          partnerId: partner.id,
           partnerName,
-          sellPartnerId,
           userId
         },
         { transaction }
@@ -135,21 +120,9 @@ export async function createProfilePartnerAssignment(req: Request, res: Response
     });
 
     res.status(httpStatus.CREATED).json({
-      assignment: serializeAssignment(assignment),
-      partnerCount: partners.length
+      assignment: serializeAssignment(assignment)
     });
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Multiple active")) {
-      res.status(httpStatus.CONFLICT).json({
-        error: {
-          code: "AMBIGUOUS_PARTNER_ASSIGNMENT",
-          message: error.message,
-          status: httpStatus.CONFLICT
-        }
-      });
-      return;
-    }
-
     if (error instanceof Error && error.message.startsWith("expiresAt")) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {

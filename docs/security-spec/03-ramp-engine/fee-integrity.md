@@ -27,8 +27,8 @@ This means the fees shown to the user (from the database system) may differ from
 
 Two parallel implementations live in `apps/api/src/api/services/transactions/common/feeDistribution.ts`:
 
-1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `Partner.payout_address_substrate`.
-2. **EVM (Base)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `Partner.payout_address_evm`. The handler pre-checks the active `vortex` partner row has a non-NULL `payout_address_evm` and aborts the phase otherwise; partner-markup recipients resolve through the quote's pricing partner (`pricing_partner_id ?? partner_id`) and fall through with a warning when that partner's `payout_address_evm` is NULL.
+1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `partner_pricing_configs.payout_address_substrate`.
+2. **EVM (Base)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `partner_pricing_configs.payout_address_evm`. The handler pre-checks the active `vortex` pricing config for the quote's ramp direction has a non-NULL `payout_address_evm` and aborts the phase otherwise; partner-markup recipients resolve through the quote's pricing partner (`pricing_partner_id ?? partner_id`) and fall through with a warning when that partner's `payout_address_evm` is NULL.
 
 The `distribute-fees-handler.ts` chooses the correct path at runtime based on the ephemeral network (Pendulum vs. Base). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
 

@@ -1,7 +1,7 @@
 import { RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { config } from "../../../../../config/vars";
-import Partner from "../../../../../models/partner.model";
+import { findPartnerWithPricing, PartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
@@ -12,6 +12,8 @@ interface PartnerDiscountState {
   difference: Big;
 }
 
+// Keyed per (partner, direction): pre-split the BUY/SELL partner rows had distinct ids and
+// got per-direction state isolation for free — the composite key preserves that.
 const partnerDiscountState = new Map<string, PartnerDiscountState>();
 
 function getDeltaD(): Big {
@@ -22,10 +24,16 @@ function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
   return now.getTime() - timestamp.getTime() < config.quote.discountStateTimeoutMinutes * 60 * 1000;
 }
 
-export type ActivePartner = Pick<
-  Partner,
-  "id" | "targetDiscount" | "maxSubsidy" | "minDynamicDifference" | "maxDynamicDifference" | "name"
-> | null;
+export type ActivePartner = {
+  id: string;
+  name: string;
+  targetDiscount: number;
+  maxSubsidy: number;
+  minDynamicDifference: number;
+  maxDynamicDifference: number;
+  /** Discount-state map key, scoped per (partner, ramp direction). */
+  stateKey: string;
+} | null;
 
 export interface DiscountSubsidyPayload {
   actualOutputAmountDecimal: Big;
@@ -33,33 +41,35 @@ export interface DiscountSubsidyPayload {
   expectedOutputAmountDecimal: Big;
 }
 
+export function toActivePartner(pricing: PartnerWithPricing): ActivePartner {
+  return {
+    id: pricing.id,
+    maxDynamicDifference: pricing.maxDynamicDifference,
+    maxSubsidy: pricing.maxSubsidy,
+    minDynamicDifference: pricing.minDynamicDifference,
+    name: pricing.name,
+    stateKey: `${pricing.id}:${pricing.rampType}`,
+    targetDiscount: pricing.targetDiscount
+  };
+}
+
+export async function resolveActivePartnerById(partnerId: string, rampType: RampDirection): Promise<ActivePartner> {
+  const pricing = await findPartnerWithPricing({ id: partnerId }, rampType);
+  return pricing ? toActivePartner(pricing) : null;
+}
+
 export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
   const partnerId = ctx.partner?.id;
 
-  const where = {
-    isActive: true,
-    rampType
-  } as const;
-
   if (partnerId) {
-    const partner = await Partner.findOne({
-      where: {
-        ...where,
-        id: partnerId
-      }
-    });
-
+    const partner = await resolveActivePartnerById(partnerId, rampType);
     if (partner) {
       return partner;
     }
   }
 
-  return Partner.findOne({
-    where: {
-      ...where,
-      name: DEFAULT_PARTNER_NAME
-    }
-  });
+  const vortexPricing = await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, rampType);
+  return vortexPricing ? toActivePartner(vortexPricing) : null;
 }
 
 /**
@@ -96,19 +106,19 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
     return new Big(0);
   }
 
-  const partnerState = partnerDiscountState.get(partner.id);
+  const partnerState = partnerDiscountState.get(partner.stateKey);
   const now = new Date();
 
   // Use partner's max caps if available, otherwise fall back to targetDiscount
   const maxCap = partner.maxDynamicDifference ?? 0;
 
   if (!partnerState) {
-    partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: new Big(0), lastQuoteTimestamp: now });
     return new Big(0);
   }
 
   if (!partnerState.lastQuoteTimestamp) {
-    partnerDiscountState.set(partner.id, { difference: partnerState.difference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: partnerState.difference, lastQuoteTimestamp: now });
     return partnerState.difference;
   }
 
@@ -117,7 +127,7 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   if (!isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
     const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
-    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
   } else {
     // Return existing difference
@@ -129,7 +139,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
     return;
   }
 
-  const partnerState = partnerDiscountState.get(partner.id);
+  const partnerState = partnerDiscountState.get(partner.stateKey);
   const now = new Date();
 
   if (!partnerState || !partnerState.lastQuoteTimestamp) {
@@ -145,7 +155,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
 
     const updatedDifference = partnerState.difference.minus(getDeltaD());
     const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
-    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: null });
+    partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }
 

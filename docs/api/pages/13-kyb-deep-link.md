@@ -14,7 +14,7 @@ It is a variant of the [hosted widget](https://api-docs.vortexfinance.co/widget-
 - **Mexico / Colombia / USA** route to the local payment partner's business KYB form (the business customer type is preselected).
 - Europe is intentionally excluded — it is individual KYC only and requires a connected wallet, so it cannot complete a quote-less KYB deep link.
 
-After verification the user lands on a **KYB Completed** screen. *Continue* returns them to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
+After the hosted steps, the widget checks Avenia's status through Vortex. Pending or in-review attempts remain on the status screen, rejected or expired attempts show a retry path, and only an Avenia `COMPLETED` + `APPROVED` result enables the **KYB Completed** screen. *Continue* returns the user to the standard quote form with the session still authenticated and the deep-link parameters stripped from the URL.
 
 ## URL Parameters
 

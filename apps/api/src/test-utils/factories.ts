@@ -1,6 +1,5 @@
 import {
   AlfredPayCountry,
-  AlfredPayStatus,
   AlfredPayType,
   AveniaAccountType,
   type DestinationType,
@@ -8,19 +7,22 @@ import {
   EvmToken,
   FiatToken,
   Networks,
+  normalizeTaxId,
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/apiKeyAuth.helpers";
+import { hashTaxReference } from "../api/services/avenia/avenia-customer.service";
+import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
-import AlfredPayCustomer from "../models/alfredPayCustomer.model";
 import ApiKey from "../models/apiKey.model";
-import Partner from "../models/partner.model";
+import Partner, { type PartnerAttributes } from "../models/partner.model";
+import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
+import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import QuoteTicket, { type QuoteTicketAttributes } from "../models/quoteTicket.model";
 import RampState, { type RampStateAttributes } from "../models/rampState.model";
-import TaxId, { TaxIdInternalStatus } from "../models/taxId.model";
 import User from "../models/user.model";
 
 let sequence = 0;
@@ -36,27 +38,48 @@ export async function createTestUser(overrides: Partial<{ id: string; email: str
   });
 }
 
-export async function createTestPartner(overrides: Partial<Parameters<typeof Partner.create>[0]> = {}): Promise<Partner> {
+type TestPartnerOverrides = Partial<
+  Pick<PartnerAttributes, "name" | "displayName" | "isActive" | "logoUrl"> &
+    Omit<PartnerPricingConfigAttributes, "id" | "partnerId" | "createdAt" | "updatedAt">
+>;
+
+/**
+ * Creates (or reuses, when the unique name already exists) a partner row plus a pricing
+ * config for the given rampType — the post-split equivalent of the old one-row-per-direction
+ * partner. Pricing overrides land on the config.
+ */
+export async function createTestPartner(overrides: TestPartnerOverrides = {}): Promise<Partner> {
   const seq = nextSeq();
-  return Partner.create({
-    displayName: `Test Partner ${seq}`,
-    isActive: true,
-    logoUrl: null,
-    markupCurrency: FiatToken.EURC,
-    markupType: "none",
-    markupValue: 0,
-    maxDynamicDifference: 0,
-    maxSubsidy: 0,
-    minDynamicDifference: 0,
-    name: `test-partner-${seq}`,
-    payoutAddressEvm: null,
-    payoutAddressSubstrate: null,
-    rampType: RampDirection.BUY,
-    targetDiscount: 0,
-    vortexFeeType: "none",
-    vortexFeeValue: 0,
-    ...overrides
+  const name = overrides.name ?? `test-partner-${seq}`;
+
+  const [partner] = await Partner.findOrCreate({
+    defaults: {
+      displayName: overrides.displayName ?? `Test Partner ${seq}`,
+      isActive: overrides.isActive ?? true,
+      logoUrl: overrides.logoUrl ?? null,
+      name
+    },
+    where: { name }
   });
+
+  await PartnerPricingConfig.create({
+    isActive: overrides.isActive ?? true,
+    markupCurrency: overrides.markupCurrency ?? FiatToken.EURC,
+    markupType: overrides.markupType ?? "none",
+    markupValue: overrides.markupValue ?? 0,
+    maxDynamicDifference: overrides.maxDynamicDifference ?? 0,
+    maxSubsidy: overrides.maxSubsidy ?? 0,
+    minDynamicDifference: overrides.minDynamicDifference ?? 0,
+    partnerId: partner.id,
+    payoutAddressEvm: overrides.payoutAddressEvm ?? null,
+    payoutAddressSubstrate: overrides.payoutAddressSubstrate ?? null,
+    rampType: overrides.rampType ?? RampDirection.BUY,
+    targetDiscount: overrides.targetDiscount ?? 0,
+    vortexFeeType: overrides.vortexFeeType ?? "none",
+    vortexFeeValue: overrides.vortexFeeValue ?? 0
+  });
+
+  return partner;
 }
 
 /**
@@ -67,6 +90,15 @@ export async function createTestApiKey(
   options: { partnerName?: string; userId?: string } = {}
 ): Promise<{ record: ApiKey; plaintextKey: string }> {
   const plaintextKey = generateApiKey("secret", "test");
+
+  // Auth resolves partners by FK; translate the name (unique) to the id here so tests can
+  // keep passing partnerName.
+  let partnerId: string | null = null;
+  if (options.partnerName) {
+    const partner = await Partner.findOne({ where: { name: options.partnerName } });
+    partnerId = partner?.id ?? null;
+  }
+
   const record = await ApiKey.create({
     expiresAt: null,
     isActive: true,
@@ -76,6 +108,7 @@ export async function createTestApiKey(
     keyValue: null,
     lastUsedAt: null,
     name: "test key",
+    partnerId,
     partnerName: options.partnerName ?? null,
     userId: options.userId ?? null
   });
@@ -130,39 +163,56 @@ export async function seedVortexPartners(): Promise<void> {
   }
 }
 
+/** Updates a partner's pricing config for one direction (post-split home of payout/fee fields). */
+export async function updatePartnerPricing(
+  name: string,
+  rampType: RampDirection,
+  values: Partial<Omit<PartnerPricingConfigAttributes, "id" | "partnerId" | "createdAt" | "updatedAt">>
+): Promise<void> {
+  const partner = await Partner.findOne({ where: { name } });
+  if (!partner) {
+    throw new Error(`updatePartnerPricing: no partner named '${name}'`);
+  }
+  await PartnerPricingConfig.update(values, { where: { partnerId: partner.id, rampType } });
+}
+
 /** An Alfredpay-KYC'd customer linked to a user, as required by MXN/COP/USD/ARS ramp registration. */
 export async function createTestAlfredpayCustomer(
   userId: string,
   overrides: Partial<{ alfredPayId: string; country: AlfredPayCountry }> = {}
-): Promise<AlfredPayCustomer> {
+): Promise<ProviderCustomer> {
   const seq = nextSeq();
-  return AlfredPayCustomer.create({
-    alfredPayId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  return ProviderCustomer.create({
     country: overrides.country ?? AlfredPayCountry.MX,
-    lastFailureReasons: null,
-    status: AlfredPayStatus.Success,
-    statusExternal: null,
-    type: AlfredPayType.INDIVIDUAL,
-    userId
+    customerEntityId: entity.id,
+    customerType: "individual",
+    provider: "alfredpay",
+    providerCustomerId: overrides.alfredPayId ?? `test-alfredpay-customer-${seq}`,
+    status: VerificationStatus.Approved
   });
 }
 
 /** An Avenia-KYC'd tax id linked to a user, as required by BRL ramp registration. */
-export async function createTestTaxId(userId: string, overrides: Partial<{ taxId: string; subAccountId: string }> = {}) {
+/** An Accepted Avenia provider account for the user — the post-cutover home of tax_ids rows. */
+export async function createTestTaxId(
+  userId: string,
+  overrides: Partial<{ companyName: string; customerType: "individual" | "business"; taxId: string; subAccountId: string }> = {}
+) {
   const seq = nextSeq();
-  return TaxId.create({
-    accountType: AveniaAccountType.INDIVIDUAL,
-    finalQuoteId: null,
-    finalSessionId: null,
-    finalTimestamp: null,
-    initialQuoteId: null,
-    initialSessionId: null,
-    internalStatus: TaxIdInternalStatus.Accepted,
-    kycAttempt: null,
-    requestedDate: new Date(),
-    subAccountId: overrides.subAccountId ?? "test-subaccount-id",
-    taxId: overrides.taxId ?? `1234567890${seq}`,
-    userId
+  const taxReference = normalizeTaxId(overrides.taxId ?? `1234567890${seq}`);
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  return ProviderCustomer.create({
+    companyName: overrides.customerType === "business" ? (overrides.companyName ?? "Test Company") : null,
+    country: "BR",
+    customerEntityId: entity.id,
+    customerType: overrides.customerType ?? "individual",
+    provider: "avenia",
+    providerSubaccountId: overrides.subAccountId ?? "test-subaccount-id",
+    rail: "brl",
+    status: VerificationStatus.Approved,
+    taxReference,
+    taxReferenceHash: hashTaxReference(taxReference)
   });
 }
 

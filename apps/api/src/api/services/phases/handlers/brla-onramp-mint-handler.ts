@@ -20,8 +20,8 @@ import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import TaxId from "../../../../models/taxId.model";
 import { APIError } from "../../../errors/api-error";
+import { findAveniaCustomerByTaxId } from "../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { syncAveniaOnHoldState } from "../helpers/brla-onramp-hold";
 import { StateMetadata } from "../meta-state-types";
@@ -68,13 +68,14 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Missing 'aveniaTransfer' in quote metadata");
     }
 
-    const taxIdRecord = await TaxId.findByPk(state.state.taxId);
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(state.state.taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
     }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
     const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
     if (!tokenDetails) {
@@ -124,7 +125,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
                   }
                 }),
               brlaApiService,
-              taxIdRecord.subAccountId
+              aveniaSubAccountId
             );
             if (!ticketFound) {
               logger.warn(
@@ -134,7 +135,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           }
 
           // Check internal balance of Avenia subaccount
-          const { balances } = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
+          const { balances } = await brlaApiService.getAccountBalance(aveniaSubAccountId);
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
@@ -168,7 +169,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       outputCurrency: BrlaCurrency.BRLA,
       outputPaymentMethod: AveniaPaymentMethod.BASE,
       outputThirdParty: false,
-      subAccountId: taxIdRecord.subAccountId
+      subAccountId: aveniaSubAccountId
     });
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
@@ -190,7 +191,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           walletChain: AveniaPaymentMethod.BASE
         }
       },
-      taxIdRecord.subAccountId
+      aveniaSubAccountId
     );
 
     logger.info(

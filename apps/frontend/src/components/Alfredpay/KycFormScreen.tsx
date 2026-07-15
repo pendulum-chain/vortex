@@ -66,16 +66,19 @@ export interface KycFormConfig<TValues extends FieldValues> {
 interface KycFormScreenProps<TValues extends FieldValues> {
   config: KycFormConfig<TValues>;
   onSubmit: (data: TValues) => void;
+  lockedEmail?: string;
 }
 
 const inputClass = (hasError: boolean) =>
   `input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${hasError ? "border-error" : "border-neutral-300"}`;
 
-export function KycFormScreen<TValues extends FieldValues>({ config, onSubmit }: KycFormScreenProps<TValues>) {
+export function KycFormScreen<TValues extends FieldValues>({ config, lockedEmail, onSubmit }: KycFormScreenProps<TValues>) {
   const { t } = useTranslation();
 
   const form = useForm<TValues>({
-    defaultValues: config.defaultValues,
+    defaultValues: (lockedEmail
+      ? { ...config.defaultValues, email: lockedEmail }
+      : config.defaultValues) as DefaultValues<TValues>,
     resolver: zodResolver(config.schema) as Resolver<TValues>
   });
   const {
@@ -114,6 +117,7 @@ export function KycFormScreen<TValues extends FieldValues>({ config, onSubmit }:
     }
 
     const placeholder = field.placeholderKey ? t(field.placeholderKey) : field.placeholder;
+    const isLockedEmail = field.name === "email" && !!lockedEmail;
     return (
       <div key={field.name as string}>
         <label className="mb-1 block text-sm" htmlFor={id}>
@@ -121,10 +125,11 @@ export function KycFormScreen<TValues extends FieldValues>({ config, onSubmit }:
         </label>
         <input
           autoComplete={field.autoComplete}
-          className={inputClass(!!errorMessage)}
+          className={`${inputClass(!!errorMessage)} ${isLockedEmail ? "cursor-not-allowed bg-base-200 text-gray-500" : ""}`}
           id={id}
           inputMode={field.inputMode}
           placeholder={placeholder}
+          readOnly={isLockedEmail}
           type={field.inputType ?? "text"}
           {...form.register(field.name)}
         />

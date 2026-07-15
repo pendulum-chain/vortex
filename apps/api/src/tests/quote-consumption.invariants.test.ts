@@ -119,6 +119,66 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(ramps.length).toBe(1);
   });
 
+  it("allows only one active ramp per user across different quotes", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const secondQuote = await createQuoteViaApi();
+
+    const [first, second] = await Promise.all([
+      registerViaApi(firstQuote.id, user.id),
+      registerViaApi(secondQuote.id, user.id)
+    ]);
+
+    const statuses = [first.status, second.status].sort();
+    expect(statuses).toEqual([201, 409]);
+    expect(await RampState.count({ where: { userId: user.id } })).toBe(1);
+  });
+
+  it("releases an unstarted ramp after the start window expires", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const firstResponse = await registerViaApi(firstQuote.id, user.id);
+    expect(firstResponse.status).toBe(201);
+    const firstRamp = (await firstResponse.json()) as { id: string };
+
+    await RampState.update(
+      { createdAt: new Date(Date.now() - 16 * 60 * 1000) },
+      { where: { id: firstRamp.id } }
+    );
+
+    const secondQuote = await createQuoteViaApi();
+    const secondResponse = await registerViaApi(secondQuote.id, user.id);
+
+    expect(secondResponse.status).toBe(201);
+    expect((await RampState.findByPk(firstRamp.id))?.currentPhase).toBe("timedOut");
+  });
+
+  // Pins the sweep's deliberate narrowness: only ramps still in `initial` are reaped.
+  // A ramp that advanced past `initial` may hold user funds, so it keeps blocking new
+  // registrations even after the start window — releasing it requires it to reach a
+  // terminal phase (complete/failed/timedOut) through the state machine.
+  it("keeps blocking new registrations while a ramp is wedged past the initial phase", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const firstResponse = await registerViaApi(firstQuote.id, user.id);
+    expect(firstResponse.status).toBe(201);
+    const firstRamp = (await firstResponse.json()) as { id: string };
+
+    await RampState.update(
+      { createdAt: new Date(Date.now() - 16 * 60 * 1000), currentPhase: "nablaSwap" },
+      { where: { id: firstRamp.id } }
+    );
+
+    const secondQuote = await createQuoteViaApi();
+    const secondResponse = await registerViaApi(secondQuote.id, user.id);
+
+    expect(secondResponse.status).toBe(409);
+    expect((await RampState.findByPk(firstRamp.id))?.currentPhase).toBe("nablaSwap");
+  });
+
   // Pins the atomic-UPDATE backstop directly: even if the registration flow's
   // row-locked pre-check were removed, consumeQuote must refuse a non-pending
   // quote at the database level (WHERE status = 'pending').

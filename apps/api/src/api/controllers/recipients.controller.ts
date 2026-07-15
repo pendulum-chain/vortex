@@ -1,0 +1,431 @@
+import { Request, Response } from "express";
+import httpStatus from "http-status";
+import sequelize from "../../config/database";
+import logger from "../../config/logger";
+import CustomerEntity from "../../models/customerEntity.model";
+import ProviderCustomer from "../../models/providerCustomer.model";
+import RecipientInvitation, { type RecipientInviteeType } from "../../models/recipientInvitation.model";
+import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
+import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
+import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { emitNotification } from "../services/notifications/notification.service";
+import {
+  canonicalizeEmail,
+  generateInviteToken,
+  hashInviteToken,
+  inviteExpiryDate
+} from "../services/recipients/recipient-invite.service";
+import {
+  getTransferEligibility,
+  isProviderApproved,
+  providerForRail
+} from "../services/recipients/transfer-eligibility.service";
+
+function sendError(res: Response, status: number, code: string, message: string): void {
+  res.status(status).json({ error: { code, message, status } });
+}
+
+function requireUserId(req: Request, res: Response): string | null {
+  if (!req.userId) {
+    sendError(res, httpStatus.UNAUTHORIZED, "AUTHENTICATION_REQUIRED", "Authentication required");
+    return null;
+  }
+  return req.userId;
+}
+
+interface CreateInviteBody {
+  country?: string;
+  rail?: string;
+  payoutCurrency?: string;
+  amount?: string;
+  inviteeEmail?: string;
+  inviteeType?: string;
+}
+
+export async function createInvite(req: Request, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  const { country, rail, payoutCurrency, amount, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
+
+  if (!country || country.length > 4 || !rail || rail.length > 8 || !payoutCurrency || payoutCurrency.length > 8) {
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "INVALID_INVITE_CORRIDOR",
+      "country (ISO code), rail and payoutCurrency are required"
+    );
+    return;
+  }
+  if (inviteeType !== undefined && inviteeType !== "individual" && inviteeType !== "business") {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITEE_TYPE", "inviteeType must be 'individual' or 'business'");
+    return;
+  }
+  if (amount !== undefined && (Number.isNaN(Number(amount)) || Number(amount) <= 0)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_AMOUNT", "amount must be a positive number");
+    return;
+  }
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+    const token = generateInviteToken();
+
+    const invitation = await RecipientInvitation.create({
+      country: country.toUpperCase(),
+      createdByProfileId: userId,
+      expiresAt: inviteExpiryDate(),
+      inviteeEmail: inviteeEmail ?? null,
+      inviteeEmailCanonical: inviteeEmail ? canonicalizeEmail(inviteeEmail) : null,
+      inviteeType: (inviteeType ?? "individual") as RecipientInviteeType,
+      payoutCurrency: payoutCurrency.toLowerCase(),
+      rail: rail.toLowerCase(),
+      senderCustomerEntityId: senderEntity.id,
+      tokenHash: hashInviteToken(token),
+      ...(amount !== undefined ? { amount } : {})
+    });
+
+    // The raw token is returned exactly once; only its hash is stored.
+    res.status(httpStatus.CREATED).json({
+      amount: invitation.amount,
+      country: invitation.country,
+      createdAt: invitation.createdAt,
+      expiresAt: invitation.expiresAt,
+      id: invitation.id,
+      inviteeEmail: invitation.inviteeEmail,
+      inviteeType: invitation.inviteeType,
+      payoutCurrency: invitation.payoutCurrency,
+      rail: invitation.rail,
+      status: invitation.status,
+      token
+    });
+  } catch (error) {
+    logger.error("Error creating recipient invite:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create invite");
+  }
+}
+
+export async function acceptInvite(req: Request<{ token: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const invitation = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(req.params.token) } });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "Invite not found");
+      return;
+    }
+    // Re-entry: the recipient who accepted may reopen their link to resume onboarding — accepting
+    // is not a one-shot that burns the link. Anyone else still bounces off an accepted invite.
+    const isReEntry = invitation.status === "accepted" && invitation.acceptedByProfileId === userId;
+
+    if (invitation.status === "accepted" && !isReEntry) {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (invitation.status === "revoked") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    // Expiry closes a *pending* invite only. Once accepted, the relationship exists and KYC may run
+    // for days — an expiry passing mid-onboarding must not lock the recipient out of their own link.
+    if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
+      if (invitation.status !== "expired") {
+        await invitation.update({ status: "expired" });
+      }
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
+      return;
+    }
+
+    // Token-bound redemption (plan D1): when the invite recorded an email, the redeeming
+    // account must additionally match it.
+    if (invitation.inviteeEmailCanonical && canonicalizeEmail(req.userEmail ?? "") !== invitation.inviteeEmailCanonical) {
+      sendError(res, httpStatus.FORBIDDEN, "INVITE_EMAIL_MISMATCH", "This invite is bound to a different email address");
+      return;
+    }
+
+    const senderEntity = await CustomerEntity.findByPk(invitation.senderCustomerEntityId);
+    if (!senderEntity) {
+      sendError(res, httpStatus.GONE, "INVITE_SENDER_GONE", "The sender of this invite no longer exists");
+      return;
+    }
+    if (senderEntity.profileId === userId) {
+      sendError(res, httpStatus.CONFLICT, "CANNOT_ACCEPT_OWN_INVITE", "You cannot accept your own invite");
+      return;
+    }
+
+    const relationship = await sequelize.transaction(async transaction => {
+      // Re-read under a row lock and re-check acceptance: the status checks above ran on an
+      // unlocked read, so two users redeeming the same token concurrently could otherwise
+      // both pass them and each create an active relationship from one invite.
+      const lockedInvitation = await RecipientInvitation.findByPk(invitation.id, {
+        lock: transaction.LOCK.UPDATE,
+        transaction
+      });
+      if (!lockedInvitation || lockedInvitation.status === "revoked") {
+        return "invite_gone" as const;
+      }
+      if (lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId !== userId) {
+        return "already_accepted" as const;
+      }
+
+      // Business invitees onboard as a business entity (KYB); individuals reuse the
+      // profile's default entity.
+      const [recipientEntity] = await CustomerEntity.findOrCreate({
+        defaults: { profileId: userId, status: "active", type: invitation.inviteeType },
+        transaction,
+        where: { profileId: userId, type: invitation.inviteeType }
+      });
+
+      // Recomputed under the lock: a double-submit by the accepting user may have turned a
+      // pending invite into a re-entry between the unlocked pre-check and this transaction.
+      const reEntry = lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId === userId;
+
+      const [row, created] = await SenderRecipient.findOrCreate({
+        defaults: {
+          invitationId: invitation.id,
+          recipientCustomerEntityId: recipientEntity.id,
+          relationshipStatus: "active",
+          senderCustomerEntityId: invitation.senderCustomerEntityId
+        },
+        transaction,
+        where: {
+          recipientCustomerEntityId: recipientEntity.id,
+          senderCustomerEntityId: invitation.senderCustomerEntityId
+        }
+      });
+
+      if (!created) {
+        if (row.relationshipStatus === "blocked") {
+          // The sender blocked this recipient; a new invite acceptance must not undo that.
+          return "blocked" as const;
+        }
+        // Re-entry reads the relationship, it does not revive it: the sender may have archived
+        // this recipient, and reopening the link must not silently undo that.
+        if (!reEntry) {
+          await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
+        }
+      }
+
+      if (!reEntry) {
+        await lockedInvitation.update(
+          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" },
+          { transaction }
+        );
+      }
+      return { reEntry, row };
+    });
+
+    if (relationship === "invite_gone") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    if (relationship === "already_accepted") {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (relationship === "blocked") {
+      sendError(res, httpStatus.CONFLICT, "RELATIONSHIP_BLOCKED", "The sender has blocked this relationship");
+      return;
+    }
+
+    const effectiveReEntry = relationship.reEntry;
+
+    // Only a first acceptance is news to the sender; re-entry is the recipient resuming onboarding.
+    if (senderEntity.profileId && !effectiveReEntry) {
+      await emitNotification(senderEntity.profileId, {
+        customerEntityId: senderEntity.id,
+        metadata: { invitationId: invitation.id, senderRecipientId: relationship.row.id },
+        title: "Your recipient invite was accepted",
+        type: "recipient_invite_accepted"
+      });
+    }
+
+    res.status(effectiveReEntry ? httpStatus.OK : httpStatus.CREATED).json({
+      id: relationship.row.id,
+      invitation: {
+        country: invitation.country,
+        id: invitation.id,
+        inviteeType: invitation.inviteeType,
+        payoutCurrency: invitation.payoutCurrency,
+        rail: invitation.rail
+      },
+      relationshipStatus: relationship.row.relationshipStatus
+    });
+  } catch (error) {
+    logger.error("Error accepting recipient invite:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to accept invite");
+  }
+}
+
+export async function listRecipients(req: Request, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+
+    const relationships = await SenderRecipient.findAll({
+      include: [
+        { as: "recipient", model: CustomerEntity },
+        { as: "invitation", model: RecipientInvitation },
+        { as: "payoutReferences", model: RecipientPayoutReference }
+      ],
+      order: [["createdAt", "DESC"]],
+      where: { senderCustomerEntityId: senderEntity.id }
+    });
+
+    const recipients = await Promise.all(
+      relationships.map(async row => {
+        const invitation = row.get("invitation") as RecipientInvitation | null;
+        const recipient = row.get("recipient") as CustomerEntity | null;
+        const payoutReferences = (row.get("payoutReferences") as RecipientPayoutReference[] | undefined) ?? [];
+
+        // Corridor-scoped onboarding summary for the list view; the eligibility
+        // endpoint remains the authoritative gate.
+        let onboardingStatus: "approved" | "pending" | "unknown" = "unknown";
+        if (invitation && recipient) {
+          const provider = providerForRail(invitation.rail);
+          const providerCustomer = await ProviderCustomer.findOne({
+            order: [["updatedAt", "DESC"]],
+            where: {
+              customerEntityId: recipient.id,
+              customerType: invitation.inviteeType,
+              provider,
+              ...(provider === "alfredpay" ? { country: invitation.country } : {})
+            }
+          });
+          onboardingStatus = providerCustomer
+            ? isProviderApproved(providerCustomer.status)
+              ? "approved"
+              : "pending"
+            : "pending";
+        }
+
+        return {
+          createdAt: row.createdAt,
+          id: row.id,
+          invitation: invitation
+            ? {
+                country: invitation.country,
+                id: invitation.id,
+                inviteeEmail: invitation.inviteeEmail,
+                inviteeType: invitation.inviteeType,
+                payoutCurrency: invitation.payoutCurrency,
+                rail: invitation.rail
+              }
+            : null,
+          nickname: row.nickname,
+          onboardingStatus,
+          payoutReferences: payoutReferences.map(ref => ({
+            currency: ref.currency,
+            id: ref.id,
+            instrumentType: ref.instrumentType,
+            maskedDisplayLabel: ref.maskedDisplayLabel,
+            rail: ref.rail,
+            status: ref.status
+          })),
+          recipientType: recipient?.type ?? "individual",
+          relationshipStatus: row.relationshipStatus
+        };
+      })
+    );
+
+    const pendingInvitations = await RecipientInvitation.findAll({
+      order: [["createdAt", "DESC"]],
+      where: { senderCustomerEntityId: senderEntity.id, status: "pending" }
+    });
+
+    res.status(httpStatus.OK).json({
+      pendingInvitations: pendingInvitations.map(invitation => ({
+        country: invitation.country,
+        createdAt: invitation.createdAt,
+        expiresAt: invitation.expiresAt,
+        id: invitation.id,
+        inviteeEmail: invitation.inviteeEmail,
+        inviteeType: invitation.inviteeType,
+        isExpired: Boolean(invitation.expiresAt && invitation.expiresAt < new Date()),
+        payoutCurrency: invitation.payoutCurrency,
+        rail: invitation.rail
+      })),
+      recipients
+    });
+  } catch (error) {
+    logger.error("Error listing recipients:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to list recipients");
+  }
+}
+
+interface UpdateRecipientBody {
+  nickname?: string;
+  status?: string;
+}
+
+const PATCHABLE_STATUSES: SenderRecipientStatus[] = ["active", "blocked", "archived"];
+
+export async function updateRecipient(req: Request<{ id: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  const { nickname, status } = (req.body ?? {}) as UpdateRecipientBody;
+
+  if (nickname !== undefined && (typeof nickname !== "string" || nickname.length > 100)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_NICKNAME", "nickname must be a string of at most 100 characters");
+    return;
+  }
+  if (status !== undefined && !PATCHABLE_STATUSES.includes(status as SenderRecipientStatus)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_STATUS", "status must be one of: active, blocked, archived");
+    return;
+  }
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+    const relationship = await SenderRecipient.findOne({
+      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
+    });
+    if (!relationship) {
+      sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
+      return;
+    }
+
+    await relationship.update({
+      ...(nickname !== undefined ? { nickname: nickname || null } : {}),
+      ...(status !== undefined
+        ? {
+            disabledAt: status === "active" ? null : new Date(),
+            relationshipStatus: status as SenderRecipientStatus
+          }
+        : {})
+    });
+
+    res.status(httpStatus.OK).json({
+      id: relationship.id,
+      nickname: relationship.nickname,
+      relationshipStatus: relationship.relationshipStatus
+    });
+  } catch (error) {
+    logger.error("Error updating recipient:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update recipient");
+  }
+}
+
+export async function getRecipientEligibility(req: Request<{ id: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+    const relationship = await SenderRecipient.findOne({
+      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
+    });
+    if (!relationship) {
+      sendError(res, httpStatus.NOT_FOUND, "RECIPIENT_NOT_FOUND", "Recipient not found");
+      return;
+    }
+
+    const eligibility = await getTransferEligibility(relationship);
+    res.status(httpStatus.OK).json(eligibility);
+  } catch (error) {
+    logger.error("Error computing recipient eligibility:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to compute eligibility");
+  }
+}

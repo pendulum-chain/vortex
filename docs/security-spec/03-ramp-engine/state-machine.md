@@ -34,6 +34,7 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 8. **The retry counter MUST be reset on successful phase advancement** — When the phase changes, `retriesMap.delete(state.id)` clears the counter, giving the next phase a fresh retry budget.
 9. **Error logs MUST be appended, never overwritten** — Each error is pushed to the `errorLogs` array with timestamp, phase, recoverability flag, and stack trace.
 10. **Phase handlers MUST NOT directly mutate the database** — Only the processor should call `state.update()` for phase transitions. Handlers return a pending state object.
+11. **A user MUST have at most one nonterminal ramp** — Registration locks the authenticated user's `profiles` row and checks `ramp_states` inside the same transaction. A second ramp is rejected with `409` until the existing ramp reaches `complete`, `failed`, or `timedOut`. An `initial` ramp older than the 15-minute start window is changed to `timedOut` before this check so an abandoned registration cannot block the user indefinitely.
 
 ## Threat Vectors & Mitigations
 

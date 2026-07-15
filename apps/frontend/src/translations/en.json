@@ -686,6 +686,7 @@
       "label": "Region",
       "placeholder": "Select a region",
       "regions": {
+        "AR": "Argentina",
         "BR": "Brazil",
         "CO": "Colombia",
         "MX": "Mexico",

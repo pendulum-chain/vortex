@@ -690,6 +690,7 @@
       "label": "Região",
       "placeholder": "Selecione uma região",
       "regions": {
+        "AR": "Argentina",
         "BR": "Brasil",
         "CO": "Colômbia",
         "MX": "México",

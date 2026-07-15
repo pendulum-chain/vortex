@@ -1,5 +1,6 @@
+import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, KybPersonFiles, MxnKycFiles } from "@vortexfi/kyc";
 import { useCallback } from "react";
-import { useAlfredpayKycActor, useAlfredpayKycSelector } from "../../contexts/rampState";
+import { useAlfredpayKycActor, useAlfredpayKycSelector, useRampStateSelector } from "../../contexts/rampState";
 import { DoneScreen } from "../DoneScreen";
 import { ArKycFormScreen } from "./ArKycFormScreen";
 import { ColKycFormScreen } from "./ColKycFormScreen";
@@ -20,6 +21,7 @@ import { PollingScreen } from "./PollingScreen";
 export const AlfredpayKycFlow = () => {
   const actor = useAlfredpayKycActor();
   const state = useAlfredpayKycSelector();
+  const userEmail = useRampStateSelector(snapshot => snapshot.context.userEmail);
 
   const confirmSuccess = useCallback(() => actor?.send({ type: "CONFIRM_SUCCESS" }), [actor]);
   const openLink = useCallback(() => actor?.send({ type: "OPEN_LINK" }), [actor]);
@@ -30,26 +32,15 @@ export const AlfredpayKycFlow = () => {
   const userCancel = useCallback(() => actor?.send({ type: "USER_CANCEL" }), [actor]);
   const retryProcess = useCallback(() => actor?.send({ type: "RETRY_PROCESS" }), [actor]);
   const cancelProcess = useCallback(() => actor?.send({ type: "CANCEL_PROCESS" }), [actor]);
-  const submitForm = useCallback(
-    (data: import("../../machines/alfredpayKyc.machine").AlfredpayKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }),
-    [actor]
-  );
-  const submitFiles = useCallback(
-    (files: import("../../machines/alfredpayKyc.machine").MxnKycFiles) => actor?.send({ files, type: "SUBMIT_FILES" }),
-    [actor]
-  );
-  const submitKybForm = useCallback(
-    (data: import("../../machines/alfredpayKyc.machine").KybFormData) => actor?.send({ data, type: "SUBMIT_KYB_FORM" }),
-    [actor]
-  );
+  const submitForm = useCallback((data: AlfredpayKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }), [actor]);
+  const submitFiles = useCallback((files: MxnKycFiles) => actor?.send({ files, type: "SUBMIT_FILES" }), [actor]);
+  const submitKybForm = useCallback((data: KybFormData) => actor?.send({ data, type: "SUBMIT_KYB_FORM" }), [actor]);
   const submitKybBusinessFiles = useCallback(
-    (files: import("../../machines/alfredpayKyc.machine").KybBusinessFiles) =>
-      actor?.send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" }),
+    (files: KybBusinessFiles) => actor?.send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" }),
     [actor]
   );
   const submitKybPersonFiles = useCallback(
-    (files: import("../../machines/alfredpayKyc.machine").KybPersonFiles) =>
-      actor?.send({ files, type: "SUBMIT_KYB_PERSON_FILES" }),
+    (files: KybPersonFiles) => actor?.send({ files, type: "SUBMIT_KYB_PERSON_FILES" }),
     [actor]
   );
   const goBack = useCallback(() => actor?.send({ type: "GO_BACK" }), [actor]);
@@ -81,7 +72,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKycForm" && isMxn) {
-    return <MxnKycFormScreen onSubmit={submitForm} />;
+    return <MxnKycFormScreen onSubmit={submitForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "FillingKycForm" && isCo) {
@@ -89,7 +80,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKycForm" && isAr) {
-    return <ArKycFormScreen onSubmit={submitForm} />;
+    return <ArKycFormScreen onSubmit={submitForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "UploadingDocuments" && (isMxn || isCo || isAr)) {
@@ -106,7 +97,7 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKybForm") {
-    return <KybFormScreen country={context.country} onSubmit={submitKybForm} />;
+    return <KybFormScreen country={context.country} onSubmit={submitKybForm} userEmail={userEmail} />;
   }
 
   if (stateValue === "UploadingKybBusinessDocs") {

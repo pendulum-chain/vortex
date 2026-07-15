@@ -16,15 +16,15 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
     const partnerName = req.params.partnerName;
     const { name, expiresAt, userId } = req.body;
 
-    // Verify at least one partner with this name exists and is active
-    const partners = await Partner.findAll({
+    // Resolve the (unique-name) partner; keys bind to it by FK
+    const partner = await Partner.findOne({
       where: {
         isActive: true,
         name: partnerName
       }
     });
 
-    if (partners.length === 0) {
+    if (!partner) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
@@ -77,7 +77,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
 
     const expirationDate = expiresAt ? new Date(expiresAt) : null;
 
-    // Create public key record
+    // Create public key record (partner_name kept as informational backup; auth resolves partner_id)
     const publicKeyRecord = await ApiKey.create({
       expiresAt: expirationDate,
       isActive: true,
@@ -86,6 +86,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "public",
       keyValue: publicKey,
       name: name ? `${name} (Public)` : "Public Key",
+      partnerId: partner.id,
       partnerName,
       userId: resolvedUserId
     });
@@ -99,6 +100,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "secret",
       keyValue: null,
       name: name ? `${name} (Secret)` : "Secret Key",
+      partnerId: partner.id,
       partnerName,
       userId: resolvedUserId
     });
@@ -108,7 +110,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       createdAt: publicKeyRecord.createdAt,
       expiresAt: expirationDate,
       isActive: true,
-      partnerCount: partners.length,
+      partnerId: partner.id,
       partnerName,
       publicKey: {
         id: publicKeyRecord.id,
@@ -149,11 +151,11 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
     const partnerName = req.params.partnerName;
 
     // Verify partner exists
-    const partners = await Partner.findAll({
+    const partner = await Partner.findOne({
       where: { name: partnerName }
     });
 
-    if (partners.length === 0) {
+    if (!partner) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
@@ -180,7 +182,7 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         "updatedAt"
       ],
       order: [["createdAt", "DESC"]],
-      where: { partnerName }
+      where: { partnerId: partner.id }
     });
 
     res.status(httpStatus.OK).json({
@@ -197,7 +199,7 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         updatedAt: key.updatedAt,
         userId: key.userId
       })),
-      partnerCount: partners.length,
+      partnerId: partner.id,
       partnerName
     });
   } catch (error) {
@@ -220,11 +222,23 @@ export async function revokeApiKey(req: Request<{ partnerName: string; keyId: st
   try {
     const { partnerName, keyId } = req.params;
 
+    const partner = await Partner.findOne({ where: { name: partnerName } });
+    if (!partner) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: {
+          code: "PARTNER_NOT_FOUND",
+          message: `No partners found with name: ${partnerName}`,
+          status: httpStatus.NOT_FOUND
+        }
+      });
+      return;
+    }
+
     // Find the API key
     const apiKey = await ApiKey.findOne({
       where: {
         id: keyId,
-        partnerName
+        partnerId: partner.id
       }
     });
 
@@ -240,7 +254,7 @@ export async function revokeApiKey(req: Request<{ partnerName: string; keyId: st
     }
 
     // Soft delete by setting isActive to false
-    await apiKey.update({ isActive: false });
+    await apiKey.update({ isActive: false, revokedAt: new Date() });
 
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {

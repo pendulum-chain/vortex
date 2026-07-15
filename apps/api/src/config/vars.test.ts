@@ -8,6 +8,8 @@ const requiredProductionEnv = {
   ADMIN_SECRET: "test-admin-secret",
   FLOW_VARIANT: "monerium",
   METRICS_DASHBOARD_SECRET: "test-metrics-dashboard-secret",
+  MONERIUM_CLIENT_ID: "test-monerium-client-id",
+  MONERIUM_REDIRECT_URI: "https://dashboard.example.com/monerium/callback",
   SUPABASE_ANON_KEY: "test-anon-key",
   SUPABASE_SERVICE_KEY: "test-service-key",
   SUPABASE_URL: "https://example.supabase.co",
@@ -83,5 +85,27 @@ describe("vars deployment environment validation", () => {
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("METRICS_DASHBOARD_SECRET");
+  });
+
+  it("requires the exact Monerium callback URI in production", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_REDIRECT_URI: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_REDIRECT_URI");
+  });
+
+  it("requires the Monerium auth-code client ID in production", async () => {
+    const result = await importVarsWithEnv({
+      DEPLOYMENT_ENV: "production",
+      MONERIUM_CLIENT_ID: "",
+      NODE_ENV: "production"
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
   });
 });

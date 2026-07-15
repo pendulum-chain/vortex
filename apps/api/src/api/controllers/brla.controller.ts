@@ -33,53 +33,42 @@ import {
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { Op } from "sequelize";
 import logger from "../../config/logger";
+import KycCase from "../../models/kycCase.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import {
+  accountTypeToCustomerType,
+  customerTypeToAccountType,
+  findAveniaCustomerBySubaccountId,
+  findAveniaCustomerByTaxId,
+  hashTaxReference,
+  hydrateAveniaCompanyName,
+  updateAveniaKycOutcome,
+  upsertAveniaKycCase
+} from "../services/avenia/avenia-customer.service";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
-
-// Helper functions for TaxId updates
-
-async function updateTaxIdToAccepted(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
-  const normalized = normalizeTaxId(taxId);
-  await TaxId.update(
-    {
-      finalQuoteId: quoteId,
-      finalSessionId: sessionId ?? null,
-      finalTimestamp: new Date(),
-      internalStatus: TaxIdInternalStatus.Accepted
-    },
-    {
-      where: {
-        internalStatus: TaxIdInternalStatus.Requested,
-        taxId: normalized
-      }
-    }
-  );
-}
-
-async function updateTaxIdToRejected(taxId: string, quoteId?: string, sessionId?: string): Promise<void> {
-  const normalized = normalizeTaxId(taxId);
-  await TaxId.update(
-    {
-      finalQuoteId: quoteId,
-      finalSessionId: sessionId ?? null,
-      finalTimestamp: new Date(),
-      internalStatus: TaxIdInternalStatus.Rejected
-    },
-    {
-      where: {
-        internalStatus: TaxIdInternalStatus.Requested,
-        taxId: normalized
-      }
-    }
-  );
-}
+import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
+
+function legacyAveniaStatus(status: TaxIdInternalStatus | null): VerificationStatus {
+  switch (status) {
+    case TaxIdInternalStatus.Accepted:
+      return VerificationStatus.Approved;
+    case TaxIdInternalStatus.Rejected:
+      return VerificationStatus.Rejected;
+    case TaxIdInternalStatus.Requested:
+      return VerificationStatus.InReview;
+    case TaxIdInternalStatus.Consulted:
+      return VerificationStatus.Started;
+    default:
+      return VerificationStatus.Pending;
+  }
+}
 
 // Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
@@ -160,31 +149,27 @@ export const getAveniaUser = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    let taxIdRecord: TaxId | null;
+    let record: ProviderCustomer | null;
 
     if (taxId) {
-      const normalized = normalizeTaxId(taxId);
-      taxIdRecord = await TaxId.findOne({
-        where: {
-          internalStatus: { [Op.ne]: TaxIdInternalStatus.Consulted },
-          taxId: normalized
-        }
-      });
+      record = await findAveniaCustomerByTaxId(taxId);
 
-      if (!taxIdRecord) {
+      // Consulted records are analytics artifacts without a subaccount, not usable accounts.
+      if (!record || record.status === VerificationStatus.Started || !record.providerSubaccountId) {
         res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
         return;
       }
 
-      // TaxId must be owned by the effective user.
-      if (taxIdRecord.userId !== effectiveUserId) {
+      // The account must be owned by the effective user's customer entity.
+      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+      if (record.customerEntityId !== entity.id) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
     } else {
       try {
         const resolved = await resolveAveniaAccountForUser(effectiveUserId);
-        taxIdRecord = resolved.taxIdRecord;
+        record = resolved.providerCustomer;
       } catch (error) {
         if (error instanceof APIError) {
           res.status(error.status ?? httpStatus.BAD_REQUEST).json({ error: error.message });
@@ -194,7 +179,8 @@ export const getAveniaUser = async (
       }
     }
 
-    const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+    const subAccountId = record.providerSubaccountId ?? "";
+    const accountInfo = await brlaApiService.subaccountInfo(subAccountId);
     if (!accountInfo) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount info not found" });
       return;
@@ -205,7 +191,7 @@ export const getAveniaUser = async (
       evmAddress: accountInfo.wallets.find(w => w.chain === "EVM")?.walletAddress ?? "",
       identityStatus: accountInfo.accountInfo.identityStatus,
       kycLevel,
-      subAccountId: taxIdRecord.subAccountId
+      subAccountId
     });
     return;
   } catch (error) {
@@ -226,7 +212,7 @@ export const recordInitialKycAttempt = async (
   res: Response<Record<string, never> | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId, quoteId, sessionId } = req.body;
+    const { taxId } = req.body;
     const effectiveUserId = getEffectiveUserId(req);
 
     if (!taxId) {
@@ -234,13 +220,11 @@ export const recordInitialKycAttempt = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findOne({
-      where: {
-        taxId: normalizeTaxId(taxId)
-      }
-    });
+    const existing = await findAveniaCustomerByTaxId(taxId);
 
-    if (!taxIdRecord) {
+    // provider_customers rows always have an owner, so anonymous callers cannot persist a
+    // Consulted marker (the route requires auth in practice).
+    if (!existing && effectiveUserId) {
       const accountType = isValidCnpj(taxId)
         ? AveniaAccountType.COMPANY
         : isValidCpf(taxId)
@@ -249,15 +233,18 @@ export const recordInitialKycAttempt = async (
 
       // Create the entry only if a valid taxId is provided. Otherwise we ignore the request.
       if (accountType) {
-        await TaxId.create({
-          accountType,
-          initialQuoteId: quoteId,
-          initialSessionId: sessionId ?? null,
-          internalStatus: TaxIdInternalStatus.Consulted,
-          subAccountId: "",
-          taxId,
-          userId: effectiveUserId ?? null
+        const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+        const record = await ProviderCustomer.create({
+          country: "BR",
+          customerEntityId: entity.id,
+          customerType: accountTypeToCustomerType(accountType),
+          provider: "avenia",
+          rail: "brl",
+          status: VerificationStatus.Started,
+          taxReference: normalizeTaxId(taxId),
+          taxReferenceHash: hashTaxReference(taxId)
         });
+        await upsertAveniaKycCase(record, VerificationStatus.Started);
       }
     }
 
@@ -288,26 +275,27 @@ export const getAveniaUserRemainingLimit = async (
       return;
     }
 
-    let taxIdRecord: TaxId | null;
+    let record: ProviderCustomer | null;
     if (taxId) {
-      taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-      if (!taxIdRecord) {
+      record = await findAveniaCustomerByTaxId(taxId);
+      if (!record) {
         throw new APIError({
           message: "taxId does not match existing records",
           status: httpStatus.BAD_REQUEST
         });
       }
 
-      // TaxId must be owned by the effective user. The legacy partner-key
+      // The account must be owned by the effective user. The legacy partner-key
       // exemption that allowed reading any taxId has been removed.
-      if (taxIdRecord.userId !== effectiveUserId) {
+      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+      if (record.customerEntityId !== entity.id) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
     } else {
       try {
         const resolved = await resolveAveniaAccountForUser(effectiveUserId);
-        taxIdRecord = resolved.taxIdRecord;
+        record = resolved.providerCustomer;
       } catch (error) {
         if (error instanceof APIError) {
           res.status(error.status ?? httpStatus.BAD_REQUEST).json({ error: error.message });
@@ -318,7 +306,7 @@ export const getAveniaUserRemainingLimit = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
-    const limitsData = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    const limitsData = await brlaApiService.getSubaccountUsedLimit(record.providerSubaccountId ?? "");
 
     if (!limitsData || !limitsData.limitInfo || !limitsData.limitInfo.limits) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Limits not found" });
@@ -330,7 +318,7 @@ export const getAveniaUserRemainingLimit = async (
     if (!brlLimits) {
       // Our current assumption is that BRL limits won't exist for an account without a KYC.
       // But to be safe, we check the status and return a proper status.
-      const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      const accountInfo = await brlaApiService.subaccountInfo(record.providerSubaccountId ?? "");
       if (!accountInfo || accountInfo.accountInfo.identityStatus !== "CONFIRMED") {
         res.status(httpStatus.BAD_REQUEST).json({ error: "KYC invalid" });
         return;
@@ -359,7 +347,7 @@ export const createSubaccount = async (
   res: Response<BrlaCreateSubaccountResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { name, taxId, accountType: requestAccountType, quoteId, sessionId } = req.body;
+    const { name, taxId, accountType: requestAccountType } = req.body;
     const effectiveUserId = getEffectiveUserId(req);
 
     // Reject callers that do not resolve to a user (anonymous requests
@@ -378,48 +366,83 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
+
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
-    const existingTaxId = await TaxId.findByPk(normalizedTaxId);
-    if (existingTaxId && existingTaxId.internalStatus !== TaxIdInternalStatus.Consulted) {
-      const ownedByAnotherUser = existingTaxId.userId !== null && existingTaxId.userId !== effectiveUserId;
-      if (ownedByAnotherUser) {
-        res.status(httpStatus.CONFLICT).json({
-          error: "A subaccount already exists for this taxId"
+    let existing = await findAveniaCustomerByTaxId(normalizedTaxId);
+    if (existing && existing.customerEntityId !== entity.id) {
+      res.status(httpStatus.CONFLICT).json({
+        error: "A subaccount already exists for this taxId"
+      });
+      return;
+    }
+
+    // Legacy adoption: quarantined rows in the tax_ids backup (created before the
+    // provider_customers cutover, possibly ownerless) are claimable exactly like the
+    // pre-cutover flow allowed — owned-by-another rejects, anonymous rows are claimed
+    // by the authenticated caller. One-time per row; the backup itself is never written.
+    if (!existing) {
+      const legacy = await TaxId.findByPk(normalizedTaxId);
+      if (legacy && legacy.internalStatus !== TaxIdInternalStatus.Consulted) {
+        if (legacy.userId !== null && legacy.userId !== effectiveUserId) {
+          res.status(httpStatus.CONFLICT).json({
+            error: "A subaccount already exists for this taxId"
+          });
+          return;
+        }
+        existing = await ProviderCustomer.create({
+          country: "BR",
+          customerEntityId: entity.id,
+          customerType: accountTypeToCustomerType(legacy.accountType),
+          provider: "avenia",
+          providerSubaccountId: legacy.subAccountId || null,
+          rail: "brl",
+          status: legacyAveniaStatus(legacy.internalStatus),
+          taxReference: normalizedTaxId,
+          taxReferenceHash: hashTaxReference(normalizedTaxId)
         });
-        return;
-      }
-      // Allow authenticated users to claim anonymous records by updating userId
-      if (existingTaxId.userId === null) {
-        await existingTaxId.update({ userId: effectiveUserId });
       }
     }
 
     const brlaApiService = BrlaApiService.getInstance();
     const { id } = await brlaApiService.createAveniaSubaccount(accountType, name);
+    let companyName: string | null = null;
+    if (accountType === AveniaAccountType.COMPANY) {
+      companyName = name.trim();
+      try {
+        const account = await brlaApiService.subaccountInfo(id);
+        companyName = account?.accountInfo.name?.trim() || account?.accountInfo.fullName?.trim() || companyName;
+      } catch {
+        // The accepted request name remains usable if the follow-up provider read is temporarily unavailable.
+      }
+    }
 
-    if (existingTaxId) {
-      await existingTaxId.update({
-        accountType,
-        internalStatus: TaxIdInternalStatus.Requested,
-        requestedDate: new Date(),
-        subAccountId: id
+    if (existing) {
+      await existing.update({
+        companyName,
+        customerType: accountTypeToCustomerType(accountType),
+        providerSubaccountId: id,
+        status: VerificationStatus.InReview,
+        statusExternal: null
       });
     } else {
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
-
-      await TaxId.create({
-        accountType,
-        initialQuoteId: quoteId,
-        initialSessionId: sessionId ?? null,
-        internalStatus: TaxIdInternalStatus.Requested,
-        requestedDate: new Date(),
-        subAccountId: id,
-        taxId: normalizedTaxId,
-        userId: effectiveUserId
+      existing = await ProviderCustomer.create({
+        companyName,
+        country: "BR",
+        customerEntityId: entity.id,
+        customerType: accountTypeToCustomerType(accountType),
+        provider: "avenia",
+        providerSubaccountId: id,
+        rail: "brl",
+        status: VerificationStatus.InReview,
+        taxReference: normalizedTaxId,
+        taxReferenceHash: hashTaxReference(normalizedTaxId)
       });
     }
+    await upsertAveniaKycCase(existing, VerificationStatus.InReview, null);
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
@@ -433,24 +456,41 @@ export const fetchSubaccountKycStatus = async (
   res: Response<BrlaGetKycStatusResponse | BrlaErrorResponse>
 ): Promise<void> => {
   try {
-    const { taxId, quoteId, sessionId } = req.query;
+    const { taxId } = req.query;
 
     if (!taxId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Missing taxId" });
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const record = await findAveniaCustomerByTaxId(taxId);
+    if (!record) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
 
+    // Ownership: this endpoint both reads KYC state and drives status transitions, so it
+    // must not be usable against another user's account.
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
+      return;
+    }
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+    if (record.customerEntityId !== entity.id) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+      return;
+    }
+
+    const subAccountId = record.providerSubaccountId ?? "";
+    // Backfill `companyName` for business rows created before the field was populated
+    // (mirrors the onboarding aggregation's lazy hydration so KYC-only callers recover too).
+    await hydrateAveniaCompanyName(record);
     const brlaApiService = BrlaApiService.getInstance();
-    const kycAttemptStatuses = await brlaApiService.getKycAttempts(taxIdRecord.subAccountId);
+    const kycAttemptStatuses = await brlaApiService.getKycAttempts(subAccountId);
     const kycAttemptStatus = kycAttemptStatuses.attempts[0]; // Get the latest attempt
     if (!kycAttemptStatus) {
-      const accountInfo = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      const accountInfo = await brlaApiService.subaccountInfo(subAccountId);
       if (accountInfo?.accountInfo.identityStatus === "CONFIRMED") {
         res.status(httpStatus.OK).json({
           level: "KYC_1",
@@ -460,19 +500,32 @@ export const fetchSubaccountKycStatus = async (
         });
 
         // Also try updating in case we missed the attempt
-        await updateTaxIdToAccepted(taxId, quoteId, sessionId);
+        await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, accountInfo.accountInfo.identityStatus);
+        return;
       }
 
+      await record.update({ status: VerificationStatus.Pending, statusExternal: null });
+      await upsertAveniaKycCase(record, VerificationStatus.Pending, null);
       res.status(httpStatus.NOT_FOUND).json({ error: "KYC attempt not found" });
       return;
     }
 
     // Update our internal status based on the KYC result.
     if (kycAttemptStatus.result === KycAttemptResult.APPROVED) {
-      await updateTaxIdToAccepted(taxId, quoteId, sessionId);
+      await updateAveniaKycOutcome(taxId, VerificationStatus.Approved, kycAttemptStatus.status);
     }
     if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
-      await updateTaxIdToRejected(taxId, quoteId, sessionId);
+      await updateAveniaKycOutcome(taxId, VerificationStatus.Rejected, kycAttemptStatus.status);
+    }
+    if (
+      !kycAttemptStatus.result &&
+      record.status !== VerificationStatus.Approved &&
+      record.status !== VerificationStatus.Rejected
+    ) {
+      const status =
+        kycAttemptStatus.status === KycAttemptStatus.EXPIRED ? VerificationStatus.Pending : VerificationStatus.InReview;
+      await record.update({ status, statusExternal: kycAttemptStatus.status });
+      await upsertAveniaKycCase(record, status, kycAttemptStatus.status);
     }
 
     res.status(httpStatus.OK).json({
@@ -532,9 +585,21 @@ export const getSelfieLivenessUrl = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const record = await findAveniaCustomerByTaxId(taxId);
+    if (!record) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
+      return;
+    }
+
+    // Ownership: liveness URLs act on the account's KYC flow.
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
+      return;
+    }
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
+    if (record.customerEntityId !== entity.id) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
@@ -543,7 +608,7 @@ export const getSelfieLivenessUrl = async (
     const selfieUrl = await brlaApiService.getDocumentUploadUrls(
       AveniaDocumentType.SELFIE_FROM_LIVENESS,
       false,
-      taxIdRecord.subAccountId
+      record.providerSubaccountId ?? ""
     );
 
     res.status(httpStatus.OK).json({
@@ -590,30 +655,32 @@ export const getUploadUrls = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const record = await findAveniaCustomerByTaxId(taxId);
+    if (!record) {
       // Invalid state. Cannot happen since we create the subaccount first for every tax.
       res.status(httpStatus.BAD_REQUEST).json({ error: "Ramp disabled" });
       return;
     }
 
-    if (!req.userId || taxIdRecord.userId !== req.userId) {
+    if (!req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+      return;
+    }
+    const entity = await getOrCreateCustomerEntityForProfile(req.userId, "business");
+    if (record.customerEntityId !== entity.id) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
+    const subAccountId = record.providerSubaccountId ?? "";
     const brlaApiService = BrlaApiService.getInstance();
 
-    const selfieUrl = await brlaApiService.getDocumentUploadUrls(
-      AveniaDocumentType.SELFIE_FROM_LIVENESS,
-      false,
-      taxIdRecord.subAccountId
-    );
+    const selfieUrl = await brlaApiService.getDocumentUploadUrls(AveniaDocumentType.SELFIE_FROM_LIVENESS, false, subAccountId);
 
     // assume RG is double sided, CNH is not.
     const isDoubleSided = documentType === AveniaDocumentType.ID ? true : false;
 
-    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided, taxIdRecord.subAccountId);
+    const idUrls = await brlaApiService.getDocumentUploadUrls(documentType, isDoubleSided, subAccountId);
 
     res.status(httpStatus.OK).json({
       idUpload: {
@@ -647,13 +714,18 @@ export const newKyc = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
-    if (!taxIdRecord) {
+    const record = await findAveniaCustomerBySubaccountId(subAccountId);
+    if (!record) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
 
-    if (!req.userId || taxIdRecord.userId !== req.userId) {
+    if (!req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+      return;
+    }
+    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
+    if (record.customerEntityId !== entity.id) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -689,26 +761,51 @@ export const initiateKybLevel1 = async (
       return;
     }
 
-    const taxIdRecord = await TaxId.findOne({ where: { subAccountId } });
-    if (!taxIdRecord) {
+    const record = await findAveniaCustomerBySubaccountId(subAccountId);
+    if (!record) {
       res.status(httpStatus.NOT_FOUND).json({ error: "Subaccount not found" });
       return;
     }
 
-    if (!req.userId || taxIdRecord.userId !== req.userId) {
+    if (!req.userId) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
+      return;
+    }
+    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
+    if (record.customerEntityId !== entity.id) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
 
-    if (taxIdRecord.accountType !== AveniaAccountType.COMPANY) {
+    const accountType = customerTypeToAccountType(record.customerType);
+    if (accountType !== AveniaAccountType.COMPANY) {
       res.status(httpStatus.BAD_REQUEST).json({
-        error: "KYB Level 1 is only available for COMPANY accounts. This account is registered as " + taxIdRecord.accountType
+        error: "KYB Level 1 is only available for COMPANY accounts. This account is registered as " + accountType
       });
+      return;
+    }
+
+    if (record.status === VerificationStatus.Approved) {
+      res.status(httpStatus.CONFLICT).json({ error: "This company is already approved" });
+      return;
+    }
+
+    const existingKybCase = await KycCase.findOne({
+      where: { providerCustomerId: record.id, type: "kyb" }
+    });
+    if (
+      existingKybCase?.providerCaseId &&
+      record.status !== VerificationStatus.Rejected &&
+      existingKybCase.statusExternal !== KycAttemptStatus.EXPIRED
+    ) {
+      res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
     const response = await brlaApiService.initiateKybLevel1(subAccountId);
+    await record.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PENDING });
+    await upsertAveniaKycCase(record, VerificationStatus.InReview, KycAttemptStatus.PENDING, response.attemptId);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {
@@ -736,10 +833,78 @@ export const getKybAttemptStatus = async (
       return;
     }
 
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
+      res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
+      return;
+    }
+
+    const kycCase = await KycCase.findOne({
+      where: { provider: "avenia", providerCaseId: attemptId, type: "kyb" }
+    });
+    if (!kycCase) {
+      res.status(httpStatus.NOT_FOUND).json({ error: "KYB attempt not found" });
+      return;
+    }
+
+    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, "business");
+    if (kycCase.customerEntityId !== entity.id) {
+      res.status(httpStatus.FORBIDDEN).json({ error: "This KYB attempt is not linked to your user profile." });
+      return;
+    }
+
+    const record = kycCase.providerCustomerId ? await ProviderCustomer.findByPk(kycCase.providerCustomerId) : null;
+    if (!record || record.customerEntityId !== entity.id || record.provider !== "avenia") {
+      res.status(httpStatus.NOT_FOUND).json({ error: "KYB account not found" });
+      return;
+    }
+
+    if (record.status === VerificationStatus.Approved) {
+      res.status(httpStatus.OK).json({ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED });
+      return;
+    }
+
     const brlaApiService = BrlaApiService.getInstance();
     const response = await brlaApiService.getKybAttemptStatus(attemptId);
+    const attempt = response.attempt;
+    if (attempt.id !== attemptId) {
+      throw new APIError({ message: "Avenia returned a mismatched KYB attempt", status: httpStatus.BAD_GATEWAY });
+    }
 
-    res.status(httpStatus.OK).json(response);
+    const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
+    const rejected =
+      attempt.status === KycAttemptStatus.EXPIRED ||
+      (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+    const normalizedStatus = approved
+      ? VerificationStatus.Approved
+      : rejected
+        ? VerificationStatus.Rejected
+        : attempt.status === KycAttemptStatus.PROCESSING
+          ? VerificationStatus.InReview
+          : VerificationStatus.Pending;
+    const failureReason = rejected ? mapKycFailureReason(attempt.resultMessage) : undefined;
+    const lifecycle = {
+      ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+      ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
+    };
+
+    await record.update({
+      lastFailureReasons: failureReason ? [failureReason] : [],
+      status: normalizedStatus,
+      statusExternal: attempt.status
+    });
+    await kycCase.update({
+      failureReasons: failureReason ? [failureReason] : [],
+      status: normalizedStatus,
+      statusExternal: attempt.status,
+      ...lifecycle
+    });
+
+    res.status(httpStatus.OK).json({
+      ...(failureReason ? { failureReason } : {}),
+      ...(attempt.result ? { result: attempt.result } : {}),
+      status: attempt.status
+    });
   } catch (error) {
     handleApiError(error, res, "getKybAttemptStatus");
   }

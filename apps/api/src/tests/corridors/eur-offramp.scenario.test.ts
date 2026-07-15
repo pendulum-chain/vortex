@@ -17,13 +17,12 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { prepareOfframpTransactions } from "../../api/services/transactions/offramp";
-import Partner from "../../models/partner.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
 import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestRampState, createTestUser } from "../../test-utils/factories";
+import { createTestRampState, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -108,10 +107,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     await resetTestDatabase();
     // The EVM fee distribution transaction builder requires the vortex
     // partner's EVM payout address even when the resulting fees are zero.
-    await Partner.update(
-      { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" },
-      { where: { name: "vortex", rampType: RampDirection.SELL } }
-    );
+    await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.mykobo.failNextIntent = null;

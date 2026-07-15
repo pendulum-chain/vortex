@@ -11,11 +11,10 @@ import {
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import Partner from "../../models/partner.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestTaxId, createTestUser } from "../../test-utils/factories";
+import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -110,10 +109,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     await resetTestDatabase();
     // The EVM fee distribution transaction builder requires the vortex
     // partner's EVM payout address even when the resulting fees are zero.
-    await Partner.update(
-      { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" },
-      { where: { name: "vortex", rampType: RampDirection.BUY } }
-    );
+    await updatePartnerPricing("vortex", RampDirection.BUY, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;

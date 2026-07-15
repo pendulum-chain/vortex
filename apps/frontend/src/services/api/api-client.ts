@@ -34,12 +34,26 @@ export interface DomainError {
   domain: string;
 }
 
+interface ApiErrorData {
+  error?: string;
+  message?: string;
+  details?: string;
+}
+
+interface ApiErrorResponse extends Omit<ApiErrorData, "error"> {
+  error?: string | { code?: string; message?: string; status?: number };
+}
+
+export function apiErrorMessage(error: ApiErrorResponse, fallback: string): string {
+  return (typeof error.error === "string" ? error.error : error.error?.message) ?? error.message ?? fallback;
+}
+
 export class ApiError extends Error implements DomainError {
   status: number;
-  data: { error?: string; message?: string; details?: string };
+  data: ApiErrorData;
   domain: string;
 
-  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string, domain: string) {
+  constructor(status: number, data: ApiErrorData, message: string, domain: string) {
     super(message);
     this.status = status;
     this.data = data;
@@ -72,6 +86,7 @@ const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
   mykobo: SentryDomain.Kyc,
   quotes: SentryDomain.Quote,
   ramp: SentryDomain.Ramp,
+  recipients: SentryDomain.Ramp,
   siwe: SentryDomain.Auth,
   subsidize: SentryDomain.Ramp
 };
@@ -129,9 +144,10 @@ async function apiFetch<T>(
   }
 
   if (!response.ok) {
-    const errorData = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
-    console.error("API Error:", errorData);
-    const serverMessage = errorData.error ?? errorData.message ?? response.statusText;
+    const responseError = (await response.json().catch(() => ({}))) as ApiErrorResponse;
+    console.error("API Error:", responseError);
+    const serverMessage = apiErrorMessage(responseError, response.statusText);
+    const errorData: ApiErrorData = { ...responseError, error: serverMessage };
     // Keep the message clean for the user; the endpoint/status prefix lives on `name` so Sentry
     // still groups by endpoint (one issue per endpoint, not per id — hence normalizePath) without
     // leaking "POST /path (500):" into user-facing error text.

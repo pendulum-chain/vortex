@@ -84,6 +84,12 @@ jobs:
       - name: 🧪 SDK coverage gate
         run: cd packages/sdk && bun run test:coverage
 
+      - name: 🧪 KYC package tests (coverage-gated)
+        run: cd packages/kyc && bun run test:coverage
+
+      - name: 🧪 Dashboard tests
+        run: cd apps/dashboard && bun run test
+
       - name: 🧪 Rebalancer tests (coverage-gated)
         run: cd apps/rebalancer && bun run test:coverage
 

@@ -1,13 +1,15 @@
 import { AveniaAccountType, normalizeTaxId } from "@vortexfi/shared";
 import httpStatus from "http-status";
-import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import { APIError } from "../errors/api-error";
+import { customerTypeToAccountType } from "./avenia/avenia-customer.service";
+import { getOrCreateCustomerEntityForProfile } from "./customer-entity.service";
 
 export interface ResolvedAveniaAccount {
   taxId: string;
   subAccountId: string;
   accountType: AveniaAccountType;
-  taxIdRecord: TaxId;
+  providerCustomer: ProviderCustomer;
 }
 
 /**
@@ -15,10 +17,12 @@ export interface ResolvedAveniaAccount {
  * are not considered ramp-execution ready; they are reserved for KYC flows.
  */
 export async function resolveAveniaAccountForUser(userId: string): Promise<ResolvedAveniaAccount> {
-  const candidates = await TaxId.findAll({
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  const candidates = await ProviderCustomer.findAll({
     where: {
-      internalStatus: TaxIdInternalStatus.Accepted,
-      userId
+      customerEntityId: entity.id,
+      provider: "avenia",
+      status: VerificationStatus.Approved
     }
   });
 
@@ -36,8 +40,8 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
     });
   }
 
-  const taxIdRecord = candidates[0];
-  if (!taxIdRecord.subAccountId) {
+  const providerCustomer = candidates[0];
+  if (!providerCustomer.providerSubaccountId || !providerCustomer.taxReference) {
     throw new APIError({
       message: "Avenia subaccount is not yet provisioned for this user.",
       status: httpStatus.BAD_REQUEST
@@ -45,10 +49,10 @@ export async function resolveAveniaAccountForUser(userId: string): Promise<Resol
   }
 
   return {
-    accountType: taxIdRecord.accountType,
-    subAccountId: taxIdRecord.subAccountId,
-    taxId: normalizeTaxId(taxIdRecord.taxId),
-    taxIdRecord
+    accountType: customerTypeToAccountType(providerCustomer.customerType),
+    providerCustomer,
+    subAccountId: providerCustomer.providerSubaccountId,
+    taxId: normalizeTaxId(providerCustomer.taxReference)
   };
 }
 
