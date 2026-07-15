@@ -24,6 +24,34 @@ test("long recipient invite links stay within the share dialog", async ({ page }
   expect(backend.unmatchedRequests).toEqual([]);
 });
 
+test("one approved corridor unlocks inviting to every live corridor, minus unsupported combinations", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+
+  // Only MX is approved in the mock backend: it is the default, but every live corridor is offered.
+  const corridorSelect = dialog.getByRole("combobox");
+  await expect(corridorSelect).toContainText("Mexico");
+  await corridorSelect.click();
+  for (const country of ["Brazil", "Europe", "Mexico", "Colombia", "USA", "Argentina"]) {
+    await expect(page.getByRole("option", { name: new RegExp(country) })).toBeVisible();
+  }
+
+  // Alfredpay has no AR company KYB: switching to Company drops Argentina and resets the selection.
+  await page.getByRole("option", { name: /Argentina/ }).click();
+  await expect(corridorSelect).toContainText("Argentina");
+  await dialog.getByRole("tab", { name: "Company" }).click();
+  await expect(corridorSelect).not.toContainText("Argentina");
+  await corridorSelect.click();
+  await expect(page.getByRole("option", { name: /Argentina/ })).toHaveCount(0);
+  await expect(page.getByRole("option", { name: /Brazil/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  expect(backend.unmatchedRequests).toEqual([]);
+});
+
 test("a pending invite row reopens the link for re-copy and removal archives the invitation", async ({ page }) => {
   const backend = await mockBackend(page, {
     pendingInvitations: [

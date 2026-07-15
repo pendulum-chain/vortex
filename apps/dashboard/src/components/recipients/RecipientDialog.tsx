@@ -19,9 +19,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CORRIDORS } from "@/domain/corridors";
+import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
 import { inviteUrl } from "@/domain/recipient";
-import type { AccountType, Corridor, SenderAccount } from "@/domain/types";
+import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/types";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
 import { CORRIDOR_COUNTRY, CORRIDOR_RAIL } from "@/services/api/mappers";
@@ -41,7 +41,15 @@ interface CreatedInvite {
   corridorName: string;
 }
 
-export function RecipientDialog({ account, approvedCorridors }: { account: SenderAccount; approvedCorridors: Corridor[] }) {
+export function RecipientDialog({
+  account,
+  corridors,
+  defaultCorridorId
+}: {
+  account: SenderAccount;
+  corridors: Corridor[];
+  defaultCorridorId?: CorridorId;
+}) {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
   const queryClient = useQueryClient();
@@ -49,15 +57,18 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
   const form = useForm<FormValues>({
     defaultValues: {
       alias: "",
-      corridorId: approvedCorridors[0]?.id ?? "BR",
+      corridorId: defaultCorridorId ?? corridors[0]?.id ?? "BR",
       recipientType: "individual"
     },
     resolver: standardSchemaResolver(schema)
   });
 
   const corridorId = form.watch("corridorId");
+  const recipientType = form.watch("recipientType");
   const corridor = CORRIDORS[corridorId];
-  const disabled = approvedCorridors.length === 0;
+  // Not every corridor supports both recipient types (e.g. Alfredpay has no AR company KYB).
+  const selectableCorridors = corridors.filter(option => isCorridorAvailableForAccountType(option.id, recipientType));
+  const disabled = corridors.length === 0;
 
   const createInvite = useMutation({
     mutationFn: (values: FormValues) =>
@@ -124,7 +135,19 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Recipient type</FormLabel>
-                      <Tabs onValueChange={value => field.onChange(value as AccountType)} value={field.value}>
+                      <Tabs
+                        onValueChange={value => {
+                          const nextType = value as AccountType;
+                          field.onChange(nextType);
+                          if (!isCorridorAvailableForAccountType(form.getValues("corridorId"), nextType)) {
+                            const fallback = corridors.find(option => isCorridorAvailableForAccountType(option.id, nextType));
+                            if (fallback) {
+                              form.setValue("corridorId", fallback.id);
+                            }
+                          }
+                        }}
+                        value={field.value}
+                      >
                         <TabsList className="w-full">
                           <TabsTrigger value="individual">
                             <User />
@@ -154,7 +177,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {approvedCorridors.map(option => (
+                            {selectableCorridors.map(option => (
                               <SelectItem key={option.id} value={option.id}>
                                 {option.flag} {option.name} · {option.currency}
                               </SelectItem>

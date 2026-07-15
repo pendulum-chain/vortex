@@ -6,7 +6,7 @@ import { RecipientDialog } from "@/components/recipients/RecipientDialog";
 import { RecipientsTable } from "@/components/recipients/RecipientsTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CORRIDORS } from "@/domain/corridors";
+import { CORRIDOR_LIST, CORRIDORS } from "@/domain/corridors";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
@@ -23,7 +23,10 @@ function RecipientsPage() {
     return null;
   }
 
-  const approvedCorridors = [...approvedIds].map(id => CORRIDORS[id]).filter(corridor => corridor.availability === "live");
+  // Any approved corridor unlocks inviting to every live corridor; default to the first approved one.
+  const hasApprovedCorridor = approvedIds.size > 0;
+  const corridors = hasApprovedCorridor ? CORRIDOR_LIST.filter(corridor => corridor.availability === "live") : [];
+  const defaultCorridorId = [...approvedIds].map(id => CORRIDORS[id]).find(corridor => corridor.availability === "live")?.id;
 
   return (
     <Stagger className="mx-auto grid max-w-5xl gap-6">
@@ -34,10 +37,10 @@ function RecipientsPage() {
             Add recipients and share an invite link so they complete KYC/KYB for {account.name}.
           </p>
         </div>
-        <RecipientDialog account={account} approvedCorridors={approvedCorridors} />
+        <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />
       </StaggerItem>
 
-      {approvedCorridors.length === 0 ? (
+      {!hasApprovedCorridor ? (
         <StaggerItem>
           <Card>
             <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -83,7 +86,7 @@ function RecipientsPage() {
                   transfers.
                 </p>
               </div>
-              <RecipientDialog account={account} approvedCorridors={approvedCorridors} />
+              <RecipientDialog account={account} corridors={corridors} defaultCorridorId={defaultCorridorId} />
             </CardContent>
           </Card>
         </StaggerItem>

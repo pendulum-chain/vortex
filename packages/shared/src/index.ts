@@ -1,4 +1,5 @@
 export * from "./constants";
+export * from "./corridors";
 export * from "./endpoints";
 export * from "./endpoints/ramp.endpoints";
 export * from "./helpers";

@@ -67,10 +67,13 @@ the sections below that describe them are target-state, not current behavior.
   corridor is approved.
 
 ### Recipients & invitations `#review`
-- As a sender, I invite a recipient for an approved corridor by generating a shareable link; I
-  choose their country, rail, and payout currency, and type an **alias** — a sender-local label
-  that identifies the link (and later the recipient) in my list. Email is optional metadata —
-  the **link token** is what redeems.
+- As a sender, once **any** corridor of mine is approved I invite a recipient for **any live
+  corridor** by generating a shareable link; I choose their country, rail, and payout currency,
+  and type an **alias** — a sender-local label that identifies the link (and later the recipient)
+  in my list. Email is optional metadata — the **link token** is what redeems. The one exception
+  is combinations the corridor's provider cannot onboard: the dialog hides Argentina for
+  **company** recipients (Alfredpay has no AR KYB), per the shared corridor-capability matrix
+  (`@vortexfi/shared` `CORRIDOR_CAPABILITIES`).
 - As a sender, I copy the invite link and deliver it myself.
 - As a sender, I click a row in my recipients list to open a management modal. While the invite
   is not yet accepted, I can **re-copy the link** from there; once accepted (or when the link is
@@ -191,10 +194,11 @@ provider-shaped rather than UI-shaped.
     a Monerium provider record (`providerForRail`) — and Monerium onboards in the dashboard, not
     the widget. EU is therefore excluded from the widget's KYB region list: an EU link's
     `?kybLocked=EU` is not recognized, and the corridor locks only from the acceptance response.
-    The dashboard does **not** yet prevent creating EU invites — all six corridors are selectable
-    in the recipient dialog — so an EU invite can be issued but cannot produce a payable recipient
-    until recipient EU onboarding is routed through Monerium (or the rail mapping changes). Known
-    gap, tracked with the EUR corridor reconciliation.
+    The dashboard intentionally does not prevent creating EU invites — once any corridor is
+    approved, all live corridors are selectable in the recipient dialog — so an EU invite can be
+    issued but cannot produce a payable recipient until recipient EU onboarding is routed through
+    Monerium (or the rail mapping changes). Known gap, tracked with the EUR corridor
+    reconciliation.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`

@@ -1,3 +1,4 @@
+import { isCorridorSupportedForCustomerType } from "@vortexfi/shared";
 import type { AccountType, Corridor, CorridorId, OnboardingKind, OnboardingRoute } from "./types";
 
 export const CORRIDORS: Record<CorridorId, Corridor> = {
@@ -77,9 +78,9 @@ export function onboardingKindFor(_corridor: Corridor, accountType: AccountType)
   return accountType === "company" ? "kyb" : "kyc";
 }
 
-/** Alfredpay supports Argentina for individuals only; every other live corridor supports both account types. */
+/** Provider capability per corridor and account type (e.g. Alfredpay supports Argentina for individuals only). */
 export function isCorridorAvailableForAccountType(corridorId: CorridorId, accountType: AccountType): boolean {
-  return !(corridorId === "AR" && accountType === "company");
+  return isCorridorSupportedForCustomerType(corridorId, accountType === "company" ? "business" : "individual");
 }
 
 /**
