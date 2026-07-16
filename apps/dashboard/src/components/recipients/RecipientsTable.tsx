@@ -33,13 +33,24 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           {recipients.map((recipient, i) => {
             const corridor = CORRIDORS[recipient.corridorId];
             const status = RECIPIENT_STATUS_META[recipient.status];
+            const openActions = recipient.isSelf ? undefined : () => setSelected(recipient);
             return (
               <MotionRow
                 animate={{ opacity: 1, y: 0 }}
                 className={recipient.isSelf ? undefined : "cursor-pointer"}
                 initial={{ opacity: 0, y: 8 }}
                 key={recipient.id}
-                onClick={recipient.isSelf ? undefined : () => setSelected(recipient)}
+                onClick={openActions}
+                onKeyDown={
+                  openActions &&
+                  (event => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openActions();
+                    }
+                  })
+                }
+                tabIndex={openActions ? 0 : undefined}
                 transition={{ bounce: 0, delay: Math.min(i, 10) * 0.04, duration: 0.4, type: "spring" }}
               >
                 <TableCell>
