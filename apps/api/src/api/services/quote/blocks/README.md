@@ -79,6 +79,7 @@ corridors.
 ```
 apps/api/src/api/services/quote/blocks/
   README.md                                    # this file
+  TYPE-SYSTEM.md                               # walkthrough of the FlowBuilder brand/adjacency type system
   core/
     types.ts                                   # PhaseIO, Phase, Flow, PhaseCtx, PrepareCtx, TxIntent
     io.ts                                      # requestToIO, evmIO
