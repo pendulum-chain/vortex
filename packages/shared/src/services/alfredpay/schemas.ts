@@ -6,6 +6,8 @@ import {
   AlfredpayFiatAccount,
   AlfredpayFiatAccountType,
   AlfredpayFiatPaymentInstructions,
+  AlfredpayKybCustomerAndBusiness,
+  AlfredpayKybRelatedPersonDetails,
   AlfredpayKycStatus,
   AlfredpayOfframpStatus,
   AlfredpayOfframpTransaction,
@@ -46,6 +48,10 @@ type ConsumedFiatAccount = Pick<AlfredpayFiatAccount, "fiatAccountId" | "account
 };
 type ConsumedKycStatus = Pick<GetKycStatusResponse, "status"> & {
   metadata?: { failureReason?: string } | null;
+};
+type ConsumedKybRelatedPerson = Pick<AlfredpayKybRelatedPersonDetails, "idRelatedPerson">;
+type ConsumedKybBusiness = Pick<AlfredpayKybCustomerAndBusiness, "submissionId"> & {
+  relatedPersons: ConsumedKybRelatedPerson[];
 };
 
 const DECIMAL_STRING = /^\d+(\.\d+)?$/;
@@ -138,6 +144,19 @@ export const alfredpayFiatAccountsResponseSchema = z.array(
     type: z.enum(AlfredpayFiatAccountType)
   })
 ) satisfies z.ZodType<ConsumedFiatAccount[]>;
+
+/**
+ * The body of a GET …/customers/{customerId}/kyb/details response: one entry per business the
+ * customer has. `submissionId` is what ties a business to the submission being filed, and
+ * `relatedPersons[].idRelatedPerson` is the path key for the representative's document uploads
+ * (POST …/kyb/{idRelatedPerson}/files/relate-person) — the pair this endpoint exists to supply.
+ */
+export const alfredpayKybBusinessDetailsResponseSchema = z.array(
+  z.looseObject({
+    relatedPersons: z.array(z.looseObject({ idRelatedPerson: z.string().min(1) })),
+    submissionId: z.string().min(1)
+  })
+) satisfies z.ZodType<ConsumedKybBusiness[]>;
 
 /** The body of a GET …/kyc/{submissionId}/status (and KYB equivalent) response. */
 export const alfredpayKycStatusResponseSchema = z.looseObject({

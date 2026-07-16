@@ -458,11 +458,16 @@ export enum AlfredpayArgentinaDocumentType {
   DNI = "DNI"
 }
 
-// KYB form submission types
+// KYB form submission types.
+// Alfredpay self-describes the per-country requirement set at GET …/penny/kybRequirements?country=
+// (MEX and MX both resolve); that endpoint is the source of truth for what `sendKybSubmission`
+// accepts. `businessLicense` and `uploadAmlPolicy` are further upload types it lists, both
+// conditional on `isRegulatedBusiness = true`; they are omitted here until that branch is collected.
 export enum AlfredpayKybFileType {
   TAX_ID_DOCUMENT = "taxIdDocument",
   ARTICLES_INCORPORATION = "articlesIncorporation",
-  PROOF_ADDRESS = "proofAddress"
+  PROOF_ADDRESS = "proofAddress",
+  SHAREHOLDER_REGISTRY = "shareholderRegistry"
 }
 
 /** Penny relate-person upload: only docFront + docBack (URI fields are derived server-side). */
@@ -482,7 +487,36 @@ export interface AlfredpayKybRelatedPerson {
   pep?: boolean;
 }
 
-export interface SubmitKybInformationRequest {
+/**
+ * The compliance questionnaire Alfredpay requires before `sendKybSubmission` accepts a submission —
+ * omitting them fails finalization with `110002 "Invalid field(s)"` naming exactly these. They are
+ * sent flat alongside the company fields; Alfredpay stores them nested under `questionnaire` in the
+ * KYB details response.
+ *
+ * Optional here only because the widget/dashboard KYB form does not collect them yet: Alfredpay
+ * marks every one required for MX, CO and US. A submission built from `mapKybFormValues` therefore
+ * cannot be finalized until that form grows these questions. The compiler will not catch that gap —
+ * the live KYB flow contract test is what covers it.
+ */
+export interface AlfredpayKybQuestionnaire {
+  /** Wallets interacting with Alfredpay, or "N/A" when the business is not on-chain. */
+  walletAddresses?: string;
+  sourceOfFunds?: string;
+  transmitsCustomerFunds?: boolean;
+  /** Required by Alfredpay only when `transmitsCustomerFunds` is true. */
+  conductsComplianceScreening?: boolean;
+  /** Required by Alfredpay only when `conductsComplianceScreening` is true. */
+  complianceScreeningDescription?: string;
+  operatesInSanctionedCountries?: boolean;
+  /** When true, Alfredpay additionally requires the businessLicense and uploadAmlPolicy documents. */
+  isRegulatedBusiness?: boolean;
+  businessActivities?: string;
+  accountPurpose?: string;
+  expectedMonthlyVolumeUsd?: number;
+  expectedMonthlyTransactions?: number;
+}
+
+export interface SubmitKybInformationRequest extends AlfredpayKybQuestionnaire {
   businessName: string;
   taxId: string;
   country: string;
