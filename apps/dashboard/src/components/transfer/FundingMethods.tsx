@@ -68,7 +68,7 @@ export function FundingMethods(_props: FundingMethodsProps) {
         <p className="text-pretty text-center text-muted-foreground text-sm">
           To enable this feature on your account, please reach out to{" "}
           <a className="underline" href="mailto:support@vortex.co">
-            support@vortex.co
+            support@vortexfinance.co
           </a>
         </p>
       </div>
