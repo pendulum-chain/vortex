@@ -811,6 +811,26 @@ export const initiateKybLevel1 = async (
     }
 
     const brlaApiService = BrlaApiService.getInstance();
+
+    // The stored status can lag (the hosted steps may have just been finished in another tab):
+    // probe the live attempt before re-initiating so a processing/approved attempt is not
+    // orphaned by rebinding the case to a fresh one. A rejected decision stays re-initiable
+    // (that is the retry path), and a failing probe must not lock the user out of resuming.
+    if (existingKybCase?.providerCaseId) {
+      try {
+        const { attempt } = await brlaApiService.getKybAttemptStatus(existingKybCase.providerCaseId);
+        const decidedRejected = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED;
+        const resumable =
+          attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED || decidedRejected;
+        if (!resumable) {
+          res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
+          return;
+        }
+      } catch {
+        // Re-initiation is the only path back to the hosted steps; keep it available if the probe fails.
+      }
+    }
+
     const response = await brlaApiService.initiateKybLevel1(subAccountId);
     // The attempt starts PENDING at Avenia — nothing is submitted until the user finishes the hosted
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
