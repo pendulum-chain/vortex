@@ -56,7 +56,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const initialId = preselectRecipientId ?? firstSelfApproved?.id ?? "";
   const [recipientId, setRecipientId] = useState(initialId);
   const [network, setNetwork] = useState<string>(TRANSFER_NETWORKS[0].id);
-  const [amount, setAmount] = useState(() => recipients.find(recipient => recipient.id === initialId)?.amount ?? "");
+  const [amount, setAmount] = useState("");
   const [pixKey, setPixKey] = useState("");
 
   const selected = recipients.find(recipient => recipient.id === recipientId);
@@ -71,7 +71,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
 
   function selectRecipient(id: string) {
     setRecipientId(id);
-    setAmount(recipients.find(recipient => recipient.id === id)?.amount ?? "");
+    setAmount("");
     setPixKey("");
   }
 

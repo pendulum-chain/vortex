@@ -246,6 +246,7 @@
         },
         "taxId": {
           "cnpjFormat": "Invalid CNPJ format",
+          "cpfFormat": "Invalid CPF format",
           "format": "Invalid Tax ID format",
           "required": "Tax ID is required"
         }

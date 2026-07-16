@@ -47,9 +47,11 @@ Email invite created by a sender before the recipient has a profile.
 | `invitee_email` / `invitee_email_canonical` | Display value + normalized value used for uniqueness and acceptance. |
 | `invitee_type` | `individual` or `business`. |
 | `country`, `rail`, `payout_currency` | Requested corridor. |
-| `amount` | Sender-requested payout amount (decimal string). |
+| `alias` | Sender-local label typed at creation; identifies the link/recipient in the sender's list. |
 | `status` | `pending`, `accepted`, `expired`, `revoked`. |
-| `token_hash` | Hash of the invite token — never store the raw token. |
+| `token_hash` | sha256 hash of the invite token — the only redemption lookup key. |
+| `token` | Raw invite token, retained **while pending** so the sender can re-copy the link; cleared (`NULL`) on first acceptance. Deliberate product decision — see the security spec. |
+| `archived_at` | Sender-side soft hide: archived invitations are excluded from the sender's list but stay fully redeemable. |
 | `expires_at`, `accepted_at`, `revoked_at` | Lifecycle. |
 | `accepted_by_profile_id` | Nullable FK, set after the recipient signs up. |
 

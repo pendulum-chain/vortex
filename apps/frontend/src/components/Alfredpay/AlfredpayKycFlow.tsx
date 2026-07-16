@@ -22,6 +22,8 @@ export const AlfredpayKycFlow = () => {
   const actor = useAlfredpayKycActor();
   const state = useAlfredpayKycSelector();
   const userEmail = useRampStateSelector(snapshot => snapshot.context.userEmail);
+  // Set only once an invite was redeemed — the invitation's recipient type is then authoritative.
+  const inviteCustomerType = useRampStateSelector(snapshot => snapshot.context.kybLink?.customerType);
 
   const confirmSuccess = useCallback(() => actor?.send({ type: "CONFIRM_SUCCESS" }), [actor]);
   const openLink = useCallback(() => actor?.send({ type: "OPEN_LINK" }), [actor]);
@@ -165,7 +167,7 @@ export const AlfredpayKycFlow = () => {
         isBusiness={context.business ?? false}
         kycOrKyb={kycOrKyb}
         onAccept={userAccept}
-        onToggleBusiness={toggleBusiness}
+        onToggleBusiness={inviteCustomerType ? undefined : toggleBusiness}
       />
     );
   }

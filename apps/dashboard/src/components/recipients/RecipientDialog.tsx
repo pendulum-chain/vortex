@@ -15,20 +15,20 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CORRIDORS } from "@/domain/corridors";
+import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
 import { inviteUrl } from "@/domain/recipient";
-import type { AccountType, Corridor, SenderAccount } from "@/domain/types";
+import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/types";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
 import { CORRIDOR_COUNTRY, CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
 const schema = z.object({
-  amount: z.string().refine(value => Number(value) > 0, "Enter an amount"),
+  alias: z.string().trim().min(1, "Enter a name for this link").max(100, "Keep it under 100 characters"),
   corridorId: z.enum(["BR", "EU", "MX", "CO", "US", "AR"]),
   recipientType: z.enum(["individual", "company"])
 });
@@ -41,28 +41,39 @@ interface CreatedInvite {
   corridorName: string;
 }
 
-export function RecipientDialog({ account, approvedCorridors }: { account: SenderAccount; approvedCorridors: Corridor[] }) {
+export function RecipientDialog({
+  account,
+  corridors,
+  defaultCorridorId
+}: {
+  account: SenderAccount;
+  corridors: Corridor[];
+  defaultCorridorId?: CorridorId;
+}) {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInvite | null>(null);
   const queryClient = useQueryClient();
 
   const form = useForm<FormValues>({
     defaultValues: {
-      amount: "",
-      corridorId: approvedCorridors[0]?.id ?? "BR",
+      alias: "",
+      corridorId: defaultCorridorId ?? corridors[0]?.id ?? "BR",
       recipientType: "individual"
     },
     resolver: standardSchemaResolver(schema)
   });
 
   const corridorId = form.watch("corridorId");
+  const recipientType = form.watch("recipientType");
   const corridor = CORRIDORS[corridorId];
-  const disabled = approvedCorridors.length === 0;
+  // Not every corridor supports both recipient types (e.g. Alfredpay has no AR company KYB).
+  const selectableCorridors = corridors.filter(option => isCorridorAvailableForAccountType(option.id, recipientType));
+  const disabled = corridors.length === 0;
 
   const createInvite = useMutation({
     mutationFn: (values: FormValues) =>
       RecipientsService.createInvite({
-        amount: Number(values.amount).toFixed(2),
+        alias: values.alias,
         country: CORRIDOR_COUNTRY[values.corridorId],
         inviteeType: values.recipientType === "company" ? "business" : "individual",
         payoutCurrency: CORRIDOR_RAIL[values.corridorId],
@@ -76,7 +87,6 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
       notifyInviteLinkReady(selected.name);
       // Show the new invite as a pending recipient the moment it's created.
       queryClient.invalidateQueries({ queryKey: RECIPIENTS_QUERY_KEY });
-      // The raw token is returned exactly once — this is the only chance to build the link.
       setCreated({ corridorName: selected.name, id: invite.id, url: inviteUrl(invite.token, values.corridorId) });
     }
   });
@@ -87,7 +97,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
 
   function reset() {
     setCreated(null);
-    form.reset({ amount: "", corridorId: form.getValues("corridorId"), recipientType: form.getValues("recipientType") });
+    form.reset({ alias: "", corridorId: form.getValues("corridorId"), recipientType: form.getValues("recipientType") });
   }
 
   function onOpenChange(next: boolean) {
@@ -113,7 +123,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
             <DialogHeader>
               <DialogTitle>Add a recipient</DialogTitle>
               <DialogDescription>
-                Choose who you're paying and how much. We'll generate an invite link you send them yourself — they complete
+                Choose who you're paying and name the link. We'll generate an invite link you send them yourself — they complete
                 KYC/KYB and add their payout details to receive transfers.
               </DialogDescription>
             </DialogHeader>
@@ -125,7 +135,19 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Recipient type</FormLabel>
-                      <Tabs onValueChange={value => field.onChange(value as AccountType)} value={field.value}>
+                      <Tabs
+                        onValueChange={value => {
+                          const nextType = value as AccountType;
+                          field.onChange(nextType);
+                          if (!isCorridorAvailableForAccountType(form.getValues("corridorId"), nextType)) {
+                            const fallback = corridors.find(option => isCorridorAvailableForAccountType(option.id, nextType));
+                            if (fallback) {
+                              form.setValue("corridorId", fallback.id);
+                            }
+                          }
+                        }}
+                        value={field.value}
+                      >
                         <TabsList className="w-full">
                           <TabsTrigger value="individual">
                             <User />
@@ -155,7 +177,7 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {approvedCorridors.map(option => (
+                            {selectableCorridors.map(option => (
                               <SelectItem key={option.id} value={option.id}>
                                 {option.flag} {option.name} · {option.currency}
                               </SelectItem>
@@ -168,14 +190,13 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
                   />
                   <FormField
                     control={form.control}
-                    name="amount"
+                    name="alias"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>I will send you ({corridor.currency})</FormLabel>
+                        <FormLabel>Alias</FormLabel>
                         <FormControl>
-                          <Input inputMode="decimal" placeholder="0.00" {...field} />
+                          <Input placeholder={`e.g. Maria · ${corridor.currency}`} {...field} />
                         </FormControl>
-                        <FormDescription>You can change this per transfer later.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -201,14 +222,6 @@ export function RecipientDialog({ account, approvedCorridors }: { account: Sende
 }
 
 function InviteShare({ created, onDone }: { created: CreatedInvite; onDone: () => void }) {
-  const [copied, setCopied] = useState(false);
-
-  function copy() {
-    navigator.clipboard?.writeText(created.url);
-    notifyInviteCopied();
-    setCopied(true);
-  }
-
   return (
     <>
       <DialogHeader>
@@ -218,24 +231,39 @@ function InviteShare({ created, onDone }: { created: CreatedInvite; onDone: () =
           you can pay them.
         </DialogDescription>
       </DialogHeader>
-      <div className="grid min-w-0 gap-2">
-        <span className="text-muted-foreground text-xs">Invite link</span>
-        <div
-          className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md border bg-background p-2"
-          data-testid="invite-link-preview"
-        >
-          <code className="min-w-0 flex-1 truncate font-mono text-xs">{created.url}</code>
-          <Button className="shrink-0" onClick={copy} size="sm" type="button" variant={copied ? "outline" : "default"}>
-            {copied ? <Check /> : <Copy />}
-            {copied ? "Copied" : "Copy link"}
-          </Button>
-        </div>
-      </div>
+      <InviteLinkCopy url={created.url} />
       <DialogFooter>
         <Button onClick={onDone} type="button">
           Done
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+/** The copyable invite-link block, shared by invite creation and the row management modal. */
+export function InviteLinkCopy({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function copy() {
+    navigator.clipboard?.writeText(url);
+    notifyInviteCopied();
+    setCopied(true);
+  }
+
+  return (
+    <div className="grid min-w-0 gap-2">
+      <span className="text-muted-foreground text-xs">Invite link</span>
+      <div
+        className="flex min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-md border bg-background p-2"
+        data-testid="invite-link-preview"
+      >
+        <code className="min-w-0 flex-1 truncate font-mono text-xs">{url}</code>
+        <Button className="shrink-0" onClick={copy} size="sm" type="button" variant={copied ? "outline" : "default"}>
+          {copied ? <Check /> : <Copy />}
+          {copied ? "Copied" : "Copy link"}
+        </Button>
+      </div>
+    </div>
   );
 }

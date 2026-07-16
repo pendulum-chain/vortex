@@ -1,4 +1,10 @@
-import { FiatToken } from "@vortexfi/shared";
+import {
+  type CorridorCountry,
+  type CorridorCustomerType,
+  FiatToken,
+  isCorridorSupportedForCustomerType
+} from "@vortexfi/shared";
+import { isFiatTokenEnabled } from "../config/tokenAvailability";
 import { Language } from "../translations/helpers";
 
 export interface KybRegion {
@@ -36,4 +42,17 @@ export function findKybRegionByCode(code?: string): KybRegion | undefined {
   if (!code) return undefined;
   const normalized = code.toUpperCase();
   return KYB_REGIONS.find(region => region.code === normalized);
+}
+
+/**
+ * Regions offered in the selector: enabled fiat tokens, minus combinations the corridor's
+ * provider cannot onboard (e.g. Alfredpay has no AR company KYB) once the invite's customer
+ * type is known. Before redemption the type is undecided, so all enabled regions show.
+ */
+export function availableKybRegions(customerType?: CorridorCustomerType): KybRegion[] {
+  return KYB_REGIONS.filter(
+    region =>
+      isFiatTokenEnabled(region.fiatToken) &&
+      (!customerType || isCorridorSupportedForCustomerType(region.code as CorridorCountry, customerType))
+  );
 }

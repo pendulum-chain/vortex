@@ -18,6 +18,8 @@ interface AveniaKycFlowProps {
   corridor: Corridor;
   onClose: () => void;
   onSettled: (status: OnboardingStatus) => void;
+  /** Existing Avenia account data — skips the form and resumes at the verification links. */
+  resume?: { companyName: string | null; taxId: string };
 }
 
 const aveniaKycMachine = createAveniaKycMachine({
@@ -36,8 +38,20 @@ const STATUS_BY_STATE: Record<string, OnboardingStatus> = {
 
 const BUSY_STATES = new Set(["SubaccountSetup", "Submit", "Verifying"]);
 
-export function AveniaKycFlow({ business = false, corridor, onClose, onSettled }: AveniaKycFlowProps) {
-  const [state, send] = useMachine(aveniaKycMachine, { input: { taxId: "" } });
+export function AveniaKycFlow({ business = false, corridor, onClose, onSettled, resume }: AveniaKycFlowProps) {
+  const [state, send] = useMachine(aveniaKycMachine, {
+    input: resume
+      ? {
+          kycFormData: {
+            companyName: resume.companyName ?? undefined,
+            fullName: resume.companyName ?? "",
+            taxId: resume.taxId
+          } as AveniaKycFormData,
+          resumeExistingAccount: true,
+          taxId: resume.taxId
+        }
+      : { taxId: "" }
+  });
   const value = String(state.value);
   const isCompanyVerification = state.matches({ KYBFlow: "CompanyVerification" });
   const isRepresentativeVerification = state.matches({ KYBFlow: "RepresentativeVerification" });
@@ -64,9 +78,17 @@ export function AveniaKycFlow({ business = false, corridor, onClose, onSettled }
           <Loader2 className="size-8 animate-spin text-primary" />
           <div>
             <p className="font-medium">
-              {value === "SubaccountSetup" ? "Creating your Avenia profile" : "Submitting your application"}
+              {value === "SubaccountSetup"
+                ? resume
+                  ? "Resuming your verification"
+                  : "Creating your Avenia profile"
+                : "Submitting your application"}
             </p>
-            <p className="text-muted-foreground text-sm">This can take a moment while Avenia processes your information.</p>
+            <p className="text-muted-foreground text-sm">
+              {value === "SubaccountSetup" && resume
+                ? "Your Avenia profile already exists — fetching the verification steps."
+                : "This can take a moment while Avenia processes your information."}
+            </p>
           </div>
         </Centered>
         {value !== "SubaccountSetup" && (

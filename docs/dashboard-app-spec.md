@@ -44,6 +44,10 @@ the sections below that describe them are target-state, not current behavior.
 - BR companies complete Avenia's hosted company and representative steps; MX/CO companies submit
   AlfredPay KYB details and documents in the dashboard; US companies use AlfredPay's hosted flow.
   AlfredPay company onboarding is not offered for AR until provider support is confirmed.
+- As a BR company whose KYB is pending (Avenia profile already created — CNPJ and company name
+  supplied), Continue resumes directly at the hosted verification steps instead of re-asking the
+  form: the status payload exposes the business `taxReference`, and the wizard skips form filling,
+  reusing the existing Avenia subaccount and issuing fresh verification links.
 - As a sender, opening Monerium onboarding immediately marks the EU corridor started; it moves to
   in review only after Monerium reports that all required information was submitted.
 - As a sender whose Monerium onboarding is in review, I see a **Re-authenticate with Monerium**
@@ -67,17 +71,38 @@ the sections below that describe them are target-state, not current behavior.
   corridor is approved.
 
 ### Recipients & invitations `#review`
-- As a sender, I invite a recipient for an approved corridor by generating a shareable link; I
-  choose their country, rail, payout currency, and intended amount. Email is optional metadata —
-  the **link token** is what redeems.
+- As a sender, once **any** corridor of mine is approved I invite a recipient for **any live
+  corridor** by generating a shareable link; I choose their country, rail, and payout currency,
+  and type an **alias** — a sender-local label that identifies the link (and later the recipient)
+  in my list. Email is optional metadata — the **link token** is what redeems. The one exception
+  is combinations the corridor's provider cannot onboard: the dialog hides Argentina for
+  **company** recipients (Alfredpay has no AR KYB), per the shared corridor-capability matrix
+  (`@vortexfi/shared` `CORRIDOR_CAPABILITIES`). The API enforces the same rules server-side —
+  unknown corridors, unsupported corridor × recipient-type combinations, and senders without any
+  approved corridor are rejected — and the widget's region selector applies the matrix once the
+  invite's recipient type is known.
 - As a sender, I copy the invite link and deliver it myself.
+- As a sender, I click a row in my recipients list to open a management modal. While the invite
+  is not yet accepted, I can **re-copy the link** from there; once accepted (or when the link is
+  a legacy invite created before tokens were retained), re-copy is no longer offered.
+- As a sender, an invite whose 14-day TTL passed stays in my list as **Expired** (its token is
+  cleared server-side, so re-copy is no longer offered) until I remove it — it never silently
+  vanishes.
+- As a sender, I **remove** an entry (pending invite, expired invite, or established
+  relationship) from my list via the same modal. Removal is an archive, not a revocation: the link keeps working, the
+  recipient can still sign in and complete KYC — only the entry disappears from my list (and,
+  for an accepted invite, the sender↔recipient relationship is archived).
 - As a recipient, I open the link and land **in the widget**, pinned to my corridor. I sign in with
   an emailed code — which creates my account — the invite is accepted, and I run the same KYC/KYB
   the widget already offers.
 - As a recipient, I register a payout account (PIX key / IBAN / CLABE / ACH) — the sender never sees
   or holds my bank details.
 - As a sender, I see each recipient's relationship status (`invited · active · blocked · archived`)
-  and onboarding status, and I can nickname, block, or archive them.
+  and onboarding status, and I can nickname, block, or archive them. Archived entries — both
+  archived relationships and archived pending invitations — are hidden from my list.
+- The list's status wording is deliberate: a not-yet-accepted invite reads **"Invite created"**
+  (never "sent" — the system sends nothing; the sender delivers the link), and review states are
+  provider-neutral (**"Pending review"**, no provider names in the recipients list).
 - As a sender, a recipient becomes payable only when: invite accepted, relationship active,
   their onboarding approved for that corridor, and a payout reference is verified. Otherwise I see
   *why* it is blocked.
@@ -154,9 +179,12 @@ provider-shaped rather than UI-shaped.
   the payout side from the *recipient's* provider identity. BRL is the cheapest first corridor
   (it already accepts a third-party PIX destination). `#review`
 
-- **Invitations are link-based.** The invite link carries a bearer token — 24 random bytes, stored
-  server-side only as a hash, shown once at creation. It is not the invitation id, and it does not
-  authenticate: `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
+- **Invitations are link-based.** The invite link carries a bearer token — 24 random bytes. The
+  sha256 hash remains the redemption key, but the raw token is also retained on the invitation
+  **while it is pending** (a deliberate product decision, so the sender can re-copy the link from
+  the list) and is cleared on first acceptance. It is exposed only to the sender who owns the
+  invitation, it is not the invitation id, and it does not authenticate:
+  `POST /v1/recipients/invite/:token/accept` requires *both* a session and the token.
 
 - **Redemption and recipient KYC happen in the widget. `#decided`** The invite link opens the widget
   carrying the token (`?invite=`) plus `?kybLocked=<country>`, which pre-pins the corridor when the
@@ -176,10 +204,11 @@ provider-shaped rather than UI-shaped.
     a Monerium provider record (`providerForRail`) — and Monerium onboards in the dashboard, not
     the widget. EU is therefore excluded from the widget's KYB region list: an EU link's
     `?kybLocked=EU` is not recognized, and the corridor locks only from the acceptance response.
-    The dashboard does **not** yet prevent creating EU invites — all six corridors are selectable
-    in the recipient dialog — so an EU invite can be issued but cannot produce a payable recipient
-    until recipient EU onboarding is routed through Monerium (or the rail mapping changes). Known
-    gap, tracked with the EUR corridor reconciliation.
+    The dashboard intentionally does not prevent creating EU invites — once any corridor is
+    approved, all live corridors are selectable in the recipient dialog — so an EU invite can be
+    issued but cannot produce a payable recipient until recipient EU onboarding is routed through
+    Monerium (or the rail mapping changes). Known gap, tracked with the EUR corridor
+    reconciliation.
 
 - **The recipient's payout instrument** is created provider-side and stored as a masked pointer,
   never as raw bank PII. Where it is captured follows from the above — the widget. `#review`
@@ -211,14 +240,20 @@ provider-shaped rather than UI-shaped.
 
 ## Next steps
 
+- Add self payout-account (AlfredPay fiat-account) management to the Onboarding corridor cards,
+  per `docs/plans/dashboard-followup-plan.md` §2 (reworked 2026-07-15: Onboarding placement
+  instead of Recipients/Transfer CTAs, ~90% blue progress bar for approved corridors without an
+  account, offramp-only messaging, list + add without delete in v1). The backend
+  `/v1/alfredpay/fiatAccounts` routes already exist.
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
 - Connect the dashboard notification feed and its three preference controls to the backend.
 - Consider persisting intended corridor selection independently of provider entities. A small
   backend table could support adding/removing tracked corridors and explicit status management;
   provider-created entities remain the authoritative persisted onboarding state meanwhile.
-- Preserve and display invitation amounts after creation, and add the remaining recipient
-  management actions such as nickname, block, archive, reactivate, and revoke.
+- Add the remaining recipient management actions such as nickname, block, reactivate, and
+  revoke (archive ships as the list-removal action; invitation amounts were dropped in favor of
+  the sender-typed alias).
 
 ## Open questions
 

@@ -54,7 +54,6 @@ export function mapRecipientDto(dto: RecipientDto, accountId: string): Recipient
   const payoutReference = dto.payoutReferences[0];
   return {
     accountId,
-    amount: "0.00",
     bankDetails: { method: corridor.recipientMethod, value: payoutReference?.maskedDisplayLabel ?? "" },
     copyCount: 0,
     corridorId,
@@ -63,7 +62,8 @@ export function mapRecipientDto(dto: RecipientDto, accountId: string): Recipient
     id: dto.id,
     inviteCode: "",
     isSelf: false,
-    name: dto.nickname ?? dto.invitation?.inviteeEmail ?? undefined,
+    kind: "relationship",
+    name: dto.nickname ?? dto.invitation?.alias ?? dto.invitation?.inviteeEmail ?? undefined,
     payoutCurrency: corridor.currency,
     recipientType: toAccountType(dto.recipientType),
     status: dto.onboardingStatus === "approved" ? "approved" : "pending"
@@ -71,8 +71,8 @@ export function mapRecipientDto(dto: RecipientDto, accountId: string): Recipient
 }
 
 /**
- * Maps a not-yet-accepted invitation to a recipient row. The raw invite token is only
- * returned at creation time, so listed invitations carry no re-copyable link.
+ * Maps a not-yet-accepted invitation to a recipient row. The raw token rides along while
+ * the invite is pending so the sender can re-copy the link (null for legacy invites).
  */
 export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: string): Recipient | null {
   const corridorId = CORRIDOR_BY_RAIL[dto.rail];
@@ -82,16 +82,16 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
   const corridor = CORRIDORS[corridorId];
   return {
     accountId,
-    amount: "0.00",
     bankDetails: { method: corridor.recipientMethod, value: "" },
     copyCount: 0,
     corridorId,
     createdAt: dto.createdAt,
     email: dto.inviteeEmail ?? "",
     id: dto.id,
-    inviteCode: "",
+    inviteCode: dto.token ?? "",
     isSelf: false,
-    name: dto.inviteeEmail ?? undefined,
+    kind: "invitation",
+    name: dto.alias ?? dto.inviteeEmail ?? undefined,
     payoutCurrency: corridor.currency,
     recipientType: toAccountType(dto.inviteeType),
     status: dto.isExpired ? "expired" : "invite_sent"
@@ -114,7 +114,6 @@ export function selfRecipientsFromFiatAccounts(
       : maskAccountNumber(fiatAccount.accountNumber);
     return {
       accountId: account.id,
-      amount: "0.00",
       bankDetails: { method: corridor.recipientMethod, value: label },
       copyCount: 0,
       corridorId,
@@ -124,6 +123,7 @@ export function selfRecipientsFromFiatAccounts(
       id: `self_${corridorId}_${fiatAccount.fiatAccountId}`,
       inviteCode: "",
       isSelf: true,
+      kind: "self",
       name: `${account.name} · ${label}`,
       payoutCurrency: corridor.currency,
       recipientType: account.type,
@@ -140,7 +140,6 @@ export function fallbackSelfRecipient(corridorId: CorridorId, account: SenderAcc
   const corridor = CORRIDORS[corridorId];
   return {
     accountId: account.id,
-    amount: "0.00",
     bankDetails: { method: corridor.recipientMethod, value: `Your ${corridor.name} ${corridor.recipientLabel}` },
     copyCount: 0,
     corridorId,
@@ -149,6 +148,7 @@ export function fallbackSelfRecipient(corridorId: CorridorId, account: SenderAcc
     id: `self_${corridorId}`,
     inviteCode: "",
     isSelf: true,
+    kind: "self",
     name: `${account.name} (You)`,
     payoutCurrency: corridor.currency,
     recipientType: account.type,

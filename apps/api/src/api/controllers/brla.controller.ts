@@ -418,12 +418,16 @@ export const createSubaccount = async (
       }
     }
 
+    // A company has no verification attempt yet at this point — the hosted KYB links are issued in
+    // a follow-up call — so it starts pending (resumable). Individuals keep the legacy Requested
+    // semantics (updateAveniaKycOutcome only flips accounts that are in_review).
+    const initialStatus = accountType === AveniaAccountType.COMPANY ? VerificationStatus.Pending : VerificationStatus.InReview;
     if (existing) {
       await existing.update({
         companyName,
         customerType: accountTypeToCustomerType(accountType),
         providerSubaccountId: id,
-        status: VerificationStatus.InReview,
+        status: initialStatus,
         statusExternal: null
       });
     } else {
@@ -437,12 +441,12 @@ export const createSubaccount = async (
         provider: "avenia",
         providerSubaccountId: id,
         rail: "brl",
-        status: VerificationStatus.InReview,
+        status: initialStatus,
         taxReference: normalizedTaxId,
         taxReferenceHash: hashTaxReference(normalizedTaxId)
       });
     }
-    await upsertAveniaKycCase(existing, VerificationStatus.InReview, null);
+    await upsertAveniaKycCase(existing, initialStatus, null);
 
     res.status(httpStatus.OK).json({ subAccountId: id });
   } catch (error) {
@@ -793,19 +797,46 @@ export const initiateKybLevel1 = async (
     const existingKybCase = await KycCase.findOne({
       where: { providerCustomerId: record.id, type: "kyb" }
     });
+    // A PENDING attempt means the user never completed Avenia's hosted steps. The hosted URLs are
+    // not stored, so re-initiation is the only way to surface them again — allow it and rebind the
+    // case to the fresh attempt. Only an attempt Avenia is processing (or has decided) blocks.
     if (
       existingKybCase?.providerCaseId &&
       record.status !== VerificationStatus.Rejected &&
-      existingKybCase.statusExternal !== KycAttemptStatus.EXPIRED
+      existingKybCase.statusExternal !== KycAttemptStatus.EXPIRED &&
+      existingKybCase.statusExternal !== KycAttemptStatus.PENDING
     ) {
       res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
       return;
     }
 
     const brlaApiService = BrlaApiService.getInstance();
+
+    // The stored status can lag (the hosted steps may have just been finished in another tab):
+    // probe the live attempt before re-initiating so a processing/approved attempt is not
+    // orphaned by rebinding the case to a fresh one. A rejected decision stays re-initiable
+    // (that is the retry path), and a failing probe must not lock the user out of resuming.
+    if (existingKybCase?.providerCaseId) {
+      try {
+        const { attempt } = await brlaApiService.getKybAttemptStatus(existingKybCase.providerCaseId);
+        const decidedRejected = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED;
+        const resumable =
+          attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED || decidedRejected;
+        if (!resumable) {
+          res.status(httpStatus.CONFLICT).json({ error: "A KYB attempt is already in progress" });
+          return;
+        }
+      } catch {
+        // Re-initiation is the only path back to the hosted steps; keep it available if the probe fails.
+      }
+    }
+
     const response = await brlaApiService.initiateKybLevel1(subAccountId);
-    await record.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PENDING });
-    await upsertAveniaKycCase(record, VerificationStatus.InReview, KycAttemptStatus.PENDING, response.attemptId);
+    // The attempt starts PENDING at Avenia — nothing is submitted until the user finishes the hosted
+    // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
+    // once Avenia reports PROCESSING.
+    await record.update({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING });
+    await upsertAveniaKycCase(record, VerificationStatus.Pending, KycAttemptStatus.PENDING, response.attemptId);
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {

@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import {
   acceptInvite,
+  archiveInvitation,
   createInvite,
   getRecipientEligibility,
   listRecipients,
@@ -29,6 +30,13 @@ router.post("/invite/:token/accept", acceptInvite as unknown as (req: Request<{ 
  * List the sender's recipients (relationship + onboarding status) and pending invitations.
  */
 router.get("/", listRecipients as unknown as (req: Request, res: Response) => void);
+
+/**
+ * PATCH /v1/recipients/invitations/:id
+ * Archive/unarchive a pending invitation — a sender-side list hide, not a revocation:
+ * the token stays redeemable.
+ */
+router.patch("/invitations/:id", archiveInvitation as unknown as (req: Request<{ id: string }>, res: Response) => void);
 
 /**
  * PATCH /v1/recipients/:id

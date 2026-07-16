@@ -53,6 +53,12 @@ export type UploadIds = {
 
 export interface AveniaKycContext {
   taxId: string;
+  /**
+   * Set by callers that already hold the account's tax id and name (an Avenia subaccount exists,
+   * e.g. a pending company KYB being resumed): skips FormFilling and goes straight to
+   * SubaccountSetup, which reuses the existing subaccount. Requires taxId and kycFormData.
+   */
+  resumeExistingAccount?: boolean;
   quoteId?: string;
   externalSessionId?: string;
   kybLink?: unknown;

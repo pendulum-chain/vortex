@@ -89,6 +89,42 @@ test("Alfredpay MX KYC: continuing in the background, the card reacts to approva
   await expect(page.getByRole("button", { name: "Verification complete" })).toBeVisible({ timeout: 25_000 });
 });
 
+test("Alfredpay MX KYC: closing on the details form and reloading keeps the card resumable", async ({ page }) => {
+  // Regression: creating the customer moves the backend to `started`; the card used to render a
+  // disabled "Verification started", locking the user out of a KYC they hadn't finished. It must
+  // stay resumable across a modal close + full reload.
+  await mockBackend(page, { alfredpayKyc: {} });
+  await seedSession(page);
+  await page.goto("/overview");
+
+  // Add Mexico and start KYC through customer creation, landing on the details form.
+  await expect(page.getByText("No corridors added yet")).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("button", { name: "Add corridor" }).click();
+  const addDialog = page.getByRole("dialog");
+  await addDialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Mexico/ }).click();
+  await addDialog.getByRole("button", { name: "Add card" }).click();
+
+  await page.getByRole("button", { name: "Start KYC" }).click();
+  const wizard = page.getByRole("dialog");
+  await expect(wizard.getByText("We'll create your Mexico individual verification profile")).toBeVisible({ timeout: 20_000 });
+  await wizard.getByRole("button", { name: "Continue" }).click();
+  await expect(page.locator('input[name="firstName"]')).toBeVisible({ timeout: 20_000 });
+
+  // Abandon the form and reload — the backend still holds the half-finished `started` account.
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await page.reload();
+
+  // The card offers a resumable action instead of a dead disabled button.
+  const resume = page.getByRole("button", { name: "Continue KYC" });
+  await expect(resume).toBeEnabled({ timeout: 20_000 });
+
+  // Reopening re-checks canonical status (CONSULTED) and returns straight to the details form.
+  await resume.click();
+  await expect(page.locator('input[name="firstName"]')).toBeVisible({ timeout: 20_000 });
+});
+
 test("Alfredpay MX KYC: closing while pending and reopening shows the approval in the wizard", async ({ page }) => {
   // reflectOnboarding:false keeps the onboarding aggregator behind the provider, so the card
   // action stays enabled and the wizard can be reopened while the provider is still reviewing.

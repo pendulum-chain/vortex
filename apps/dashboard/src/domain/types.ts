@@ -41,9 +41,13 @@ export interface Corridor {
 
 export interface Onboarding {
   corridorId: CorridorId;
+  /** Provider-registered company name, when the provider account already exists. */
+  companyName?: string | null;
   kind: OnboardingKind;
   reauthenticationRequired?: boolean;
   status: OnboardingStatus;
+  /** Business tax id (CNPJ) already supplied to the provider — enables form-less resume. */
+  taxReference?: string | null;
   updatedAt: string;
 }
 
@@ -94,19 +98,19 @@ export interface RecipientBankDetails {
 export interface Recipient {
   id: string;
   accountId: string;
+  /** Whether this row is a pending invitation, an accepted relationship, or the sender themself. */
+  kind: "invitation" | "relationship" | "self";
   /** Recipient's email — empty for invite-link recipients until they onboard themselves. */
   email: string;
-  /** Recipient's name once they complete onboarding via the invite link (mocked). */
+  /** Sender-facing label: nickname or invite alias, or the recipient's onboarded name. */
   name?: string;
   recipientType: AccountType;
   corridorId: CorridorId;
-  /** Payout amount the sender intends to send this recipient. */
-  amount: string;
   payoutCurrency: string;
   /** Bank details the recipient provides during onboarding — value is empty until approved. */
   bankDetails: RecipientBankDetails;
   status: RecipientStatus;
-  /** Shareable invite token the sender copies and sends out themselves. */
+  /** Raw invite token for re-copying the link — empty once accepted or for legacy invites. */
   inviteCode: string;
   /** How many times the invite link was copied — tracked per product request. */
   copyCount: number;

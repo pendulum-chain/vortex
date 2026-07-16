@@ -28,7 +28,7 @@ export const TX_STATUS_META: Record<TransactionStatus, { label: string; badgeVar
 export const RECIPIENT_STATUS_META: Record<RecipientStatus, { label: string; badgeVariant: StatusMeta["badgeVariant"] }> = {
   approved: { badgeVariant: "success", label: "Approved" },
   expired: { badgeVariant: "secondary", label: "Expired" },
-  invite_sent: { badgeVariant: "secondary", label: "Invite sent" },
+  invite_sent: { badgeVariant: "secondary", label: "Invite created" },
   pending: { badgeVariant: "info", label: "Pending" },
   rejected: { badgeVariant: "destructive", label: "Rejected" }
 };

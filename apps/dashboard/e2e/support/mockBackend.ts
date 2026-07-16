@@ -247,17 +247,22 @@ interface MockBackendOptions {
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
   pendingStatusPolls?: number;
   // Drives the Alfredpay MX KYC endpoints and, unless reflectOnboarding is false, makes
-  // GET /v1/onboarding/status mirror KYC progress (empty → in_review once submitted → approved).
+  // GET /v1/onboarding/status mirror KYC progress (empty → started once the customer exists →
+  // in_review once submitted → approved).
   // Default onboarding status (an already-approved MX corridor) applies when this is unset.
   alfredpayKyc?: { reflectOnboarding?: boolean };
   aveniaKyb?: boolean;
   moneriumKyc?: boolean;
   moneriumRequireRefresh?: boolean;
+  // Served as GET /v1/recipients → pendingInvitations (default: none).
+  pendingInvitations?: Array<Record<string, unknown>>;
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
 const ALFREDPAY_SUCCESS = "SUCCESS";
 const ALFREDPAY_VERIFYING = "VERIFYING";
+// Customer exists but no KYC submission yet — a reopened wizard resumes into the details form.
+const ALFREDPAY_CONSULTED = "CONSULTED";
 
 // Chains the dashboard's wagmi config can reach (src/lib/wagmi.ts uses http() with no URL, so
 // viem falls back to these per-chain defaults). Polygon is genuinely exercised — the user
@@ -348,6 +353,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const kycFormSubmissions: Array<Record<string, unknown>> = [];
   const kybFormSubmissions: Array<Record<string, unknown>> = [];
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
+  const archiveInvitationRequests: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
@@ -477,6 +483,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
             ? buildCompanyOnboardingStatus("alfredpay", "MX", "in_review")
             : buildOnboardingStatus("in_review")
         );
+      } else if (kyc.customerCreated) {
+        // Real backend: createCustomer writes provider_customers.status = started (Consulted)
+        // before any KYC data is submitted, so the aggregator reports `started` here — the card
+        // must keep this resumable, not lock the user out.
+        await fulfillJson(
+          options.companyMode ? buildCompanyOnboardingStatus("alfredpay", "MX", "started") : buildOnboardingStatus("started")
+        );
       } else {
         await fulfillJson(buildEmptyOnboardingStatus(options.companyMode));
       }
@@ -532,7 +545,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         await fulfillJson({
           country: "MX",
           creationTime: new Date().toISOString(),
-          status: kyc.approved ? ALFREDPAY_SUCCESS : ALFREDPAY_VERIFYING
+          status: kyc.approved ? ALFREDPAY_SUCCESS : kyc.submitted ? ALFREDPAY_VERIFYING : ALFREDPAY_CONSULTED
         });
       }
       return;
@@ -629,9 +642,24 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson(url.searchParams.get("country") === "MX" ? buildFiatAccounts() : []);
       return;
     }
-    // Third-party recipients: none, so the auto-selected self-recipient stays selected.
+    // Third-party recipients: seeded pending invitations only, so the auto-selected
+    // self-recipient stays selected in transfer specs.
     if (path === "/v1/recipients" && method === "GET") {
-      await fulfillJson({ pendingInvitations: [], recipients: [] });
+      // Archived invitations disappear from subsequent lists, like the real backend, so specs
+      // can assert the user-visible outcome of removal rather than just the PATCH.
+      const archivedIds = new Set(
+        archiveInvitationRequests.filter(request => request.archived === true).map(request => request.id)
+      );
+      await fulfillJson({
+        pendingInvitations: (options.pendingInvitations ?? []).filter(invitation => !archivedIds.has(invitation.id)),
+        recipients: []
+      });
+      return;
+    }
+    if (path.startsWith("/v1/recipients/invitations/") && method === "PATCH") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      archiveInvitationRequests.push({ ...body, id: path.split("/").pop() });
+      await fulfillJson({ archived: body.archived, id: path.split("/").pop() });
       return;
     }
     if (path === "/v1/recipients/invite" && method === "POST") {
@@ -716,6 +744,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   }
 
   return {
+    archiveInvitationRequests,
     auth,
     avenia,
     brlaCreateSubaccountRequests,

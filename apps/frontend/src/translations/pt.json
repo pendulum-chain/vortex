@@ -249,6 +249,7 @@
         },
         "taxId": {
           "cnpjFormat": "CNPJ inválido",
+          "cpfFormat": "CPF inválido",
           "format": "Tax Id inválido",
           "required": "Tax Id é obrigatório"
         }

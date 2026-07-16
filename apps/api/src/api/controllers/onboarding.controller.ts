@@ -7,9 +7,31 @@ import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
+import { refreshAlfredpayCustomerStatus } from "../services/alfredpay/alfredpay-customer.service";
 import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.service";
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
+
+// Provider status refreshes piggyback on the dashboard's 15s status poll; cap them per customer so
+// polling (and multiple open tabs) doesn't hammer the providers. Marking at check time also dedupes
+// concurrent polls. In-memory on purpose: per instance, the cap just multiplies by instance count.
+const PROVIDER_REFRESH_TTL_MS = 60_000;
+const lastProviderRefreshAt = new Map<string, number>();
+
+function shouldRefreshProviderStatus(customerId: string): boolean {
+  const now = Date.now();
+  const last = lastProviderRefreshAt.get(customerId);
+  if (last !== undefined && now - last < PROVIDER_REFRESH_TTL_MS) {
+    return false;
+  }
+  if (lastProviderRefreshAt.size > 10_000) {
+    for (const [id, at] of lastProviderRefreshAt) {
+      if (now - at >= PROVIDER_REFRESH_TTL_MS) lastProviderRefreshAt.delete(id);
+    }
+  }
+  lastProviderRefreshAt.set(customerId, now);
+  return true;
+}
 
 /**
  * GET /v1/onboarding/status — aggregated onboarding view for the authenticated profile
@@ -95,7 +117,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             customer.customerType === "business" &&
             customer.status !== VerificationStatus.Approved &&
             customer.status !== VerificationStatus.Rejected &&
-            !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId
+            !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId &&
+            shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
           const kycCase = kycCasesByProviderCustomer.get(customer.id);
@@ -106,11 +129,15 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             const rejected =
               attempt.status === KycAttemptStatus.EXPIRED ||
               (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+            // A PENDING attempt is one the user never finished (hosted steps not completed) — keep it
+            // pending so the dashboard offers Continue; in_review only once Avenia is PROCESSING.
             const status = approved
               ? VerificationStatus.Approved
               : rejected
                 ? VerificationStatus.Rejected
-                : VerificationStatus.InReview;
+                : attempt.status === KycAttemptStatus.PENDING
+                  ? VerificationStatus.Pending
+                  : VerificationStatus.InReview;
             const lifecycle = {
               ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
               ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
@@ -124,6 +151,75 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
           }
         })
     );
+
+    // Avenia individual KYC: refresh from the latest attempt so an approval/rejection that lands
+    // after the wizard closed is reflected here — nothing else polls Avenia for individuals.
+    await Promise.all(
+      providerCustomers
+        .filter(
+          customer =>
+            customer.provider === "avenia" &&
+            customer.customerType === "individual" &&
+            customer.status !== VerificationStatus.Approved &&
+            customer.status !== VerificationStatus.Rejected &&
+            !!customer.providerSubaccountId &&
+            shouldRefreshProviderStatus(customer.id)
+        )
+        .map(async customer => {
+          const kycCase = kycCasesByProviderCustomer.get(customer.id);
+          try {
+            const { attempts } = await BrlaApiService.getInstance().getKycAttempts(customer.providerSubaccountId as string);
+            const attempt = attempts[0];
+            if (!attempt) return;
+            const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
+            const rejected = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED;
+            // A PENDING or EXPIRED attempt is one the user never finished (livecheck not completed) —
+            // not a rejection: keep it pending so the dashboard offers Continue, mirroring
+            // fetchSubaccountKycStatus. Only an Avenia decision is terminal.
+            const status = approved
+              ? VerificationStatus.Approved
+              : rejected
+                ? VerificationStatus.Rejected
+                : attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED
+                  ? VerificationStatus.Pending
+                  : VerificationStatus.InReview;
+            const lifecycle = {
+              ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+              ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
+            };
+            await Promise.all([
+              customer.update({ status, statusExternal: attempt.status }),
+              kycCase?.update({ status, statusExternal: attempt.status, ...lifecycle })
+            ]);
+          } catch {
+            // Status aggregation remains available while Avenia is temporarily unavailable.
+          }
+        })
+    );
+
+    // Alfredpay: refresh non-terminal accounts against the provider so an outcome that lands after
+    // the KYC wizard closed is reflected here — the machine only polls Alfredpay while it is open.
+    await Promise.all(
+      providerCustomers
+        .filter(
+          customer =>
+            customer.provider === "alfredpay" &&
+            customer.status !== VerificationStatus.Approved &&
+            customer.status !== VerificationStatus.Rejected &&
+            shouldRefreshProviderStatus(customer.id)
+        )
+        .map(customer => refreshAlfredpayCustomerStatus(customer))
+    );
+
+    // Alfredpay status refresh may update or create a case through a separate model instance.
+    // Re-read cases so the nested response agrees with the freshly updated account state.
+    const refreshedKycCases = entityIds.length ? await KycCase.findAll({ where: { customerEntityId: entityIds } }) : [];
+    kycCasesByProviderCustomer.clear();
+    for (const kycCase of refreshedKycCases) {
+      if (kycCase.providerCustomerId) {
+        kycCasesByProviderCustomer.set(kycCase.providerCustomerId, kycCase);
+      }
+    }
 
     res.status(httpStatus.OK).json({
       activeEntityId,
@@ -154,7 +250,10 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
               rail: customer.rail,
               state: customer.status,
               status: customer.status,
-              statusExternal: customer.statusExternal
+              statusExternal: customer.statusExternal,
+              // Business tax id (CNPJ) only — lets the dashboard resume a pending company flow
+              // without re-asking data the owner already supplied. Individual CPFs stay private.
+              taxReference: customer.customerType === "business" ? customer.taxReference : null
             };
           }),
           id: entity.id,

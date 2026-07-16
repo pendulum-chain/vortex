@@ -83,7 +83,7 @@ export function AveniaKybFormScreen({ initialData, onCancel, onSubmit }: AveniaK
           <Button onClick={onCancel} type="button" variant="ghost">
             Cancel
           </Button>
-          <Button type="submit">Create Avenia profile</Button>
+          <Button type="submit">Continue</Button>
         </DialogFooter>
       </form>
     </Form>

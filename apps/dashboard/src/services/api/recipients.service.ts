@@ -8,6 +8,7 @@ export interface RecipientInvitationDto {
   country: string;
   rail: string;
   payoutCurrency: string;
+  alias: string | null;
   inviteeEmail: string | null;
   inviteeType: RecipientInviteeType;
 }
@@ -41,9 +42,12 @@ export interface PendingInvitationDto {
   country: string;
   rail: string;
   payoutCurrency: string;
+  alias: string | null;
   inviteeEmail: string | null;
   inviteeType: RecipientInviteeType;
   isExpired: boolean;
+  /** Raw invite token for re-copy; null for legacy invites created before it was retained. */
+  token: string | null;
 }
 
 export interface ListRecipientsResponse {
@@ -55,12 +59,12 @@ export interface CreateInviteRequest {
   country: string;
   rail: string;
   payoutCurrency: string;
-  amount?: string;
+  alias: string;
   inviteeEmail?: string;
   inviteeType?: RecipientInviteeType;
 }
 
-/** The raw `token` is returned exactly once; the backend only ever stores its hash. */
+/** The backend retains the raw `token` while the invite is pending, for re-copy from the list. */
 export interface CreateInviteResponse {
   id: string;
   token: string;
@@ -68,7 +72,7 @@ export interface CreateInviteResponse {
   country: string;
   rail: string;
   payoutCurrency: string;
-  amount: string | null;
+  alias: string | null;
   inviteeEmail: string | null;
   inviteeType: RecipientInviteeType;
   expiresAt: string;
@@ -76,6 +80,14 @@ export interface CreateInviteResponse {
 }
 
 export const RecipientsService = {
+  /** Hide a pending invitation from the list; the link stays redeemable. */
+  archiveInvitation(id: string): Promise<{ id: string; archived: boolean }> {
+    return apiClient.patch<{ id: string; archived: boolean }>(`/recipients/invitations/${id}`, { archived: true });
+  },
+  /** Archive an accepted relationship — removed from the list, recipient's KYC unaffected. */
+  archiveRecipient(id: string): Promise<{ id: string; relationshipStatus: string }> {
+    return apiClient.patch<{ id: string; relationshipStatus: string }>(`/recipients/${id}`, { status: "archived" });
+  },
   createInvite(body: CreateInviteRequest): Promise<CreateInviteResponse> {
     return apiClient.post<CreateInviteResponse>("/recipients/invite", body);
   },

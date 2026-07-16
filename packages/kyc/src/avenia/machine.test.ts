@@ -145,7 +145,7 @@ describe("aveniaKycMachine", () => {
       verifyKybStatusActor: fromPromise(() => verifyKyb.promise)
     });
     actor.start();
-    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
+    actor.send({ formData: { taxId: "12345678000195" } as AveniaKycFormData, type: "FORM_SUBMIT" });
 
     await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
     let context = actor.getSnapshot().context;
@@ -206,7 +206,7 @@ describe("aveniaKycMachine", () => {
       }))
     });
     actor.start();
-    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
+    actor.send({ formData: { taxId: "12345678000195" } as AveniaKycFormData, type: "FORM_SUBMIT" });
     await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
     actor.send({ type: "KYB_COMPANY_DONE" });
     actor.send({ type: "KYB_REPRESENTATIVE_DONE" });
@@ -219,6 +219,71 @@ describe("aveniaKycMachine", () => {
     expect(actor.getSnapshot().value).toEqual({ KYBFlow: "StatusVerification" });
     actor.send({ type: "RETRY" });
     expect(actor.getSnapshot().value).toBe("SubaccountSetup");
+  });
+
+  it("skips the form and reuses the existing subaccount when resuming an existing account", async () => {
+    const actor = createActor(
+      aveniaKycMachine.provide({
+        actors: {
+          createSubaccountActor: subaccountActorWith({
+            isCompany: true,
+            kybUrls: {
+              attemptId: "attempt-resume",
+              authorizedRepresentativeUrl: "https://rep.example",
+              basicCompanyDataUrl: "https://company.example"
+            },
+            subAccountId: "sub-existing"
+          })
+        }
+      }),
+      {
+        input: {
+          kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000195" } as AveniaKycFormData,
+          resumeExistingAccount: true,
+          taxId: "12345678000195"
+        }
+      }
+    );
+    actor.start();
+
+    // FormFilling is never shown — the CNPJ and company name were already supplied.
+    expect(actor.getSnapshot().value).toBe("SubaccountSetup");
+    await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
+    expect(actor.getSnapshot().context.kybAttemptId).toBe("attempt-resume");
+  });
+
+  it("does not skip the form when resuming without a taxId in the form data", () => {
+    const actor = createActor(aveniaKycMachine, {
+      input: {
+        kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "" } as AveniaKycFormData,
+        resumeExistingAccount: true,
+        taxId: "12345678000195"
+      }
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe("FormFilling");
+  });
+
+  it("does not skip the form when resuming without any form data", () => {
+    const actor = createActor(aveniaKycMachine, {
+      input: {
+        resumeExistingAccount: true,
+        taxId: "12345678000195"
+      }
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe("FormFilling");
+  });
+
+  it("does not skip the form when form data is prefilled without the resume flag", () => {
+    const actor = createActor(aveniaKycMachine, {
+      input: {
+        kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000195" } as AveniaKycFormData,
+        taxId: "12345678000195"
+      }
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe("FormFilling");
   });
 
   it("resumes into Verifying when a KYC attempt is already in progress", async () => {
@@ -290,7 +355,7 @@ describe("aveniaKycMachine", () => {
     const actor = createActor(createAveniaKycMachine({ api }), { input: { taxId: "" } });
     actor.start();
     actor.send({
-      formData: { fullName: "Acme", taxId: "12345678000199" } as AveniaKycFormData,
+      formData: { fullName: "Acme", taxId: "12345678000195" } as AveniaKycFormData,
       type: "FORM_SUBMIT"
     });
 

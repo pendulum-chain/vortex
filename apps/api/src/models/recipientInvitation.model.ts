@@ -4,8 +4,9 @@ import sequelize from "../config/database";
 export type RecipientInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
 export type RecipientInviteeType = "individual" | "business";
 
-// Link-based recipient invite (plan D1): token_hash is the redemption key — the raw token is
-// never stored; invitee_email is optional metadata, matched at acceptance only if recorded.
+// Link-based recipient invite (plan D1): token_hash is the redemption key. The raw token is
+// retained while the invite is pending so the sender can re-copy the link, and cleared on
+// acceptance; invitee_email is optional metadata, matched at acceptance only if recorded.
 export interface RecipientInvitationAttributes {
   id: string;
   senderCustomerEntityId: string;
@@ -16,9 +17,11 @@ export interface RecipientInvitationAttributes {
   country: string;
   rail: string;
   payoutCurrency: string;
-  amount: string | null;
+  alias: string | null;
   status: RecipientInvitationStatus;
   tokenHash: string;
+  token: string | null;
+  archivedAt: Date | null;
   expiresAt: Date | null;
   acceptedAt: Date | null;
   revokedAt: Date | null;
@@ -34,7 +37,9 @@ type RecipientInvitationCreationAttributes = Optional<
   | "inviteeEmail"
   | "inviteeEmailCanonical"
   | "inviteeType"
-  | "amount"
+  | "alias"
+  | "token"
+  | "archivedAt"
   | "status"
   | "expiresAt"
   | "acceptedAt"
@@ -57,9 +62,11 @@ class RecipientInvitation
   declare country: string;
   declare rail: string;
   declare payoutCurrency: string;
-  declare amount: string | null;
+  declare alias: string | null;
   declare status: RecipientInvitationStatus;
   declare tokenHash: string;
+  declare token: string | null;
+  declare archivedAt: Date | null;
   declare expiresAt: Date | null;
   declare acceptedAt: Date | null;
   declare revokedAt: Date | null;
@@ -86,9 +93,14 @@ RecipientInvitation.init(
       },
       type: DataTypes.UUID
     },
-    amount: {
+    alias: {
       allowNull: true,
-      type: DataTypes.DECIMAL(38, 18)
+      type: DataTypes.STRING(100)
+    },
+    archivedAt: {
+      allowNull: true,
+      field: "archived_at",
+      type: DataTypes.DATE
     },
     country: {
       allowNull: false,
@@ -166,6 +178,10 @@ RecipientInvitation.init(
       allowNull: false,
       defaultValue: "pending",
       type: DataTypes.STRING(16)
+    },
+    token: {
+      allowNull: true,
+      type: DataTypes.STRING(64)
     },
     tokenHash: {
       allowNull: false,

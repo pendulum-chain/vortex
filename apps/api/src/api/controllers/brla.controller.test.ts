@@ -342,13 +342,154 @@ describe("Avenia company KYB", () => {
     await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
 
     expect(res.statusCode).toBe(httpStatus.OK);
+    // Nothing is submitted until the user finishes the hosted steps: the account stays pending
+    // (resumable), never in_review, until Avenia reports PROCESSING.
+    expect(customerUpdate).toHaveBeenCalledWith({
+      status: VerificationStatus.Pending,
+      statusExternal: KycAttemptStatus.PENDING
+    });
     expect(caseUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         providerCaseId: "attempt-1",
-        status: VerificationStatus.InReview,
+        status: VerificationStatus.Pending,
         statusExternal: KycAttemptStatus.PENDING
       })
     );
+  });
+
+  it("re-issues KYB links while the existing attempt is still PENDING, rebinding the case", async () => {
+    mockEntityPerProfile();
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Pending,
+      statusExternal: KycAttemptStatus.PENDING,
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findOne;
+    const caseUpdate = mock(async () => undefined);
+    KycCase.findOne = mock(async () => ({
+      providerCaseId: "attempt-1",
+      statusExternal: KycAttemptStatus.PENDING,
+      update: caseUpdate
+    })) as unknown as typeof KycCase.findOne;
+    const initiateMock = mock(async () => ({
+      attemptId: "attempt-2",
+      authorizedRepresentativeUrl: "https://avenia.example/representative",
+      basicCompanyDataUrl: "https://avenia.example/company"
+    }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({ attempt: { id: "attempt-1", status: KycAttemptStatus.PENDING } })),
+          initiateKybLevel1: initiateMock
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(initiateMock).toHaveBeenCalled();
+    expect(caseUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ providerCaseId: "attempt-2", status: VerificationStatus.Pending })
+    );
+  });
+
+  it("rejects re-initiation when the stored PENDING is stale and Avenia is already processing", async () => {
+    mockEntityPerProfile();
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Pending,
+      statusExternal: KycAttemptStatus.PENDING
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findOne = mock(async () => ({
+      providerCaseId: "attempt-1",
+      statusExternal: KycAttemptStatus.PENDING
+    })) as unknown as typeof KycCase.findOne;
+    const initiateMock = mock(async () => ({ attemptId: "attempt-2" }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          // The user finished the hosted steps in another tab; our row still says PENDING.
+          getKybAttemptStatus: mock(async () => ({ attempt: { id: "attempt-1", status: KycAttemptStatus.PROCESSING } })),
+          initiateKybLevel1: initiateMock
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(initiateMock).not.toHaveBeenCalled();
+  });
+
+  it("still re-issues KYB links when the live probe is unavailable", async () => {
+    mockEntityPerProfile();
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Pending,
+      statusExternal: KycAttemptStatus.PENDING,
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findOne = mock(async () => ({
+      providerCaseId: "attempt-1",
+      statusExternal: KycAttemptStatus.PENDING,
+      update: mock(async () => undefined)
+    })) as unknown as typeof KycCase.findOne;
+    const initiateMock = mock(async () => ({
+      attemptId: "attempt-2",
+      authorizedRepresentativeUrl: "https://avenia.example/representative",
+      basicCompanyDataUrl: "https://avenia.example/company"
+    }));
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => {
+            throw new Error("avenia unavailable");
+          }),
+          initiateKybLevel1: initiateMock
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(initiateMock).toHaveBeenCalled();
+  });
+
+  it("still rejects re-initiation once Avenia is processing the attempt", async () => {
+    mockEntityPerProfile();
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PROCESSING
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findOne = mock(async () => ({
+      providerCaseId: "attempt-1",
+      statusExternal: KycAttemptStatus.PROCESSING
+    })) as unknown as typeof KycCase.findOne;
+    const initiateMock = mock(async () => ({ attemptId: "attempt-2" }));
+    BrlaApiService.getInstance = mock(() => ({ initiateKybLevel1: initiateMock }) as unknown as BrlaApiService);
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
+    expect(initiateMock).not.toHaveBeenCalled();
   });
 
   it("rejects an attempt owned by another user without querying Avenia", async () => {
@@ -616,7 +757,8 @@ describe("createSubaccount", () => {
     expect(providerCreateMock.mock.calls[0]?.[0]).toMatchObject({
       companyName: "Provider Company Name",
       customerType: "business",
-      status: VerificationStatus.InReview
+      // No KYB attempt exists yet at subaccount creation — pending keeps the flow resumable.
+      status: VerificationStatus.Pending
     });
     expect(subaccountInfoMock).toHaveBeenCalledWith("new-subaccount");
   });

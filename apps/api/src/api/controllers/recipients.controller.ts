@@ -1,9 +1,16 @@
+import {
+  CORRIDOR_CAPABILITIES,
+  type CorridorCapability,
+  type CorridorCountry,
+  type CorridorCustomerType
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
-import ProviderCustomer from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import RecipientInvitation, { type RecipientInviteeType } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
@@ -21,6 +28,8 @@ import {
   providerForRail
 } from "../services/recipients/transfer-eligibility.service";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function sendError(res: Response, status: number, code: string, message: string): void {
   res.status(status).json({ error: { code, message, status } });
 }
@@ -37,7 +46,7 @@ interface CreateInviteBody {
   country?: string;
   rail?: string;
   payoutCurrency?: string;
-  amount?: string;
+  alias?: string;
   inviteeEmail?: string;
   inviteeType?: string;
 }
@@ -46,7 +55,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
   const userId = requireUserId(req, res);
   if (!userId) return;
 
-  const { country, rail, payoutCurrency, amount, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
+  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
 
   if (!country || country.length > 4 || !rail || rail.length > 8 || !payoutCurrency || payoutCurrency.length > 8) {
     sendError(
@@ -61,16 +70,55 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITEE_TYPE", "inviteeType must be 'individual' or 'business'");
     return;
   }
-  if (amount !== undefined && (Number.isNaN(Number(amount)) || Number(amount) <= 0)) {
-    sendError(res, httpStatus.BAD_REQUEST, "INVALID_AMOUNT", "amount must be a positive number");
+  if (alias !== undefined && (typeof alias !== "string" || alias.length > 100)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_ALIAS", "alias must be a string of at most 100 characters");
+    return;
+  }
+  // The dashboard filters by the shared capability matrix; enforce the same rules here so a raw
+  // API call cannot create an invite for an unknown corridor or a combination the corridor's
+  // provider cannot onboard (e.g. Alfredpay has no AR company KYB).
+  const corridor: CorridorCapability | undefined = CORRIDOR_CAPABILITIES[country.toUpperCase() as CorridorCountry];
+  if (!corridor || corridor.rail !== rail.toLowerCase()) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITE_CORRIDOR", "Unknown corridor");
+    return;
+  }
+  const effectiveInviteeType = (inviteeType ?? "individual") as CorridorCustomerType;
+  if (!corridor.customerTypes.includes(effectiveInviteeType)) {
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "UNSUPPORTED_INVITEE_TYPE",
+      `The ${country.toUpperCase()} corridor cannot onboard ${effectiveInviteeType} recipients`
+    );
     return;
   }
 
   try {
+    // Invites unlock once any of the sender's corridors is approved (the dashboard rule) —
+    // enforce it here too. Approvals are persisted on provider_customers by every provider.
+    const senderEntityIds = (await CustomerEntity.findAll({ attributes: ["id"], where: { profileId: userId } })).map(
+      entity => entity.id
+    );
+    const approvedOnboardings = senderEntityIds.length
+      ? await ProviderCustomer.count({
+          where: { customerEntityId: senderEntityIds, status: VerificationStatus.Approved }
+        })
+      : 0;
+    if (!approvedOnboardings) {
+      sendError(
+        res,
+        httpStatus.FORBIDDEN,
+        "NO_APPROVED_CORRIDOR",
+        "Recipient invites unlock once one of your corridors is approved"
+      );
+      return;
+    }
+
     const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
     const token = generateInviteToken();
 
     const invitation = await RecipientInvitation.create({
+      alias: alias?.trim() || null,
       country: country.toUpperCase(),
       createdByProfileId: userId,
       expiresAt: inviteExpiryDate(),
@@ -80,13 +128,14 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       payoutCurrency: payoutCurrency.toLowerCase(),
       rail: rail.toLowerCase(),
       senderCustomerEntityId: senderEntity.id,
-      tokenHash: hashInviteToken(token),
-      ...(amount !== undefined ? { amount } : {})
+      // The raw token is kept while the invite is pending so the sender can re-copy the
+      // link; redemption looks up by hash only, and acceptance clears the raw token.
+      token,
+      tokenHash: hashInviteToken(token)
     });
 
-    // The raw token is returned exactly once; only its hash is stored.
     res.status(httpStatus.CREATED).json({
-      amount: invitation.amount,
+      alias: invitation.alias,
       country: invitation.country,
       createdAt: invitation.createdAt,
       expiresAt: invitation.expiresAt,
@@ -130,7 +179,7 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
     // for days — an expiry passing mid-onboarding must not lock the recipient out of their own link.
     if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
       if (invitation.status !== "expired") {
-        await invitation.update({ status: "expired" });
+        await invitation.update({ status: "expired", token: null });
       }
       sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
       return;
@@ -166,6 +215,11 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       }
       if (lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId !== userId) {
         return "already_accepted" as const;
+      }
+      // The unlocked expiry check above can race the list sweep (which also writes `expired`);
+      // re-check under the lock so an invite the system already declared expired is never accepted.
+      if (lockedInvitation.status === "expired") {
+        return "expired" as const;
       }
 
       // Business invitees onboard as a business entity (KYB); individuals reuse the
@@ -207,8 +261,10 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       }
 
       if (!reEntry) {
+        // Clearing the raw token bounds its at-rest exposure to pending invites; re-copy
+        // is only offered pre-acceptance and the recipient already holds the link.
         await lockedInvitation.update(
-          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted" },
+          { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted", token: null },
           { transaction }
         );
       }
@@ -221,6 +277,10 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
     }
     if (relationship === "already_accepted") {
       sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (relationship === "expired") {
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
       return;
     }
     if (relationship === "blocked") {
@@ -271,7 +331,8 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         { as: "payoutReferences", model: RecipientPayoutReference }
       ],
       order: [["createdAt", "DESC"]],
-      where: { senderCustomerEntityId: senderEntity.id }
+      // Archived relationships are hidden from the sender's list (archive = remove).
+      where: { relationshipStatus: { [Op.ne]: "archived" }, senderCustomerEntityId: senderEntity.id }
     });
 
     const recipients = await Promise.all(
@@ -306,6 +367,7 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
           id: row.id,
           invitation: invitation
             ? {
+                alias: invitation.alias,
                 country: invitation.country,
                 id: invitation.id,
                 inviteeEmail: invitation.inviteeEmail,
@@ -330,22 +392,43 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       })
     );
 
+    const now = new Date();
+    await RecipientInvitation.update(
+      { status: "expired", token: null },
+      {
+        where: {
+          expiresAt: { [Op.lt]: now },
+          senderCustomerEntityId: senderEntity.id,
+          status: "pending"
+        }
+      }
+    );
+
+    // Expired rows stay visible (the sweep above cleared their token) so the sender sees why an
+    // invite stopped working and can re-invite or remove it; accepted rows surface as relationships.
     const pendingInvitations = await RecipientInvitation.findAll({
       order: [["createdAt", "DESC"]],
-      where: { senderCustomerEntityId: senderEntity.id, status: "pending" }
+      where: {
+        archivedAt: null,
+        senderCustomerEntityId: senderEntity.id,
+        status: ["pending", "expired"]
+      }
     });
 
     res.status(httpStatus.OK).json({
       pendingInvitations: pendingInvitations.map(invitation => ({
+        alias: invitation.alias,
         country: invitation.country,
         createdAt: invitation.createdAt,
         expiresAt: invitation.expiresAt,
         id: invitation.id,
         inviteeEmail: invitation.inviteeEmail,
         inviteeType: invitation.inviteeType,
-        isExpired: Boolean(invitation.expiresAt && invitation.expiresAt < new Date()),
+        isExpired: invitation.status === "expired" || Boolean(invitation.expiresAt && invitation.expiresAt < now),
         payoutCurrency: invitation.payoutCurrency,
-        rail: invitation.rail
+        rail: invitation.rail,
+        // Raw token for sender re-copy; null for invites created before it was retained.
+        token: invitation.token
       })),
       recipients
     });
@@ -405,6 +488,46 @@ export async function updateRecipient(req: Request<{ id: string }>, res: Respons
   } catch (error) {
     logger.error("Error updating recipient:", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to update recipient");
+  }
+}
+
+interface ArchiveInvitationBody {
+  archived?: boolean;
+}
+
+// Sender-side list hide only — the invitation keeps its status and the token stays
+// redeemable, so an archived invite never blocks the recipient's onboarding.
+export async function archiveInvitation(req: Request<{ id: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  const { archived } = (req.body ?? {}) as ArchiveInvitationBody;
+  if (typeof archived !== "boolean") {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_ARCHIVED", "archived must be a boolean");
+    return;
+  }
+  // Sequelize casts :id to uuid in SQL; a malformed id would otherwise surface as a 22P02 500.
+  if (!UUID_PATTERN.test(req.params.id)) {
+    sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
+    return;
+  }
+
+  try {
+    const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
+    const invitation = await RecipientInvitation.findOne({
+      where: { id: req.params.id, senderCustomerEntityId: senderEntity.id }
+    });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
+      return;
+    }
+
+    await invitation.update({ archivedAt: archived ? new Date() : null });
+
+    res.status(httpStatus.OK).json({ archived: Boolean(invitation.archivedAt), id: invitation.id });
+  } catch (error) {
+    logger.error("Error archiving recipient invitation:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to archive invitation");
   }
 }
 

@@ -118,9 +118,14 @@ function CorridorAction({
     );
   }
   if (status === "pending" || status === "started") {
+    // The provider account exists but the user hasn't submitted their details yet — this is a
+    // resumable, pre-submission state (e.g. the customer was created then the wizard was closed).
+    // Keep the action enabled: reopening re-checks the canonical backend status and drops the user
+    // back onto the right step, so they're never locked out after a refresh or modal close.
     return (
-      <Button className="w-full" disabled variant="outline">
-        {status === "started" ? "Verification started" : "Verification pending"}
+      <Button className="w-full" onClick={onStart} variant="outline">
+        Continue {kind.toUpperCase()}
+        <ArrowRight />
       </Button>
     );
   }

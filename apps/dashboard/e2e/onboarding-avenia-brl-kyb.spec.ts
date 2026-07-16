@@ -27,7 +27,7 @@ test("Avenia BR business KYB completes company and representative hosted steps b
   await expect(wizard.getByText("Company information")).toBeVisible();
   await page.locator('input[name="fullName"]').fill("Vortex Brasil Ltda");
   await page.locator('input[name="taxId"]').fill("12.345.678/0001-95");
-  await wizard.getByRole("button", { name: "Create Avenia profile" }).click();
+  await wizard.getByRole("button", { exact: true, name: "Continue" }).click();
 
   await expect(wizard.getByText("Verify your company")).toBeVisible({ timeout: 20_000 });
   await wizard.getByRole("button", { name: "Continue to Avenia" }).click();

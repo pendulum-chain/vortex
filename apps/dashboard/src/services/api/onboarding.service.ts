@@ -13,6 +13,8 @@ export interface OnboardingAccountDto {
   error: { code: string; message: string } | null;
   status: string;
   statusExternal: string | null;
+  /** Business tax id (CNPJ) — null for individuals; used to resume a pending company flow. */
+  taxReference: string | null;
   /** Alias retained for dashboard account-state consumers. */
   state: OnboardingState;
   kycCase: unknown | null;

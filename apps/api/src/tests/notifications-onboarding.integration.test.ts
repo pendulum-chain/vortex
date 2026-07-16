@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
-import { AlfredPayCountry, AlfredPayStatus, AlfredpayCustomerType, BrlaApiService } from "@vortexfi/shared";
+import {
+  AlfredPayCountry,
+  AlfredPayStatus,
+  AlfredpayApiService,
+  AlfredpayCustomerType,
+  AlfredpayKycStatus,
+  BrlaApiService,
+  KycAttemptResult,
+  KycAttemptStatus
+} from "@vortexfi/shared";
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { emitNotification } from "../api/services/notifications/notification.service";
 import CustomerEntity from "../models/customerEntity.model";
@@ -153,6 +162,183 @@ describe("GET /v1/onboarding/status", () => {
     expect(kycCase?.status).toBe(VerificationStatus.Pending);
   });
 
+  it("reflects an Alfredpay approval that lands after the wizard closed, without a reopen", async () => {
+    const { user, token } = await createAuthedUser("alfredpay-late-approval@example.com");
+    const customer = await createTestAlfredpayCustomer(user.id, { alfredPayId: "ap-late", country: AlfredPayCountry.MX });
+    // Submitted, provider still reviewing — the state the card is stuck on once the modal closes.
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = AlfredpayApiService.getInstance;
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKycStatus: mock(async () => ({ status: AlfredpayKycStatus.COMPLETED })),
+          getLastKycSubmission: mock(async () => ({ submissionId: "sub-1" }))
+        }) as unknown as AlfredpayApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as {
+        entities: Array<{ accounts: Array<{ kycCase: { status: string } | null; provider: string; state: string }> }>;
+      };
+      const account = body.entities[0].accounts.find(item => item.provider === "alfredpay");
+      expect(account?.state).toBe("approved");
+      expect(account?.kycCase?.status).toBe("approved");
+    } finally {
+      AlfredpayApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Approved);
+  });
+
+  it("reflects an Avenia individual approval that lands after the wizard closed, without a reopen", async () => {
+    const { user, token } = await createAuthedUser("avenia-late-approval@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-late" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({
+            attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("approved");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Approved);
+  });
+
+  it("keeps an individual resumable when the Avenia attempt expired without a decision", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-expired@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-expired" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [{ status: KycAttemptStatus.EXPIRED }] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("pending");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Pending);
+  });
+
+  it("keeps an individual resumable while the Avenia attempt is still PENDING", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-unfinished@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-unfinished" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [{ status: KycAttemptStatus.PENDING }] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("pending");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Pending);
+  });
+
+  it("throttles provider refreshes: back-to-back polls hit Avenia only once per customer", async () => {
+    const { user, token } = await createAuthedUser("avenia-refresh-throttle@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-throttled" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getKycAttempts = mock(async () => ({
+      attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+    }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(() => ({ getKycAttempts }) as unknown as BrlaApiService);
+
+    try {
+      await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(getKycAttempts).toHaveBeenCalledTimes(1);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+  });
+
+  it("keeps a business KYB pending (resumable) while the Avenia attempt is still PENDING", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyb-pending@example.com");
+    const business = await createTestTaxId(user.id, {
+      customerType: "business",
+      subAccountId: "kyb-subaccount",
+      taxId: "11222333000181"
+    });
+    // The stuck shape reported from staging: our row says in_review while Avenia's attempt is
+    // still PENDING because the user never finished (or misclicked past) the hosted steps.
+    await business.update({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PENDING });
+    const kycCase = await KycCase.create({
+      customerEntityId: business.customerEntityId,
+      level: "level_1",
+      provider: "avenia",
+      providerCaseId: "attempt-1",
+      providerCustomerId: business.id,
+      status: VerificationStatus.InReview,
+      statusExternal: KycAttemptStatus.PENDING,
+      type: "kyb"
+    });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKybAttemptStatus: mock(async () => ({ attempt: { id: "attempt-1", status: KycAttemptStatus.PENDING } }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as {
+        entities: Array<{ accounts: Array<{ provider: string; state: string; taxReference: string | null }> }>;
+      };
+      const aveniaAccount = body.entities[0].accounts.find(account => account.provider === "avenia");
+      expect(aveniaAccount?.state).toBe("pending");
+      // The dashboard resumes the company flow from this — the CNPJ the owner already supplied.
+      expect(aveniaAccount?.taxReference).toBe("11222333000181");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await business.reload();
+    await kycCase.reload();
+    expect(business.status).toBe(VerificationStatus.Pending);
+    expect(kycCase.status).toBe(VerificationStatus.Pending);
+  });
+
   it("aggregates provider accounts and KYC cases per entity with a normalized state", async () => {
     const { user, token } = await createAuthedUser("user@example.com");
     const avenia = await createTestTaxId(user.id);
@@ -172,7 +358,13 @@ describe("GET /v1/onboarding/status", () => {
     const body = (await response.json()) as {
       entities: Array<{
         type: string;
-        accounts: Array<{ provider: string; state: string; status: string; kycCase: { status: string } | null }>;
+        accounts: Array<{
+          provider: string;
+          state: string;
+          status: string;
+          taxReference: string | null;
+          kycCase: { status: string } | null;
+        }>;
       }>;
     };
 
@@ -184,6 +376,8 @@ describe("GET /v1/onboarding/status", () => {
     expect(aveniaAccount?.state).toBe("approved");
     expect(aveniaAccount?.status).toBe(VerificationStatus.Approved);
     expect(aveniaAccount?.kycCase?.status).toBe(VerificationStatus.Approved);
+    // Individual CPFs are never exposed; only business CNPJs are (for company-flow resume).
+    expect(aveniaAccount?.taxReference).toBeNull();
 
     const alfredpayAccount = accounts.find(account => account.provider === "alfredpay");
     // VERIFYING means the customer has submitted and the provider is actively reviewing.

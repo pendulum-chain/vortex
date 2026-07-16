@@ -58,7 +58,10 @@ export enum AlfredpayKycStatus {
   FAILED = "FAILED",
   IN_REVIEW = "IN_REVIEW",
   UPDATE_REQUIRED = "UPDATE_REQUIRED",
-  CREATED = "CREATED"
+  CREATED = "CREATED",
+  // Submission exists but was never finalized (or its data was invalid) — Alfredpay refuses a fresh
+  // POST while one is pending; it must be updated in place (PUT …/customers/kyb) and re-sent.
+  PENDING = "PENDING"
 }
 
 export type AlfredpayKybStatus = AlfredpayKycStatus;

@@ -44,7 +44,8 @@ test("a started onboarding account renders without crashing the overview", async
   await page.goto("/overview");
 
   await expect(page.getByText("Started", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: "Verification started" })).toBeVisible();
+  // A started account is pre-submission and resumable — the card offers an enabled Continue action.
+  await expect(page.getByRole("button", { name: "Continue KYC" })).toBeEnabled();
 });
 
 test("an authenticated user is redirected away from the login page", async ({ page }) => {
