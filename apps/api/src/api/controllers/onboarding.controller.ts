@@ -149,14 +149,17 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             const attempt = attempts[0];
             if (!attempt) return;
             const approved = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.APPROVED;
-            const rejected =
-              attempt.status === KycAttemptStatus.EXPIRED ||
-              (attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED);
+            const rejected = attempt.status === KycAttemptStatus.COMPLETED && attempt.result === KycAttemptResult.REJECTED;
+            // A PENDING or EXPIRED attempt is one the user never finished (livecheck not completed) —
+            // not a rejection: keep it pending so the dashboard offers Continue, mirroring
+            // fetchSubaccountKycStatus. Only an Avenia decision is terminal.
             const status = approved
               ? VerificationStatus.Approved
               : rejected
                 ? VerificationStatus.Rejected
-                : VerificationStatus.InReview;
+                : attempt.status === KycAttemptStatus.PENDING || attempt.status === KycAttemptStatus.EXPIRED
+                  ? VerificationStatus.Pending
+                  : VerificationStatus.InReview;
             const lifecycle = {
               ...(approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
               ...(rejected ? { approvedAt: null, rejectedAt: new Date() } : {})

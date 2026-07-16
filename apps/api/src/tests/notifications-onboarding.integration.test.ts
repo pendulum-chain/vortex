@@ -220,6 +220,56 @@ describe("GET /v1/onboarding/status", () => {
     expect(customer.status).toBe(VerificationStatus.Approved);
   });
 
+  it("keeps an individual resumable when the Avenia attempt expired without a decision", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-expired@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-expired" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [{ status: KycAttemptStatus.EXPIRED }] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("pending");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Pending);
+  });
+
+  it("keeps an individual resumable while the Avenia attempt is still PENDING", async () => {
+    const { user, token } = await createAuthedUser("avenia-kyc-unfinished@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-unfinished" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [{ status: KycAttemptStatus.PENDING }] }))
+        }) as unknown as BrlaApiService
+    );
+
+    try {
+      const response = await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      const body = (await response.json()) as { entities: Array<{ accounts: Array<{ provider: string; state: string }> }> };
+      expect(body.entities[0].accounts.find(account => account.provider === "avenia")?.state).toBe("pending");
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+
+    await customer.reload();
+    expect(customer.status).toBe(VerificationStatus.Pending);
+  });
+
   it("keeps a business KYB pending (resumable) while the Avenia attempt is still PENDING", async () => {
     const { user, token } = await createAuthedUser("avenia-kyb-pending@example.com");
     const business = await createTestTaxId(user.id, {
