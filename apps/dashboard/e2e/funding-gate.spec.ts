@@ -25,5 +25,5 @@ test("funding panel is gated: no crypto tab, no submit button, support note show
   await expect(page.getByText("Send crypto")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Send/ })).toHaveCount(0);
   await expect(page.getByText(/reach out to/)).toBeVisible();
-  await expect(page.getByRole("link", { name: "support@vortex.co" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "support@vortexfinance.co" })).toBeVisible();
 });
