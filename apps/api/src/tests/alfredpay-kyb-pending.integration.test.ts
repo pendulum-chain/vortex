@@ -481,4 +481,29 @@ describe("Alfredpay KYB PENDING submission", () => {
     const kycCase = await KycCase.findOne({ where: { providerCustomerId: customer?.id } });
     expect(kycCase?.providerCaseId).toBe("kyb-sub-new");
   });
+
+  // A customer that retried carries several businesses. Without submissionId the caller cannot tell
+  // which related persons belong to the submission it is filing, and uploads land on a stale person.
+  it("findKybCustomerAndBusiness keeps the submission id alongside each business's related persons", async () => {
+    const { token } = await createBusinessCustomer("kyb-related-persons@example.com");
+
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => [
+            { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+            { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+          ])
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/findKybCustomerAndBusiness?country=CO", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+      { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+    ]);
+  });
 });

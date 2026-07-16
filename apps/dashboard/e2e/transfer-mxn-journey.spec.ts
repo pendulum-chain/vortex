@@ -22,7 +22,10 @@ const EXPECTED_PAYIN_USDC = "54.054054";
 //   "broadcast" by the wallet stub, and its receipt is answered by the mocked Polygon RPC.
 // - Only the direct Polygon no-permit path is exercised; the permit/TokenRelayer variant needs
 //   relayer-contract execution that the mock does not model.
-test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast, start, tracking", async ({ page }) => {
+//
+// Skipped while the submit button in FundingMethods is commented out — self-serve transfers are
+// enabled per account on request, so there is no button to drive. Un-skip together with it.
+test.skip("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast, start, tracking", async ({ page }) => {
   const backend = await mockBackend(page);
   // The whole journey lives on Polygon, so the wallet connects on chain 137 and
   // signAndSubmitEvmTransaction never needs a chain switch.
@@ -108,7 +111,9 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
 // Each saved payout account is its own self-recipient, and the offramp registers against the
 // selected one's fiatAccountId. Picking the second account must send the money there — the first
 // account is auto-selected, so a broken selector would silently pay out to the wrong account.
-test("SELL MXN transfer: choosing a different payout account registers against that account", async ({ page }) => {
+//
+// Skipped for the same reason as the journey above: no submit button to drive.
+test.skip("SELL MXN transfer: choosing a different payout account registers against that account", async ({ page }) => {
   const backend = await mockBackend(page);
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);

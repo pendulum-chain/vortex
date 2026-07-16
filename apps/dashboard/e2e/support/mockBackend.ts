@@ -586,7 +586,9 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
     if (path === "/v1/alfredpay/findKybCustomerAndBusiness" && method === "GET") {
-      await fulfillJson([{ relatedPersons: [{ idRelatedPerson: "related-person-e2e-1" }] }]);
+      await fulfillJson([
+        { relatedPersons: [{ idRelatedPerson: "related-person-e2e-1" }], submissionId: "kyb-submission-e2e-1" }
+      ]);
       return;
     }
     if (path === "/v1/alfredpay/submitKybRelatedPersonFile" && method === "POST") {

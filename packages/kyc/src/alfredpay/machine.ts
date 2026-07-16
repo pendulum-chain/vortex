@@ -29,13 +29,19 @@ function extractSubmissionId(payload: SubmitKybInformationResponse | SubmitKycIn
 
 /**
  * Extracts relate-person ids from Alfredpay GET …/customers/{customerId}/kyb/details.
- * Response shape: `[{ relatedPersons: [{ idRelatedPerson: "..." }] }]`.
+ * Response shape: `[{ submissionId: "...", relatedPersons: [{ idRelatedPerson: "..." }] }]`.
+ *
+ * The endpoint returns every business the customer has, and a customer that retried after a failed
+ * attempt carries more than one. Only the business matching the submission we are filing owns the
+ * related persons our document uploads may target — ids from any other business are stale and
+ * Alfredpay rejects uploads keyed to them.
  */
-function extractKybRelatedPersonIds(payload: unknown): string[] {
+function extractKybRelatedPersonIds(payload: unknown, submissionId: string): string[] {
   if (!Array.isArray(payload)) return [];
   const ids: string[] = [];
   for (const business of payload) {
     if (business === null || typeof business !== "object") continue;
+    if ((business as Record<string, unknown>).submissionId !== submissionId) continue;
     const relatedPersons = (business as Record<string, unknown>).relatedPersons;
     if (!Array.isArray(relatedPersons)) continue;
     for (const person of relatedPersons) {
@@ -494,16 +500,18 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
               actions: assign({
                 error: () =>
                   new AlfredpayKycMachineError(
-                    "Alfredpay GET …/customers/{customerId}/kyb/details did not return relatedPersons[].idRelatedPerson.",
+                    "Alfredpay GET …/customers/{customerId}/kyb/details returned no relatedPersons[].idRelatedPerson for the submission being filed.",
                     AlfredpayKycMachineErrorType.UnknownError
                   )
               }),
-              guard: ({ event }) => extractKybRelatedPersonIds(event.output).length === 0,
+              guard: ({ context, event }) =>
+                !context.submissionId || extractKybRelatedPersonIds(event.output, context.submissionId).length === 0,
               target: "Failure"
             },
             {
               actions: assign({
-                kybRelatedPersonIds: ({ event }) => extractKybRelatedPersonIds(event.output)
+                kybRelatedPersonIds: ({ context, event }) =>
+                  extractKybRelatedPersonIds(event.output, context.submissionId as string)
               }),
               target: "SubmittingKybRelatedPersonBundle"
             }

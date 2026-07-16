@@ -355,7 +355,10 @@ describe("alfredpayKycMachine", () => {
         {
           checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
           findKybCustomerAndBusiness: fromPromise(
-            async () => [{ relatedPersons: [{ idRelatedPerson: "rp-1" }] }] as unknown as AlfredpayKybCustomerAndBusiness[]
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
           ),
           pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
           sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
@@ -416,7 +419,68 @@ describe("alfredpayKycMachine", () => {
       actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
 
       await waitFor(actor, s => s.matches("Failure"));
-      expect(actor.getSnapshot().context.error?.message).toContain("did not return relatedPersons[].idRelatedPerson");
+      expect(actor.getSnapshot().context.error?.message).toContain("no relatedPersons[].idRelatedPerson");
+    });
+
+    it("uses the related person of the submission being filed, not of a stale earlier business", async () => {
+      let bundledIds: string[] | undefined;
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
+          // A customer that retried carries several businesses; Alfredpay returns the stale one first.
+          findKybCustomerAndBusiness: fromPromise(
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+                { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
+          ),
+          pollStatus: fromPromise(() => new Promise<AlfredpayGetKycStatusResponse>(() => {})),
+          sendKybSubmissionActor: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse),
+          submitKybRelatedPersonBundleFiles: fromPromise<void, AlfredpayKycContext>(async ({ input }) => {
+            bundledIds = input.kybRelatedPersonIds;
+          })
+        },
+        kybInput
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("FillingKybForm"));
+      actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+      actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
+
+      await waitFor(actor, s => s.matches("PollingStatus"));
+      expect(actor.getSnapshot().context.kybRelatedPersonIds).toEqual(["rp-current"]);
+      expect(bundledIds).toEqual(["rp-current"]);
+    });
+
+    it("fails when no business matches the submission being filed", async () => {
+      const actor = createTestActor(
+        {
+          checkStatus: fromPromise(async () => statusOf(AlfredPayStatus.Consulted)),
+          findKybCustomerAndBusiness: fromPromise(
+            async () =>
+              [
+                { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" }
+              ] as unknown as AlfredpayKybCustomerAndBusiness[]
+          ),
+          submitKybBusinessFiles: fromPromise<void, AlfredpayKycContext>(async () => undefined),
+          submitKybInfo: fromPromise(async () => ({ submissionId: "kyb-sub-current" }) as SubmitKybInformationResponse)
+        },
+        kybInput
+      );
+      actor.start();
+
+      await waitFor(actor, s => s.matches("FillingKybForm"));
+      actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+      actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
+
+      await waitFor(actor, s => s.matches("Failure"));
+      expect(actor.getSnapshot().context.error?.message).toContain("no relatedPersons[].idRelatedPerson");
     });
 
     it("rejects AR business before making a provider request", async () => {

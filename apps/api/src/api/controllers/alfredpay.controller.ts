@@ -776,8 +776,11 @@ export class AlfredpayController {
       const alfredpayService = AlfredpayApiService.getInstance();
       const details = await alfredpayService.getKybBusinessDetails(alfredPayCustomer.alfredPayId);
 
+      // submissionId is what lets the caller pick the related persons belonging to the submission it is
+      // actually filing — a customer that retried can carry several businesses here.
       const minimized = details.map(business => ({
-        relatedPersons: (business.relatedPersons ?? []).map(person => ({ idRelatedPerson: person.idRelatedPerson }))
+        relatedPersons: (business.relatedPersons ?? []).map(person => ({ idRelatedPerson: person.idRelatedPerson })),
+        submissionId: business.submissionId
       }));
 
       res.json(minimized);
