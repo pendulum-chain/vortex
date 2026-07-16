@@ -67,10 +67,20 @@ const KYB_CUSTOMER_ID = "5f4a1e58-6b74-454c-bc89-defb8df593be";
 const BLANK_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-function blankPng(): File {
+function blankPng(name = "blank.png"): File {
   const bytes = Uint8Array.from(atob(BLANK_PNG_BASE64), character => character.charCodeAt(0));
-  return new File([bytes], "blank.png", { type: "image/png" });
+  return new File([bytes], name, { type: "image/png" });
 }
+
+/**
+ * The name that broke KYB in production. Alfredpay's relate-person upload answers a non-ASCII
+ * multipart filename with a bare 502 `111301 UNKNOWN_ERROR`, and macOS separates the time from
+ * AM/PM with U+202F — so every screenshot a user uploads trips it while looking like plain ASCII.
+ * AlfredpayApiService rewrites the name before sending; driving the flow with this one keeps that
+ * honest against the real endpoint, since it passes only because of the rewrite. Escaped
+ * deliberately: the literal character is invisible here.
+ */
+const MACOS_SCREENSHOT_PNG_NAME = "Screenshot 2026-07-09 at 12.23.56\u202fPM.png";
 
 function kybFlowForm(email: string): SubmitKybInformationRequest {
   return {
@@ -427,9 +437,9 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYB_FLOW)("Alfredpay KYB sandbox
       const relatedPersonId = business?.relatedPersons[0]?.idRelatedPerson;
       expect(relatedPersonId).toBeTruthy();
 
-      // The step that fails in the dashboard with errorCode 111301.
+      // The step that failed in the dashboard with errorCode 111301 — see MACOS_SCREENSHOT_PNG_NAME.
       for (const fileType of [AlfredpayKybRelatedPersonFileType.DOC_FRONT, AlfredpayKybRelatedPersonFileType.DOC_BACK]) {
-        await api.submitKybRelatedPersonFiles(customerId, relatedPersonId as string, fileType, blankPng());
+        await api.submitKybRelatedPersonFiles(customerId, relatedPersonId as string, fileType, blankPng(MACOS_SCREENSHOT_PNG_NAME));
         console.info(`[contract:kyb] submitKybRelatedPersonFiles ${fileType} -> ok`);
       }
 
