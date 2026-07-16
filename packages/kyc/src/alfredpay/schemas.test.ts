@@ -4,7 +4,9 @@ import {
   arKycSchema,
   colKycSchema,
   kybFormSchema,
+  kybQuestionnaireSchema,
   mapKybFormValues,
+  mapKybQuestionnaireValues,
   mxnKycSchema,
   toArPhoneNumber,
   toColPhoneNumber
@@ -162,6 +164,7 @@ describe("kybFormSchema", () => {
     repFirstName: "Ada",
     repLastName: "Lovelace",
     repNationality: "MX",
+    repPep: false,
     state: "CDMX",
     taxId: "ACM010101ABC",
     website: "https://acme.example",
@@ -191,7 +194,8 @@ describe("kybFormSchema", () => {
           email: "owner@acme.example",
           firstName: "Ada",
           lastName: "Lovelace",
-          nationalities: ["MX"]
+          nationalities: ["MX"],
+          pep: false
         }
       ],
       state: "CDMX",
@@ -200,5 +204,66 @@ describe("kybFormSchema", () => {
       zipCode: "06600"
     });
     expect(mapKybFormValues({ ...kyb, repDni: "" }).relatedPersons[0]?.dni).toBeUndefined();
+  });
+});
+
+describe("kybQuestionnaireSchema", () => {
+  const questionnaire = {
+    accountPurpose: "Treasury management",
+    businessActivities: "Cross-border payments software",
+    expectedMonthlyTransactions: 120,
+    expectedMonthlyVolumeUsd: 50000,
+    isRegulatedBusiness: false,
+    operatesInSanctionedCountries: false,
+    sourceOfFunds: "Sale of goods/services",
+    transmitsCustomerFunds: false,
+    walletAddresses: "N/A"
+  };
+
+  it("accepts the unregulated, non-transmitting path", () => {
+    expect(kybQuestionnaireSchema.safeParse(questionnaire).success).toBe(true);
+  });
+
+  it("rejects a missing or negative expected volume", () => {
+    expect(kybQuestionnaireSchema.safeParse({ ...questionnaire, expectedMonthlyVolumeUsd: undefined }).success).toBe(false);
+    expect(kybQuestionnaireSchema.safeParse({ ...questionnaire, expectedMonthlyVolumeUsd: -1 }).success).toBe(false);
+    expect(kybQuestionnaireSchema.safeParse({ ...questionnaire, expectedMonthlyTransactions: 1.5 }).success).toBe(false);
+  });
+
+  it("mirrors Alfredpay's requiredIf: transmitting funds demands the screening answer, and a claim demands a description", () => {
+    expect(kybQuestionnaireSchema.safeParse({ ...questionnaire, transmitsCustomerFunds: true }).success).toBe(false);
+    expect(
+      kybQuestionnaireSchema.safeParse({
+        ...questionnaire,
+        conductsComplianceScreening: false,
+        transmitsCustomerFunds: true
+      }).success
+    ).toBe(true);
+    expect(
+      kybQuestionnaireSchema.safeParse({
+        ...questionnaire,
+        conductsComplianceScreening: true,
+        transmitsCustomerFunds: true
+      }).success
+    ).toBe(false);
+    expect(
+      kybQuestionnaireSchema.safeParse({
+        ...questionnaire,
+        complianceScreeningDescription: "KYC, KYB and AML screening on every counterparty",
+        conductsComplianceScreening: true,
+        transmitsCustomerFunds: true
+      }).success
+    ).toBe(true);
+  });
+
+  it("drops conditional answers once their trigger is turned back off", () => {
+    const mapped = mapKybQuestionnaireValues({
+      ...questionnaire,
+      complianceScreeningDescription: "orphaned",
+      conductsComplianceScreening: true,
+      transmitsCustomerFunds: false
+    });
+    expect(mapped.conductsComplianceScreening).toBeUndefined();
+    expect(mapped.complianceScreeningDescription).toBeUndefined();
   });
 });

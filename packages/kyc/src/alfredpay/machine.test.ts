@@ -18,6 +18,7 @@ import {
   AlfredpayKycMachineErrorType,
   type KybBusinessFiles,
   type KybFormData,
+  type KybQuestionnaireData,
   type MxnKycFiles
 } from "./types";
 
@@ -55,11 +56,13 @@ const kycLink: AlfredpayGetKycRedirectLinkResponse = {
 const mxnFormData = { firstName: "Frida" } as unknown as AlfredpayKycFormData;
 const mxnFiles = { back: {} as File, front: {} as File } as MxnKycFiles;
 const kybFormData = { businessName: "ACME" } as unknown as KybFormData;
+const kybQuestionnaireData = { sourceOfFunds: "Sale of goods" } as unknown as KybQuestionnaireData;
 const kybBusinessFiles = {
   articlesIncorporation: {} as File,
   docBack: {} as File,
   docFront: {} as File,
   proofAddress: {} as File,
+  shareholderRegistry: {} as File,
   taxIdDocument: {} as File
 } as KybBusinessFiles;
 
@@ -373,8 +376,12 @@ describe("alfredpayKycMachine", () => {
       await waitFor(actor, s => s.matches("FillingKybForm"));
 
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
-      expect(actor.getSnapshot().value).toBe("SubmittingKybInfo");
+      expect(actor.getSnapshot().value).toBe("FillingKybQuestionnaire");
       expect(actor.getSnapshot().context.kybFormData).toEqual(kybFormData);
+
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+      expect(actor.getSnapshot().value).toBe("SubmittingKybInfo");
+      expect(actor.getSnapshot().context.kybQuestionnaireData).toEqual(kybQuestionnaireData);
 
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       expect(actor.getSnapshot().context.submissionId).toBe("kyb-sub-1");
@@ -396,6 +403,7 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
 
       await waitFor(actor, s => s.matches("Failure"));
       expect(actor.getSnapshot().context.error?.message).toContain("did not return a submission ID");
@@ -415,6 +423,7 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
 
@@ -449,6 +458,7 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
 
@@ -476,6 +486,7 @@ describe("alfredpayKycMachine", () => {
 
       await waitFor(actor, s => s.matches("FillingKybForm"));
       actor.send({ data: kybFormData, type: "SUBMIT_KYB_FORM" });
+      actor.send({ data: kybQuestionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
       await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
       actor.send({ files: kybBusinessFiles, type: "SUBMIT_KYB_BUSINESS_FILES" });
 
@@ -520,5 +531,178 @@ describe("alfredpayKycMachine", () => {
       actor.send({ type: "TOGGLE_BUSINESS" });
       expect(actor.getSnapshot().context.business).toBeFalsy();
     });
+  });
+});
+
+/**
+ * The suite above replaces the KYB actors, so it never checks what they hand the API. These drive the
+ * real actors against a recording client — the merge of the two form screens and the document set are
+ * exactly what Alfredpay validates, and getting either wrong only shows up as a 110002 at finalize.
+ */
+describe("alfredpayKycMachine KYB actors (real, recording API)", () => {
+  const companyData = {
+    address: "Av. Reforma 100",
+    businessName: "ACME",
+    city: "CDMX",
+    relatedPersons: [
+      { dateOfBirth: "1990-01-01", email: "rep@acme.example", firstName: "Ana", lastName: "Rep", nationalities: ["MX"], pep: false }
+    ],
+    state: "CDMX",
+    taxId: "AAA010101AAA",
+    website: "https://acme.example",
+    zipCode: "06600"
+  } as KybFormData;
+
+  const questionnaireData = {
+    accountPurpose: "Treasury management",
+    businessActivities: "Payments software",
+    expectedMonthlyTransactions: 120,
+    expectedMonthlyVolumeUsd: 50000,
+    isRegulatedBusiness: false,
+    operatesInSanctionedCountries: false,
+    sourceOfFunds: "Sale of goods/services",
+    transmitsCustomerFunds: false,
+    walletAddresses: "N/A"
+  } as KybQuestionnaireData;
+
+  const file = (name: string) => new File(["x"], name, { type: "image/png" });
+
+  function recordingApi() {
+    const calls = {
+      businessFiles: [] as string[],
+      personFiles: [] as string[],
+      sent: [] as string[],
+      submitted: [] as unknown[]
+    };
+    const api = {
+      findKybCustomerAndBusiness: async () => [{ relatedPersons: [{ idRelatedPerson: "rp-1" }], submissionId: "kyb-sub-1" }],
+      getAlfredpayStatus: async () => statusOf(AlfredPayStatus.Consulted),
+      getKycStatus: async () => new Promise(() => {}),
+      sendKybSubmission: async (_country: string, submissionId: string) => {
+        calls.sent.push(submissionId);
+      },
+      submitKybFile: async (_country: string, _submissionId: string, fileType: string) => {
+        calls.businessFiles.push(fileType);
+      },
+      submitKybInformation: async (_country: string, data: unknown) => {
+        calls.submitted.push(data);
+        return { submissionId: "kyb-sub-1" } as SubmitKybInformationResponse;
+      },
+      submitKybRelatedPersonFile: async (_country: string, relatedPersonId: string, fileType: string) => {
+        calls.personFiles.push(`${relatedPersonId}:${fileType}`);
+      }
+    } as unknown as AlfredpayKycApi;
+    return { api, calls };
+  }
+
+  it("merges the company form and the questionnaire into one Alfredpay payload", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: questionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+    expect(calls.submitted).toEqual([{ ...companyData, ...questionnaireData }]);
+  });
+
+  it("uploads all four company documents and the representative pair against the discovered person", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: questionnaireData, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    await waitFor(actor, s => s.matches("PollingStatus"));
+    expect(calls.businessFiles).toEqual(["taxIdDocument", "articlesIncorporation", "proofAddress", "shareholderRegistry"]);
+    expect(calls.personFiles).toEqual(["rp-1:docFront", "rp-1:docBack"]);
+    expect(calls.sent).toEqual(["kyb-sub-1"]);
+  });
+
+  it("uploads the licence and AML policy for a regulated business", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: { ...questionnaireData, isRegulatedBusiness: true }, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        businessLicense: file("l.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png"),
+        uploadAmlPolicy: file("m.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    await waitFor(actor, s => s.matches("PollingStatus"));
+    expect(calls.businessFiles).toEqual([
+      "taxIdDocument",
+      "articlesIncorporation",
+      "proofAddress",
+      "shareholderRegistry",
+      "businessLicense",
+      "uploadAmlPolicy"
+    ]);
+  });
+
+  it("refuses to upload a regulated business's documents when the licence or AML policy is missing", async () => {
+    const { api, calls } = recordingApi();
+    const machine = createAlfredpayKycMachine({ api, openVerificationUrl: () => {} });
+    const actor = createActor(machine, { input: { business: true, country: "MX" } });
+    actor.start();
+
+    await waitFor(actor, s => s.matches("FillingKybForm"));
+    actor.send({ data: companyData, type: "SUBMIT_KYB_FORM" });
+    actor.send({ data: { ...questionnaireData, isRegulatedBusiness: true }, type: "SUBMIT_KYB_QUESTIONNAIRE" });
+    await waitFor(actor, s => s.matches("UploadingKybBusinessDocs"));
+
+    actor.send({
+      files: {
+        articlesIncorporation: file("a.png"),
+        docBack: file("b.png"),
+        docFront: file("f.png"),
+        proofAddress: file("p.png"),
+        shareholderRegistry: file("s.png"),
+        taxIdDocument: file("t.png")
+      },
+      type: "SUBMIT_KYB_BUSINESS_FILES"
+    });
+
+    // Fails before finalizing rather than filing a submission Alfredpay will reject at the last step.
+    // Unreachable from either UI (both disable submit until the set is complete) — this guards
+    // direct machine callers.
+    await waitFor(actor, s => s.matches("Failure"));
+    expect(actor.getSnapshot().context.error?.message).toContain("regulated business");
+    expect(calls.businessFiles).toEqual(["taxIdDocument", "articlesIncorporation", "proofAddress", "shareholderRegistry"]);
+    expect(calls.sent).toEqual([]);
   });
 });

@@ -290,6 +290,12 @@ const THIRD_PARTY_BLOCKLIST = [
 
 type RpcRequest = { id?: number; method?: string; params?: unknown[] };
 
+/** Reads one text field out of a multipart body — the uploads are FormData, not JSON. */
+function multipartField(body: string | null, name: string): string {
+  const match = body?.match(new RegExp(`name="${name}"\\r?\\n\\r?\\n([^\\r\\n]*)`));
+  return match?.[1] ?? "";
+}
+
 function answerRpc(chainIdHex: string) {
   const answerOne = (req: RpcRequest) => {
     const hash = (req.params?.[0] as string) ?? `0x${"cd".repeat(32)}`;
@@ -362,6 +368,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   // onboarding-status refetch) observes it — deterministic, no reliance on poll counts.
   const kyc = { approved: false, customerCreated: false, submitted: false };
   const kybUploads = { businessFiles: 0, relatedPersonFiles: 0 };
+  // The fileType is the whole contract of these uploads: Alfredpay keys the document by it and
+  // rejects an unknown value, so counting requests alone would not catch sending the wrong one.
+  const kybFileTypes: string[] = [];
+  const kybRelatedPersonFileTypes: string[] = [];
   const avenia = { approved: false, statusPolls: 0, submitted: false };
   const monerium = {
     approved: false,
@@ -582,6 +592,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/alfredpay/submitKybFile" && method === "POST") {
       kybUploads.businessFiles += 1;
+      kybFileTypes.push(multipartField(request.postData(), "fileType"));
       await fulfillJson({ success: true });
       return;
     }
@@ -593,6 +604,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/alfredpay/submitKybRelatedPersonFile" && method === "POST") {
       kybUploads.relatedPersonFiles += 1;
+      kybRelatedPersonFileTypes.push(multipartField(request.postData(), "fileType"));
       await fulfillJson({ success: true });
       return;
     }
@@ -750,7 +762,9 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     auth,
     avenia,
     brlaCreateSubaccountRequests,
+    kybFileTypes,
     kybFormSubmissions,
+    kybRelatedPersonFileTypes,
     kybUploads,
     kyc,
     kycFormSubmissions,

@@ -18,6 +18,7 @@ import {
   type KybBusinessFiles,
   type KybFormData,
   type KybPersonFiles,
+  type KybQuestionnaireData,
   type MxnKycFiles
 } from "./types";
 
@@ -194,12 +195,26 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           files.articlesIncorporation
         );
         await api.submitKybFile(country, submissionId, AlfredpayKybFileType.PROOF_ADDRESS, files.proofAddress);
+        await api.submitKybFile(country, submissionId, AlfredpayKybFileType.SHAREHOLDER_REGISTRY, files.shareholderRegistry);
+        // Alfredpay demands these two only for a regulated business. Checked here rather than trusted
+        // from the upload screen: skipping them silently would surface as a 110002 at finalize, long
+        // after the files are gone.
+        if (input.kybQuestionnaireData?.isRegulatedBusiness) {
+          if (!files.businessLicense || !files.uploadAmlPolicy) {
+            throw new Error("A regulated business must supply both the business licence and the AML policy");
+          }
+          await api.submitKybFile(country, submissionId, AlfredpayKybFileType.BUSINESS_LICENSE, files.businessLicense);
+          await api.submitKybFile(country, submissionId, AlfredpayKybFileType.AML_POLICY, files.uploadAmlPolicy);
+        }
       }),
 
       submitKybInfo: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
         const country = input.country || "MX";
         if (!input.kybFormData) throw new Error("KYB form data missing");
-        return api.submitKybInformation(country, input.kybFormData);
+        if (!input.kybQuestionnaireData) throw new Error("KYB questionnaire data missing");
+        // Alfredpay takes the questionnaire flat alongside the company fields and nests it under
+        // `questionnaire` itself; the two screens are merged here rather than on the wire.
+        return api.submitKybInformation(country, { ...input.kybFormData, ...input.kybQuestionnaireData });
       }),
 
       submitKybPersonFiles: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -301,6 +316,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         | { type: "SUBMIT_FORM"; data: AlfredpayKycFormData }
         | { type: "SUBMIT_FILES"; files: MxnKycFiles }
         | { type: "SUBMIT_KYB_FORM"; data: KybFormData }
+        | { type: "SUBMIT_KYB_QUESTIONNAIRE"; data: KybQuestionnaireData }
         | { type: "SUBMIT_KYB_BUSINESS_FILES"; files: KybBusinessFiles }
         | { type: "SUBMIT_KYB_PERSON_FILES"; files: KybPersonFiles },
       input: {} as AlfredpayKycContext,
@@ -451,6 +467,17 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         on: {
           SUBMIT_KYB_FORM: {
             actions: assign({ kybFormData: ({ event }) => event.data }),
+            target: "FillingKybQuestionnaire"
+          }
+        }
+      },
+      FillingKybQuestionnaire: {
+        on: {
+          GO_BACK: {
+            target: "FillingKybForm"
+          },
+          SUBMIT_KYB_QUESTIONNAIRE: {
+            actions: assign({ kybQuestionnaireData: ({ event }) => event.data }),
             target: "SubmittingKybInfo"
           }
         }
@@ -850,7 +877,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
 
       UploadingKybBusinessDocs: {
         on: {
-          GO_BACK: { target: "FillingKybForm" },
+          GO_BACK: { target: "FillingKybQuestionnaire" },
           SUBMIT_KYB_BUSINESS_FILES: {
             actions: assign({ kybBusinessFiles: ({ event }) => event.files }),
             target: "SubmittingKybBusinessFiles"

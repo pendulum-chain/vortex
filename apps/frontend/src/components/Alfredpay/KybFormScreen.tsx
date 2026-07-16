@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type KybFormData, type KybFormValues, kybFormSchema, mapKybFormValues } from "@vortexfi/kyc";
+import { type KybFormData, type KybFormValues, kybFormSchema, mapKybFormValues, toKybFormValues } from "@vortexfi/kyc";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { MenuButtons } from "../MenuButtons";
@@ -7,17 +7,22 @@ import { MenuButtons } from "../MenuButtons";
 interface KybFormScreenProps {
   onSubmit: (data: KybFormData) => void;
   country: string;
+  /** Details already given, so stepping back from the questionnaire does not blank the form. */
+  defaults?: KybFormData;
   userEmail?: string;
 }
 
-export function KybFormScreen({ onSubmit, country, userEmail }: KybFormScreenProps) {
+export function KybFormScreen({ onSubmit, country, defaults, userEmail }: KybFormScreenProps) {
   const { t } = useTranslation();
 
   const {
     formState: { errors },
     handleSubmit,
     register
-  } = useForm<KybFormValues>({ defaultValues: { repEmail: userEmail ?? "" }, resolver: zodResolver(kybFormSchema) });
+  } = useForm<KybFormValues>({
+    defaultValues: defaults ? toKybFormValues(defaults) : { repEmail: userEmail ?? "", repPep: false },
+    resolver: zodResolver(kybFormSchema)
+  });
 
   const inputClass = (hasError: boolean) =>
     `input-vortex-primary input-ghost w-full rounded-lg border p-2 text-base ${hasError ? "border-error" : "border-neutral-300"}`;
@@ -211,6 +216,11 @@ export function KybFormScreen({ onSubmit, country, userEmail }: KybFormScreenPro
             {errors.repDni && <span className="mt-1 block text-error text-xs">{errors.repDni.message}</span>}
           </div>
         </div>
+
+        <label className="flex items-start gap-2 text-sm" htmlFor="kyb-repPep">
+          <input className="checkbox mt-0.5" id="kyb-repPep" type="checkbox" {...register("repPep")} />
+          <span>{t("components.kybForm.repPep")}</span>
+        </label>
 
         <button className="btn btn-vortex-primary mt-2 w-full" type="submit">
           {t("components.mxnKycForm.continue")}
