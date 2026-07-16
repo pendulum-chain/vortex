@@ -85,6 +85,14 @@ out against another tenant's relationship.
    First failing check returns its `blockingReasonCode`. The `GET /v1/recipients` onboarding
    summary applies the same provider/type/country scoping, so the status a sender sees in the
    list agrees with the eligibility gate.
+9. **Invite creation is server-validated, not dashboard-trusted.** `POST /v1/recipients/invite`
+   rejects unknown corridors and rail mismatches (`400 INVALID_INVITE_CORRIDOR` against
+   `CORRIDOR_CAPABILITIES` in `@vortexfi/shared`), corridor × invitee-type combinations the
+   provider cannot onboard (`400 UNSUPPORTED_INVITEE_TYPE`, e.g. AR business — Alfredpay has no
+   AR company KYB), and senders with no approved onboarding anywhere
+   (`403 NO_APPROVED_CORRIDOR`; approvals are read from `provider_customers.status`, which every
+   provider persists). The dashboard's corridor filter is a UX mirror of these rules, not the
+   enforcement point.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 

@@ -38,6 +38,21 @@ async function createAuthedUser(email: string): Promise<{ user: User; token: str
   return { token: testUserToken(user.id, email), user };
 }
 
+/** A sender with one approved corridor — invite creation requires at least one approval. */
+async function createApprovedSender(email: string): Promise<{ user: User; token: string; entity: CustomerEntity }> {
+  const { user, token } = await createAuthedUser(email);
+  const entity = await CustomerEntity.create({ profileId: user.id, type: "individual" });
+  await ProviderCustomer.create({
+    country: "MX",
+    customerEntityId: entity.id,
+    customerType: "individual",
+    provider: "alfredpay",
+    rail: "mxn",
+    status: VerificationStatus.Approved
+  });
+  return { entity, token, user };
+}
+
 const MX_CORRIDOR = { country: "MX", payoutCurrency: "mxn", rail: "mxn" };
 
 async function createInvite(
@@ -71,7 +86,7 @@ describe("POST /v1/recipients/invite", () => {
   });
 
   it("creates an invite, returning the raw token and storing it alongside its hash while pending", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const { status, body } = await createInvite(sender.token, { alias: "Bob's link", inviteeEmail: "Bob@Example.com" });
 
     expect(status).toBe(201);
@@ -92,23 +107,57 @@ describe("POST /v1/recipients/invite", () => {
   });
 
   it("rejects an invite without a corridor", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const { status, body } = await createInvite(sender.token, { rail: undefined });
     expect(status).toBe(400);
     expect((body.error as { code: string }).code).toBe("INVALID_INVITE_CORRIDOR");
   });
 
   it("rejects an alias longer than 100 characters", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const { status, body } = await createInvite(sender.token, { alias: "x".repeat(101) });
     expect(status).toBe(400);
     expect((body.error as { code: string }).code).toBe("INVALID_ALIAS");
+  });
+
+  it("rejects an unknown corridor and a rail that does not match the corridor", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+
+    const unknown = await createInvite(sender.token, { country: "ZZ", payoutCurrency: "zzz", rail: "zzz" });
+    expect(unknown.status).toBe(400);
+    expect((unknown.body.error as { code: string }).code).toBe("INVALID_INVITE_CORRIDOR");
+
+    const mismatched = await createInvite(sender.token, { country: "MX", rail: "brl" });
+    expect(mismatched.status).toBe(400);
+    expect((mismatched.body.error as { code: string }).code).toBe("INVALID_INVITE_CORRIDOR");
+  });
+
+  it("rejects combinations the corridor's provider cannot onboard (AR business)", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const { status, body } = await createInvite(sender.token, {
+      country: "AR",
+      inviteeType: "business",
+      payoutCurrency: "ars",
+      rail: "ars"
+    });
+    expect(status).toBe(400);
+    expect((body.error as { code: string }).code).toBe("UNSUPPORTED_INVITEE_TYPE");
+
+    const individual = await createInvite(sender.token, { country: "AR", payoutCurrency: "ars", rail: "ars" });
+    expect(individual.status).toBe(201);
+  });
+
+  it("rejects invite creation while the sender has no approved corridor", async () => {
+    const sender = await createAuthedUser("unapproved-sender@example.com");
+    const { status, body } = await createInvite(sender.token);
+    expect(status).toBe(403);
+    expect((body.error as { code: string }).code).toBe("NO_APPROVED_CORRIDOR");
   });
 });
 
 describe("POST /v1/recipients/invite/:token/accept", () => {
   it("returns the invitee type and binds business recipients to a business entity", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("business-recipient@example.com");
     const invite = await createInvite(sender.token, { inviteeType: "business" });
 
@@ -122,7 +171,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("accepts a pending invite, creating an active relationship and notifying the sender", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
 
@@ -144,7 +193,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("lets the accepting recipient re-enter their own link without re-notifying the sender", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
 
@@ -169,7 +218,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("rejects a second acceptance by a different recipient", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const stranger = await createAuthedUser("stranger@example.com");
     const invite = await createInvite(sender.token);
@@ -184,7 +233,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   // unlocked pre-checks; the row-locked re-check inside the transaction must let exactly
   // one of them create a relationship.
   it("lets exactly one of two concurrent acceptances by different recipients through", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const stranger = await createAuthedUser("stranger@example.com");
     const invite = await createInvite(sender.token);
@@ -204,7 +253,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("lets the recipient re-enter after the invite's expiry passes", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     await acceptInvite(recipient.token, invite.body.token as string);
@@ -219,7 +268,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("does not revive an archived relationship on re-entry", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
@@ -237,7 +286,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("still blocks re-entry once the sender has blocked the relationship", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
@@ -254,7 +303,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("still rejects re-entry on a revoked invite", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     await acceptInvite(recipient.token, invite.body.token as string);
@@ -267,7 +316,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("binds redemption to the invitee email when one was recorded (case-insensitive)", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token, { inviteeEmail: "Bob@Example.com" });
 
     const stranger = await createAuthedUser("mallory@example.com");
@@ -281,7 +330,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("rejects accepting your own invite", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
     const { status, body } = await acceptInvite(sender.token, invite.body.token as string);
     expect(status).toBe(409);
@@ -289,7 +338,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("rejects an expired invite and marks it expired", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
@@ -308,7 +357,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
   });
 
   it("does not resurrect a blocked relationship through a new invite", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const first = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, first.body.token as string);
@@ -333,7 +382,7 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
 
 describe("GET /v1/recipients", () => {
   it("lists pending invitations before acceptance and relationships after", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token, { alias: "Maria · MXN" });
 
@@ -368,7 +417,7 @@ describe("GET /v1/recipients", () => {
   });
 
   it("hides archived relationships from the list", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
@@ -386,7 +435,7 @@ describe("GET /v1/recipients", () => {
   });
 
   it("expires and hides pending invitations whose TTL has passed", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
     await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
 
@@ -400,7 +449,7 @@ describe("GET /v1/recipients", () => {
   });
 
   it("does not report a business recipient approved off an individual provider approval", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token, { inviteeType: "business" });
     await acceptInvite(recipient.token, invite.body.token as string);
@@ -464,7 +513,7 @@ describe("PATCH /v1/recipients/invitations/:id", () => {
   });
 
   it("archives a pending invitation out of the list without revoking its token", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
 
@@ -483,7 +532,7 @@ describe("PATCH /v1/recipients/invitations/:id", () => {
   });
 
   it("unarchives an invitation back into the list", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
 
     await archiveInvitation(sender.token, invite.body.id as string, true);
@@ -497,7 +546,7 @@ describe("PATCH /v1/recipients/invitations/:id", () => {
   });
 
   it("rejects a non-boolean archived flag", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
     const { status, body } = await archiveInvitation(sender.token, invite.body.id as string, "yes");
     expect(status).toBe(400);
@@ -505,7 +554,7 @@ describe("PATCH /v1/recipients/invitations/:id", () => {
   });
 
   it("is scoped to the sender that owns the invitation", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
     const otherSender = await createAuthedUser("other-sender@example.com");
     const { status } = await archiveInvitation(otherSender.token, invite.body.id as string, true);
@@ -515,7 +564,7 @@ describe("PATCH /v1/recipients/invitations/:id", () => {
 
 describe("PATCH /v1/recipients/:id", () => {
   async function acceptedRelationship() {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
@@ -569,7 +618,7 @@ describe("GET /v1/recipients/:id/eligibility", () => {
   }
 
   it("walks the full gate: onboarding → payout reference → eligible → restricted", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
@@ -637,7 +686,7 @@ describe("GET /v1/recipients/:id/eligibility", () => {
   });
 
   it("reports a blocked relationship as not active", async () => {
-    const sender = await createAuthedUser("sender@example.com");
+    const sender = await createApprovedSender("sender@example.com");
     const recipient = await createAuthedUser("recipient@example.com");
     const invite = await createInvite(sender.token);
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);

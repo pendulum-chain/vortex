@@ -1,10 +1,16 @@
+import {
+  CORRIDOR_CAPABILITIES,
+  type CorridorCapability,
+  type CorridorCountry,
+  type CorridorCustomerType
+} from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
-import ProviderCustomer from "../../models/providerCustomer.model";
+import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import RecipientInvitation, { type RecipientInviteeType } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
@@ -66,8 +72,46 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_ALIAS", "alias must be a string of at most 100 characters");
     return;
   }
+  // The dashboard filters by the shared capability matrix; enforce the same rules here so a raw
+  // API call cannot create an invite for an unknown corridor or a combination the corridor's
+  // provider cannot onboard (e.g. Alfredpay has no AR company KYB).
+  const corridor: CorridorCapability | undefined = CORRIDOR_CAPABILITIES[country.toUpperCase() as CorridorCountry];
+  if (!corridor || corridor.rail !== rail.toLowerCase()) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_INVITE_CORRIDOR", "Unknown corridor");
+    return;
+  }
+  const effectiveInviteeType = (inviteeType ?? "individual") as CorridorCustomerType;
+  if (!corridor.customerTypes.includes(effectiveInviteeType)) {
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "UNSUPPORTED_INVITEE_TYPE",
+      `The ${country.toUpperCase()} corridor cannot onboard ${effectiveInviteeType} recipients`
+    );
+    return;
+  }
 
   try {
+    // Invites unlock once any of the sender's corridors is approved (the dashboard rule) —
+    // enforce it here too. Approvals are persisted on provider_customers by every provider.
+    const senderEntityIds = (await CustomerEntity.findAll({ attributes: ["id"], where: { profileId: userId } })).map(
+      entity => entity.id
+    );
+    const approvedOnboardings = senderEntityIds.length
+      ? await ProviderCustomer.count({
+          where: { customerEntityId: senderEntityIds, status: VerificationStatus.Approved }
+        })
+      : 0;
+    if (!approvedOnboardings) {
+      sendError(
+        res,
+        httpStatus.FORBIDDEN,
+        "NO_APPROVED_CORRIDOR",
+        "Recipient invites unlock once one of your corridors is approved"
+      );
+      return;
+    }
+
     const senderEntity = await getOrCreateCustomerEntityForProfile(userId);
     const token = generateInviteToken();
 

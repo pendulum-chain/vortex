@@ -77,7 +77,10 @@ the sections below that describe them are target-state, not current behavior.
   in my list. Email is optional metadata — the **link token** is what redeems. The one exception
   is combinations the corridor's provider cannot onboard: the dialog hides Argentina for
   **company** recipients (Alfredpay has no AR KYB), per the shared corridor-capability matrix
-  (`@vortexfi/shared` `CORRIDOR_CAPABILITIES`).
+  (`@vortexfi/shared` `CORRIDOR_CAPABILITIES`). The API enforces the same rules server-side —
+  unknown corridors, unsupported corridor × recipient-type combinations, and senders without any
+  approved corridor are rejected — and the widget's region selector applies the matrix once the
+  invite's recipient type is known.
 - As a sender, I copy the invite link and deliver it myself.
 - As a sender, I click a row in my recipients list to open a management modal. While the invite
   is not yet accepted, I can **re-copy the link** from there; once accepted (or when the link is

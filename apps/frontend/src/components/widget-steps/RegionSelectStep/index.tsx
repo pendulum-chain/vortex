@@ -2,8 +2,7 @@ import { getAnyFiatTokenDetails } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { isFiatTokenEnabled } from "../../../config/tokenAvailability";
-import { KYB_REGIONS, KybRegion } from "../../../constants/kybRegions";
+import { availableKybRegions, KybRegion } from "../../../constants/kybRegions";
 import { useRampActor } from "../../../contexts/rampState";
 import { cn } from "../../../helpers/cn";
 import { FiatIcon } from "../../FiatIcon";
@@ -14,8 +13,6 @@ import { DropdownSelector } from "../../ui/DropdownSelector";
 export interface RegionSelectStepProps {
   className?: string;
 }
-
-const availableRegions = KYB_REGIONS.filter(region => isFiatTokenEnabled(region.fiatToken));
 
 const RegionOption = ({ region }: { region: KybRegion }) => {
   const { t } = useTranslation();
@@ -32,7 +29,9 @@ export const RegionSelectStep = ({ className }: RegionSelectStepProps) => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
   const presetFiatToken = useSelector(rampActor, state => state.context.kybLink?.fiatToken);
+  const customerType = useSelector(rampActor, state => state.context.kybLink?.customerType);
 
+  const availableRegions = availableKybRegions(customerType);
   const presetRegion = availableRegions.find(region => region.fiatToken === presetFiatToken);
   const [selected, setSelected] = useState<KybRegion | undefined>(presetRegion);
   const [open, setOpen] = useState(false);
