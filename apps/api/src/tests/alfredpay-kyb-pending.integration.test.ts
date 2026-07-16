@@ -325,6 +325,36 @@ describe("Alfredpay KYB PENDING submission", () => {
     expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-persisted");
   });
 
+  // Sandbox-observed: the last-submission endpoint can answer `{}` (success without a submissionId)
+  // even while a submission exists — an empty answer must not discard the persisted recovery id.
+  it("uses the persisted submission id when last-submission answers empty and the details lookup fails", async () => {
+    const { token } = await createBusinessCustomer("kyb-persisted-empty-last@example.com");
+    const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
+    await KycCase.update({ providerCaseId: "kyb-sub-persisted" }, { where: { providerCustomerId: customer?.id } });
+
+    const updateKybInformation = mock(async (_customerId: string, _submissionId: string, _data: unknown) => undefined);
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => {
+            throw new Error("details unavailable");
+          }),
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.PENDING })),
+          getLastKybSubmission: mock(async () => ({})),
+          updateKybInformation
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-persisted");
+  });
+
   it("getKycStatus flips a stale started row to pending via the details fallback", async () => {
     const { token } = await createBusinessCustomer("kyb-status-refresh@example.com");
 

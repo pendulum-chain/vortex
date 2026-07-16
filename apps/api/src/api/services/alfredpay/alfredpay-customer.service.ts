@@ -202,7 +202,8 @@ export async function findAlfredpayCustomer(
 /**
  * Latest Alfredpay KYB submission id for a business customer. Reconciles the locally persisted id
  * with the provider's last-submission and business-details responses, while retaining the local id
- * as a recovery fallback when both provider discovery calls fail.
+ * as a recovery fallback whenever provider discovery yields no ids — an empty last-submission
+ * response is not authoritative (the sandbox answers `{}` even while a submission exists).
  */
 export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Promise<string | undefined> {
   const service = AlfredpayApiService.getInstance();
@@ -218,11 +219,9 @@ export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Prom
       )?.providerCaseId
     : null;
   const providerSubmissionIds: string[] = [];
-  let providerLookupSucceeded = false;
 
   try {
     const lastSubmission = await service.getLastKybSubmission(alfredPayId);
-    providerLookupSucceeded = true;
     if (lastSubmission?.submissionId) {
       providerSubmissionIds.push(lastSubmission.submissionId);
       if (!persistedSubmissionId || persistedSubmissionId === lastSubmission.submissionId) {
@@ -234,16 +233,15 @@ export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Prom
   }
   try {
     const details = await service.getKybBusinessDetails(alfredPayId);
-    providerLookupSucceeded = true;
     providerSubmissionIds.push(...details.flatMap(business => (business.submissionId ? [business.submissionId] : [])));
   } catch {
-    // Use the successfully returned provider ids, or the persisted id if both lookups failed.
+    // Use the successfully returned provider ids, or the persisted id if discovery yielded none.
   }
 
   if (persistedSubmissionId && providerSubmissionIds.includes(persistedSubmissionId)) {
     return persistedSubmissionId;
   }
-  return providerSubmissionIds[0] ?? (providerLookupSucceeded ? undefined : (persistedSubmissionId ?? undefined));
+  return providerSubmissionIds[0] ?? persistedSubmissionId ?? undefined;
 }
 
 /**
