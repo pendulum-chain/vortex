@@ -28,7 +28,7 @@ export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToTo
     .pipe(SquidRouterSwap(Networks.Base, toChain, EvmToken.USDC, toToken))
     .pipe(FinalSettlementSubsidy<ToToken, ToChain>())
     .pipe(DestinationTransfer<ToToken, ToChain>())
-    .build("BrlOnrampBaseCrossChain");
+    .build("BrlOnrampBaseCrossChain", { isDirectTransfer: false });
 }
 
 export const brlOnrampBaseCrossChainFlow: Flow = makeBrlOnrampBaseCrossChainFlow(Networks.Arbitrum, EvmToken.USDC);

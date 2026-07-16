@@ -28,6 +28,7 @@ import { BasePhaseHandler } from "../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { evmIO } from "../core/io";
 import type { Phase, PhaseIO } from "../core/types";
+import { prepareAveniaMintTxs } from "./avenia-mint.transactions";
 
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -225,6 +226,7 @@ export const AveniaMint: Phase<PhaseIO<typeof FiatToken.BRL, "fiat">, PhaseIO<ty
   executors: [new BrlaOnrampMintExecutor()],
   name: "AveniaMint",
   phases: ["brlaOnrampMint"],
+  prepareTxs: prepareAveniaMintTxs,
   async simulate(input, ctx) {
     const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
     const inputAmountDecimal = new Big(input.amount);

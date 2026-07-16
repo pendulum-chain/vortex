@@ -17,7 +17,8 @@ import { BasePhaseHandler } from "../../../phases/base-phase-handler";
 import { priceFeedService } from "../../../priceFeed.service";
 import { calculateNablaSwapOutputEvm } from "../../core/nabla";
 import { evmIO } from "../core/io";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
+import type { ChainBrand, Phase, PhaseCtx, PhaseIO, PrepareCtx, TokenBrand } from "../core/types";
+import { prepareNablaSwapTxs } from "./nabla-swap.transactions";
 
 // EVM slice of the production NablaApprovePhaseHandler: broadcasts the presigned ERC-20 approve
 // for the Nabla router on Base. The substrate (Pendulum) branch is not ported.
@@ -146,6 +147,7 @@ export function NablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, 
     executors: [new NablaApproveExecutor(), new NablaSwapExecutor()],
     name: `NablaSwap(${chain}/${inToken}->${outToken})`,
     phases: ["nablaApprove", "nablaSwap"],
+    prepareTxs: (prepareCtx: PrepareCtx) => prepareNablaSwapTxs(chain, inToken, outToken, prepareCtx),
     async simulate(input: PhaseIO<InToken, Chain>, ctx: PhaseCtx): Promise<PhaseIO<OutToken, Chain>> {
       const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inToken) as EvmTokenDetails;
       const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outToken) as EvmTokenDetails;

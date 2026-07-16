@@ -18,6 +18,7 @@ import { PhaseError } from "../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../phases/base-phase-handler";
 import { evmIO } from "../core/io";
 import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
+import { prepareDistributeFeesTxs } from "./distribute-fees.transactions";
 
 const SIMPLIFIED_TOKEN_DECIMALS = 6;
 
@@ -174,6 +175,7 @@ export function DistributeFees<Token extends TokenBrand, Chain extends ChainBran
     executors: [new DistributeFeesExecutor()],
     name: "DistributeFees",
     phases: ["distributeFees"],
+    prepareTxs: prepareDistributeFeesTxs,
     async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
       if (!ctx.fees?.usd) {
         ctx.addNote("DistributeFees: no fees in ctx, skipping");

@@ -15,6 +15,7 @@ import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
+import { prepareDestinationTransferTxs } from "./destination-transfer.transactions";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -178,6 +179,7 @@ export function DestinationTransfer<Token extends TokenBrand, Chain extends Chai
     executors: [new DestinationTransferExecutor()],
     name: "DestinationTransfer",
     phases: ["destinationTransfer"],
+    prepareTxs: prepareDestinationTransferTxs,
     async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
       ctx.addNote(`DestinationTransfer: delivering ${input.amount.toFixed()} ${input.token} on ${input.chain} to the user`);
       return input;

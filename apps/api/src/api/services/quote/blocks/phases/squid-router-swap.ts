@@ -32,7 +32,8 @@ import { BasePhaseHandler } from "../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../core/squidrouter";
 import { evmIO } from "../core/io";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
+import type { ChainBrand, Phase, PhaseCtx, PhaseIO, PrepareCtx, TokenBrand } from "../core/types";
+import { prepareSquidRouterSwapTxs } from "./squid-router-swap.transactions";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
@@ -561,6 +562,7 @@ export function SquidRouterSwap<
     executors: [new SquidRouterSwapExecutor(), new SquidRouterPayExecutor()],
     name: `SquidRouterSwap(${fromChain}/${fromToken}->${toChain}/${toToken})`,
     phases: ["squidRouterSwap", "squidRouterPay"],
+    prepareTxs: (prepareCtx: PrepareCtx) => prepareSquidRouterSwapTxs(fromChain, toChain, fromToken, toToken, prepareCtx),
     async simulate(input: PhaseIO<FromToken, FromChain>, ctx: PhaseCtx): Promise<PhaseIO<ToToken, ToChain>> {
       if (!ctx.fees?.usd) {
         throw new Error("SquidRouterSwap: Missing ctx.fees.usd - ensure computeFees ran successfully");
