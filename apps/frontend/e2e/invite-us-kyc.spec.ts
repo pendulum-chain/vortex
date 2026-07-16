@@ -118,6 +118,8 @@ test("invited US individual: invite redemption, locked region, Alfredpay hosted-
   });
   // The locked region skipped the selector entirely.
   await expect(page.getByText("Select Your Region")).toHaveCount(0);
+  // The invite pinned the recipient type — the register-as-business toggle is not offered.
+  await expect(page.getByText(/register as business/)).toHaveCount(0);
   // The accept endpoint was called with the token from the URL.
   expect(acceptRequests).toEqual([`/v1/recipients/invite/${INVITE_TOKEN}/accept`]);
 
@@ -145,8 +147,10 @@ test("invited US individual: invite redemption, locked region, Alfredpay hosted-
   expect(kycStatusRequests.length).toBeGreaterThanOrEqual(1);
   expect(kycStatusRequests).toContain("INDIVIDUAL");
 
-  // Stage 7: continuing lands on the invite flow's terminal success screen (KybLinkComplete).
+  // Stage 7: continuing lands on the invite flow's terminal success screen (KybLinkComplete),
+  // which for an invited individual also reads KYC — never KYB.
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByText("KYB Completed!")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("KYC Completed!")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("KYB Completed!")).toHaveCount(0);
   await expect(page.getByText("Your account has been verified. You can now proceed.")).toBeVisible();
 });

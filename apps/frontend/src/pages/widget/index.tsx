@@ -118,7 +118,13 @@ const WidgetContent = () => {
   }
 
   if (isKybComplete) {
-    return <DoneScreen kycOrKyb="KYB" onContinue={() => rampActor.send({ type: "RESET_RAMP" })} />;
+    // The invite's recipient type picks the wording: an invited individual completed KYC, not KYB.
+    return (
+      <DoneScreen
+        kycOrKyb={kybCustomerType === "individual" ? "KYC" : "KYB"}
+        onContinue={() => rampActor.send({ type: "RESET_RAMP" })}
+      />
+    );
   }
 
   if (isRedirectCallback) {
