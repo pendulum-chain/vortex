@@ -40,7 +40,12 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
             return (
               <MotionRow
                 animate={{ opacity: 1, y: 0 }}
-                className={recipient.isSelf ? undefined : "cursor-pointer"}
+                aria-label={openActions ? `Manage ${recipientLabel(recipient)}` : undefined}
+                className={
+                  recipient.isSelf
+                    ? undefined
+                    : "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                }
                 initial={{ opacity: 0, y: 8 }}
                 key={recipient.id}
                 onClick={openActions}

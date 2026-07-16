@@ -99,10 +99,10 @@ test("a pending invite row reopens the link for re-copy and removal archives the
   await expect(dialog.getByRole("heading", { name: "Maria · MXN" })).toBeVisible();
   await expect(dialog.getByTestId("invite-link-preview")).toContainText("e2e-recopy-token");
 
-  // The row is focusable, so the modal is also reachable without a pointer.
+  // The row is focusable and labeled, so the modal is also reachable without a pointer.
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
-  await page.getByRole("row", { name: /Maria · MXN/ }).focus();
+  await page.getByRole("row", { name: "Manage Maria · MXN" }).focus();
   await page.keyboard.press("Enter");
   await expect(dialog.getByRole("heading", { name: "Maria · MXN" })).toBeVisible();
 

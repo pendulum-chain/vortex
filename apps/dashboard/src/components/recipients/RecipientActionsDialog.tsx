@@ -67,7 +67,9 @@ export function RecipientActionsDialog({
         {canRecopy && <InviteLinkCopy url={inviteUrl(recipient.inviteCode, recipient.corridorId)} />}
 
         <p className="text-muted-foreground text-xs">
-          Removing does not invalidate the invite link — the recipient can still open it and complete their verification.
+          {recipient.kind === "invitation"
+            ? "Removing does not invalidate the invite link — the recipient can still open it and complete their verification."
+            : "Removing only hides this recipient from your list — it does not block them or undo their verification."}
         </p>
 
         <DialogFooter>
