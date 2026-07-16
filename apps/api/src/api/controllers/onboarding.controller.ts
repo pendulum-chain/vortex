@@ -12,6 +12,27 @@ import { hydrateAveniaCompanyName } from "../services/avenia/avenia-customer.ser
 import { selectActiveCustomerEntity } from "../services/customer-entity.service";
 import { getMoneriumStatus, MONERIUM_REAUTHENTICATION_REQUIRED } from "../services/monerium/monerium.service";
 
+// Provider status refreshes piggyback on the dashboard's 15s status poll; cap them per customer so
+// polling (and multiple open tabs) doesn't hammer the providers. Marking at check time also dedupes
+// concurrent polls. In-memory on purpose: per instance, the cap just multiplies by instance count.
+const PROVIDER_REFRESH_TTL_MS = 60_000;
+const lastProviderRefreshAt = new Map<string, number>();
+
+function shouldRefreshProviderStatus(customerId: string): boolean {
+  const now = Date.now();
+  const last = lastProviderRefreshAt.get(customerId);
+  if (last !== undefined && now - last < PROVIDER_REFRESH_TTL_MS) {
+    return false;
+  }
+  if (lastProviderRefreshAt.size > 10_000) {
+    for (const [id, at] of lastProviderRefreshAt) {
+      if (now - at >= PROVIDER_REFRESH_TTL_MS) lastProviderRefreshAt.delete(id);
+    }
+  }
+  lastProviderRefreshAt.set(customerId, now);
+  return true;
+}
+
 /**
  * GET /v1/onboarding/status — aggregated onboarding view for the authenticated profile
  * (plan D5), read directly from `provider_customers` + `kyc_cases`.
@@ -96,7 +117,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             customer.customerType === "business" &&
             customer.status !== VerificationStatus.Approved &&
             customer.status !== VerificationStatus.Rejected &&
-            !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId
+            !!kycCasesByProviderCustomer.get(customer.id)?.providerCaseId &&
+            shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
           const kycCase = kycCasesByProviderCustomer.get(customer.id);
@@ -140,7 +162,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
             customer.customerType === "individual" &&
             customer.status !== VerificationStatus.Approved &&
             customer.status !== VerificationStatus.Rejected &&
-            !!customer.providerSubaccountId
+            !!customer.providerSubaccountId &&
+            shouldRefreshProviderStatus(customer.id)
         )
         .map(async customer => {
           const kycCase = kycCasesByProviderCustomer.get(customer.id);
@@ -182,7 +205,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
           customer =>
             customer.provider === "alfredpay" &&
             customer.status !== VerificationStatus.Approved &&
-            customer.status !== VerificationStatus.Rejected
+            customer.status !== VerificationStatus.Rejected &&
+            shouldRefreshProviderStatus(customer.id)
         )
         .map(customer => refreshAlfredpayCustomerStatus(customer))
     );

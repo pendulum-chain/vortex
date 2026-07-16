@@ -52,6 +52,10 @@ export class AlfredpayApiError extends ProviderHttpError {
   }
 }
 
+// A hung provider call must not stall callers — the dashboard's onboarding status poll awaits
+// these requests inline.
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
 
@@ -99,7 +103,8 @@ export class AlfredpayApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {

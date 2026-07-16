@@ -270,6 +270,26 @@ describe("GET /v1/onboarding/status", () => {
     expect(customer.status).toBe(VerificationStatus.Pending);
   });
 
+  it("throttles provider refreshes: back-to-back polls hit Avenia only once per customer", async () => {
+    const { user, token } = await createAuthedUser("avenia-refresh-throttle@example.com");
+    const customer = await createTestTaxId(user.id, { subAccountId: "sub-throttled" });
+    await customer.update({ status: VerificationStatus.InReview });
+
+    const getKycAttempts = mock(async () => ({
+      attempts: [{ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED }]
+    }));
+    const getInstance = BrlaApiService.getInstance;
+    BrlaApiService.getInstance = mock(() => ({ getKycAttempts }) as unknown as BrlaApiService);
+
+    try {
+      await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      await api.request("/v1/onboarding/status", { headers: authHeaders(token) });
+      expect(getKycAttempts).toHaveBeenCalledTimes(1);
+    } finally {
+      BrlaApiService.getInstance = getInstance;
+    }
+  });
+
   it("keeps a business KYB pending (resumable) while the Avenia attempt is still PENDING", async () => {
     const { user, token } = await createAuthedUser("avenia-kyb-pending@example.com");
     const business = await createTestTaxId(user.id, {
