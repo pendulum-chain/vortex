@@ -145,7 +145,7 @@ describe("aveniaKycMachine", () => {
       verifyKybStatusActor: fromPromise(() => verifyKyb.promise)
     });
     actor.start();
-    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
+    actor.send({ formData: { taxId: "12345678000195" } as AveniaKycFormData, type: "FORM_SUBMIT" });
 
     await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
     let context = actor.getSnapshot().context;
@@ -206,7 +206,7 @@ describe("aveniaKycMachine", () => {
       }))
     });
     actor.start();
-    actor.send({ formData: { taxId: "12345678000199" } as AveniaKycFormData, type: "FORM_SUBMIT" });
+    actor.send({ formData: { taxId: "12345678000195" } as AveniaKycFormData, type: "FORM_SUBMIT" });
     await waitFor(actor, s => s.matches({ KYBFlow: "CompanyVerification" }));
     actor.send({ type: "KYB_COMPANY_DONE" });
     actor.send({ type: "KYB_REPRESENTATIVE_DONE" });
@@ -238,9 +238,9 @@ describe("aveniaKycMachine", () => {
       }),
       {
         input: {
-          kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000199" } as AveniaKycFormData,
+          kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000195" } as AveniaKycFormData,
           resumeExistingAccount: true,
-          taxId: "12345678000199"
+          taxId: "12345678000195"
         }
       }
     );
@@ -252,11 +252,34 @@ describe("aveniaKycMachine", () => {
     expect(actor.getSnapshot().context.kybAttemptId).toBe("attempt-resume");
   });
 
+  it("does not skip the form when resuming without a taxId in the form data", () => {
+    const actor = createActor(aveniaKycMachine, {
+      input: {
+        kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "" } as AveniaKycFormData,
+        resumeExistingAccount: true,
+        taxId: "12345678000195"
+      }
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe("FormFilling");
+  });
+
+  it("does not skip the form when resuming without any form data", () => {
+    const actor = createActor(aveniaKycMachine, {
+      input: {
+        resumeExistingAccount: true,
+        taxId: "12345678000195"
+      }
+    });
+    actor.start();
+    expect(actor.getSnapshot().value).toBe("FormFilling");
+  });
+
   it("does not skip the form when form data is prefilled without the resume flag", () => {
     const actor = createActor(aveniaKycMachine, {
       input: {
-        kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000199" } as AveniaKycFormData,
-        taxId: "12345678000199"
+        kycFormData: { companyName: "Acme Ltda", fullName: "Acme Ltda", taxId: "12345678000195" } as AveniaKycFormData,
+        taxId: "12345678000195"
       }
     });
     actor.start();
@@ -332,7 +355,7 @@ describe("aveniaKycMachine", () => {
     const actor = createActor(createAveniaKycMachine({ api }), { input: { taxId: "" } });
     actor.start();
     actor.send({
-      formData: { fullName: "Acme", taxId: "12345678000199" } as AveniaKycFormData,
+      formData: { fullName: "Acme", taxId: "12345678000195" } as AveniaKycFormData,
       type: "FORM_SUBMIT"
     });
 

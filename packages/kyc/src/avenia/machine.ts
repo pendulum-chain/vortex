@@ -293,7 +293,8 @@ export function createAveniaKycMachine({ api }: AveniaKycDeps) {
         // Avenia subaccount exists) skips the form; everyone else starts at FormFilling as before.
         always: [
           {
-            guard: ({ context }) => context.resumeExistingAccount === true && !!context.taxId && !!context.kycFormData,
+            guard: ({ context }) =>
+              context.resumeExistingAccount === true && !!context.taxId && !!context.kycFormData?.taxId?.trim(),
             target: "SubaccountSetup"
           },
           { target: "FormFilling" }
