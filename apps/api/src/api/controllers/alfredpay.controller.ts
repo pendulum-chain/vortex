@@ -684,6 +684,7 @@ export class AlfredpayController {
 
       // Alfredpay refuses a fresh POST while a submission is still PENDING/CREATED (never finalized
       // or filed with invalid data) — update that submission in place so the flow can resume.
+      let pendingSubmissionId: string | undefined;
       try {
         const existingSubmissionId = await resolveAlfredpayKybSubmissionId(alfredPayCustomer.alfredPayId);
         if (existingSubmissionId) {
@@ -691,11 +692,7 @@ export class AlfredpayController {
           logger.info(`Existing KYB submission ${existingSubmissionId} has status ${statusRes.status}`);
           const probeStatus = normalizeAlfredpayProviderStatus(statusRes.status);
           if (probeStatus === AlfredpayKybStatus.PENDING || probeStatus === AlfredpayKybStatus.CREATED) {
-            await alfredpayService.updateKybInformation(alfredPayCustomer.alfredPayId, existingSubmissionId, {
-              ...kybData,
-              country
-            });
-            result = { submissionId: existingSubmissionId };
+            pendingSubmissionId = existingSubmissionId;
           } else if (probeStatus === AlfredpayKybStatus.IN_REVIEW || probeStatus === AlfredpayKybStatus.COMPLETED) {
             res.status(httpStatus.CONFLICT).json({ error: `KYB is in status ${probeStatus}` });
             return;
@@ -705,6 +702,15 @@ export class AlfredpayController {
         logger.info(
           `No previous KYB submission found or error probing it, submitting a new one: ${AlfredpayController.getErrorMessage(error)}`
         );
+      }
+      if (pendingSubmissionId) {
+        // Outside the probe's catch: a failing PUT is the user's real error (Alfredpay rejecting the
+        // corrected data) — surface it instead of falling through to a fresh POST it refuses anyway.
+        await alfredpayService.updateKybInformation(alfredPayCustomer.alfredPayId, pendingSubmissionId, {
+          ...kybData,
+          country
+        });
+        result = { submissionId: pendingSubmissionId };
       }
 
       if (!result) {

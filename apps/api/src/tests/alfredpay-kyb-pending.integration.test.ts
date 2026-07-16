@@ -325,6 +325,33 @@ describe("Alfredpay KYB PENDING submission", () => {
     expect(updateKybInformation.mock.calls[0]?.[1]).toBe("kyb-sub-persisted");
   });
 
+  it("surfaces a failing in-place update instead of falling through to a fresh POST", async () => {
+    const { token } = await createBusinessCustomer("kyb-put-fails@example.com");
+
+    const submitKybInformation = mock(async (_customerId: string, _data: unknown) => ({ submissionId: "kyb-sub-new" }));
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybStatus: mock(async () => ({ status: AlfredpayKycStatus.PENDING })),
+          getLastKybSubmission: mock(async () => ({ submissionId: "kyb-sub-1" })),
+          submitKybInformation,
+          updateKybInformation: mock(async () => {
+            throw new Error("invalid related person data");
+          })
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(KYB_FORM),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(500);
+    expect(((await response.json()) as { error: string }).error).toContain("invalid related person data");
+    expect(submitKybInformation).not.toHaveBeenCalled();
+  });
+
   // Sandbox-observed: the last-submission endpoint can answer `{}` (success without a submissionId)
   // even while a submission exists — an empty answer must not discard the persisted recovery id.
   it("uses the persisted submission id when last-submission answers empty and the details lookup fails", async () => {

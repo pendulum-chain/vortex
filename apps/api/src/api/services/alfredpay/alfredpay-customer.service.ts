@@ -5,6 +5,7 @@ import {
   AlfredpayCustomerType,
   AlfredpayKycStatus
 } from "@vortexfi/shared";
+import logger from "../../../config/logger";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
 import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
@@ -253,9 +254,9 @@ export async function resolveAlfredpayKybSubmissionId(alfredPayId: string): Prom
  */
 export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): Promise<void> {
   const view = toView(record);
-  const service = AlfredpayApiService.getInstance();
   const isBusiness = record.customerType === "business";
   try {
+    const service = AlfredpayApiService.getInstance();
     const submissionId = isBusiness
       ? await resolveAlfredpayKybSubmissionId(view.alfredPayId)
       : (await service.getLastKycSubmission(view.alfredPayId))?.submissionId;
@@ -288,8 +289,9 @@ export async function refreshAlfredpayCustomerStatus(record: ProviderCustomer): 
         ? { lastFailureReasons: [statusResponse.metadata.failureReason] }
         : {})
     });
-  } catch {
+  } catch (error) {
     // Keep the stored status if the provider is unavailable or has no submission yet.
+    logger.info(`Skipping Alfredpay status refresh for customer ${record.id}: ${error}`);
   }
 }
 
