@@ -6,7 +6,8 @@ The dashboard's recipient product: a sender invites a recipient via a shareable 
 onboards (KYC/KYB via the widget) under their **own** profile, and the sender may then create
 transfers (offramps) that pay out to that recipient. Backed by the migration-`042` tables
 (`recipient_invitations`, `sender_recipients`, `recipient_payout_references`), all anchored to
-`customer_entities`. Routes live under `/v1/recipients` (`recipients.controller.ts`), all behind
+`customer_entities`; migration-`050` added the sender-local `alias`, the retained raw `token`,
+and `archived_at` to `recipient_invitations` (dropping the unused `amount`). Routes live under `/v1/recipients` (`recipients.controller.ts`), all behind
 `requireAuth` (Supabase bearer token):
 
 | Endpoint | Purpose |
@@ -31,8 +32,10 @@ out against another tenant's relationship.
    is pending** (accepted product decision, superseding the earlier never-stored rule) so the
    sender can re-copy the link from the list; it is exposed only in the `POST /invite` response
    and in the sender-entity-scoped `GET /v1/recipients` pending list. Acceptance and expiry checks
-   set it to `NULL`; sender listing also expires, clears, and excludes pending rows past their TTL,
-   so accepted/expired invites hold no live secret at rest
+   set it to `NULL` (acceptance re-checks `expired` under the row lock, so the sweep below cannot
+   race an accept into overwriting an already-expired invite); sender listing also expires and
+   clears pending rows past their TTL — expired rows stay visible to the sender (token `NULL`,
+   no re-copy) until archived — so accepted/expired invites hold no live secret at rest
    (`recipient-invite.service.ts`, `recipients.controller.ts`).
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its

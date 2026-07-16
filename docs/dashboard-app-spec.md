@@ -85,8 +85,11 @@ the sections below that describe them are target-state, not current behavior.
 - As a sender, I click a row in my recipients list to open a management modal. While the invite
   is not yet accepted, I can **re-copy the link** from there; once accepted (or when the link is
   a legacy invite created before tokens were retained), re-copy is no longer offered.
-- As a sender, I **remove** an entry (pending invite or established relationship) from my list
-  via the same modal. Removal is an archive, not a revocation: the link keeps working, the
+- As a sender, an invite whose 14-day TTL passed stays in my list as **Expired** (its token is
+  cleared server-side, so re-copy is no longer offered) until I remove it — it never silently
+  vanishes.
+- As a sender, I **remove** an entry (pending invite, expired invite, or established
+  relationship) from my list via the same modal. Removal is an archive, not a revocation: the link keeps working, the
   recipient can still sign in and complete KYC — only the entry disappears from my list (and,
   for an accepted invite, the sender↔recipient relationship is archived).
 - As a recipient, I open the link and land **in the widget**, pinned to my corridor. I sign in with

@@ -348,6 +348,8 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
     expect((body.error as { code: string }).code).toBe("INVITE_EXPIRED");
     const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
     expect(invitation?.status).toBe("expired");
+    // The expiry transition is the third token-clearing site — no live secret at rest.
+    expect(invitation?.token).toBeNull();
   });
 
   it("returns 404 for an unknown token", async () => {
@@ -434,18 +436,51 @@ describe("GET /v1/recipients", () => {
     expect(body.pendingInvitations).toHaveLength(0);
   });
 
-  it("expires and hides pending invitations whose TTL has passed", async () => {
+  it("expires overdue pending invitations but keeps them listed as expired without a token", async () => {
     const sender = await createApprovedSender("sender@example.com");
     const invite = await createInvite(sender.token);
     await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
 
     const response = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
-    const body = (await response.json()) as { recipients: unknown[]; pendingInvitations: unknown[] };
-    expect(body.pendingInvitations).toHaveLength(0);
+    const body = (await response.json()) as {
+      recipients: unknown[];
+      pendingInvitations: Array<{ id: string; isExpired: boolean; token: string | null }>;
+    };
+    // The row stays visible so the sender sees why the invite stopped working; the token is gone.
+    expect(body.pendingInvitations).toHaveLength(1);
+    expect(body.pendingInvitations[0].isExpired).toBe(true);
+    expect(body.pendingInvitations[0].token).toBeNull();
 
     const invitation = await RecipientInvitation.findByPk(invite.body.id as string);
     expect(invitation?.status).toBe("expired");
     expect(invitation?.token).toBeNull();
+  });
+
+  it("hides an archived expired invitation", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const invite = await createInvite(sender.token);
+    await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: invite.body.id as string } });
+
+    const archive = await api.request(`/v1/recipients/invitations/${invite.body.id}`, {
+      body: JSON.stringify({ archived: true }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+    expect(archive.status).toBe(200);
+
+    const response = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const body = (await response.json()) as { pendingInvitations: unknown[] };
+    expect(body.pendingInvitations).toHaveLength(0);
+  });
+
+  it("returns 404 for a malformed invitation id instead of a database error", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const response = await api.request("/v1/recipients/invitations/not-a-uuid", {
+      body: JSON.stringify({ archived: true }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+    expect(response.status).toBe(404);
   });
 
   it("does not report a business recipient approved off an individual provider approval", async () => {

@@ -28,6 +28,8 @@ import {
   providerForRail
 } from "../services/recipients/transfer-eligibility.service";
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function sendError(res: Response, status: number, code: string, message: string): void {
   res.status(status).json({ error: { code, message, status } });
 }
@@ -214,6 +216,11 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       if (lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId !== userId) {
         return "already_accepted" as const;
       }
+      // The unlocked expiry check above can race the list sweep (which also writes `expired`);
+      // re-check under the lock so an invite the system already declared expired is never accepted.
+      if (lockedInvitation.status === "expired") {
+        return "expired" as const;
+      }
 
       // Business invitees onboard as a business entity (KYB); individuals reuse the
       // profile's default entity.
@@ -270,6 +277,10 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
     }
     if (relationship === "already_accepted") {
       sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (relationship === "expired") {
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
       return;
     }
     if (relationship === "blocked") {
@@ -393,13 +404,14 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
       }
     );
 
+    // Expired rows stay visible (the sweep above cleared their token) so the sender sees why an
+    // invite stopped working and can re-invite or remove it; accepted rows surface as relationships.
     const pendingInvitations = await RecipientInvitation.findAll({
       order: [["createdAt", "DESC"]],
       where: {
         archivedAt: null,
-        [Op.or]: [{ expiresAt: null }, { expiresAt: { [Op.gt]: now } }],
         senderCustomerEntityId: senderEntity.id,
-        status: "pending"
+        status: ["pending", "expired"]
       }
     });
 
@@ -412,7 +424,7 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         id: invitation.id,
         inviteeEmail: invitation.inviteeEmail,
         inviteeType: invitation.inviteeType,
-        isExpired: Boolean(invitation.expiresAt && invitation.expiresAt < new Date()),
+        isExpired: invitation.status === "expired" || Boolean(invitation.expiresAt && invitation.expiresAt < now),
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail,
         // Raw token for sender re-copy; null for invites created before it was retained.
@@ -492,6 +504,11 @@ export async function archiveInvitation(req: Request<{ id: string }>, res: Respo
   const { archived } = (req.body ?? {}) as ArchiveInvitationBody;
   if (typeof archived !== "boolean") {
     sendError(res, httpStatus.BAD_REQUEST, "INVALID_ARCHIVED", "archived must be a boolean");
+    return;
+  }
+  // Sequelize casts :id to uuid in SQL; a malformed id would otherwise surface as a 22P02 500.
+  if (!UUID_PATTERN.test(req.params.id)) {
+    sendError(res, httpStatus.NOT_FOUND, "INVITATION_NOT_FOUND", "Invitation not found");
     return;
   }
 
