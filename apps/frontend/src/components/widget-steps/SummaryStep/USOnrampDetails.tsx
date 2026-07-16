@@ -25,7 +25,7 @@ const displayValue = (value: unknown, fallbackValue: string): string => {
 export const USOnrampDetails: FC = () => {
   const { t } = useTranslation();
   const rampActor = useRampActor();
-  const { isQuoteExpired, rampState } = useSelector(rampActor, state => state.context);
+  const { rampState } = useSelector(rampActor, state => state.context);
 
   const achPaymentData = rampState?.ramp?.achPaymentData;
   if (!rampState?.ramp || !achPaymentData) return null;

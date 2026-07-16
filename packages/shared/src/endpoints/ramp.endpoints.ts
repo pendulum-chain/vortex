@@ -40,6 +40,7 @@ export type RampPhase =
   | "alfredpayOfframpTransfer"
   | "alfredpayOfframpTransferFallback"
   | "brlaOnrampMint"
+  | "onHoldForComplianceCheck"
   | "brlaPayoutOnBase"
   | "mykoboOnrampDeposit"
   | "mykoboPayoutOnBase"
@@ -180,6 +181,12 @@ export interface RegisterRampRequest {
     paymentData?: PaymentData;
     pixDestination?: string;
     receiverTaxId?: string;
+    /**
+     * @deprecated Derived server-side from `api_keys.user_id -> tax_ids.user_id`
+     * for linked secret-key callers and Supabase-authenticated callers. The
+     * server accepts a value for one release of backward compatibility, but
+     * mismatches against the derived taxId are rejected.
+     */
     taxId?: string;
     sessionId?: string;
     email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
@@ -261,6 +268,10 @@ export interface GetRampStatusResponse extends RampProcess {
   vortexFeeUsd: string;
   totalFeeUsd: string;
   processingFeeUsd: string;
+  // User benefit from quote-time discount, displayed in feeCurrency when present
+  discountFiat?: string;
+  discountUsd?: string;
+  discountCurrency?: RampCurrency;
 }
 
 export interface GetRampErrorLogsRequest {
@@ -283,6 +294,7 @@ export interface GetRampHistoryTransaction {
   fromCurrency: RampCurrency;
   toCurrency: RampCurrency;
   status: TransactionStatus;
+  currentPhase: RampPhase;
   date: string;
   externalTxHash?: string;
   externalTxExplorerLink?: string;

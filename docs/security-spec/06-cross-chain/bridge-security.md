@@ -1,8 +1,10 @@
 # Bridge Security — Spacewalk
 
+> **⚠️ FULLY DEPRECATED.** The Spacewalk/Stellar bridge path is no longer an active Vortex corridor. EUR has migrated to Mykobo on Base, and ARS now routes through Alfredpay where supported. `spacewalkRedeemHandler` and `stellarPaymentHandler` are not registered in the active phase registry. This page is retained as historical documentation for the prior bridge model; do not treat it as reachable production behavior.
+
 ## What This Does
 
-Spacewalk is the bridge between the **Pendulum** parachain and the **Stellar** network. It enables off-ramp flows that terminate on Stellar (ARS today; EUR was migrated to Mykobo on Base — see `05-integrations/mykobo.md`) by converting Pendulum-wrapped Stellar tokens back to native Stellar tokens.
+Spacewalk is the bridge between the **Pendulum** parachain and the **Stellar** network. Historically, it enabled off-ramp flows that terminated on Stellar by converting Pendulum-wrapped Stellar tokens back to native Stellar tokens. Those corridors are now removed from the active Vortex phase registry.
 
 The bridge operates through a **vault-based model**: independent vault operators lock collateral on Pendulum and process redeem requests. When a user (or ephemeral account) wants to redeem Pendulum-wrapped tokens for their Stellar originals, a vault is selected, the wrapped tokens are burned on Pendulum, and the vault releases the native tokens on Stellar.
 

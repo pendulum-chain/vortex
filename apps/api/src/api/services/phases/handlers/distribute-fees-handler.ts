@@ -139,7 +139,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
 
       // Persist the hash from the submission result
-      const updatedState = await state.update({
+      await state.update({
         state: {
           ...state.state,
           distributeFeeHash: actualTxHash

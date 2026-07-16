@@ -1,6 +1,6 @@
 # Quick Start With The SDK
 
-This page walks through a complete BRL ramp end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
+This page walks through complete BRL and bank-transfer-corridor (USD, MXN, COP, ARS) ramps end-to-end using `@vortexfi/sdk`. The SDK is for trusted Node.js environments only.
 
 ## Install
 
@@ -49,8 +49,7 @@ const quote = await sdk.createQuote({
 });
 
 const { rampProcess } = await sdk.registerRamp(quote, {
-  destinationAddress: "0x1234567890123456789012345678901234567890",
-  taxId: "12345678900"           // user's CPF
+  destinationAddress: "0x1234567890123456789012345678901234567890"
 });
 
 // Show the PIX QR to the user and wait for them to pay.
@@ -60,7 +59,7 @@ console.log(rampProcess.depositQrCode);
 const started = await sdk.startRamp(rampProcess.id);
 ```
 
-The user must have completed BRLA KYC level 1 or higher under the same `taxId`. Partner `sk_*` keys cannot drive BRLA KYC; onboard the user through the Vortex app or Widget first.
+The user must have completed BRL KYC level 1 or higher, and the SDK must be authenticated with that user's own user-linked `sk_*` key: the user's CPF/CNPJ is derived from the authenticated account. The `taxId` field is deprecated — if you still send it, it must match the tax ID on the account or registration is rejected. Partner keys cannot drive KYC and cannot register ramps; onboard the user through the Vortex app or Widget first.
 
 ## BRL Offramp (Sell)
 
@@ -76,37 +75,121 @@ const quote = await sdk.createQuote({
   outputCurrency: FiatToken.BRL
 });
 
-const { rampProcess, userTransactions } = await sdk.registerRamp(quote, {
-  userAddress: "0xUSER...",
-  pixKey: "user@example.com",
-  taxId: "12345678900"
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  pixDestination: "user@example.com",
+  walletAddress: "0xUSER..."
 });
 
-// userTransactions contains the transactions the SDK could not sign on the
+// unsignedTransactions contains the transactions the SDK could not sign on the
 // user's behalf. Route them to the user's wallet (see below).
 ```
 
+The PIX payout goes to `pixDestination`, which must belong to the user. To pay out to a different recipient, pass `receiverTaxId` with the recipient's CPF/CNPJ; it defaults to the user's own tax ID.
+
 ### Signing The User Transaction With Wagmi
 
-The user-owned transactions are EVM typed-data payloads. With wagmi:
+The user-owned transactions are EVM typed-data payloads or EVM transactions. Keep wallet prompts in your application and let the SDK handle classification and submission:
 
 ```js
 import { signTypedData, sendTransaction } from "@wagmi/core";
 
-for (const tx of userTransactions) {
-  if (tx.type === "evm-typed-data") {
-    const signature = await signTypedData(wagmiConfig, tx.payload);
-    await sdk.submitUserSignature(rampProcess.id, tx.id, signature);
-  } else if (tx.type === "evm-transaction") {
-    const hash = await sendTransaction(wagmiConfig, tx.payload);
-    await sdk.submitUserTxHash(rampProcess.id, tx.id, hash);
-  }
-}
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
 
 const started = await sdk.startRamp(rampProcess.id);
 ```
 
 Validate every field before signing: `chainId`, `verifyingContract`, `value`, `to`, and `data` must match what your application requested. Never sign payloads blindly.
+
+## USD, MXN, COP And ARS Ramps
+
+USD, MXN, COP, and ARS settle through Vortex's local payment partners over the user's domestic banking rail. Pass the rail identifier as `from` (buy) or `to` (sell):
+
+| Fiat currency | Rail identifier | Payment rail |
+|---|---|---|
+| `USD` | `"ach"` | ACH bank transfer |
+| `MXN` | `"spei"` | SPEI transfer |
+| `COP` | `"ach"` | Colombian bank transfer |
+| `ARS` | `"cbu"` | CBU bank transfer |
+
+All four corridors support buys and sells on EVM networks; AssetHub is not available for these corridors. The examples below use MXN — for the other currencies, substitute the fiat token and the rail identifier from the table. See [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors) for onboarding, fiat accounts, and limits.
+
+### Onramp (Buy)
+
+The user pays fiat off-chain; crypto is delivered to `destinationAddress` on the quoted network.
+
+```js
+import { EPaymentMethod } from "@vortexfi/sdk";
+
+const quote = await sdk.createQuote({
+  rampType: RampDirection.BUY,
+  from: EPaymentMethod.SPEI,
+  to: Networks.Polygon,
+  network: Networks.Polygon,
+  inputAmount: "201",            // 201 MXN
+  inputCurrency: FiatToken.MXN,
+  outputCurrency: EvmToken.USDC
+});
+
+const { rampProcess } = await sdk.registerRamp(quote, {
+  destinationAddress: "0x1234567890123456789012345678901234567890",
+  walletAddress: "0x1234567890123456789012345678901234567890"
+  // fiatAccountId is optional for onramp
+});
+
+const started = await sdk.startRamp(rampProcess.id);
+
+// Show the user how to pay via SPEI
+console.log(started.achPaymentData);
+```
+
+No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
+
+Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed KYC for the corridor's country. The key and the KYC record belong to the same account, so registration resolves to the user's verified payment profile automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
+
+Partner `sk_*` keys cannot drive this KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) for minting it programmatically). This applies to buys and sells in all four corridors.
+
+### Offramp (Sell)
+
+Selling crypto for fiat in these corridors requires the user to sign one or more on-chain transactions with their own wallet. The SDK returns those transactions in `unsignedTransactions`.
+
+```js
+const quote = await sdk.createQuote({
+  rampType: RampDirection.SELL,
+  from: Networks.Polygon,
+  to: EPaymentMethod.SPEI,
+  network: Networks.Polygon,
+  inputAmount: "10",             // 10 USDC
+  inputCurrency: EvmToken.USDC,
+  outputCurrency: FiatToken.MXN
+});
+
+const { rampProcess, unsignedTransactions } = await sdk.registerRamp(quote, {
+  fiatAccountId: "00000000-0000-0000-0000-000000000000", // user's fiat account
+  walletAddress: "0xUSER..."
+});
+```
+
+`fiatAccountId` is opaque to the SDK. Create or look up the user's fiat account out-of-band and pass the ID here. It is required for offramp and optional for onramp.
+
+### Signing Offramp User Transactions
+
+Use the SDK helper to classify, sign, broadcast, and submit each entry in `unsignedTransactions`:
+
+```js
+import { signTypedData, sendTransaction } from "@wagmi/core";
+
+await sdk.submitUserTransactions(rampProcess.id, unsignedTransactions, {
+  signTypedData: payload => signTypedData(wagmiConfig, payload),
+  sendTransaction: tx => sendTransaction(wagmiConfig, tx)
+});
+
+await sdk.startRamp(rampProcess.id);
+```
+
+For wallets that call `eth_signTypedData_v4` directly, set `includeDomainType: true` on `submitUserTransactions` or pass `{ includeDomainType: true }` to `getTypedDataToSign` when using the lower-level helpers.
 
 ## Tracking Status
 

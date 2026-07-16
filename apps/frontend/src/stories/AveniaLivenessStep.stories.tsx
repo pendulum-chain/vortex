@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import type { ComponentProps } from "react";
 import { AveniaLivenessStep } from "../components/widget-steps/AveniaLivenessStep";
+
+type AveniaLivenessStepProps = ComponentProps<typeof AveniaLivenessStep>;
 
 // Create mock Avenia KYC actor
 const createMockAveniaKycActor = (livenessCheckOpened = false) => ({
-  send: (event: any) => {
+  send: (event: unknown) => {
     console.log("Avenia KYC event:", event);
   }
 });
@@ -48,8 +51,8 @@ type Story = StoryObj<typeof meta>;
 
 export const BeforeLivenessCheck: Story = {
   args: {
-    aveniaKycActor: createMockAveniaKycActor(false) as any,
-    aveniaState: createMockAveniaState(false) as any
+    aveniaKycActor: createMockAveniaKycActor(false) as unknown as AveniaLivenessStepProps["aveniaKycActor"],
+    aveniaState: createMockAveniaState(false) as unknown as AveniaLivenessStepProps["aveniaState"]
   },
   parameters: {
     docs: {
@@ -62,8 +65,8 @@ export const BeforeLivenessCheck: Story = {
 
 export const AfterLivenessCheckOpened: Story = {
   args: {
-    aveniaKycActor: createMockAveniaKycActor(true) as any,
-    aveniaState: createMockAveniaState(true) as any
+    aveniaKycActor: createMockAveniaKycActor(true) as unknown as AveniaLivenessStepProps["aveniaKycActor"],
+    aveniaState: createMockAveniaState(true) as unknown as AveniaLivenessStepProps["aveniaState"]
   },
   parameters: {
     docs: {
@@ -77,8 +80,8 @@ export const AfterLivenessCheckOpened: Story = {
 
 export const WithoutLivenessUrl: Story = {
   args: {
-    aveniaKycActor: createMockAveniaKycActor(false) as any,
-    aveniaState: createMockAveniaState(false, "") as any
+    aveniaKycActor: createMockAveniaKycActor(false) as unknown as AveniaLivenessStepProps["aveniaKycActor"],
+    aveniaState: createMockAveniaState(false, "") as unknown as AveniaLivenessStepProps["aveniaState"]
   },
   parameters: {
     docs: {

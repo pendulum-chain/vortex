@@ -2,7 +2,9 @@ import { Router } from "express";
 import multer from "multer";
 import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
+import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
+import { validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 }, storage: multer.memoryStorage() });
@@ -18,7 +20,13 @@ router.post("/createBusinessCustomer", requireAuth, validateResultCountry, Alfre
 router.get("/getKybRedirectLink", requireAuth, validateResultCountry, AlfredpayController.getKybRedirectLink);
 
 // MXN/CO API-based KYC
-router.post("/submitKycInformation", requireAuth, validateResultCountry, AlfredpayController.submitKycInformation);
+router.post(
+  "/submitKycInformation",
+  requireAuth,
+  validateResultCountry,
+  validateKycSubmission,
+  AlfredpayController.submitKycInformation
+);
 router.post("/submitKycFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKycFile);
 router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKycSubmission);
 
@@ -35,9 +43,16 @@ router.post(
 );
 router.post("/sendKybSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKybSubmission);
 
-// Fiat accounts (USD + MXN)
-router.post("/fiatAccounts", requireAuth, validateResultCountry, AlfredpayController.addFiatAccount);
-router.get("/fiatAccounts", requireAuth, validateResultCountry, AlfredpayController.listFiatAccounts);
-router.delete("/fiatAccounts/:fiatAccountId", requireAuth, validateResultCountry, AlfredpayController.deleteFiatAccount);
+// Fiat accounts (USD + MXN) — accept user-scoped secret API keys (sk_*) or Supabase Bearer
+// via requirePartnerOrUserAuth, so SDK/server integrations can manage fiat accounts without
+// a Supabase session.
+router.post("/fiatAccounts", requirePartnerOrUserAuth(), validateResultCountry, AlfredpayController.addFiatAccount);
+router.get("/fiatAccounts", requirePartnerOrUserAuth(), validateResultCountry, AlfredpayController.listFiatAccounts);
+router.delete(
+  "/fiatAccounts/:fiatAccountId",
+  requirePartnerOrUserAuth(),
+  validateResultCountry,
+  AlfredpayController.deleteFiatAccount
+);
 
 export default router;

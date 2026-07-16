@@ -30,7 +30,7 @@ Content-Type: application/json
 ```
 
 - `rampType` is `"BUY"` (onramp, fiat → crypto) or `"SELL"` (offramp, crypto → fiat).
-- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`).
+- `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
 - `inputAmount` is a decimal string in the smallest commonly used unit of `inputCurrency` (e.g. `"150"` for 150 BRL, `"100"` for 100 USDC). Do not pass raw chain base units.
 - `apiKey` (optional) is the partner public key `pk_live_*` / `pk_test_*`. Required for partner attribution and discount eligibility.
 
@@ -46,20 +46,28 @@ Content-Type: application/json
   "inputCurrency": "BRL",
   "outputAmount": "27.41",
   "outputCurrency": "USDC",
-  "fee": {
-    "network": "0.42",
-    "anchor": "1.50",
-    "vortex": "0.75",
-    "partner": "0.00",
-    "total": "2.67",
-    "currency": "BRL"
-  },
-  "expiresAt": "2025-05-18T12:35:00.000Z"
+  "network": "polygon",
+  "paymentMethod": "pix",
+  "networkFeeFiat": "0.42",
+  "anchorFeeFiat": "1.50",
+  "vortexFeeFiat": "0.75",
+  "partnerFeeFiat": "0.00",
+  "processingFeeFiat": "2.25",
+  "totalFeeFiat": "2.67",
+  "feeCurrency": "BRL",
+  "networkFeeUsd": "0.08",
+  "anchorFeeUsd": "0.28",
+  "vortexFeeUsd": "0.14",
+  "partnerFeeUsd": "0.00",
+  "processingFeeUsd": "0.42",
+  "totalFeeUsd": "0.50",
+  "expiresAt": "2026-07-10T12:35:00.000Z"
 }
 ```
 
 - All monetary fields are decimal strings, not numbers; preserve them as strings end-to-end.
-- `fee.currency` is the currency in which the fee fields are denominated.
+- Fees are flattened into per-component fields, each provided twice: once denominated in `feeCurrency` (the `*Fiat` fields) and once in USD (the `*Usd` fields). `processingFee` is the sum of the anchor and Vortex components.
+- When a quote-time discount applies, optional `discountFiat`, `discountUsd`, and `discountCurrency` fields are present.
 - `expiresAt` is short (typically a few minutes). Register the ramp promptly or request a new quote.
 
 ## Best-Quote Selection
@@ -83,12 +91,25 @@ To restrict the search to a subset of chains (for example when you only support 
 }
 ```
 
+## Quote Error Handling
+
+Expected route-availability failures are returned as `500` responses with a user-facing message. The HTTP status reflects that the route exists but current pool or route liquidity cannot serve the requested amount. Clients should treat this as a user-correctable liquidity failure and ask the user to try a smaller amount or check back soon. Both `POST /v1/quotes` and `POST /v1/quotes/best` can return:
+
+```json
+{
+  "code": 500,
+  "message": "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon."
+}
+```
+
+For `POST /v1/quotes/best`, this low-liquidity response is returned when every eligible candidate route fails because of liquidity. Unexpected provider or calculation errors remain internal failures and should be retried or escalated with the response request ID if they persist.
+
 ## Quote Expiry
 
 Quotes are immutable and short-lived. If the user takes too long to confirm, or if you delay before calling `POST /v1/ramp/register`, the quote expires and the register call rejects it. Catch the expiry error, create a fresh quote, and re-prompt the user before registering.
 
 ## Partner Pricing
 
-Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And Partner Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
 ---

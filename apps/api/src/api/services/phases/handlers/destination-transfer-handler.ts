@@ -78,7 +78,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
     }
 
     const { txData: destinationTransfer } = this.getPresignedTransaction(state, "destinationTransfer");
-    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toString();
+    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals).toFixed(0, 0);
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
     const { destinationTransferTxHash, destinationAddress } = state.state as StateMetadata;
 

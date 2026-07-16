@@ -5,6 +5,7 @@ import {
   GetRampHistoryResponse,
   GetRampStatusRequest,
   GetRampStatusResponse,
+  ProviderHttpError,
   RampProcess,
   StartRampRequest,
   StartRampResponse,
@@ -16,12 +17,88 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
 import { enrichAdditionalDataWithClientIp } from "../helpers/clientIp";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import { assertQuoteOwnership, assertRampOwnership } from "../middlewares/ownershipAuth";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { ApiClientOperation } from "../observability/types";
 import rampService from "../services/ramp/ramp.service";
+
+/**
+ * Translate a raw fiat-provider (Avenia/BRLA, Alfredpay) failure raised while handling a ramp
+ * request into a caller-facing `APIError` plus structured log context.
+ *
+ * - Logging: for a `ProviderHttpError` we surface the exact `provider`/`endpoint`/`method`/
+ *   `status` of the failing call plus a truncated response body (the reason, e.g. "user is
+ *   blocked") so operators can tell *where* and *why* it failed without guessing. The body is
+ *   logged server-side only and never returned to the caller. A transport failure carries
+ *   `status: 0`, which maps to the same 502 as an upstream `5xx`.
+ * - Caller message: the provider's raw body (e.g. `{"error":"user is blocked"}`) is never
+ *   forwarded. A `4xx` means the account/request was rejected (unprocessable), a `5xx`/
+ *   transport failure means the provider is unavailable (bad gateway). Both messages indicate
+ *   the failing stage — the payment provider — without leaking internal detail. The word
+ *   "provider" keeps `classifyApiClientError` reporting this as `provider_error`.
+ *
+ * Non-provider errors (validation, ownership, quote state, …) are returned unchanged.
+ */
+const MAX_LOGGED_PROVIDER_BODY_LENGTH = 300;
+
+/**
+ * Collapse control characters (CR/LF, ESC, etc.) in the untrusted provider response body to a
+ * single space before it is embedded in a log line. The body is external input echoed from the
+ * provider's HTTP response, so an embedded newline could split the line or forge a fake log
+ * entry (CWE-117), and an ESC could inject terminal color codes. The other fields we log
+ * (provider, endpoint, method, numeric status) are code-defined constants and need no escaping.
+ */
+function sanitizeProviderBody(body: string): string {
+  return body.replace(/[\x00-\x1F\x7F]+/g, " ");
+}
+
+export function mapProviderFailure(error: unknown): { error: unknown; logContext: Record<string, unknown> } {
+  if (!(error instanceof ProviderHttpError)) {
+    return { error, logContext: {} };
+  }
+
+  const isClientRejection = error.status >= 400 && error.status < 500;
+  const mapped = new APIError({
+    isPublic: true,
+    message: isClientRejection
+      ? "The payment provider could not process this request for the associated account. Please verify the account status or contact support."
+      : "The payment provider is temporarily unavailable. Please try again shortly.",
+    status: isClientRejection ? httpStatus.UNPROCESSABLE_ENTITY : httpStatus.BAD_GATEWAY
+  });
+
+  return {
+    error: mapped,
+    logContext: {
+      provider: error.provider,
+      providerEndpoint: error.endpoint,
+      providerMethod: error.method,
+      providerResponseBody: sanitizeProviderBody(error.responseBody).slice(0, MAX_LOGGED_PROVIDER_BODY_LENGTH),
+      providerStatus: error.status
+    }
+  };
+}
+
+/**
+ * Render the provider log context as a message suffix.
+ *
+ * The app logger (`config/logger.ts`) formats only `{ timestamp, level, message, label }` and
+ * drops any metadata object passed as the second argument. Provider context therefore has to
+ * live in the message string itself to reach the logs — passing it as metadata (as we did
+ * before) silently discarded it. Server-side only; the body is already truncated. Returns an
+ * empty string for non-provider failures so their log line is unchanged.
+ */
+export function formatProviderContext(logContext: Record<string, unknown>): string {
+  if (!logContext.provider) {
+    return "";
+  }
+  return (
+    ` — provider=${logContext.provider} call=${logContext.providerMethod} ${logContext.providerEndpoint}` +
+    ` status=${logContext.providerStatus} body=${logContext.providerResponseBody}`
+  );
+}
 
 /**
  * Register a new ramping process
@@ -43,11 +120,13 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     const enrichedAdditionalData = await enrichAdditionalDataWithClientIp(additionalData, req);
 
+    const effectiveUserId = getEffectiveUserId(req);
+
     const ramp = await rampService.registerRamp({
       additionalData: enrichedAdditionalData,
       quoteId,
       signingAccounts,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeRampSuccess(req, "ramp_register", httpStatus.CREATED, {
@@ -59,9 +138,13 @@ export const registerRamp = async (req: Request, res: Response<RampProcess>, nex
 
     res.status(httpStatus.CREATED).json(ramp);
   } catch (error) {
-    logger.error("Error registering ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_register", error, { quoteId: req.body?.quoteId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error(`Error registering ramp${formatProviderContext(logContext)}`, {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId
+    });
+    observeRampFailure(req, "ramp_register", mappedError, { quoteId: req.body?.quoteId || null });
+    next(mappedError);
   }
 };
 
@@ -111,9 +194,13 @@ export const updateRamp = async (
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error updating ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_update", error, { rampId: req.body?.rampId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error(`Error updating ramp${formatProviderContext(logContext)}`, {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId
+    });
+    observeRampFailure(req, "ramp_update", mappedError, { rampId: req.body?.rampId || null });
+    next(mappedError);
   }
 };
 
@@ -153,9 +240,13 @@ export const startRamp = async (
 
     res.status(httpStatus.OK).json(ramp);
   } catch (error) {
-    logger.error("Error starting ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_start", error, { rampId: req.body?.rampId || null });
-    next(error);
+    const { error: mappedError, logContext } = mapProviderFailure(error);
+    logger.error(`Error starting ramp${formatProviderContext(logContext)}`, {
+      errorType: classifyApiClientError(mappedError),
+      requestId: req.requestId
+    });
+    observeRampFailure(req, "ramp_start", mappedError, { rampId: req.body?.rampId || null });
+    next(mappedError);
   }
 };
 
@@ -257,10 +348,11 @@ export const getRampHistory = async (
       });
     }
 
+    const effectiveUserId = getEffectiveUserId(req);
     const owner = req.authenticatedPartner
       ? { partnerId: req.authenticatedPartner.id }
-      : req.userId
-        ? { userId: req.userId }
+      : effectiveUserId
+        ? { userId: effectiveUserId }
         : null;
     if (!owner) {
       throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
@@ -288,6 +380,11 @@ interface RampObservationContext {
 
 interface ObservedRampRequest {
   authenticatedPartner?: { id: string; name: string };
+  body?: unknown;
+  method?: string;
+  params?: unknown;
+  path?: string;
+  query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
   userId?: string;
@@ -325,6 +422,7 @@ function observeRampFailure(
     errorMessage: getErrorMessage(error),
     errorType: classifyApiClientError(error, status),
     httpStatus: status,
+    metadata: buildRampRequestMetadata(req, operation),
     operation,
     partnerId: req.authenticatedPartner?.id || null,
     partnerName: req.authenticatedPartner?.name || null,
@@ -332,6 +430,26 @@ function observeRampFailure(
     status: "failure",
     userId: req.userId || null
   });
+}
+
+function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObservedOperation): Record<string, unknown> {
+  if (operation === "ramp_register") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "signingAccounts", "additionalData"] });
+  }
+
+  if (operation === "ramp_update") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId", "presignedTxs", "additionalData"] });
+  }
+
+  if (operation === "ramp_start") {
+    return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId"] });
+  }
+
+  if (operation === "ramp_status") {
+    return buildApiClientRequestMetadata(req, { paramKeys: ["id"], queryKeys: ["showUnsignedTxs"] });
+  }
+
+  return buildApiClientRequestMetadata(req, { paramKeys: ["id"] });
 }
 
 function getHttpStatus(error: unknown): number {

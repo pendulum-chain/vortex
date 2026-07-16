@@ -53,6 +53,57 @@ function readFlowVariant(): FlowVariant {
   return rawFlowVariant as FlowVariant;
 }
 
+interface MykoboFeeFallback {
+  enabled: boolean;
+  depositFee: string | undefined;
+  withdrawFee: string | undefined;
+}
+
+// Display-only fallback so EUR quotes still render when the Mykobo /fees endpoint is
+// down. Never prices a ramp execution: EUR ramp start is currently blocked entirely by
+// the register-time kill-switch (registerRamp rejects EURC quotes with 503). When EUR is
+// re-enabled, ramp start must re-validate the live Mykobo fee before executing — no such
+// check exists today. Both fees are flat EUR amounts and are required when enabled.
+function readMykoboFeeFallback(): MykoboFeeFallback {
+  const enabled = process.env.MYKOBO_FEE_FALLBACK_ENABLED === "true";
+  if (!enabled) {
+    return { depositFee: undefined, enabled: false, withdrawFee: undefined };
+  }
+  return {
+    depositFee: readNonNegativeDecimalEnv("MYKOBO_FALLBACK_DEPOSIT_FEE"),
+    enabled: true,
+    withdrawFee: readNonNegativeDecimalEnv("MYKOBO_FALLBACK_WITHDRAW_FEE")
+  };
+}
+
+function readNonNegativeDecimalEnv(name: string): string {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) {
+    throw new Error(`${name} is required when MYKOBO_FEE_FALLBACK_ENABLED=true`);
+  }
+  const value = Number(rawValue);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${name} must be a non-negative number (got '${rawValue}')`);
+  }
+  return rawValue;
+}
+
+function readFractionEnv(name: string, defaultValue: string): number {
+  const rawValue = process.env[name] ?? defaultValue;
+  const trimmedValue = rawValue.trim();
+
+  if (trimmedValue === "") {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  const value = Number(trimmedValue);
+  if (!Number.isFinite(value) || value < 0 || value > 1) {
+    throw new Error(`${name} must be a finite number between 0 and 1`);
+  }
+
+  return value;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
@@ -73,6 +124,7 @@ interface Config {
   };
   priceProviders: {
     alchemyPay: PriceProvider;
+    binance: PriceProvider;
     transak: PriceProvider;
     moonpay: PriceProvider;
     coingecko: {
@@ -80,6 +132,10 @@ interface Config {
       baseUrl: string;
       cryptoCacheTtlMs: number;
       fiatCacheTtlMs: number;
+    };
+    fastforex: {
+      apiKey: string | undefined;
+      baseUrl: string;
     };
   };
   spreadsheet: SpreadsheetConfig;
@@ -95,9 +151,21 @@ interface Config {
   swap: {
     deadlineMinutes: number;
   };
+  subsidy: {
+    evmPostSwapDiscountSubsidyQuoteFraction: number;
+    evmSwapSubsidyQuoteFraction: number;
+  };
   quote: {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
+  };
+  mykobo: {
+    feeFallback: MykoboFeeFallback;
+  };
+  monerium: {
+    apiUrl: string;
+    clientId: string;
+    redirectUri: string;
   };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
@@ -105,7 +173,6 @@ interface Config {
   secrets: {
     pendulumFundingSeed: string | undefined;
     moonbeamExecutorPrivateKey: string | undefined;
-    clientDomainSecret: string | undefined;
     webhookPrivateKey: string | undefined;
   };
 
@@ -158,6 +225,16 @@ export const config: Config = {
   },
   logs: nodeEnv === "production" ? "combined" : "dev",
   metricsDashboardSecret: process.env.METRICS_DASHBOARD_SECRET || "",
+  monerium: {
+    apiUrl:
+      process.env.MONERIUM_API_URL ||
+      (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
+    clientId: process.env.MONERIUM_CLIENT_ID || "",
+    redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+  },
+  mykobo: {
+    feeFallback: readMykoboFeeFallback()
+  },
   pendulumWss: process.env.PENDULUM_WSS || "wss://rpc-pendulum.prd.pendulumchain.tech",
   port: process.env.PORT || 3000,
   priceProviders: {
@@ -166,11 +243,18 @@ export const config: Config = {
       baseUrl: process.env.ALCHEMYPAY_PROD_URL || "https://openapi.alchemypay.org",
       secretKey: process.env.ALCHEMYPAY_SECRET_KEY
     },
+    binance: {
+      baseUrl: process.env.BINANCE_API_URL || "https://api.binance.com"
+    },
     coingecko: {
       apiKey: process.env.COINGECKO_API_KEY,
       baseUrl: process.env.COINGECKO_API_URL || "https://pro-api.coingecko.com/api/v3",
       cryptoCacheTtlMs: parseInt(process.env.CRYPTO_CACHE_TTL_MS || "300000", 10),
       fiatCacheTtlMs: parseInt(process.env.FIAT_CACHE_TTL_MS || "300000", 10)
+    },
+    fastforex: {
+      apiKey: process.env.FASTFOREX_API_KEY,
+      baseUrl: process.env.FASTFOREX_API_URL || "https://api.fastforex.io"
     },
     moonpay: {
       apiKey: process.env.MOONPAY_API_KEY,
@@ -193,7 +277,6 @@ export const config: Config = {
   sandboxEnabled: process.env.SANDBOX_ENABLED === "true",
 
   secrets: {
-    clientDomainSecret: process.env.CLIENT_DOMAIN_SECRET,
     moonbeamExecutorPrivateKey: process.env.MOONBEAM_EXECUTOR_PRIVATE_KEY,
     pendulumFundingSeed: process.env.PENDULUM_FUNDING_SEED,
     webhookPrivateKey: process.env.WEBHOOK_PRIVATE_KEY
@@ -209,6 +292,11 @@ export const config: Config = {
     storageSheetId: process.env.GOOGLE_SPREADSHEET_ID
   },
   subscanApiKey: process.env.SUBSCAN_API_KEY,
+
+  subsidy: {
+    evmPostSwapDiscountSubsidyQuoteFraction: readFractionEnv("MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION", "0.05"),
+    evmSwapSubsidyQuoteFraction: readFractionEnv("MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION", "0.05")
+  },
   supabase: {
     anonKey: process.env.SUPABASE_ANON_KEY || "",
     serviceRoleKey: process.env.SUPABASE_SERVICE_KEY || "",
@@ -240,6 +328,8 @@ if (config.env === "production") {
   if (!config.adminSecret) missing.push("ADMIN_SECRET");
   if (!config.metricsDashboardSecret) missing.push("METRICS_DASHBOARD_SECRET");
   if (!process.env.FLOW_VARIANT) missing.push("FLOW_VARIANT");
+  if (!config.monerium.clientId) missing.push("MONERIUM_CLIENT_ID");
+  if (!process.env.MONERIUM_REDIRECT_URI) missing.push("MONERIUM_REDIRECT_URI");
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables in production: ${missing.join(", ")}`);

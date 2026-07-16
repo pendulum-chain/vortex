@@ -3,7 +3,9 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import alfredpayRoutes from "./alfredpay.route";
+import apiKeysRoutes from "./api-keys.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
 import contactRoutes from "./contact.route";
@@ -13,13 +15,17 @@ import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
+import moneriumRoutes from "./monerium.route";
 import mykoboRoutes from "./mykobo.route";
+import notificationsRoutes from "./notifications.route";
+import onboardingRoutes from "./onboarding.route";
 import paymentMethodsRoutes from "./payment-methods.route";
 import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
 import ratingRoutes from "./rating.route";
+import recipientsRoutes from "./recipients.route";
 import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
 import storageRoutes from "./storage.route";
@@ -151,6 +157,11 @@ router.use("/alfredpay", alfredpayRoutes);
 router.use("/mykobo", mykoboRoutes);
 
 /**
+ * Server-side Monerium OAuth and KYC/KYB status synchronization.
+ */
+router.use("/monerium", moneriumRoutes);
+
+/**
  * POST v1/webhook
  * DELETE v1/webhook
  */
@@ -167,6 +178,41 @@ router.use("/public-key", publicKeyRoutes);
 router.use("/metrics", metricsRoutes);
 
 /**
+ * Recipient invites, relationships and transfer eligibility for authenticated senders.
+ * POST /v1/recipients/invite
+ * POST /v1/recipients/invite/:token/accept
+ * GET /v1/recipients
+ * PATCH /v1/recipients/:id
+ * GET /v1/recipients/:id/eligibility
+ */
+router.use("/recipients", recipientsRoutes);
+
+/**
+ * In-app notification feed and preferences for authenticated users.
+ * GET /v1/notifications
+ * POST /v1/notifications/:id/read
+ * POST /v1/notifications/read-all
+ * GET/PUT /v1/notifications/preferences
+ */
+router.use("/notifications", notificationsRoutes);
+
+/**
+ * Aggregated onboarding status over provider accounts + KYC cases.
+ * GET /v1/onboarding/status
+ */
+router.use("/onboarding", onboardingRoutes);
+
+/**
+ * Self-serve API key management for authenticated Supabase users.
+ * Keys created here are user-scoped (no partner binding) and authenticate
+ * via the X-API-Key header on quote/ramp endpoints as the linked user.
+ * POST /v1/api-keys
+ * GET /v1/api-keys
+ * DELETE /v1/api-keys/:keyId
+ */
+router.use("/api-keys", apiKeysRoutes);
+
+/**
  * Admin routes for partner API key management
  * Uses partner name (not ID) to manage keys for all partner configurations
  * POST /v1/admin/partners/:partnerName/api-keys
@@ -174,6 +220,14 @@ router.use("/metrics", metricsRoutes);
  * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
  */
 router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+
+/**
+ * Admin routes for profile partner pricing assignments
+ * POST /v1/admin/profile-partner-assignments
+ * GET /v1/admin/profile-partner-assignments
+ * DELETE /v1/admin/profile-partner-assignments/:assignmentId
+ */
+router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes);
 
 /**
  * Admin routes for API client observability dashboards

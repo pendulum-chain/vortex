@@ -51,9 +51,9 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
    * Queries squidrouter to determine the actual conversion rate from axlUSDC on Moonbeam
    * to the final destination token on the target EVM chain.
    *
-   * The oracle price is based on the Binance USDT-BRL rate, but the Nabla swap on Pendulum
-   * outputs axlUSDC (not USDT). Since axlUSDC may trade at a discount to USDT via
-   * squidrouter, using the oracle USDT rate as the axlUSDC subsidy target means the user
+   * The oracle price is the fastforex USD mid-market fiat rate, but the Nabla swap on Pendulum
+   * outputs axlUSDC (not USD). Since axlUSDC may trade at a discount to USD via
+   * squidrouter, using the oracle USD rate as the axlUSDC subsidy target means the user
    * would receive slightly less than the oracle-promised amount after the squidrouter step.
    *
    * This method fetches the actual axlUSDC → destination token rate so the discount engine
@@ -104,9 +104,9 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
    * Queries squidrouter to determine the actual conversion rate from USDC on Base
    * to the final destination token on the target EVM chain.
    *
-   * The oracle price is based on the Binance USDT-BRL rate, but the Nabla swap on Base
-   * outputs USDC (not USDT). Since USDC may trade at a discount to USDT via
-   * squidrouter, using the oracle USDT rate as the USDC subsidy target means the user
+   * The oracle price is the fastforex USD mid-market fiat rate, but the Nabla swap on Base
+   * outputs USDC (not USD). Since USDC may trade at a discount to USD via
+   * squidrouter, using the oracle USD rate as the USDC subsidy target means the user
    * may receive slightly less than the oracle-promised amount after the squidrouter step.
    *
    * This method fetches the actual USDC → destination token rate so the discount engine
@@ -165,11 +165,18 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
 
     // Determine which nabla swap we're using (Base EVM or Pendulum)
     const isBaseFlow = !!ctx.nablaSwapEvm;
-    const nablaSwap = ctx.nablaSwapEvm || ctx.nablaSwap!;
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const oraclePrice = nablaSwap.oraclePrice!;
-    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const usdFees = ctx.fees!.usd!;
+    const nablaSwap = ctx.nablaSwapEvm ?? ctx.nablaSwap;
+    if (!nablaSwap) {
+      throw new Error("OnRampDiscountEngine requires nablaSwap or nablaSwapEvm in context");
+    }
+    const oraclePrice = nablaSwap.oraclePrice;
+    if (!oraclePrice) {
+      throw new Error("OnRampDiscountEngine requires oraclePrice in swap metadata");
+    }
+    const usdFees = ctx.fees?.usd;
+    if (!usdFees) {
+      throw new Error("OnRampDiscountEngine requires fees.usd in context");
+    }
 
     const { inputAmount, rampType } = ctx.request;
 

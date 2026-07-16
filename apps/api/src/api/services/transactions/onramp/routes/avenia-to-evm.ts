@@ -182,10 +182,16 @@ export async function prepareAveniaToEvmOnrampTransactions({
   moonbeamNonce++;
 
   // Fallback swap depends on the EVM chain. For Ethereum, the bridged token is USDC. For the rest, it is axlUSDC.
-  const bridgedTokenForFallback =
-    toNetwork === Networks.Ethereum
-      ? evmTokenConfig.ethereum.USDC!.erc20AddressSourceChain
-      : destinationAxlUsdcDetails.erc20AddressSourceChain;
+  let bridgedTokenForFallback: `0x${string}`;
+  if (toNetwork === Networks.Ethereum) {
+    const ethereumUsdc = evmTokenConfig.ethereum.USDC;
+    if (!ethereumUsdc) {
+      throw new Error("USDC config missing for Ethereum");
+    }
+    bridgedTokenForFallback = ethereumUsdc.erc20AddressSourceChain as `0x${string}`;
+  } else {
+    bridgedTokenForFallback = destinationAxlUsdcDetails.erc20AddressSourceChain as `0x${string}`;
+  }
 
   const { approveData: destApproveData, swapData: destSwapData } = await createOnrampSquidrouterTransactionsOnDestinationChain({
     destinationAddress: evmEphemeralEntry.address,
@@ -198,10 +204,10 @@ export async function prepareAveniaToEvmOnrampTransactions({
 
   let destinationNonce = 0;
 
-  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals);
+  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
 
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-    amountRaw: finalAmountRaw.toString(),
+    amountRaw: finalAmountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,

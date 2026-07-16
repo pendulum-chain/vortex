@@ -6,7 +6,7 @@ These docs are written for partner developers integrating Vortex into a backend,
 
 ## Supported Corridors
 
-The current SDK release is centered on **BRL/PIX** for both buy (onramp) and sell (offramp) flows. EUR onramp endpoints exist on the API surface but the SDK throws `"Euro onramp handler not implemented yet"`; SEPA buy flows are not production-ready today. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
+The current SDK release supports BRL/PIX flows, EUR/SEPA flows, and bank-transfer corridors for USD (ACH), MXN (SPEI), COP (ACH), and ARS (CBU) through Vortex's local payment partners, where enabled by country and route configuration. The EUR and bank-transfer corridors support buys and sells on EVM networks; AssetHub is not available for them. Other fiat currencies are exposed through reference data endpoints and are added incrementally.
 
 For crypto, Vortex supports USDC and USDT across the listed EVM networks plus USDC on AssetHub. Stablecoin pegs and routes are subject to liquidity on the Nabla AMM and the wider Pendulum/Hydration corridor.
 
@@ -17,7 +17,7 @@ Every Vortex ramp follows the same shape:
 1. **Quote** — your application requests pricing for a route.
 2. **Register** — your application creates per-chain ephemeral accounts and submits their public addresses with the quote ID. Vortex returns one or more **unsigned** transactions that move funds through the ramp.
 3. **Sign and update** — your application signs each unsigned transaction with the correct key (ephemeral key for SDK-controlled accounts, user wallet for the user's funds) and submits the signed payloads back to Vortex.
-4. **Settle fiat** — for BRL buys, the user pays a PIX QR; for BRL sells, Vortex pays out to the user's PIX key after settlement.
+4. **Settle fiat** — on buys, the user pays on the corridor's rail (a PIX QR for BRL, a SEPA transfer for EUR, bank transfer instructions for USD/MXN/COP/ARS); on sells, Vortex pays out on that rail after settlement.
 5. **Start** — your application calls start once signatures and fiat payment are in place.
 6. **Track** — Vortex drives the on-chain phase machine. Your application listens via webhooks or polls the ramp status endpoint.
 

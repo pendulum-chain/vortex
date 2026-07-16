@@ -1,6 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { getKeyType, isValidApiKeyFormat, validatePublicApiKey } from "./apiKeyAuth.helpers";
 
@@ -11,7 +15,7 @@ declare global {
     interface Request {
       validatedPublicKey?: {
         apiKey: string;
-        partnerName: string;
+        partnerName: string | null;
       };
     }
   }
@@ -36,7 +40,7 @@ export function validatePublicKey() {
 
       // Validate API key format
       if (!isValidApiKeyFormat(apiKey)) {
-        recordPublicKeyFailure(req, 400, getSafeKeyPrefix(apiKey));
+        recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
         return res.status(400).json({
           error: {
             code: "INVALID_API_KEY_FORMAT",
@@ -49,7 +53,7 @@ export function validatePublicKey() {
       // Check if it's a public key
       const keyType = getKeyType(apiKey);
       if (keyType !== "public") {
-        recordPublicKeyFailure(req, 400, getSafeKeyPrefix(apiKey));
+        recordPublicKeyFailure(req, 400, getSafeApiKeyPrefix(apiKey));
         return res.status(400).json({
           error: {
             code: "INVALID_KEY_TYPE",
@@ -60,10 +64,10 @@ export function validatePublicKey() {
       }
 
       // Validate the public key exists and is active
-      const partnerName = await validatePublicApiKey(apiKey);
+      const result = await validatePublicApiKey(apiKey);
 
-      if (!partnerName) {
-        recordPublicKeyFailure(req, 401, getSafeKeyPrefix(apiKey));
+      if (!result) {
+        recordPublicKeyFailure(req, 401, getSafeApiKeyPrefix(apiKey));
         return res.status(401).json({
           error: {
             code: "INVALID_PUBLIC_KEY",
@@ -76,7 +80,7 @@ export function validatePublicKey() {
       // Attach validated public key info to request
       req.validatedPublicKey = {
         apiKey,
-        partnerName
+        partnerName: result.partnerName
       };
 
       next();
@@ -93,15 +97,10 @@ function recordPublicKeyFailure(req: Request, httpStatus: number, apiKeyPrefix: 
     durationMs: getRequestDurationMs(req),
     errorType: "auth_invalid_public_key",
     httpStatus,
+    metadata: buildApiClientRequestMetadata(req),
     operation: "auth_public_key",
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: req.userId || req.apiKeyUserId || null
   });
-}
-
-function getSafeKeyPrefix(apiKey: string | undefined): string | null {
-  if (!apiKey) return null;
-  if (!apiKey.startsWith("pk_") && !apiKey.startsWith("sk_")) return null;
-  return apiKey.slice(0, 8);
 }

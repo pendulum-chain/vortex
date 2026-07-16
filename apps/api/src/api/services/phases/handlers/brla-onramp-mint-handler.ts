@@ -20,16 +20,21 @@ import httpStatus from "http-status";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import TaxId from "../../../../models/taxId.model";
 import { APIError } from "../../../errors/api-error";
+import { findAveniaCustomerByTaxId } from "../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../base-phase-handler";
+import { syncAveniaOnHoldState } from "../helpers/brla-onramp-hold";
 import { StateMetadata } from "../meta-state-types";
 
-// The rationale for these difference is that it allows for a finer check over the payment timeout in
-// case of service restart. A smaller timeout for the balance check loop allows to get out to the outer
-// process loop and check for the operation timestamp.
+// The check loops use a smaller timeout than the overall payment timeout so each execution
+// returns to the outer process loop well below the processor's execution timeout and checks
+// the operation timestamp there. The previous 30-minute Avenia wait always outlived the
+// processor's 10-minute race, so the payment-timeout cancellation below never ran for
+// recovered ramps and abandoned executions piled up.
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AVENIA_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS = 60 * 1000; // 1 minute
 
 // The pre-computed expected amount stored at quote-creation time can be slightly higher than the
 // amount actually transferred due to fee differences at execution time. We allow a 5% tolerance
@@ -43,7 +48,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     return "brlaOnrampMint";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const { evmEphemeralAddress } = state.state as StateMetadata;
 
     if (!evmEphemeralAddress) {
@@ -63,13 +68,14 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       throw new Error("Missing 'aveniaTransfer' in quote metadata");
     }
 
-    const taxIdRecord = await TaxId.findByPk(state.state.taxId);
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(state.state.taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
     }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
     const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
     if (!tokenDetails) {
@@ -95,6 +101,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
     }
 
     const brlaApiService = BrlaApiService.getInstance();
+    let lastAveniaHoldStatusCheckAt = 0;
     try {
       logger.info(
         `BrlaOnrampMintHandler: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
@@ -105,15 +112,38 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
             return false;
           }
 
+          const now = Date.now();
+          if (now - lastAveniaHoldStatusCheckAt >= AVENIA_HOLD_STATUS_CHECK_INTERVAL_MS) {
+            lastAveniaHoldStatusCheckAt = now;
+            const ticketFound = await syncAveniaOnHoldState(
+              state.state,
+              updatedState =>
+                state.update({
+                  state: {
+                    ...state.state,
+                    ...updatedState
+                  }
+                }),
+              brlaApiService,
+              aveniaSubAccountId
+            );
+            if (!ticketFound) {
+              logger.warn(
+                `BrlaOnrampMintHandler: Avenia ticket ${state.state.aveniaTicketId} was not found while checking hold status.`
+              );
+            }
+          }
+
           // Check internal balance of Avenia subaccount
-          const { balances } = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
+          const { balances } = await brlaApiService.getAccountBalance(aveniaSubAccountId);
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
           return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
-        PAYMENT_TIMEOUT_MS
+        AVENIA_BALANCE_CHECK_TIMEOUT_MS,
+        signal
       );
     } catch (error) {
       const isCheckTimeout = error instanceof Error && error.message.includes("Timeout");
@@ -139,7 +169,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
       outputCurrency: BrlaCurrency.BRLA,
       outputPaymentMethod: AveniaPaymentMethod.BASE,
       outputThirdParty: false,
-      subAccountId: taxIdRecord.subAccountId
+      subAccountId: aveniaSubAccountId
     });
 
     logger.info("BrlaOnrampMintHandler: Created Avenia pay-out quote for mint transfer.");
@@ -161,7 +191,7 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
           walletChain: AveniaPaymentMethod.BASE
         }
       },
-      taxIdRecord.subAccountId
+      aveniaSubAccountId
     );
 
     logger.info(
@@ -177,7 +207,8 @@ export class BrlaOnrampMintHandler extends BasePhaseHandler {
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Base
+        Networks.Base,
+        signal
       );
     } catch (error) {
       if (!(error instanceof BalanceCheckError)) throw error;

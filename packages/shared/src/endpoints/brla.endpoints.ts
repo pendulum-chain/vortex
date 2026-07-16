@@ -102,7 +102,8 @@ export interface BrlaCreateSubaccountRequest {
   accountType: AveniaAccountType;
   name: string;
   taxId: string;
-  quoteId: string;
+  // Optional: the KYB deep link creates a subaccount without a quote. The backend stores it as a nullable initialQuoteId.
+  quoteId?: string;
   sessionId?: string;
 }
 

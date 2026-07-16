@@ -4,6 +4,7 @@ import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
+import User from "../../../models/user.model";
 import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
 
 /**
@@ -13,17 +14,17 @@ import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiK
 export async function createApiKey(req: Request<{ partnerName: string }>, res: Response): Promise<void> {
   try {
     const partnerName = req.params.partnerName;
-    const { name, expiresAt } = req.body;
+    const { name, expiresAt, userId } = req.body;
 
-    // Verify at least one partner with this name exists and is active
-    const partners = await Partner.findAll({
+    // Resolve the (unique-name) partner; keys bind to it by FK
+    const partner = await Partner.findOne({
       where: {
         isActive: true,
         name: partnerName
       }
     });
 
-    if (partners.length === 0) {
+    if (!partner) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
@@ -32,6 +33,34 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
         }
       });
       return;
+    }
+
+    // Optionally bind the new key pair to a profile (api_keys.user_id).
+    // The user must already exist; null is the default for partner-only keys.
+    let resolvedUserId: string | null = null;
+    if (userId !== undefined && userId !== null && userId !== "") {
+      if (typeof userId !== "string") {
+        res.status(httpStatus.BAD_REQUEST).json({
+          error: {
+            code: "INVALID_USER_ID",
+            message: "userId must be a string",
+            status: httpStatus.BAD_REQUEST
+          }
+        });
+        return;
+      }
+      const user = await User.findByPk(userId);
+      if (!user) {
+        res.status(httpStatus.NOT_FOUND).json({
+          error: {
+            code: "USER_NOT_FOUND",
+            message: "Profile was not found",
+            status: httpStatus.NOT_FOUND
+          }
+        });
+        return;
+      }
+      resolvedUserId = user.id;
     }
 
     // Determine environment
@@ -48,7 +77,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
 
     const expirationDate = expiresAt ? new Date(expiresAt) : null;
 
-    // Create public key record
+    // Create public key record (partner_name kept as informational backup; auth resolves partner_id)
     const publicKeyRecord = await ApiKey.create({
       expiresAt: expirationDate,
       isActive: true,
@@ -57,7 +86,9 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "public",
       keyValue: publicKey,
       name: name ? `${name} (Public)` : "Public Key",
-      partnerName
+      partnerId: partner.id,
+      partnerName,
+      userId: resolvedUserId
     });
 
     // Create secret key record
@@ -69,7 +100,9 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       keyType: "secret",
       keyValue: null,
       name: name ? `${name} (Secret)` : "Secret Key",
-      partnerName
+      partnerId: partner.id,
+      partnerName,
+      userId: resolvedUserId
     });
 
     // Return both keys (secret shown only once!)
@@ -77,22 +110,25 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
       createdAt: publicKeyRecord.createdAt,
       expiresAt: expirationDate,
       isActive: true,
-      partnerCount: partners.length,
+      partnerId: partner.id,
       partnerName,
       publicKey: {
         id: publicKeyRecord.id,
         key: publicKey, // Can be shown anytime (it's public)
         keyPrefix: publicKeyRecord.keyPrefix,
         name: publicKeyRecord.name,
-        type: "public"
+        type: "public",
+        userId: publicKeyRecord.userId
       },
       secretKey: {
         id: secretKeyRecord.id,
         key: secretKey, // Shown only once!
         keyPrefix: secretKeyRecord.keyPrefix,
         name: secretKeyRecord.name,
-        type: "secret"
-      }
+        type: "secret",
+        userId: secretKeyRecord.userId
+      },
+      userId: resolvedUserId
     });
   } catch (error) {
     logger.error("Error creating API keys:", error);
@@ -115,11 +151,11 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
     const partnerName = req.params.partnerName;
 
     // Verify partner exists
-    const partners = await Partner.findAll({
+    const partner = await Partner.findOne({
       where: { name: partnerName }
     });
 
-    if (partners.length === 0) {
+    if (!partner) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
           code: "PARTNER_NOT_FOUND",
@@ -141,11 +177,12 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         "lastUsedAt",
         "expiresAt",
         "isActive",
+        "userId",
         "createdAt",
         "updatedAt"
       ],
       order: [["createdAt", "DESC"]],
-      where: { partnerName }
+      where: { partnerId: partner.id }
     });
 
     res.status(httpStatus.OK).json({
@@ -159,9 +196,10 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
         lastUsedAt: key.lastUsedAt,
         name: key.name,
         type: key.keyType,
-        updatedAt: key.updatedAt
+        updatedAt: key.updatedAt,
+        userId: key.userId
       })),
-      partnerCount: partners.length,
+      partnerId: partner.id,
       partnerName
     });
   } catch (error) {
@@ -184,11 +222,23 @@ export async function revokeApiKey(req: Request<{ partnerName: string; keyId: st
   try {
     const { partnerName, keyId } = req.params;
 
+    const partner = await Partner.findOne({ where: { name: partnerName } });
+    if (!partner) {
+      res.status(httpStatus.NOT_FOUND).json({
+        error: {
+          code: "PARTNER_NOT_FOUND",
+          message: `No partners found with name: ${partnerName}`,
+          status: httpStatus.NOT_FOUND
+        }
+      });
+      return;
+    }
+
     // Find the API key
     const apiKey = await ApiKey.findOne({
       where: {
         id: keyId,
-        partnerName
+        partnerId: partner.id
       }
     });
 
@@ -204,7 +254,7 @@ export async function revokeApiKey(req: Request<{ partnerName: string; keyId: st
     }
 
     // Soft delete by setting isActive to false
-    await apiKey.update({ isActive: false });
+    await apiKey.update({ isActive: false, revokedAt: new Date() });
 
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {

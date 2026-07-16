@@ -15,7 +15,9 @@ import {
   RampDirection,
   RouteParams,
   SquidrouterCachedRoute,
+  SquidrouterCachedRouteResult,
   SquidrouterRoute,
+  SquidrouterRouteResult,
   stringifyBigWithSignificantDecimals
 } from "@vortexfi/shared";
 import { Big } from "big.js";
@@ -25,6 +27,7 @@ import logger from "../../../../config/logger";
 import { APIError } from "../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { priceFeedService } from "../../priceFeed.service";
+import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./errors";
 
 export interface EvmBridgeRequest {
   amountRaw: string; // Raw amount to bridge/swap via Squidrouter
@@ -47,6 +50,7 @@ export interface EvmBridgeQuoteRequest {
 
 export interface EvmBridgeResult {
   finalGrossOutputAmountDecimal: Big; // Final amount after Squidrouter
+  finalGrossOutputAmountRaw: string; // Final amount in destination token raw units
   networkFeeUSD: string; // Squidrouter specific fee
   finalEffectiveExchangeRate?: string;
   outputTokenDecimals: number;
@@ -205,7 +209,16 @@ function buildRouteRequest(request: EvmBridgeQuoteRequest) {
 }
 
 async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Networks) {
-  const routeResult = await getRoute(routeParams, { useCache: true });
+  let routeResult: SquidrouterRouteResult | SquidrouterCachedRouteResult;
+  try {
+    routeResult = await getRoute(routeParams, { useCache: true });
+  } catch (error) {
+    if (isLowLiquidityQuoteError(error)) {
+      throw createLowLiquidityQuoteError();
+    }
+
+    throw error;
+  }
 
   if (!routeResult?.data?.route?.estimate) {
     throw new APIError({
@@ -270,6 +283,7 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     return {
       finalEffectiveExchangeRate,
       finalGrossOutputAmountDecimal,
+      finalGrossOutputAmountRaw: finalGrossOutputAmount,
       networkFeeUSD,
       outputTokenDecimals
     };
@@ -278,11 +292,8 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
     logger.error(`Error calculating EVM bridge and network fee: ${errorMessage}`);
 
     // Check for specific SquidRouter error types
-    if (errorMessage.toLowerCase().includes("low liquidity") || errorMessage.toLowerCase().includes("reduce swap amount")) {
-      throw new APIError({
-        message: QuoteError.LowLiquidity,
-        status: httpStatus.BAD_REQUEST
-      });
+    if (isLowLiquidityQuoteError(error)) {
+      throw createLowLiquidityQuoteError();
     }
 
     // Default to generic error for other cases

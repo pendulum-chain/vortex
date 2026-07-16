@@ -19,10 +19,14 @@ import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
 import erc20ABI from "../../../../contracts/ERC20";
 import { MULTICALL3_ADDRESS, multicall3ABI } from "../../../../contracts/Multicall3";
-import Partner from "../../../../models/partner.model";
 import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
+import { findPartnerWithPricing } from "../../partners/partner-pricing.service";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { getZenlinkIdForAsset } from "../../zenlink";
+
+function getQuotePricingPartnerId(quote: QuoteTicketAttributes): string | null {
+  return quote.pricingPartnerId ?? quote.partnerId ?? null;
+}
 
 /**
  * Creates a pre-signed fee distribution transaction for the distribute-fees-handler phase.
@@ -48,20 +52,18 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex", rampType: quote.rampType }
-  });
+  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType);
   if (!vortexPartner) {
     logger.error(
       "FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
         quote.rampType +
-        ". A row with name='vortex' and is_active=true MUST exist in the 'partners' table; otherwise no fees can be collected."
+        ". An active partners row named 'vortex' with an active pricing config for this ramp_type MUST exist; otherwise no fees can be collected."
     );
     throw new Error(`Vortex partner row missing for rampType=${quote.rampType}; cannot build fee distribution transaction.`);
   }
   if (!vortexPartner.payoutAddressSubstrate) {
     logger.error(
-      "FEE DISTRIBUTION FAILED: 'payout_address_substrate' is not set on the 'vortex' partner row (rampType=" +
+      "FEE DISTRIBUTION FAILED: 'payout_address_substrate' is not set on the 'vortex' pricing config (rampType=" +
         quote.rampType +
         "). This column MUST be set to a Pendulum address; otherwise no substrate fees can be collected."
     );
@@ -71,12 +73,11 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   }
   const vortexPayoutAddress = vortexPartner.payoutAddressSubstrate;
 
+  const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddress = null;
-  if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
-    });
-    if (quotePartner && quotePartner.payoutAddressSubstrate) {
+  if (pricingPartnerId) {
+    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType);
+    if (quotePartner?.payoutAddressSubstrate) {
       partnerPayoutAddress = quotePartner.payoutAddressSubstrate;
     }
   }
@@ -217,14 +218,12 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get vortex payout address (EVM)
-  const vortexPartner = await Partner.findOne({
-    where: { isActive: true, name: "vortex", rampType: quote.rampType }
-  });
+  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType);
   if (!vortexPartner) {
     logger.error(
       "EVM FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
         quote.rampType +
-        ". A row with name='vortex' and is_active=true MUST exist in the 'partners' table; otherwise no fees can be collected."
+        ". An active partners row named 'vortex' with an active pricing config for this ramp_type MUST exist; otherwise no fees can be collected."
     );
     throw new Error(
       `Vortex partner row missing for rampType=${quote.rampType}; cannot build EVM fee distribution transaction.`
@@ -234,7 +233,7 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
     const fallback = config.defaults.vortexEvmPayoutAddress;
     if (!fallback) {
       logger.error(
-        "EVM FEE DISTRIBUTION FAILED: 'payout_address_evm' is not set on the 'vortex' partner row (rampType=" +
+        "EVM FEE DISTRIBUTION FAILED: 'payout_address_evm' is not set on the 'vortex' pricing config (rampType=" +
           quote.rampType +
           ") and DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS env var is not configured. Set one to avoid losing fees."
       );
@@ -243,17 +242,16 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
       );
     }
     logger.warn(
-      `EVM FEE DISTRIBUTION: vortex partner row (rampType=${quote.rampType}) has no payout_address_evm; falling back to DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS=${fallback}.`
+      `EVM FEE DISTRIBUTION: vortex pricing config (rampType=${quote.rampType}) has no payout_address_evm; falling back to DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS=${fallback}.`
     );
   }
   const vortexPayoutAddress = vortexPartner.payoutAddressEvm ?? (config.defaults.vortexEvmPayoutAddress as string);
 
   // Look up partner EVM payout address for markup split
+  const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddressEvm: string | null = null;
-  if (quote.partnerId) {
-    const quotePartner = await Partner.findOne({
-      where: { id: quote.partnerId, isActive: true, rampType: quote.rampType }
-    });
+  if (pricingPartnerId) {
+    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType);
     if (quotePartner?.payoutAddressEvm) {
       partnerPayoutAddressEvm = quotePartner.payoutAddressEvm;
     }
@@ -261,7 +259,7 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
 
   if (Big(partnerMarkupFeeUSD).gt(0) && partnerPayoutAddressEvm === null) {
     logger.warn(
-      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (partnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${pricingPartnerId ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
     );
   }
 

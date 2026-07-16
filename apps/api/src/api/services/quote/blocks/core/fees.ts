@@ -13,7 +13,7 @@ export async function computeFees(ctx: PhaseCtx): Promise<void> {
     inputCurrency: ctx.request.inputCurrency,
     outputAmountOfframp: "0",
     outputCurrency: ctx.request.outputCurrency,
-    partnerName: ctx.partner?.id || undefined,
+    partnerId: ctx.partner?.id || undefined,
     rampType: ctx.request.rampType,
     to: ctx.request.to
   });

@@ -27,11 +27,7 @@ mock.module("../../core/squidrouter", () => ({
 
 mock.module("../../../priceFeed.service", () => ({
   priceFeedService: {
-    getOnchainOraclePrice: async () => ({
-      lastUpdateTimestamp: 0,
-      name: "mock",
-      price: new Big(0.18)
-    })
+    getFiatToUsdExchangeRate: async () => new Big(0.18)
   }
 }));
 

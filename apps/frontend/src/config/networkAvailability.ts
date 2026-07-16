@@ -17,7 +17,7 @@ export function isFrontendNetworkEnabled(network: Networks | string | undefined)
 }
 
 export function getFallbackFrontendNetwork(): Networks {
-  return Networks.Polygon;
+  return Networks.Base;
 }
 
 export function getEnabledFrontendNetwork(network: Networks | string | undefined): Networks {

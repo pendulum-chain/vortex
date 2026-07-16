@@ -11,9 +11,10 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Op } from "sequelize";
-import AlfredPayCustomer from "../../../models/alfredPayCustomer.model";
+import ProviderCustomer from "../../../models/providerCustomer.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
 
@@ -39,8 +40,13 @@ export async function lookupAlfredpayCustomerType(userId: string | undefined, fi
   if (!userId) return AlfredpayCustomerType.INDIVIDUAL;
   const country = alfredpayCountryForFiat(fiat);
   if (!country) return AlfredpayCustomerType.INDIVIDUAL;
-  const customer = await AlfredPayCustomer.findOne({ order: [["type", "ASC"]], where: { country, userId } });
-  return customer?.type === AlfredpayCustomerType.BUSINESS ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL;
+  const entity = await getOrCreateCustomerEntityForProfile(userId);
+  // customer_type ASC keeps the legacy type-ASC precedence ('business' < 'individual').
+  const customer = await ProviderCustomer.findOne({
+    order: [["customerType", "ASC"]],
+    where: { country, customerEntityId: entity.id, provider: "alfredpay" }
+  });
+  return customer?.customerType === "business" ? AlfredpayCustomerType.BUSINESS : AlfredpayCustomerType.INDIVIDUAL;
 }
 
 /**

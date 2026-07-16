@@ -11,6 +11,8 @@ import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import { priceFeedService } from "./api/services/priceFeed.service";
+import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
@@ -26,7 +28,6 @@ setLogger(logger);
 // Consider grouping all environment checks into a single function
 const validateRequiredEnvVars = () => {
   const requiredVars = {
-    CLIENT_DOMAIN_SECRET: config.secrets.clientDomainSecret,
     MOONBEAM_EXECUTOR_PRIVATE_KEY: config.secrets.moonbeamExecutorPrivateKey,
     PENDULUM_FUNDING_SEED: config.secrets.pendulumFundingSeed
   };
@@ -62,6 +63,7 @@ const initializeApp = async () => {
 
     // Start background workers
     new CleanupWorker().start();
+    new ApiClientEventsRetentionWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
 
@@ -70,6 +72,12 @@ const initializeApp = async () => {
 
     // Register phase handlers
     registerPhaseHandlers();
+
+    // Probe the Binance price feed so a geo-block (HTTP 451) or outage surfaces
+    // loudly in the logs instead of silently degrading to the fiat fallback.
+    // Fire-and-forget: a blocked/hanging call must not delay startup, and the
+    // probe never throws while request-time pricing already fails over safely.
+    void priceFeedService.verifyBinanceReachability();
 
     // Start the server
     app.listen(port, () => logger.info(`server started on port ${port} (${env})`));

@@ -1,9 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { SupabaseAuthService } from "../services/auth";
 import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
+import { setApiKeyUserId } from "./effectiveUser";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
@@ -37,7 +42,7 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
       if (apiKey) {
         const keyType = getKeyType(apiKey);
         if (keyType !== "secret" || !isValidSecretKeyFormat(apiKey)) {
-          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeKeyPrefix(apiKey));
+          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
           return res.status(401).json({
             error: {
               code: "INVALID_SECRET_KEY",
@@ -47,9 +52,9 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        const partner = await validateSecretApiKey(apiKey);
-        if (!partner) {
-          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeKeyPrefix(apiKey));
+        const result = await validateSecretApiKey(apiKey);
+        if (!result) {
+          recordDualAuthFailure(req, 401, "auth_invalid_api_key", getSafeApiKeyPrefix(apiKey, ["sk_"]));
           return res.status(401).json({
             error: {
               code: "INVALID_API_KEY",
@@ -59,7 +64,10 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
-        req.authenticatedPartner = partner;
+        if (result.partner) {
+          req.authenticatedPartner = result.partner;
+        }
+        setApiKeyUserId(req, result.apiKeyUserId);
         return next();
       }
 
@@ -112,16 +120,12 @@ function recordDualAuthFailure(
     durationMs: getRequestDurationMs(req),
     errorType,
     httpStatus,
+    metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
     operation: "auth_dual",
     partnerId: req.authenticatedPartner?.id || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: req.userId || req.apiKeyUserId || null
   });
-}
-
-function getSafeKeyPrefix(apiKey: string | undefined): string | null {
-  if (!apiKey?.startsWith("sk_")) return null;
-  return apiKey.slice(0, 8);
 }

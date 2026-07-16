@@ -1,12 +1,23 @@
 // eslint-disable-next-line import/no-unresolved
-import { beforeEach, describe, expect, it, mock } from "bun:test";
+import {afterAll, beforeEach, describe, expect, it, mock} from "bun:test";
 import Big from "big.js";
+// Captured before mock.module so afterAll can restore the real package —
+// bun module mocks are process-wide and would poison later test files.
+import * as sharedNamespace from "@vortexfi/shared";
+import * as rampServiceNamespace from "../../ramp/ramp.service";
+
+// Value copies taken before mock.module runs — the namespaces themselves are
+// live bindings that would reflect the mocks once installed.
+const sharedReal = { ...sharedNamespace };
+const rampServiceReal = { ...rampServiceNamespace };
 
 const Networks = {
   Base: "base",
   Moonbeam: "moonbeam",
   Polygon: "polygon"
 } as const;
+
+const EvmNetworks = Networks;
 
 const EvmToken = {
   USDC: "USDC"
@@ -21,6 +32,10 @@ const FiatToken = {
 const RampDirection = {
   BUY: "BUY",
   SELL: "SELL"
+} as const;
+
+const RampPhase = {
+  squidRouterSwap: "squidRouterSwap"
 } as const;
 
 const EVM_EPHEMERAL_ADDRESS = "0x1111111111111111111111111111111111111111";
@@ -43,15 +58,18 @@ const sendRawTransaction = mock(async ({ serializedTransaction }: { serializedTr
 const waitForTransactionReceipt = mock(async () => ({ status: "success" }));
 const getTransactionCount = mock(async () => 0);
 const checkEvmBalanceForToken = mock(async () => Big(1000));
-const getEvmTokenDetailsByAddress = mock((network: string, tokenAddress: `0x${string}`) => ({
+const getEvmBalance = mock(async () => Big(0));
+const getOnChainTokenDetails = mock((network: string, token: string) => ({
   assetSymbol: "Monerium EURe",
   decimals: 18,
-  erc20AddressSourceChain: tokenAddress,
+  erc20AddressSourceChain: token,
   isNative: false,
   network
 }));
+const isEvmTokenDetails = mock(() => true);
 
 mock.module("@vortexfi/shared", () => ({
+  ...sharedReal,
   checkEvmBalanceForToken,
   EvmClientManager: {
     getInstance: () => ({
@@ -62,9 +80,20 @@ mock.module("@vortexfi/shared", () => ({
       })
     })
   },
+  ALFREDPAY_EVM_TOKEN: "USDT",
+  EvmNetworks,
   EvmToken,
+  EvmTokenDetails: {},
+  evmTokenConfig: {
+    [Networks.Polygon]: {
+      EURC: {
+        erc20AddressSourceChain: EURE_POLYGON_ADDRESS
+      }
+    }
+  },
   FiatToken,
-  getEvmTokenDetailsByAddress,
+  getEvmBalance,
+  getOnChainTokenDetails,
   getNetworkFromDestination: (destination: string) =>
     Object.values(Networks).includes(destination as (typeof Networks)[keyof typeof Networks]) ? destination : undefined,
   getNetworkId: (network: string) => {
@@ -74,8 +103,10 @@ mock.module("@vortexfi/shared", () => ({
     return undefined;
   },
   isAlfredpayToken: () => false,
+  isEvmTokenDetails,
   Networks,
-  RampDirection
+  RampDirection,
+  RampPhase
 }));
 
 mock.module("../../ramp/ramp.service", () => ({
@@ -87,9 +118,18 @@ mock.module("../../ramp/ramp.service", () => ({
 const { default: QuoteTicket } = await import("../../../../models/quoteTicket.model");
 const { SquidRouterPhaseHandler } = await import("./squid-router-phase-handler");
 
+const realQuoteTicketFindByPk = QuoteTicket.findByPk;
+
+afterAll(() => {
+  mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../../ramp/ramp.service", () => ({ ...rampServiceReal }));
+  QuoteTicket.findByPk = realQuoteTicketFindByPk;
+});
+
 let quote: {
   inputCurrency: string;
   metadata: Record<string, any>;
+  network: string;
   outputCurrency: string;
   to: string;
 };
@@ -146,7 +186,9 @@ describe("SquidRouterPhaseHandler", () => {
     waitForTransactionReceipt.mockClear();
     getTransactionCount.mockClear();
     checkEvmBalanceForToken.mockClear();
-    getEvmTokenDetailsByAddress.mockClear();
+    getEvmBalance.mockClear();
+    getOnChainTokenDetails.mockClear();
+    isEvmTokenDetails.mockClear();
   });
 
   it("submits Squid approve and swap for Monerium EUR onramp to Base USDC", async () => {
@@ -164,6 +206,10 @@ describe("SquidRouterPhaseHandler", () => {
           outputAmountRaw: "1000"
         }
       },
+      // quote.network for a BUY ramp is by construction the destination network
+      // (quote.controller getNetworkFromDestination(to)); the pre-settlement snapshot
+      // must read the destination-chain balance, so this pins Base, not Polygon.
+      network: Networks.Base,
       outputCurrency: EvmToken.USDC,
       to: Networks.Base
     };
@@ -172,10 +218,17 @@ describe("SquidRouterPhaseHandler", () => {
     const updatedState = await handler.execute(makeState());
 
     expect(sendRawTransaction).toHaveBeenCalledTimes(2);
-    expect(getEvmTokenDetailsByAddress).toHaveBeenCalledWith(Networks.Polygon, EURE_POLYGON_ADDRESS);
+    expect(getOnChainTokenDetails).toHaveBeenCalledWith(Networks.Base, EvmToken.USDC);
+    expect(getEvmBalance).toHaveBeenCalledTimes(1);
     expect(sendRawTransaction.mock.calls[0][0]).toEqual({ serializedTransaction: APPROVE_TX });
     expect(sendRawTransaction.mock.calls[1][0]).toEqual({ serializedTransaction: SWAP_TX });
-    expect(updatedState.currentPhase).toBe("squidRouterPay");
+    expect(updatedState.state).toMatchObject({
+      preSettlementBalance: "0",
+      squidRouterApproveHash: APPROVE_HASH,
+      squidRouterSwapHash: SWAP_HASH
+    });
+    // The handler no longer transitions explicitly; the PhaseProcessor advances via phaseFlow.
+    expect(updatedState.currentPhase).toBe("squidRouterSwap");
   });
 
   it("skips Squid for same-chain Base USDC passthrough quotes", async () => {
@@ -193,6 +246,7 @@ describe("SquidRouterPhaseHandler", () => {
           toToken: USDC_BASE_ADDRESS
         }
       },
+      network: Networks.Base,
       outputCurrency: EvmToken.USDC,
       to: Networks.Base
     };
@@ -205,7 +259,7 @@ describe("SquidRouterPhaseHandler", () => {
     );
 
     expect(sendRawTransaction).not.toHaveBeenCalled();
-    expect(getEvmTokenDetailsByAddress).not.toHaveBeenCalled();
-    expect(updatedState.currentPhase).toBe("destinationTransfer");
+    expect(getOnChainTokenDetails).not.toHaveBeenCalled();
+    expect(updatedState.currentPhase).toBe("finalSettlementSubsidy");
   });
 });

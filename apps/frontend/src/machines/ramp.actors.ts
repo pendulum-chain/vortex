@@ -1,6 +1,7 @@
 import { QuoteResponse } from "@vortexfi/shared";
 import { QuoteService } from "../services/api";
 import { AuthAPI } from "../services/api/auth.api";
+import { RecipientsService } from "../services/api/recipients.service";
 import { AuthService } from "../services/auth";
 import { RampContext, RampMachineEvents } from "./types";
 
@@ -78,12 +79,14 @@ export async function checkAndRefreshTokenActor() {
     if (refreshedTokens) {
       return { success: true, tokens: refreshedTokens };
     }
+    // A null result means the refresh token was confirmed invalid; refreshAccessToken()
+    // has already cleared the stored session, so we just report failure here.
+    return { success: false, tokens: null };
   } catch {
-    // If refreshing fails, continue to the shared cleanup path below.
+    // Transient refresh failure (network/5xx): keep the session rather than forcing a
+    // logout. Proceed with the current tokens; request-level 401 retry will recover later.
+    return { success: true, tokens };
   }
-
-  AuthService.clearTokens();
-  return { success: false, tokens: null };
 }
 
 export async function loadQuoteActor({ input }: { input: { quoteId: string } }) {
@@ -97,6 +100,10 @@ export async function loadQuoteActor({ input }: { input: { quoteId: string } }) 
   }
 
   return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
+}
+
+export async function acceptRecipientInviteActor({ input }: { input: { token: string } }) {
+  return RecipientsService.acceptInvite(input.token);
 }
 
 export async function cleanUrlActor(): Promise<void> {

@@ -6,6 +6,7 @@ import {
   evmTokenConfig,
   getOnChainTokenDetails,
   Networks,
+  RampDirection,
   RampPhase
 } from "@vortexfi/shared";
 import { Big } from "big.js";
@@ -164,13 +165,13 @@ export function NablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, 
         rampType: ctx.request.rampType
       });
 
-      let oraclePrice: Awaited<ReturnType<typeof priceFeedService.getOnchainOraclePrice>> | undefined;
+      const oracleCurrency =
+        ctx.request.rampType === RampDirection.BUY ? ctx.request.inputCurrency : ctx.request.outputCurrency;
+      let oraclePrice: Big | undefined;
       try {
-        oraclePrice = await priceFeedService.getOnchainOraclePrice(ctx.request.outputCurrency);
+        oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(oracleCurrency);
       } catch (error) {
-        logger.warn(
-          `NablaSwap: Unable to fetch on-chain oracle price for ${ctx.request.outputCurrency}, proceeding without it. Error: ${error}`
-        );
+        logger.warn(`NablaSwap: Unable to fetch oracle price for ${oracleCurrency}, proceeding without it. Error: ${error}`);
       }
 
       ctx.addNote(
@@ -186,7 +187,7 @@ export function NablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, 
           inputCurrency: inToken,
           inputDecimals: inputTokenDetails.decimals,
           inputToken: inputTokenDetails.erc20AddressSourceChain,
-          oraclePrice: oraclePrice?.price,
+          oraclePrice,
           outputAmountDecimal: result.nablaOutputAmountDecimal,
           outputAmountRaw: result.nablaOutputAmountRaw,
           outputCurrency: outToken,

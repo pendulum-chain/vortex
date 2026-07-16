@@ -4,6 +4,7 @@ import RampState from "../../../../models/rampState.model";
 import { PhaseError } from "../../../errors/phase-error";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
+import { ensurePresignedTransferFunded } from "./helpers";
 
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
@@ -46,6 +47,16 @@ export class MykoboPayoutOnBasePhaseHandler extends BasePhaseHandler {
         logger.warn(`MykoboPayoutOnBasePhaseHandler: Existing tx ${mykoboPayoutTxHash} failed. Re-sending.`);
       }
 
+      // The presigned payout is single-use (fixed nonce, consumed even on revert); confirm the
+      // ephemeral can cover it before broadcasting.
+      try {
+        await ensurePresignedTransferFunded(payoutTx as `0x${string}`, Networks.Base, this.getPhaseName());
+      } catch (error) {
+        throw this.createRecoverableError(
+          `MykoboPayoutOnBasePhaseHandler: ephemeral balance does not cover the presigned payout: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
       const txHash = (await evmClientManager.sendRawTransactionWithRetry(
         Networks.Base,
         payoutTx as `0x${string}`
@@ -65,6 +76,7 @@ export class MykoboPayoutOnBasePhaseHandler extends BasePhaseHandler {
       });
       logger.info(`MykoboPayoutOnBasePhaseHandler: Transaction ${txHash} confirmed.`);
     } catch (error) {
+      if (error instanceof PhaseError) throw error;
       logger.error("MykoboPayoutOnBasePhaseHandler: Failed to send Mykobo payout tx.", error);
       throw this.createRecoverableError("Failed to send Mykobo payout transaction");
     }

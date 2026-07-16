@@ -17,7 +17,7 @@ import httpStatus from "http-status";
 import { encodeFunctionData } from "viem";
 import erc20ABI from "../../../../../contracts/ERC20";
 import { APIError } from "../../../../errors/api-error";
-import { syncMykoboCustomerKyc } from "../../../mykobo/mykobo-customer.service";
+import { resolveMykoboCustomerForUser } from "../../../mykobo/mykobo-customer.service";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { EUR_OFFRAMP_BASE } from "../../../phases/ramp-flow-definitions";
@@ -47,13 +47,9 @@ export async function prepareEvmToMykoboOfframpTransactions({
     throw new Error("EVM ephemeral account not found for EVM to Mykobo offramp");
   }
 
-  if (!email) {
-    throw new APIError({
-      isPublic: true,
-      message: "email must be provided for Mykobo (EUR) offramp",
-      status: httpStatus.BAD_REQUEST
-    });
-  }
+  // The Mykobo email is derived from the effective user's profile (and KYC must be approved);
+  // a client-supplied email is accepted only if it matches. See resolveMykoboCustomerForUser.
+  const { email: mykoboEmail } = await resolveMykoboCustomerForUser(userId, email);
 
   if (!ipAddress) {
     throw new APIError({
@@ -117,7 +113,7 @@ export async function prepareEvmToMykoboOfframpTransactions({
   const mykobo = MykoboApiService.getInstance();
   const intent = await mykobo.createTransactionIntent({
     currency: MykoboCurrency.EURC,
-    email_address: email,
+    email_address: mykoboEmail,
     ip_address: ipAddress,
     transaction_type: MykoboTransactionType.WITHDRAW,
     value: mykoboFlooredValue,
@@ -240,17 +236,13 @@ export async function prepareEvmToMykoboOfframpTransactions({
     ...stateMeta,
     destinationAddress,
     evmEphemeralAddress: evmEphemeralEntry.address,
-    mykoboEmail: email,
+    mykoboEmail,
     mykoboReceivablesAddress,
     mykoboTransactionId,
     mykoboTransactionReference,
     phaseFlow: EUR_OFFRAMP_BASE,
     walletAddress: userAddress
   };
-
-  if (userId) {
-    await syncMykoboCustomerKyc(userId, email);
-  }
 
   return { stateMeta, unsignedTxs };
 }

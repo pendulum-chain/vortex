@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from "@heroicons/react/20/solid";
-import { FiatToken, isNetworkEVM, RampDirection, RampPhase } from "@vortexfi/shared";
+import { FiatToken, isAlfredpayToken, isNetworkEVM, RampDirection, RampPhase } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { motion } from "motion/react";
 import { FC, useEffect, useMemo, useRef, useState } from "react";
@@ -35,6 +35,10 @@ function getRampFlow(rampState: RampState | undefined): keyof typeof PHASE_FLOWS
 
   if (rampState.quote?.outputCurrency === FiatToken.EURC) {
     return "offramp_eur_evm";
+  }
+
+  if (rampState.quote && isAlfredpayToken(rampState.quote.outputCurrency)) {
+    return "offramp_alfredpay";
   }
 
   return null;
@@ -267,6 +271,7 @@ export const ProgressPage = () => {
 
   const rampId = rampState?.ramp?.id;
   const prevPhaseRef = useRef<RampPhase>(rampState?.ramp?.currentPhase || "initial");
+  const prevRampIdRef = useRef<string | undefined>(rampId);
   const [currentPhase, setCurrentPhase] = useState<RampPhase>(prevPhaseRef.current);
 
   const flowType = getRampFlow(rampState);
@@ -294,14 +299,22 @@ export const ProgressPage = () => {
     const newPhase = rampState?.ramp?.currentPhase ?? "initial";
     if (newPhase === prevPhaseRef.current) return;
     const phaseIndex = phaseSequence.indexOf(newPhase);
+    const previousPhaseIndex = phaseSequence.indexOf(prevPhaseRef.current);
+    const isSameRamp = rampId === prevRampIdRef.current;
+
+    if (isSameRamp && phaseIndex >= 0 && previousPhaseIndex >= 0 && phaseIndex < previousPhaseIndex) {
+      return;
+    }
+
     trackEvent({
       event: "progress",
       phase_index: phaseIndex >= 0 ? phaseIndex : 0,
       phase_name: newPhase
     });
+    prevRampIdRef.current = rampId;
     prevPhaseRef.current = newPhase;
     setCurrentPhase(newPhase);
-  }, [rampState?.ramp?.currentPhase, phaseSequence, trackEvent]);
+  }, [rampId, rampState?.ramp?.currentPhase, phaseSequence, trackEvent]);
 
   useEffect(() => {
     if (!rampId || !flowType) return;

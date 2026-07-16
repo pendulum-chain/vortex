@@ -54,6 +54,18 @@ bun run docs:api:export
 
 The current slug-to-source mapping is the `slug` field in `apidog/page-manifest.json`. Keep them aligned with the published Apidog pages.
 
+## SEO Settings
+
+Apidog supports per-page SEO settings (Page → SEO Settings): URL Slug, Meta Title, Meta Description, Keywords, and Custom Metadata. There is no API for setting them, so they are applied manually in the Apidog UI.
+
+The intended values are recorded in the `seo` block of each page entry in `apidog/page-manifest.json` (`metaTitle`, `metaDescription`, `keywords`). That block is the repository source of truth: when page content changes in a way that affects its summary, update the manifest `seo` block in the same change, then re-apply it in Apidog when publishing.
+
+Conventions:
+
+- Meta titles ≤ 60 characters, leading with what the page is about and ending with a Vortex identifier where space allows.
+- Meta descriptions 140–160 characters, written as a plain-language answer to what a searcher would want from the page.
+- Keywords target integrator search intent (e.g. "crypto on-ramp API", "PIX crypto", "SEPA crypto"), not internal terminology.
+
 ## Publishing To Apidog
 
 Apidog's documented Git connection currently targets OpenAPI/Swagger files. Use it for `docs/api/openapi/vortex.openapi.json`.

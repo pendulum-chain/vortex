@@ -1,10 +1,11 @@
+import {
+  KYC_FILE_ACCEPTED_TYPES as ACCEPTED_TYPES,
+  type KybBusinessFiles,
+  KYC_FILE_MAX_BYTES as MAX_FILE_SIZE
+} from "@vortexfi/kyc";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { KybBusinessFiles } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 function FileDropZone({
   fieldKey,

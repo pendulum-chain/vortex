@@ -1,26 +1,12 @@
 import {
   AveniaKYCDataUpload,
   AveniaKYCDataUploadRequest,
-  BrlaCreateSubaccountRequest,
-  BrlaCreateSubaccountResponse,
-  BrlaGetKycStatusResponse,
-  BrlaGetSelfieLivenessUrlResponse,
   BrlaGetUserRemainingLimitResponse,
   BrlaGetUserResponse,
   BrlaValidatePixKeyResponse,
-  KycLevel1Payload,
   RampDirection
 } from "@vortexfi/shared";
 import { apiRequest } from "./api-client";
-
-/**
- * Response type for KYB Level 1 initiation
- */
-export interface KybLevel1Response {
-  attemptId: string;
-  authorizedRepresentativeUrl: string;
-  basicCompanyDataUrl: string;
-}
 
 /**
  * Service for interacting with BRLA API endpoints
@@ -45,20 +31,9 @@ export class BrlaService {
    * @param quoteId
    * @returns An empty response
    **/
-  static async recordInitialKycAttempt(taxId: string, quoteId: string, sessionId?: string): Promise<{}> {
-    return apiRequest<{}>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
+  static async recordInitialKycAttempt(taxId: string, quoteId: string, sessionId?: string): Promise<Record<string, never>> {
+    return apiRequest<Record<string, never>>("post", `${this.BASE_PATH}/kyc/record-attempt`, { quoteId, sessionId, taxId });
   }
-  /**
-   * Get the KYC status of a subaccount
-   * @param taxId The user's tax ID
-   * @returns The KYC status
-   */
-  static async getKycStatus(taxId: string, quoteId: string, sessionId?: string): Promise<BrlaGetKycStatusResponse> {
-    return apiRequest<BrlaGetKycStatusResponse>("get", `${this.BASE_PATH}/getKycStatus`, undefined, {
-      params: { quoteId, sessionId, taxId }
-    });
-  }
-
   /**
    * Validate a PIX key
    * @param pixKey The PIX key to validate
@@ -83,52 +58,11 @@ export class BrlaService {
   }
 
   /**
-   * Create a new subaccount
-   * @param request The subaccount creation request
-   * @returns The subaccount ID
-   */
-  static async createSubaccount(request: BrlaCreateSubaccountRequest): Promise<BrlaCreateSubaccountResponse> {
-    return apiRequest<BrlaCreateSubaccountResponse>("post", `${this.BASE_PATH}/createSubaccount`, request);
-  }
-
-  /**
-   * Submit a Level 1 KYC payload for an existing subaccount
-   * @param payload The KYC Level 1 payload
-   * @returns The KYC attempt ID
-   */
-  static async submitNewKyc(payload: KycLevel1Payload): Promise<{ id: string }> {
-    return apiRequest<{ id: string }>("post", `${this.BASE_PATH}/newKyc`, payload);
-  }
-
-  /**
    * Get urls to upload KYC documents for a new subaccount
    * @param request The subaccount creation request
    * @returns The upload URLs and their corresponding IDs
    */
   static async getUploadUrls(request: AveniaKYCDataUploadRequest): Promise<AveniaKYCDataUpload> {
     return apiRequest<AveniaKYCDataUpload>("post", `${this.BASE_PATH}/getUploadUrls`, request);
-  }
-
-  /**
-   * Get a new liveness URL for selfie verification. Used for refreshing a stale one.
-   * @param request The subaccount creation request
-   * @returns The upload URLs and their corresponding IDs
-   */
-  static async getSelfieLivenessUrl(taxId: string): Promise<BrlaGetSelfieLivenessUrlResponse> {
-    return apiRequest<BrlaGetSelfieLivenessUrlResponse>("get", `${this.BASE_PATH}/getSelfieLivenessUrl`, undefined, {
-      params: { taxId }
-    });
-  }
-
-  /**
-   * Initiate KYB Level 1 verification process
-   * @param subAccountId The subaccount ID (optional)
-   * @returns URLs for the KYB verification process
-   */
-  static async initiateKybLevel1(subAccountId?: string): Promise<KybLevel1Response> {
-    console.log("Initiating KYB Level 1 for subAccountId:", subAccountId);
-    return apiRequest<KybLevel1Response>("post", `${this.BASE_PATH}/kyb/new-level-1/web-sdk`, undefined, {
-      params: subAccountId ? { subAccountId } : undefined
-    });
   }
 }

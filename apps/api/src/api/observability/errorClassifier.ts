@@ -12,6 +12,8 @@ export function classifyApiClientError(error: unknown, fallbackStatus?: number |
   if (status === httpStatus.UNAUTHORIZED) return "auth_invalid_api_key";
   if (status === httpStatus.SERVICE_UNAVAILABLE) return "service_unavailable";
 
+  if (message.includes("low liquidity")) return "provider_error";
+
   if (status === httpStatus.BAD_REQUEST) {
     if (message.includes("expired")) return "quote_expired";
     if (message.includes("no presigned transactions")) return "missing_presigned_transactions";

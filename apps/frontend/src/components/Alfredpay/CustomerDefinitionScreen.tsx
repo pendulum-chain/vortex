@@ -9,7 +9,8 @@ interface CustomerDefinitionScreenProps {
   kycOrKyb: string;
   isBusiness: boolean;
   onAccept: () => void;
-  onToggleBusiness: () => void;
+  /** Absent when the customer type is pinned (redeemed invite) — the toggle is then hidden. */
+  onToggleBusiness?: () => void;
 }
 
 const toggleLinkClass =
@@ -32,16 +33,20 @@ export const CustomerDefinitionScreen = memo(
           {t("components.alfredpayKycFlow.continueWithPartner", { kycOrKyb })}
         </p>
 
-        <p className="text-balance text-center text-gray-500 text-sm">
-          <Trans
-            components={{
-              1: <button className={toggleLinkClass} onClick={onToggleBusiness} type="button" />
-            }}
-            i18nKey={
-              isBusiness ? "components.alfredpayKycFlow.registerAsIndividual" : "components.alfredpayKycFlow.registerAsBusiness"
-            }
-          />
-        </p>
+        {onToggleBusiness && (
+          <p className="text-balance text-center text-gray-500 text-sm">
+            <Trans
+              components={{
+                1: <button className={toggleLinkClass} onClick={onToggleBusiness} type="button" />
+              }}
+              i18nKey={
+                isBusiness
+                  ? "components.alfredpayKycFlow.registerAsIndividual"
+                  : "components.alfredpayKycFlow.registerAsBusiness"
+              }
+            />
+          </p>
+        )}
 
         <StepFooter>
           <button className="btn-vortex-primary btn w-full touch-manipulation rounded-xl" onClick={onAccept} type="button">

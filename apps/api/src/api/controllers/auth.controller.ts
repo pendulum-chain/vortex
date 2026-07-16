@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import logger from "../../config/logger";
 import User from "../../models/user.model";
-import { SupabaseAuthService } from "../services/auth";
+import { RefreshTokenError, SupabaseAuthService } from "../services/auth";
+import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
 export class AuthController {
   /**
@@ -88,6 +89,15 @@ export class AuthController {
         id: result.user_id
       });
 
+      // Eagerly create the owning customer entity. Kept out of the OTP error mapping:
+      // the Supabase session is already minted, so a failure here must not surface as
+      // "Invalid OTP" — entity-scoped reads lazily create it as a fallback anyway.
+      try {
+        await getOrCreateCustomerEntityForProfile(result.user_id);
+      } catch (entityError) {
+        logger.error("Failed to create customer entity for new profile:", entityError);
+      }
+
       return res.json({
         access_token: result.access_token,
         refresh_token: result.refresh_token,
@@ -124,9 +134,18 @@ export class AuthController {
         success: true
       });
     } catch (error) {
+      // Only a confirmed-invalid refresh token yields a 401 (which the frontend treats as a
+      // definitive logout). Transient failures — and anything unexpected — return 503 so the
+      // frontend keeps the session and retries instead of forcing re-login.
+      if (error instanceof RefreshTokenError && !error.transient) {
+        return res.status(401).json({
+          error: "Invalid refresh token"
+        });
+      }
+
       logger.error("Error in refreshToken:", error);
-      return res.status(401).json({
-        error: "Invalid refresh token"
+      return res.status(503).json({
+        error: "Auth service temporarily unavailable"
       });
     }
   }

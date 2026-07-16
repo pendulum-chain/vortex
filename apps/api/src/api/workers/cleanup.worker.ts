@@ -152,12 +152,15 @@ class CleanupWorker {
         limit: 5,
         order: [["updatedAt", "DESC"]],
         where: {
-          currentPhase: { [Op.in]: ["complete", "failed", "timedOut"] },
-          flowVariant: config.flowVariant,
+          // Op.or nested inside the JSON path object is rejected by Sequelize's
+          // query builder ("Invalid value"); the dotted-path form is the
+          // documented way to query JSONB attributes.
           [Op.or]: [
             { "postCompleteState.cleanup.cleanupCompleted": false },
-            { "postCompleteState.cleanup.cleanupCompleted": null }
-          ]
+            { "postCompleteState.cleanup.cleanupCompleted": { [Op.is]: null } }
+          ],
+          currentPhase: { [Op.in]: ["complete", "failed", "timedOut"] },
+          flowVariant: config.flowVariant
         }
       });
 

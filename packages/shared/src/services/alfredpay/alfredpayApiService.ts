@@ -1,6 +1,7 @@
 import Big from "big.js";
 import { ALFREDPAY_API_KEY, ALFREDPAY_API_SECRET, ALFREDPAY_BASE_URL } from "../..";
 import logger from "../../logger";
+import { ProviderHttpError } from "../providerHttpError";
 import {
   AlfredpayCustomerType,
   AlfredpayFee,
@@ -40,6 +41,20 @@ import {
   SubmitKycInformationRequest,
   SubmitKycInformationResponse
 } from "./types";
+
+/**
+ * Error thrown when an Alfredpay HTTP request fails. See {@link ProviderHttpError} for the
+ * carried fields and the message-format invariant.
+ */
+export class AlfredpayApiError extends ProviderHttpError {
+  constructor(params: { status: number; endpoint: string; method: string; responseBody: string }) {
+    super({ ...params, provider: "alfredpay" });
+  }
+}
+
+// A hung provider call must not stall callers — the dashboard's onboarding status poll awaits
+// these requests inline.
+const REQUEST_TIMEOUT_MS = 30_000;
 
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
@@ -88,7 +103,8 @@ export class AlfredpayApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
@@ -97,7 +113,19 @@ export class AlfredpayApiService {
     const fullUrl = `${ALFREDPAY_BASE_URL}${url}`;
     logger.current.debug(`Sending request to ${fullUrl} with method ${method} and payload:`, payload);
 
-    const response = await fetch(fullUrl, options);
+    let response: Response;
+    try {
+      response = await fetch(fullUrl, options);
+    } catch (error) {
+      // Transport failure (DNS/timeout/connection reset) — no HTTP response. Surface it as a
+      // provider error with status 0 so callers can normalize it to a 502 instead of a 500.
+      throw new AlfredpayApiError({
+        endpoint: path,
+        method,
+        responseBody: error instanceof Error ? error.message : String(error),
+        status: 0
+      });
+    }
 
     if (response.status === 401) {
       throw new Error("Authorization error.");
@@ -113,9 +141,11 @@ export class AlfredpayApiService {
             logger.current.warn(
               `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
             );
+            // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
+            // the error exposes them as strings.
             throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
-              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
+              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
+              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -123,7 +153,14 @@ export class AlfredpayApiService {
           }
         }
       }
-      throw new Error(`Request failed with status '${response.status}'. Error: ${errorText}`);
+      // AlfredpayApiError keeps the "status '<code>'. Error: <body>" message shape that this
+      // controller's callers match on, and exposes endpoint/method/status for structured logging.
+      throw new AlfredpayApiError({
+        endpoint: path,
+        method,
+        responseBody: errorText,
+        status: response.status
+      });
     }
     try {
       return await response.json();
@@ -152,9 +189,11 @@ export class AlfredpayApiService {
   /**
    * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
    * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   * Alfredpay renamed the route: the former /configurations path now returns
+   * 400 errorCode 111301 (caught by the nightly contract suite, 2026-07-14).
    */
   public async getAllConfigs(): Promise<GetAllConfigsResponse> {
-    const path = "/api/v1/third-party-service/penny/configurations";
+    const path = "/api/v1/third-party-service/penny/allConfigs";
     return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 
@@ -265,10 +304,15 @@ export class AlfredpayApiService {
     data: SubmitKycInformationRequest
   ): Promise<SubmitKycInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyc`;
-    const kycSubmission: Record<string, unknown> = { ...data, nationalities: [data.country] };
+    const kycSubmission: Record<string, unknown> = { ...data };
+    if (!kycSubmission.nationalities) kycSubmission.nationalities = [data.country];
     if (!data.typeDocument) delete kycSubmission.typeDocument;
     if (!data.typeDocumentCol) delete kycSubmission.typeDocumentCol;
+    delete kycSubmission.typeDocumentAr; // Currently not required, (typeDocument throws an error on Alfredpay side)
     if (!data.phoneNumber) delete kycSubmission.phoneNumber;
+    if (!data.cuit) delete kycSubmission.cuit;
+    if (data.pep !== false && !data.pep) delete kycSubmission.pep;
+    if (!data.countryCode) delete kycSubmission.countryCode;
     return (await this.executeRequest(path, "POST", { kycSubmission })) as SubmitKycInformationResponse;
   }
 
@@ -279,7 +323,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("fileBody", file);
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
@@ -309,6 +353,20 @@ export class AlfredpayApiService {
   ): Promise<SubmitKybInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb`;
     return (await this.executeRequest(path, "POST", { kybSubmission: data })) as SubmitKybInformationResponse;
+  }
+
+  /**
+   * Alfredpay: PUT …/customers/kyb — updates an existing (e.g. PENDING) KYB submission in place.
+   * Alfredpay rejects a fresh POST while a submission is pending, so retries must go through here.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_updatekyb-3
+   */
+  public async updateKybInformation(
+    customerId: string,
+    submissionId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<void> {
+    const path = "/api/v1/third-party-service/penny/customers/kyb";
+    await this.executeRequest(path, "PUT", { customerId, kybUpdateSubmission: data, submissionId });
   }
 
   /**

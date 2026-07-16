@@ -5,8 +5,11 @@ import Big from "big.js";
 import { Keyring } from "@polkadot/api";
 import { mnemonicGenerate } from "@polkadot/util-crypto";
 
+// Module-level patching only when the live suite is enabled — bun runs all
+// test files in one process, so unconditional patches leak into other files.
 // Mock the EVM Nabla swap quote function before importing QuoteService so the
 // quote engine does not hit Base RPC for the (currently illiquid) USDC<->EURC pool.
+if (process.env.RUN_LIVE_TESTS)
 mock.module("../quote/core/nabla", () => {
   return {
     calculateNablaSwapOutputEvm: async (request: {
@@ -28,6 +31,16 @@ mock.module("../quote/core/nabla", () => {
     }
   };
 });
+
+// The Mykobo email is now derived from the user's profile and gated on an APPROVED Mykobo customer
+// (resolveMykoboCustomerForUser). This contract test focuses on the Mykobo intent/transaction path,
+// so stub the resolver to return the test email instead of standing up profile + KYC-mirror rows.
+if (process.env.RUN_LIVE_TESTS)
+mock.module("../mykobo/mykobo-customer.service", () => ({
+  resolveMykoboCustomerForUser: async () => ({ email: "mail@test.com" }),
+  syncMykoboCustomerKyc: async () => {},
+  upsertMykoboCustomerFromProfile: async () => {}
+}));
 import {
   AccountMeta,
   BrlaApiService,
@@ -63,6 +76,7 @@ const EVM_DESTINATION_ADDRESS = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
 const TEST_INPUT_AMOUNT = "35";
 const TEST_EMAIL = "mail@test.com";
 const TEST_IP_ADDRESS = "203.0.113.42";
+const TEST_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 const filePath = path.join(__dirname, "lastRampStateMykoboEur.json");
 const EVM_ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
@@ -103,6 +117,8 @@ let quoteTicket: QuoteTicket;
 type RampStateUpdateData = Partial<RampStateAttributes>;
 type QuoteTicketUpdateData = Partial<QuoteTicketAttributes>;
 
+// Guarded for the same leak reason as the mock.module calls above.
+if (process.env.RUN_LIVE_TESTS) {
 RampState.update = mock(async function (updateData: RampStateUpdateData) {
   rampState = { ...rampState, ...updateData, updatedAt: new Date() } as RampState;
   fs.writeFileSync(filePath, JSON.stringify(rampState, null, 2));
@@ -178,8 +194,11 @@ BrlaApiService.getInstance = mock(() => mockBrlaApiService as unknown as BrlaApi
 RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
   // worker disabled in test
 });
+}
 
-describe("Mykobo EUR offramp contract test (real sandbox, no on-chain submission)", () => {
+// Live test: hits the real Mykobo sandbox and needs MYKOBO_ACCESS_KEY/MYKOBO_SECRET_KEY.
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (real sandbox, no on-chain submission)", () => {
   it("requires Mykobo sandbox credentials in the environment", () => {
     if (!MYKOBO_ACCESS_KEY || !MYKOBO_SECRET_KEY) {
       throw new Error("MYKOBO_ACCESS_KEY and MYKOBO_SECRET_KEY must be set to run this test");
@@ -265,7 +284,10 @@ describe("Mykobo EUR offramp contract test (real sandbox, no on-chain submission
     expect(Number(quoteTicket.metadata.nablaSwapEvm?.outputAmountDecimal)).toBeGreaterThan(0);
   });
 
-  it("registers a Base+USDC ramp and prepares the Mykobo phase set (no squid, no broadcast)", async () => {
+  // SKIPPED: registerRamp unconditionally rejects EURC quotes with 503 "EUR ramps are
+  // currently disabled" (commit be52569e4), so this contract test cannot run even live.
+  // Re-enable when EUR ramps come back (or a test bypass for the guard exists).
+  it.skip("registers a Base+USDC ramp and prepares the Mykobo phase set (no squid, no broadcast)", async () => {
     const rampService = new RampService();
     const quoteService = new QuoteService();
 
@@ -291,7 +313,8 @@ describe("Mykobo EUR offramp contract test (real sandbox, no on-chain submission
     const registered = await rampService.registerRamp({
       additionalData,
       quoteId: quote.id,
-      signingAccounts: testSigningAccountsMeta
+      signingAccounts: testSigningAccountsMeta,
+      userId: TEST_USER_ID
     });
 
     if (!registered.unsignedTxs) {

@@ -11,7 +11,12 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
-import { observeApiClientEvent } from "../observability/apiClientEvent.service";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import {
+  buildApiClientRequestMetadata,
+  getSafeApiKeyPrefix,
+  observeApiClientEvent
+} from "../observability/apiClientEvent.service";
 import { classifyApiClientError, getErrorMessage } from "../observability/errorClassifier";
 import { getRequestDurationMs } from "../observability/requestContext";
 import quoteService from "../services/quote";
@@ -40,6 +45,7 @@ export const createQuote = async (
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
     const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+    const effectiveUserId = getEffectiveUserId(req);
 
     // Create quote with public key and partner name for discount application
     const quote = await quoteService.createQuote({
@@ -53,11 +59,11 @@ export const createQuote = async (
       partnerName: publicKeyPartnerName,
       rampType,
       to,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeApiClientEvent({
-      apiKeyPrefix: getSafePublicKeyPrefix(publicApiKey),
+      apiKeyPrefix: getSafeApiKeyPrefix(publicApiKey, ["pk_"]),
       durationMs: getRequestDurationMs(req),
       httpStatus: httpStatus.CREATED,
       network,
@@ -69,14 +75,14 @@ export const createQuote = async (
       rampType,
       requestId: req.requestId,
       status: "success",
-      userId: req.userId || null
+      userId: effectiveUserId || null
     });
 
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
     logger.error("Error creating quote", { errorType: classifyApiClientError(error), requestId: req.requestId });
     observeQuoteFailure(req, "quote_create", error, {
-      apiKeyPrefix: getSafePublicKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey),
+      apiKeyPrefix: getSafeApiKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey, ["pk_"]),
       network: getNetworkFromDestination(req.body?.rampType === RampDirection.BUY ? req.body?.to : req.body?.from),
       partnerId: req.authenticatedPartner?.id || req.body?.partnerId || null,
       partnerName: req.authenticatedPartner?.name || req.validatedPublicKey?.partnerName || null,
@@ -103,6 +109,7 @@ export const createBestQuote = async (
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
     const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
+    const effectiveUserId = getEffectiveUserId(req);
 
     // Create best quote by querying all eligible networks
     const quote = await quoteService.createBestQuote({
@@ -117,11 +124,11 @@ export const createBestQuote = async (
       partnerName: publicKeyPartnerName,
       rampType,
       to,
-      userId: req.userId
+      userId: effectiveUserId
     });
 
     observeApiClientEvent({
-      apiKeyPrefix: getSafePublicKeyPrefix(publicApiKey),
+      apiKeyPrefix: getSafeApiKeyPrefix(publicApiKey, ["pk_"]),
       durationMs: getRequestDurationMs(req),
       httpStatus: httpStatus.CREATED,
       network: quote.network,
@@ -133,14 +140,14 @@ export const createBestQuote = async (
       rampType,
       requestId: req.requestId,
       status: "success",
-      userId: req.userId || null
+      userId: effectiveUserId || null
     });
 
     res.status(httpStatus.CREATED).json(quote);
   } catch (error) {
     logger.error("Error creating best quote", { errorType: classifyApiClientError(error), requestId: req.requestId });
     observeQuoteFailure(req, "quote_create_best", error, {
-      apiKeyPrefix: getSafePublicKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey),
+      apiKeyPrefix: getSafeApiKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey, ["pk_"]),
       partnerId: req.authenticatedPartner?.id || req.body?.partnerId || null,
       partnerName: req.authenticatedPartner?.name || req.validatedPublicKey?.partnerName || null,
       rampType: req.body?.rampType
@@ -194,6 +201,11 @@ export const getQuote = async (
 type QuoteOperation = "quote_create" | "quote_create_best" | "quote_get";
 
 interface ObservedQuoteRequest {
+  body?: unknown;
+  method?: string;
+  params?: unknown;
+  path?: string;
+  query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
   userId?: string;
@@ -220,6 +232,7 @@ function observeQuoteFailure(
     errorMessage: getErrorMessage(error),
     errorType: classifyApiClientError(error, status),
     httpStatus: status,
+    metadata: buildQuoteRequestMetadata(req, operation),
     operation,
     requestId: req.requestId,
     status: "failure",
@@ -227,11 +240,26 @@ function observeQuoteFailure(
   });
 }
 
-function getHttpStatus(error: unknown): number {
-  return error instanceof APIError ? error.status || httpStatus.INTERNAL_SERVER_ERROR : httpStatus.INTERNAL_SERVER_ERROR;
+function buildQuoteRequestMetadata(req: ObservedQuoteRequest, operation: QuoteOperation): Record<string, unknown> {
+  if (operation === "quote_get") {
+    return buildApiClientRequestMetadata(req, { paramKeys: ["id"] });
+  }
+
+  return buildApiClientRequestMetadata(req, {
+    bodyKeys: [
+      "countryCode",
+      "from",
+      "inputAmount",
+      "inputCurrency",
+      "networks",
+      "outputCurrency",
+      "partnerId",
+      "rampType",
+      "to"
+    ]
+  });
 }
 
-function getSafePublicKeyPrefix(apiKey: string | null | undefined): string | null {
-  if (!apiKey?.startsWith("pk_")) return null;
-  return apiKey.slice(0, 8);
+function getHttpStatus(error: unknown): number {
+  return error instanceof APIError ? error.status || httpStatus.INTERNAL_SERVER_ERROR : httpStatus.INTERNAL_SERVER_ERROR;
 }

@@ -3,7 +3,7 @@ import { PresignedTx, RampErrorLog, RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
-import Subsidy, { SubsidyToken } from "../../../models/subsidy.model";
+import Subsidy from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
 import rampService from "../ramp/ramp.service";
@@ -16,9 +16,11 @@ export interface PhaseHandler {
   /**
    * Execute the phase
    * @param state The current ramp state
+   * @param signal Aborted when the processor gives up on this execution; long-running
+   *   waits must stop when it fires so abandoned executions don't keep running
    * @returns The updated ramp state
    */
-  execute(state: RampState): Promise<RampState>;
+  execute(state: RampState, signal?: AbortSignal): Promise<RampState>;
 
   /**
    * Get the phase name
@@ -41,7 +43,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
    * @param state The current ramp state
    * @returns The updated ramp state
    */
-  public async execute(state: RampState): Promise<RampState> {
+  public async execute(state: RampState, signal?: AbortSignal): Promise<RampState> {
     try {
       logger.info(`Executing phase ${this.getPhaseName()} for ramp ${state.id}`);
 
@@ -54,7 +56,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       }
 
       // Execute the phase
-      const updatedState = await this.executePhase(state);
+      const updatedState = await this.executePhase(state, signal);
 
       // Log the phase execution
       logger.info(`Phase ${this.getPhaseName()} executed successfully for ramp ${state.id}`);
@@ -90,9 +92,11 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   /**
    * Execute the phase implementation
    * @param state The current ramp state
+   * @param signal Aborted when the processor abandons this execution; implementations
+   *   with long-running waits should pass it to their polling helpers
    * @returns The updated ramp state
    */
-  protected abstract executePhase(state: RampState): Promise<RampState>;
+  protected abstract executePhase(state: RampState, signal?: AbortSignal): Promise<RampState>;
 
   /**
    * Transition to the next phase
@@ -152,7 +156,7 @@ export abstract class BasePhaseHandler implements PhaseHandler {
   protected async createSubsidy(
     state: RampState,
     amount: number,
-    token: SubsidyToken,
+    token: string,
     payerAccount: string,
     transactionHash: string,
     paymentDate: Date = new Date()
@@ -182,8 +186,13 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
       logger.info(`Subsidy created successfully with id ${subsidy.id} for ramp ${state.id}`);
     } catch (error) {
-      logger.error(`Error creating subsidy for ramp ${state.id}:`, error);
-      // We do not want to throw an error here, as it should not block the phase execution.
+      // Deliberately swallowed so bookkeeping can't block the phase — but the subsidy
+      // was already paid on-chain, so an unrecorded row is real money lost to
+      // accounting. Keep this line alertable.
+      logger.error(
+        `SUBSIDY_RECORDING_FAILED: subsidy paid but not recorded. ramp=${state.id} phase=${this.getPhaseName()} token=${token} amount=${amount} txHash=${transactionHash}:`,
+        error
+      );
     }
   }
 

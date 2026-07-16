@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
+import { resolveAlfredpayQuoteCustomerId } from "../../alfredpay-customer";
 import { QuoteContext } from "../../core/types";
 import { BaseInitializeEngine } from "./../initialize/index";
 
@@ -45,6 +46,10 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
       ? ctx.subsidy.targetOutputAmountDecimal.div(effectiveRate).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown)
       : ctx.evmToEvm.outputAmountDecimal.minus(deductibleFee).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
 
+    // Quotes stay anonymous-eligible: metadata.customerId is tracking-only on Alfredpay quote
+    // requests. KYC is enforced at ramp registration via resolveAlfredpayCustomerId.
+    const customerId = await resolveAlfredpayQuoteCustomerId(req.outputCurrency, req.userId);
+
     const alfredpayService = AlfredpayApiService.getInstance();
     const quoteRequest: CreateAlfredpayOfframpQuoteRequest = {
       chain: AlfredpayChain.MATIC,
@@ -52,7 +57,7 @@ export class OfframpTransactionAlfredpayEngine extends BaseInitializeEngine {
       fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
       metadata: {
         businessId: "vortex",
-        customerId: req.userId || "unknown"
+        customerId
       },
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
       toCurrency: req.outputCurrency as unknown as AlfredpayFiatCurrency

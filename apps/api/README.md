@@ -116,7 +116,6 @@ yarn seed:phase-metadata
 - `FUNDING_SECRET`: Secret key to sign the funding transactions on Stellar.
 - `PENDULUM_FUNDING_SEED`: Seed phrase to sign the funding transactions on Pendulum.
 - `MOONBEAM_EXECUTOR_PRIVATE_KEY`: Private key to sign the transactions on Moonbeam.
-- `CLIENT_DOMAIN_SECRET`: Secret for client domain verification.
 
 ### Database Configuration
 

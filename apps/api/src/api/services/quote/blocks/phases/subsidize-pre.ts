@@ -14,7 +14,7 @@ import {
 import { Big } from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../../config/logger";
-import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../../constants/constants";
+import { config } from "../../../../../config/vars";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import RampState from "../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../models/subsidy.model";
@@ -103,9 +103,9 @@ function capSubsidy(idealSubsidy: Big, expectedOutput: Big, maxSubsidy: number):
 export async function computeExpectedOutput(ctx: PhaseCtx): Promise<{ decimal: Big; raw: string }> {
   let expectedOutputAmount = new Big(ctx.request.inputAmount);
   try {
-    const oracle = await priceFeedService.getOnchainOraclePrice(ctx.request.inputCurrency);
+    const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(ctx.request.inputCurrency);
     const isOfframp = ctx.request.rampType === RampDirection.SELL;
-    const effectivePrice = isOfframp ? new Big(1).div(oracle.price) : oracle.price;
+    const effectivePrice = isOfframp ? new Big(1).div(oraclePrice) : oraclePrice;
     const targetDiscount = ctx.partner?.targetDiscount ?? 0;
     const discountedRate = effectivePrice.mul(new Big(1).plus(targetDiscount));
     expectedOutputAmount = new Big(ctx.request.inputAmount).mul(discountedRate);
@@ -184,12 +184,13 @@ class SubsidizePreSwapExecutor extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const percentageCap = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const percentageCap = Big(quoteOutputUsd).mul(subsidyCapFraction);
         const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePreSwapExecutor: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePreSwapExecutor: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${subsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 

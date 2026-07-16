@@ -1,8 +1,10 @@
+import type { AveniaKycContext } from "@vortexfi/kyc";
+import { AlfredpayKycContext } from "@vortexfi/kyc";
 import { EphemeralAccount } from "@vortexfi/shared";
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AnyActorRef, Snapshot } from "xstate";
-import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "../machines/kyc.states";
+import { MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,
@@ -12,11 +14,14 @@ import {
   SelectedAveniaData,
   SelectedMykoboData
 } from "../machines/types";
+import { AuthService } from "../services/auth";
 import { RampExecutionInput } from "../types/phases";
 
 const RAMP_STATE_STORAGE_KEY = "rampState";
 const RAMP_EPHEMERALS_STORAGE_KEY = "rampEphemerals";
 const MAX_RAMP_EPHEMERALS = 50;
+const TOKEN_REFRESH_SKEW_MS = 60 * 1000; // refresh 60s before expiry
+const TOKEN_REFRESH_RETRY_MS = 30 * 1000; // retry after a transient failure
 
 type RampEphemeralEntry = {
   substrateEphemeral: EphemeralAccount;
@@ -136,10 +141,70 @@ const PersistenceEffect = () => {
   return null;
 };
 
+// Single app-wide token refresher: schedules a refresh just before the access token's real
+// expiry (decoded from the JWT), reschedules off each new token, and retries transient
+// failures without dropping the session.
+const TokenRefreshEffect = () => {
+  const rampActor = useRampActor();
+  const isAuthenticated = useSelector(rampActor, state => state?.context.isAuthenticated ?? false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleNext = () => {
+      if (cancelled) return;
+      const expiryMs = AuthService.getAccessTokenExpiryMs();
+      // If the expiry can't be decoded, don't kill the loop permanently — retry shortly so a
+      // later (decodable) token re-establishes the schedule.
+      const delay = expiryMs === null ? TOKEN_REFRESH_RETRY_MS : Math.max(expiryMs - Date.now() - TOKEN_REFRESH_SKEW_MS, 0);
+      if (expiryMs === null) {
+        timer = setTimeout(scheduleNext, delay);
+        return;
+      }
+      timer = setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const refreshed = await AuthService.refreshAccessToken();
+          if (cancelled) return;
+          if (refreshed) {
+            // refreshAccessToken() has already persisted the new token, so this reads the fresh expiry.
+            scheduleNext();
+          } else {
+            // Refresh token confirmed invalid: the session is over.
+            rampActor.send({ type: "LOGOUT" });
+          }
+        } catch {
+          // Transient failure: retry soon without touching the session.
+          if (!cancelled) {
+            timer = setTimeout(scheduleNext, TOKEN_REFRESH_RETRY_MS);
+          }
+        }
+      }, delay);
+    };
+
+    scheduleNext();
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [isAuthenticated, rampActor]);
+
+  return null;
+};
+
 export const PersistentRampStateProvider: React.FC<PropsWithChildren> = ({ children }) => {
   return (
     <RampStateContext.Provider>
       <PersistenceEffect />
+      <TokenRefreshEffect />
       {children}
     </RampStateContext.Provider>
   );

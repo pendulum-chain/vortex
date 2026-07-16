@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import Big from "big.js";
-import { calculateSubsidyAmount } from "./helpers";
+import { calculateExpectedOutput, calculateSubsidyAmount } from "./helpers";
 
 describe("calculateSubsidyAmount", () => {
   it("returns 0 when actual output meets expected output", () => {
@@ -30,26 +30,26 @@ describe("calculateSubsidyAmount", () => {
     expect(result.toString()).toBe("5");
   });
 
-  describe("negative targetDiscount scenarios (rate floor)", () => {
-    it("subsidizes when actual is below negative-target expected output", () => {
-      const result = calculateSubsidyAmount(new Big(99.9), new Big(99.5), 0);
-      expect(result.toString()).toBe("0.4");
-    });
+});
 
-    it("returns 0 when actual already meets negative-target expected output", () => {
-      const result = calculateSubsidyAmount(new Big(99.9), new Big(99.9), 0);
-      expect(result.toString()).toBe("0");
-    });
+// The negative-discount / rate-floor logic lives in calculateExpectedOutput, not
+// calculateSubsidyAmount (which only sees the resulting expectedOutput).
+describe("calculateExpectedOutput with negative targetDiscount (rate floor)", () => {
+  it("lowers the expected output below the oracle rate for an onramp", () => {
+    const { expectedOutput, adjustedTargetDiscount } = calculateExpectedOutput("100", new Big(1), -0.001, false, null);
+    // rate = 1 * (1 - 0.001) = 0.999
+    expect(expectedOutput.toString()).toBe("99.9");
+    expect(adjustedTargetDiscount.toString()).toBe("-0.001");
+  });
 
-    it("returns 0 when actual exceeds negative-target expected output", () => {
-      const result = calculateSubsidyAmount(new Big(99.9), new Big(100.5), 0);
-      expect(result.toString()).toBe("0");
-    });
+  it("inverts the oracle price for offramps before applying the discount", () => {
+    const { expectedOutput } = calculateExpectedOutput("100", new Big(5), -0.01, true, null);
+    // USD-FIAT rate = 1/5 = 0.2; discounted = 0.2 * 0.99 = 0.198
+    expect(expectedOutput.toString()).toBe("19.8");
+  });
 
-    it("caps subsidy at maxSubsidy for negative target", () => {
-      const result = calculateSubsidyAmount(new Big(99.9), new Big(98.0), 0.01);
-      // shortfall=1.9, maxAllowed=99.9*0.01=0.999
-      expect(result.toString()).toBe("0.999");
-    });
+  it("applies a positive targetDiscount as a rate premium", () => {
+    const { expectedOutput } = calculateExpectedOutput("100", new Big(1), 0.02, false, null);
+    expect(expectedOutput.toString()).toBe("102");
   });
 });

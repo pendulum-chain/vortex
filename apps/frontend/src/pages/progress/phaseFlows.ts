@@ -27,6 +27,7 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
   mykoboPayoutOnBase: 60,
   nablaApprove: 24,
   nablaSwap: 24,
+  onHoldForComplianceCheck: 0,
   pendulumToAssethubXcm: 30,
   pendulumToHydrationXcm: 30,
   pendulumToMoonbeamXcm: 40,
@@ -43,6 +44,15 @@ export const PHASE_DURATIONS: Record<RampPhase, number> = {
 };
 
 export const PHASE_FLOWS = {
+  offramp_alfredpay: [
+    "initial",
+    "squidRouterPermitExecute",
+    "fundEphemeral",
+    "finalSettlementSubsidy",
+    "alfredpayOfframpTransfer",
+    "complete"
+  ] as RampPhase[],
+
   offramp_brl: [
     "initial",
     "fundEphemeral",
@@ -70,6 +80,7 @@ export const PHASE_FLOWS = {
   onramp_brl: [
     "initial",
     "brlaOnrampMint",
+    "onHoldForComplianceCheck",
     "fundEphemeral",
     "subsidizePreSwap",
     "nablaApprove",

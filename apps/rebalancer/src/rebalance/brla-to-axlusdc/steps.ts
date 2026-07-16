@@ -5,8 +5,6 @@ import {
   ApiManager,
   AveniaFeeType,
   AveniaPaymentMethod,
-  AveniaSwapTicket,
-  AveniaTicketStatus,
   BrlaApiService,
   BrlaCurrency,
   checkEvmBalancePeriodically,
@@ -34,41 +32,10 @@ import {
 import Big from "big.js";
 import { encodeFunctionData } from "viem";
 import { polygon } from "viem/chains";
-import { brlaFiatTokenDetails, brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
+import { brlaMoonbeamTokenDetails, usdcTokenDetails } from "../../constants.ts";
+import { checkTicketStatusPaid } from "../../utils/brla.ts";
 import { getConfig, getMoonbeamEvmClients, getPendulumAccount, getPolygonEvmClients } from "../../utils/config.ts";
 import { waitForTransactionConfirmation } from "../../utils/transactions.ts";
-
-async function checkTicketStatusPaid(brlaApiService: BrlaApiService, ticketId: string): Promise<AveniaSwapTicket> {
-  const pollInterval = 5000; // 5 seconds
-  const timeout = 5 * 60 * 1000; // 5 minutes
-  const startTime = Date.now();
-  let lastError: any;
-
-  while (Date.now() - startTime < timeout) {
-    try {
-      const ticket = await brlaApiService.getAveniaSwapTicket(ticketId);
-      if (ticket && ticket.status) {
-        if (ticket.status === AveniaTicketStatus.PAID) {
-          return ticket;
-        }
-        if (ticket.status === AveniaTicketStatus.FAILED) {
-          throw new Error("Ticket status is FAILED");
-        }
-      }
-    } catch (error) {
-      lastError = error;
-      console.warn(`Polling for ticket ${ticketId} status failed with error. Retrying...`, lastError);
-    }
-    await new Promise(resolve => setTimeout(resolve, pollInterval));
-  }
-
-  if (lastError) {
-    console.error("Polling for ticket status timed out with an error: ", lastError);
-    throw new Error(`Polling for ticket status timed out with an error: ${lastError.message}`);
-  }
-
-  throw new Error("Polling for ticket status timed out.");
-}
 
 export async function checkInitialPendulumBalance(pendulumAddress: string, requiredAmount: string): Promise<Big> {
   const apiManager = ApiManager.getInstance();
@@ -280,7 +247,7 @@ export async function transferUsdcToMoonbeamWithSquidrouter(usdcAmountRaw: strin
 /// Swaps BRLA to USDC on BRLA API service and transfer them to the receiver address.
 export async function swapBrlaToUsdcOnBrlaApiService(brlaAmount: Big, receiverAddress: `0x${string}`) {
   const aveniaOnchainSwapParams: OnchainSwapQuoteParams = {
-    inputAmount: brlaAmount.toFixed(12, 0),
+    inputAmount: brlaAmount.toFixed(4, 0),
     inputCurrency: BrlaCurrency.BRLA,
     outputCurrency: BrlaCurrency.USDC
   };
@@ -371,7 +338,7 @@ export const pollForSufficientBalance = async (brlaAmountBig: Big) => {
   const pollInterval = 5000; // 5 seconds
   const timeout = 5 * 60 * 1000; // 5 minutes
   const startTime = Date.now();
-  let lastError: any;
+  let lastError: unknown;
   const brlaAmountUnits = brlaAmountBig.toFixed(0, 0);
   const brlaApiService = BrlaApiService.getInstance();
 

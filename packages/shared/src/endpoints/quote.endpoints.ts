@@ -71,6 +71,11 @@ export interface QuoteResponse {
   totalFeeUsd: string;
   processingFeeUsd: string;
 
+  // User benefit from quote-time discount, displayed in feeCurrency when present
+  discountFiat?: string;
+  discountUsd?: string;
+  discountCurrency?: RampCurrency;
+
   paymentMethod: PaymentMethod;
   expiresAt: Date;
   createdAt: Date;
@@ -102,7 +107,7 @@ export enum QuoteError {
   InputAmountForSwapMustBeGreaterThanZero = "Input amount for swap must be greater than 0",
   InputAmountTooLow = "Input amount too low. Please try a larger amount.",
   InputAmountTooLowToCoverCalculatedFees = "Input amount too low to cover calculated fees.",
-  LowLiquidity = "Low liquidity for this route. Please try a smaller amount.",
+  LowLiquidity = "This route is temporarily unavailable due to low liquidity. Please try a smaller amount or check back soon.",
   BelowLowerLimitSell = "Output amount below minimum SELL limit of",
   BelowLowerLimitBuy = "Input amount below minimum BUY limit of",
   AboveUpperLimitSell = "Output amount exceeds maximum SELL limit of",
@@ -110,6 +115,7 @@ export enum QuoteError {
 
   // Availability errors
   UnsupportedCurrency = "Currency not supported",
+  AnchorTemporarilyUnavailable = "This payment provider is temporarily unavailable. Please try again in a few minutes.",
 
   // Compatibility errors
   AssetHubNotSupportedForAlfredPay = "AssetHub is not supported for this currency. Please select a different network.",

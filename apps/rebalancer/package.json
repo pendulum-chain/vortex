@@ -35,7 +35,9 @@
     "prepare": "husky",
     "serve": "bun dist/index.js",
     "start": "bun run build && bun run serve",
-    "test": "bun test"
+    "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.33 0.50",
+    "typecheck": "tsc --noEmit"
   },
   "type": "module"
 }

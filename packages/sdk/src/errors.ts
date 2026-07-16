@@ -65,7 +65,17 @@ export class InvalidAdditionalDataError extends RegisterRampError {
   }
 }
 
-export type EphemeralChain = "Substrate" | "EVM" | "Stellar";
+export class InsufficientBalanceError extends RegisterRampError {
+  constructor(requiredAmount: string, currency: string, network: string, walletAddress: string) {
+    super(
+      `Wallet ${walletAddress} holds less than the required ${requiredAmount} ${currency} on ${network} for this offramp`,
+      400
+    );
+    this.name = "InsufficientBalanceError";
+  }
+}
+
+export type EphemeralChain = "Substrate" | "EVM";
 
 export class EphemeralNotFreshError extends RegisterRampError {
   public readonly chain: EphemeralChain;
@@ -101,7 +111,7 @@ export class BrlOnrampError extends RegisterRampError {
 
 export class MissingBrlParametersError extends BrlOnrampError {
   constructor() {
-    super("Parameters destinationAddress and taxId are required for onramp", 400);
+    super("Parameter destinationAddress is required for onramp", 400);
     this.name = "MissingBrlParametersError";
   }
 }
@@ -151,7 +161,7 @@ export class BrlOfframpError extends RegisterRampError {
 
 export class MissingBrlOfframpParametersError extends BrlOfframpError {
   constructor() {
-    super("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL", 400);
+    super("pixDestination is required for offramp to BRL", 400);
     this.name = "MissingBrlOfframpParametersError";
   }
 }
@@ -163,7 +173,60 @@ export class InvalidPixKeyError extends BrlOfframpError {
   }
 }
 
-// Monerium specific errors
+// Alfredpay Onramp specific errors
+export class AlfredpayOnrampError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOnrampError";
+  }
+}
+
+export class MissingAlfredpayOnrampParametersError extends AlfredpayOnrampError {
+  constructor() {
+    super("Parameter destinationAddress is required for Alfredpay onramp", 400);
+    this.name = "MissingAlfredpayOnrampParametersError";
+  }
+}
+
+export class AlfredpayOnrampKycRequiredError extends AlfredpayOnrampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOnrampKycRequiredError";
+  }
+}
+
+function extractErrorStatus(response: Record<string, unknown>): number | undefined {
+  for (const key of ["status", "statusCode", "code"]) {
+    const value = response[key];
+    if (typeof value === "number") {
+      return value;
+    }
+  }
+
+  const nestedError = response.error;
+  if (nestedError && typeof nestedError === "object") {
+    return extractErrorStatus(nestedError as Record<string, unknown>);
+  }
+
+  return undefined;
+}
+
+// Alfredpay Offramp specific errors
+export class AlfredpayOfframpError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "AlfredpayOfframpError";
+  }
+}
+
+export class MissingAlfredpayOfframpParametersError extends AlfredpayOfframpError {
+  constructor(message = "Parameters fiatAccountId and walletAddress are required for Alfredpay offramp") {
+    super(message, 400);
+    this.name = "MissingAlfredpayOfframpParametersError";
+  }
+}
+
+// Monerium specific errors (deprecated — replaced by Mykobo)
 export class MoneriumError extends RegisterRampError {
   constructor(message: string, status = 400) {
     super(message, status);
@@ -182,6 +245,39 @@ export class MissingMoneriumOfframpParametersError extends MoneriumError {
   constructor() {
     super("Parameters walletAddress and moneriumAuthToken is required for Monerium onramp", 400);
     this.name = "MissingMoneriumOfframpParametersError";
+  }
+}
+
+// Mykobo EUR specific errors
+export class MykoboError extends RegisterRampError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "MykoboError";
+  }
+}
+
+export class MissingMykoboOnrampParametersError extends MykoboError {
+  constructor() {
+    super("Parameters destinationAddress, email and ipAddress are required for Mykobo EUR onramp", 400);
+    this.name = "MissingMykoboOnrampParametersError";
+  }
+}
+
+export class MissingMykoboOfframpParametersError extends MykoboError {
+  constructor() {
+    super("Parameters walletAddress, email, ipAddress and destinationAddress are required for Mykobo EUR offramp", 400);
+    this.name = "MissingMykoboOfframpParametersError";
+  }
+}
+
+/**
+ * The effective user's Mykobo KYC is missing/not approved, or the supplied email does not
+ * match the profile bound to the authenticated user. Complete Mykobo KYC before EUR ramps.
+ */
+export class MykoboKycRequiredError extends MykoboError {
+  constructor(message: string, status = 400) {
+    super(message, status);
+    this.name = "MykoboKycRequiredError";
   }
 }
 
@@ -343,10 +439,10 @@ function extractErrorMessage(value: unknown): string | undefined {
 /**
  * Error parsing utilities
  */
-export function parseAPIError(response: any): VortexSdkError {
+export function parseAPIError(response: unknown, fallbackStatus?: number): VortexSdkError {
   if (response && typeof response === "object") {
-    const { message, error, status, errors } = response;
-    const normalizedStatus = typeof status === "number" ? status : 500;
+    const { message, error, errors } = response as Record<string, unknown>;
+    const normalizedStatus = extractErrorStatus(response as Record<string, unknown>) ?? fallbackStatus ?? 500;
     const errorMessage = extractErrorMessage(message) ?? extractErrorMessage(error);
 
     if (errorMessage) {
@@ -365,19 +461,19 @@ export function parseAPIError(response: any): VortexSdkError {
         return new InvalidNetworkError(network);
       }
 
-      const freshnessMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral (\S+) (?:is not fresh|already exists)/);
+      const freshnessMatch = errorMessage.match(/^(Substrate|EVM) ephemeral (\S+) (?:is not fresh|already exists)/);
       if (freshnessMatch) {
         return new EphemeralNotFreshError(errorMessage, freshnessMatch[1] as EphemeralChain, freshnessMatch[2]);
       }
-      const freshnessCheckMatch = errorMessage.match(/^Could not verify freshness of (Substrate|EVM|Stellar) ephemeral (\S+)/);
+      const freshnessCheckMatch = errorMessage.match(/^Could not verify freshness of (Substrate|EVM) ephemeral (\S+)/);
       if (freshnessCheckMatch) {
         return new EphemeralFreshnessCheckError(errorMessage, freshnessCheckMatch[1] as EphemeralChain, freshnessCheckMatch[2]);
       }
-      const missingEphemeralMatch = errorMessage.match(/^(Substrate|EVM|Stellar) ephemeral address is required/);
+      const missingEphemeralMatch = errorMessage.match(/^(Substrate|EVM) ephemeral address is required/);
       if (missingEphemeralMatch) {
         return new EphemeralNotFreshError(errorMessage, missingEphemeralMatch[1] as EphemeralChain, "");
       }
-      if (errorMessage === "Parameters destinationAddress and taxId are required for onramp") {
+      if (errorMessage === "Parameter destinationAddress is required for onramp") {
         return new MissingBrlParametersError();
       }
       if (errorMessage === "Moonbeam ephemeral not found") {
@@ -395,17 +491,52 @@ export function parseAPIError(response: any): VortexSdkError {
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();
       }
-      if (errorMessage === "receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL") {
+      if (errorMessage === "pixDestination is required for offramp to BRL") {
         return new MissingBrlOfframpParametersError();
       }
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
         return new InvalidPixKeyError();
+      }
+      if (errorMessage === "Parameter destinationAddress is required for Alfredpay onramp") {
+        return new MissingAlfredpayOnrampParametersError();
+      }
+      if (
+        errorMessage ===
+          "Alfredpay onramp requires a completed Alfredpay KYC profile. Partner API-key-only registration is not supported for this flow yet because no partner user-to-Alfredpay-customer mapping exists." ||
+        errorMessage.startsWith("No completed Alfredpay KYC profile found") ||
+        errorMessage.startsWith("Alfredpay KYC status is")
+      ) {
+        return new AlfredpayOnrampKycRequiredError(errorMessage, normalizedStatus);
+      }
+      if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
+        return new MissingAlfredpayOfframpParametersError(errorMessage);
+      }
+      // Shared across BRL, Alfredpay and Mykobo offramp routes (missing walletAddress);
+      // the message carries no corridor, so it cannot be mapped to a corridor-specific class.
+      if (errorMessage === "User address must be provided for offramping.") {
+        return new MissingAlfredpayOfframpParametersError(errorMessage);
       }
       if (errorMessage === "Parameters moneriumAuthToken and destinationAddress are required for Monerium onramp") {
         return new MissingMoneriumOnrampParametersError();
       }
       if (errorMessage === "Parameters walletAddress and moneriumAuthToken is required for Monerium onramp") {
         return new MissingMoneriumOfframpParametersError();
+      }
+      if (errorMessage === "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp") {
+        return new MissingMykoboOnrampParametersError();
+      }
+      if (errorMessage === "ipAddress must be provided for Mykobo (EUR) offramp") {
+        return new MissingMykoboOfframpParametersError();
+      }
+      if (errorMessage === "destinationAddress (user receiving wallet) must be provided for Mykobo offramp") {
+        return new MissingMykoboOfframpParametersError();
+      }
+      if (
+        errorMessage.startsWith("Mykobo KYC is not approved for this user") ||
+        errorMessage === "Provided email does not match the profile bound to the authenticated user." ||
+        errorMessage === "No profile found for this user; cannot resolve the Mykobo customer."
+      ) {
+        return new MykoboKycRequiredError(errorMessage, normalizedStatus);
       }
 
       if (errorMessage === "Ramp not found") {
@@ -422,7 +553,12 @@ export function parseAPIError(response: any): VortexSdkError {
       }
     }
 
-    return new VortexSdkError(errorMessage ?? "Unknown API error", normalizedStatus, true, errors);
+    return new VortexSdkError(
+      errorMessage ?? "Unknown API error",
+      normalizedStatus,
+      true,
+      Array.isArray(errors) ? errors : undefined
+    );
   }
 
   return new VortexSdkError("Unknown error occurred", 500);
@@ -430,14 +566,14 @@ export function parseAPIError(response: any): VortexSdkError {
 
 export async function handleAPIResponse<T>(response: Response, endpoint: string): Promise<T> {
   if (!response.ok) {
-    let errorData: any;
+    let errorData: unknown;
     try {
       errorData = await response.json();
     } catch {
       throw new APIResponseError(endpoint, response.status, response.statusText);
     }
 
-    throw parseAPIError(errorData);
+    throw parseAPIError(errorData, response.status);
   }
 
   try {

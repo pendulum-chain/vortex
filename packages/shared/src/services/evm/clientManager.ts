@@ -10,6 +10,9 @@ export interface EvmNetworkConfig {
 }
 
 const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
+// Any on-chain revert is deterministic for a given block state: retrying against a different RPC
+// node will not change the outcome, so retrying just wastes calls and delays failure reporting.
+const NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS = [/execution reverted/i];
 
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
@@ -49,6 +52,10 @@ function getRpcCacheKey(rpcUrl: string): string {
 function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transport {
   const targetRpcUrl = rpcUrl ?? network.rpcUrls[0];
   return targetRpcUrl === "" ? http() : http(targetRpcUrl);
+}
+
+function isNonRetryableReadContractError(error: Error): boolean {
+  return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
 function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
@@ -161,7 +168,8 @@ export class EvmClientManager {
     operation: (rpcUrl: string) => Promise<T>,
     operationName: string,
     maxRetries = 3,
-    initialDelayMs = 1000
+    initialDelayMs = 1000,
+    shouldRetry: (error: Error) => boolean = () => true
   ): Promise<T> {
     const network = this.getNetworkConfig(networkName);
     const rpcUrls = network.rpcUrls;
@@ -182,10 +190,24 @@ export class EvmClientManager {
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
+        const retryable = shouldRetry(lastError);
+        const sanitizedMessage = sanitizeRpcErrorMessage(lastError.message);
 
-        logger.current.warn(
-          `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizeRpcErrorMessage(lastError.message)}`
-        );
+        if (retryable) {
+          logger.current.warn(
+            `${operationName} attempt ${attempt + 1}/${maxRetries + 1} failed on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        } else {
+          logger.current.warn(
+            `${operationName} failed without retry on ${networkName} with RPC ${redactRpcUrlForLogs(rpcUrl)}: ${sanitizedMessage}`
+          );
+        }
+
+        if (!retryable) {
+          throw new Error(`${operationName} failed on ${networkName}: ${sanitizedMessage}`, {
+            cause: lastError
+          });
+        }
 
         if (attempt < maxRetries) {
           const delayMs = initialDelayMs * Math.pow(2, attempt); // Exponential backoff
@@ -327,7 +349,8 @@ export class EvmClientManager {
       },
       "read contract",
       maxRetries,
-      initialDelayMs
+      initialDelayMs,
+      error => !isNonRetryableReadContractError(error)
     );
   }
 

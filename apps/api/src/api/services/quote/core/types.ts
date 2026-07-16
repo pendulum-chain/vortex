@@ -73,6 +73,8 @@ export interface PartnerInfo {
   minDynamicDifference?: number;
 }
 
+export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";
+
 // Strategy for a specific route/path
 export interface IRouteStrategy {
   // Optional: human-friendly name for logging
@@ -88,11 +90,17 @@ export interface IRouteStrategy {
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest & { userId?: string };
+  readonly request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
   readonly now: Date;
 
   // Partner info (if any)
   partner: PartnerInfo | null;
+
+  // Quote ownership and pricing provenance. `partnerOwnerId` is used for
+  // partner-principal ownership; `pricingPartnerId` is used for custom rates.
+  partnerOwnerId?: string | null;
+  pricingPartnerId?: string | null;
+  partnerPricingSource?: PartnerPricingSource;
 
   // The fiat currency used for displaying fee breakdown (per helpers.getTargetFiatCurrency)
   targetFeeFiatCurrency: RampCurrency;
@@ -251,6 +259,12 @@ export interface QuoteContext {
     // Target output amount after subsidy (actual output + subsidy)
     targetOutputAmountDecimal: Big;
     targetOutputAmountRaw: string;
+  };
+
+  subsidyDisplay?: {
+    fiat: string;
+    usd: string;
+    currency: RampCurrency;
   };
 
   // Accumulated logs/notes for debugging (optional)

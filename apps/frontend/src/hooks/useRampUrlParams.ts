@@ -47,6 +47,10 @@ interface RampUrlParams {
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
+  kybMode?: boolean;
+  invite?: string;
+  region?: string;
+  kybRegionLocked?: boolean;
 }
 
 function findFiatToken(fiatToken?: string): FiatToken | undefined {
@@ -183,6 +187,13 @@ export const useRampUrlParams = (): RampUrlParams => {
     const fiatParam = searchParams.fiat?.toUpperCase();
     const cryptoLockedParam = searchParams.cryptoLocked?.toUpperCase();
     const countryCodeParam = searchParams.countryCode?.toUpperCase();
+    // `kyb` or `kybLocked` present (any value, including a bare flag) enables KYB mode; a string value is the region code.
+    // `kybLocked` additionally pins the region and skips the selector.
+    const kybRegionLocked = searchParams.kybLocked !== undefined;
+    const kybMode = searchParams.kyb !== undefined || kybRegionLocked;
+    const lockedRegion = typeof searchParams.kybLocked === "string" ? searchParams.kybLocked.toUpperCase() : undefined;
+    const kybRegion = typeof searchParams.kyb === "string" ? searchParams.kyb.toUpperCase() : undefined;
+    const regionParam = lockedRegion || kybRegion;
 
     const networkParam = searchParams.network?.toLowerCase();
     const providedQuoteId = searchParams.quoteId?.toLowerCase();
@@ -196,6 +207,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const walletLockedParam = searchParams.walletAddressLocked;
     const callbackUrlParam = searchParams.callbackUrl;
     const externalSessionIdParam = searchParams.externalSessionId;
+    const inviteParam = searchParams.invite;
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -215,11 +227,15 @@ export const useRampUrlParams = (): RampUrlParams => {
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
+      invite: inviteParam || undefined,
+      kybMode,
+      kybRegionLocked,
       network,
       partnerId: partnerIdParam || undefined,
       paymentMethod: paymentMethodParam || undefined,
       providedQuoteId,
       rampDirection,
+      region: regionParam || undefined,
       walletLocked: walletLockedParam || undefined
     };
     // evmTokensLoaded: triggers re-evaluation of cryptoLocked when dynamic tokens (e.g. WETH, WBTC) finish loading from SquidRouter
@@ -242,7 +258,11 @@ export const useSetRampUrlParams = () => {
     paymentMethod,
     walletLocked,
     callbackUrl,
-    externalSessionId
+    externalSessionId,
+    invite,
+    kybMode,
+    region,
+    kybRegionLocked
   } = useRampUrlParams();
 
   const onToggle = useRampDirectionToggle();
@@ -277,6 +297,21 @@ export const useSetRampUrlParams = () => {
     // effect to read params when at /widget path
     if (!isWidget) return;
     if (hasInitialized.current) return;
+
+    // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
+    // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.
+    // An invite token alone implies the recipient hand-off even when the link carries no KYB
+    // region flag — the accepted invitation locks the corridor, so the token must never be dropped.
+    if (kybMode || invite) {
+      if (externalSessionId) {
+        rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
+      }
+      setPartnerIdFn(partnerId || null);
+      setApiKeyFn(apiKey || null);
+      rampActor.send({ invite, locked: kybRegionLocked, region, type: "START_KYB_LINK" });
+      hasInitialized.current = true;
+      return;
+    }
 
     // Modify the ramp state machine accordingly
     if (providedQuoteId) {

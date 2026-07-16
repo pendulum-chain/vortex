@@ -48,12 +48,12 @@ const MXN_LIMITS: AlfredpayLimitsTable = {
   },
   onramp: {
     USDC: {
-      BUSINESS: { maxRaw: "8699689121", minRaw: "20000" },
-      INDIVIDUAL: { maxRaw: "8699689121", minRaw: "20000" }
+      BUSINESS: { maxRaw: "8699689121", minRaw: "15000" },
+      INDIVIDUAL: { maxRaw: "8699689121", minRaw: "15000" }
     },
     USDT: {
-      BUSINESS: { maxRaw: "8695217304", minRaw: "20000" },
-      INDIVIDUAL: { maxRaw: "8695217304", minRaw: "20000" }
+      BUSINESS: { maxRaw: "8695217304", minRaw: "150000" },
+      INDIVIDUAL: { maxRaw: "8695217304", minRaw: "150000" }
     }
   }
 };
@@ -71,12 +71,35 @@ const COP_LIMITS: AlfredpayLimitsTable = {
   },
   onramp: {
     USDC: {
-      BUSINESS: { maxRaw: "110596799945", minRaw: "3500000" },
-      INDIVIDUAL: { maxRaw: "36865599982", minRaw: "3500000" }
+      BUSINESS: { maxRaw: "110596799945", minRaw: "3300000" },
+      INDIVIDUAL: { maxRaw: "36865599982", minRaw: "3300000" }
     },
     USDT: {
-      BUSINESS: { maxRaw: "110596799945", minRaw: "3500000" },
-      INDIVIDUAL: { maxRaw: "36865599982", minRaw: "3500000" }
+      BUSINESS: { maxRaw: "110596799945", minRaw: "3300000" },
+      INDIVIDUAL: { maxRaw: "36865599982", minRaw: "3300000" }
+    }
+  }
+};
+
+const ARS_LIMITS: AlfredpayLimitsTable = {
+  offramp: {
+    USDC: {
+      BUSINESS: { maxRaw: "300000000000", minRaw: "650000" },
+      INDIVIDUAL: { maxRaw: "5000000000000", minRaw: "650000" }
+    },
+    USDT: {
+      BUSINESS: { maxRaw: "300000000000", minRaw: "650000" },
+      INDIVIDUAL: { maxRaw: "300000000000", minRaw: "650000" }
+    }
+  },
+  onramp: {
+    USDC: {
+      BUSINESS: { maxRaw: "41200000000", minRaw: "100000" },
+      INDIVIDUAL: { maxRaw: "41200000000", minRaw: "100000" }
+    },
+    USDT: {
+      BUSINESS: { maxRaw: "41200000000", minRaw: "100000" },
+      INDIVIDUAL: { maxRaw: "13700000000", minRaw: "100000" }
     }
   }
 };
@@ -124,7 +147,7 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     },
     maxBuyAmountRaw: "8695217304",
     maxSellAmountRaw: "5000000000000",
-    minBuyAmountRaw: "20000",
+    minBuyAmountRaw: "15000",
     minSellAmountRaw: "1000000",
     type: TokenType.Fiat
   },
@@ -139,8 +162,23 @@ export const freeTokenConfig: Partial<Record<FiatToken, FiatCurrencyDetails>> = 
     },
     maxBuyAmountRaw: "36865599982",
     maxSellAmountRaw: "100000000000",
-    minBuyAmountRaw: "3500000",
+    minBuyAmountRaw: "3300000",
     minSellAmountRaw: "1000000",
+    type: TokenType.Fiat
+  },
+  [FiatToken.ARS]: {
+    alfredpayLimits: ARS_LIMITS,
+    assetSymbol: "ARS",
+    decimals: 2,
+    fiat: {
+      assetIcon: "ars",
+      name: "Argentine Peso",
+      symbol: "ARS"
+    },
+    maxBuyAmountRaw: "13700000000",
+    maxSellAmountRaw: "300000000000",
+    minBuyAmountRaw: "100000",
+    minSellAmountRaw: "650000",
     type: TokenType.Fiat
   }
 };

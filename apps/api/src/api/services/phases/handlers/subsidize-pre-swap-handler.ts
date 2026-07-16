@@ -21,7 +21,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../config/logger";
-import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../constants/constants";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
@@ -31,6 +31,10 @@ import { priceFeedService } from "../../priceFeed.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { StateMetadata } from "../meta-state-types";
+
+// Overridable so hermetic tests don't wait 15s for a settlement that the fake
+// world applies instantly (same pattern as PHASE_PROCESSOR_RETRY_DELAY_MS).
+const EVM_SETTLEMENT_DELAY_MS = parseInt(process.env.SUBSIDY_SETTLEMENT_DELAY_MS || "15000", 10);
 
 export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -209,7 +213,7 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       } = this.getEvmSubsidyConfig(state, quote);
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
 
       // Check current balance on EVM
       const currentBalance = await checkEvmBalanceForToken({
@@ -240,12 +244,13 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const percentageCap = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const percentageCap = Big(quoteOutputUsd).mul(subsidyCapFraction);
         const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePreSwapPhaseHandler: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${subsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 

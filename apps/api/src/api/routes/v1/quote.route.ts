@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createBestQuote, createQuote, getQuote } from "../../controllers/quote.controller";
 import { apiKeyAuth, enforcePartnerAuth } from "../../middlewares/apiKeyAuth";
+import { rejectDuringActiveMaintenance } from "../../middlewares/maintenanceGuard";
 import { validatePublicKey } from "../../middlewares/publicKeyAuth";
 import { optionalAuth } from "../../middlewares/supabaseAuth";
 import { validateCreateBestQuoteInput, validateCreateQuoteInput } from "../../middlewares/validators";
@@ -44,6 +45,7 @@ const router: Router = Router({ mergeParams: true });
 router
   .route("/")
   .post(
+    rejectDuringActiveMaintenance("quote_create"),
     validateCreateQuoteInput,
     optionalAuth,
     validatePublicKey(),
@@ -94,6 +96,9 @@ router
  * @apiSuccess (Created 201) {String}  partnerFeeUsd     Partner fee in USD
  * @apiSuccess (Created 201) {String}  totalFeeUsd       Total fee in USD
  * @apiSuccess (Created 201) {String}  processingFeeUsd  Processing fee (anchor + vortex) in USD
+ * @apiSuccess (Created 201) {String}  [discountFiat]   Quote-time discount benefit in feeCurrency
+ * @apiSuccess (Created 201) {String}  [discountUsd]    Quote-time discount benefit in USD
+ * @apiSuccess (Created 201) {String}  [discountCurrency] Currency used for discount display
  * @apiSuccess (Created 201) {String}  paymentMethod     Payment method used for the quote
  * @apiSuccess (Created 201) {Date}    expiresAt         Expiration date
  *
@@ -105,6 +110,7 @@ router
 router
   .route("/best")
   .post(
+    rejectDuringActiveMaintenance("quote_create_best"),
     validateCreateBestQuoteInput,
     optionalAuth,
     validatePublicKey(),

@@ -39,6 +39,8 @@ export class OnRampSwapEngineMykoboEvm extends BaseNablaSwapEngineEvm {
 
       const inputAmountForSwapRaw = inputAmountPreFees.times(new Big(10).pow(eurcTokenDetails.decimals)).toFixed(0, 0);
       ctx.nablaSwapEvm = {
+        ammOutputAmountDecimal: inputAmountPreFees,
+        ammOutputAmountRaw: inputAmountForSwapRaw,
         effectiveExchangeRate: "1",
         inputAmountForSwapDecimal: inputAmountPreFees.toString(),
         inputAmountForSwapRaw,

@@ -14,7 +14,7 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
 import logger from "../../../../../config/logger";
-import { MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION } from "../../../../../constants/constants";
+import { config } from "../../../../../config/vars";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import RampState from "../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../models/subsidy.model";
@@ -109,12 +109,13 @@ class SubsidizePostSwapExecutor extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const percentageCap = Big(quoteOutputUsd).mul(MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION);
+        const subsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
+        const percentageCap = Big(quoteOutputUsd).mul(subsidyCapFraction);
         const subsidyCapUsd = percentageCap.gt("1") ? percentageCap : Big("1");
         if (Big(subsidyUsd).gt(subsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapExecutor: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapExecutor: Required subsidy $${subsidyUsd} exceeds cap $${subsidyCapUsd.toFixed(2)} (max of $1.00 and ${subsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 
