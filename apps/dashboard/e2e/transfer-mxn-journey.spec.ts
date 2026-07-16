@@ -125,10 +125,10 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   await recipientSelect.click();
   await page.getByRole("option", { name: /Vortex E2E Savings/ }).click();
 
-  // Switching recipients resets the amount to the new recipient's default, so it has to be
-  // entered again before a quote is requested.
+  // Switching recipients clears the amount (recipients no longer carry a default amount),
+  // so it has to be entered again before a quote is requested.
   await expect(page.getByText("SPEI · Vortex E2E Savings · ••••0099")).toBeVisible();
-  await expect(amountInput).toHaveValue("0.00");
+  await expect(amountInput).toHaveValue("");
   await amountInput.fill(PAYOUT_MXN);
 
   const sendButton = page.getByRole("button", { name: /Send/ });

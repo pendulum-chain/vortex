@@ -15,7 +15,10 @@ import { RecipientActionsDialog } from "./RecipientActionsDialog";
 const MotionRow = motion.create(TableRow);
 
 export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
-  const [selected, setSelected] = useState<Recipient | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Derived from the live list, not a snapshot: a refetch while the modal is open (e.g. the
+  // invite got accepted and its token cleared) must not keep offering stale data.
+  const selected = selectedId ? (recipients.find(recipient => recipient.id === selectedId) ?? null) : null;
 
   return (
     <>
@@ -33,7 +36,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           {recipients.map((recipient, i) => {
             const corridor = CORRIDORS[recipient.corridorId];
             const status = RECIPIENT_STATUS_META[recipient.status];
-            const openActions = recipient.isSelf ? undefined : () => setSelected(recipient);
+            const openActions = recipient.isSelf ? undefined : () => setSelectedId(recipient.id);
             return (
               <MotionRow
                 animate={{ opacity: 1, y: 0 }}
@@ -85,7 +88,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           })}
         </TableBody>
       </Table>
-      {selected && <RecipientActionsDialog onOpenChange={open => !open && setSelected(null)} recipient={selected} />}
+      {selected && <RecipientActionsDialog onOpenChange={open => !open && setSelectedId(null)} recipient={selected} />}
     </>
   );
 }

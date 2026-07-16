@@ -645,7 +645,15 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     // Third-party recipients: seeded pending invitations only, so the auto-selected
     // self-recipient stays selected in transfer specs.
     if (path === "/v1/recipients" && method === "GET") {
-      await fulfillJson({ pendingInvitations: options.pendingInvitations ?? [], recipients: [] });
+      // Archived invitations disappear from subsequent lists, like the real backend, so specs
+      // can assert the user-visible outcome of removal rather than just the PATCH.
+      const archivedIds = new Set(
+        archiveInvitationRequests.filter(request => request.archived === true).map(request => request.id)
+      );
+      await fulfillJson({
+        pendingInvitations: (options.pendingInvitations ?? []).filter(invitation => !archivedIds.has(invitation.id)),
+        recipients: []
+      });
       return;
     }
     if (path.startsWith("/v1/recipients/invitations/") && method === "PATCH") {

@@ -52,6 +52,27 @@ test("one approved corridor unlocks inviting to every live corridor, minus unsup
   expect(backend.unmatchedRequests).toEqual([]);
 });
 
+// US individual KYC runs through Alfredpay's hosted redirect in the widget; the deep link must
+// pin the corridor (kybLocked=US) and carry the invite token.
+test("a US individual invite deep link pins the widget to the US corridor", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: /USA/ }).click();
+  await dialog.getByLabel("Alias").fill("Joe · USD");
+  await dialog.getByRole("button", { name: "Create invite link" }).click();
+
+  await expect(dialog.getByText("Invite link ready")).toBeVisible();
+  const link = await dialog.getByTestId("invite-link-preview").innerText();
+  expect(link).toContain("kybLocked=US");
+  expect(link).toContain("invite=e2e-");
+  expect(backend.unmatchedRequests).toEqual([]);
+});
+
 test("a pending invite row reopens the link for re-copy and removal archives the invitation", async ({ page }) => {
   const backend = await mockBackend(page, {
     pendingInvitations: [
@@ -90,5 +111,7 @@ test("a pending invite row reopens the link for re-copy and removal archives the
 
   await expect(dialog).not.toBeVisible();
   expect(backend.archiveInvitationRequests).toEqual([{ archived: true, id: "invitation-e2e-1" }]);
+  // The list refetch drops the archived row — the user-visible outcome of removal.
+  await expect(page.getByRole("cell", { name: "Maria · MXN" })).toHaveCount(0);
   expect(backend.unmatchedRequests).toEqual([]);
 });
