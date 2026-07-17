@@ -635,7 +635,7 @@ export interface paths {
          *     The signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.
          *     For offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.
          *     If the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided.
-         *     If the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided.
+         *     If the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted.
          *
          *     For onramps, no additional data is required after registering the ramp.
          */
@@ -1649,7 +1649,7 @@ export interface components {
                 assetHubToPendulumHash?: string | null;
                 /** @description Signed message to trigger a Monerium offramp. */
                 moneriumOfframpSignature: string;
-                /** @description Transaction hash for Squid Router approval, if applicable. */
+                /** @description Transaction hash for Squid Router approval. Optional: omit when the wallet already holds a sufficient allowance and no approval transaction was submitted. */
                 squidRouterApproveHash?: string | null;
                 /** @description Transaction hash for Squid Router swap, if applicable. */
                 squidRouterSwapHash?: string | null;
