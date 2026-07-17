@@ -10,19 +10,14 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import { Big } from "big.js";
-import logger from "../../../../../config/logger";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { priceFeedService } from "../../../priceFeed.service";
-import { calculateNablaSwapOutputEvm } from "../../core/nabla";
-import { evmIO } from "../core/io";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, PrepareCtx, TokenBrand } from "../core/types";
-import { prepareNablaSwapTxs } from "./nabla-swap.transactions";
+import logger from "../../../../../../config/logger";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 
 // EVM slice of the production NablaApprovePhaseHandler: broadcasts the presigned ERC-20 approve
 // for the Nabla router on Base. The substrate (Pendulum) branch is not ported.
-class NablaApproveExecutor extends BasePhaseHandler {
+export class NablaApproveExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "nablaApprove";
   }
@@ -63,7 +58,7 @@ class NablaApproveExecutor extends BasePhaseHandler {
 // EVM slice of the production NablaSwapPhaseHandler: validates the ephemeral holds the simulated
 // swap input on Base, then broadcasts the presigned swap. The substrate branch (soft-minimum
 // dry-run via getAmountOut) is not ported.
-class NablaSwapExecutor extends BasePhaseHandler {
+export class NablaSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "nablaSwap";
   }
@@ -136,67 +131,4 @@ class NablaSwapExecutor extends BasePhaseHandler {
 
     return state;
   }
-}
-
-export function NablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, OutToken extends TokenBrand>(
-  chain: Chain,
-  inToken: InToken,
-  outToken: OutToken
-): Phase<PhaseIO<InToken, Chain>, PhaseIO<OutToken, Chain>> {
-  return {
-    executors: [new NablaApproveExecutor(), new NablaSwapExecutor()],
-    name: `NablaSwap(${chain}/${inToken}->${outToken})`,
-    phases: ["nablaApprove", "nablaSwap"],
-    prepareTxs: (prepareCtx: PrepareCtx) => prepareNablaSwapTxs(chain, inToken, outToken, prepareCtx),
-    async simulate(input: PhaseIO<InToken, Chain>, ctx: PhaseCtx): Promise<PhaseIO<OutToken, Chain>> {
-      const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inToken) as EvmTokenDetails;
-      const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outToken) as EvmTokenDetails;
-
-      if (!inputTokenDetails || !outputTokenDetails) {
-        throw new Error("NablaSwap: Could not find EVM token details for the requested tokens");
-      }
-
-      const deductibleFee = new Big(0);
-      const inputAmountForSwap = new Big(input.amount).minus(deductibleFee).toString();
-      const inputAmountForSwapRaw = new Big(inputAmountForSwap).times(new Big(10).pow(inputTokenDetails.decimals)).toFixed(0);
-
-      const result = await calculateNablaSwapOutputEvm({
-        inputAmountForSwap,
-        inputTokenDetails,
-        outputTokenDetails,
-        rampType: ctx.request.rampType
-      });
-
-      const oracleCurrency =
-        ctx.request.rampType === RampDirection.BUY ? ctx.request.inputCurrency : ctx.request.outputCurrency;
-      let oraclePrice: Big | undefined;
-      try {
-        oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(oracleCurrency);
-      } catch (error) {
-        logger.warn(`NablaSwap: Unable to fetch oracle price for ${oracleCurrency}, proceeding without it. Error: ${error}`);
-      }
-
-      ctx.addNote(
-        `NablaSwap: ${inputAmountForSwap} ${inToken} -> ${result.nablaOutputAmountDecimal.toFixed()} ${outToken} on ${chain}`
-      );
-
-      return evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw, {
-        ...input.meta,
-        nablaSwapEvm: {
-          effectiveExchangeRate: result.effectiveExchangeRate,
-          inputAmountForSwapDecimal: inputAmountForSwap,
-          inputAmountForSwapRaw,
-          inputCurrency: inToken,
-          inputDecimals: inputTokenDetails.decimals,
-          inputToken: inputTokenDetails.erc20AddressSourceChain,
-          oraclePrice,
-          outputAmountDecimal: result.nablaOutputAmountDecimal,
-          outputAmountRaw: result.nablaOutputAmountRaw,
-          outputCurrency: outToken,
-          outputDecimals: outputTokenDetails.decimals,
-          outputToken: outputTokenDetails.erc20AddressSourceChain
-        }
-      });
-    }
-  };
 }

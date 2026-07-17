@@ -7,8 +7,8 @@ import {
   multiplyByPowerOfTen,
   OnChainToken
 } from "@vortexfi/shared";
-import { addOnrampDestinationChainTransactions } from "../../../transactions/onramp/common/transactions";
-import type { PrepareCtx, PreparedPhaseTxs } from "../core/types";
+import { addOnrampDestinationChainTransactions } from "../../../../transactions/onramp/common/transactions";
+import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 
 // The presigned final transfer the DestinationTransferExecutor broadcasts: quote.outputAmount
 // from the destination-chain ephemeral to the user's address.

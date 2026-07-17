@@ -2,7 +2,16 @@ import { afterAll, describe, expect, it, mock } from "bun:test";
 // Captured before mock.module so afterAll can restore the real modules —
 // bun module mocks are process-wide and would poison later test files.
 import * as sharedNamespace from "@vortexfi/shared";
-import { EphemeralAccountType, EvmToken, FiatToken, Networks, RampDirection, UnsignedTx } from "@vortexfi/shared";
+import {
+  EphemeralAccountType,
+  EvmToken,
+  FiatToken,
+  Networks,
+  RampDirection,
+  signUnsignedTransactions,
+  UnsignedTx
+} from "@vortexfi/shared";
+import { privateKeyToAccount } from "viem/accounts";
 import * as evmFundingNamespace from "../../../phases/evm-funding";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
@@ -11,24 +20,28 @@ const sharedReal = { ...sharedNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
 const partnerPricingReal = { ...partnerPricingNamespace };
 
-const EVM_EPHEMERAL_ADDRESS = "0x3434343434343434343434343434343434343434";
+const EVM_EPHEMERAL_PRIVATE_KEY = "0x3434343434343434343434343434343434343434343434343434343434343434";
+const EVM_EPHEMERAL_ADDRESS = privateKeyToAccount(EVM_EPHEMERAL_PRIVATE_KEY).address;
 const DESTINATION_ADDRESS = "0x1212121212121212121212121212121212121212";
 const FUNDING_ADDRESS = "0x9999999999999999999999999999999999999999";
 const VORTEX_PAYOUT_ADDRESS = "0x8888888888888888888888888888888888888888";
 
 mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
-  createNablaTransactionsForOnrampOnEVM: async () => ({ approve: "0xnablaapprove", swap: "0xnablaswap" }),
+  createNablaTransactionsForOnrampOnEVM: async () => ({
+    approve: { data: "0xc1", gas: "100000", to: "0x3333333333333333333333333333333333333333", value: "0" },
+    swap: { data: "0xc2", gas: "500000", to: "0x3333333333333333333333333333333333333333", value: "0" }
+  }),
   createOnrampSquidrouterTransactionsFromBaseToEvm: async () => ({
-    approveData: { data: "0xa1", gas: "100000", to: "0xf1", value: "0" },
+    approveData: { data: "0xa1", gas: "100000", to: "0x1111111111111111111111111111111111111111", value: "0" },
     squidRouterQuoteId: "squid-quote-id",
     squidRouterReceiverHash: "0xreceiverhash",
     squidRouterReceiverId: "receiver-id",
-    swapData: { data: "0xa2", gas: "500000", to: "0xf1", value: "0" }
+    swapData: { data: "0xa2", gas: "500000", to: "0x1111111111111111111111111111111111111111", value: "0" }
   }),
   createOnrampSquidrouterTransactionsOnDestinationChain: async () => ({
-    approveData: { data: "0xb1", gas: "100000", to: "0xf2", value: "0" },
-    swapData: { data: "0xb2", gas: "500000", to: "0xf2", value: "0" }
+    approveData: { data: "0xb1", gas: "100000", to: "0x2222222222222222222222222222222222222222", value: "0" },
+    swapData: { data: "0xb2", gas: "500000", to: "0x2222222222222222222222222222222222222222", value: "0" }
   }),
   EvmClientManager: {
     getInstance: () => ({
@@ -132,4 +145,33 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — transaction parity", () => 
     expect(unsignedTxs).toHaveLength(11);
     expect(unsignedTxs.every(tx => tx.signer === EVM_EPHEMERAL_ADDRESS)).toBe(true);
   });
+
+  // Temporary migration guard: remove once the block flow is the sole production source for quote
+  // simulation, phase flow, and transaction preparation, leaving no legacy route-prep to compare.
+  it("produces the same presigned transactions after client-side signing", async () => {
+    const production = await prepareAveniaToEvmOnrampTransactionsOnBase({
+      destinationAddress: DESTINATION_ADDRESS,
+      quote: buildQuote(),
+      signingAccounts: [{ address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM }],
+      taxId: "tax-123"
+    });
+    const blocks = await makeBrlOnrampBaseCrossChainFlow(Networks.Arbitrum, EvmToken.USDC).prepareTxs({
+      destinationAddress: DESTINATION_ADDRESS,
+      evmEphemeral: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM },
+      quote: buildQuote(),
+      taxId: "tax-123"
+    });
+    const evmEphemeral = {
+      address: EVM_EPHEMERAL_ADDRESS,
+      secret: EVM_EPHEMERAL_PRIVATE_KEY,
+      type: EphemeralAccountType.EVM
+    };
+
+    const [productionPresignedTxs, blockPresignedTxs] = await Promise.all([
+      signUnsignedTransactions(production.unsignedTxs, { evmEphemeral }),
+      signUnsignedTransactions(blocks.unsignedTxs, { evmEphemeral })
+    ]);
+
+    expect(sortTxs(blockPresignedTxs)).toEqual(sortTxs(productionPresignedTxs));
+  }, 60_000);
 });

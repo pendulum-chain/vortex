@@ -88,23 +88,26 @@ apps/api/src/api/services/quote/blocks/
     fees.ts                                    # computeFees(ctx)
     phase-flow.ts                              # assemblePhaseFlow(flow) -> RampPhase[]
     prepare.ts                                 # allocateNonces(intents) -> UnsignedTx[]
-  phases/                                      # each phase module: simulate + executor(s) in
-                                               # <name>.ts, presigned txs in <name>.transactions.ts
-    avenia-mint.ts                             # fiat BRL -> BRLA on Base + brlaOnrampMint executor
-    avenia-mint.transactions.ts                # baseCleanupBrla (cleanup lane) + taxId stateMeta
-    mykobo-mint.ts                             # fiat EUR -> EURC on Base (simulate only, for EUR corridors)
-    fund-ephemeral.ts                          # FundEphemeral(token, chain) + fundEphemeral executor
-    subsidize-pre.ts                           # SubsidizePre<Token, Chain>() + subsidizePreSwap executor
-    nabla-swap.ts                              # NablaSwap(chain, in, out) + nablaApprove/nablaSwap executors
-    nabla-swap.transactions.ts                 # nablaApprove + nablaSwap + baseCleanupUsdc
-    distribute-fees.ts                         # DistributeFees<Token, Chain>() + distributeFees executor
-    distribute-fees.transactions.ts            # distributeFees (null when no fees)
-    subsidize-post.ts                          # SubsidizePost<Token, Chain>() + subsidizePostSwap executor
-    squid-router-swap.ts                       # SquidRouterSwap(from, to, fromToken, toToken) + swap/pay executors
-    squid-router-swap.transactions.ts          # squidRouterApprove/Swap + backup* contingency lane
-    final-settlement-subsidy.ts                # FinalSettlementSubsidy<Token, Chain>() + executor
-    destination-transfer.ts                    # DestinationTransfer<Token, Chain>() + executor
-    destination-transfer.transactions.ts       # destinationTransfer (first nonce on the destination chain)
+  phases/                                      # one directory per phase
+    avenia-mint/
+      index.ts                                 # phase assembly and public export
+      simulation.ts                            # fiat BRL -> BRLA on Base
+      execution.ts                             # brlaOnrampMint executor
+      transactions.ts                          # baseCleanupBrla (cleanup lane) + taxId stateMeta
+    mykobo-mint/
+      index.ts
+      simulation.ts                            # fiat EUR -> EURC on Base; other layers not ported yet
+    fund-ephemeral/
+      index.ts
+      simulation.ts
+      execution.ts                             # fundEphemeral executor
+    subsidize-pre/                             # index.ts + simulation.ts + execution.ts
+    nabla-swap/                                # index.ts + simulation.ts + execution.ts + transactions.ts
+    distribute-fees/                           # index.ts + simulation.ts + execution.ts + transactions.ts
+    subsidize-post/                            # index.ts + simulation.ts + execution.ts
+    squid-router-swap/                         # index.ts + simulation.ts + execution.ts + transactions.ts
+    final-settlement-subsidy/                   # index.ts + simulation.ts + execution.ts
+    destination-transfer/                      # index.ts + simulation.ts + execution.ts + transactions.ts
   flows/
     brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
   __tests__/
@@ -189,7 +192,7 @@ sequentially calls `phase.simulate(prevOutput, ctx)`. `Flow.phases` =
 
 ### Executors (the execution side)
 
-Each phase file defines executor class(es) extending the production
+Each phase directory's `execution.ts` defines executor class(es) extending the production
 `BasePhaseHandler` (imported read-only from `services/phases/`), one per
 `RampPhase` the phase declares. `Flow.executors` therefore lines up 1:1
 with `Flow.phases` — asserted in the parity test. Wiring a corridor later
@@ -225,7 +228,7 @@ handler-driven one during migration.
 
 ### Transaction preparation (the third leg)
 
-Each phase module carries a sibling `<name>.transactions.ts` file defining
+Each phase directory carries a `transactions.ts` file defining
 the presigned transactions its executors consume, wired into the phase
 factory as `prepareTxs`. This replaces the per-flow route-prep
 (`transactions/onramp/routes/avenia-to-evm-base.ts` for this corridor),
@@ -557,7 +560,7 @@ execution handlers are now defined by a single flow.
 ### Roadmap (next steps, in priority order)
 
 1. ~~**`prepareTxs` on `Phase`.**~~ **Done for this corridor.** Each phase
-   declares its presigned transactions in `<name>.transactions.ts`
+   declares its presigned transactions in its phase directory's `transactions.ts`
    (nonce-free `TxIntent`s in main/backup/cleanup lanes);
    `Flow.prepareTxs` allocates nonces per `(network, signer)` in flow
    order and assembles `stateMeta`. Asserted tx-for-tx against the

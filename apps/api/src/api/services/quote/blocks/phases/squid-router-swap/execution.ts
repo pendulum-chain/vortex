@@ -23,17 +23,13 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { encodeFunctionData, Hash } from "viem";
-import logger from "../../../../../config/logger";
-import { axelarGasServiceAbi } from "../../../../../contracts/AxelarGasService";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { SubsidyToken } from "../../../../../models/subsidy.model";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { getEvmFundingAccount } from "../../../phases/evm-funding";
-import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../core/squidrouter";
-import { evmIO } from "../core/io";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, PrepareCtx, TokenBrand } from "../core/types";
-import { prepareSquidRouterSwapTxs } from "./squid-router-swap.transactions";
+import logger from "../../../../../../config/logger";
+import { axelarGasServiceAbi } from "../../../../../../contracts/AxelarGasService";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
@@ -47,7 +43,7 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000";
 // Port of the production SquidRouterPhaseHandler without the route short-circuits
 // (direct-transfer, Alfredpay, same-chain passthrough): a flow that pipes this block always
 // bridges, so the skips are dead branches here.
-class SquidRouterSwapExecutor extends BasePhaseHandler {
+export class SquidRouterSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "squidRouterSwap";
   }
@@ -256,7 +252,7 @@ class SquidRouterSwapExecutor extends BasePhaseHandler {
 
 // Port of the production SquidRouterPayPhaseHandler with a single network-generic Axelar gas
 // funding method instead of one per chain. Clients are created lazily (no work at import time).
-class SquidRouterPayExecutor extends BasePhaseHandler {
+export class SquidRouterPayExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "squidRouterPay";
   }
@@ -545,70 +541,4 @@ class SquidRouterPayExecutor extends BasePhaseHandler {
 
     return totalGasFeeRaw.lt(0) ? "0" : totalGasFeeRaw.toFixed(0, 0);
   }
-}
-
-export function SquidRouterSwap<
-  FromChain extends ChainBrand,
-  ToChain extends ChainBrand,
-  FromToken extends TokenBrand,
-  ToToken extends TokenBrand
->(
-  fromChain: FromChain,
-  toChain: ToChain,
-  fromToken: FromToken,
-  toToken: ToToken
-): Phase<PhaseIO<FromToken, FromChain>, PhaseIO<ToToken, ToChain>> {
-  return {
-    executors: [new SquidRouterSwapExecutor(), new SquidRouterPayExecutor()],
-    name: `SquidRouterSwap(${fromChain}/${fromToken}->${toChain}/${toToken})`,
-    phases: ["squidRouterSwap", "squidRouterPay"],
-    prepareTxs: (prepareCtx: PrepareCtx) => prepareSquidRouterSwapTxs(fromChain, toChain, fromToken, toToken, prepareCtx),
-    async simulate(input: PhaseIO<FromToken, FromChain>, ctx: PhaseCtx): Promise<PhaseIO<ToToken, ToChain>> {
-      if (!ctx.fees?.usd) {
-        throw new Error("SquidRouterSwap: Missing ctx.fees.usd - ensure computeFees ran successfully");
-      }
-
-      const inputTokenDetails = getOnChainTokenDetails(fromChain as Networks, fromToken) as EvmTokenDetails;
-
-      const bridgeSourceToken = inputTokenDetails.erc20AddressSourceChain;
-      const toTokenDetails = getBridgeTargetTokenDetails(toToken as OnChainToken, toChain as Networks);
-      const bridgeTargetToken = toTokenDetails.erc20AddressSourceChain;
-
-      const bridgeRequest = {
-        amountRaw: input.amountRaw,
-        fromNetwork: fromChain as Networks,
-        fromToken: bridgeSourceToken,
-        originalInputAmountForRateCalc: input.amountRaw,
-        rampType: ctx.request.rampType,
-        toNetwork: toChain as Networks,
-        toToken: bridgeTargetToken
-      };
-
-      const bridgeResult = await calculateEvmBridgeAndNetworkFee(bridgeRequest);
-
-      const outputAmountRaw = new Big(bridgeResult.finalGrossOutputAmountDecimal)
-        .times(new Big(10).pow(bridgeResult.outputTokenDecimals))
-        .toFixed(0, 0);
-
-      ctx.addNote(
-        `SquidRouterSwap: ${input.amount} ${fromToken} on ${fromChain} -> ${bridgeResult.finalGrossOutputAmountDecimal.toFixed()} ${toToken} on ${toChain}`
-      );
-
-      return evmIO(toToken, toChain, bridgeResult.finalGrossOutputAmountDecimal, outputAmountRaw, {
-        ...input.meta,
-        evmToEvm: {
-          effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
-          fromNetwork: fromChain as Networks,
-          fromToken: bridgeSourceToken,
-          inputAmountDecimal: input.amount,
-          inputAmountRaw: input.amountRaw,
-          networkFeeUSD: bridgeResult.networkFeeUSD,
-          outputAmountDecimal: bridgeResult.finalGrossOutputAmountDecimal,
-          outputAmountRaw,
-          toNetwork: toChain as Networks,
-          toToken: bridgeTargetToken
-        }
-      });
-    }
-  };
 }

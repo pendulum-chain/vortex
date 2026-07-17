@@ -11,16 +11,11 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
-import logger from "../../../../../config/logger";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { PhaseError } from "../../../../errors/phase-error";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { evmIO } from "../core/io";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
-import { prepareDistributeFeesTxs } from "./distribute-fees.transactions";
-
-const SIMPLIFIED_TOKEN_DECIMALS = 6;
+import logger from "../../../../../../config/logger";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { PhaseError } from "../../../../../errors/phase-error";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 
 const FEE_BALANCE_POLL_INTERVAL_MS = 5_000;
 const FEE_BALANCE_POLL_TIMEOUT_MS = 60_000;
@@ -28,7 +23,7 @@ const FEE_BALANCE_POLL_TIMEOUT_MS = 60_000;
 // EVM slice of the production DistributeFeesHandler: verifies the ephemeral holds enough USDC on
 // Base to cover the USD fees, then broadcasts the presigned fee-distribution transaction. The
 // substrate (Pendulum/Subscan) branch is not ported.
-class DistributeFeesExecutor extends BasePhaseHandler {
+export class DistributeFeesExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "distributeFees";
   }
@@ -165,34 +160,4 @@ class DistributeFeesExecutor extends BasePhaseHandler {
       180000 // timeout after 3 minutes
     );
   }
-}
-
-export function DistributeFees<Token extends TokenBrand, Chain extends ChainBrand>(): Phase<
-  PhaseIO<Token, Chain>,
-  PhaseIO<Token, Chain>
-> {
-  return {
-    executors: [new DistributeFeesExecutor()],
-    name: "DistributeFees",
-    phases: ["distributeFees"],
-    prepareTxs: prepareDistributeFeesTxs,
-    async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
-      if (!ctx.fees?.usd) {
-        ctx.addNote("DistributeFees: no fees in ctx, skipping");
-        return input;
-      }
-      const usdFees = ctx.fees.usd;
-      const totalFeesUsd = new Big(usdFees.network).plus(usdFees.vortex).plus(usdFees.partnerMarkup);
-      const newAmount = new Big(input.amount).minus(totalFeesUsd);
-      if (newAmount.lt(0)) {
-        ctx.addNote(`DistributeFees: fees ${totalFeesUsd.toFixed()} USD exceed amount ${input.amount.toFixed()}, setting to 0`);
-        return evmIO(input.token, input.chain, new Big(0), "0", input.meta) as PhaseIO<Token, Chain>;
-      }
-      const newAmountRaw = newAmount.times(new Big(10).pow(SIMPLIFIED_TOKEN_DECIMALS)).toFixed(0, 0);
-      ctx.addNote(
-        `DistributeFees: ${input.amount.toFixed()} ${input.token} -> ${newAmount.toFixed()} ${input.token} after ${totalFeesUsd.toFixed()} USD fees`
-      );
-      return evmIO(input.token, input.chain, newAmount, newAmountRaw, input.meta) as PhaseIO<Token, Chain>;
-    }
-  };
 }

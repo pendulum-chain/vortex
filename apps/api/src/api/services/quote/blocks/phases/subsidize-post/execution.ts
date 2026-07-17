@@ -13,23 +13,21 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
-import logger from "../../../../../config/logger";
-import { config } from "../../../../../config/vars";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { SubsidyToken } from "../../../../../models/subsidy.model";
-import { PhaseError } from "../../../../errors/phase-error";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { getEvmFundingAccount } from "../../../phases/evm-funding";
-import { StateMetadata } from "../../../phases/meta-state-types";
-import { priceFeedService } from "../../../priceFeed.service";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
-import { buildFullSubsidy, computeExpectedOutput } from "./subsidize-pre";
+import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { PhaseError } from "../../../../../errors/phase-error";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { StateMetadata } from "../../../../phases/meta-state-types";
+import { priceFeedService } from "../../../../priceFeed.service";
 
 // EVM slice of the production SubsidizePostSwapPhaseHandler: tops up the ephemeral's Nabla output
 // token on Base until it matches the amount the next phase expects (the simulated Squid bridge
 // input for BUY ramps). The substrate branch is not ported.
-class SubsidizePostSwapExecutor extends BasePhaseHandler {
+export class SubsidizePostSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePostSwap";
   }
@@ -167,30 +165,4 @@ class SubsidizePostSwapExecutor extends BasePhaseHandler {
       throw this.createRecoverableError("SubsidizePostSwapExecutor: Failed to subsidize post swap on EVM.");
     }
   }
-}
-
-export function SubsidizePost<Token extends TokenBrand, Chain extends ChainBrand>(): Phase<
-  PhaseIO<Token, Chain>,
-  PhaseIO<Token, Chain>
-> {
-  return {
-    executors: [new SubsidizePostSwapExecutor()],
-    name: "SubsidizePost",
-    phases: ["subsidizePostSwap"],
-    async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
-      const expected = await computeExpectedOutput(ctx);
-      const subsidy = buildFullSubsidy(input.amount, input.amountRaw, expected.decimal, expected.raw, ctx);
-      const newAmount = input.amount.plus(subsidy.subsidyAmountInOutputTokenDecimal);
-      const newAmountRaw = new Big(input.amountRaw).plus(subsidy.subsidyAmountInOutputTokenRaw).toFixed(0, 0);
-      ctx.addNote(
-        `SubsidizePost: applied=${subsidy.applied}, subsidy=${subsidy.subsidyAmountInOutputTokenDecimal.toFixed()}, newAmount=${newAmount.toFixed()}`
-      );
-      return {
-        ...input,
-        amount: newAmount,
-        amountRaw: newAmountRaw,
-        meta: { ...input.meta, subsidy }
-      };
-    }
-  };
 }

@@ -18,15 +18,13 @@ import {
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
-import logger from "../../../../../config/logger";
-import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../constants/constants";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { getEvmFundingAccount } from "../../../phases/evm-funding";
-import { priceFeedService } from "../../../priceFeed.service";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
-import { buildFullSubsidy, computeExpectedOutput } from "./subsidize-pre";
+import logger from "../../../../../../config/logger";
+import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { priceFeedService } from "../../../../priceFeed.service";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -49,7 +47,7 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
 // the destination chain, then tops the ephemeral up to exactly quote.outputAmount (swapping the
 // funding account's native token to the output token via SquidRouter when needed). SELL/Alfredpay
 // and direct-transfer branches are not ported.
-class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
+export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "finalSettlementSubsidy";
   }
@@ -309,21 +307,4 @@ class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       );
     }
   }
-}
-
-export function FinalSettlementSubsidy<Token extends TokenBrand, Chain extends ChainBrand>(): Phase<
-  PhaseIO<Token, Chain>,
-  PhaseIO<Token, Chain>
-> {
-  return {
-    executors: [new FinalSettlementSubsidyExecutor()],
-    name: "FinalSettlementSubsidy",
-    phases: ["finalSettlementSubsidy"],
-    async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
-      const expected = await computeExpectedOutput(ctx);
-      const subsidy = buildFullSubsidy(input.amount, input.amountRaw, expected.decimal, expected.raw, ctx);
-      ctx.addNote(`FinalSettlementSubsidy: finalized, amount=${subsidy.subsidyAmountInOutputTokenDecimal.toFixed()}`);
-      return { ...input, meta: { ...input.meta, subsidy } };
-    }
-  };
 }

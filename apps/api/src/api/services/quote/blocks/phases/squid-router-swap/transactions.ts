@@ -12,10 +12,10 @@ import {
   OnChainToken
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { getEvmFundingAccount } from "../../../phases/evm-funding";
-import { encodeEvmTransactionData } from "../../../transactions";
-import { addDestinationChainApprovalTransaction } from "../../../transactions/onramp/common/transactions";
-import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../core/types";
+import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { encodeEvmTransactionData } from "../../../../transactions";
+import { addDestinationChainApprovalTransaction } from "../../../../transactions/onramp/common/transactions";
+import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../../core/types";
 
 // Bound the backup approval to the bridged amount + 5% slippage cushion (replaces unbounded maxUint256).
 const BACKUP_APPROVE_SLIPPAGE_FACTOR = "1.05";

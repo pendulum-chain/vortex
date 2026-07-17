@@ -10,28 +10,27 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import { type Hex, parseTransaction } from "viem";
-import logger from "../../../../../config/logger";
+import logger from "../../../../../../config/logger";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
-} from "../../../../../constants/constants";
-import RampState from "../../../../../models/rampState.model";
-import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { getEvmFundingAccount } from "../../../phases/evm-funding";
+} from "../../../../../../constants/constants";
+import RampState from "../../../../../../models/rampState.model";
+import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import {
   DESTINATION_EVM_FUNDING_AMOUNTS,
   isBaseEphemeralFunded,
   isDestinationEvmEphemeralFunded,
   isPolygonEphemeralFunded
-} from "../../../phases/handlers/helpers";
-import { StateMetadata } from "../../../phases/meta-state-types";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
+} from "../../../../phases/handlers/helpers";
+import { StateMetadata } from "../../../../phases/meta-state-types";
 
 // EVM-ephemeral onramp slice of the production FundEphemeralPhaseHandler: funds the source-chain
 // ephemeral (native gas + the presigned squidRouter swap value) and, for BUY ramps to an EVM
 // destination, the destination-chain ephemeral. Substrate/Polygon-Alfredpay branches are not ported.
-class FundEphemeralExecutor extends BasePhaseHandler {
+export class FundEphemeralExecutor extends BasePhaseHandler {
   constructor(private readonly chain: EvmNetworks) {
     super();
   }
@@ -203,19 +202,4 @@ class FundEphemeralExecutor extends BasePhaseHandler {
       throw new Error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral: ` + error);
     }
   }
-}
-
-export function FundEphemeral<Token extends TokenBrand, Chain extends ChainBrand>(
-  _token: Token,
-  chain: Chain
-): Phase<PhaseIO<Token, Chain>, PhaseIO<Token, Chain>> {
-  return {
-    executors: [new FundEphemeralExecutor(chain as EvmNetworks)],
-    name: "FundEphemeral",
-    phases: ["fundEphemeral"],
-    async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
-      ctx.addNote(`FundEphemeral: funding ephemeral on ${input.chain} for ${input.amount.toFixed()} ${input.token}`);
-      return input;
-    }
-  };
 }

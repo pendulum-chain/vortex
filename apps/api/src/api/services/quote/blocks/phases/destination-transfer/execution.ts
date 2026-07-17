@@ -8,14 +8,12 @@ import {
   RampPhase
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
-import logger from "../../../../../config/logger";
-import QuoteTicket from "../../../../../models/quoteTicket.model";
-import RampState from "../../../../../models/rampState.model";
-import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import { BasePhaseHandler } from "../../../phases/base-phase-handler";
-import { StateMetadata } from "../../../phases/meta-state-types";
-import type { ChainBrand, Phase, PhaseCtx, PhaseIO, TokenBrand } from "../core/types";
-import { prepareDestinationTransferTxs } from "./destination-transfer.transactions";
+import logger from "../../../../../../config/logger";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
+import RampState from "../../../../../../models/rampState.model";
+import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { StateMetadata } from "../../../../phases/meta-state-types";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -56,7 +54,7 @@ function validateDestinationTransferRecipient(rawTx: `0x${string}`, expectedDest
   }
 }
 
-class DestinationTransferExecutor extends BasePhaseHandler {
+export class DestinationTransferExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "destinationTransfer";
   }
@@ -169,20 +167,4 @@ class DestinationTransferExecutor extends BasePhaseHandler {
       );
     }
   }
-}
-
-export function DestinationTransfer<Token extends TokenBrand, Chain extends ChainBrand>(): Phase<
-  PhaseIO<Token, Chain>,
-  PhaseIO<Token, Chain>
-> {
-  return {
-    executors: [new DestinationTransferExecutor()],
-    name: "DestinationTransfer",
-    phases: ["destinationTransfer"],
-    prepareTxs: prepareDestinationTransferTxs,
-    async simulate(input: PhaseIO<Token, Chain>, ctx: PhaseCtx): Promise<PhaseIO<Token, Chain>> {
-      ctx.addNote(`DestinationTransfer: delivering ${input.amount.toFixed()} ${input.token} on ${input.chain} to the user`);
-      return input;
-    }
-  };
 }
