@@ -5,14 +5,8 @@ import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
-
-// A malformed env override must fall back to the default: parseInt would yield NaN
-// and setTimeout(..., NaN) fires immediately, which would time out every phase instantly.
-function positiveIntFromEnv(value: string | undefined, fallback: number): number {
-  const parsed = value ? parseInt(value, 10) : Number.NaN;
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 /**
  * Process phases for a ramping process
@@ -22,9 +16,9 @@ export class PhaseProcessor {
   private retriesMap = new Map<string, number>();
   private readonly MAX_RETRIES = 8;
   // Overridable so tests don't wait 10 minutes for the execution timeout.
-  private readonly MAX_EXECUTION_TIME_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS, 600000); // 10 minutes
+  private readonly MAX_EXECUTION_TIME_MS = getPhaseProcessorMaxExecutionTimeMs(); // 10 minutes
   // Overridable so tests don't wait 30s between recoverable-error retries.
-  private readonly DEFAULT_RETRY_DELAY_MS = positiveIntFromEnv(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS, 30000);
+  private readonly DEFAULT_RETRY_DELAY_MS = getPhaseProcessorRetryDelayMs();
   private lockedRamps = new Set<string>();
 
   /**
@@ -138,6 +132,21 @@ export class PhaseProcessor {
   }
 
   /**
+   * Keep the lock fresh while a ramp advances through phases and retries.
+   */
+  private async refreshLock(state: RampState): Promise<void> {
+    await RampState.update(
+      {
+        processingLock: {
+          locked: true,
+          lockedAt: new Date()
+        }
+      },
+      { where: { id: state.id } }
+    );
+  }
+
+  /**
    * Check if the lock has expired. We do this to avoid stale locks that can happen when the service crashes or restarts.
    * @param state The current ramp state
    * @private
@@ -172,6 +181,10 @@ export class PhaseProcessor {
    */
   private async processPhase(state: RampState): Promise<void> {
     try {
+      // The lock is acquired once for the whole processing chain. Refresh it before
+      // every phase attempt so long phases and retries are not mistaken for crashed work.
+      await this.refreshLock(state);
+
       const { currentPhase } = state;
       logger.info(`Processing phase ${currentPhase} for ramp ${state.id}`);
 
