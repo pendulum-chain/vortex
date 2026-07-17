@@ -6,6 +6,7 @@ import CustomerEntity from "./customerEntity.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import MoneriumAccount from "./moneriumAccount.model";
+import MoneriumChainCursor from "./moneriumChainCursor.model";
 import MoneriumConversionExecution from "./moneriumConversionExecution.model";
 import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
 import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
@@ -109,6 +110,7 @@ const models = {
   KycCase,
   MaintenanceSchedule,
   MoneriumAccount,
+  MoneriumChainCursor,
   MoneriumConversionExecution,
   MoneriumFiatDeposit,
   MoneriumWebhookEvent,

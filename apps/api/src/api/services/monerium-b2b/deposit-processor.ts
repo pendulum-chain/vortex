@@ -1,3 +1,4 @@
+import { Transaction } from "sequelize";
 import { parseUnits } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
@@ -12,6 +13,24 @@ import MoneriumWebhookEvent from "../../../models/moneriumWebhookEvent.model";
  */
 
 const EURE_DECIMALS = 18;
+
+/**
+ * Runs `fn` inside a transaction holding the per-forwarder advisory lock (plan §3):
+ * the lock is transaction-scoped, so concurrent processors (multiple instances,
+ * webhook-triggered + scheduled runs, mint watcher, conversion executor) apply writes
+ * for one account strictly one at a time. Shared serialization point for the whole
+ * monerium-b2b module.
+ */
+export async function withForwarderLock<T>(forwarderAddress: string, fn: (transaction: Transaction) => Promise<T>): Promise<T> {
+  const forwarderKey = forwarderAddress.toLowerCase();
+  return sequelize.transaction(async transaction => {
+    await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+      replacements: { key: `monerium-b2b:${forwarderKey}` },
+      transaction
+    });
+    return fn(transaction);
+  });
+}
 
 // Forward-only lattice (plan §3): pending → minted/held/returned; a compliance hold can
 // still resolve to minted or returned; minted/returned are terminal.
@@ -94,15 +113,7 @@ async function processInboxRow(row: MoneriumWebhookEvent): Promise<void> {
   }
 
   const forwarderKey = event.forwarderAddress.toLowerCase();
-  await sequelize.transaction(async transaction => {
-    // Per-forwarder serialization (plan §3): the advisory lock is transaction-scoped, so
-    // concurrent processors (multiple instances, webhook-triggered + scheduled runs)
-    // apply events for one account strictly one at a time.
-    await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
-      replacements: { key: `monerium-b2b:${forwarderKey}` },
-      transaction
-    });
-
+  await withForwarderLock(forwarderKey, async transaction => {
     const account = await MoneriumAccount.findOne({
       transaction,
       where: sequelize.where(sequelize.fn("lower", sequelize.col("forwarder_address")), forwarderKey)

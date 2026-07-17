@@ -174,6 +174,10 @@ interface Config {
     attestorPrivateKey: string | undefined;
     clientId: string;
     clientSecret: string;
+    guardianPrivateKey: string | undefined;
+    keeperPrivateKey: string | undefined;
+    privateRpcUrl: string | undefined;
+    rpcUrl: string | undefined;
     webhookSecret: string;
   };
   subscanApiKey: string | undefined;
@@ -248,6 +252,14 @@ export const config: Config = {
     attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
     clientId: process.env.MONERIUM_B2B_CLIENT_ID || "",
     clientSecret: process.env.MONERIUM_B2B_CLIENT_SECRET || "",
+    // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
+    // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
+    guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
+    keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+    // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
+    // the keeper falls back to the public RPC and logs a warning (see chain.ts).
+    privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
     webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
   mykobo: {

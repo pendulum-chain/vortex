@@ -7,7 +7,7 @@ The B2B zero-touch onramp (docs/prd/monerium-b2b-implementation-plan.md) gives e
 **Provider type:** on-ramp (EUR → USDC)
 **Fiat currencies:** EUR
 **Chains involved:** Ethereum (forwarder contracts, EURe/USDC)
-**Modules:** `monerium-b2b/whitelabel-client.ts`, `monerium-b2b/attestor.ts`, `monerium-b2b/webhook.ts`, `monerium-b2b/deposit-processor.ts`, `controllers/monerium-b2b.controller.ts` (POST `/v1/monerium-b2b/webhook`)
+**Modules:** `monerium-b2b/whitelabel-client.ts`, `monerium-b2b/attestor.ts`, `monerium-b2b/webhook.ts`, `monerium-b2b/deposit-processor.ts`, `controllers/monerium-b2b.controller.ts` (POST `/v1/monerium-b2b/webhook`); keeper: `monerium-b2b/chain.ts`, `monerium-b2b/mint-watcher.ts`, `monerium-b2b/conversion-executor.ts`, `monerium-b2b/dormancy.ts`, `workers/monerium-b2b.worker.ts`
 **API auth method:** OAuth client credentials (`MONERIUM_B2B_CLIENT_ID`/`MONERIUM_B2B_CLIENT_SECRET`) against `MONERIUM_B2B_API_URL` (sandbox `api.monerium.dev` by default); inbound webhooks authenticated by HMAC-SHA256 (`MONERIUM_B2B_WEBHOOK_SECRET`)
 
 ## Security Invariants
@@ -23,6 +23,17 @@ The B2B zero-touch onramp (docs/prd/monerium-b2b-implementation-plan.md) gives e
 9. **Deposit identity is the Monerium order id** — `monerium_order_id` is unique; the on-chain mint `(chain_id, tx_hash, log_index)` is a second partial-unique identity. Amounts are stored as 18-decimal base-unit strings converted from the provider decimal, never floats.
 10. **Client credentials are env-only and requests are bounded** — whitelabel API credentials come from env, all calls carry an explicit timeout, HTTPS base URLs only, and upstream failures surface as generic 502s without echoing provider response bodies.
 11. **KYB submission is a guarded stub** — `submitKybData` throws 501 until the whitelabel KYB mechanism is contractually settled (deferred-decisions registry T3); no speculative identity-data path exists.
+
+## Keeper
+
+The keeper loop (`workers/monerium-b2b.worker.ts`, every minute: webhook inbox → mint watcher → per-account conversion executor → dormancy gate) holds signing keys and submits transactions; its invariants:
+
+1. **Three-way key separation** — the keeper key (`MONERIUM_B2B_KEEPER_PRIVATE_KEY`, submits `poke()`/`swapAndForward()`), the guardian key (`MONERIUM_B2B_GUARDIAN_PRIVATE_KEY`, dormancy pause only), and the attestor key (address linking only) are three distinct keys. None of them can move funds: `swapAndForward` only executes the contract-constrained oracle-checked swap to the client's own `destination`; `setGuardianPaused` is protective-only by contract invariant; the attestor signs the fixed link statement. All three are env-only and never logged.
+2. **Private orderflow for keeper writes** — keeper/guardian transactions are submitted through a dedicated transport (`MONERIUM_B2B_PRIVATE_RPC_URL`, e.g. `https://rpc.flashbots.net`), separate from the read/receipt client (`MONERIUM_B2B_RPC_URL`). If the private endpoint is unset the keeper falls back to the public RPC and logs a warning — acceptable on sandbox/testnet, an operational finding on mainnet.
+3. **Execution record before send** — a `monerium_conversion_executions` row (status `pending`, `eureInRaw = min(balance, perSwapCap)`, snapshot destination) is durably committed BEFORE any transaction is broadcast, and the tx hash is recorded immediately after send. A crash therefore always leaves an auditable pending row, never an untracked on-chain swap; leftover pendings are resolved next cycle via receipt lookup (finalize) or declared failed (no hash: never sent; stale hash: timed out).
+4. **Advisory-lock serialization** — all keeper database mutations (mint recording, execution slot check/creation, finalization, R04 allocation) run inside the shared per-forwarder `pg_advisory_xact_lock` (`withForwarderLock`), the same lock the webhook deposit processor uses. Double-send is prevented by the "any pending execution → skip" check under that lock; the chain send/wait itself intentionally runs outside a database transaction so the pending record cannot be rolled back by a crash.
+5. **Attribution is snapshot-based and idempotent (R04)** — on confirmation, unallocated minted deposits with mint block ≤ execution block are selected oldest-first up to `eureInRaw`, USDC attribution is pro-rata by `amount_raw` against `eureInRaw` with floor division and remainder to the largest deposit (unit-tested), and `allocated_execution_id` links them. Mint identity is the `(chain_id, tx_hash, log_index)` partial unique index, so watcher re-scans after a crash cannot double-record; non-Monerium EURe inflows become `unattr:`-prefixed deposit rows (R09) and are never presented as customer deposits.
+6. **Dormancy pause is protective-only (R05)** — after 60 days (registry P5) without a confirmed conversion, the gate calls per-clone `setGuardianPaused(true)` with the guardian key (log-only when the key is unset) and records `dormant_since`; account status stays `active`. The pause can never move funds or block the client's fallback paths (contract invariant); un-pause is a manual guardian operation pending partner re-confirmation mechanics (registry B5).
 
 ## Threat Vectors & Mitigations
 
@@ -52,3 +63,6 @@ The B2B zero-touch onramp (docs/prd/monerium-b2b-implementation-plan.md) gives e
 - [ ] `submitKybData` still returns 501 unless registry item T3 has been resolved and this spec updated
 - [ ] HTTPS enforced for provider base URLs; timeouts configured on every provider call
 - [ ] Sandbox-verification TODOs resolved before production: exact `webhook-signature` digest encoding, delivery id field, upstream order-state vocabulary, EIP-191 vs raw link-hash variant (registry T4)
+- [ ] Keeper, guardian, and attestor private keys are three distinct keys in production; none logged
+- [ ] `MONERIUM_B2B_PRIVATE_RPC_URL` set in production (public-RPC fallback warning absent from logs)
+- [ ] Conversion execution rows are created before broadcast and every terminal row has status confirmed/failed with a cause; R04 allocation math covered by `conversion-executor.test.ts`

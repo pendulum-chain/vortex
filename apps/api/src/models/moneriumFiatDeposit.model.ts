@@ -22,6 +22,7 @@ export interface MoneriumFiatDepositAttributes {
   txHash: string | null;
   logIndex: number | null;
   blockHash: string | null;
+  blockNumber: number | null;
   allocatedExecutionId: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -29,7 +30,16 @@ export interface MoneriumFiatDepositAttributes {
 
 type MoneriumFiatDepositCreationAttributes = Optional<
   MoneriumFiatDepositAttributes,
-  "id" | "status" | "chainId" | "txHash" | "logIndex" | "blockHash" | "allocatedExecutionId" | "createdAt" | "updatedAt"
+  | "id"
+  | "status"
+  | "chainId"
+  | "txHash"
+  | "logIndex"
+  | "blockHash"
+  | "blockNumber"
+  | "allocatedExecutionId"
+  | "createdAt"
+  | "updatedAt"
 >;
 
 class MoneriumFiatDeposit
@@ -46,6 +56,7 @@ class MoneriumFiatDeposit
   declare txHash: string | null;
   declare logIndex: number | null;
   declare blockHash: string | null;
+  declare blockNumber: number | null;
   declare allocatedExecutionId: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -72,6 +83,13 @@ MoneriumFiatDeposit.init(
       allowNull: true,
       field: "block_hash",
       type: DataTypes.STRING(66)
+    },
+    // Mint block, set by the mint watcher; the R04 attribution rule compares it to the
+    // execution block (docs/prd/monerium-b2b-implementation-plan.md §3).
+    blockNumber: {
+      allowNull: true,
+      field: "block_number",
+      type: DataTypes.INTEGER
     },
     chainId: {
       allowNull: true,
