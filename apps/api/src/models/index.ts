@@ -5,6 +5,9 @@ import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
+import MoneriumAccount from "./moneriumAccount.model";
+import MoneriumConversionExecution from "./moneriumConversionExecution.model";
+import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -22,6 +25,10 @@ import User from "./user.model";
 import Webhook from "./webhook.model";
 
 // Define associations
+MoneriumAccount.hasMany(MoneriumFiatDeposit, { as: "fiatDeposits", foreignKey: "accountId" });
+MoneriumFiatDeposit.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
+MoneriumAccount.hasMany(MoneriumConversionExecution, { as: "conversionExecutions", foreignKey: "accountId" });
+MoneriumConversionExecution.belongsTo(MoneriumAccount, { as: "account", foreignKey: "accountId" });
 RampState.belongsTo(QuoteTicket, { as: "quote", foreignKey: "quoteId" });
 QuoteTicket.hasOne(RampState, { as: "rampState", foreignKey: "quoteId" });
 QuoteTicket.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
@@ -100,6 +107,9 @@ const models = {
   CustomerEntity,
   KycCase,
   MaintenanceSchedule,
+  MoneriumAccount,
+  MoneriumConversionExecution,
+  MoneriumFiatDeposit,
   Notification,
   NotificationPreference,
   Partner,
