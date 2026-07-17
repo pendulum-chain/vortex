@@ -7,7 +7,7 @@ The B2B zero-touch onramp (docs/prd/monerium-b2b-implementation-plan.md) gives e
 **Provider type:** on-ramp (EUR → USDC)
 **Fiat currencies:** EUR
 **Chains involved:** Ethereum (forwarder contracts, EURe/USDC)
-**Modules:** `monerium-b2b/whitelabel-client.ts`, `monerium-b2b/attestor.ts`, `monerium-b2b/webhook.ts`, `monerium-b2b/deposit-processor.ts`, `controllers/monerium-b2b.controller.ts` (POST `/v1/monerium-b2b/webhook`); keeper: `monerium-b2b/chain.ts`, `monerium-b2b/mint-watcher.ts`, `monerium-b2b/conversion-executor.ts`, `monerium-b2b/dormancy.ts`, `workers/monerium-b2b.worker.ts`
+**Modules:** `monerium-b2b/whitelabel-client.ts`, `monerium-b2b/attestor.ts`, `monerium-b2b/webhook.ts`, `monerium-b2b/deposit-processor.ts`, `controllers/monerium-b2b.controller.ts` (POST `/v1/monerium-b2b/webhook`); keeper: `monerium-b2b/chain.ts`, `monerium-b2b/mint-watcher.ts`, `monerium-b2b/conversion-executor.ts`, `monerium-b2b/dormancy.ts`, `workers/monerium-b2b.worker.ts`; monitoring: `monerium-b2b/monitoring.ts`
 **API auth method:** OAuth client credentials (`MONERIUM_B2B_CLIENT_ID`/`MONERIUM_B2B_CLIENT_SECRET`) against `MONERIUM_B2B_API_URL` (sandbox `api.monerium.dev` by default); inbound webhooks authenticated by HMAC-SHA256 (`MONERIUM_B2B_WEBHOOK_SECRET`)
 
 ## Security Invariants
@@ -34,6 +34,16 @@ The keeper loop (`workers/monerium-b2b.worker.ts`, every minute: webhook inbox �
 4. **Advisory-lock serialization** — all keeper database mutations (mint recording, execution slot check/creation, finalization, R04 allocation) run inside the shared per-forwarder `pg_advisory_xact_lock` (`withForwarderLock`), the same lock the webhook deposit processor uses. Double-send is prevented by the "any pending execution → skip" check under that lock; the chain send/wait itself intentionally runs outside a database transaction so the pending record cannot be rolled back by a crash.
 5. **Attribution is snapshot-based and idempotent (R04)** — on confirmation, unallocated minted deposits with mint block ≤ execution block are selected oldest-first up to `eureInRaw`, USDC attribution is pro-rata by `amount_raw` against `eureInRaw` with floor division and remainder to the largest deposit (unit-tested), and `allocated_execution_id` links them. Mint identity is the `(chain_id, tx_hash, log_index)` partial unique index, so watcher re-scans after a crash cannot double-record; non-Monerium EURe inflows become `unattr:`-prefixed deposit rows (R09) and are never presented as customer deposits.
 6. **Dormancy pause is protective-only (R05)** — after 60 days (registry P5) without a confirmed conversion, the gate calls per-clone `setGuardianPaused(true)` with the guardian key (log-only when the key is unset) and records `dormant_since`; account status stays `active`. The pause can never move funds or block the client's fallback paths (contract invariant); un-pause is a manual guardian operation pending partner re-confirmation mechanics (registry B5).
+
+## Monitoring
+
+The monitoring pass (`monerium-b2b/monitoring.ts`, run from the worker, rate-limited to one pass per 30 minutes) is detection-only; its invariants:
+
+1. **No keys, no transactions** — monitors read chain state (`MONERIUM_B2B_RPC_URL`) and the Monerium API only; they never hold private keys and never broadcast. The only database mutation is the R07 reconciliation in (4). Alerts go through the standard logger (`error` = incident trigger per `docs/runbooks/monerium-b2b-incident.md`).
+2. **Executable-depth check (PRD §7.4)** — QuoterV2 static quotes on the pinned EURe→EURC→USDC path at `minSwapAmount` and `perSwapCap` sizes, compared against Chainlink EUR/USD (`computeQuoteImpactBps`, unit-tested against the T6 baseline). Impact above `SLIPPAGE_BPS` at `minSwapAmount` size logs the error-level PAUSE THRESHOLD line; at `perSwapCap` size a warning. Gated to chainId 1 — the QuoterV2 address is a mainnet pin.
+3. **Stranded-balance monitor** — forwarders holding ≥ `MIN_SWAP_FLOOR` EURe with the on-chain stranding marker (R03) armed longer than 12 h warn; past `TRIGGER_DELAY` they error (the permissionless trigger is then live — a keeper-outage signal, not a fund-risk signal).
+4. **Association monitor (S1 detective control)** — per active account, re-reads the profile's linked addresses (`GET /addresses?profile=`) and the partner-context IBAN list (`GET /ibans`) and error-alerts on ANY divergence from the DB record (forwarder unlinked, extra address linked, IBAN moved or unrecorded — `diffAssociation`, unit-tested). This is the detective control for the S1 risk (Vortex-held whitelabel credentials can move associations at Monerium): changes cannot be prevented client-side, only detected.
+5. **Config reconciliation (R07)** — re-reads per-clone config and bytecode. `destination`/`fallbackAddress` drift is owner-authorized by construction (`onlyFallback` in the contract): it is reconciled into the DB (with a `configVersion` bump) and logged at warn, never alarmed. `feeBps` drift (immutable post-init), a clone whose bytecode is not the EIP-1167 proxy of the factory's implementation, or a missing `isForwarder` registration are error-level should-be-impossible states. Mirrors the standalone manifest verifier (`contracts/monerium-forwarder/script/verify-manifest.ts`), which is documented as consistency evidence, not a trust root (R01).
 
 ## Threat Vectors & Mitigations
 
@@ -66,3 +76,5 @@ The keeper loop (`workers/monerium-b2b.worker.ts`, every minute: webhook inbox �
 - [ ] Keeper, guardian, and attestor private keys are three distinct keys in production; none logged
 - [ ] `MONERIUM_B2B_PRIVATE_RPC_URL` set in production (public-RPC fallback warning absent from logs)
 - [ ] Conversion execution rows are created before broadcast and every terminal row has status confirmed/failed with a cause; R04 allocation math covered by `conversion-executor.test.ts`
+- [ ] `monitoring.ts` performs no chain writes and holds no keys; its only DB mutation is the R07 owner-authorized config reconciliation; quote-impact, stranding, association-diff and drift classification covered by `monitoring.test.ts`
+- [ ] Association-monitor alerts (S1 detective control) are error-level and reference the incident runbook; owner-authorized config changes (R07) are warn-level reconciliations, never incidents

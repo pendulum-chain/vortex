@@ -1,10 +1,13 @@
 {
-  "name": "@vortexfi/contracts-monerium-forwarder",
-  "version": "0.1.0",
-  "private": true,
   "description": "Attestor-linked forwarder contracts for the Monerium B2B zero-touch onramp (Foundry)",
+  "devDependencies": {
+    "viem": "catalog:"
+  },
+  "name": "@vortexfi/contracts-monerium-forwarder",
+  "private": true,
   "scripts": {
     "compile": "forge build",
     "test": "forge test"
-  }
+  },
+  "version": "0.1.0"
 }

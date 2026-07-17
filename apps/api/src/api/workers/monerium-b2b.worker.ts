@@ -9,6 +9,7 @@ import { runConversionExecutor } from "../services/monerium-b2b/conversion-execu
 import { processMoneriumWebhookInbox } from "../services/monerium-b2b/deposit-processor";
 import { runDormancyGate } from "../services/monerium-b2b/dormancy";
 import { runMintWatcher } from "../services/monerium-b2b/mint-watcher";
+import { runMonitoringPass } from "../services/monerium-b2b/monitoring";
 
 const DEFAULT_CRON_TIME = "* * * * *"; // every minute
 
@@ -52,20 +53,23 @@ class MoneriumB2bWorker {
             "monerium-b2b: MONERIUM_B2B_RPC_URL / MONERIUM_B2B_KEEPER_PRIVATE_KEY not configured — keeper chain steps disabled"
           );
         }
-        return;
-      }
-
-      const mintedAccountIds = await runMintWatcher();
-      const candidateIds = await this.conversionCandidates(mintedAccountIds);
-      for (const accountId of candidateIds) {
-        try {
-          await runConversionExecutor(accountId);
-        } catch (error) {
-          logger.error(`monerium-b2b: conversion executor failed for account ${accountId}:`, error);
+      } else {
+        const mintedAccountIds = await runMintWatcher();
+        const candidateIds = await this.conversionCandidates(mintedAccountIds);
+        for (const accountId of candidateIds) {
+          try {
+            await runConversionExecutor(accountId);
+          } catch (error) {
+            logger.error(`monerium-b2b: conversion executor failed for account ${accountId}:`, error);
+          }
         }
+
+        await runDormancyGate();
       }
 
-      await runDormancyGate();
+      // Detection-only monitors (plan D3); internally rate-limited and gated on the
+      // read RPC / API credentials, so this is safe to call every cycle.
+      await runMonitoringPass();
     } catch (error) {
       logger.error("Error during Monerium B2B keeper cycle:", error);
     } finally {

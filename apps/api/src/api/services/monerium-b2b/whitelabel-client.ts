@@ -169,25 +169,48 @@ export async function requestIban(address: string, chain: string): Promise<unkno
   return request("/ibans", { body: { address, chain }, method: "POST" });
 }
 
-/** GET /ibans — returns the IBAN issued for an address, or null if none yet. */
-export async function getIbanForAddress(address: string): Promise<WhitelabelIban | null> {
+/** GET /ibans — all IBANs visible to the partner context (association monitor + lookups). */
+export async function listIbans(): Promise<WhitelabelIban[]> {
   const response = (await request("/ibans", { method: "GET" })) as { ibans?: unknown } | unknown[] | null;
   const entries = Array.isArray(response) ? response : Array.isArray(response?.ibans) ? response.ibans : [];
+  const ibans: WhitelabelIban[] = [];
   for (const entry of entries as Record<string, unknown>[]) {
-    if (
-      typeof entry?.iban === "string" &&
-      typeof entry.address === "string" &&
-      entry.address.toLowerCase() === address.toLowerCase()
-    ) {
-      return {
+    if (typeof entry?.iban === "string" && typeof entry.address === "string") {
+      ibans.push({
         address: entry.address,
         bic: typeof entry.bic === "string" ? entry.bic : undefined,
         chain: typeof entry.chain === "string" ? entry.chain : "",
         iban: entry.iban
-      };
+      });
     }
   }
-  return null;
+  return ibans;
+}
+
+/** GET /ibans — returns the IBAN issued for an address, or null if none yet. */
+export async function getIbanForAddress(address: string): Promise<WhitelabelIban | null> {
+  const ibans = await listIbans();
+  return ibans.find(entry => entry.address.toLowerCase() === address.toLowerCase()) ?? null;
+}
+
+/**
+ * GET /addresses?profile={id} — the addresses linked to a profile. Used by the
+ * association monitor (S1 detective control): any address linked to a client profile
+ * beyond the forwarder is an alert condition.
+ */
+export async function getProfileAddresses(profileId: string): Promise<string[]> {
+  const response = (await request(`/addresses?profile=${encodeURIComponent(profileId)}`, { method: "GET" })) as
+    | { addresses?: unknown }
+    | unknown[]
+    | null;
+  const entries = Array.isArray(response) ? response : Array.isArray(response?.addresses) ? response.addresses : [];
+  const addresses: string[] = [];
+  for (const entry of entries as Record<string, unknown>[]) {
+    if (typeof entry?.address === "string") {
+      addresses.push(entry.address);
+    }
+  }
+  return addresses;
 }
 
 /** GET /orders/{orderId} */
