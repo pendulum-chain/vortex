@@ -26,7 +26,7 @@
 | P5 | Dormancy pause window (no successful forward → pause pending re-confirmation) | 60 days | Operational (backend-enforced via per-account pause), not immutable |
 | P6 | `minSwapAmount` floor / operational value | €25; must also be ≥ CEX min deposit per client | Floor immutable, operational value adjustable within bounds |
 | P7 | `perSwapCap` operational value + immutable ceiling | €10k / €50k | Availability parameter, not safety (minOut is safety) |
-| P8 | `MAX_ORACLE_AGE` | 26 h | Pending G0 weekend-behavior check (T2) |
+| P8 | `MAX_ORACLE_AGE` | 26 h → **recommend 52 h** | T2 answered (2026-07-17): feed updates through weekends but sparsely — observed gaps 32.6 h / 36.1 h / **48.0 h**. 26 h would revert most weekends; 52 h covers observed max + margin, weekend EUR/USD moves sit well inside the 100 bps slippage bound |
 | P9 | Notification confirmation depth | 32 blocks | Backend only |
 | P10 | Uniswap router pin (SwapRouter w/ deadline vs SwapRouter02 w/o) + EURC hop fee-tier re-verification | SwapRouter02 | G0 spike output |
 
@@ -35,7 +35,8 @@
 | # | Item | Owner | Status |
 |---|---|---|---|
 | T1 | **Monerium recovery-burn mechanism for contract addresses**: exact message/hash their recovery flow validates via EIP-1271, so the forwarder can whitelist it (compile-time constant `RECOVERY_HASH`). If unanswered by deploy time: ship without it — fallback-address recovery covers us; issuer backstop becomes best-effort | Monerium tech team (compliance punted) | **Asked? No — send follow-up** |
-| T2 | Chainlink EUR/USD weekend behavior (heartbeat continues vs stops) → weekend policy | G0 spike | Open |
+| T2 | Chainlink EUR/USD weekend behavior → weekend policy | G0 spike | **Answered 2026-07-17**: rounds observed on Sat/Sun (deviation-triggered), gaps up to 48 h; see P8. Weekend policy: execute normally with `MAX_ORACLE_AGE ≥ 52 h` |
+| T6 | Liquidity baseline (review F12 reproducibility) | G0 spike | **Recorded 2026-07-17, mainnet block 25553101**, QuoterV2 on pinned path EURe→(500)→EURC→(500)→USDC: 1k → 1.14298, 5k → 1.14288, 10k → 1.14278, 25k → 1.14252 USDC/EURe (Chainlink same day 1.14410 — 25k within ~14 bps incl. 2×5 bps fees). Deeper than the 07-10 snapshot; €10k cap comfortable. Re-run at deploy + wire into monitoring (task 6) |
 | T3 | Corporate KYB mechanism under whitelabel: Monerium-run verification vs KYC-reliance (reliance requires licenses we may not hold) | Monerium MSA negotiation | Open — fold into G1 |
 | T4 | Whitelabel sandbox: verify EIP-1271 link works against a deployed forwarder E2E (G0 headline item) | Us | Open |
 | T5 | Whether Monerium rejects linking an address already linked to another profile (defense-in-depth question) | Monerium tech | Nice-to-have |
