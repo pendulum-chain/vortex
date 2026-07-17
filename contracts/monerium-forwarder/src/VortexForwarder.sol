@@ -35,6 +35,7 @@ interface IVortexForwarderFactory {
     function globalPaused() external view returns (bool);
     function minSwapAmount() external view returns (uint256);
     function perSwapCap() external view returns (uint256);
+    function MIN_SWAP_FLOOR() external view returns (uint256);
 }
 
 /// @title VortexForwarder
@@ -263,8 +264,12 @@ contract VortexForwarder {
     ///         threshold (start time for TRIGGER_DELAY / SWEEP_DELAY), and clears the
     ///         marker if the balance dropped back below it.
     function poke() external {
+        // Armed against the IMMUTABLE floor, not the guardian-tunable minSwapAmount:
+        // otherwise the guardian could raise minSwapAmount above a client's balance and
+        // a poke() would clear the marker, permanently disabling the un-pausable
+        // dead-man sweep (review r1, finding F1 — breach of plan invariant §2.3.5).
         uint256 balance = EURE.balanceOf(address(this));
-        if (balance >= FACTORY.minSwapAmount()) {
+        if (balance >= FACTORY.MIN_SWAP_FLOOR()) {
             if (strandedSince == 0) {
                 strandedSince = uint64(block.timestamp);
                 emit Poked(strandedSince);

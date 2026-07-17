@@ -361,6 +361,23 @@ contract VortexForwarderTest is Test {
         assertEq(fwd.strandedSince(), 0);
     }
 
+    /// Review r1 F1 regression: raising the tunable minSwapAmount above a stranded
+    /// balance must NOT let a poke() clear the marker — the dead-man sweep is armed
+    /// against the immutable MIN_SWAP_FLOOR and must survive any guardian action.
+    function test_guardianCannotDisarmDeadManSweep_byRaisingMinSwap() public {
+        _fund(500e18);
+        fwd.poke();
+        assertGt(fwd.strandedSince(), 0);
+
+        factory.setMinSwapAmount(1_000e18); // guardian raises threshold above balance
+        fwd.poke(); // anyone can poke; marker must survive
+        assertGt(fwd.strandedSince(), 0, "guardian disarmed the dead-man sweep");
+
+        skip(SWEEP_DELAY + 1);
+        fwd.sweepStrandedEure();
+        assertEq(eure.balanceOf(fallbackAddr), 500e18);
+    }
+
     function test_fallbackSweep_worksWhilePaused() public {
         _fund(500e18);
         fwd.setGuardianPaused(true);
