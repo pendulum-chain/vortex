@@ -16,8 +16,11 @@ contract MockERC20 {
         decimals = decimals_;
     }
 
+    uint256 public totalMinted;
+
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
+        totalMinted += amount;
     }
 
     function transfer(address to, uint256 amount) external returns (bool) {
@@ -73,6 +76,14 @@ contract MockRouter {
         require(nextOut >= params.amountOutMinimum, "Too little received");
         usdc.mint(params.recipient, nextOut);
         return nextOut;
+    }
+}
+
+/// Malicious router that tries to re-enter swapAndForward during the swap.
+contract MockReentrantRouter {
+    function exactInput(ISwapRouter02.ExactInputParams calldata) external payable returns (uint256) {
+        VortexForwarder(msg.sender).swapAndForward(); // must revert via reentrancy guard
+        return 0;
     }
 }
 
@@ -290,6 +301,48 @@ contract VortexForwarderTest is Test {
         vm.prank(keeper);
         vm.expectRevert(VortexForwarder.Paused.selector);
         fwd.swapAndForward();
+    }
+
+    function test_unsolicitedUsdc_forwardedWithNextSwap() public {
+        usdc.mint(address(fwd), 500e6); // unsolicited direct transfer (R09)
+        _fund(1_000e18);
+        router.setNextOut(1_130e6);
+        vm.prank(keeper);
+        fwd.swapAndForward();
+        assertEq(usdc.balanceOf(destination), 1_130e6 + 500e6);
+    }
+
+    function test_reentrantRouter_blockedByGuard() public {
+        MockReentrantRouter evil = new MockReentrantRouter();
+        VortexForwarderFactory f2 = new VortexForwarderFactory(
+            VortexForwarder.ImmutableConfig({
+                eure: address(eure),
+                eurc: address(eurc),
+                usdc: address(usdc),
+                router: address(evil),
+                oracle: address(oracle),
+                attestor: attestor,
+                feeRecipient: feeRecipient,
+                maxOracleAge: 26 hours,
+                slippageBps: 100,
+                maxFeeBps: 100,
+                sweepDelay: SWEEP_DELAY,
+                triggerDelay: TRIGGER_DELAY,
+                poolFeeEureEurc: 500,
+                poolFeeEurcUsdc: 500,
+                recoveryHash: bytes32(0)
+            }),
+            1e18,
+            50_000e18,
+            25e18,
+            10_000e18
+        );
+        f2.setKeeper(keeper, true);
+        VortexForwarder fwd2 = VortexForwarder(f2.deployForwarder(destination, fallbackAddr, 0, bytes32(uint256(7))));
+        eure.mint(address(fwd2), 1_000e18);
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.Reentrancy.selector);
+        fwd2.swapAndForward();
     }
 
     // ---------------------------------------------------------------- recovery
