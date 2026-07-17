@@ -145,7 +145,7 @@ contract VortexForwarderTest is Test {
     // ---------------------------------------------------------------- helpers
 
     function _attest(address forwarder, bytes32 hash) internal view returns (bytes memory) {
-        bytes32 bound = keccak256(abi.encodePacked(forwarder, hash));
+        bytes32 bound = keccak256(abi.encodePacked(block.chainid, forwarder, hash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(attestorPk, bound);
         return abi.encodePacked(r, s, v);
     }
@@ -156,11 +156,80 @@ contract VortexForwarderTest is Test {
 
     // ---------------------------------------------------------------- EIP-1271
 
-    function test_linkSignature_valid_bothHashSchemes() public view {
+    function test_linkSignature_valid_eip191Only() public view {
         bytes32 h191 = fwd.LINK_HASH_191();
-        bytes32 hRaw = fwd.LINK_HASH_RAW();
         assertEq(fwd.isValidSignature(h191, _attest(address(fwd), h191)), bytes4(0x1626ba7e));
-        assertEq(fwd.isValidSignature(hRaw, _attest(address(fwd), hRaw)), bytes4(0x1626ba7e));
+        // Raw-keccak variant was removed after G0 sandbox validation confirmed Monerium
+        // presents the EIP-191 hash; it must now be rejected even with a valid attestor sig.
+        bytes32 hRaw = keccak256(bytes("I hereby declare that I am the address owner."));
+        assertEq(fwd.isValidSignature(hRaw, _attest(address(fwd), hRaw)), bytes4(0xffffffff));
+    }
+
+    function test_linkSignature_rejectsCrossChainReplay() public {
+        bytes32 h = fwd.LINK_HASH_191();
+        bytes memory sig = _attest(address(fwd), h); // bound to current chainid
+        vm.chainId(999);
+        assertEq(fwd.isValidSignature(h, sig), bytes4(0xffffffff));
+    }
+
+    function test_linkSignature_rejectsMalleatedAndMalformed() public view {
+        bytes32 h = fwd.LINK_HASH_191();
+        bytes memory good = _attest(address(fwd), h);
+        // Malleate: s' = n - s, v' = flipped — same ECDSA validity, must be rejected.
+        (bytes32 r, bytes32 s, uint8 v) = (bytes32(0), bytes32(0), 0);
+        assembly {
+            r := mload(add(good, 0x20))
+            s := mload(add(good, 0x40))
+            v := byte(0, mload(add(good, 0x60)))
+        }
+        uint256 n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
+        bytes memory malleated = abi.encodePacked(r, bytes32(n - uint256(s)), v == 27 ? uint8(28) : uint8(27));
+        assertEq(fwd.isValidSignature(h, malleated), bytes4(0xffffffff));
+        // Wrong lengths.
+        assertEq(fwd.isValidSignature(h, abi.encodePacked(r, s)), bytes4(0xffffffff));
+        assertEq(fwd.isValidSignature(h, abi.encodePacked(good, uint8(1))), bytes4(0xffffffff));
+        // Bad v.
+        assertEq(fwd.isValidSignature(h, abi.encodePacked(r, s, uint8(29))), bytes4(0xffffffff));
+    }
+
+    function test_recoveryHash_enabledBranch() public {
+        bytes32 recoveryHash = keccak256("monerium-recovery-message-placeholder");
+        VortexForwarderFactory f2 = new VortexForwarderFactory(
+            VortexForwarder.ImmutableConfig({
+                eure: address(eure),
+                eurc: address(eurc),
+                usdc: address(usdc),
+                router: address(router),
+                oracle: address(oracle),
+                attestor: attestor,
+                feeRecipient: feeRecipient,
+                maxOracleAge: 26 hours,
+                slippageBps: 100,
+                maxFeeBps: 100,
+                sweepDelay: SWEEP_DELAY,
+                triggerDelay: TRIGGER_DELAY,
+                poolFeeEureEurc: 500,
+                poolFeeEurcUsdc: 500,
+                recoveryHash: recoveryHash
+            }),
+            1e18,
+            50_000e18,
+            25e18,
+            10_000e18
+        );
+        VortexForwarder fwd2 = VortexForwarder(f2.deployForwarder(destination, fallbackAddr, 0, bytes32(uint256(8))));
+        // Recovery hash validates with attestor binding; link still validates; others fail.
+        bytes32 bound = keccak256(abi.encodePacked(block.chainid, address(fwd2), recoveryHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(attestorPk, bound);
+        assertEq(fwd2.isValidSignature(recoveryHash, abi.encodePacked(r, s, v)), bytes4(0x1626ba7e));
+        bytes32 h191 = fwd2.LINK_HASH_191();
+        bytes32 bound191 = keccak256(abi.encodePacked(block.chainid, address(fwd2), h191));
+        (v, r, s) = vm.sign(attestorPk, bound191);
+        assertEq(fwd2.isValidSignature(h191, abi.encodePacked(r, s, v)), bytes4(0x1626ba7e));
+        bytes32 evil = keccak256("anything else");
+        bytes32 boundEvil = keccak256(abi.encodePacked(block.chainid, address(fwd2), evil));
+        (v, r, s) = vm.sign(attestorPk, boundEvil);
+        assertEq(fwd2.isValidSignature(evil, abi.encodePacked(r, s, v)), bytes4(0xffffffff));
     }
 
     function test_linkHash191_matchesEip191OfFixedMessage() public view {
@@ -176,7 +245,7 @@ contract VortexForwarderTest is Test {
 
     function test_linkSignature_rejectsWrongSigner() public {
         bytes32 h = fwd.LINK_HASH_191();
-        bytes32 bound = keccak256(abi.encodePacked(address(fwd), h));
+        bytes32 bound = keccak256(abi.encodePacked(block.chainid, address(fwd), h));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD, bound);
         assertEq(fwd.isValidSignature(h, abi.encodePacked(r, s, v)), bytes4(0xffffffff));
     }
@@ -256,6 +325,33 @@ contract VortexForwarderTest is Test {
         vm.prank(rando);
         fwd.swapAndForward();
         assertEq(usdc.balanceOf(destination), 1_130e6);
+    }
+
+    function test_swapAndForward_revertsOnZeroOrNegativePrice() public {
+        _fund(1_000e18);
+        router.setNextOut(1_130e6);
+        oracle.set(0, block.timestamp);
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.InvalidPrice.selector);
+        fwd.swapAndForward();
+        oracle.set(-1, block.timestamp);
+        vm.prank(keeper);
+        vm.expectRevert(VortexForwarder.InvalidPrice.selector);
+        fwd.swapAndForward();
+    }
+
+    /// Review r1 P2: a perSwapCap remainder must keep its stranding timers armed —
+    /// the swap re-arms the marker rather than clearing it when balance stays >= floor.
+    function test_swapAndForward_reArmsMarkerForCapRemainder() public {
+        _fund(15_000e18); // cap is 10k
+        fwd.poke();
+        assertGt(fwd.strandedSince(), 0);
+        router.setNextOut(11_290e6);
+        skip(1 hours);
+        vm.prank(keeper);
+        fwd.swapAndForward();
+        assertEq(eure.balanceOf(address(fwd)), 5_000e18);
+        assertEq(fwd.strandedSince(), block.timestamp, "remainder must stay armed (fresh timestamp)");
     }
 
     function test_swapAndForward_respectsPerSwapCap() public {

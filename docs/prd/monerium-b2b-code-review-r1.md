@@ -155,3 +155,20 @@ Named, missing tests (each maps to a finding or an untested branch):
 - Deploy-time `destination` correctness is the documented S0 provisioning trust (variant §4, plan R01); the contract cannot verify it and relies on the off-chain manifest + client confirmation. Correctly restricted post-deploy.
 - Reentrancy: EURe/USDC are not ERC-777; all fund-movers are `nonReentrant`; a hooked token could reenter only ungated no-op functions (`poke`) with no harmful effect. The router-reentrancy guard is test-covered.
 - Registry placeholders (fees, timings, T1–T5) are known-open and not reported as findings.
+
+---
+
+## Author dispositions (2026-07-17)
+
+| Finding | Disposition | Resolution |
+|---|---|---|
+| F1 (P1) guardian disarms dead-man via minSwapAmount raise | **Fixed** (commit eff320f68) | `poke()` arms/clears against immutable `MIN_SWAP_FLOOR`; regression test added |
+| P2: no chainid in EIP-1271 binding | **Fixed** | Binding is now `keccak256(chainid ‖ address(this) ‖ hash)`; cross-chain replay test added; backend attestor updated; **re-validated against Monerium sandbox (201, linked)** |
+| P2: two accepted link-hash variants | **Fixed** | Narrowed to `LINK_HASH_191` only — G0 sandbox confirmed Monerium presents EIP-191; raw-variant rejection tested |
+| P2: strandedSince reset discards perSwapCap remainder | **Fixed** | Swap re-arms the marker when post-swap balance ≥ floor; test added |
+| P2: oracle round-completeness (answeredInRound) | **Rejected** | `answeredInRound` is deprecated by Chainlink for OCR feeds; `answer > 0` + `updatedAt` staleness ceiling is the current recommended validation. Zero/negative-answer test added |
+| P2: permissionless swap path MEV-exposed | **Accepted-documented** | Bounded by oracle `minOut` by design; the permissionless path is a liveness fallback, not the normal path. Noted in security spec |
+| P2: spec/code drift on attestation digest encoding | **Fixed** | Variant doc §3.3 sketch aligned with code (encodePacked, chainid, single hash) |
+| P2: RECOVERY_HASH non-custody depends on parameterless recovery message | **Accepted** | Requirement added to registry T1: enable only if Monerium's recovery message is parameterless (or parameters are payout-neutral); else keep disabled |
+| P2: EURe compliance-freeze behavior unmodeled | **Accepted-documented** | Added to variant doc failure notes: issuer freeze ⇒ nothing moves until resolved; inherent to e-money tokens |
+| Test gaps (11 named) | **Closed (9) / N/A (2)** | Added: threshold-raise regression, RECOVERY_HASH-enabled branch, oracle answer≤0, 1271 malleability + length + bad-v, cross-chain replay, raw-variant rejection, cap-remainder re-arm. N/A: EURe-transfer-restriction assumption (documented instead), fee-rounding edge (covered by existing pro-rata unit tests backend-side) |

@@ -85,7 +85,6 @@ contract VortexForwarder {
     ///      exact hashing scheme is a G0 spike output (task 4); accepting both is safe
     ///      because both encode only the fixed link message.
     bytes32 public immutable LINK_HASH_191;
-    bytes32 public immutable LINK_HASH_RAW;
 
     /// @dev Monerium issuer-recovery message hash (registry T1). bytes32(0) = disabled.
     ///      When enabled, allows Monerium's recovery burn to validate against this
@@ -182,7 +181,6 @@ contract VortexForwarder {
         POOL_FEE_EURC_USDC = cfg.poolFeeEurcUsdc;
         RECOVERY_HASH = cfg.recoveryHash;
 
-        LINK_HASH_RAW = keccak256(bytes(LINK_MESSAGE));
         LINK_HASH_191 = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n45", LINK_MESSAGE));
 
         // Brick the implementation itself; only clones can be initialized.
@@ -229,12 +227,15 @@ contract VortexForwarder {
 
     /// @notice Constrained EIP-1271: validates ONLY the fixed Monerium link message
     ///         (and, if enabled via RECOVERY_HASH, Monerium's recovery message),
-    ///         signed by ATTESTOR over keccak256(address(this), hash).
-    ///         Binding to address(this) prevents replay across clones; restricting to
-    ///         ATTESTOR prevents third parties from linking this address to a foreign
-    ///         Monerium profile.
+    ///         signed by ATTESTOR over keccak256(chainid, address(this), hash).
+    ///         Binding to chainid + address(this) prevents replay across clones AND
+    ///         across chains (review r1 P2); restricting to ATTESTOR prevents third
+    ///         parties from linking this address to a foreign Monerium profile.
+    ///         Only the EIP-191 hash variant is accepted: G0 sandbox validation
+    ///         (2026-07-17) confirmed Monerium presents the EIP-191 hash, so the
+    ///         raw-keccak fallback was removed to minimize surface.
     function isValidSignature(bytes32 hash, bytes calldata signature) external view returns (bytes4) {
-        bool isLink = (hash == LINK_HASH_191 || hash == LINK_HASH_RAW);
+        bool isLink = hash == LINK_HASH_191;
         bool isRecovery = (RECOVERY_HASH != bytes32(0) && hash == RECOVERY_HASH);
         if (!isLink && !isRecovery) return EIP1271_FAIL;
         if (signature.length != 65) return EIP1271_FAIL;
@@ -252,7 +253,7 @@ contract VortexForwarder {
         if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) return EIP1271_FAIL;
         if (v != 27 && v != 28) return EIP1271_FAIL;
 
-        bytes32 bound = keccak256(abi.encodePacked(address(this), hash));
+        bytes32 bound = keccak256(abi.encodePacked(block.chainid, address(this), hash));
         address signer = ecrecover(bound, v, r, s);
         if (signer == address(0) || signer != ATTESTOR) return EIP1271_FAIL;
         return EIP1271_MAGIC;
@@ -330,7 +331,10 @@ contract VortexForwarder {
         uint256 forwarded = USDC.balanceOf(address(this));
         _transfer(USDC, destination, forwarded);
 
-        strandedSince = 0;
+        // Re-arm instead of clearing when a perSwapCap remainder stays behind (review r1
+        // P2): otherwise the remainder's dead-man/permissionless timers would silently
+        // restart from zero only after a fresh poke().
+        strandedSince = EURE.balanceOf(address(this)) >= FACTORY.MIN_SWAP_FLOOR() ? uint64(block.timestamp) : 0;
         emit SwapExecuted(msg.sender, amountIn, usdcReceived, fee, forwarded);
     }
 

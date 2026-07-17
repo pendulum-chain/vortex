@@ -56,9 +56,10 @@ bytes32 constant LINK_HASH = /* EIP-191 hash of the fixed Monerium link message 
 
 function isValidSignature(bytes32 hash, bytes calldata sig) external view returns (bytes4) {
     if (hash != LINK_HASH) return 0xffffffff;
-    // attestor signs keccak256(address(this), LINK_HASH): no cross-contract replay,
+    // attestor signs keccak256(chainid, address(this), LINK_HASH): no cross-contract
+    // and no cross-chain replay,
     // and no third party can link this contract to a foreign Monerium profile
-    address signer = ECDSA.recover(keccak256(abi.encode(address(this), LINK_HASH)), sig);
+    address signer = ECDSA.recover(keccak256(abi.encodePacked(block.chainid, address(this), LINK_HASH)), sig);
     return signer == VORTEX_ATTESTOR ? bytes4(0x1626ba7e) : bytes4(0xffffffff);
 }
 ```
