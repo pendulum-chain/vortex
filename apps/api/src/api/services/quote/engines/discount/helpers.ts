@@ -1,5 +1,6 @@
 import { EvmToken, FiatToken, normalizeTokenSymbol, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../priceFeed.service";
@@ -92,6 +93,10 @@ const FIAT_PEG_BY_STABLECOIN: Record<string, FiatToken> = {
  * in the input token: USD-like stables pass through unchanged, fiat-pegged stables
  * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate, and any other token falls
  * back to the bridged USDC amount when available.
+ *
+ * A rate-feed failure while valuing a fiat-pegged stable MUST NOT fail the quote: the
+ * engine already holds the bridged USDC amount, a good USD-denominated proxy, so we fall
+ * back to it (or the raw input as a last resort) rather than throwing from discount math.
  */
 export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<Big> {
   const { inputAmount, inputCurrency } = ctx.request;
@@ -103,15 +108,27 @@ export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<B
 
   const pegFiat = FIAT_PEG_BY_STABLECOIN[normalized];
   if (pegFiat) {
-    const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(pegFiat);
-    return new Big(inputAmount).mul(fiatToUsdRate);
+    try {
+      const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(pegFiat);
+      return new Big(inputAmount).mul(fiatToUsdRate);
+    } catch (error) {
+      const fallback = usdFallbackFromContext(ctx);
+      logger.warn(
+        `getUsdDenominatedInputAmount: ${pegFiat}-USD rate lookup failed for ${inputCurrency} input, ` +
+          `falling back to ${fallback.toString()} USD. Error: ${error instanceof Error ? error.message : error}`
+      );
+      return fallback;
+    }
   }
 
+  return usdFallbackFromContext(ctx);
+}
+
+function usdFallbackFromContext(ctx: QuoteContext): Big {
   if (ctx.evmToEvm?.outputAmountDecimal) {
     return ctx.evmToEvm.outputAmountDecimal;
   }
-
-  return new Big(inputAmount);
+  return new Big(ctx.request.inputAmount);
 }
 
 /**

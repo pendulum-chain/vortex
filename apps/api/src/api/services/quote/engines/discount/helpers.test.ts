@@ -58,6 +58,7 @@ describe("calculateExpectedOutput with negative targetDiscount (rate floor)", ()
 
 describe("getUsdDenominatedInputAmount", () => {
   const brlToUsdRate = new Big("0.19475713784910216959");
+  const eurToUsdRate = new Big("1.16");
   let rateSpy: ReturnType<typeof spyOn> | undefined;
 
   afterEach(() => {
@@ -91,6 +92,38 @@ describe("getUsdDenominatedInputAmount", () => {
     const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
     const { expectedOutput } = calculateExpectedOutput(usd.toString(), brlToUsdRate, 0, true, null);
     expect(expectedOutput.toFixed(4)).toBe("1000.0000");
+  });
+
+  it("values a EURC input at the EUR-USD oracle rate", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(eurToUsdRate);
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("EURC", "1000"));
+    expect(usd.toFixed(2)).toBe("1160.00");
+  });
+
+  it("regression: a 1000 EURC offramp to EUR targets ~1000 EUR, not a zero-subsidy undershoot", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockResolvedValue(eurToUsdRate);
+
+    // Before the fix the engine passed the raw 1000 (EURC) into calculateExpectedOutput as if
+    // it were USD, yielding an expected output of ~862 EUR — below the actual output, so the
+    // EURC→SEPA subsidy was silently never paid.
+    const usd = await getUsdDenominatedInputAmount(makeCtx("EURC", "1000"));
+    const { expectedOutput } = calculateExpectedOutput(usd.toString(), eurToUsdRate, 0, true, null);
+    expect(expectedOutput.toFixed(4)).toBe("1000.0000");
+  });
+
+  it("falls back to the bridged USDC amount when the fiat-peg rate lookup fails", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000", "194.757138"));
+    expect(usd.toString()).toBe("194.757138");
+  });
+
+  it("falls back to the raw input when the fiat-peg rate lookup fails and no bridged amount exists", async () => {
+    rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
+
+    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
+    expect(usd.toString()).toBe("1000");
   });
 
   it("falls back to the bridged USDC amount for tokens without a fiat peg", async () => {
