@@ -55,6 +55,14 @@ bun install
 
 If you encounter issues with the `bun install` command, you can try upgrading your `bun` version with `bun upgrade`. The installation is confirmed to work in bun v1.3.1.
 
+The Foundry-based contracts in `contracts/monerium-forwarder` use a git submodule (`forge-std`). If you plan to work on those contracts, initialize it once:
+
+```bash
+git submodule update --init
+```
+
+(Or clone with `git clone --recurse-submodules`.) Everything else in the monorepo works without this step.
+
 ### Running the Projects
 
 #### Run All Projects

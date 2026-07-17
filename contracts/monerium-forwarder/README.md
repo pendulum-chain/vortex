@@ -12,6 +12,7 @@ conversion policy and client-controlled recovery.
   do not treat values in code as final.
 
 ```bash
+git submodule update --init  # once per clone: fetches lib/forge-std
 forge build
 forge test                   # unit tests (mocks)
 ETH_RPC_URL=... forge test   # + mainnet fork tests (pending, task 2)
