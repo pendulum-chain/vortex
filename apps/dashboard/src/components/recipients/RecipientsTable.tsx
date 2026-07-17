@@ -44,7 +44,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
                 className={
                   recipient.isSelf
                     ? undefined
-                    : "cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                    : "focus-visible:-outline-offset-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-ring"
                 }
                 initial={{ opacity: 0, y: 8 }}
                 key={recipient.id}
