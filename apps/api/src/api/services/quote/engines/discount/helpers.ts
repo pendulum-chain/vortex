@@ -1,7 +1,8 @@
-import { RampDirection } from "@vortexfi/shared";
+import { EvmToken, FiatToken, normalizeTokenSymbol, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import { config } from "../../../../../config/vars";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../../partners/partner-pricing.service";
+import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
@@ -70,6 +71,47 @@ export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDi
 
   const vortexPricing = await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, rampType);
   return vortexPricing ? toActivePartner(vortexPricing) : null;
+}
+
+const USD_LIKE_INPUT_CURRENCIES: ReadonlySet<string> = new Set([
+  "USD",
+  EvmToken.USDC,
+  EvmToken.USDT,
+  EvmToken.USDCE,
+  EvmToken.AXLUSDC
+]);
+
+const FIAT_PEG_BY_STABLECOIN: Record<string, FiatToken> = {
+  [EvmToken.BRLA]: FiatToken.BRL,
+  [EvmToken.EURC]: FiatToken.EURC
+};
+
+/**
+ * Value the offramp request input in USD. The offramp expected-output math multiplies a
+ * USD amount by the inverted FIAT-USD oracle rate, but request.inputAmount is denominated
+ * in the input token: USD-like stables pass through unchanged, fiat-pegged stables
+ * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate, and any other token falls
+ * back to the bridged USDC amount when available.
+ */
+export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<Big> {
+  const { inputAmount, inputCurrency } = ctx.request;
+  const normalized = normalizeTokenSymbol(inputCurrency);
+
+  if (USD_LIKE_INPUT_CURRENCIES.has(normalized)) {
+    return new Big(inputAmount);
+  }
+
+  const pegFiat = FIAT_PEG_BY_STABLECOIN[normalized];
+  if (pegFiat) {
+    const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(pegFiat);
+    return new Big(inputAmount).mul(fiatToUsdRate);
+  }
+
+  if (ctx.evmToEvm?.outputAmountDecimal) {
+    return ctx.evmToEvm.outputAmountDecimal;
+  }
+
+  return new Big(inputAmount);
 }
 
 /**
