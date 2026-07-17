@@ -78,7 +78,18 @@ app.use(requestContext);
 app.use(morgan(logs));
 
 // parse body params and attach them to req.body
-app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(
+  bodyParser.json({
+    limit: REQUEST_BODY_LIMIT,
+    // The Monerium B2B webhook HMAC is computed over the RAW request bytes; capture
+    // them before JSON parsing for that route only (monerium-b2b.controller).
+    verify: (req, _res, buf) => {
+      if (req.url?.startsWith("/v1/monerium-b2b/webhook")) {
+        (req as typeof req & { rawBody?: Buffer }).rawBody = buf;
+      }
+    }
+  })
+);
 app.use(bodyParser.urlencoded({ extended: true, limit: REQUEST_BODY_LIMIT }));
 
 // gzip compression

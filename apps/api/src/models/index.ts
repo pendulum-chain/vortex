@@ -8,6 +8,7 @@ import MaintenanceSchedule from "./maintenanceSchedule.model";
 import MoneriumAccount from "./moneriumAccount.model";
 import MoneriumConversionExecution from "./moneriumConversionExecution.model";
 import MoneriumFiatDeposit from "./moneriumFiatDeposit.model";
+import MoneriumWebhookEvent from "./moneriumWebhookEvent.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
@@ -110,6 +111,7 @@ const models = {
   MoneriumAccount,
   MoneriumConversionExecution,
   MoneriumFiatDeposit,
+  MoneriumWebhookEvent,
   Notification,
   NotificationPreference,
   Partner,

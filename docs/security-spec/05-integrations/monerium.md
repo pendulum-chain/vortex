@@ -1,5 +1,7 @@
 # Monerium Integration
 
+> **Superseded for the B2B onramp:** the whitelabel/attestor/webhook integration is specified in [monerium-b2b.md](./monerium-b2b.md); this file covers only the legacy consumer OAuth onboarding flow.
+
 ## What This Does
 
 The backend provides authenticated Monerium OAuth authorization-code endpoints for individual KYC and business KYB. It generates OAuth state and PKCE material server-side, exchanges codes directly with Monerium, keeps access and rotating refresh tokens only in backend memory, reads the authenticated Monerium context and API-v2 profile, and mirrors only normalized verification metadata into `provider_customers` and `kyc_cases`.
