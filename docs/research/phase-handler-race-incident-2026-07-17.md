@@ -825,8 +825,9 @@ incident.
   processor can still abandon that handler invocation.
 - `Promise.any()` does not cancel its losing branch. If balance settlement succeeds
   before bridge-status polling finishes, the bridge branch can continue until it
-  succeeds, fails, or reaches its eight-minute deadline. The mitigation bounds that
-  branch but does not stop it immediately.
+  succeeds, fails, or reaches its eight-minute deadline while the tracked processor
+  advances into later phases. The mitigation bounds that branch but does not stop it
+  immediately.
 - Because the bridge branch contains Axelar gas funding, a losing branch can still make
   that side effect before its deadline. Existing transaction-hash checks reduce repeat
   funding, but this change is not a general financial-idempotency guarantee.
@@ -835,12 +836,17 @@ incident.
 - Database lock acquisition remains non-atomic (F-003). Two API instances that begin
   from an unlocked row at the same time can still create two tracked processors.
 - The lock has no owner token. Refresh and release do not prove that the caller owns the
-  current lock.
+  current lock. If an orphan and a replacement processor already coexist, the orphan's
+  unconditional refresh can extend or overwrite the replacement owner's lease timestamp;
+  lock refresh must become owner-conditional when fencing is implemented.
 - Phase transitions are still not compare-and-swap updates. If concurrent tracked
   processors arise through another path, a stale transition can still overwrite a newer
   phase, including a terminal phase.
 - Recoverable retry counts remain process-local (F-004). Recovery can grant a new retry
-  budget after one processing cycle exhausts its retries.
+  budget after one processing cycle exhausts its retries. `squidRouterPay` now reaches
+  this existing soft-livelock path itself: nine eight-minute attempts plus eight
+  30-second delays can consume approximately 76 minutes, after which stale recovery can
+  grant another complete budget if the bridge never settles.
 - Whole-JSON metadata writes and final-settlement transaction idempotency are unchanged.
 
 Ownership-fenced locking, conditional phase persistence, durable retry state, and
