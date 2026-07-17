@@ -195,13 +195,17 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Gets the status of the Axelar bridge
    * @param txHash The swap (bridgeCall) transaction hash
    */
-  private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+  private async checkBridgeStatus(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    timeoutMs = getSquidRouterPayTimeoutMs()
+  ): Promise<void> {
     let isExecuted = false;
     let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
-    const timeoutMs = getSquidRouterPayTimeoutMs();
     const timeoutAt = Date.now() + timeoutMs;
 
-    await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
+    await new Promise(resolve => setTimeout(resolve, Math.min(SQUIDROUTER_INITIAL_DELAY_MS, timeoutMs)));
 
     while (!isExecuted) {
       if (Date.now() >= timeoutAt) {

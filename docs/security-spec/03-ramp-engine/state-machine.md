@@ -66,5 +66,6 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 - [x] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
 - [x] The database lock timestamp is refreshed before every phase attempt, so a 10-minute attempt plus retry cannot age a live lock past the 15-minute expiry
 - [x] `squidRouterPay` bounds both bridge-status and destination-balance polling at 80% of the processor timeout
+- [ ] Lock refresh/release are not owner-fenced; a surviving stale processor can still overwrite a replacement owner's lock timestamp (F-003 follow-up)
 - [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no production file creates `new PhaseProcessor()` (tests instantiate the class directly)
 - [EXISTING FINDING] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.
