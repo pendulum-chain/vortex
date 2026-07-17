@@ -29,12 +29,17 @@ import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
-import { getSquidRouterPayTimeoutMs } from "../phase-processor-config";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
 const BALANCE_POLLING_TIME_MS = 10000;
+// NOTE: This timeout is intentionally longer (15 minutes) than the 3–5 minute balance
+// checks in other handlers. For SquidRouter/Axelar bridge flows we wait for cross-chain
+// settlement and gas payment on the destination chain, which can legitimately take longer
+// under network congestion or bridge delays. Reducing this timeout risks premature failure
+// of otherwise successful bridge operations.
+const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculate part of the gas fee for SquidRouter transactions.
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
@@ -123,7 +128,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
 
     const toChain = quote.to as EvmNetworks;
-    const pollingTimeoutMs = getSquidRouterPayTimeoutMs();
 
     let balanceCheckPromise: Promise<Big>;
 
@@ -137,7 +141,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           chain: toChain,
           intervalMs: BALANCE_POLLING_TIME_MS,
           ownerAddress: ephemeralAddress,
-          timeoutMs: pollingTimeoutMs,
+          timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
           tokenDetails: outTokenDetails
         });
       } else {
@@ -175,7 +179,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
         if (balanceError instanceof BalanceCheckError) {
           if (balanceError.type === BalanceCheckErrorType.Timeout) {
-            errorMessage += ` Balance check timed out after ${pollingTimeoutMs}ms.`;
+            errorMessage += ` Balance check timed out after ${EVM_BALANCE_CHECK_TIMEOUT_MS}ms.`;
           } else if (balanceError.type === BalanceCheckErrorType.ReadFailure) {
             errorMessage += ` Balance check read failure (unexpected infrastructure issue): ${balanceError.message}.`;
           }
@@ -185,7 +189,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           errorMessage += ` Bridge check error: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}.`;
         }
 
-        throw this.createRecoverableError(errorMessage);
+        throw new Error(errorMessage);
       }
       throw error;
     }
@@ -195,23 +199,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Gets the status of the Axelar bridge
    * @param txHash The swap (bridgeCall) transaction hash
    */
-  private async checkBridgeStatus(
-    state: RampState,
-    swapHash: string,
-    quote: QuoteTicket,
-    timeoutMs = getSquidRouterPayTimeoutMs()
-  ): Promise<void> {
+  private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
     let isExecuted = false;
     let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
-    const timeoutAt = Date.now() + timeoutMs;
 
-    await new Promise(resolve => setTimeout(resolve, Math.min(SQUIDROUTER_INITIAL_DELAY_MS, timeoutMs)));
+    await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
 
     while (!isExecuted) {
-      if (Date.now() >= timeoutAt) {
-        throw this.createRecoverableError(`SquidRouterPayPhaseHandler: Bridge status check timed out after ${timeoutMs}ms`);
-      }
-
       try {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
