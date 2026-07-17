@@ -17,7 +17,7 @@ Every Vortex ramp follows the same shape:
 1. **Quote** — your application requests pricing for a route.
 2. **Register** — your application creates per-chain ephemeral accounts and submits their public addresses with the quote ID. Vortex returns one or more **unsigned** transactions that move funds through the ramp.
 3. **Sign and update** — your application signs each unsigned transaction with the correct key (ephemeral key for SDK-controlled accounts, user wallet for the user's funds) and submits the signed payloads back to Vortex.
-4. **Settle fiat** — for BRL buys, the user pays a PIX QR; for BRL sells, Vortex pays out to the user's PIX key after settlement.
+4. **Settle fiat** — on buys, the user pays on the corridor's rail (a PIX QR for BRL, a SEPA transfer for EUR, bank transfer instructions for USD/MXN/COP/ARS); on sells, Vortex pays out on that rail after settlement.
 5. **Start** — your application calls start once signatures and fiat payment are in place.
 6. **Track** — Vortex drives the on-chain phase machine. Your application listens via webhooks or polls the ramp status endpoint.
 

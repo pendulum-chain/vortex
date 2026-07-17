@@ -111,7 +111,7 @@ export class BrlOnrampError extends RegisterRampError {
 
 export class MissingBrlParametersError extends BrlOnrampError {
   constructor() {
-    super("Parameters destinationAddress and taxId are required for onramp", 400);
+    super("Parameter destinationAddress is required for onramp", 400);
     this.name = "MissingBrlParametersError";
   }
 }
@@ -161,7 +161,7 @@ export class BrlOfframpError extends RegisterRampError {
 
 export class MissingBrlOfframpParametersError extends BrlOfframpError {
   constructor() {
-    super("receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL", 400);
+    super("pixDestination is required for offramp to BRL", 400);
     this.name = "MissingBrlOfframpParametersError";
   }
 }
@@ -473,7 +473,7 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (missingEphemeralMatch) {
         return new EphemeralNotFreshError(errorMessage, missingEphemeralMatch[1] as EphemeralChain, "");
       }
-      if (errorMessage === "Parameters destinationAddress and taxId are required for onramp") {
+      if (errorMessage === "Parameter destinationAddress is required for onramp") {
         return new MissingBrlParametersError();
       }
       if (errorMessage === "Moonbeam ephemeral not found") {
@@ -491,7 +491,7 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "Amount exceeds KYC limits" || errorMessage === "Amount exceeds limit") {
         return new AmountExceedsLimitError();
       }
-      if (errorMessage === "receiverTaxId, pixDestination and taxId parameters must be provided for offramp to BRL") {
+      if (errorMessage === "pixDestination is required for offramp to BRL") {
         return new MissingBrlOfframpParametersError();
       }
       if (errorMessage === "Invalid pixKey or receiverTaxId") {
@@ -511,6 +511,8 @@ export function parseAPIError(response: unknown, fallbackStatus?: number): Vorte
       if (errorMessage === "fiatAccountId is required for Alfredpay offramp") {
         return new MissingAlfredpayOfframpParametersError(errorMessage);
       }
+      // Shared across BRL, Alfredpay and Mykobo offramp routes (missing walletAddress);
+      // the message carries no corridor, so it cannot be mapped to a corridor-specific class.
       if (errorMessage === "User address must be provided for offramping.") {
         return new MissingAlfredpayOfframpParametersError(errorMessage);
       }

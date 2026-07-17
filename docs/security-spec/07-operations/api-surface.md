@@ -5,7 +5,7 @@
 This spec covers the external-facing attack surface of the Vortex API (`apps/api/`): how requests enter the system, what validation is applied, how errors are returned, and what network-level protections exist.
 
 **Express configuration** (`config/express.ts`):
-- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only)
+- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for non-production dashboard deployments; resolved once at boot, wildcard entries dropped)
 - Rate limiting: 100 requests per minute per IP (global, all endpoints)
 - Helmet: Standard HTTP security headers
 - Body parser: JSON with **20MB limit**
@@ -37,7 +37,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 ## Security Invariants
 
-1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts`. No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header).
+1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts`. No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header). The `DASHBOARD_ORIGINS` env var extends the whitelist with additional *fixed* origins only: it is parsed once at boot and entries containing `*` are silently discarded, so it cannot be used to introduce a wildcard.
 2. **Rate limiting MUST be enforced on all endpoints** — 100 req/min per IP applies globally via `express-rate-limit`. No endpoint should bypass this.
 3. **Body size MUST be bounded** — The JSON body parser has a limit. **⚠️ FINDING: The limit is 20MB (`"20mb"`), which is still large for a JSON API.** A typical API allows 1-10MB. 20MB still enables avoidable memory pressure.
 4. **All user input MUST be validated before reaching controllers** — Validators run as middleware before the controller function. Missing validation on an endpoint means raw user input reaches business logic.
@@ -50,6 +50,8 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 11. **API observability MUST NOT change request outcomes** — Client event persistence/logging must be best-effort and must not change controller response bodies, status codes, or ramp/quote state.
 12. **Maintenance windows MUST be backend-enforced on mutable ramp entrypoints** — `POST /v1/quotes`, `POST /v1/quotes/best`, `POST /v1/ramp/register`, `POST /v1/ramp/update`, and `POST /v1/ramp/start` must reject during active maintenance with `503`, `Retry-After`, and explicit downtime start/end metadata. UI disabling is not sufficient because partners may call the API directly.
 13. **Provider-backed ramp endpoints MUST reject callers without an effective user** — Alfredpay and Avenia/BRL flows derive their provider customer/subaccount from `api_keys.user_id -> profiles.id -> alfredpay_customers.user_id` / `tax_ids.user_id`. Quote creation is anonymous-eligible on every corridor (Alfredpay quotes carry only a tracking-metadata customer id — the `"anonymous"` sentinel for non-KYC'd callers), but `POST /v1/ramp/register` requires Supabase or secret-key credentials and `RampService.registerRamp` rejects missing effective users with `400 Invalid quote`. Quotes owned by a *different* user are rejected with `403`; anonymous quotes (no owner) may be claimed, with provider identity always derived from the claimer's own KYC records.
+14. **Active customer-entity selection MUST be authenticated, owner-scoped, and immutable** — `PUT /v1/onboarding/active-entity` accepts only `individual` or `business`, locks the authenticated profile while selecting, and may bind only an active `customer_entities` row owned by that profile. An identical retry returns the existing selection. A different later type, an ownership mismatch, or multiple active owned entities of the requested type is rejected with `409`; no arbitrary row is selected.
+15. **Legacy active-entity backfill MUST be unambiguous** — Migration 048 selects only one active entity that already owns provider or recipient data. Empty automatically-created individual entities do not force the selection. Profiles with multiple meaningful entities or no meaningful entity remain null and `GET /v1/onboarding/status` returns `selectionRequired: true`.
 
 ## Threat Vectors & Mitigations
 
@@ -79,6 +81,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [x] Verify error responses do not include internal error types, database error codes, or SQL fragments. **PASS** — error handler wraps errors in generic `APIError` format.
 - [x] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names. **PASS** — error messages are user-facing validation messages.
 - [x] Map all 28 TypeScript route files and verify each has appropriate auth middleware (Supabase, API key, admin, metrics dashboard, or public). **PASS** — F-013 resolved (legacy `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*` endpoints removed); `/v1/ramp/*` and `/v1/ramp/quotes(/best)` use `requirePartnerOrUserAuth()` with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) use `requireAuth` (F-068 resolved); `/v1/maintenance/*`, `/v1/admin/partners/:partnerName/api-keys`, and `/v1/admin/profile-partner-assignments` use `adminAuth`; `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` uses `apiKeyAuth`.
+- [x] Active customer-entity selection is Supabase-authenticated, serialized on the profile row, owner-scoped, idempotent for an identical retry, and rejects mutation or ambiguity.
 - [x] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key). **PASS** — auth middleware usage reviewed per route.
 - [N/A] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns. **N/A** — deferred; requires comprehensive Sequelize usage audit.
 - [x] Verify no endpoint returns `process.env`, server config, or internal paths in responses. **PASS** — no endpoint exposes internal configuration.

@@ -52,6 +52,10 @@ export class AlfredpayApiError extends ProviderHttpError {
   }
 }
 
+// A hung provider call must not stall callers — the dashboard's onboarding status poll awaits
+// these requests inline.
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
 
@@ -99,7 +103,8 @@ export class AlfredpayApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
@@ -136,9 +141,11 @@ export class AlfredpayApiService {
             logger.current.warn(
               `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
             );
+            // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
+            // the error exposes them as strings.
             throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
-              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
+              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
+              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -182,9 +189,11 @@ export class AlfredpayApiService {
   /**
    * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
    * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   * Alfredpay renamed the route: the former /configurations path now returns
+   * 400 errorCode 111301 (caught by the nightly contract suite, 2026-07-14).
    */
   public async getAllConfigs(): Promise<GetAllConfigsResponse> {
-    const path = "/api/v1/third-party-service/penny/configurations";
+    const path = "/api/v1/third-party-service/penny/allConfigs";
     return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 
@@ -344,6 +353,20 @@ export class AlfredpayApiService {
   ): Promise<SubmitKybInformationResponse> {
     const path = `/api/v1/third-party-service/penny/customers/${customerId}/kyb`;
     return (await this.executeRequest(path, "POST", { kybSubmission: data })) as SubmitKybInformationResponse;
+  }
+
+  /**
+   * Alfredpay: PUT …/customers/kyb — updates an existing (e.g. PENDING) KYB submission in place.
+   * Alfredpay rejects a fresh POST while a submission is pending, so retries must go through here.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_updatekyb-3
+   */
+  public async updateKybInformation(
+    customerId: string,
+    submissionId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<void> {
+    const path = "/api/v1/third-party-service/penny/customers/kyb";
+    await this.executeRequest(path, "PUT", { customerId, kybUpdateSubmission: data, submissionId });
   }
 
   /**

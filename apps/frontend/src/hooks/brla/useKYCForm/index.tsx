@@ -12,16 +12,24 @@ const toISODateString = (date: Date): string => date.toISOString().split("T")[0]
 export interface UseKYCFormProps {
   cpfApiError: string | null;
   initialData?: KYCFormData;
+  // Quote-less invite/KYB-link flow: the CPF is typed on this form (a CNPJ would belong to the KYB flow),
+  // and there is no quote-supplied PIX key to require.
+  kybLinkMode?: boolean;
 }
 
-const createKycFormSchema = (t: (key: string) => string) =>
+export const createKycFormSchema = (t: (key: string) => string, kybLinkMode: boolean) =>
   z.object({
     [ExtendedAveniaFieldOptions.TAX_ID]: z
       .string()
       .min(1, t("components.brlaExtendedForm.validation.taxId.required"))
-      .refine(value => isValidCpf(value) || isValidCnpj(value), t("components.brlaExtendedForm.validation.taxId.format")),
+      .refine(
+        value => (kybLinkMode ? isValidCpf(value) : isValidCpf(value) || isValidCnpj(value)),
+        t(`components.brlaExtendedForm.validation.taxId.${kybLinkMode ? "cpfFormat" : "format"}`)
+      ),
 
-    [ExtendedAveniaFieldOptions.PIX_ID]: z.string().min(1, t("components.brlaExtendedForm.validation.pixId.required")),
+    [ExtendedAveniaFieldOptions.PIX_ID]: kybLinkMode
+      ? z.string()
+      : z.string().min(1, t("components.brlaExtendedForm.validation.pixId.required")),
 
     [ExtendedAveniaFieldOptions.FULL_NAME]: z
       .string()
@@ -95,7 +103,7 @@ const createKycFormSchema = (t: (key: string) => string) =>
 
 export type KYCFormData = z.infer<ReturnType<typeof createKycFormSchema>>;
 
-export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
+export const useKYCForm = ({ cpfApiError, initialData, kybLinkMode = false }: UseKYCFormProps) => {
   const { t } = useTranslation();
   const taxIdFromStore = useTaxId();
   const pixIdFromStore = usePixId();
@@ -105,11 +113,11 @@ export const useKYCForm = ({ cpfApiError, initialData }: UseKYCFormProps) => {
   const kycForm = useForm<KYCFormData>({
     defaultValues: {
       ...initialData,
-      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || taxIdFromStore || "",
-      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || pixIdFromStore || ""
+      [ExtendedAveniaFieldOptions.TAX_ID]: initialData?.taxId || (kybLinkMode ? "" : taxIdFromStore) || "",
+      [ExtendedAveniaFieldOptions.PIX_ID]: initialData?.pixId || (kybLinkMode ? "" : pixIdFromStore) || ""
     },
     mode: "onBlur",
-    resolver: standardSchemaResolver(createKycFormSchema(t))
+    resolver: standardSchemaResolver(createKycFormSchema(t, kybLinkMode))
   });
 
   useEffect(() => {

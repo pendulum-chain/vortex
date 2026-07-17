@@ -1,0 +1,182 @@
+import { DataTypes, Model, Optional } from "sequelize";
+import sequelize from "../config/database";
+
+export type ProviderName = "mykobo" | "alfredpay" | "avenia" | "monerium";
+export type ProviderCustomerType = "individual" | "business";
+export type MoneriumStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export enum VerificationStatus {
+  Pending = "pending",
+  Started = "started",
+  InReview = "in_review",
+  Approved = "approved",
+  Rejected = "rejected"
+}
+
+// One anchor for every provider/rail account, owned by exactly
+// one customer_entity. Folds the legacy mykobo_customers/alfredpay_customers tables and the
+// Avenia half of tax_ids. taxReference holds the raw normalized tax id (avenia only — it is
+// the join/aggregation key for in-flight ramp state); the sha256 hash backs the uniqueness
+// guard and hashed lookups. Masked display values are derived from taxReference at read time.
+export interface ProviderCustomerAttributes {
+  id: string;
+  customerEntityId: string;
+  provider: ProviderName;
+  rail: string | null;
+  country: string | null;
+  providerCustomerId: string | null;
+  providerSubaccountId: string | null;
+  companyName: string | null;
+  taxReference: string | null;
+  taxReferenceHash: string | null;
+  customerType: ProviderCustomerType;
+  status: VerificationStatus;
+  statusExternal: string | null;
+  lastFailureReasons: string[] | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type ProviderCustomerCreationAttributes = Optional<
+  ProviderCustomerAttributes,
+  | "id"
+  | "rail"
+  | "country"
+  | "providerCustomerId"
+  | "providerSubaccountId"
+  | "companyName"
+  | "taxReference"
+  | "taxReferenceHash"
+  | "customerType"
+  | "statusExternal"
+  | "lastFailureReasons"
+  | "createdAt"
+  | "updatedAt"
+>;
+
+class ProviderCustomer
+  extends Model<ProviderCustomerAttributes, ProviderCustomerCreationAttributes>
+  implements ProviderCustomerAttributes
+{
+  declare id: string;
+  declare customerEntityId: string;
+  declare provider: ProviderName;
+  declare rail: string | null;
+  declare country: string | null;
+  declare providerCustomerId: string | null;
+  declare providerSubaccountId: string | null;
+  declare companyName: string | null;
+  declare taxReference: string | null;
+  declare taxReferenceHash: string | null;
+  declare customerType: ProviderCustomerType;
+  declare status: VerificationStatus;
+  declare statusExternal: string | null;
+  declare lastFailureReasons: string[] | null;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+ProviderCustomer.init(
+  {
+    companyName: {
+      allowNull: true,
+      field: "company_name",
+      type: DataTypes.STRING(255)
+    },
+    country: {
+      allowNull: true,
+      type: DataTypes.STRING(4)
+    },
+    createdAt: {
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "created_at",
+      type: DataTypes.DATE
+    },
+    customerEntityId: {
+      allowNull: false,
+      field: "customer_entity_id",
+      onDelete: "CASCADE",
+      onUpdate: "CASCADE",
+      references: {
+        key: "id",
+        model: "customer_entities"
+      },
+      type: DataTypes.UUID
+    },
+    customerType: {
+      allowNull: false,
+      defaultValue: "individual",
+      field: "customer_type",
+      type: DataTypes.STRING(16)
+    },
+    id: {
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      type: DataTypes.UUID
+    },
+    lastFailureReasons: {
+      allowNull: true,
+      defaultValue: [],
+      field: "last_failure_reasons",
+      type: DataTypes.JSONB
+    },
+    provider: {
+      allowNull: false,
+      type: DataTypes.STRING(16)
+    },
+    providerCustomerId: {
+      allowNull: true,
+      field: "provider_customer_id",
+      type: DataTypes.STRING(255)
+    },
+    providerSubaccountId: {
+      allowNull: true,
+      field: "provider_subaccount_id",
+      type: DataTypes.STRING(255)
+    },
+    rail: {
+      allowNull: true,
+      type: DataTypes.STRING(8)
+    },
+    status: {
+      allowNull: false,
+      type: DataTypes.STRING(32)
+    },
+    statusExternal: {
+      allowNull: true,
+      field: "status_external",
+      type: DataTypes.STRING(255)
+    },
+    taxReference: {
+      allowNull: true,
+      field: "tax_reference",
+      type: DataTypes.STRING(32)
+    },
+    taxReferenceHash: {
+      allowNull: true,
+      field: "tax_reference_hash",
+      type: DataTypes.STRING(64)
+    },
+    updatedAt: {
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+      field: "updated_at",
+      type: DataTypes.DATE
+    }
+  },
+  {
+    indexes: [
+      {
+        fields: ["customer_entity_id"],
+        name: "idx_provider_customers_customer_entity_id"
+      }
+    ],
+    modelName: "ProviderCustomer",
+    sequelize,
+    tableName: "provider_customers",
+    timestamps: true
+  }
+);
+
+export default ProviderCustomer;

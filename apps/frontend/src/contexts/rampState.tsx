@@ -1,8 +1,10 @@
+import type { AveniaKycContext } from "@vortexfi/kyc";
+import { AlfredpayKycContext } from "@vortexfi/kyc";
 import { EphemeralAccount } from "@vortexfi/shared";
 import { createActorContext, useSelector } from "@xstate/react";
 import React, { PropsWithChildren, useEffect } from "react";
 import { AnyActorRef, Snapshot } from "xstate";
-import { AlfredpayKycContext, AveniaKycContext, MykoboKycContext } from "../machines/kyc.states";
+import { MykoboKycContext } from "../machines/kyc.states";
 import { rampMachine } from "../machines/ramp.machine";
 import {
   AlfredpayKycActorRef,

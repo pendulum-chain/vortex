@@ -1,34 +1,91 @@
 import { MykoboApiError, MykoboApiService, MykoboCustomerStatus, MykoboProfile, mapMykoboReviewStatus } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
-import MykoboCustomer from "../../../models/mykoboCustomer.model";
+import KycCase from "../../../models/kycCase.model";
+import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
+import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
 interface UpsertArgs {
   userId: string;
   email: string;
-  status: MykoboCustomerStatus;
+  status: VerificationStatus;
   statusExternal: string | null;
 }
 
-async function upsertMykoboCustomer({ userId, email, status, statusExternal }: UpsertArgs): Promise<void> {
-  const existing = await MykoboCustomer.findOne({ where: { userId } });
+function toVerificationStatus(status: MykoboCustomerStatus): VerificationStatus {
+  switch (status) {
+    case MykoboCustomerStatus.APPROVED:
+      return VerificationStatus.Approved;
+    case MykoboCustomerStatus.REJECTED:
+      return VerificationStatus.Rejected;
+    case MykoboCustomerStatus.PENDING:
+      return VerificationStatus.InReview;
+    default:
+      return VerificationStatus.Pending;
+  }
+}
+
+async function syncKycCase(record: ProviderCustomer): Promise<void> {
+  const values = {
+    status: record.status,
+    statusExternal: record.statusExternal,
+    ...(record.status === VerificationStatus.Approved ? { approvedAt: new Date(), rejectedAt: null } : {}),
+    ...(record.status === VerificationStatus.Rejected ? { approvedAt: null, rejectedAt: new Date() } : {})
+  };
+  const existing = await KycCase.findOne({ where: { providerCustomerId: record.id } });
   if (existing) {
-    await existing.update({ email, status, statusExternal });
+    await existing.update(values);
     return;
   }
-  await MykoboCustomer.create({ email, status, statusExternal, userId });
+  await KycCase.create({
+    customerEntityId: record.customerEntityId,
+    provider: "mykobo",
+    providerCustomerId: record.id,
+    type: "kyc",
+    ...values
+  });
+}
+
+async function upsertMykoboCustomer({ userId, email, status, statusExternal }: UpsertArgs): Promise<void> {
+  const entity = await getOrCreateCustomerEntityForProfile(userId, "individual");
+  const existing = await ProviderCustomer.findOne({
+    where: { customerEntityId: entity.id, provider: "mykobo" }
+  });
+  if (existing) {
+    // The Mykobo-side durable key is the email; keep the mirror in sync with the profile.
+    await existing.update({ providerCustomerId: email, status, statusExternal });
+    await syncKycCase(existing);
+    return;
+  }
+  const record = await ProviderCustomer.create({
+    customerEntityId: entity.id,
+    provider: "mykobo",
+    providerCustomerId: email,
+    rail: "eur",
+    status,
+    statusExternal
+  });
+  await syncKycCase(record);
 }
 
 export async function upsertMykoboCustomerFromProfile(userId: string, email: string, profile: MykoboProfile): Promise<void> {
   const reviewStatus = profile.kyc_status?.review_status ?? null;
   await upsertMykoboCustomer({
     email,
-    status: mapMykoboReviewStatus(reviewStatus),
+    status: toVerificationStatus(mapMykoboReviewStatus(reviewStatus)),
     statusExternal: reviewStatus,
     userId
   });
+}
+
+export async function markMykoboCustomerStarted(userId: string, email: string): Promise<void> {
+  await upsertMykoboCustomer({ email, status: VerificationStatus.Started, statusExternal: null, userId });
+}
+
+export async function markMykoboCustomerPending(userId: string, email: string): Promise<void> {
+  await upsertMykoboCustomer({ email, status: VerificationStatus.Pending, statusExternal: null, userId });
 }
 
 export interface ResolvedMykoboCustomer {
@@ -66,8 +123,11 @@ export async function resolveMykoboCustomerForUser(userId: string, providedEmail
   // Refresh the KYC mirror from the live Mykobo profile, then gate on an approved customer.
   await syncMykoboCustomerKyc(userId, email);
 
-  const customer = await MykoboCustomer.findOne({ where: { userId } });
-  if (!customer || customer.status !== MykoboCustomerStatus.APPROVED) {
+  const entity = await getOrCreateCustomerEntityForProfile(userId, "individual");
+  const customer = await ProviderCustomer.findOne({
+    where: { customerEntityId: entity.id, provider: "mykobo" }
+  });
+  if (!customer || customer.status !== VerificationStatus.Approved) {
     throw new APIError({
       message: "Mykobo KYC is not approved for this user. Complete Mykobo KYC before requesting an EUR ramp.",
       status: httpStatus.BAD_REQUEST
@@ -85,7 +145,7 @@ export async function syncMykoboCustomerKyc(userId: string, email: string): Prom
     if (error instanceof MykoboApiError && error.status === 404) {
       await upsertMykoboCustomer({
         email,
-        status: MykoboCustomerStatus.CONSULTED,
+        status: VerificationStatus.Pending,
         statusExternal: null,
         userId
       });

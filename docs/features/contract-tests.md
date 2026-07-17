@@ -1,6 +1,11 @@
 # PRD: External API contract tests — verifying the fake world against the real one
 
-Status: milestone 1 (SquidRouter) implemented; milestones 2–5 pending.
+Status: milestones 1–4 (SquidRouter, Alfredpay, Avenia/BRLA, price feeds) implemented;
+milestone 5 (warn-only production parsing) ships separately per endpoint once its schema
+has survived a quiet week of nightlies. Methods without production consumers
+(`getQuote` on Alfredpay; `createOnchainSwapQuote`/`createOnchainSwapTicket`/
+`getMainAccountBalance`/`getAveniaSwapTicket` on Avenia) are deliberately uncovered —
+there is no consumed contract to verify.
 Reference: extends the test suite described in [`docs/testing-strategy.md`](../testing-strategy.md).
 
 Naming: this layer is called **"external API contracts"** everywhere (docs, directory names,

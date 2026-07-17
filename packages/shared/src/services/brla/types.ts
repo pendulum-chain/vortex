@@ -104,6 +104,8 @@ export interface OnchainSwapQuoteParams {
 export enum AveniaTicketStatus {
   ON_HOLD = "ON-HOLD",
   PENDING = "PENDING",
+  UNPAID = "UNPAID",
+  PROCESSING = "PROCESSING",
   PAID = "PAID",
   FAILED = "FAILED",
   PARTIAL_FAILED = "PARTIAL-FAILED"
@@ -116,9 +118,10 @@ export interface BaseTicket {
   userId: string;
   reason: string;
   failureReason: string;
-  createdAt: Date;
-  updatedAt: Date;
-  expiresAt: Date;
+  // Wire timestamps are ISO strings — JSON cannot contain a Date.
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
   quote: {
     id: string;
     ticketId: string;
@@ -161,7 +164,8 @@ export interface PixInputTicketPayload {
 export interface PixInputTicketOutput {
   id: string;
   brCode: string;
-  expiration: Date;
+  // Wire timestamp is an ISO string — JSON cannot contain a Date.
+  expiration: string;
 }
 
 export interface PixOutputTicketOutput {
@@ -351,12 +355,18 @@ export interface KybLevel1Response {
 }
 
 export interface KybAttemptStatusResponse {
+  failureReason?: string;
+  result?: KycAttemptResult;
+  status: KycAttemptStatus;
+}
+
+export interface AveniaKybAttemptStatusResponse {
   attempt: {
     id: string;
     levelName: string;
     submissionData: Record<string, unknown>;
     status: KycAttemptStatus;
-    result: KycAttemptResult;
+    result?: KycAttemptResult;
     resultMessage: string;
     retryable: boolean;
     createdAt: string;
@@ -438,10 +448,12 @@ export interface AveniaDocumentGetResponse {
 }
 
 export interface AveniaAccountBalanceResponse {
+  // Wire balances are decimal strings (e.g. "99.8"), not numbers — consumers parse
+  // via Big()/Number(). Surfaced by the nightly contract suite.
   balances: {
-    BRLA: number;
-    USDC: number;
-    USDM: number;
-    USDT: number;
+    BRLA: string;
+    USDC: string;
+    USDM: string;
+    USDT: string;
   };
 }

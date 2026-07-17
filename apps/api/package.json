@@ -48,7 +48,8 @@
     "uuid": "^11.1.0",
     "viem": "catalog:",
     "web3": "^4.16.0",
-    "winston": "^3.1.0"
+    "winston": "^3.1.0",
+    "zod": "catalog:"
   },
   "description": "",
   "devDependencies": {
@@ -98,7 +99,8 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.55 0.64",
     "test:db:start": "./scripts/test-db.sh start",
-    "test:db:stop": "./scripts/test-db.sh stop"
+    "test:db:stop": "./scripts/test-db.sh stop",
+    "typecheck": "tsc --noEmit"
   },
   "version": "1.0.0"
 }

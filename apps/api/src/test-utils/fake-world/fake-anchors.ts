@@ -150,7 +150,13 @@ export class FakeBrla {
   payOutRate = 1;
   subaccountId = "test-subaccount-id";
   subaccountEvmWallet = "0x7ba99e99bc669b3508aff9cc0a898e869459f877";
-  /** Internal Avenia subaccount balances served by getAccountBalance; script per test. */
+  /** KYC state served in subaccountInfo().accountInfo; production gates ramps on CONFIRMED. */
+  identityStatus: "NOT-IDENTIFIED" | "CONFIRMED" = "CONFIRMED";
+  /**
+   * Internal Avenia subaccount balances served by getAccountBalance; script per test.
+   * Numbers here for ergonomic scripting — the wire (and the fake's response) carries
+   * decimal strings.
+   */
   accountBalances = { BRLA: 0, USDC: 0, USDM: 0, USDT: 0 };
   /** Status reported for every pay-in ticket by getAveniaPayinTickets. */
   payinTicketStatus: AveniaTicketStatus = AveniaTicketStatus.PAID;
@@ -184,7 +190,7 @@ export class FakeBrla {
     createPixInputTicket: async () => {
       const ticket = {
         brCode: `brcode-${++this.counter}`,
-        expiration: new Date(Date.now() + 3600_000),
+        expiration: new Date(Date.now() + 3600_000).toISOString(),
         id: `pix-in-${this.counter}`
       };
       this.pixInputTickets.push(ticket);
@@ -196,7 +202,14 @@ export class FakeBrla {
       this.onPixOutputTicket?.({ id: ticket.id, walletAddress: payload?.ticketBlockchainOutput?.walletAddress });
       return ticket;
     },
-    getAccountBalance: async () => ({ balances: { ...this.accountBalances } }),
+    getAccountBalance: async () => ({
+      balances: {
+        BRLA: String(this.accountBalances.BRLA),
+        USDC: String(this.accountBalances.USDC),
+        USDM: String(this.accountBalances.USDM),
+        USDT: String(this.accountBalances.USDT)
+      }
+    }),
     getAveniaPayinTickets: async () => this.pixInputTickets.map(ticket => ({ id: ticket.id, status: this.payinTicketStatus })),
     getAveniaPayoutTicket: async (ticketId: string) => ({
       id: ticketId,
@@ -219,7 +232,7 @@ export class FakeBrla {
       }
     }),
     subaccountInfo: async () => ({
-      accountInfo: {},
+      accountInfo: { identityStatus: this.identityStatus },
       brCode: "test-brcode",
       createdAt: new Date().toISOString(),
       id: this.subaccountId,
@@ -368,7 +381,7 @@ export class FakeAlfredpay {
           toCurrency: request.toCurrency
         }),
         quoteId: request.quoteId,
-        status: AlfredpayOfframpStatus.ON_CHAIN_DEPOSIT_RECEIVED,
+        status: AlfredpayOfframpStatus.CREATED,
         toAmount: (Number(request.amount) * this.offrampRate).toString(),
         toCurrency: request.toCurrency,
         transactionId,

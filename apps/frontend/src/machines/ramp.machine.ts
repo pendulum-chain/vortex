@@ -14,6 +14,7 @@ import { aveniaKycMachine } from "./brlaKyc.machine";
 import { kycStateNode } from "./kyc.states";
 import { mykoboKycMachine } from "./mykoboKyc.machine";
 import {
+  acceptRecipientInviteActor,
   checkAndRefreshTokenActor,
   cleanUrlActor,
   createQuoteRefresher,
@@ -26,6 +27,11 @@ import { RampContext, RampMachineActor, RampMachineEvents, RampState } from "./t
 
 export const SUCCESS_CALLBACK_DELAY_MS = 5000; // 5 seconds
 const QUOTE_REFRESH_RETRY_DELAY_MS = 30000;
+
+function fiatTokenFromInvite(payoutCurrency: string): FiatToken | undefined {
+  const normalized = payoutCurrency.toUpperCase();
+  return Object.values(FiatToken).find(token => token === normalized);
+}
 
 function mergeRampStatePreservingPaymentInfo(prev: RampState | undefined, next: RampState): RampState {
   if (!prev?.ramp) return next;
@@ -94,6 +100,7 @@ export const rampMachine = setup({
     }
   },
   actors: {
+    acceptRecipientInvite: fromPromise(acceptRecipientInviteActor),
     alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
@@ -190,7 +197,11 @@ export const rampMachine = setup({
         kybLink: ({ event }) => {
           const region = findKybRegionByCode(event.region);
           return {
+            // A plain KYB deep link is business verification by definition; an invite link leaves
+            // the customer type open until redemption sets it from the invitation's inviteeType.
+            customerType: event.invite ? undefined : ("business" as const),
             fiatToken: region?.fiatToken,
+            invite: event.invite,
             // Only honor the lock when the region code is valid; an unknown code degrades to the open selector.
             regionLocked: !!event.locked && region !== undefined
           };
@@ -381,6 +392,10 @@ export const rampMachine = setup({
       on: {
         RESET_RAMP: {
           target: "Resetting"
+        },
+        RETRY_INVITE: {
+          guard: ({ context }) => !!context.kybLink?.invite,
+          target: "RedeemingInvite"
         }
       }
     },
@@ -532,6 +547,10 @@ export const rampMachine = setup({
     PostAuthRouting: {
       always: [
         {
+          guard: ({ context }) => context.kybLink?.invite !== undefined,
+          target: "RedeemingInvite"
+        },
+        {
           guard: ({ context }) => context.postAuthTarget === "RegisterRamp",
           target: "RegisterRamp"
         },
@@ -643,6 +662,34 @@ export const rampMachine = setup({
         SummaryConfirm: {
           target: "RegisterRamp"
         }
+      }
+    },
+    RedeemingInvite: {
+      invoke: {
+        input: ({ context }) => {
+          const token = context.kybLink?.invite;
+          if (!token) {
+            throw new Error("Invite token is required.");
+          }
+          return { token };
+        },
+        onDone: {
+          actions: assign({
+            errorMessage: undefined,
+            kybLink: ({ context, event }) => ({
+              ...context.kybLink,
+              customerType: event.output.invitation.inviteeType,
+              fiatToken: fiatTokenFromInvite(event.output.invitation.payoutCurrency),
+              regionLocked: true
+            })
+          }),
+          target: "SelectRegion"
+        },
+        onError: {
+          actions: [{ type: "setErrorMessage" }],
+          target: "Error"
+        },
+        src: "acceptRecipientInvite"
       }
     },
     RedirectCallback: {

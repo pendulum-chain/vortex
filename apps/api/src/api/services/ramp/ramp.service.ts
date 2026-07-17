@@ -46,12 +46,16 @@ import { Op, Transaction, WhereOptions } from "sequelize";
 import { isAddress } from "viem";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
-import Partner from "../../../models/partner.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
-import TaxId from "../../../models/taxId.model";
+import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
-import { ActivePartner, handleQuoteConsumptionForDiscountState } from "../../services/quote/engines/discount/helpers";
+import {
+  ActivePartner,
+  handleQuoteConsumptionForDiscountState,
+  resolveActivePartnerById
+} from "../../services/quote/engines/discount/helpers";
+import { findAveniaCustomerByTaxId } from "../avenia/avenia-customer.service";
 import { resolveAveniaAccountForRamp } from "../avenia-account";
 import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
@@ -220,6 +224,42 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const user = await User.findByPk(effectiveUserId, { lock: Transaction.LOCK.UPDATE, transaction });
+      if (!user) {
+        throw new APIError({
+          message: "Authenticated user profile not found.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const startDeadline = new Date(Date.now() - RAMP_START_EXPIRATION_TIME_SECONDS * 1000);
+      await RampState.update(
+        { currentPhase: "timedOut" },
+        {
+          transaction,
+          where: {
+            createdAt: { [Op.lt]: startDeadline },
+            currentPhase: "initial",
+            userId: effectiveUserId
+          }
+        }
+      );
+
+      const activeRamp = await RampState.findOne({
+        attributes: ["id"],
+        transaction,
+        where: {
+          currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] },
+          userId: effectiveUserId
+        }
+      });
+      if (activeRamp) {
+        throw new APIError({
+          message: `An active ramp already exists for this user: ${activeRamp.id}`,
+          status: httpStatus.CONFLICT
+        });
+      }
+
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
       // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
@@ -254,7 +294,7 @@ export class RampService extends BaseRampService {
       const pricingPartnerId = quote.pricingPartnerId ?? quote.partnerId;
       let partner: ActivePartner = null;
       if (pricingPartnerId) {
-        partner = await Partner.findByPk(pricingPartnerId);
+        partner = await resolveActivePartnerById(pricingPartnerId, quote.rampType);
       }
 
       handleQuoteConsumptionForDiscountState(partner);
@@ -752,6 +792,7 @@ export class RampService extends BaseRampService {
         }
 
         return {
+          currentPhase: ramp.currentPhase,
           date: ramp.createdAt.toISOString(),
           externalTxExplorerLink: transactionExplorerLink,
           externalTxHash: transactionHash,
@@ -776,8 +817,7 @@ export class RampService extends BaseRampService {
    */
   private mapPhaseToStatus(phase: RampPhase): TransactionStatus {
     if (phase === "complete") return TransactionStatus.COMPLETE;
-    // Don't return 'failed' as status, instead return 'pending' to avoid confusion
-    // if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
+    if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
     return TransactionStatus.PENDING;
   }
 
@@ -901,15 +941,16 @@ export class RampService extends BaseRampService {
   ): Promise<{ wallets: { evm: string }; brCode: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found",
         status: httpStatus.BAD_REQUEST
       });
     }
-    const subAccountData = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
-    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
+    const subAccountData = await brlaApiService.subaccountInfo(aveniaSubAccountId);
+    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
     if (!subaccountLimits) {
       throw new APIError({
         message: "Failed to fetch subaccount limits",
@@ -986,15 +1027,16 @@ export class RampService extends BaseRampService {
   ): Promise<{ brCode: string; aveniaTicketId: string }> {
     const brlaApiService = BrlaApiService.getInstance();
 
-    const taxIdRecord = await TaxId.findByPk(normalizeTaxId(taxId));
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+    if (!aveniaCustomer) {
       throw new APIError({
         message: "Subaccount not found.",
         status: httpStatus.BAD_REQUEST
       });
     }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
-    const accountLimits = await brlaApiService.getSubaccountUsedLimit(taxIdRecord.subAccountId);
+    const accountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
     if (!accountLimits) {
       throw new APIError({
         message: "Failed to fetch subaccount limits.",
@@ -1012,7 +1054,7 @@ export class RampService extends BaseRampService {
       outputCurrency: BrlaCurrency.BRLA,
       outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       outputThirdParty: false,
-      subAccountId: taxIdRecord.subAccountId
+      subAccountId: aveniaSubAccountId
     });
 
     const aveniaTicket = await brlaApiService.createPixInputTicket(
@@ -1026,7 +1068,7 @@ export class RampService extends BaseRampService {
           additionalData: generateReferenceLabel(quote)
         }
       },
-      taxIdRecord.subAccountId
+      aveniaSubAccountId
     );
 
     return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };

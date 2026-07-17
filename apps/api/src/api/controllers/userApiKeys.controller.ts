@@ -91,6 +91,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
           keyType: "public",
           keyValue: publicKey,
           name: `${name || "API Key"} (Public)`,
+          partnerId: null,
           partnerName: null,
           userId
         },
@@ -106,6 +107,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
           keyType: "secret",
           keyValue: null,
           name: `${name || "API Key"} (Secret)`,
+          partnerId: null,
           partnerName: null,
           userId
         },
@@ -259,7 +261,7 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
     }
 
     if (!otherKeyId) {
-      await primaryKey.update({ isActive: false });
+      await primaryKey.update({ isActive: false, revokedAt: new Date() });
       res.status(httpStatus.NO_CONTENT).send();
       return;
     }
@@ -302,7 +304,8 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
-    await Promise.all([primaryKey.update({ isActive: false }), pairedKey.update({ isActive: false })]);
+    const revokedAt = new Date();
+    await Promise.all([primaryKey.update({ isActive: false, revokedAt }), pairedKey.update({ isActive: false, revokedAt })]);
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error revoking user API key:", error);

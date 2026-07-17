@@ -58,7 +58,10 @@ export enum AlfredpayKycStatus {
   FAILED = "FAILED",
   IN_REVIEW = "IN_REVIEW",
   UPDATE_REQUIRED = "UPDATE_REQUIRED",
-  CREATED = "CREATED"
+  CREATED = "CREATED",
+  // Submission exists but was never finalized (or its data was invalid) — Alfredpay refuses a fresh
+  // POST while one is pending; it must be updated in place (PUT …/customers/kyb) and re-sent.
+  PENDING = "PENDING"
 }
 
 export type AlfredpayKybStatus = AlfredpayKycStatus;
@@ -209,6 +212,7 @@ export interface CreateAlfredpayOfframpRequest {
 }
 
 export enum AlfredpayOfframpStatus {
+  CREATED = "CREATED",
   ON_CHAIN_DEPOSIT_RECEIVED = "ON_CHAIN_DEPOSIT_RECEIVED",
   TRADE_COMPLETED = "TRADE_COMPLETED",
   FIAT_TRANSFER_INITIATED = "FIAT_TRANSFER_INITIATED",
@@ -362,15 +366,20 @@ const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
 
 export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
-/** Raw shape returned by `GET …/configurations`. `typeCustomer: null` means the pair applies to both customer types. */
+/**
+ * Raw shape returned by `GET …/allConfigs`. `typeCustomer: null` means the pair applies
+ * to both customer types. The listing contains junk rows (observed live, 2026-07-14):
+ * `decimals` may be null or "", and `fromCurrency` may be null — consumers must skip
+ * rows without a digit-string `decimals` (the limits indexer does).
+ */
 export interface AlfredpayConfigPair {
   id: string;
-  fromCurrency: string;
+  fromCurrency: string | null;
   toCurrency: string;
   businessId: string | null;
   maxQuantity: string;
   minQuantity: string;
-  decimals: string;
+  decimals: string | null;
   typeCustomer: AlfredpayCustomerType | null;
   createdAt: string;
   updatedAt: string;

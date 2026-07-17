@@ -16,7 +16,7 @@ import {
 import { BaseError, ContractFunctionExecutionError, decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { VortexSdk } from "../../../../packages/sdk/src";
-import type AlfredPayCustomer from "../models/alfredPayCustomer.model";
+import type ProviderCustomer from "../models/providerCustomer.model";
 import QuoteTicket from "../models/quoteTicket.model";
 import RampState from "../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
@@ -198,7 +198,7 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
   async function createUserSdk(country: AlfredPayCountry): Promise<{
     sdk: VortexSdk;
     userId: string;
-    customer: AlfredPayCustomer;
+    customer: ProviderCustomer;
   }> {
     const user = await createTestUser();
     const customer = await createTestAlfredpayCustomer(user.id, { country });
@@ -301,8 +301,8 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
 
         // The frontend-SDK flow picks the payout destination from the user's
         // fiat accounts registered with the anchor.
-        world.alfredpay.fiatAccountsByCustomer.set(customer.alfredPayId, [
-          { ...currency.fiatAccount, customerId: customer.alfredPayId }
+        world.alfredpay.fiatAccountsByCustomer.set(customer.providerCustomerId as string, [
+          { ...currency.fiatAccount, customerId: customer.providerCustomerId as string }
         ]);
         const accounts = await sdk.listAlfredpayFiatAccounts(currency.country);
         expect(accounts).toHaveLength(1);

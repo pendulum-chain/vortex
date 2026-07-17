@@ -1,32 +1,21 @@
-import { RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-// Define the attributes of the Partner model
+// Commercial identity only — one row per partner, unique name. Pricing lives in
+// partner_pricing_configs (per ramp direction), resolved via (partner_id, ramp_type).
+// The legacy pricing/ramp_type columns still exist in the DB as unread backup.
 export interface PartnerAttributes {
   id: string; // UUID
   name: string;
   displayName: string;
   logoUrl: string | null;
-  markupType: "absolute" | "relative" | "none";
-  markupValue: number;
-  markupCurrency: RampCurrency;
-  payoutAddressSubstrate: string | null;
-  payoutAddressEvm: string | null;
-  rampType: RampDirection;
-  vortexFeeType: "absolute" | "relative" | "none";
-  vortexFeeValue: number;
-  targetDiscount: number;
-  maxSubsidy: number;
-  minDynamicDifference: number;
-  maxDynamicDifference: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 // Define the attributes that can be set during creation
-type PartnerCreationAttributes = Optional<PartnerAttributes, "id" | "createdAt" | "updatedAt">;
+type PartnerCreationAttributes = Optional<PartnerAttributes, "id" | "logoUrl" | "isActive" | "createdAt" | "updatedAt">;
 
 // Define the Partner model
 class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implements PartnerAttributes {
@@ -37,30 +26,6 @@ class Partner extends Model<PartnerAttributes, PartnerCreationAttributes> implem
   declare displayName: string;
 
   declare logoUrl: string | null;
-
-  declare markupType: "absolute" | "relative" | "none";
-
-  declare markupValue: number;
-
-  declare markupCurrency: RampCurrency;
-
-  declare payoutAddressSubstrate: string | null;
-
-  declare payoutAddressEvm: string | null;
-
-  declare rampType: RampDirection;
-
-  declare vortexFeeType: "absolute" | "relative" | "none";
-
-  declare vortexFeeValue: number;
-
-  declare targetDiscount: number;
-
-  declare maxSubsidy: number;
-
-  declare minDynamicDifference: number;
-
-  declare maxDynamicDifference: number;
 
   declare isActive: boolean;
 
@@ -99,90 +64,24 @@ Partner.init(
       field: "logo_url",
       type: DataTypes.STRING(255)
     },
-    markupCurrency: {
-      allowNull: true,
-      field: "markup_currency",
-      type: DataTypes.STRING(30)
-    },
-    markupType: {
-      allowNull: false,
-      defaultValue: "none",
-      field: "markup_type",
-      type: DataTypes.ENUM("absolute", "relative", "none")
-    },
-    markupValue: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "markup_value",
-      type: DataTypes.DECIMAL(10, 4)
-    },
-    maxDynamicDifference: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "max_dynamic_difference",
-      type: DataTypes.DECIMAL(10, 4)
-    },
-    maxSubsidy: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "max_subsidy",
-      type: DataTypes.DECIMAL(10, 4)
-    },
-    minDynamicDifference: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "min_dynamic_difference",
-      type: DataTypes.DECIMAL(10, 4)
-    },
     name: {
       allowNull: false,
-      type: DataTypes.STRING(100)
-    },
-    payoutAddressEvm: {
-      allowNull: true,
-      field: "payout_address_evm",
-      type: DataTypes.STRING(255)
-    },
-    payoutAddressSubstrate: {
-      allowNull: true,
-      field: "payout_address_substrate",
-      type: DataTypes.STRING(255)
-    },
-    rampType: {
-      allowNull: false,
-      field: "ramp_type",
-      type: DataTypes.ENUM(RampDirection.BUY, RampDirection.SELL)
-    },
-    targetDiscount: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "target_discount",
-      type: DataTypes.DECIMAL(10, 4)
+      type: DataTypes.STRING(100),
+      unique: true
     },
     updatedAt: {
       allowNull: false,
       defaultValue: DataTypes.NOW,
       field: "updated_at",
       type: DataTypes.DATE
-    },
-    vortexFeeType: {
-      allowNull: false,
-      defaultValue: "none",
-      field: "vortex_fee_type",
-      type: DataTypes.ENUM("absolute", "relative", "none")
-    },
-    vortexFeeValue: {
-      allowNull: false,
-      defaultValue: 0,
-      field: "vortex_fee_value",
-      type: DataTypes.DECIMAL(10, 4)
     }
   },
   {
     indexes: [
       {
-        fields: ["name", "ramp_type"],
-        name: "idx_partners_name_ramp_type"
+        fields: ["name"],
+        name: "uniq_partners_name",
+        unique: true
       }
     ],
     modelName: "Partner",

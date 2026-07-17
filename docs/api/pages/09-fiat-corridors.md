@@ -4,9 +4,9 @@ This page collects what each fiat corridor requires before a ramp can be registe
 
 ## BRL (PIX)
 
-BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the primary identifier, so ramp registration may be authenticated with a partner-scoped `sk_*` key: the `taxId` in the request identifies the user.
+BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the identity under which KYC is completed, but it is not how the ramp identifies the user: registration must be authenticated with the user's own **user-linked** `sk_*` key, and the tax ID is derived from that account. A `taxId` field may still be provided for backwards compatibility, but only as a cross-check — it must match the account's tax ID, and it cannot select a different user or claim an unlinked tax ID.
 
-Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC under the same `taxId` used in the ramp; otherwise the ramp may fail or require additional account-management steps.
+Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
 Partner integrations cannot drive BRL KYC with only `sk_*` or `pk_*` keys. The BRLA endpoints are first-party, user-oriented flows that rely on a Vortex-authenticated user context. When possible, use the Vortex application or hosted widget to complete onboarding before ramp execution. Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 

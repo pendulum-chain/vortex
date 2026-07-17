@@ -13,11 +13,13 @@ vi.mock("../services/auth", () => ({
 import { FiatToken, QuoteResponse, RampDirection, RampProcess } from "@vortexfi/shared";
 import { ToastMessage } from "../helpers/notifications";
 import { CheckEmailResponse, VerifyOTPResponse } from "../services/api/auth.api";
+import type { AcceptedRecipientInvite } from "../services/api/recipients.service";
 import { AuthService, type AuthTokens } from "../services/auth";
 import { RampExecutionInput } from "../types/phases";
 import { SignRampError, SignRampErrorType } from "./actors/sign.actor";
 import { RampLimitExceededError } from "./actors/validateKyc.actor";
-import { AlfredpayKycMachineError, AlfredpayKycMachineErrorType, alfredpayKycMachine } from "./alfredpayKyc.machine";
+import { AlfredpayKycMachineError, AlfredpayKycMachineErrorType } from "@vortexfi/kyc";
+import { alfredpayKycMachine } from "./alfredpayKyc.machine";
 import { aveniaKycMachine } from "./brlaKyc.machine";
 import { MykoboKycMachineError, MykoboKycMachineErrorType, mykoboKycMachine } from "./mykoboKyc.machine";
 import { RampContext, RampMachineEvents, RampState } from "./types";
@@ -63,6 +65,12 @@ type CheckTokenOutput = { success: boolean; tokens: null } | { success: boolean;
 type LoadQuoteOutput = { isExpired: boolean; quote: QuoteResponse };
 type ValidateKycOutput = { kycNeeded: boolean; brlaEvmAddress?: string };
 
+const acceptedInvite: AcceptedRecipientInvite = {
+  id: "relationship-1",
+  invitation: { country: "BR", id: "invitation-1", inviteeType: "individual", payoutCurrency: "brl", rail: "brl" },
+  relationshipStatus: "active"
+};
+
 type ProvideArg = Parameters<typeof rampMachine.provide>[0];
 
 function buildImplementations(actors?: ProvideArg["actors"], actions?: ProvideArg["actions"]): ProvideArg {
@@ -75,6 +83,7 @@ function buildImplementations(actors?: ProvideArg["actors"], actions?: ProvideAr
       ...actions
     },
     actors: {
+      acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => acceptedInvite),
       checkAndRefreshToken: fromPromise(async (): Promise<CheckTokenOutput> => ({ success: true, tokens: authedTokens })),
       checkEmail: fromPromise(async (): Promise<CheckEmailResponse> => ({ action: "signin", exists: true })),
       loadQuote: fromPromise(async (): Promise<LoadQuoteOutput> => ({ isExpired: false, quote })),
@@ -106,10 +115,10 @@ function stubMykoboMachine(output: { profileApproved?: boolean; error?: MykoboKy
   }) as unknown as typeof mykoboKycMachine;
 }
 
-/** Minimal child machine standing in for the Avenia KYC machine that completes immediately without error. */
+/** Minimal child machine standing in for an approved Avenia KYC machine. */
 const stubAveniaMachine = setup({}).createMachine({
   initial: "Done",
-  output: () => ({}),
+  output: () => ({ kycStatus: "APPROVED" }),
   states: { Done: { type: "final" } }
 }) as unknown as typeof aveniaKycMachine;
 
@@ -128,7 +137,7 @@ function stubAlfredpayMachine(output: { error?: AlfredpayKycMachineError } = {})
 }
 
 /** Waiting variant of the Avenia stub so the test can observe the {KYC: "Avenia"} state. */
-function stubWaitingAveniaMachine(output: { error?: { message: string } } = {}) {
+function stubWaitingAveniaMachine(output: { error?: { message: string }; kycStatus?: string } = { kycStatus: "APPROVED" }) {
   return setup({}).createMachine({
     initial: "Waiting",
     output: () => output,
@@ -589,16 +598,157 @@ describe("rampMachine", () => {
       await waitFor(actor, s => s.matches("KycComplete"));
     });
 
+    it("does not accept an error-free but unapproved Avenia child completion", async () => {
+      const actor = createRampActor({
+        aveniaKyc: stubWaitingAveniaMachine({ kycStatus: "PENDING" }),
+        validateKyc: fromPromise(async (): Promise<ValidateKycOutput> => ({ kycNeeded: true }))
+      });
+      actor.start();
+      await goToQuoteReady(actor);
+      await confirmRamp(actor, FiatToken.BRL);
+      await waitFor(actor, s => s.matches({ KYC: "Avenia" }));
+
+      (actor.getSnapshot().children.aveniaKyc as AnyActorRef).send({ type: "FINISH" });
+      await waitFor(actor, s => s.matches("Idle"));
+      expect(actor.getSnapshot().context.initializeFailedMessage).toBe("An unknown error occurred");
+    });
+
     it("completes the quote-less KYB deep link via SelectRegion and lands in KybLinkComplete", async () => {
       const actor = createRampActor({ aveniaKyc: stubAveniaMachine });
       actor.start();
 
       actor.send({ type: "START_KYB_LINK" });
       await waitFor(actor, s => s.matches("SelectRegion"));
-      expect(actor.getSnapshot().context.kybLink).toEqual({ fiatToken: undefined, regionLocked: false });
+      // Regression: a plain ?kyb deep link must preselect business verification — customerType is
+      // only otherwise set during invite redemption, and an unset value routes to individual KYC.
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "business",
+        fiatToken: undefined,
+        invite: undefined,
+        regionLocked: false
+      });
 
       actor.send({ fiatToken: FiatToken.BRL, type: "SELECT_REGION" });
       await waitFor(actor, s => s.matches("KybLinkComplete"));
+    });
+
+    it("a ?kyb deep link starts Alfredpay business verification (KYB), not individual KYC", async () => {
+      const actor = createRampActor({ alfredpayKyc: stubAlfredpayMachine() });
+      actor.start();
+
+      actor.send({ type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("SelectRegion"));
+      actor.send({ fiatToken: FiatToken.MXN, type: "SELECT_REGION" });
+      await waitFor(actor, s => s.matches({ KYC: "Alfredpay" }));
+
+      // Regression: the deep link must preselect the business customer type for the Alfredpay child.
+      const child = actor.getSnapshot().children.alfredpayKyc as AnyActorRef;
+      const capturedInput = child.getSnapshot().context.capturedInput as { business?: boolean };
+      expect(capturedInput.business).toBe(true);
+    });
+
+    it("accepts an invite after checking an existing session and before region selection", async () => {
+      const acceptance = deferred<AcceptedRecipientInvite>();
+      const acceptRecipientInvite = vi.fn(({ input }: { input: { token: string } }) => acceptance.promise);
+      const actor = createRampActor({ acceptRecipientInvite: fromPromise(acceptRecipientInvite) });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: false, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("RedeemingInvite"));
+
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: false
+      });
+      expect(acceptRecipientInvite).toHaveBeenCalledWith(expect.objectContaining({ input: { token: "invite-token" } }));
+
+      acceptance.resolve(acceptedInvite);
+      await waitFor(actor, s => s.matches("KYC"));
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "individual",
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
+    });
+
+    it("locks the corridor from the accepted invite when the link carried no region", async () => {
+      const acceptRecipientInvite = vi.fn(async (): Promise<AcceptedRecipientInvite> => acceptedInvite);
+      const actor = createRampActor({ acceptRecipientInvite: fromPromise(acceptRecipientInvite) });
+      actor.start();
+
+      // A bare ?invite= link (no kyb/kybLocked region) must still redeem the token; the
+      // response's payoutCurrency is the only corridor source.
+      actor.send({ invite: "invite-token", locked: false, region: undefined, type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("KYC"));
+
+      expect(acceptRecipientInvite).toHaveBeenCalledTimes(1);
+      expect(actor.getSnapshot().context.kybLink).toEqual({
+        customerType: "individual",
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
+    });
+
+    it("accepts an invite only after a new user completes OTP authentication", async () => {
+      const acceptRecipientInvite = vi.fn(async (): Promise<AcceptedRecipientInvite> => acceptedInvite);
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(acceptRecipientInvite),
+        checkAndRefreshToken: fromPromise(async (): Promise<CheckTokenOutput> => ({ success: false, tokens: null }))
+      });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: false, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("EnterEmail"));
+      expect(acceptRecipientInvite).not.toHaveBeenCalled();
+
+      actor.send({ email: "new@user.com", type: "ENTER_EMAIL" });
+      await waitFor(actor, s => s.matches("EnterOTP"));
+      expect(acceptRecipientInvite).not.toHaveBeenCalled();
+
+      actor.send({ code: "123456", type: "VERIFY_OTP" });
+      await waitFor(actor, s => s.matches("KYC"));
+      expect(acceptRecipientInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops onboarding when invite acceptance fails", async () => {
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => {
+          throw new Error("This invitation has expired");
+        })
+      });
+      actor.start();
+
+      actor.send({ invite: "expired-token", locked: true, region: "BR", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("Error"));
+
+      expect(actor.getSnapshot().context.errorMessage).toBe("This invitation has expired");
+    });
+
+    it("retries invite acceptance without clearing its context", async () => {
+      let attempts = 0;
+      const actor = createRampActor({
+        acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => {
+          attempts += 1;
+          if (attempts === 1) throw new Error("Temporary failure");
+          return acceptedInvite;
+        })
+      });
+      actor.start();
+
+      actor.send({ invite: "invite-token", locked: true, region: "MX", type: "START_KYB_LINK" });
+      await waitFor(actor, s => s.matches("Error"));
+      actor.send({ type: "RETRY_INVITE" });
+      await waitFor(actor, s => s.matches("KYC"));
+
+      expect(attempts).toBe(2);
+      expect(actor.getSnapshot().context.kybLink).toMatchObject({
+        fiatToken: FiatToken.BRL,
+        invite: "invite-token",
+        regionLocked: true
+      });
     });
   });
 

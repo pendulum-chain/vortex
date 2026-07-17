@@ -1,9 +1,15 @@
 import { afterEach, describe, expect, it, mock } from "bun:test";
-import { MykoboApiService, MykoboCustomerStatus } from "@vortexfi/shared";
-import MykoboCustomer from "../../../models/mykoboCustomer.model";
+import { MykoboApiService } from "@vortexfi/shared";
+import CustomerEntity from "../../../models/customerEntity.model";
+import KycCase from "../../../models/kycCase.model";
+import ProviderCustomer, { VerificationStatus } from "../../../models/providerCustomer.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
-import { resolveMykoboCustomerForUser } from "./mykobo-customer.service";
+import {
+  markMykoboCustomerPending,
+  markMykoboCustomerStarted,
+  resolveMykoboCustomerForUser
+} from "./mykobo-customer.service";
 
 const PROFILE_EMAIL = "user@example.com";
 
@@ -12,13 +18,21 @@ function stub({ profileEmail, reviewStatus }: { profileEmail: string | null; rev
     profileEmail ? { email: profileEmail, id: "user-1" } : null
   ) as unknown as typeof User.findByPk;
 
+  CustomerEntity.findOrCreate = mock(async () => [{ id: "entity-1" }, false]) as unknown as typeof CustomerEntity.findOrCreate;
+
   const customer = {
-    status: MykoboCustomerStatus.CONSULTED,
-    update: mock(async (changes: { status: MykoboCustomerStatus }) => {
+    customerEntityId: "entity-1",
+    id: "customer-1",
+    status: VerificationStatus.Pending,
+    statusExternal: null as string | null,
+    update: mock(async (changes: { status: VerificationStatus; statusExternal: string | null }) => {
       customer.status = changes.status;
+      customer.statusExternal = changes.statusExternal;
     })
   };
-  MykoboCustomer.findOne = mock(async () => customer) as unknown as typeof MykoboCustomer.findOne;
+  ProviderCustomer.findOne = mock(async () => customer) as unknown as typeof ProviderCustomer.findOne;
+  KycCase.findOne = mock(async () => null) as unknown as typeof KycCase.findOne;
+  KycCase.create = mock(async () => ({})) as unknown as typeof KycCase.create;
 
   MykoboApiService.getInstance = mock(() => ({
     getProfileByEmail: async () => ({
@@ -31,14 +45,20 @@ function stub({ profileEmail, reviewStatus }: { profileEmail: string | null; rev
 
 describe("resolveMykoboCustomerForUser", () => {
   const originals = {
-    customerFindOne: MykoboCustomer.findOne,
+    customerFindOne: ProviderCustomer.findOne,
+    entityFindOrCreate: CustomerEntity.findOrCreate,
     getInstance: MykoboApiService.getInstance,
+    kycCreate: KycCase.create,
+    kycFindOne: KycCase.findOne,
     userFindByPk: User.findByPk
   };
 
   afterEach(() => {
     User.findByPk = originals.userFindByPk;
-    MykoboCustomer.findOne = originals.customerFindOne;
+    ProviderCustomer.findOne = originals.customerFindOne;
+    CustomerEntity.findOrCreate = originals.entityFindOrCreate;
+    KycCase.create = originals.kycCreate;
+    KycCase.findOne = originals.kycFindOne;
     MykoboApiService.getInstance = originals.getInstance;
   });
 
@@ -61,5 +81,15 @@ describe("resolveMykoboCustomerForUser", () => {
   it("rejects when Mykobo KYC is not approved", async () => {
     stub({ profileEmail: PROFILE_EMAIL, reviewStatus: "pending" });
     await expect(resolveMykoboCustomerForUser("user-1")).rejects.toBeInstanceOf(APIError);
+  });
+
+  it("distinguishes profile submission from missing provider data", async () => {
+    const customer = stub({ profileEmail: PROFILE_EMAIL, reviewStatus: "pending" });
+
+    await markMykoboCustomerStarted("user-1", PROFILE_EMAIL);
+    expect(customer.status).toBe(VerificationStatus.Started);
+
+    await markMykoboCustomerPending("user-1", PROFILE_EMAIL);
+    expect(customer.status).toBe(VerificationStatus.Pending);
   });
 });

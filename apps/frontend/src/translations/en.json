@@ -246,6 +246,7 @@
         },
         "taxId": {
           "cnpjFormat": "Invalid CNPJ format",
+          "cpfFormat": "Invalid CPF format",
           "format": "Invalid Tax ID format",
           "required": "Tax ID is required"
         }
@@ -686,6 +687,7 @@
       "label": "Region",
       "placeholder": "Select a region",
       "regions": {
+        "AR": "Argentina",
         "BR": "Brazil",
         "CO": "Colombia",
         "MX": "Mexico",

@@ -48,6 +48,7 @@ interface RampUrlParams {
   callbackUrl?: string;
   externalSessionId?: string;
   kybMode?: boolean;
+  invite?: string;
   region?: string;
   kybRegionLocked?: boolean;
 }
@@ -206,6 +207,7 @@ export const useRampUrlParams = (): RampUrlParams => {
     const walletLockedParam = searchParams.walletAddressLocked;
     const callbackUrlParam = searchParams.callbackUrl;
     const externalSessionIdParam = searchParams.externalSessionId;
+    const inviteParam = searchParams.invite;
 
     const rampDirection =
       rampDirectionParam === RampDirection.BUY || rampDirectionParam === RampDirection.SELL
@@ -225,6 +227,7 @@ export const useRampUrlParams = (): RampUrlParams => {
       externalSessionId: externalSessionIdParam || undefined,
       fiat,
       inputAmount: inputAmountParam || undefined,
+      invite: inviteParam || undefined,
       kybMode,
       kybRegionLocked,
       network,
@@ -256,6 +259,7 @@ export const useSetRampUrlParams = () => {
     walletLocked,
     callbackUrl,
     externalSessionId,
+    invite,
     kybMode,
     region,
     kybRegionLocked
@@ -296,13 +300,15 @@ export const useSetRampUrlParams = () => {
 
     // KYB deep link: jump straight into the email/OTP → region → KYB flow, no quote needed.
     // Session/partner attribution still applies — the subaccount creation forwards externalSessionId.
-    if (kybMode) {
+    // An invite token alone implies the recipient hand-off even when the link carries no KYB
+    // region flag — the accepted invitation locks the corridor, so the token must never be dropped.
+    if (kybMode || invite) {
       if (externalSessionId) {
         rampActor.send({ externalSessionId, type: "SET_EXTERNAL_ID" });
       }
       setPartnerIdFn(partnerId || null);
       setApiKeyFn(apiKey || null);
-      rampActor.send({ locked: kybRegionLocked, region, type: "START_KYB_LINK" });
+      rampActor.send({ invite, locked: kybRegionLocked, region, type: "START_KYB_LINK" });
       hasInitialized.current = true;
       return;
     }
