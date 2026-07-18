@@ -93,7 +93,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
         const receipt = await client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` });
 
         if (receipt.status === "success") {
-          return this.transitionToNextPhase(state, "complete");
+          return state;
         } else {
           throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
         }
@@ -167,7 +167,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
       });
       // (optional) wait for balance to be updated on user - destination
 
-      return this.transitionToNextPhase(state, "complete");
+      return state;
     } catch (error) {
       throw this.createRecoverableError(
         `DestinationTransferHandler: Error during phase execution - ${(error as Error).message}`

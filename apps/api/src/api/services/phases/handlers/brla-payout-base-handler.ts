@@ -62,7 +62,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     // We need to check for existing ticket, recovery scenario
     if (payOutTicketId) {
       await this.checkTicketStatusPaid({ subAccountId: aveniaSubAccountId, ticketId: payOutTicketId });
-      return this.transitionToNextPhase(state, "complete");
+      return state;
     }
 
     // send the "final destination"
@@ -141,7 +141,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       });
 
       await this.checkTicketStatusPaid({ subAccountId: aveniaSubAccountId, ticketId: payOutTicketId });
-      return this.transitionToNextPhase(state, "complete");
+      return state;
     } catch (e) {
       logger.error("Error in brlaPayoutOnBase", e);
       throw this.createUnrecoverableError("BrlaPayoutOnBasePhaseHandler: Failed to trigger BRLA offramp.");

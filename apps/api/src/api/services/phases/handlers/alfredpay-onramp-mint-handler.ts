@@ -107,7 +107,7 @@ export class AlfredpayOnrampMintHandler extends BasePhaseHandler {
       `AlfredpayOnrampMintHandler: Balance reached on Polygon ephemeral ${evmEphemeralAddress}. Proceeding to fundEphemeral.`
     );
 
-    return this.transitionToNextPhase(state, "fundEphemeral");
+    return state;
   }
 
   private async pollAlfredpayOnrampStatus(

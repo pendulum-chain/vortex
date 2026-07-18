@@ -169,7 +169,8 @@ describe("NablaSwapPhaseHandler", () => {
     });
     expect(sendRawTransaction).toHaveBeenCalledTimes(1);
     expect(sendRawTransaction).toHaveBeenCalledWith({ serializedTransaction: SWAP_TX });
-    expect(updatedState.currentPhase).toBe("subsidizePostSwap");
+    // The handler no longer transitions explicitly; the PhaseProcessor advances via phaseFlow.
+    expect(updatedState.currentPhase).toBe("nablaSwap");
   });
 
   it("does not broadcast when the EVM swap dry-run reverts", async () => {

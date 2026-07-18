@@ -3,6 +3,7 @@ import {
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   isNetworkEVM,

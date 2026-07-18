@@ -1,7 +1,7 @@
 import { u8aToHex } from "@polkadot/util";
 import { decodeAddress } from "@polkadot/util-crypto";
 import { createRandomString, createSquidRouterHash } from "../../helpers/squidrouter";
-import { EvmTransactionData, Networks, SquidrouterRoute } from "../../index";
+import { EvmNetworks, EvmTransactionData, isNetworkEVM, Networks, SquidrouterRoute } from "../../index";
 import { EvmClientManager } from "../evm/clientManager";
 import { getSquidRouterConfig } from "./config";
 import { encodePayload } from "./payload";
@@ -92,9 +92,12 @@ export async function createOfframpSquidrouterTransactionsToEvm(
   if (params.fromNetwork === Networks.AssetHub) {
     throw new Error("AssetHub is not supported for Squidrouter offramp");
   }
+  if (!isNetworkEVM(params.fromNetwork)) {
+    throw new Error(`createOfframpSquidrouterTransactionsToEvm: fromNetwork ${params.fromNetwork} is not an EVM network`);
+  }
 
   const evmClientManager = EvmClientManager.getInstance();
-  const moonbeamClient = evmClientManager.getClient(Networks.Moonbeam);
+  const fromNetworkClient = evmClientManager.getClient(params.fromNetwork as EvmNetworks);
 
   const routeParams = createGenericRouteParams({ amount: params.rawAmount, ...params });
 
@@ -103,7 +106,7 @@ export async function createOfframpSquidrouterTransactionsToEvm(
 
   return createTransactionDataFromRoute({
     inputTokenErc20Address: params.fromToken,
-    publicClient: moonbeamClient,
+    publicClient: fromNetworkClient,
     rawAmount: params.rawAmount,
     route
   });

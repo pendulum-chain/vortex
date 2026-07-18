@@ -102,14 +102,17 @@ export async function fetchEvmBalances(evmAddress: string): Promise<BalanceMap> 
 
   for (const token of evmTokens) {
     const addressKey = `${token.network}-${token.erc20AddressSourceChain?.toLowerCase()}`;
-    const rawBalance = allEvmBalances.get(addressKey);
 
+    let balance = "0.00";
+    let balanceUsd = "0.00";
+
+    const rawBalance = allEvmBalances.get(addressKey);
     const showDecimals = token.assetSymbol.toLowerCase().includes("usd") ? 2 : 6;
-    const balance = rawBalance ? multiplyByPowerOfTen(Big(rawBalance), -token.decimals).toFixed(showDecimals, 0) : "0.00";
+    balance = rawBalance ? multiplyByPowerOfTen(Big(rawBalance), -token.decimals).toFixed(showDecimals, 0) : "0.00";
 
     const matchingToken = evmTokenLookup.get(addressKey);
     const usdPrice = matchingToken?.usdPrice ?? 0;
-    const balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
+    balanceUsd = usdPrice > 0 ? Big(balance).times(usdPrice).toFixed(2, 0) : "0.00";
 
     const balanceKey = getBalanceKey(token.network, token.assetSymbol);
     newBalances.set(balanceKey, { balance, balanceUsd });

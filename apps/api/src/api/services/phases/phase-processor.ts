@@ -1,3 +1,4 @@
+import { RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { runWithRampContext } from "../../../config/ramp-context";
@@ -5,6 +6,7 @@ import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import { StateMetadata } from "./meta-state-types";
 import phaseRegistry from "./phase-registry";
 
 // A malformed env override must fall back to the default: parseInt would yield NaN
@@ -167,6 +169,40 @@ export class PhaseProcessor {
   }
 
   /**
+   * Resolve the next phase for a ramp.
+   *
+   * If the handler explicitly changed the phase (short-circuit override), honor it.
+   * Otherwise, if a phaseFlow is defined, advance to the next phase in the sequence.
+   * If no phaseFlow exists (legacy ramp), return the handler's result as-is.
+   */
+  private resolveNextPhase(originalPhase: RampPhase, handlerResult: RampState, state: RampState): RampPhase {
+    // Handler explicitly changed the phase (short-circuit override) — honor it
+    if (handlerResult.currentPhase !== originalPhase) {
+      return handlerResult.currentPhase;
+    }
+
+    const phaseFlow = (state.state as StateMetadata).phaseFlow;
+
+    // Legacy ramp without phaseFlow — handler must set the next phase
+    if (!phaseFlow) {
+      return handlerResult.currentPhase;
+    }
+
+    // Flow-driven routing — advance to the next phase in the sequence
+    const currentIndex = phaseFlow.indexOf(originalPhase);
+    if (currentIndex === -1) {
+      throw new Error(`PhaseProcessor: Phase "${originalPhase}" not found in phaseFlow for ramp ${state.id}`);
+    }
+    if (currentIndex >= phaseFlow.length - 1) {
+      throw new Error(
+        `PhaseProcessor: Phase "${originalPhase}" is the last phase in phaseFlow but not terminal for ramp ${state.id}`
+      );
+    }
+
+    return phaseFlow[currentIndex + 1];
+  }
+
+  /**
    * Process a phase
    * @param state The current ramp state
    */
@@ -207,11 +243,19 @@ export class PhaseProcessor {
         clearTimeout(timeoutId);
       });
 
+      // Resolve the next phase: handler short-circuit > explicit flow > handler-driven (legacy)
+      const nextPhase = this.resolveNextPhase(currentPhase, pendingState, state);
+
+      const phaseHistory =
+        nextPhase !== pendingState.currentPhase
+          ? [...pendingState.phaseHistory, { phase: nextPhase, timestamp: new Date() }]
+          : pendingState.phaseHistory;
+
       // Single source of authority for phase transitions.
       // Persist only the phase-related fields on the original persisted instance
       // to avoid inserting new records or clobbering unrelated columns.
       const updatedState = await state.update(
-        { currentPhase: pendingState.currentPhase, phaseHistory: pendingState.phaseHistory },
+        { currentPhase: nextPhase, phaseHistory },
         { fields: ["currentPhase", "phaseHistory"] }
       );
 

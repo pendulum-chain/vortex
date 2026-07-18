@@ -24,7 +24,7 @@ export class MykoboPayoutOnBasePhaseHandler extends BasePhaseHandler {
     await this.sendMykoboPayoutTransaction(state, mykoboPayoutTxHash);
     await this.pollMykoboUntilCompleted(mykoboTransactionId);
 
-    return this.transitionToNextPhase(state, "complete");
+    return state;
   }
 
   private async sendMykoboPayoutTransaction(state: RampState, mykoboPayoutTxHash?: `0x${string}`): Promise<void> {

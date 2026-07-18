@@ -1,12 +1,10 @@
 import {
   ApiManager,
-  AssetHubToken,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
-  FiatToken,
   getOnChainTokenDetails,
   Networks,
   nativeToDecimal,
@@ -159,7 +157,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         await waitUntilTrueWithTimeout(didBalanceReachExpected, 2000);
       }
 
-      return this.transitionToNextPhase(state, this.substrateNextPhaseSelector(state, quote));
+      return state;
     } catch (e) {
       logger.error("Error in subsidizePostSwap (substrate):", e);
       throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap.");
@@ -270,11 +268,12 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
           EvmToken.USDC as RampCurrency
         );
         const discrepancySubsidyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
-        const discrepancySubsidyCapUsd = Big(quoteOutputUsd).mul(discrepancySubsidyCapFraction);
+        const discrepancyPercentageCap = Big(quoteOutputUsd).mul(discrepancySubsidyCapFraction);
+        const discrepancySubsidyCapUsd = discrepancyPercentageCap.gt("1") ? discrepancyPercentageCap : Big("1");
         if (Big(discrepancySubsidyUsd).gt(discrepancySubsidyCapUsd)) {
           // Pause for operator intervention without moving the ramp to failed.
           throw this.createRecoverableError(
-            `SubsidizePostSwapPhaseHandler: Required swap discrepancy subsidy $${discrepancySubsidyUsd} exceeds cap $${discrepancySubsidyCapUsd.toFixed(2)} (${discrepancySubsidyCapFraction} of quote output $${quoteOutputUsd}).`
+            `SubsidizePostSwapPhaseHandler: Required swap discrepancy subsidy $${discrepancySubsidyUsd} exceeds cap $${discrepancySubsidyCapUsd.toFixed(2)} (max of $1.00 and ${discrepancySubsidyCapFraction} of quote output $${quoteOutputUsd}).`
           );
         }
 
@@ -331,7 +330,7 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
         }
       }
 
-      return this.transitionToNextPhase(state, this.evmNextPhaseSelector(state, quote));
+      return state;
     } catch (e) {
       logger.error("Error in subsidizePostSwap (EVM):", e);
       if (e instanceof PhaseError) {
@@ -339,45 +338,6 @@ export class SubsidizePostSwapPhaseHandler extends BasePhaseHandler {
       }
       throw this.createRecoverableError("SubsidizePostSwapPhaseHandler: Failed to subsidize post swap on EVM.");
     }
-  }
-
-  protected substrateNextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    // onramp cases
-    if (state.type === RampDirection.BUY) {
-      if (state.to === "assethub") {
-        if (quote.outputCurrency === AssetHubToken.USDC) {
-          // USDC can directly go to AssetHub
-          return "pendulumToAssethubXcm";
-        } else {
-          // USDT and DOT need to go via Hydration
-          return "pendulumToHydrationXcm";
-        }
-      }
-      return "pendulumToMoonbeamXcm";
-    }
-
-    // off ramp cases
-    if (quote.outputCurrency === FiatToken.BRL) {
-      return "pendulumToMoonbeamXcm";
-    }
-
-    if (state.type === RampDirection.SELL) {
-      throw new Error("SubsidizePostSwapPhaseHandler: Unsupported non-BRL offramp route after Stellar deprecation");
-    }
-
-    throw new Error(
-      `SubsidizePostSwapPhaseHandler: Unrecognized routing combination: direction=${state.type}, to=${state.to}, output=${quote.outputCurrency}`
-    );
-  }
-
-  protected evmNextPhaseSelector(state: RampState, quote: QuoteTicket): RampPhase {
-    if (state.type === RampDirection.BUY) {
-      return "squidRouterSwap";
-    }
-    if (quote.outputCurrency === FiatToken.EURC) {
-      return "mykoboPayoutOnBase";
-    }
-    return "brlaPayoutOnBase";
   }
 }
 

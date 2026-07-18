@@ -95,8 +95,8 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
     }
 
     if (state.type === RampDirection.SELL) {
-      logger.info("SquidRouter phase is not supported for off-ramp");
-      return state;
+      // SELL with a squidRouterSwap unsigned tx means an offramp that bridges between EVM
+      // chains. The ephemeral broadcasts approve+swap; the same bridge logic as onramp applies.
     }
 
     // Alfredpay mints USDT directly on Polygon. Skip the swap ONLY when the requested
@@ -208,8 +208,7 @@ export class SquidRouterPhaseHandler extends BasePhaseHandler {
       logger.info(`Swap transaction confirmed: ${swapHash}`);
 
       // preSettlementBalance was captured before the swap (see above); do not re-snapshot here.
-      // Transition to the next phase
-      return this.transitionToNextPhase(state, "squidRouterPay");
+      return state;
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       throw error;

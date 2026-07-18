@@ -227,7 +227,8 @@ describe("SquidRouterPhaseHandler", () => {
       squidRouterApproveHash: APPROVE_HASH,
       squidRouterSwapHash: SWAP_HASH
     });
-    expect(updatedState.currentPhase).toBe("squidRouterPay");
+    // The handler no longer transitions explicitly; the PhaseProcessor advances via phaseFlow.
+    expect(updatedState.currentPhase).toBe("squidRouterSwap");
   });
 
   it("skips Squid for same-chain Base USDC passthrough quotes", async () => {

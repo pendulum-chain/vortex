@@ -123,10 +123,8 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
     if (!toNetwork) {
       return null;
     }
-
     // Trivial case: USDC on Base is also the requested output. No bridge runs, so the
-    // conversion rate is exactly 1:1 - skip the Squid call (which would fail with same-chain
-    // same-token) and avoid the misleading 1:1 fallback log.
+    // conversion rate is exactly 1:1 - skip the Squid call.
     if (toNetwork === Networks.Base && req.outputCurrency === EvmToken.USDC) {
       return new Big(1);
     }

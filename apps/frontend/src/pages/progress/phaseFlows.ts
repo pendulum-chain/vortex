@@ -102,6 +102,7 @@ export const PHASE_FLOWS = {
     "subsidizePreSwap",
     "nablaApprove",
     "nablaSwap",
+    "distributeFees",
     "subsidizePostSwap",
     "squidRouterApprove",
     "squidRouterSwap",

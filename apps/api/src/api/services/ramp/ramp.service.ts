@@ -1251,6 +1251,17 @@ export class RampService extends BaseRampService {
       wallet_address: evmEphemeralEntry.address
     });
 
+    // Mocking mykobo intent call
+    // const intent = {
+    //   instructions: {
+    //     bank_account_name: "Mykobo Test",
+    //     iban: "DE89370400440532013000"
+    //   },
+    //   transaction: {
+    //     id: "mykobo-transaction-id",
+    //     reference: "mykobo-transaction-reference"
+    //   }
+    // };
     const instructions = intent.instructions;
     if (!instructions || !("iban" in instructions)) {
       throw new APIError({

@@ -20,6 +20,7 @@ import { APIError } from "../../../../errors/api-error";
 import { resolveMykoboCustomerForUser } from "../../../mykobo/mykobo-customer.service";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { EUR_OFFRAMP_BASE } from "../../../phases/ramp-flow-definitions";
 import { encodeEvmTransactionData } from "../..";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -239,6 +240,7 @@ export async function prepareEvmToMykoboOfframpTransactions({
     mykoboReceivablesAddress,
     mykoboTransactionId,
     mykoboTransactionReference,
+    phaseFlow: EUR_OFFRAMP_BASE,
     walletAddress: userAddress
   };
 

@@ -2,6 +2,7 @@ import {
   createGenericRouteParams,
   createRouteParamsWithMoonbeamPostHook,
   DestinationType,
+  EvmToken,
   EvmTokenDetails,
   getNetworkFromDestination,
   getOnChainTokenDetails,
@@ -80,6 +81,14 @@ export function getTokenDetailsForEvmDestination(
   }
 
   return tokenDetails;
+}
+
+/**
+ * Returns the token details that SquidRouter should deliver on the destination
+ * chain for a given (outputCurrency, toNetwork).
+ */
+export function getBridgeTargetTokenDetails(outputCurrency: OnChainToken, toNetwork: Networks): EvmTokenDetails {
+  return getTokenDetailsForEvmDestination(outputCurrency, toNetwork);
 }
 
 /**
@@ -186,7 +195,7 @@ function calculateFinalExchangeRate(
 
 function buildRouteRequest(request: EvmBridgeQuoteRequest) {
   const inputTokenDetails = getTokenDetailsForEvmDestination(request.inputCurrency, request.fromNetwork);
-  const outputTokenDetails = getTokenDetailsForEvmDestination(request.outputCurrency, request.toNetwork);
+  const outputTokenDetails = getBridgeTargetTokenDetails(request.outputCurrency, request.toNetwork);
   const amountRaw = multiplyByPowerOfTen(request.amountDecimal, inputTokenDetails.decimals).toFixed(0, 0);
 
   return prepareSquidrouterRouteParams({

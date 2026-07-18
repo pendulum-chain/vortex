@@ -149,7 +149,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
     }
 
     logger.info(`${label} tx confirmed: ${hash}`);
-    return this.transitionToNextPhase(updatedState, "fundEphemeral");
+    return updatedState;
   }
 
   private async waitForUserHash(
@@ -189,7 +189,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
       );
     }
 
-    return this.transitionToNextPhase(state, "fundEphemeral");
+    return state;
   }
 
   private async executeDirectTransfer(
@@ -334,7 +334,7 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
 
           if (receipt && receipt.status === "success") {
             logger.info(`Existing squidRouter permit execution transaction was successful for ramp ${state.id}`);
-            return this.transitionToNextPhase(state, "fundEphemeral");
+            return state;
           } else {
             logger.info(
               `Existing squidRouter permit execution transaction was not successful (status: ${receipt?.status}), will retry`

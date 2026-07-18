@@ -133,7 +133,7 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
       );
     }
 
-    return this.transitionToNextPhase(state, "complete");
+    return state;
   }
 
   private async recreateAlfredpayOfframp(

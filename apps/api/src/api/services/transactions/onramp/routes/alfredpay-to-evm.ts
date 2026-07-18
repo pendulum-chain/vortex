@@ -20,6 +20,7 @@ import {
 import { isAddress } from "viem";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import { ALFREDPAY_ONRAMP_CROSS_CHAIN, ALFREDPAY_ONRAMP_DIRECT } from "../../../phases/ramp-flow-definitions";
 import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -123,7 +124,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
       txData: encodeEvmTransactionData(polygonCleanupApproval) as EvmTransactionData
     });
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: ALFREDPAY_ONRAMP_DIRECT }, unsignedTxs };
   }
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
@@ -189,6 +190,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
     stateMeta = {
       ...stateMeta,
+      phaseFlow: ALFREDPAY_ONRAMP_DIRECT,
       squidRouterQuoteId,
       squidRouterReceiverHash,
       squidRouterReceiverId
@@ -303,6 +305,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
   stateMeta = {
     ...stateMeta,
+    phaseFlow: ALFREDPAY_ONRAMP_CROSS_CHAIN,
     squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId

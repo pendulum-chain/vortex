@@ -18,6 +18,11 @@ import { isAddress } from "viem";
 import logger from "../../../../../config/logger";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
+import {
+  BRL_ONRAMP_BASE_CROSS_CHAIN,
+  BRL_ONRAMP_BASE_DIRECT,
+  BRL_ONRAMP_BASE_SAME_CHAIN
+} from "../../../phases/ramp-flow-definitions";
 import { isBrlToBrlaBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
 import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
@@ -90,7 +95,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
       txData: finalDestinationTransfer
     });
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: BRL_ONRAMP_BASE_DIRECT }, unsignedTxs };
   }
 
   if (!quote.metadata.aveniaTransfer?.outputAmountRaw) {
@@ -170,7 +175,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
       txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
     });
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: BRL_ONRAMP_BASE_SAME_CHAIN }, unsignedTxs };
   }
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
@@ -255,7 +260,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
       squidRouterReceiverId
     };
 
-    return { stateMeta, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: BRL_ONRAMP_BASE_SAME_CHAIN }, unsignedTxs };
   }
 
   const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;
@@ -381,6 +386,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
 
   stateMeta = {
     ...stateMeta,
+    phaseFlow: BRL_ONRAMP_BASE_CROSS_CHAIN,
     squidRouterQuoteId,
     squidRouterReceiverHash,
     squidRouterReceiverId

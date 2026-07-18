@@ -10,7 +10,6 @@ import {
   evmTokenConfig,
   NABLA_ROUTER,
   Networks,
-  RampDirection,
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -61,8 +60,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
 
     if (nablaSwapTxHash) {
       logger.info(`NablaSwapPhaseHandler: Transaction already submitted (${nablaSwapTxHash}), skipping to next phase`);
-      const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
-      return this.transitionToNextPhase(state, nextPhase);
+      return state;
     }
 
     if (!quote.metadata.nablaSwap?.inputAmountForSwapRaw) {
@@ -148,8 +146,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw new Error(`Could not swap the required amount of token: ${errorMessage}`);
     }
 
-    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
-    return this.transitionToNextPhase(state, nextPhase);
+    return state;
   }
 
   private async executeEvmSwap(state: RampState, quote: QuoteTicket): Promise<RampState> {
@@ -224,8 +221,7 @@ export class NablaSwapPhaseHandler extends BasePhaseHandler {
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
-    const nextPhase = state.type === RampDirection.BUY ? "distributeFees" : "subsidizePostSwap";
-    return this.transitionToNextPhase(state, nextPhase);
+    return state;
   }
 
   private async dryRunEvmSwap(serializedTransaction: `0x${string}`, expectedSenderAddress: `0x${string}`): Promise<void> {

@@ -4,24 +4,24 @@ import {
   BalanceCheckErrorType,
   checkEvmBalanceForToken,
   EvmClientManager,
-  EvmNetworks,
   EvmTokenDetails,
   FiatToken,
+  getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
   getStatus,
   getStatusAxelarScan,
   isAlfredpayToken,
+  isNetworkEVM,
   Networks,
   nativeToDecimal,
   OnChainToken,
-  RampDirection,
   RampPhase,
   SquidRouterPayResponse
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
-import { base, polygon } from "viem/chains";
+import { arbitrum, base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
 import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -48,9 +48,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private moonbeamPublicClient: PublicClient;
   private polygonPublicClient: PublicClient;
   private basePublicClient: PublicClient;
+  private arbitrumPublicClient: PublicClient;
   private moonbeamWalletClient: ReturnType<typeof createWalletClient>;
   private polygonWalletClient: ReturnType<typeof createWalletClient>;
   private baseWalletClient: ReturnType<typeof createWalletClient>;
+  private arbitrumWalletClient: ReturnType<typeof createWalletClient>;
 
   constructor() {
     super();
@@ -58,11 +60,13 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     this.moonbeamPublicClient = evmClientManager.getClient(Networks.Moonbeam);
     this.polygonPublicClient = evmClientManager.getClient(Networks.Polygon);
     this.basePublicClient = evmClientManager.getClient(Networks.Base);
+    this.arbitrumPublicClient = evmClientManager.getClient(Networks.Arbitrum);
 
     const moonbeamExecutorAccount = getEvmFundingAccount(Networks.Moonbeam);
     this.moonbeamWalletClient = evmClientManager.getWalletClient(Networks.Moonbeam, moonbeamExecutorAccount);
     this.polygonWalletClient = evmClientManager.getWalletClient(Networks.Polygon, moonbeamExecutorAccount);
     this.baseWalletClient = evmClientManager.getWalletClient(Networks.Base, moonbeamExecutorAccount);
+    this.arbitrumWalletClient = evmClientManager.getWalletClient(Networks.Arbitrum, moonbeamExecutorAccount);
   }
 
   /**
@@ -85,11 +89,6 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
     logger.info(`Executing squidRouterPay phase for ramp ${state.id}`);
 
-    if (state.type === RampDirection.SELL) {
-      logger.info("squidRouterPay phase is not supported for off-ramp");
-      return state;
-    }
-
     try {
       // Get the bridge hash
       const bridgeCallHash = state.state.squidRouterSwapHash;
@@ -100,11 +99,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // Enter check status loop
       await this.checkStatus(state, bridgeCallHash, quote);
 
-      if (state.to === Networks.AssetHub) {
-        return this.transitionToNextPhase(state, "moonbeamToPendulum");
-      } else {
-        return this.transitionToNextPhase(state, "finalSettlementSubsidy");
-      }
+      return state;
     } catch (error: unknown) {
       logger.error(`SquidRouterPayPhaseHandler: Error in squidRouterPay phase for ramp ${state.id}:`, error);
       throw error;
@@ -118,16 +113,19 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Only if both fail (timeout) we throw.
    */
   private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+    // Resolve the actual EVM destination of the Squid bridge. For onramps, quote.to is the
+    // EVM network directly. For offramps to a payment method (e.g. SEPA via Mykobo), the
+    // bridge lands on the EVM leg of the ramp, recorded in quote.metadata.evmToEvm.toNetwork.
+    const toChain = this.resolveBridgeToChain(quote);
+
     // If the destination is not an EVM network, skip the EVM balance optimization and rely on bridge status only.
-    if (quote.to === Networks.AssetHub) {
+    if (!toChain || !isNetworkEVM(toChain)) {
       logger.info("SquidRouterPayPhaseHandler: Destination network is non-EVM; skipping EVM balance check optimization.", {
         toNetwork: quote.to
       });
       await this.checkBridgeStatus(state, swapHash, quote);
       return;
     }
-
-    const toChain = quote.to as EvmNetworks;
 
     let balanceCheckPromise: Promise<Big>;
 
@@ -236,12 +234,18 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
             payTxHash = await this.executeFundTransaction(nativeToFundRaw, swapHash as `0x${string}`, logIndex, state, quote);
 
+            const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+            const fromChain = bridgeMeta?.fromNetwork as Networks;
+
             let subsidyToken: SubsidyToken;
             let payerAccount: `0x${string}` | undefined;
 
-            if (quote.inputCurrency === FiatToken.BRL) {
+            if (fromChain === Networks.Base || (!fromChain && quote.inputCurrency === FiatToken.BRL)) {
               subsidyToken = SubsidyToken.ETH;
               payerAccount = this.baseWalletClient.account?.address as `0x${string}` | undefined;
+            } else if (fromChain === Networks.Arbitrum) {
+              subsidyToken = SubsidyToken.ETH;
+              payerAccount = this.arbitrumWalletClient.account?.address as `0x${string}` | undefined;
             } else {
               subsidyToken = SubsidyToken.MATIC;
               payerAccount = this.polygonWalletClient.account?.address as `0x${string}` | undefined;
@@ -286,10 +290,20 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     state: RampState,
     quote: QuoteTicket
   ): Promise<Hash> {
-    if (quote.inputCurrency === FiatToken.BRL) {
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    const fromChain = bridgeMeta?.fromNetwork as Networks;
+    if (fromChain === Networks.Base) {
       return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
-    } else {
+    } else if (fromChain === Networks.Arbitrum) {
+      return this.executeFundTransactionOnArbitrum(tokenValueRaw, swapHash, logIndex);
+    } else if (fromChain === Networks.Polygon) {
       return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
+    } else {
+      if (quote.inputCurrency === FiatToken.BRL) {
+        return this.executeFundTransactionOnBase(tokenValueRaw, swapHash, logIndex);
+      } else {
+        return this.executeFundTransactionOnPolygon(tokenValueRaw, swapHash, logIndex);
+      }
     }
   }
 
@@ -381,17 +395,68 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
+  /**
+   * Execute a call to the Axelar gas service on Arbitrum network.
+   * @param tokenValueRaw The amount of ETH to fund the transaction with.
+   * @param swapHash The swap transaction hash.
+   * @param logIndex The log index from Axelar scan.
+   * @returns Hash of the transaction that funds the Axelar gas service.
+   */
+  private async executeFundTransactionOnArbitrum(
+    tokenValueRaw: string,
+    swapHash: `0x${string}`,
+    logIndex: number
+  ): Promise<Hash> {
+    try {
+      const walletClientAccount = this.arbitrumWalletClient.account;
+
+      if (!walletClientAccount) {
+        throw new Error("SquidRouterPayPhaseHandler: Arbitrum wallet client account not found.");
+      }
+
+      // Create addNativeGas transaction data
+      const transactionData = encodeFunctionData({
+        abi: axelarGasServiceAbi,
+        args: [swapHash, logIndex, walletClientAccount.address],
+        functionName: "addNativeGas"
+      });
+
+      const { maxFeePerGas, maxPriorityFeePerGas } = await this.arbitrumPublicClient.estimateFeesPerGas();
+
+      const gasPaymentHash = await this.arbitrumWalletClient.sendTransaction({
+        account: walletClientAccount,
+        chain: arbitrum,
+        data: transactionData,
+        maxFeePerGas: maxFeePerGas * 2n,
+        maxPriorityFeePerGas: maxPriorityFeePerGas * 2n,
+        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+        value: BigInt(tokenValueRaw)
+      });
+
+      logger.info(`SquidRouterPayPhaseHandler: Arbitrum fund transaction sent with hash: ${gasPaymentHash}`);
+      return gasPaymentHash;
+    } catch (error) {
+      logger.error("SquidRouterPayPhaseHandler: Error funding gas to Axelar gas service on Arbitrum: ", error);
+      throw new Error("SquidRouterPayPhaseHandler: Failed to send Arbitrum transaction");
+    }
+  }
+
   private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
+      const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
       // Always Polygon for Monerium/Alfredpay onramp, Base for BRL
       const fromChain =
-        quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)
+        (bridgeMeta?.fromNetwork as Networks) ||
+        (quote.inputCurrency === FiatToken.EURC || isAlfredpayToken(quote.inputCurrency as FiatToken)
           ? Networks.Polygon
           : quote.inputCurrency === FiatToken.BRL
             ? Networks.Base
-            : Networks.Moonbeam;
+            : Networks.Moonbeam);
       const fromChainId = getNetworkId(fromChain)?.toString();
-      const toChain = quote.to === Networks.AssetHub ? Networks.Moonbeam : quote.to;
+      // Axelar routes through Moonbeam for AssetHub destinations, so the Squid status API
+      // expects Moonbeam's chain id when quote.to is AssetHub.
+      const resolvedToChain = this.resolveBridgeToChain(quote);
+      const toChain = resolvedToChain === Networks.AssetHub ? Networks.Moonbeam : resolvedToChain;
       const toChainId = getNetworkId(toChain)?.toString();
 
       if (!fromChainId || !toChainId) {
@@ -434,6 +499,22 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw new Error(`SquidRouterPayPhaseHandler: Failed to fetch Squidrouter status for swap hash ${swapHash}`);
       }
     }
+  }
+
+  /**
+   * Resolve the actual destination network of the Squid bridge.
+   *
+   * For onramps, `quote.to` is the EVM network the bridge delivers to. For offramps to a
+   * payment method, `quote.to` is a PaymentMethod enum value, so we fall back to the bridge
+   * metadata recorded at quote time.
+   */
+  private resolveBridgeToChain(quote: QuoteTicket): Networks | undefined {
+    const directNetwork = getNetworkFromDestination(quote.to);
+    if (directNetwork) {
+      return directNetwork;
+    }
+    const bridgeMeta = quote.metadata.evmToEvm || quote.metadata.moonbeamToEvm;
+    return bridgeMeta?.toNetwork as Networks | undefined;
   }
 
   private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {
