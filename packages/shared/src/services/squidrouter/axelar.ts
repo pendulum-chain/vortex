@@ -87,11 +87,14 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
     throw new Error("Axelar signing relayer returned invalid transaction bytes");
   }
 
-  let binary = "";
-  for (const byte of byteValues as number[]) {
-    binary += String.fromCharCode(byte);
+  // Encode in chunks: one String.fromCharCode call per byte is quadratic on large
+  // arrays, while spreading the whole array at once risks the argument-count limit.
+  const CHUNK_SIZE = 0x2000;
+  const binaryChunks: string[] = [];
+  for (let i = 0; i < byteValues.length; i += CHUNK_SIZE) {
+    binaryChunks.push(String.fromCharCode(...(byteValues.slice(i, i + CHUNK_SIZE) as number[])));
   }
-  const txBase64 = btoa(binary);
+  const txBase64 = btoa(binaryChunks.join(""));
 
   const rpcResponse = await fetch(AXELAR_RPC_URL, {
     body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "broadcast_tx_sync", params: { tx: txBase64 } }),
