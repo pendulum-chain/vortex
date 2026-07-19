@@ -69,6 +69,47 @@ describe("recoverAxelarStuckConfirm", () => {
     await expect(recoverAxelarStuckConfirm(TX_HASH, "base")).rejects.toThrow("empty transaction");
   });
 
+  it("ignores non-numeric keys in the relayer response", async () => {
+    const fetchCalls: { url: string; body: unknown }[] = [];
+    globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
+      fetchCalls.push({ body: JSON.parse(init?.body as string), url: String(url) });
+      if (String(url).includes("confirm_gateway_tx")) {
+        return jsonResponse({ data: { "0": 10, "1": 137, type: "Buffer" } });
+      }
+      return jsonResponse({ id: 1, jsonrpc: "2.0", result: { code: 0, hash: "GHI789" } });
+    }) as typeof fetch;
+
+    await expect(recoverAxelarStuckConfirm(TX_HASH, "base")).resolves.toBe("GHI789");
+    expect(fetchCalls[1].body).toMatchObject({ params: { tx: btoa(String.fromCharCode(10, 137)) } });
+  });
+
+  it("throws instead of broadcasting corrupted bytes when the relayer response has an unexpected shape", async () => {
+    for (const data of [null, undefined, "not-bytes", { "0": 300 }, { "0": "10" }, [10, 1.5]]) {
+      globalThis.fetch = mock(async () => jsonResponse({ data })) as typeof fetch;
+      await expect(recoverAxelarStuckConfirm(TX_HASH, "base")).rejects.toThrow(/unexpected response shape|invalid transaction bytes/);
+    }
+  });
+
+  it("throws when the broadcast succeeds but the RPC response has no transaction hash", async () => {
+    globalThis.fetch = mock(async (url: string | URL | Request) => {
+      if (String(url).includes("confirm_gateway_tx")) {
+        return jsonResponse({ data: SIGNED_TX_BYTES });
+      }
+      return jsonResponse({ id: 1, jsonrpc: "2.0", result: { code: 0 } });
+    }) as typeof fetch;
+
+    await expect(recoverAxelarStuckConfirm(TX_HASH, "base")).rejects.toThrow("no transaction hash");
+  });
+
+  it("aborts the relayer call when the signal fires", async () => {
+    globalThis.fetch = realFetch;
+    const abortController = new AbortController();
+    abortController.abort(new Error("Phase execution timed out"));
+
+    // With an already-aborted signal, fetch must reject without any network I/O.
+    await expect(recoverAxelarStuckConfirm(TX_HASH, "base", abortController.signal)).rejects.toThrow();
+  });
+
   it("throws when the Axelar broadcast is rejected", async () => {
     globalThis.fetch = mock(async (url: string | URL | Request) => {
       if (String(url).includes("confirm_gateway_tx")) {

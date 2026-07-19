@@ -50,13 +50,15 @@ const AXELAR_RPC_URL = "https://mainnet.rpc.axelar.dev/chain/axelar";
  *
  * @param txHash The source-chain transaction hash of the stuck GMP call
  * @param sourceChain The source chain in Axelar naming (e.g. "base")
+ * @param signal Aborts the recovery's network calls when the caller gives up
  * @returns The Axelar transaction hash of the broadcast ConfirmGatewayTx
  */
-export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: string): Promise<string> {
+export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: string, signal?: AbortSignal): Promise<string> {
   const relayerResponse = await fetch(`${AXELAR_SIGNING_RELAYER_URL}/confirm_gateway_tx`, {
     body: JSON.stringify({ chain: sourceChain, module: "evm", txHash }),
     headers: { "Content-Type": "application/json" },
-    method: "POST"
+    method: "POST",
+    signal
   });
   if (!relayerResponse.ok) {
     throw new Error(`Axelar signing relayer returned HTTP ${relayerResponse.status}`);
@@ -64,19 +66,29 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
 
   // The relayer returns the signed tx bytes as JSON: either a Buffer-style
   // {data: [..]} array or a numeric-keyed object {data: {"0": 10, "1": 137, ...}}.
+  // Anything else is rejected rather than silently coerced into corrupt bytes.
   const relayerJson = (await relayerResponse.json()) as { data?: unknown };
-  const rawBytes = relayerJson.data ?? relayerJson;
-  const byteValues: number[] = Array.isArray(rawBytes)
-    ? rawBytes
-    : Object.keys(rawBytes as Record<string, number>)
-        .sort((a, b) => Number(a) - Number(b))
-        .map(key => (rawBytes as Record<string, number>)[key]);
+  const rawBytes = relayerJson.data;
+  let byteValues: unknown[];
+  if (Array.isArray(rawBytes)) {
+    byteValues = rawBytes;
+  } else if (rawBytes !== null && typeof rawBytes === "object") {
+    byteValues = Object.keys(rawBytes)
+      .filter(key => /^\d+$/.test(key))
+      .sort((a, b) => Number(a) - Number(b))
+      .map(key => (rawBytes as Record<string, unknown>)[key]);
+  } else {
+    throw new Error("Axelar signing relayer returned an unexpected response shape");
+  }
   if (byteValues.length === 0) {
     throw new Error("Axelar signing relayer returned an empty transaction");
   }
+  if (!byteValues.every(byte => typeof byte === "number" && Number.isInteger(byte) && byte >= 0 && byte <= 255)) {
+    throw new Error("Axelar signing relayer returned invalid transaction bytes");
+  }
 
   let binary = "";
-  for (const byte of byteValues) {
+  for (const byte of byteValues as number[]) {
     binary += String.fromCharCode(byte);
   }
   const txBase64 = btoa(binary);
@@ -84,7 +96,8 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
   const rpcResponse = await fetch(AXELAR_RPC_URL, {
     body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "broadcast_tx_sync", params: { tx: txBase64 } }),
     headers: { "Content-Type": "application/json" },
-    method: "POST"
+    method: "POST",
+    signal
   });
   if (!rpcResponse.ok) {
     throw new Error(`Axelar RPC returned HTTP ${rpcResponse.status}`);
@@ -94,8 +107,11 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
   if (!rpcJson.result || rpcJson.result.code !== 0) {
     throw new Error(`Axelar broadcast failed with code ${rpcJson.result?.code}: ${rpcJson.result?.log ?? "unknown error"}`);
   }
+  if (!rpcJson.result.hash) {
+    throw new Error("Axelar broadcast succeeded but the RPC response contained no transaction hash");
+  }
 
-  return rpcJson.result.hash ?? "";
+  return rpcJson.result.hash;
 }
 
 export async function getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {

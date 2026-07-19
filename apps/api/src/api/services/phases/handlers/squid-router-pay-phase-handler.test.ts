@@ -182,7 +182,7 @@ describe("SquidRouterPayPhaseHandler", () => {
     const updatedState = await makeHandler().execute(state);
 
     expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
-    expect(recoverAxelarStuckConfirm).toHaveBeenCalledWith(SWAP_HASH, "base");
+    expect(recoverAxelarStuckConfirm).toHaveBeenCalledWith(SWAP_HASH, "base", undefined);
     expect(state.state.axelarConfirmRecoveryAt).toBeString();
     expect(updatedState.currentPhase).toBe("finalSettlementSubsidy");
   });

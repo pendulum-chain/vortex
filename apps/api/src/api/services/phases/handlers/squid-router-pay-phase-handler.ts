@@ -269,7 +269,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
               state: { ...state.state, squidRouterPayTxHash: payTxHash }
             });
           } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
-            await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain);
+            await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
         } else {
           logger.info("SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.");
@@ -291,8 +291,16 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
    * Attempts are rate-limited via a timestamp persisted in the ramp state, and failures
    * are swallowed so the status loop keeps polling and retries after the cooldown.
    */
-  private async maybeRecoverStuckConfirm(state: RampState, swapHash: string, sourceChain: string | undefined): Promise<void> {
-    const lastAttempt = state.state.axelarConfirmRecoveryAt ? new Date(state.state.axelarConfirmRecoveryAt).getTime() : 0;
+  private async maybeRecoverStuckConfirm(
+    state: RampState,
+    swapHash: string,
+    sourceChain: string | undefined,
+    signal?: AbortSignal
+  ): Promise<void> {
+    // An unparseable persisted timestamp yields NaN; treat it as "never attempted" so
+    // the comparison below stays well-defined (NaN comparisons are always false).
+    const parsedLastAttempt = state.state.axelarConfirmRecoveryAt ? new Date(state.state.axelarConfirmRecoveryAt).getTime() : 0;
+    const lastAttempt = Number.isFinite(parsedLastAttempt) ? parsedLastAttempt : 0;
     if (Date.now() - lastAttempt < AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS) {
       return;
     }
@@ -311,7 +319,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     });
 
     try {
-      const axelarTxHash = await recoverAxelarStuckConfirm(swapHash, sourceChain);
+      const axelarTxHash = await recoverAxelarStuckConfirm(swapHash, sourceChain, signal);
       logger.info(
         `SquidRouterPayPhaseHandler: Confirm poll failed for ${swapHash}; broadcast recovery ConfirmGatewayTx ${axelarTxHash} on Axelar.`
       );
