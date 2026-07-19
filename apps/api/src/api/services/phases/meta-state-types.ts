@@ -33,6 +33,9 @@ export interface StateMetadata {
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
+  // Timestamp of the last Axelar stuck-confirm recovery attempt, persisted so
+  // retried phase executions respect the cooldown instead of re-broadcasting.
+  axelarConfirmRecoveryAt?: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
   // Set to true once update-time validation gate passes (all presigned txs valid + complete,

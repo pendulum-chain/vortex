@@ -18,7 +18,7 @@ It handles cross-chain swap execution, Axelar bridge status monitoring, and gas 
 **Chains involved:** Base, Polygon, Moonbeam, Ethereum, Arbitrum, BSC, Avalanche, etc. (any EVM destination supported by Squid)
 **Phase handlers:**
 - `squid-router-phase-handler.ts` — Submits presigned approve + swap transactions on the source EVM chain.
-- `squid-router-pay-phase-handler.ts` — Monitors Axelar bridge status, funds Axelar gas, waits for cross-chain settlement (with finite arrival timeout).
+- `squid-router-pay-phase-handler.ts` — Monitors Axelar bridge status, funds Axelar gas, waits for cross-chain settlement (with finite arrival timeout). Honors the phase processor's `AbortSignal` so timed-out executions stop polling instead of leaking loops against the Squid rate limit. When axelarscan reports a failed validator confirmation poll (`status: "called"` + `confirm_failed` — Axelar's relayer never retries these), it auto-recovers by fetching a signed `ConfirmGatewayTx` from Axelar's public recovery signing service and broadcasting it to the Axelar RPC (`recoverAxelarStuckConfirm` in shared). This uses only the public tx hash — no Vortex keys sign anything and no funds move; attempts are rate-limited by a cooldown timestamp persisted in ramp state (`axelarConfirmRecoveryAt`).
 - `squidrouter-permit-execution-handler.ts` — Calls `TokenRelayer.execute()` with EIP-2612 permit + payload for off-ramp permit flows. Also handles the no-permit fallback path where the user's wallet submits the substituting transactions directly.
 
 ### On-ramp flow (BRL onramp post-Nabla, e.g. Base USDC → user's Polygon ERC-20)
@@ -70,6 +70,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 | Threat | Mitigation |
 |---|---|
 | **Bridge funds stuck in transit** | Dual monitoring (Squid + Axelar scan). 15-minute arrival timeout. Phase retries on failure. Gas proactively funded via `addNativeGas`. |
+| **Axelar validator confirm poll fails (transfer stuck at "called")** | Auto-recovery: broadcast a fresh `ConfirmGatewayTx` obtained from Axelar's recovery signing service (public tx hash only, no Vortex keys). Cooldown of 10 minutes between attempts, persisted in ramp state. Recovery failures are swallowed; the status loop keeps polling and retries after the cooldown. |
 | **Gas overpayment to Axelar** | `calculateGasFeeInUnits()` uses Axelar's reported base fee + estimated gas × source gas price × multiplier. Result verified non-negative. |
 | **Double-spend of approve/swap** | Approve hash persisted immediately; on re-entry handler skips to swap if hash exists. EVM nonce prevents on-chain double-spend in any case. |
 | **Permit replay** | Each permit has a nonce + deadline; TokenRelayer validates on-chain. |
