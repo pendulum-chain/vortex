@@ -52,7 +52,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 1. **Approve transaction MUST be confirmed before swap execution** — Approve hash persisted to state immediately for crash recovery.
 2. **Bridge status uses dual-check (Squid + Axelar fallback)** — If Squid status API fails, falls back to `getStatusAxelarScan()`. Both must fail before phase errors.
 3. **Balance check and bridge check MUST race via `Promise.any`** — Either balance arriving or bridge reporting success is sufficient; both must fail (`AggregateError`) to error.
-4. **Arrival check MUST have a finite timeout** — `EVM_BALANCE_CHECK_TIMEOUT_MS` (15 minutes) bounds how long a phase waits before erroring; `waitUntilTrue` enforces this.
+4. **Arrival check MUST have a finite timeout** — `getSquidRouterPayTimeoutMs()` bounds both destination-balance and bridge-status polling at 80% of the phase processor timeout (8 minutes by default). Both checks also honor the processor's `AbortSignal`.
 5. **Squid API rate-limit responses MUST be retried with backoff** — 429 responses are retried with exponential backoff before failing the phase. Other errors propagate directly.
 6. **Axelar gas funding MUST use `addNativeGas` on the correct chain** — The funding source/chain is selected based on the route, not from request input.
 7. **Permit execution MUST verify both permit and payload signatures** — `squidRouterPermitExecute` extracts v/r/s from both `permitTypedData` and `payloadTypedData`; both must be valid `SignedTypedData`.
@@ -69,7 +69,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 
 | Threat | Mitigation |
 |---|---|
-| **Bridge funds stuck in transit** | Dual monitoring (Squid + Axelar scan). 15-minute arrival timeout. Phase retries on failure. Gas proactively funded via `addNativeGas`. |
+| **Bridge funds stuck in transit** | Dual monitoring (Squid + Axelar scan). Arrival polling is bounded at 80% of the phase processor timeout (8 minutes by default) and stops on processor abort. Phase retries on failure. Gas proactively funded via `addNativeGas`. |
 | **Axelar validator confirm poll fails (transfer stuck at "called")** | Auto-recovery: broadcast a fresh `ConfirmGatewayTx` obtained from Axelar's recovery signing service (public tx hash only, no Vortex keys). Cooldown of 10 minutes between attempts, persisted in ramp state. Recovery failures are swallowed; the status loop keeps polling and retries after the cooldown. |
 | **Gas overpayment to Axelar** | `calculateGasFeeInUnits()` uses Axelar's reported base fee + estimated gas × source gas price × multiplier. Result verified non-negative. |
 | **Double-spend of approve/swap** | Approve hash persisted immediately; on re-entry handler skips to swap if hash exists. EVM nonce prevents on-chain double-spend in any case. |

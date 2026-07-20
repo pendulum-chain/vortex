@@ -63,7 +63,6 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   // Only self-recipients are sendable today; third-party sending is coming soon.
   const isSendable = selected?.isSelf === true && selected.status === "approved";
   const corridor = selected ? CORRIDORS[selected.corridorId] : undefined;
-  const networkLabel = TRANSFER_NETWORKS.find(item => item.id === network)?.label ?? network;
   const payoutAmount = Number(amount);
   // BRL offramps pay out to the user's own PIX key; taxId/receiverTaxId are derived server-side.
   const needsPixKey = selected?.corridorId === "BR" && selected.isSelf === true;
@@ -262,13 +261,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
           ) : quote ? (
             <>
               <QuoteSummary isFetching={isFetching} quote={quote} />
-              <FundingMethods
-                network={network}
-                networkLabel={networkLabel}
-                onSubmit={submitTransfer}
-                quote={quote}
-                submitting={submitting}
-              />
+              <FundingMethods network={network} onSubmit={submitTransfer} quote={quote} submitting={submitting} />
               {signing && (
                 <p className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-sm">
                   Confirm the signature request in your wallet to authorize the transfer…

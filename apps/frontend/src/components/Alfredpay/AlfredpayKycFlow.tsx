@@ -1,4 +1,11 @@
-import type { AlfredpayKycFormData, KybBusinessFiles, KybFormData, KybPersonFiles, MxnKycFiles } from "@vortexfi/kyc";
+import type {
+  AlfredpayKycFormData,
+  KybBusinessFiles,
+  KybFormData,
+  KybPersonFiles,
+  KybQuestionnaireData,
+  MxnKycFiles
+} from "@vortexfi/kyc";
 import { useCallback } from "react";
 import { useAlfredpayKycActor, useAlfredpayKycSelector, useRampStateSelector } from "../../contexts/rampState";
 import { DoneScreen } from "../DoneScreen";
@@ -11,6 +18,7 @@ import { FillingScreen } from "./FillingScreen";
 import { KybBusinessDocsScreen } from "./KybBusinessDocsScreen";
 import { KybFormScreen } from "./KybFormScreen";
 import { KybPersonDocsScreen } from "./KybPersonDocsScreen";
+import { KybQuestionnaireScreen } from "./KybQuestionnaireScreen";
 import { LinkReadyScreen } from "./LinkReadyScreen";
 import { LoadingScreen } from "./LoadingScreen";
 import { MxnDocumentUploadScreen } from "./MxnDocumentUploadScreen";
@@ -37,6 +45,10 @@ export const AlfredpayKycFlow = () => {
   const submitForm = useCallback((data: AlfredpayKycFormData) => actor?.send({ data, type: "SUBMIT_FORM" }), [actor]);
   const submitFiles = useCallback((files: MxnKycFiles) => actor?.send({ files, type: "SUBMIT_FILES" }), [actor]);
   const submitKybForm = useCallback((data: KybFormData) => actor?.send({ data, type: "SUBMIT_KYB_FORM" }), [actor]);
+  const submitKybQuestionnaire = useCallback(
+    (data: KybQuestionnaireData) => actor?.send({ data, type: "SUBMIT_KYB_QUESTIONNAIRE" }),
+    [actor]
+  );
   const submitKybBusinessFiles = useCallback(
     (files: KybBusinessFiles) => actor?.send({ files, type: "SUBMIT_KYB_BUSINESS_FILES" }),
     [actor]
@@ -99,11 +111,23 @@ export const AlfredpayKycFlow = () => {
   }
 
   if (stateValue === "FillingKybForm") {
-    return <KybFormScreen country={context.country} onSubmit={submitKybForm} userEmail={userEmail} />;
+    return (
+      <KybFormScreen country={context.country} defaults={context.kybFormData} onSubmit={submitKybForm} userEmail={userEmail} />
+    );
+  }
+
+  if (stateValue === "FillingKybQuestionnaire") {
+    return <KybQuestionnaireScreen defaults={context.kybQuestionnaireData} onBack={goBack} onSubmit={submitKybQuestionnaire} />;
   }
 
   if (stateValue === "UploadingKybBusinessDocs") {
-    return <KybBusinessDocsScreen onBack={goBack} onSubmit={submitKybBusinessFiles} />;
+    return (
+      <KybBusinessDocsScreen
+        isRegulatedBusiness={context.kybQuestionnaireData?.isRegulatedBusiness}
+        onBack={goBack}
+        onSubmit={submitKybBusinessFiles}
+      />
+    );
   }
 
   if (stateValue === "UploadingKybPersonDocs") {

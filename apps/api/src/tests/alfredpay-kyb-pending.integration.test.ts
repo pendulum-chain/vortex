@@ -47,22 +47,34 @@ function authHeaders(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 }
 
+// Carries the compliance questionnaire because `validateKybSubmission` rejects a submission without
+// it — the same 110002 contract Alfredpay enforces at finalize.
 const KYB_FORM = {
+  accountPurpose: "Treasury management",
   address: "Calle 1 # 2-3",
+  businessActivities: "Cross-border payments software",
   businessName: "Prueba SAS",
   city: "Bogota",
   country: "CO",
+  expectedMonthlyTransactions: 120,
+  expectedMonthlyVolumeUsd: 50000,
+  isRegulatedBusiness: false,
+  operatesInSanctionedCountries: false,
   relatedPersons: [
     {
       dateOfBirth: "1990-01-01",
       email: "rep@example.com",
       firstName: "Ana",
       lastName: "Rep",
-      nationalities: ["CO"]
+      nationalities: ["CO"],
+      pep: false
     }
   ],
+  sourceOfFunds: "Sale of goods/services",
   state: "DC",
   taxId: "900123456",
+  transmitsCustomerFunds: false,
+  walletAddresses: "N/A",
   website: "https://prueba.example.com",
   zipCode: "110111"
 };
@@ -480,5 +492,65 @@ describe("Alfredpay KYB PENDING submission", () => {
     const customer = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-kyb-pending" } });
     const kycCase = await KycCase.findOne({ where: { providerCustomerId: customer?.id } });
     expect(kycCase?.providerCaseId).toBe("kyb-sub-new");
+  });
+
+  // Alfredpay only reports a missing questionnaire at sendKybSubmission — after every document has
+  // been uploaded. These keep that contract enforced at the point of entry.
+  it("rejects a submission missing the compliance questionnaire before reaching Alfredpay", async () => {
+    const { token } = await createBusinessCustomer("kyb-missing-questionnaire@example.com");
+
+    const submitKybInformation = mock(async () => ({ submissionId: "should-not-be-created" }));
+    AlfredpayApiService.getInstance = mock(() => ({ submitKybInformation }) as unknown as AlfredpayApiService);
+
+    const { accountPurpose, ...withoutAccountPurpose } = KYB_FORM;
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify(withoutAccountPurpose),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(submitKybInformation).not.toHaveBeenCalled();
+  });
+
+  it("rejects the conditional screening answer when funds are transmitted", async () => {
+    const { token } = await createBusinessCustomer("kyb-conditional-questionnaire@example.com");
+
+    const submitKybInformation = mock(async () => ({ submissionId: "should-not-be-created" }));
+    AlfredpayApiService.getInstance = mock(() => ({ submitKybInformation }) as unknown as AlfredpayApiService);
+
+    const response = await api.request("/v1/alfredpay/submitKybInformation", {
+      body: JSON.stringify({ ...KYB_FORM, transmitsCustomerFunds: true }),
+      headers: authHeaders(token),
+      method: "POST"
+    });
+
+    expect(response.status).toBe(400);
+    expect(submitKybInformation).not.toHaveBeenCalled();
+  });
+
+  // A customer that retried carries several businesses. Without submissionId the caller cannot tell
+  // which related persons belong to the submission it is filing, and uploads land on a stale person.
+  it("findKybCustomerAndBusiness keeps the submission id alongside each business's related persons", async () => {
+    const { token } = await createBusinessCustomer("kyb-related-persons@example.com");
+
+    AlfredpayApiService.getInstance = mock(
+      () =>
+        ({
+          getKybBusinessDetails: mock(async () => [
+            { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+            { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+          ])
+        }) as unknown as AlfredpayApiService
+    );
+
+    const response = await api.request("/v1/alfredpay/findKybCustomerAndBusiness?country=CO", {
+      headers: authHeaders(token)
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      { relatedPersons: [{ idRelatedPerson: "rp-stale" }], submissionId: "kyb-sub-stale" },
+      { relatedPersons: [{ idRelatedPerson: "rp-current" }], submissionId: "kyb-sub-current" }
+    ]);
   });
 });

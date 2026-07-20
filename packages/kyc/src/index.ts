@@ -9,12 +9,16 @@ export {
   KYC_FILE_ACCEPTED_TYPES,
   KYC_FILE_MAX_BYTES,
   type KybFormValues,
+  type KybQuestionnaireValues,
   kybFormSchema,
+  kybQuestionnaireSchema,
   type MxnKycFormValues,
   mapKybFormValues,
+  mapKybQuestionnaireValues,
   mxnKycSchema,
   toArPhoneNumber,
-  toColPhoneNumber
+  toColPhoneNumber,
+  toKybFormValues
 } from "./alfredpay/schemas";
 export { type AlfredpayKycApiClient, createAlfredpayKycApi } from "./alfredpay/service";
 export {
@@ -26,6 +30,7 @@ export {
   type KybBusinessFiles,
   type KybFormData,
   type KybPersonFiles,
+  type KybQuestionnaireData,
   type MxnKycFiles
 } from "./alfredpay/types";
 export type { AveniaKycApi, AveniaKycDeps, KybLevel1Response } from "./avenia/api";

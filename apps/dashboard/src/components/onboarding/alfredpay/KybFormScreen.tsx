@@ -1,35 +1,41 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
-import { type KybFormData, type KybFormValues, kybFormSchema, mapKybFormValues } from "@vortexfi/kyc";
+import { type KybFormData, type KybFormValues, kybFormSchema, mapKybFormValues, toKybFormValues } from "@vortexfi/kyc";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
 interface KybFormScreenProps {
   country: "MX" | "CO";
+  /** Details already given, so stepping back from the questionnaire does not blank the form. */
+  defaults?: KybFormData;
   onCancel: () => void;
   onSubmit: (data: KybFormData) => void;
   userEmail?: string;
 }
 
-export function KybFormScreen({ country, onCancel, onSubmit, userEmail }: KybFormScreenProps) {
+export function KybFormScreen({ country, defaults, onCancel, onSubmit, userEmail }: KybFormScreenProps) {
   const form = useForm<KybFormValues>({
-    defaultValues: {
-      address: "",
-      businessName: "",
-      city: "",
-      repDateOfBirth: "",
-      repDni: "",
-      repEmail: userEmail ?? "",
-      repFirstName: "",
-      repLastName: "",
-      repNationality: country,
-      state: "",
-      taxId: "",
-      website: "",
-      zipCode: ""
-    },
+    defaultValues: defaults
+      ? toKybFormValues(defaults)
+      : {
+          address: "",
+          businessName: "",
+          city: "",
+          repDateOfBirth: "",
+          repDni: "",
+          repEmail: userEmail ?? "",
+          repFirstName: "",
+          repLastName: "",
+          repNationality: country,
+          repPep: false,
+          state: "",
+          taxId: "",
+          website: "",
+          zipCode: ""
+        },
     resolver: standardSchemaResolver(kybFormSchema)
   });
 
@@ -46,7 +52,8 @@ export function KybFormScreen({ country, onCancel, onSubmit, userEmail }: KybFor
               readOnly={readOnly}
               type={type}
               {...input}
-              value={input.value ?? ""}
+              // repPep is the one boolean in this form and renders as its own checkbox below.
+              value={typeof input.value === "string" ? input.value : ""}
             />
           </FormControl>
           <FormMessage />
@@ -89,6 +96,18 @@ export function KybFormScreen({ country, onCancel, onSubmit, userEmail }: KybFor
             {field("repDni", "Document number")}
           </div>
           {field("repNationality", "Nationality (2-letter code)")}
+          <FormField
+            control={form.control}
+            name="repPep"
+            render={({ field: input }) => (
+              <FormItem className="flex flex-row items-start gap-3 rounded-md border p-3">
+                <FormControl>
+                  <Checkbox checked={!!input.value} onCheckedChange={checked => input.onChange(checked === true)} />
+                </FormControl>
+                <FormLabel className="font-normal leading-none">This person is a politically exposed person</FormLabel>
+              </FormItem>
+            )}
+          />
         </div>
         <DialogFooter className="pt-4">
           <Button onClick={onCancel} type="button" variant="ghost">
