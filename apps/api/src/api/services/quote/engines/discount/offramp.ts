@@ -3,7 +3,12 @@ import Big from "big.js";
 import logger from "../../../../../config/logger";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
-import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getUsdDenominatedInputAmount,
+  resolveDiscountPartner
+} from "./helpers";
 
 export class OffRampDiscountEngine extends BaseDiscountEngine {
   readonly config = {
@@ -32,18 +37,27 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const oraclePrice = nablaSwap.oraclePrice!;
 
-    const { inputAmount, rampType } = ctx.request;
+    const { inputAmount, inputCurrency, rampType } = ctx.request;
 
     const partner = await resolveDiscountPartner(ctx, rampType);
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
-    // Calculate the oracle-based expected output in BRL.
+    // The expected-output math multiplies a USD amount by the inverted FIAT-USD oracle rate,
+    // so a non-USD input (e.g. BRLA) must be valued in USD first.
+    const inputAmountUsd = await getUsdDenominatedInputAmount(ctx);
+    if (!inputAmountUsd.eq(inputAmount)) {
+      ctx.addNote?.(
+        `OffRampDiscountEngine: valued input ${inputAmount} ${inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
+      );
+    }
+
+    // Calculate the oracle-based expected output in the target fiat currency.
     const {
       expectedOutput: oracleExpectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
-    } = calculateExpectedOutput(inputAmount, oraclePrice, targetDiscount, this.config.isOfframp, partner);
+    } = calculateExpectedOutput(inputAmountUsd.toString(), oraclePrice, targetDiscount, this.config.isOfframp, partner);
 
     // Account for the anchor fee deducted in the Finalize stage, which reduces the user's received amount.
     // We need to add it back to the expected output to calculate the subsidy correctly.

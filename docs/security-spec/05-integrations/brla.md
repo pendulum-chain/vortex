@@ -161,5 +161,9 @@ Key properties:
   `getKybAttemptStatus` resolves that binding and verifies entity ownership before querying Avenia.
   The browser receives only normalized status/result fields, never provider submission data.
 - KYC/KYB state transitions update canonical status and provider status on both
-  `provider_customers` and the account's `kyc_cases` row in the same code path
-  (`updateAveniaKycOutcome` preserves the idempotent `in_review` transition guard).
+  `provider_customers` and the account's `kyc_cases` row in the same code path.
+  `updateAveniaKycOutcome` treats `approved` as terminal (a stale attempt read never
+  downgrades an approved account) but otherwise follows the latest provider attempt:
+  in particular, a `rejected` account whose retried attempt succeeds becomes `approved`
+  (the former `in_review`-only guard left it stuck in `rejected`, so a successfully
+  retried KYC never became ramp-ready). Repeated polls of an unchanged outcome no-op.

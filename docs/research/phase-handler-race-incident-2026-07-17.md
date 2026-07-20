@@ -747,8 +747,8 @@ to prevent recurrence and limit impact when an external bridge is slow.
 
 ## Implemented targeted mitigation
 
-The initial low-impact production mitigation implements the timing controls identified
-in this report without replacing the existing lock model:
+The initial low-impact production mitigation implements the timing and cancellation
+controls identified in this report without replacing the existing lock model:
 
 - `PhaseProcessor` refreshes `processingLock.lockedAt` before every phase attempt,
   including retries and recursive phase advancement.
@@ -756,6 +756,8 @@ in this report without replacing the existing lock model:
   read through shared phase-processor timeout configuration.
 - `squidRouterPay` bounds both its destination-balance check and bridge-status loop at
   80% of the processor timeout.
+- `squidRouterPay` forwards the processor's `AbortSignal` to its balance check, polling
+  delays, and Axelar recovery request so timed-out executions unwind cooperatively.
 - If neither polling branch detects settlement, both reject and `checkStatus` raises a
   recoverable phase error before the processor's outer timeout.
 
@@ -819,15 +821,13 @@ incident.
 
 ### Limitations and residual risks
 
-- This implementation deliberately does not use `AbortSignal` in
-  `SquidRouterPayPhaseHandler`. A hung external status request cannot be interrupted by
-  the elapsed-time check. If it remains blocked through the outer 10-minute timeout, the
-  processor can still abandon that handler invocation.
-- `Promise.any()` does not cancel its losing branch. If balance settlement succeeds
-  before bridge-status polling finishes, the bridge branch can continue until it
-  succeeds, fails, or reaches its eight-minute deadline while the tracked processor
-  advances into later phases. The mitigation bounds that branch but does not stop it
-  immediately.
+- SquidRouter and Axelar status requests do not accept the processor's `AbortSignal`, so
+  an in-flight status request cannot be interrupted. Cancellation takes effect at the
+  next signal-aware delay or helper boundary.
+- `Promise.any()` does not cancel its losing branch when the other branch succeeds. If
+  balance settlement succeeds before bridge-status polling finishes, the bridge branch
+  can continue until it succeeds, fails, reaches its eight-minute deadline, or the
+  processor signal is aborted while the tracked processor advances into later phases.
 - Because the bridge branch contains Axelar gas funding, a losing branch can still make
   that side effect before its deadline. Existing transaction-hash checks reduce repeat
   funding, but this change is not a general financial-idempotency guarantee.

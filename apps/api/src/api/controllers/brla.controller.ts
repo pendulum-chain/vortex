@@ -420,7 +420,7 @@ export const createSubaccount = async (
 
     // A company has no verification attempt yet at this point — the hosted KYB links are issued in
     // a follow-up call — so it starts pending (resumable). Individuals keep the legacy Requested
-    // semantics (updateAveniaKycOutcome only flips accounts that are in_review).
+    // semantics (in_review until the outcome poll decides).
     const initialStatus = accountType === AveniaAccountType.COMPANY ? VerificationStatus.Pending : VerificationStatus.InReview;
     if (existing) {
       await existing.update({
@@ -521,11 +521,9 @@ export const fetchSubaccountKycStatus = async (
     if (kycAttemptStatus.result === KycAttemptResult.REJECTED) {
       await updateAveniaKycOutcome(taxId, VerificationStatus.Rejected, kycAttemptStatus.status);
     }
-    if (
-      !kycAttemptStatus.result &&
-      record.status !== VerificationStatus.Approved &&
-      record.status !== VerificationStatus.Rejected
-    ) {
+    // No result yet: mirror the in-flight attempt. This includes a `rejected` account whose
+    // owner retries — the fresh attempt puts it back in review so the outcome poll can decide.
+    if (!kycAttemptStatus.result && record.status !== VerificationStatus.Approved) {
       const status =
         kycAttemptStatus.status === KycAttemptStatus.EXPIRED ? VerificationStatus.Pending : VerificationStatus.InReview;
       await record.update({ status, statusExternal: kycAttemptStatus.status });

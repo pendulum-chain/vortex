@@ -180,7 +180,10 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        outputAmount: "500.00",
+        // 100 BRLA is worth ~100 BRL (1:1 peg), not 500: the discount engine now values the
+        // BRLA input in USD (~20 USD at 5 BRL/USD) before applying the inverted oracle rate,
+        // instead of treating 100 BRLA as 100 USD → 500 BRL.
+        outputAmount: "100.00",
         outputCurrency: "BRL",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
