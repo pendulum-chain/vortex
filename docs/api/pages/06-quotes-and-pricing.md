@@ -46,20 +46,28 @@ Content-Type: application/json
   "inputCurrency": "BRL",
   "outputAmount": "27.41",
   "outputCurrency": "USDC",
-  "fee": {
-    "network": "0.42",
-    "anchor": "1.50",
-    "vortex": "0.75",
-    "partner": "0.00",
-    "total": "2.67",
-    "currency": "BRL"
-  },
-  "expiresAt": "2025-05-18T12:35:00.000Z"
+  "network": "polygon",
+  "paymentMethod": "pix",
+  "networkFeeFiat": "0.42",
+  "anchorFeeFiat": "1.50",
+  "vortexFeeFiat": "0.75",
+  "partnerFeeFiat": "0.00",
+  "processingFeeFiat": "2.25",
+  "totalFeeFiat": "2.67",
+  "feeCurrency": "BRL",
+  "networkFeeUsd": "0.08",
+  "anchorFeeUsd": "0.28",
+  "vortexFeeUsd": "0.14",
+  "partnerFeeUsd": "0.00",
+  "processingFeeUsd": "0.42",
+  "totalFeeUsd": "0.50",
+  "expiresAt": "2026-07-10T12:35:00.000Z"
 }
 ```
 
 - All monetary fields are decimal strings, not numbers; preserve them as strings end-to-end.
-- `fee.currency` is the currency in which the fee fields are denominated.
+- Fees are flattened into per-component fields, each provided twice: once denominated in `feeCurrency` (the `*Fiat` fields) and once in USD (the `*Usd` fields). `processingFee` is the sum of the anchor and Vortex components.
+- When a quote-time discount applies, optional `discountFiat`, `discountUsd`, and `discountCurrency` fields are present.
 - `expiresAt` is short (typically a few minutes). Register the ramp promptly or request a new quote.
 
 ## Best-Quote Selection

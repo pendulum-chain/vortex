@@ -76,14 +76,37 @@ function isTrivialPattern(input: string): boolean {
   return hasAllSameDigits(digits) || isAscendingSequence(digits) || isDescendingSequence(digits);
 }
 
+/**
+ * Computes a Brazilian mod-11 verifier digit over `digits` using the given weights.
+ */
+function mod11CheckDigit(digits: string, weights: number[]): number {
+  const sum = weights.reduce((acc, weight, i) => acc + parseInt(digits[i], 10) * weight, 0);
+  const remainder = sum % 11;
+  return remainder < 2 ? 0 : 11 - remainder;
+}
+
+const CPF_FIRST_WEIGHTS = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+const CPF_SECOND_WEIGHTS = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+
+const CNPJ_FIRST_WEIGHTS = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+const CNPJ_SECOND_WEIGHTS = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+
 export function isValidCnpj(cnpj: string): boolean {
   if (!CNPJ_REGEX.test(cnpj)) return false;
   if (isTrivialPattern(cnpj)) return false;
+
+  const digits = cnpj.replace(/\D/g, "");
+  if (mod11CheckDigit(digits, CNPJ_FIRST_WEIGHTS) !== parseInt(digits[12], 10)) return false;
+  if (mod11CheckDigit(digits, CNPJ_SECOND_WEIGHTS) !== parseInt(digits[13], 10)) return false;
   return true;
 }
 
 export function isValidCpf(cpf: string): boolean {
   if (!CPF_REGEX.test(cpf)) return false;
   if (isTrivialPattern(cpf)) return false;
+
+  const digits = cpf.replace(/\D/g, "");
+  if (mod11CheckDigit(digits, CPF_FIRST_WEIGHTS) !== parseInt(digits[9], 10)) return false;
+  if (mod11CheckDigit(digits, CPF_SECOND_WEIGHTS) !== parseInt(digits[10], 10)) return false;
   return true;
 }

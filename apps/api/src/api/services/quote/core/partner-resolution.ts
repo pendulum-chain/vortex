@@ -1,8 +1,8 @@
 import { CreateQuoteRequest, RampDirection } from "@vortexfi/shared";
 import { Op } from "sequelize";
 import logger from "../../../../config/logger";
-import Partner from "../../../../models/partner.model";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
+import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
 import type { PartnerPricingSource } from "./types";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
@@ -12,7 +12,7 @@ type QuotePartnerResolutionRequest = CreateQuoteRequest & {
 
 export interface ResolvedQuotePartner {
   ownerPartnerId: string | null;
-  partner: Partner | null;
+  partner: PartnerWithPricing | null;
   pricingPartnerId: string | null;
   source: PartnerPricingSource;
 }
@@ -23,15 +23,9 @@ async function findPartnerForRamp(
   partnerRef: string,
   rampType: RampDirection,
   source: PartnerPricingSource
-): Promise<Partner | null> {
+): Promise<PartnerWithPricing | null> {
   const isUuid = source === "request" && UUID_PATTERN.test(partnerRef);
-  const partner = await Partner.findOne({
-    where: {
-      ...(isUuid ? { id: partnerRef } : { name: partnerRef }),
-      isActive: true,
-      rampType
-    }
-  });
+  const partner = await findPartnerWithPricing(isUuid ? { id: partnerRef } : { name: partnerRef }, rampType);
 
   if (!partner) {
     logger.warn(
@@ -42,14 +36,8 @@ async function findPartnerForRamp(
   return partner;
 }
 
-async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection): Promise<Partner | null> {
-  const partner = await Partner.findOne({
-    where: {
-      id: partnerId,
-      isActive: true,
-      rampType
-    }
-  });
+async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection): Promise<PartnerWithPricing | null> {
+  const partner = await findPartnerWithPricing({ id: partnerId }, rampType);
 
   if (!partner) {
     logger.warn(
@@ -60,7 +48,7 @@ async function findPartnerByIdForRamp(partnerId: string, rampType: RampDirection
   return partner;
 }
 
-async function findAssignedPartnerId(userId: string, rampType: RampDirection, now: Date): Promise<string | null> {
+async function findAssignedPartnerId(userId: string, now: Date): Promise<string | null> {
   const assignment = await ProfilePartnerAssignment.findOne({
     order: [["createdAt", "DESC"]],
     where: {
@@ -70,11 +58,7 @@ async function findAssignedPartnerId(userId: string, rampType: RampDirection, no
     }
   });
 
-  if (!assignment) {
-    return null;
-  }
-
-  return rampType === RampDirection.BUY ? assignment.buyPartnerId : assignment.sellPartnerId;
+  return assignment?.partnerId ?? null;
 }
 
 export async function resolveQuotePartner(
@@ -102,7 +86,7 @@ export async function resolveQuotePartner(
   }
 
   if (request.userId) {
-    const assignedPartnerId = await findAssignedPartnerId(request.userId, request.rampType, now);
+    const assignedPartnerId = await findAssignedPartnerId(request.userId, now);
     if (assignedPartnerId) {
       const partner = await findPartnerByIdForRamp(assignedPartnerId, request.rampType);
       return {

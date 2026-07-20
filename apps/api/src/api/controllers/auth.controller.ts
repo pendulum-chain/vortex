@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import logger from "../../config/logger";
 import User from "../../models/user.model";
 import { RefreshTokenError, SupabaseAuthService } from "../services/auth";
+import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
 export class AuthController {
   /**
@@ -87,6 +88,15 @@ export class AuthController {
         email: email,
         id: result.user_id
       });
+
+      // Eagerly create the owning customer entity. Kept out of the OTP error mapping:
+      // the Supabase session is already minted, so a failure here must not surface as
+      // "Invalid OTP" — entity-scoped reads lazily create it as a fallback anyway.
+      try {
+        await getOrCreateCustomerEntityForProfile(result.user_id);
+      } catch (entityError) {
+        logger.error("Failed to create customer entity for new profile:", entityError);
+      }
 
       return res.json({
         access_token: result.access_token,

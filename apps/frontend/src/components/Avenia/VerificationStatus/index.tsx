@@ -1,9 +1,8 @@
+import { KycStatus } from "@vortexfi/kyc";
 import { motion, useReducedMotion } from "motion/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { AveniaKycActorRef, SelectedAveniaData } from "../../../machines/types";
-
-import { KycStatus } from "../../../services/signingService";
 import { Spinner } from "../../Spinner";
 
 interface VerificationStatusProps {

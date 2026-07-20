@@ -17,8 +17,9 @@ const originalPartnerFindOne = Partner.findOne;
 
 function createSecretKeyRecord({
   userId = null,
-  partnerName = "TestPartner"
-}: { userId?: string | null; partnerName?: string | null } = {}): ApiKey & { raw: string } {
+  partnerId = "partner-id",
+  partnerName = null
+}: { userId?: string | null; partnerId?: string | null; partnerName?: string | null } = {}): ApiKey & { raw: string } {
   const secret = generateApiKey("secret", "test");
   const secretHash = bcrypt.hashSync(secret, 4);
   const record = Object.assign(new ApiKey(), {
@@ -27,6 +28,7 @@ function createSecretKeyRecord({
     keyHash: secretHash,
     keyPrefix: getKeyPrefix(secret),
     keyType: "secret" as const,
+    partnerId,
     partnerName,
     raw: secret,
     userId
@@ -45,7 +47,7 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
   });
 
   it("returns apiKeyId and apiKeyUserId with a partner for partner-scoped keys", async () => {
-    const key = createSecretKeyRecord({userId: "user-bound", partnerName: "TestPartner"});
+    const key = createSecretKeyRecord({userId: "user-bound", partnerId: "partner-id"});
     ApiKey.findAll = mock(
       async () => [key as unknown as ApiKey]
     ) as typeof ApiKey.findAll;
@@ -63,7 +65,7 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
   });
 
   it("returns apiKeyUserId = null for an unlinked partner-scoped key", async () => {
-    const key = createSecretKeyRecord({userId: null, partnerName: "TestPartner"});
+    const key = createSecretKeyRecord({userId: null, partnerId: "partner-id"});
     ApiKey.findAll = mock(
       async () => [key as unknown as ApiKey]
     ) as typeof ApiKey.findAll;
@@ -77,8 +79,8 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
     expect(result?.partner).not.toBeNull();
   });
 
-  it("returns partner=null for a user-scoped key (no partnerName, userId set)", async () => {
-    const key = createSecretKeyRecord({userId: "user-scoped", partnerName: null});
+  it("returns partner=null for a user-scoped key (no partnerId, userId set)", async () => {
+    const key = createSecretKeyRecord({userId: "user-scoped", partnerId: null});
     ApiKey.findAll = mock(
       async () => [key as unknown as ApiKey]
     ) as typeof ApiKey.findAll;
@@ -94,8 +96,20 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
     expect(Partner.findOne).toHaveBeenCalledTimes(0);
   });
 
-  it("returns null for a key with no partnerName and no userId (unusable)", async () => {
-    const key = createSecretKeyRecord({userId: null, partnerName: null});
+  it("returns null for a key with no partnerId and no userId (unusable)", async () => {
+    const key = createSecretKeyRecord({userId: null, partnerId: null});
+    ApiKey.findAll = mock(
+      async () => [key as unknown as ApiKey]
+    ) as typeof ApiKey.findAll;
+
+    const result = await validateSecretApiKey(key.raw);
+    expect(result).toBeNull();
+  });
+
+  it("rejects an orphaned partner key instead of degrading it into a user-scoped key", async () => {
+    // Deleting a partner row sets partner_id NULL (FK ON DELETE SET NULL) but keeps
+    // partner_name — such a key is revoked, even when it carries a linked user.
+    const key = createSecretKeyRecord({partnerId: null, partnerName: "DeletedPartner", userId: "user-bound"});
     ApiKey.findAll = mock(
       async () => [key as unknown as ApiKey]
     ) as typeof ApiKey.findAll;

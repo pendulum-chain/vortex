@@ -36,6 +36,21 @@ jobs:
 
       - name: 🧪 Live contract suites
         working-directory: apps/api
+        # Sandbox credentials and pre-provisioned fixtures (see .env.example). A missing
+        # secret resolves to "" -> the suite's live half skips -> CONTRACT_EXPECT_LIVE
+        # fails that suite loudly instead of letting the drift detector rot as green.
+        env:
+          ALFREDPAY_BASE_URL: ${{ secrets.CONTRACT_ALFREDPAY_BASE_URL }}
+          ALFREDPAY_API_KEY: ${{ secrets.CONTRACT_ALFREDPAY_API_KEY }}
+          ALFREDPAY_API_SECRET: ${{ secrets.CONTRACT_ALFREDPAY_API_SECRET }}
+          ALFREDPAY_CONTRACT_CUSTOMER_ID: ${{ secrets.CONTRACT_ALFREDPAY_CUSTOMER_ID }}
+          ALFREDPAY_CONTRACT_FIAT_ACCOUNT_ID: ${{ secrets.CONTRACT_ALFREDPAY_FIAT_ACCOUNT_ID }}
+          ALFREDPAY_CONTRACT_KYC_SUBMISSION_ID: ${{ secrets.CONTRACT_ALFREDPAY_KYC_SUBMISSION_ID }}
+          BRLA_BASE_URL: ${{ secrets.CONTRACT_BRLA_BASE_URL }}
+          BRLA_API_KEY: ${{ secrets.CONTRACT_BRLA_API_KEY }}
+          BRLA_PRIVATE_KEY: ${{ secrets.CONTRACT_BRLA_PRIVATE_KEY }}
+          AVENIA_CONTRACT_SUBACCOUNT_ID: ${{ secrets.CONTRACT_AVENIA_SUBACCOUNT_ID }}
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
         run: bun test src/tests/contracts/
 
       # Non-blocking runs are only useful if somebody hears about failures.

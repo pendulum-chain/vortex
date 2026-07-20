@@ -1,7 +1,9 @@
-import { RampDirection } from "@vortexfi/shared";
+import { EvmToken, FiatToken, normalizeTokenSymbol, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
-import Partner from "../../../../../models/partner.model";
+import { findPartnerWithPricing, PartnerWithPricing } from "../../../partners/partner-pricing.service";
+import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
@@ -12,6 +14,8 @@ interface PartnerDiscountState {
   difference: Big;
 }
 
+// Keyed per (partner, direction): pre-split the BUY/SELL partner rows had distinct ids and
+// got per-direction state isolation for free — the composite key preserves that.
 const partnerDiscountState = new Map<string, PartnerDiscountState>();
 
 function getDeltaD(): Big {
@@ -22,10 +26,16 @@ function isWithinStateTimeout(timestamp: Date, now: Date): boolean {
   return now.getTime() - timestamp.getTime() < config.quote.discountStateTimeoutMinutes * 60 * 1000;
 }
 
-export type ActivePartner = Pick<
-  Partner,
-  "id" | "targetDiscount" | "maxSubsidy" | "minDynamicDifference" | "maxDynamicDifference" | "name"
-> | null;
+export type ActivePartner = {
+  id: string;
+  name: string;
+  targetDiscount: number;
+  maxSubsidy: number;
+  minDynamicDifference: number;
+  maxDynamicDifference: number;
+  /** Discount-state map key, scoped per (partner, ramp direction). */
+  stateKey: string;
+} | null;
 
 export interface DiscountSubsidyPayload {
   actualOutputAmountDecimal: Big;
@@ -33,33 +43,92 @@ export interface DiscountSubsidyPayload {
   expectedOutputAmountDecimal: Big;
 }
 
+export function toActivePartner(pricing: PartnerWithPricing): ActivePartner {
+  return {
+    id: pricing.id,
+    maxDynamicDifference: pricing.maxDynamicDifference,
+    maxSubsidy: pricing.maxSubsidy,
+    minDynamicDifference: pricing.minDynamicDifference,
+    name: pricing.name,
+    stateKey: `${pricing.id}:${pricing.rampType}`,
+    targetDiscount: pricing.targetDiscount
+  };
+}
+
+export async function resolveActivePartnerById(partnerId: string, rampType: RampDirection): Promise<ActivePartner> {
+  const pricing = await findPartnerWithPricing({ id: partnerId }, rampType);
+  return pricing ? toActivePartner(pricing) : null;
+}
+
 export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
   const partnerId = ctx.partner?.id;
 
-  const where = {
-    isActive: true,
-    rampType
-  } as const;
-
   if (partnerId) {
-    const partner = await Partner.findOne({
-      where: {
-        ...where,
-        id: partnerId
-      }
-    });
-
+    const partner = await resolveActivePartnerById(partnerId, rampType);
     if (partner) {
       return partner;
     }
   }
 
-  return Partner.findOne({
-    where: {
-      ...where,
-      name: DEFAULT_PARTNER_NAME
+  const vortexPricing = await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, rampType);
+  return vortexPricing ? toActivePartner(vortexPricing) : null;
+}
+
+const USD_LIKE_INPUT_CURRENCIES: ReadonlySet<string> = new Set([
+  "USD",
+  EvmToken.USDC,
+  EvmToken.USDT,
+  EvmToken.USDCE,
+  EvmToken.AXLUSDC
+]);
+
+const FIAT_PEG_BY_STABLECOIN: Record<string, FiatToken> = {
+  [EvmToken.BRLA]: FiatToken.BRL,
+  [EvmToken.EURC]: FiatToken.EURC
+};
+
+/**
+ * Value the offramp request input in USD. The offramp expected-output math multiplies a
+ * USD amount by the inverted FIAT-USD oracle rate, but request.inputAmount is denominated
+ * in the input token: USD-like stables pass through unchanged, fiat-pegged stables
+ * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate, and any other token falls
+ * back to the bridged USDC amount when available.
+ *
+ * A rate-feed failure while valuing a fiat-pegged stable MUST NOT fail the quote: the
+ * engine already holds the bridged USDC amount, a good USD-denominated proxy, so we fall
+ * back to it (or the raw input as a last resort) rather than throwing from discount math.
+ */
+export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<Big> {
+  const { inputAmount, inputCurrency } = ctx.request;
+  const normalized = normalizeTokenSymbol(inputCurrency);
+
+  if (USD_LIKE_INPUT_CURRENCIES.has(normalized)) {
+    return new Big(inputAmount);
+  }
+
+  const pegFiat = FIAT_PEG_BY_STABLECOIN[normalized];
+  if (pegFiat) {
+    try {
+      const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(pegFiat);
+      return new Big(inputAmount).mul(fiatToUsdRate);
+    } catch (error) {
+      const fallback = usdFallbackFromContext(ctx);
+      logger.warn(
+        `getUsdDenominatedInputAmount: ${pegFiat}-USD rate lookup failed for ${inputCurrency} input, ` +
+          `falling back to ${fallback.toString()} USD. Error: ${error instanceof Error ? error.message : error}`
+      );
+      return fallback;
     }
-  });
+  }
+
+  return usdFallbackFromContext(ctx);
+}
+
+function usdFallbackFromContext(ctx: QuoteContext): Big {
+  if (ctx.evmToEvm?.outputAmountDecimal) {
+    return ctx.evmToEvm.outputAmountDecimal;
+  }
+  return new Big(ctx.request.inputAmount);
 }
 
 /**
@@ -96,19 +165,19 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
     return new Big(0);
   }
 
-  const partnerState = partnerDiscountState.get(partner.id);
+  const partnerState = partnerDiscountState.get(partner.stateKey);
   const now = new Date();
 
   // Use partner's max caps if available, otherwise fall back to targetDiscount
   const maxCap = partner.maxDynamicDifference ?? 0;
 
   if (!partnerState) {
-    partnerDiscountState.set(partner.id, { difference: new Big(0), lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: new Big(0), lastQuoteTimestamp: now });
     return new Big(0);
   }
 
   if (!partnerState.lastQuoteTimestamp) {
-    partnerDiscountState.set(partner.id, { difference: partnerState.difference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: partnerState.difference, lastQuoteTimestamp: now });
     return partnerState.difference;
   }
 
@@ -117,7 +186,7 @@ export function getAdjustedDifference(partner?: ActivePartner): Big {
   if (!isYounger) {
     const updatedDifference = partnerState.difference.plus(getDeltaD());
     const clampedDifference = updatedDifference.gt(maxCap) ? Big(maxCap) : updatedDifference;
-    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: now });
+    partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: now });
     return clampedDifference;
   } else {
     // Return existing difference
@@ -129,7 +198,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
     return;
   }
 
-  const partnerState = partnerDiscountState.get(partner.id);
+  const partnerState = partnerDiscountState.get(partner.stateKey);
   const now = new Date();
 
   if (!partnerState || !partnerState.lastQuoteTimestamp) {
@@ -145,7 +214,7 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
 
     const updatedDifference = partnerState.difference.minus(getDeltaD());
     const clampedDifference = updatedDifference.lt(minCap) ? Big(minCap) : updatedDifference;
-    partnerDiscountState.set(partner.id, { difference: clampedDifference, lastQuoteTimestamp: null });
+    partnerDiscountState.set(partner.stateKey, { difference: clampedDifference, lastQuoteTimestamp: null });
   }
 }
 

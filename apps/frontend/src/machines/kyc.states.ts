@@ -1,17 +1,7 @@
-import { FiatToken, KycFailureReason } from "@vortexfi/shared";
+import { AlfredpayKycContext, AlfredpayKycOutput, type AveniaKycContext, KycStatus } from "@vortexfi/kyc";
+import { FiatToken } from "@vortexfi/shared";
 import { assign, DoneActorEvent, sendTo } from "xstate";
 import { ALFREDPAY_FIAT_TOKEN_TO_COUNTRY } from "../constants/fiatAccountMethods";
-import { KYCFormData } from "../hooks/brla/useKYCForm";
-import { KycStatus } from "../services/signingService";
-import {
-  AlfredpayKycFormData,
-  AlfredpayKycMachineError,
-  KybBusinessFiles,
-  KybFormData,
-  KybPersonFiles,
-  MxnKycFiles
-} from "./alfredpayKyc.machine";
-import { AveniaKycMachineError, UploadIds } from "./brlaKyc.machine";
 import { MykoboKycFiles, MykoboKycFormData, MykoboKycMachineError, MykoboKycMachineErrorType } from "./mykoboKyc.machine";
 import { RampContext } from "./types";
 
@@ -30,41 +20,6 @@ const KYC_CHILD_BY_FIAT: Record<FiatToken, KycChildId> = {
 // KYB deep-link flow it comes from the region the user picked (kybLink.fiatToken).
 const resolveKycFiatToken = (context: RampContext): FiatToken | undefined =>
   context.executionInput?.fiatToken ?? context.kybLink?.fiatToken;
-
-export interface AlfredpayKycContext extends RampContext {
-  verificationUrl?: string;
-  submissionId?: string;
-  country: string;
-  error?: AlfredpayKycMachineError;
-  business?: boolean;
-  mxnFormData?: AlfredpayKycFormData;
-  mxnFiles?: MxnKycFiles;
-  kybFormData?: KybFormData;
-  kybBusinessFiles?: KybBusinessFiles;
-  kybRelatedPersonFiles?: KybPersonFiles[];
-  kybRelatedPersonIndex?: number;
-  kybRelatedPersonIds?: string[];
-}
-
-export interface AveniaKycContext extends RampContext {
-  taxId: string;
-  subAccountId?: string;
-  kycFormData?: KYCFormData;
-  livenessCheckOpened?: boolean;
-  kycStatus?: KycStatus;
-  rejectReason?: KycFailureReason | string;
-  documentUploadIds?: UploadIds;
-  error?: AveniaKycMachineError;
-  isCompany?: boolean;
-  kybAttemptId?: string;
-  kybUrls?: {
-    authorizedRepresentativeUrl: string;
-    basicCompanyDataUrl: string;
-  };
-  kybStep?: "company" | "representative" | "verification";
-  companyVerificationStarted?: boolean;
-  representativeVerificationStarted?: boolean;
-}
 
 export interface MykoboKycContext extends RampContext {
   formData?: MykoboKycFormData;
@@ -116,23 +71,22 @@ export const kycStateNode = {
     Alfredpay: {
       invoke: {
         id: "alfredpayKyc",
+        // The shared machine takes no ramp state — only the corridor and the customer type.
         input: ({ context }: { context: RampContext }): AlfredpayKycContext => {
           const fiatToken = resolveKycFiatToken(context);
           const country = fiatToken ? (ALFREDPAY_FIAT_TOKEN_TO_COUNTRY[fiatToken] ?? "US") : "US";
           return {
-            ...context,
-            // A KYB deep link is business verification by definition; preselect the business customer type.
-            business: context.kybLink ? true : undefined,
+            business: context.kybLink ? context.kybLink.customerType === "business" : undefined,
             country
           };
         },
         onDone: [
           {
             actions: assign({
-              initializeFailedMessage: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) =>
+              initializeFailedMessage: ({ event }: { event: DoneActorEvent<AlfredpayKycOutput> }) =>
                 event.output.error?.message || "An unknown error occurred"
             }),
-            guard: ({ event }: { event: DoneActorEvent<AlfredpayKycContext> }) => !!event.output.error,
+            guard: ({ event }: { event: DoneActorEvent<AlfredpayKycOutput> }) => !!event.output.error,
             target: "#ramp.KycFailure"
           },
           {
@@ -164,7 +118,8 @@ export const kycStateNode = {
             actions: assign({
               kycFormData: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => event.output.kycFormData
             }),
-            guard: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) => !event.output.error,
+            guard: ({ event }: { event: DoneActorEvent<AveniaKycContext> }) =>
+              !event.output.error && event.output.kycStatus === KycStatus.APPROVED,
             target: "VerificationComplete"
           },
           {

@@ -1,6 +1,7 @@
 import { QuoteResponse } from "@vortexfi/shared";
 import { QuoteService } from "../services/api";
 import { AuthAPI } from "../services/api/auth.api";
+import { RecipientsService } from "../services/api/recipients.service";
 import { AuthService } from "../services/auth";
 import { RampContext, RampMachineEvents } from "./types";
 
@@ -99,6 +100,10 @@ export async function loadQuoteActor({ input }: { input: { quoteId: string } }) 
   }
 
   return { isExpired: new Date(quote.expiresAt) < new Date(), quote };
+}
+
+export async function acceptRecipientInviteActor({ input }: { input: { token: string } }) {
+  return RecipientsService.acceptInvite(input.token);
 }
 
 export async function cleanUrlActor(): Promise<void> {

@@ -1,6 +1,6 @@
 ---
 name: sentry-vortex
-description: Audit code against Vortex's Sentry conventions and guide correct error instrumentation. Triggers on: sentry, captureException, error reporting, error monitoring, beforeSend, ignoreErrors, adding an API service method, new error class, new XState machine error handling, ErrorBoundary, "is this reported to Sentry".
+description: "Scoped to apps/frontend (the React web app). Audit code against Vortex's Sentry conventions and guide correct error instrumentation. Triggers when working under apps/frontend on: sentry, captureException, error reporting, error monitoring, beforeSend, ignoreErrors, adding an API service method, new error class, new XState machine error handling, ErrorBoundary, \"is this reported to Sentry\"."
 user-invocable: true
 argument-hint: "[files or 'current changes' — defaults to the working-tree diff]"
 ---

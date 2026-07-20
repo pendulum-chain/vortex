@@ -4,7 +4,7 @@ import { Op } from "sequelize";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import RampState from "../../models/rampState.model";
-import TaxId from "../../models/taxId.model";
+import { findAveniaCustomerByTaxId } from "../services/avenia/avenia-customer.service";
 import { SlackNotifier } from "../services/slack.service";
 
 const DEFAULT_CRON_TIME = "*/15 * * * *";
@@ -154,14 +154,14 @@ class UnhandledPaymentWorker {
 
     for (const taxId in statesByTaxId) {
       try {
-        const taxIdRecord = await TaxId.findOne({ where: { taxId: normalizeTaxId(taxId) } });
-        if (!taxIdRecord) {
-          logger.warn(`No TaxId record found for taxId: ${taxId}. Skipping states.`);
+        const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+        if (!aveniaCustomer || !aveniaCustomer.providerSubaccountId) {
+          logger.warn(`No Avenia provider account found for taxId: ${taxId}. Skipping states.`);
           statesByTaxId[taxId].forEach(state => this.processedStateIds.add(state.id));
           continue;
         }
 
-        const { subAccountId } = taxIdRecord;
+        const subAccountId = aveniaCustomer.providerSubaccountId;
         const tickets = await this.brlaApiService.getAveniaPayinTickets(subAccountId);
         const aveniaTicketSet = new Set(tickets.filter(ticket => ticket.status === "PAID").map(ticket => ticket.id));
 

@@ -90,7 +90,8 @@ const WidgetContent = () => {
     isAuthOTP,
     isSelectRegion,
     isKybComplete,
-    isKybLinkMode
+    isKybLinkMode,
+    kybCustomerType
   } = useSelector(rampActor, state => ({
     isAuthEmail: state.matches("EnterEmail") || state.matches("CheckingEmail") || state.matches("RequestingOTP"),
     isAuthOTP: state.matches("EnterOTP") || state.matches("VerifyingOTP"),
@@ -98,9 +99,10 @@ const WidgetContent = () => {
     isInitialQuoteFailed: state.matches("InitialFetchFailed"),
     isKybComplete: state.matches("KybLinkComplete"),
     isKybLinkMode: !!state.context.kybLink,
-    isLoadingAuthEmail: state.matches("CheckAuth"),
+    isLoadingAuthEmail: state.matches("CheckAuth") || state.matches("RedeemingInvite"),
     isRedirectCallback: state.matches("RedirectCallback"),
     isSelectRegion: state.matches("SelectRegion"),
+    kybCustomerType: state.context.kybLink?.customerType,
     rampState: state.value
   }));
 
@@ -116,7 +118,13 @@ const WidgetContent = () => {
   }
 
   if (isKybComplete) {
-    return <DoneScreen kycOrKyb="KYB" onContinue={() => rampActor.send({ type: "RESET_RAMP" })} />;
+    // The invite's recipient type picks the wording: an invited individual completed KYC, not KYB.
+    return (
+      <DoneScreen
+        kycOrKyb={kybCustomerType === "individual" ? "KYC" : "KYB"}
+        onContinue={() => rampActor.send({ type: "RESET_RAMP" })}
+      />
+    );
   }
 
   if (isRedirectCallback) {
@@ -144,8 +152,7 @@ const WidgetContent = () => {
 
   if (aveniaKycActor) {
     const isCnpj = aveniaState?.context.taxId ? isValidCnpj(aveniaState.context.taxId) : false;
-    // A KYB deep link has no quote-supplied taxId yet, so route to the company (KYB) flow regardless of CNPJ.
-    const treatAsKyb = isCnpj || isKybLinkMode;
+    const treatAsKyb = isCnpj || (isKybLinkMode && kybCustomerType === "business");
 
     const isInKybFlow = treatAsKyb && isInCompoundState(aveniaState?.stateValue, "KYBFlow");
 

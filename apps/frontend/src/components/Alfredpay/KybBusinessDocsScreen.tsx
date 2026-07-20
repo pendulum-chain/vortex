@@ -1,10 +1,11 @@
+import {
+  KYC_FILE_ACCEPTED_TYPES as ACCEPTED_TYPES,
+  type KybBusinessFiles,
+  KYC_FILE_MAX_BYTES as MAX_FILE_SIZE
+} from "@vortexfi/kyc";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { KybBusinessFiles } from "../../machines/alfredpayKyc.machine";
 import { MenuButtons } from "../MenuButtons";
-
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 function FileDropZone({
   fieldKey,
@@ -65,24 +66,47 @@ function FileDropZone({
 }
 
 interface KybBusinessDocsScreenProps {
+  /** Answered on the questionnaire step; Alfredpay then also requires a licence and AML policy. */
+  isRegulatedBusiness?: boolean;
   onBack: () => void;
   onSubmit: (files: KybBusinessFiles) => void;
 }
 
-export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScreenProps) {
+export function KybBusinessDocsScreen({ isRegulatedBusiness, onBack, onSubmit }: KybBusinessDocsScreenProps) {
   const { t } = useTranslation();
   const [taxIdDocument, setTaxIdDocument] = useState<File | null>(null);
   const [articlesIncorporation, setArticlesIncorporation] = useState<File | null>(null);
   const [proofAddress, setProofAddress] = useState<File | null>(null);
+  const [shareholderRegistry, setShareholderRegistry] = useState<File | null>(null);
   const [docFront, setDocFront] = useState<File | null>(null);
   const [docBack, setDocBack] = useState<File | null>(null);
+  const [businessLicense, setBusinessLicense] = useState<File | null>(null);
+  const [uploadAmlPolicy, setUploadAmlPolicy] = useState<File | null>(null);
 
+  const regulatedComplete = !isRegulatedBusiness || (businessLicense !== null && uploadAmlPolicy !== null);
   const isValid =
-    taxIdDocument !== null && articlesIncorporation !== null && proofAddress !== null && docFront !== null && docBack !== null;
+    taxIdDocument !== null &&
+    articlesIncorporation !== null &&
+    proofAddress !== null &&
+    shareholderRegistry !== null &&
+    docFront !== null &&
+    docBack !== null &&
+    regulatedComplete;
 
   const handleSubmit = () => {
-    if (!taxIdDocument || !articlesIncorporation || !proofAddress || !docFront || !docBack) return;
-    onSubmit({ articlesIncorporation, docBack, docFront, proofAddress, taxIdDocument });
+    if (!taxIdDocument || !articlesIncorporation || !proofAddress || !shareholderRegistry || !docFront || !docBack) return;
+    if (!regulatedComplete) return;
+    onSubmit({
+      articlesIncorporation,
+      // Sent only on the regulated branch — Alfredpay rejects the submission without them there.
+      businessLicense: isRegulatedBusiness ? (businessLicense ?? undefined) : undefined,
+      docBack,
+      docFront,
+      proofAddress,
+      shareholderRegistry,
+      taxIdDocument,
+      uploadAmlPolicy: isRegulatedBusiness ? (uploadAmlPolicy ?? undefined) : undefined
+    });
   };
 
   return (
@@ -110,6 +134,28 @@ export function KybBusinessDocsScreen({ onBack, onSubmit }: KybBusinessDocsScree
           label={t("components.kybBusinessDocs.proofAddress")}
           onChange={setProofAddress}
         />
+        <FileDropZone
+          fieldKey="shareholderRegistry"
+          file={shareholderRegistry}
+          label={t("components.kybBusinessDocs.shareholderRegistry")}
+          onChange={setShareholderRegistry}
+        />
+        {isRegulatedBusiness && (
+          <>
+            <FileDropZone
+              fieldKey="businessLicense"
+              file={businessLicense}
+              label={t("components.kybBusinessDocs.businessLicense")}
+              onChange={setBusinessLicense}
+            />
+            <FileDropZone
+              fieldKey="uploadAmlPolicy"
+              file={uploadAmlPolicy}
+              label={t("components.kybBusinessDocs.amlPolicy")}
+              onChange={setUploadAmlPolicy}
+            />
+          </>
+        )}
         <FileDropZone
           fieldKey="relatedPersons.docFront"
           file={docFront}

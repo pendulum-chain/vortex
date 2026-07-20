@@ -58,7 +58,10 @@ export enum AlfredpayKycStatus {
   FAILED = "FAILED",
   IN_REVIEW = "IN_REVIEW",
   UPDATE_REQUIRED = "UPDATE_REQUIRED",
-  CREATED = "CREATED"
+  CREATED = "CREATED",
+  // Submission exists but was never finalized (or its data was invalid) — Alfredpay refuses a fresh
+  // POST while one is pending; it must be updated in place (PUT …/customers/kyb) and re-sent.
+  PENDING = "PENDING"
 }
 
 export type AlfredpayKybStatus = AlfredpayKycStatus;
@@ -209,6 +212,7 @@ export interface CreateAlfredpayOfframpRequest {
 }
 
 export enum AlfredpayOfframpStatus {
+  CREATED = "CREATED",
   ON_CHAIN_DEPOSIT_RECEIVED = "ON_CHAIN_DEPOSIT_RECEIVED",
   TRADE_COMPLETED = "TRADE_COMPLETED",
   FIAT_TRANSFER_INITIATED = "FIAT_TRANSFER_INITIATED",
@@ -362,15 +366,20 @@ const ALFREDPAY_FIAT_TOKEN_SET: ReadonlySet<RampCurrency> = new Set([
 
 export const isAlfredpayToken = (token: RampCurrency): token is FiatToken => ALFREDPAY_FIAT_TOKEN_SET.has(token);
 
-/** Raw shape returned by `GET …/configurations`. `typeCustomer: null` means the pair applies to both customer types. */
+/**
+ * Raw shape returned by `GET …/allConfigs`. `typeCustomer: null` means the pair applies
+ * to both customer types. The listing contains junk rows (observed live, 2026-07-14):
+ * `decimals` may be null or "", and `fromCurrency` may be null — consumers must skip
+ * rows without a digit-string `decimals` (the limits indexer does).
+ */
 export interface AlfredpayConfigPair {
   id: string;
-  fromCurrency: string;
+  fromCurrency: string | null;
   toCurrency: string;
   businessId: string | null;
   maxQuantity: string;
   minQuantity: string;
-  decimals: string;
+  decimals: string | null;
   typeCustomer: AlfredpayCustomerType | null;
   createdAt: string;
   updatedAt: string;
@@ -449,11 +458,17 @@ export enum AlfredpayArgentinaDocumentType {
   DNI = "DNI"
 }
 
-// KYB form submission types
+// KYB form submission types.
+// Alfredpay self-describes the per-country requirement set at GET …/penny/kybRequirements?country=
+// (MEX and MX both resolve); that endpoint is the source of truth for what `sendKybSubmission`
+// accepts. BUSINESS_LICENSE and AML_POLICY are demanded only when `isRegulatedBusiness` is true.
 export enum AlfredpayKybFileType {
   TAX_ID_DOCUMENT = "taxIdDocument",
   ARTICLES_INCORPORATION = "articlesIncorporation",
-  PROOF_ADDRESS = "proofAddress"
+  PROOF_ADDRESS = "proofAddress",
+  SHAREHOLDER_REGISTRY = "shareholderRegistry",
+  BUSINESS_LICENSE = "businessLicense",
+  AML_POLICY = "uploadAmlPolicy"
 }
 
 /** Penny relate-person upload: only docFront + docBack (URI fields are derived server-side). */
@@ -473,7 +488,34 @@ export interface AlfredpayKybRelatedPerson {
   pep?: boolean;
 }
 
-export interface SubmitKybInformationRequest {
+/**
+ * The compliance questionnaire Alfredpay requires before `sendKybSubmission` accepts a submission —
+ * omitting any of the required entries fails finalization with `110002 "Invalid field(s)"` naming
+ * exactly them. They are sent flat alongside the company fields; Alfredpay stores them nested under
+ * `questionnaire` in the KYB details response.
+ *
+ * Requiredness mirrors GET …/penny/kybRequirements?country= : the nine below are required for every
+ * corridor, and the two conditionals are demanded only once their trigger is true.
+ */
+export interface AlfredpayKybQuestionnaire {
+  /** Wallets interacting with Alfredpay, or "N/A" when the business is not on-chain. */
+  walletAddresses: string;
+  sourceOfFunds: string;
+  transmitsCustomerFunds: boolean;
+  /** Required by Alfredpay only when `transmitsCustomerFunds` is true. */
+  conductsComplianceScreening?: boolean;
+  /** Required by Alfredpay only when `conductsComplianceScreening` is true. */
+  complianceScreeningDescription?: string;
+  operatesInSanctionedCountries: boolean;
+  /** When true, Alfredpay additionally requires the businessLicense and uploadAmlPolicy documents. */
+  isRegulatedBusiness: boolean;
+  businessActivities: string;
+  accountPurpose: string;
+  expectedMonthlyVolumeUsd: number;
+  expectedMonthlyTransactions: number;
+}
+
+export interface SubmitKybInformationRequest extends AlfredpayKybQuestionnaire {
   businessName: string;
   taxId: string;
   country: string;

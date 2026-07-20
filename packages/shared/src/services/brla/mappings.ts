@@ -4,6 +4,7 @@ import {
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
+  AveniaKybAttemptStatusResponse,
   AveniaPayinTicket,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
@@ -12,7 +13,6 @@ import {
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
-  KybAttemptStatusResponse,
   KybLevel1Response,
   KycLevel1Payload,
   KycLevel1Response,
@@ -189,7 +189,7 @@ export interface EndpointMapping {
     };
     GET: {
       body: undefined;
-      response: KybAttemptStatusResponse;
+      response: AveniaKybAttemptStatusResponse;
     };
     PATCH: {
       body: undefined;

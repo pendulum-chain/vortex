@@ -29,10 +29,13 @@ const TEST_PHASE = "nablaSwap";
 describe("PhaseProcessor execution cancellation", () => {
   let polls = 0;
   const receivedSignals: (AbortSignal | undefined)[] = [];
+  const observedLockTimes: number[] = [];
 
   const hangingHandler: PhaseHandler = {
-    execute: async (_state: RampState, signal?: AbortSignal) => {
+    execute: async (state: RampState, signal?: AbortSignal) => {
       receivedSignals.push(signal);
+      const persistedState = await RampState.findByPk(state.id);
+      observedLockTimes.push(new Date(persistedState?.processingLock.lockedAt as unknown as string).getTime());
       // Poll forever, like a phase waiting for a payment that never arrives.
       await waitUntilTrue(
         async () => {
@@ -86,6 +89,8 @@ describe("PhaseProcessor execution cancellation", () => {
     expect(receivedSignals.length).toBeGreaterThanOrEqual(2);
     expect(receivedSignals.every(signal => signal instanceof AbortSignal)).toBe(true);
     expect(receivedSignals.every(signal => signal?.aborted)).toBe(true);
+    expect(observedLockTimes.length).toBe(receivedSignals.length);
+    expect(observedLockTimes.at(-1)).toBeGreaterThan(observedLockTimes[0]);
 
     // Regression: without cancellation the abandoned loops keep polling forever.
     const pollsAfterGivingUp = polls;

@@ -249,6 +249,7 @@
         },
         "taxId": {
           "cnpjFormat": "CNPJ inválido",
+          "cpfFormat": "CPF inválido",
           "format": "Tax Id inválido",
           "required": "Tax Id é obrigatório"
         }
@@ -522,7 +523,9 @@
       "tryAgain": "Tente novamente"
     },
     "kybBusinessDocs": {
+      "amlPolicy": "Política de PLD",
       "articlesIncorporation": "Contrato Social",
+      "businessLicense": "Licença Comercial",
       "docBack": "Documento de Identidade – Verso",
       "docFront": "Documento de Identidade – Frente",
       "proofAddress": "Comprovante de Endereço",
@@ -536,6 +539,7 @@
       "businessName": "Nome da Empresa",
       "nationality": "Nacionalidade (código de 2 letras)",
       "repDni": "Número do Documento (opcional)",
+      "repPep": "O representante é uma pessoa politicamente exposta",
       "representativeTitle": "Representante Autorizado",
       "subtitle": "Por favor, forneça as informações da sua empresa para concluir o KYB.",
       "taxId": "CNPJ / Identificação Fiscal",
@@ -546,6 +550,28 @@
       "submit": "Enviar Documentos",
       "subtitle": "Por favor, envie uma foto ou digitalização do documento de identidade do representante.",
       "title": "Documento do Representante ({{current}} de {{total}})"
+    },
+    "kybQuestionnaire": {
+      "accountPurpose": "Finalidade Principal da Conta",
+      "back": "Voltar",
+      "businessActivities": "Atividades da Empresa",
+      "complianceScreeningDescription": "Descreva a sua triagem de conformidade",
+      "conductsComplianceScreening": "Realizamos triagem de conformidade (KYC, KYB e PLD)",
+      "declarationsSubtitle": "Marque apenas o que se aplica à sua empresa.",
+      "declarationsTitle": "Declarações",
+      "expectedMonthlyTransactions": "Transações Mensais Esperadas",
+      "expectedMonthlyVolumeUsd": "Volume Mensal Esperado (USD)",
+      "isRegulatedBusiness": "Exercemos atividades reguladas",
+      "isRegulatedBusinessHint": "Adiciona dois documentos à próxima etapa.",
+      "operatesInSanctionedCountries": "Operamos em Cuba, Irã, Mianmar, Coreia do Norte ou Síria",
+      "sourceOfFunds": "Origem dos Recursos",
+      "sourceOfFundsHint": "A principal origem da receita da empresa ou dos recursos usados com a Alfredpay.",
+      "submit": "Continuar",
+      "subtitle": "A Alfredpay exige estas respostas antes de analisar a sua empresa.",
+      "title": "Questionário de Conformidade",
+      "transmitsCustomerFunds": "Transmitimos recursos em nome dos nossos clientes",
+      "walletAddresses": "Endereços de Carteira",
+      "walletAddressesHint": "Liste as carteiras que interagirão com a Alfredpay e a respectiva rede. Informe N/A se não houver transações on-chain."
     },
     "kycDoneScreen": {
       "accountVerified": "Sua conta foi verificada. Você pode prosseguir agora.",
@@ -690,6 +716,7 @@
       "label": "Região",
       "placeholder": "Selecione uma região",
       "regions": {
+        "AR": "Argentina",
         "BR": "Brasil",
         "CO": "Colômbia",
         "MX": "México",

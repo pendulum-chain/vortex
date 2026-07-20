@@ -11,8 +11,8 @@ export interface AuthenticatedPartner {
 
 /**
  * Validation result for a secret API key. `partner` may be null for user-scoped
- * keys (created via the self-serve API key endpoints) which may have no
- * `partner_name` binding; in that case the request authenticates purely as
+ * keys (created via the self-serve API key endpoints) which have no
+ * `partner_id` binding; in that case the request authenticates purely as
  * the linked user via `apiKeyUserId`.
  */
 export interface ValidatedSecretKey {
@@ -122,7 +122,24 @@ export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPub
       logger.error("Failed to update lastUsedAt for public key:", err);
     });
 
-    return { partnerName: keyRecord.partnerName };
+    // A partner-created key whose partner row was deleted (FK ON DELETE SET NULL) is
+    // revoked — it must not degrade into a partnerless public key.
+    if (!keyRecord.partnerId && keyRecord.partnerName) {
+      return null;
+    }
+
+    // Resolve the partner name through the FK; downstream quote resolution looks the
+    // partner up by its (unique) name and applies its own is-active filtering.
+    let partnerName: string | null = null;
+    if (keyRecord.partnerId) {
+      const partner = await Partner.findByPk(keyRecord.partnerId);
+      if (!partner) {
+        return null; // Partner row gone: treat the key as revoked.
+      }
+      partnerName = partner.name;
+    }
+
+    return { partnerName };
   } catch (error) {
     logger.error("Error validating public API key:", error);
     return null;
@@ -163,9 +180,16 @@ export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSec
           continue; // Key expired, try next
         }
 
-        // User-scoped keys (no partner_name) authenticate purely as the linked
+        // A partner-created key keeps partner_name even after its partner row is deleted
+        // (the FK is ON DELETE SET NULL). It must be rejected, not degraded into a
+        // user-scoped key — deleting a partner is key revocation.
+        if (!keyRecord.partnerId && keyRecord.partnerName) {
+          continue;
+        }
+
+        // User-scoped keys (no partner binding at all) authenticate purely as the linked
         // user; skip the Partner lookup so they remain usable without a partner row.
-        if (!keyRecord.partnerName) {
+        if (!keyRecord.partnerId) {
           if (!keyRecord.userId) {
             // Key has no partner and no user binding: unusable.
             continue;
@@ -183,16 +207,16 @@ export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSec
           };
         }
 
-        // Partner-scoped keys: find any active partner with this name
+        // Partner-scoped keys: resolve the partner through the FK
         const partner = await Partner.findOne({
           where: {
-            isActive: true,
-            name: keyRecord.partnerName
+            id: keyRecord.partnerId,
+            isActive: true
           }
         });
 
         if (!partner) {
-          continue; // No active partner with this name
+          continue; // Partner missing or inactive
         }
 
         // Update last used timestamp (async, don't wait)
@@ -200,7 +224,6 @@ export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSec
           logger.error("Failed to update lastUsedAt for secret key:", err);
         });
 
-        // Return partner info (from any partner with this name)
         return {
           apiKeyId: keyRecord.id,
           apiKeyUserId: keyRecord.userId,

@@ -11,8 +11,8 @@ import Big from "big.js";
 import logger from "../../../../config/logger";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
-import TaxId from "../../../../models/taxId.model";
 import { PhaseError } from "../../../errors/phase-error";
+import { findAveniaCustomerByTaxId } from "../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { StateMetadata } from "../meta-state-types";
 import { ensurePresignedTransferFunded } from "./helpers";
@@ -41,10 +41,11 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
     const outputAmount = quote.outputAmount;
     const outputCurrency = quote.outputCurrency;
 
-    const taxIdRecord = await TaxId.findByPk(taxId);
-    if (!taxIdRecord) {
+    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
+    if (!aveniaCustomer) {
       throw new Error("BrlaPayoutOnBasePhaseHandler: SubaccountId must exist at this stage. This is a bug.");
     }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
     if (!isFiatTokenEnum(outputCurrency)) {
       throw new Error("BrlaPayoutOnBasePhaseHandler: Invalid token type.");
@@ -60,7 +61,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
 
     // We need to check for existing ticket, recovery scenario
     if (payOutTicketId) {
-      await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      await this.checkTicketStatusPaid({ subAccountId: aveniaSubAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     }
 
@@ -75,7 +76,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
 
       while (Date.now() - startTime < timeout) {
         try {
-          const balanceResponse = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
+          const balanceResponse = await brlaApiService.getAccountBalance(aveniaSubAccountId);
           if (balanceResponse && balanceResponse.balances && balanceResponse.balances.BRLA !== undefined) {
             if (new Big(balanceResponse.balances.BRLA).gte(Big(amountForPayout).round(2, 0))) {
               // compare with rounded down amount.
@@ -107,7 +108,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
 
     try {
       const amount = new Big(outputAmount);
-      const subaccount = await brlaApiService.subaccountInfo(taxIdRecord.subAccountId);
+      const subaccount = await brlaApiService.subaccountInfo(aveniaSubAccountId);
       if (!subaccount) {
         throw new Error("BrlaPayoutOnBasePhaseHandler: Subaccount must exist.");
       }
@@ -117,7 +118,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
       const payOutQuote = await brlaApiService.createPayOutQuote({
         outputAmount: amountForQuote.toString(),
         outputThirdParty: false,
-        subAccountId: taxIdRecord.subAccountId
+        subAccountId: aveniaSubAccountId
       });
 
       const payOutTicketParams: PixOutputTicketPayload = {
@@ -129,7 +130,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
           pixKey: pixDestination
         }
       };
-      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, taxIdRecord.subAccountId);
+      const { id: payOutTicketId } = await brlaApiService.createPixOutputTicket(payOutTicketParams, aveniaSubAccountId);
       logger.debug("Debug: payOutTicketId", payOutTicketId);
       // Update the state with the transaction hashes
       await state.update({
@@ -139,7 +140,7 @@ export class BrlaPayoutOnBasePhaseHandler extends BasePhaseHandler {
         }
       });
 
-      await this.checkTicketStatusPaid({ subAccountId: taxIdRecord.subAccountId, ticketId: payOutTicketId });
+      await this.checkTicketStatusPaid({ subAccountId: aveniaSubAccountId, ticketId: payOutTicketId });
       return this.transitionToNextPhase(state, "complete");
     } catch (e) {
       logger.error("Error in brlaPayoutOnBase", e);

@@ -17,7 +17,12 @@ interface AveniaKYCContentProps {
 }
 
 const AveniaKYCFormStep = ({ aveniaKycActor, aveniaState, fields }: AveniaKYCContentProps) => {
-  const { kycForm } = useKYCForm({ cpfApiError: null, initialData: aveniaState.context.kycFormData });
+  const { kycForm } = useKYCForm({
+    cpfApiError: null,
+    initialData: aveniaState.context.kycFormData,
+    // Invite mode remains active after the submitted CPF is persisted in machine context.
+    kybLinkMode: Boolean(aveniaState.context.kybLink)
+  });
   return (
     <AveniaVerificationForm
       fields={fields}
@@ -62,7 +67,9 @@ export const AveniaKYCForm = () => {
 
   if (!aveniaState) return null;
   if (!aveniaKycActor) return null;
-  if (!aveniaState.context.taxId) {
+  // Quoted flow pre-supplies the CPF/CNPJ from the quote; the invite deep-link flow has no quote, so the
+  // CPF is entered on this form. Render whenever either source applies.
+  if (!aveniaState.context.taxId && !aveniaState.context.kybLink) {
     return null;
   }
 

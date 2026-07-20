@@ -1,0 +1,13 @@
+# Netlify config for the widget/marketing frontend site.
+#
+# Requires the Netlify site's "Base directory" to be set to `apps/frontend`.
+# CAUTION: once this file is on the deployed branch it overrides the build settings
+# configured in the Netlify UI — review it against the current UI configuration.
+#
+# Redirect rules live in `_redirects` (copied into dist by the build), not here.
+# The dashboard is a separate Netlify site (apps/dashboard/netlify.toml) served on its
+# own domain; this build does not include it.
+
+[build]
+  command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:sdk && bun run build:frontend"
+  publish = "dist"

@@ -246,6 +246,7 @@
         },
         "taxId": {
           "cnpjFormat": "Invalid CNPJ format",
+          "cpfFormat": "Invalid CPF format",
           "format": "Invalid Tax ID format",
           "required": "Tax ID is required"
         }
@@ -519,10 +520,13 @@
       "tryAgain": "Try Again"
     },
     "kybBusinessDocs": {
+      "amlPolicy": "AML Policy",
       "articlesIncorporation": "Articles of Incorporation",
+      "businessLicense": "Business Licence",
       "docBack": "ID Document – Back",
       "docFront": "ID Document – Front",
       "proofAddress": "Proof of Address",
+      "shareholderRegistry": "Shareholder Registry",
       "submit": "Submit Documents",
       "subtitle": "Please upload the required business documents. Max 5 MB per file (JPG, PNG, PDF).",
       "taxIdDocument": "Tax ID Document",
@@ -532,6 +536,7 @@
       "businessName": "Business Name",
       "nationality": "Nationality (2-letter code)",
       "repDni": "Document Number (optional)",
+      "repPep": "The representative is a politically exposed person",
       "representativeTitle": "Authorized Representative",
       "subtitle": "Please provide your business information to complete KYB.",
       "taxId": "Tax ID",
@@ -542,6 +547,28 @@
       "submit": "Submit Documents",
       "subtitle": "Please upload a photo or scan of the representative's ID document.",
       "title": "Representative ID ({{current}} of {{total}})"
+    },
+    "kybQuestionnaire": {
+      "accountPurpose": "Primary Account Purpose",
+      "back": "Back",
+      "businessActivities": "Business Activities",
+      "complianceScreeningDescription": "Describe your compliance screening",
+      "conductsComplianceScreening": "We conduct compliance screening (KYC, KYB and AML)",
+      "declarationsSubtitle": "Tick only what applies to your business.",
+      "declarationsTitle": "Declarations",
+      "expectedMonthlyTransactions": "Expected Monthly Transactions",
+      "expectedMonthlyVolumeUsd": "Expected Monthly Volume (USD)",
+      "isRegulatedBusiness": "We perform regulated activities",
+      "isRegulatedBusinessHint": "Adds two documents to the next step.",
+      "operatesInSanctionedCountries": "We operate in Cuba, Iran, Myanmar, North Korea or Syria",
+      "sourceOfFunds": "Source of Funds",
+      "sourceOfFundsHint": "The primary source of your company's revenue or the funds used with Alfredpay.",
+      "submit": "Continue",
+      "subtitle": "Alfredpay requires these answers before it can review your business.",
+      "title": "Compliance Questionnaire",
+      "transmitsCustomerFunds": "We transmit funds on behalf of our customers",
+      "walletAddresses": "Wallet Addresses",
+      "walletAddressesHint": "List the wallets that will interact with Alfredpay and their chain. Enter N/A if you will not transact on-chain."
     },
     "kycDoneScreen": {
       "accountVerified": "Your account has been verified. You can now proceed.",
@@ -686,6 +713,7 @@
       "label": "Region",
       "placeholder": "Select a region",
       "regions": {
+        "AR": "Argentina",
         "BR": "Brazil",
         "CO": "Colombia",
         "MX": "Mexico",

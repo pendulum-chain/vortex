@@ -14,9 +14,8 @@ import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
-import Partner from "../../models/partner.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestTaxId, createTestUser } from "../../test-utils/factories";
+import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -103,10 +102,7 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     await resetTestDatabase();
     // The EVM fee distribution transaction builder requires the vortex
     // partner's EVM payout address even when the resulting fees are zero.
-    await Partner.update(
-      { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" },
-      { where: { name: "vortex", rampType: RampDirection.SELL } }
-    );
+    await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.brla.onPixOutputTicket = undefined;
@@ -394,6 +390,64 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
     },
     60000
+  );
+
+  it(
+    "pre-existing allowance: the ramp completes when only the swap hash is reported (no approve hash)",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The user's wallet already held a sufficient allowance for the squid
+      // router, so no approve tx was submitted — only the swap hash arrives.
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+    },
+    30000
+  );
+
+  it(
+    "security: a reported approve hash whose calldata differs from the blueprint still fails the ramp",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The approve hash is optional, but when one IS reported it must still
+      // match the blueprint — relaxing the presence check must not disable
+      // content verification.
+      const approveTxData = setup.approveBlueprint.txData as unknown as { to: `0x${string}`; value?: string };
+      const tamperedHash = world.evm.broadcastUserTransaction(Networks.Polygon, setup.userWallet.address, {
+        data: "0xdeadbeef",
+        to: approveTxData.to,
+        value: BigInt(approveTxData.value ?? "0")
+      });
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterApproveHash: tamperedHash, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("calldata does not match"))).toBe(true);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
+    },
+    30000
   );
 
   it(

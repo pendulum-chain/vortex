@@ -124,16 +124,23 @@ export class FundEphemeralPhaseHandler extends BasePhaseHandler {
       return;
     }
 
-    const hasSquidApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterApprove");
-    if (!hasSquidApproveBlueprint) return;
+    const hasSquidSwapBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterSwap");
+    if (!hasSquidSwapBlueprint) return;
 
-    await verifyUserSubmittedTxByHash({
-      fromNetwork,
-      hash: state.state.squidRouterApproveHash as `0x${string}` | undefined,
-      label: "User squidRouter approve",
-      presignedPhase: "squidRouterApprove",
-      state
-    });
+    // The approve hash is optional: users whose wallet already holds a sufficient allowance
+    // for the squid router skip the approve tx entirely and only broadcast the swap. When a
+    // hash IS reported we still verify it against the blueprint; the swap hash — the tx that
+    // actually delivers tokens to our ephemeral — is always required.
+    const approveHash = state.state.squidRouterApproveHash as `0x${string}` | undefined;
+    if (approveHash) {
+      await verifyUserSubmittedTxByHash({
+        fromNetwork,
+        hash: approveHash,
+        label: "User squidRouter approve",
+        presignedPhase: "squidRouterApprove",
+        state
+      });
+    }
     await verifyUserSubmittedTxByHash({
       fromNetwork,
       hash: state.state.squidRouterSwapHash as `0x${string}` | undefined,

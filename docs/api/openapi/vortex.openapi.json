@@ -49,7 +49,7 @@
           },
           "type": {
             "description": "The type of the account.",
-            "enum": ["EVM", "Stellar", "Substrate"],
+            "enum": ["EVM", "Substrate"],
             "type": "string"
           }
         },
@@ -1100,7 +1100,7 @@
         "properties": {
           "additionalData": {
             "additionalProperties": true,
-            "description": "Optional additional data for the ramp process.\n\nFor Stellar offramps, paymentData is required.\n\nFor Brazil onramps, destinationAddress and taxId  arerequired.\n\nFor Brazil offramps, pixDestination, taxId and receiverTaxId are required.",
+            "description": "Optional additional data for the ramp process.\n\nFor Brazil onramps, destinationAddress is required.\n\nFor Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.",
             "properties": {
               "destinationAddress": {
                 "description": "Destination address, used for onramp.",
@@ -1139,7 +1139,7 @@
             "type": "string"
           },
           "signingAccounts": {
-            "description": "Array of accounts that will be used for signing transactions.\n\nFor Stellar offramps, Stellar and Pendulum ephemerals are required.\nFor Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.\n",
+            "description": "Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account.\n",
             "items": {
               "properties": {
                 "address": {
@@ -1148,7 +1148,7 @@
                 },
                 "type": {
                   "description": "The type of the account.",
-                  "enum": ["EVM", "Stellar", "Substrate"],
+                  "enum": ["EVM", "Substrate"],
                   "type": "string"
                 }
               },
@@ -1272,7 +1272,7 @@
                 "type": "string"
               },
               "squidRouterApproveHash": {
-                "description": "Transaction hash for Squid Router approval, if applicable.",
+                "description": "Transaction hash for Squid Router approval. Optional: omit when the wallet already holds a sufficient allowance and no approval transaction was submitted.",
                 "type": ["string", "null"]
               },
               "squidRouterSwapHash": {
@@ -3110,7 +3110,7 @@
                 "properties": {
                   "additionalData": {
                     "additionalProperties": true,
-                    "description": "Optional additional data for the ramp process.\n\nFor Stellar offramps, paymentData is required.\n\nFor Brazil onramps, destinationAddress and taxId  arerequired.\n\nFor Brazil offramps, pixDestination, taxId and receiverTaxId are required.",
+                    "description": "Optional additional data for the ramp process.\n\nFor Brazil onramps, destinationAddress is required.\n\nFor Brazil offramps, pixDestination is required. The user's taxId is derived from the authenticated account; receiverTaxId is optional and defaults to the user's own tax ID.",
                     "properties": {
                       "destinationAddress": {
                         "description": "Destination address, used for onramp.",
@@ -3152,7 +3152,7 @@
                     "type": "string"
                   },
                   "signingAccounts": {
-                    "description": "Array of accounts that will be used for signing transactions.\n\nFor Stellar offramps, Stellar and Pendulum ephemerals are required.\nFor Brazil on/off ramps, Moonbeam and Pendulum ephemerals are required.\n",
+                    "description": "Array of accounts (public addresses) that will be used for signing transactions. Provide one Substrate ephemeral (Pendulum) and one EVM ephemeral; all EVM legs, including Moonbeam, use the EVM account.\n",
                     "items": {
                       "properties": {
                         "address": {
@@ -3161,7 +3161,7 @@
                         },
                         "type": {
                           "description": "The type of the account.",
-                          "enum": ["EVM", "Stellar", "Substrate"],
+                          "enum": ["EVM", "Substrate"],
                           "type": "string"
                         }
                       },
@@ -3625,7 +3625,7 @@
     "/v1/ramp/update": {
       "post": {
         "deprecated": false,
-        "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterApproveHash` and  `squidRouterSwapHash` must be provided. \n\nFor onramps, no additional data is required after registering the ramp.",
+        "description": "Submits presigned transactions and additional data to an existing ramp process before starting it. \nThis endpoint can be called many times, and data can be incrementally added to the ramp. \n\nNote: For both pre-signed transactions and the generic `additionalData` object, existing properties will be overriden by new values.\n\n### Required data for ramps.\nThe signed counterpart of the initial unsignedTxs object must be provided for all ramps, as required by the object.\nFor offramps, the `additionalData` field must contain the confirmation hash corresponding to the inital transaction in which the user sends the funds.  \nIf the originating chain is `Assethub`, then `assetHubToPendulumHash` must be provided. \nIf the originating chain is any `EVM` chain, then `squidRouterSwapHash` must be provided. `squidRouterApproveHash` is only required when an approval transaction was actually submitted; if the wallet already holds a sufficient allowance for the router, it can be omitted. \n\nFor onramps, no additional data is required after registering the ramp.",
         "operationId": "updateRamp",
         "parameters": [],
         "requestBody": {

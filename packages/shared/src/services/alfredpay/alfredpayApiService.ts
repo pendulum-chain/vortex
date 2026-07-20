@@ -52,6 +52,48 @@ export class AlfredpayApiError extends ProviderHttpError {
   }
 }
 
+// A hung provider call must not stall callers — the dashboard's onboarding status poll awaits
+// these requests inline.
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Alfredpay's relate-person upload rejects any non-ASCII byte in the multipart filename with a
+ * bare 5xx `{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}`. Verified against the sandbox:
+ * `ñandú.png` and `acentuación.png` fail while `with space.png`, `parens(1).png` and
+ * `IMG_1234.png` pass, on the very customer and related person a production upload failed for.
+ *
+ * The filename we send is throwaway — Alfredpay stores every upload under a generated
+ * `{uuid}.{ext}` — but it reaches users, who name documents in their own language
+ * ("Identificación oficial.png"). So transliterate accents, replace anything else outside
+ * `[A-Za-z0-9._-]`, and keep the extension. Applied to all three uploads: only relate-person is
+ * known to reject these, and the company-document endpoint next door accepts them, but a name
+ * that is discarded on arrival is not worth a per-endpoint carve-out.
+ */
+export function toAsciiFileName(name: string): string {
+  const withoutAccents = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const ascii = withoutAccents.replace(/[^A-Za-z0-9._-]/g, "_");
+  // A name that was entirely non-ASCII collapses to underscores; give the provider something.
+  return /[A-Za-z0-9]/.test(ascii) ? ascii : `upload${ascii}`;
+}
+
+/**
+ * Rebuild the upload under an ASCII name, copying the bytes out first.
+ *
+ * The copy is load-bearing, and neither shorter spelling works under Bun: `new File([file], name)`
+ * and `new Blob([file])` alias a single Blob part rather than copying it, so the result stays the
+ * original File and keeps its name, and `formData.append(field, file, name)` then ignores its
+ * filename argument because the value is a File. Every one of those silently sends the original
+ * name — alfredpayApiService.test.ts asserts the name that actually reaches the wire, so it fails
+ * if this is "simplified" back into any of them.
+ *
+ * The uploads are typed Blob, which carries no name; only the File the controllers build from the
+ * multipart request does.
+ */
+async function asAsciiNamedUpload(file: Blob): Promise<File> {
+  const name = file instanceof File ? toAsciiFileName(file.name) : "upload";
+  return new File([await file.arrayBuffer()], name, { type: file.type });
+}
+
 export class AlfredpayApiService {
   private static instance: AlfredpayApiService;
 
@@ -99,7 +141,8 @@ export class AlfredpayApiService {
 
     const options: RequestInit = {
       headers,
-      method
+      method,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     };
 
     if (payload !== undefined) {
@@ -136,9 +179,11 @@ export class AlfredpayApiService {
             logger.current.warn(
               `Alfredpay trade limit hit: minQuantity=${minQuantity} maxQuantity=${maxQuantity} fromCurrency=${fromCurrency}`
             );
+            // The wire carries the quantities as JSON numbers (see alfredpayLimitErrorBodySchema);
+            // the error exposes them as strings.
             throw maxQuantity !== undefined
-              ? AlfredpayTradeLimitError.above(maxQuantity, fromCurrency)
-              : AlfredpayTradeLimitError.below(minQuantity, fromCurrency);
+              ? AlfredpayTradeLimitError.above(String(maxQuantity), fromCurrency)
+              : AlfredpayTradeLimitError.below(String(minQuantity), fromCurrency);
           }
         } catch (parseError) {
           if (parseError instanceof AlfredpayTradeLimitError) {
@@ -182,9 +227,11 @@ export class AlfredpayApiService {
   /**
    * Fetch all supported trading pairs and their per-pair / per-customer-type quantity limits.
    * Docs: https://alfredpay.readme.io/v2.0/reference/configurationscontroller_getallconfigs-3
+   * Alfredpay renamed the route: the former /configurations path now returns
+   * 400 errorCode 111301 (caught by the nightly contract suite, 2026-07-14).
    */
   public async getAllConfigs(): Promise<GetAllConfigsResponse> {
-    const path = "/api/v1/third-party-service/penny/configurations";
+    const path = "/api/v1/third-party-service/penny/allConfigs";
     return (await this.executeRequest<GetAllConfigsResponse>(path, "GET")) ?? { supportedPairs: [] };
   }
 
@@ -314,7 +361,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("fileBody", file);
+    formData.append("fileBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyc/${submissionId}/files`;
@@ -347,6 +394,20 @@ export class AlfredpayApiService {
   }
 
   /**
+   * Alfredpay: PUT …/customers/kyb — updates an existing (e.g. PENDING) KYB submission in place.
+   * Alfredpay rejects a fresh POST while a submission is pending, so retries must go through here.
+   * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_updatekyb-3
+   */
+  public async updateKybInformation(
+    customerId: string,
+    submissionId: string,
+    data: SubmitKybInformationRequest
+  ): Promise<void> {
+    const path = "/api/v1/third-party-service/penny/customers/kyb";
+    await this.executeRequest(path, "PUT", { customerId, kybUpdateSubmission: data, submissionId });
+  }
+
+  /**
    * Alfredpay: GET …/customers/{customerId}/kyb/details — returns the relate-person ids needed for KYB file uploads.
    * Docs: https://alfredpay.readme.io/v2.0/reference/kybcontroller_findcustomerandbusiness-1
    */
@@ -362,7 +423,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("rawBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${submissionId}/files`;
@@ -393,7 +454,7 @@ export class AlfredpayApiService {
     file: Blob
   ): Promise<void> {
     const formData = new FormData();
-    formData.append("rawBody", file);
+    formData.append("rawBody", await asAsciiNamedUpload(file));
     formData.append("fileType", fileType);
 
     const url = `${ALFREDPAY_BASE_URL}/api/v1/third-party-service/penny/customers/${customerId}/kyb/${relatedPersonId}/files/relate-person`;

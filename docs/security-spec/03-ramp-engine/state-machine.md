@@ -20,7 +20,7 @@ The processor uses a dual-lock approach:
 - **In-memory lock**: `lockedRamps` Set — prevents the same Node.js process from double-processing
 - **Database lock**: `processingLock` JSON field on `RampState` — persists lock state across restarts and (in theory) across multiple API instances
 
-Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's considered stale and can be force-released.
+Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's considered stale and can be force-released. The processor refreshes `lockedAt` before every phase attempt, including retries and recursive advancement, so active work does not expire merely because the complete ramp chain runs longer than 15 minutes.
 
 ## Security Invariants
 
@@ -34,6 +34,8 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 8. **The retry counter MUST be reset on successful phase advancement** — When the phase changes, `retriesMap.delete(state.id)` clears the counter, giving the next phase a fresh retry budget.
 9. **Error logs MUST be appended, never overwritten** — Each error is pushed to the `errorLogs` array with timestamp, phase, recoverability flag, and stack trace.
 10. **Phase handlers MUST NOT directly mutate the database** — Only the processor should call `state.update()` for phase transitions. Handlers return a pending state object.
+11. **A user MUST have at most one nonterminal ramp** — Registration locks the authenticated user's `profiles` row and checks `ramp_states` inside the same transaction. A second ramp is rejected with `409` until the existing ramp reaches `complete`, `failed`, or `timedOut`. An `initial` ramp older than the 15-minute start window is changed to `timedOut` before this check so an abandoned registration cannot block the user indefinitely.
+12. **`squidRouterPay` polling MUST finish before the processor timeout** — Both the bridge-status loop and destination-balance check use a timeout equal to 80% of `PHASE_PROCESSOR_MAX_EXECUTION_TIME_MS`. If neither detects settlement in time, `Promise.any()` receives two rejected checks and the handler raises a recoverable phase error before the processor's outer timeout.
 
 ## Threat Vectors & Mitigations
 
@@ -62,5 +64,8 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 - [x] No phase handler directly calls `RampState.update()` for `currentPhase` — only the processor does this
 - [x] The `lockedRamps` Set is cleaned up in the `finally` block (`this.lockedRamps.delete(state.id)`)
 - [x] Lock expiry handles edge cases: missing timestamp → expired, invalid date → expired, NaN → expired
+- [x] The database lock timestamp is refreshed before every phase attempt, so a 10-minute attempt plus retry cannot age a live lock past the 15-minute expiry
+- [x] `squidRouterPay` bounds both bridge-status and destination-balance polling at 80% of the processor timeout
+- [ ] Lock refresh/release are not owner-fenced; a surviving stale processor can still overwrite a replacement owner's lock timestamp (F-003 follow-up)
 - [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no production file creates `new PhaseProcessor()` (tests instantiate the class directly)
 - [EXISTING FINDING] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.

@@ -10,6 +10,7 @@ export * from "./price.endpoints";
 export * from "./quote.endpoints";
 export * from "./ramp.endpoints";
 export * from "./rating.endpoints";
+export * from "./recipient.endpoints";
 export * from "./session";
 export * from "./siwe.endpoints";
 export * from "./storage.endpoints";

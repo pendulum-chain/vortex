@@ -345,7 +345,7 @@ All three parameters confirmed.
 Only derived public keys and addresses exposed. Error messages are generic.
 
 #### 11. `[PASS]` Missing mandatory keys → startup failure
-`validateRequiredEnvVars()` checks `FUNDING_SECRET`, `PENDULUM_FUNDING_SEED`, `MOONBEAM_EXECUTOR_PRIVATE_KEY`, `CLIENT_DOMAIN_SECRET`. Missing → `process.exit(1)`.
+`validateRequiredEnvVars()` checks `PENDULUM_FUNDING_SEED` and `MOONBEAM_EXECUTOR_PRIVATE_KEY`. Missing → `process.exit(1)`.
 
 #### 12. `[N/A]` Funding/executor accounts hold minimal balances
 Operational check — cannot verify from code.
