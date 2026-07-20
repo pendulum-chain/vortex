@@ -393,6 +393,64 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
   );
 
   it(
+    "pre-existing allowance: the ramp completes when only the swap hash is reported (no approve hash)",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The user's wallet already held a sufficient allowance for the squid
+      // router, so no approve tx was submitted — only the swap hash arrives.
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+    },
+    30000
+  );
+
+  it(
+    "security: a reported approve hash whose calldata differs from the blueprint still fails the ramp",
+    async () => {
+      const setup = await setUpRegisteredRamp({ reportHashes: false });
+      scriptHappyWorld(setup);
+
+      // The approve hash is optional, but when one IS reported it must still
+      // match the blueprint — relaxing the presence check must not disable
+      // content verification.
+      const approveTxData = setup.approveBlueprint.txData as unknown as { to: `0x${string}`; value?: string };
+      const tamperedHash = world.evm.broadcastUserTransaction(Networks.Polygon, setup.userWallet.address, {
+        data: "0xdeadbeef",
+        to: approveTxData.to,
+        value: BigInt(approveTxData.value ?? "0")
+      });
+      const rampState = await RampState.findByPk(setup.rampId);
+      await rampState?.update({
+        state: { ...rampState?.state, squidRouterApproveHash: tamperedHash, squidRouterSwapHash: setup.swapHash }
+      });
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
+      expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
+      expect(final?.errorLogs.some(log => log.error.includes("calldata does not match"))).toBe(true);
+      expect(submissionsOf(setup.signedNablaSwap)).toBe(0);
+      expect(submissionsOf(setup.signedPayout)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
+    },
+    30000
+  );
+
+  it(
     "security regression (F-021 class): a reported swap hash whose calldata differs from the blueprint fails the ramp",
     async () => {
       const setup = await setUpRegisteredRamp({ reportHashes: false });
