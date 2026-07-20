@@ -553,6 +553,7 @@
     },
     "kybQuestionnaire": {
       "accountPurpose": "Finalidade Principal da Conta",
+      "back": "Voltar",
       "businessActivities": "Atividades da Empresa",
       "complianceScreeningDescription": "Descreva a sua triagem de conformidade",
       "conductsComplianceScreening": "Realizamos triagem de conformidade (KYC, KYB e PLD)",

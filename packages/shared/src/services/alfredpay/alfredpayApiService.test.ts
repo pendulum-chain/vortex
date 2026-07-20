@@ -42,7 +42,7 @@ describe("toAsciiFileName", () => {
 });
 
 /**
- * The regression these guard: Alfredpay's relate-person upload 500s with
+ * The regression these guard: Alfredpay's relate-person upload returns a 5xx with
  * `{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}` when the multipart filename carries a
  * non-ASCII byte, so the name that goes on the wire must be sanitized — not just sanitizable.
  * Drop the third `append` argument and these fail while `toAsciiFileName`'s own tests still pass.

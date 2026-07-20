@@ -58,7 +58,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Alfredpay's relate-person upload rejects any non-ASCII byte in the multipart filename with a
- * bare 500 `{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}`. Verified against the sandbox:
+ * bare 5xx `{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}`. Verified against the sandbox:
  * `ñandú.png` and `acentuación.png` fail while `with space.png`, `parens(1).png` and
  * `IMG_1234.png` pass, on the very customer and related person a production upload failed for.
  *

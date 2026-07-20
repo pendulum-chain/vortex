@@ -213,7 +213,7 @@ export function KybQuestionnaireScreen({ defaults, onBack, onSubmit }: KybQuesti
           {t("components.kybQuestionnaire.submit")}
         </button>
         <button className="btn btn-vortex-accent w-full" onClick={onBack} type="button">
-          {t("components.alfredpayKycFlow.cancel")}
+          {t("components.kybQuestionnaire.back")}
         </button>
       </form>
     </div>

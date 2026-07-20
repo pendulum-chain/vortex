@@ -550,6 +550,7 @@
     },
     "kybQuestionnaire": {
       "accountPurpose": "Primary Account Purpose",
+      "back": "Back",
       "businessActivities": "Business Activities",
       "complianceScreeningDescription": "Describe your compliance screening",
       "conductsComplianceScreening": "We conduct compliance screening (KYC, KYB and AML)",
