@@ -13,12 +13,17 @@ import { apiClient } from "./api-client";
  */
 export const AlfredpayService: AlfredpayKycApi & {
   addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse>;
+  deleteFiatAccount(fiatAccountId: string, country: string): Promise<void>;
   listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse>;
 } = {
   ...createAlfredpayKycApi(apiClient),
 
   addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse> {
     return apiClient.post<AlfredpayAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload);
+  },
+
+  async deleteFiatAccount(fiatAccountId: string, country: string): Promise<void> {
+    await apiClient.delete(`/alfredpay/fiatAccounts/${fiatAccountId}`, { params: { country } });
   },
 
   /**

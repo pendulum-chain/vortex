@@ -24,3 +24,11 @@ export function useAddFiatAccount(corridorId: CorridorId) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: fiatAccountsQueryKey(corridorId) })
   });
 }
+
+export function useDeleteFiatAccount(corridorId: CorridorId) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fiatAccountId: string) => AlfredpayService.deleteFiatAccount(fiatAccountId, corridorId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: fiatAccountsQueryKey(corridorId) })
+  });
+}

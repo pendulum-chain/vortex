@@ -366,6 +366,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
   const archiveInvitationRequests: Array<Record<string, unknown>> = [];
   const fiatAccountRequests: Array<Record<string, unknown>> = [];
+  const fiatAccountDeleteRequests: Array<{ country: string | null; fiatAccountId: string }> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
@@ -681,6 +682,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson({ fiatAccountId }, 201);
       return;
     }
+    if (path.startsWith("/v1/alfredpay/fiatAccounts/") && method === "DELETE") {
+      const fiatAccountId = path.split("/").at(-1) ?? "";
+      fiatAccountDeleteRequests.push({ country: url.searchParams.get("country"), fiatAccountId });
+      const accountIndex = fiatAccounts.findIndex(account => account.fiatAccountId === fiatAccountId);
+      if (accountIndex !== -1) fiatAccounts.splice(accountIndex, 1);
+      await route.fulfill({ status: 204 });
+      return;
+    }
     // Third-party recipients: seeded pending invitations only, so the auto-selected
     // self-recipient stays selected in transfer specs.
     if (path === "/v1/recipients" && method === "GET") {
@@ -892,6 +901,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     auth,
     avenia,
     brlaCreateSubaccountRequests,
+    fiatAccountDeleteRequests,
     fiatAccountRequests,
     kybFileTypes,
     kybFormSubmissions,

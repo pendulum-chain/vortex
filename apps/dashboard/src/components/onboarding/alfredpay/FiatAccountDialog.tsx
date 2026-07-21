@@ -1,6 +1,7 @@
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import type { AlfredpayFiatAccount } from "@vortexfi/shared";
-import { ArrowLeft, Landmark, Plus } from "lucide-react";
+import { ArrowLeft, Landmark, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   fiatAccountDefaultValues,
   toAddFiatAccountRequest
 } from "@/domain/fiatAccounts";
-import { useAddFiatAccount } from "@/hooks/useFiatAccounts";
+import { useAddFiatAccount, useDeleteFiatAccount } from "@/hooks/useFiatAccounts";
 import { isApiError } from "@/services/api/api-client";
 
 export type FiatAccountDialogView = "form" | "list";
@@ -32,6 +33,8 @@ interface FiatAccountDialogProps {
 export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewChange, open, view }: FiatAccountDialogProps) {
   const config = FIAT_ACCOUNT_CONFIG[corridorId];
   const addFiatAccount = useAddFiatAccount(corridorId);
+  const deleteFiatAccount = useDeleteFiatAccount(corridorId);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const form = useForm<Record<string, string>>({
     defaultValues: fiatAccountDefaultValues(corridorId),
     resolver: standardSchemaResolver(buildFiatAccountSchema(corridorId))
@@ -42,6 +45,23 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
     if (!next) {
       form.reset(fiatAccountDefaultValues(corridorId));
       addFiatAccount.reset();
+      deleteFiatAccount.reset();
+      setConfirmingDeleteId(null);
+    }
+  }
+
+  async function handleDelete(fiatAccountId: string) {
+    if (confirmingDeleteId !== fiatAccountId) {
+      setConfirmingDeleteId(fiatAccountId);
+      return;
+    }
+
+    try {
+      await deleteFiatAccount.mutateAsync(fiatAccountId);
+      setConfirmingDeleteId(null);
+      toast.success("Payout account removed");
+    } catch (error) {
+      toast.error("Could not remove payout account", { description: error instanceof Error ? error.message : undefined });
     }
   }
 
@@ -83,12 +103,27 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
                     <Landmark className="size-4" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-sm">
                       {account.accountName || "Payout account"} · ••••{account.accountNumber.slice(-4)}
                     </p>
                     <p className="text-muted-foreground text-xs">{config.methodLabel}</p>
                   </div>
+                  <Button
+                    aria-label={
+                      confirmingDeleteId === account.fiatAccountId
+                        ? `Confirm removal of account ending in ${account.accountNumber.slice(-4)}`
+                        : `Remove account ending in ${account.accountNumber.slice(-4)}`
+                    }
+                    disabled={deleteFiatAccount.isPending}
+                    onClick={() => handleDelete(account.fiatAccountId)}
+                    size={confirmingDeleteId === account.fiatAccountId ? "sm" : "icon"}
+                    type="button"
+                    variant="destructive"
+                  >
+                    <Trash2 />
+                    {confirmingDeleteId === account.fiatAccountId && (deleteFiatAccount.isPending ? "Removing…" : "Remove?")}
+                  </Button>
                 </li>
               ))}
             </ul>

@@ -42,3 +42,38 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
+
+test("an approved AlfredPay corridor removes a payout account after confirmation", async ({ page }) => {
+  const backend = await mockBackend(page, {
+    fiatAccounts: [
+      {
+        accountName: "Vortex E2E CLABE",
+        accountNumber: "646180157000000004",
+        country: "MX",
+        fiatAccountId: "fiat-account-to-delete",
+        type: "SPEI"
+      }
+    ]
+  });
+  await seedSession(page);
+  await page.goto("/overview");
+
+  const card = page.getByTestId("corridor-card-MX");
+  await card.getByRole("button", { name: "View payout accounts" }).click();
+  const dialog = page.getByRole("dialog");
+  const remove = dialog.getByRole("button", { name: "Remove account ending in 0004" });
+  await remove.click();
+
+  const confirm = dialog.getByRole("button", { name: "Confirm removal of account ending in 0004" });
+  await expect(confirm).toBeVisible();
+  expect(backend.fiatAccountDeleteRequests).toEqual([]);
+  await confirm.click();
+
+  await expect(dialog.getByText("Vortex E2E CLABE", { exact: false })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible();
+  expect(backend.fiatAccountDeleteRequests).toEqual([{ country: "MX", fiatAccountId: "fiat-account-to-delete" }]);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
