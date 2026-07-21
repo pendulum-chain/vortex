@@ -116,6 +116,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 - [x] Routed Alfredpay onramp quote output precision follows destination token decimals when `evmToEvm` metadata exists; direct Polygon same-token passthrough remains at minted-token precision. **PASS** — verified in `finalize/onramp.ts`.
 - [x] Alfredpay onramp registration rejects missing customer context before customer lookup and requires a `Success` Alfredpay customer status. **PASS** — `ramp.service.ts` checks for the current user-backed customer context; `alfredpay-to-evm.ts` rejects missing/non-success customer records.
 - [x] Alfredpay quote engines resolve the tracking-only `metadata.customerId` via `resolveAlfredpayQuoteCustomerId` (real id for KYC-completed users, `"anonymous"` sentinel otherwise); provider *orders* always resolve via the strict `resolveAlfredpayCustomerId`. **PASS**.
+- [x] Fiat-account routes resolve the authenticated effective user's Alfredpay customer; the dashboard lists/adds sender self accounts without persisting raw bank-account fields locally, and registration carries only the selected provider `fiatAccountId`. **PASS**.
 
 ## Provider-customers cutover (2026-07)
 

@@ -196,6 +196,10 @@ different set of endpoints than the widget. Covered so far:
   polling to a terminal phase while the form navigates to `/transactions`. A second test pins
   payout-account selection: the mock serves two saved fiat accounts, and choosing the non-default
   one must register against *that* `fiatAccountId` — a broken selector would pay the wrong account.
+- **Payout accounts and wallet modal** (`payout-accounts.spec.ts`, `funding-gate.spec.ts`): an
+  approved AlfredPay corridor creates a self payout account and updates the card/recipient state;
+  disconnected wallet actions open AppKit's `Connect` view, while the connected address opens its
+  `Account` view. The connected-wallet-only funding gate remains pinned.
 
 Notes:
 
@@ -205,13 +209,13 @@ Notes:
 - The register fixture's transactions are **all EVM txs on `network: "polygon"`** on purpose:
   `src/machines/transfer.actors.ts` opens a real WebSocket RPC for any ephemeral tx on Pendulum,
   Hydration, or a substrate-format Moonbeam tx.
-- `src/lib/wagmi.ts` uses `http()` with no URL, so viem falls back to per-chain public RPCs. Both
-  are genuinely reached: Polygon (the user transaction's receipt is awaited through the wagmi
-  transport, not the wallet stub) and Ethereum mainnet (ConnectKit's ENS lookup after connect).
-  They are answered by a JSON-RPC responder in `e2e/support/mockBackend.ts`.
+- `playwright.config.ts` supplies a placeholder Alchemy key so the same AppKit/Wagmi transport path
+  as the frontend is exercised. Polygon is genuinely reached for the user transaction's receipt
+  through the wagmi transport, not the wallet stub, and is answered by the JSON-RPC responder in
+  `e2e/support/mockBackend.ts`.
 - Hermeticity is enforced, not assumed. A catch-all route aborts every request outside the app
-  origin that is not in `THIRD_PARTY_BLOCKLIST` (WalletConnect/Reown, ConnectKit's Family probe,
-  the Coinbase Wallet SDK, Google Fonts), and unmatched API paths 404. Both lists are recorded and
+  origin that is not in `THIRD_PARTY_BLOCKLIST` (WalletConnect/Reown configuration and fonts,
+  wallet SDK resources, Google Fonts), and unmatched API paths 404. Both lists are recorded and
   asserted empty, so a new endpoint or a changed default RPC URL fails the suite instead of
   silently reaching the network.
 - **Not covered**: the Avenia KYC liveness step, which redirects to an external Avenia-hosted page

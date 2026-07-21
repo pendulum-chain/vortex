@@ -177,6 +177,9 @@ payout-instrument decision (no code path writes `verified` payout references yet
       (`recipients.integration.test.ts`).
 - [ ] Eligibility walks the full ladder; each blocking reason is covered by the integration test.
 - [ ] No route or table stores raw PIX/IBAN/CLABE/account values for recipients.
+- [x] Alfredpay sender self accounts remain provider-side, registration carries only the
+      sender-owned `fiatAccountId`, and creating one does not write a
+      `recipient_payout_references` row or satisfy invited-recipient eligibility. **PASS**.
 
 ## Next Steps
 
