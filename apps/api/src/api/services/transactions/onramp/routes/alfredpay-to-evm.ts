@@ -132,7 +132,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: ALFREDPAY_ERC20_TOKEN,
-      rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
+      rawAmount: quote.metadata.evmToEvm.inputAmountRaw,
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
     });
@@ -243,7 +243,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     fromAddress: evmEphemeralEntry.address,
     fromToken: bridgedTokenAddress,
     network: toNetwork as EvmNetworks,
-    rawAmount: multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0),
+    rawAmount: quote.metadata.evmToEvm.inputAmountRaw,
     toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
   });
 

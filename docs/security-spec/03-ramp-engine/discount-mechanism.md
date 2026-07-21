@@ -20,7 +20,7 @@ The engine is wired by strategy configuration. Of the 10 route strategies in `ap
 
 The two AlfredPay strategies use dedicated discount engines (`OnRampAlfredpayDiscountEngine`, `OffRampAlfredpayDiscountEngine`) that compute the subsidy in the AlfredPay-side currency:
 
-- **Onramp**: subsidy denominated in the AlfredPay on-chain currency (USDC on Polygon). When the AlfredPay quote API later returns a worse `finalOutput` than the discount-projected `expectedOutput`, the partner engine falls back to the discount engine's `expectedOutput` (see `onramp-alfredpay-to-evm` strategy + `alfredOnrampMintFallback` phase emission). The fallback is bounded by `maxSubsidy × expectedOutput`.
+- **Onramp**: subsidy denominated in the AlfredPay on-chain currency (USDT on Polygon). In the cross-chain block flow, `AlfredpayMint` installs the provider-derived anchor fee, then `AlfredpaySubsidizePre` computes the bounded bridge target. Squid quote and transaction preparation both consume that same target. The `alfredOnrampMintFallback` presigned contingency remains bounded to the provider mint amount.
 - **Offramp**: subsidy denominated in the AlfredPay on-chain currency (USD on Polygon), computed by inverting the oracle's `outputCurrency -> ALFREDPAY_ONCHAIN_CURRENCY` rate. The engine rejects a non-positive oracle rate. There is no pre-Nabla stage on this route, so the conventional `deductibleFee` is always zero and is omitted.
 
 For onramps to EVM destinations other than AssetHub, the engine also probes Squid Router (`getEvmBridgeQuote`) to convert the oracle-expected amount into the equivalent amount of the *pre-bridge* token (USDC on Base or axlUSDC on Moonbeam) so the subsidy is denominated in the token the ramp actually holds on the source chain.

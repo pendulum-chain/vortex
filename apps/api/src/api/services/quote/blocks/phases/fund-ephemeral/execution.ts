@@ -14,22 +14,18 @@ import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../../../constants/constants";
+import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { DESTINATION_EVM_FUNDING_AMOUNTS, isDestinationEvmEphemeralFunded } from "../../../../phases/handlers/helpers";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { getBlockMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
+import { FundEphemeralContext } from "./simulation";
 
-// EVM-ephemeral onramp slice of the production FundEphemeralPhaseHandler: funds the source-chain
-// ephemeral (native gas + the flow's planned transaction value) and, for BUY ramps to an EVM
-// destination, the destination-chain ephemeral. Substrate/Polygon-Alfredpay branches are not ported.
 export class FundEphemeralExecutor extends BasePhaseHandler {
-  constructor(private readonly chain: EvmNetworks) {
-    super();
-  }
-
   public getPhaseName(): RampPhase {
     return "fundEphemeral";
   }
@@ -40,24 +36,31 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       throw new Error("FundEphemeralExecutor: State metadata corrupted, missing evmEphemeralAddress. This is a bug.");
     }
 
+    const quote = await QuoteTicket.findByPk(state.quoteId);
+    if (!quote) {
+      throw new Error("Quote not found for the given state");
+    }
+    const metadata = getBlockMetadata(quote.metadata, FundEphemeralContext);
+    const sourceNetwork = metadata.network as EvmNetworks;
+
     try {
-      const sourceClient = EvmClientManager.getInstance().getClient(this.chain);
+      const sourceClient = EvmClientManager.getInstance().getClient(sourceNetwork);
       const chain = sourceClient.chain;
       if (!chain) {
-        throw new Error(`FundEphemeralExecutor: Could not get chain info for ${this.chain}`);
+        throw new Error(`FundEphemeralExecutor: Could not get chain info for ${sourceNetwork}`);
       }
       const fixedFundingUnits =
-        this.chain === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+        sourceNetwork === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
-      const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, this.chain, evmEphemeralAddress);
+      const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
       const requiredFundingRaw = fixedFundingRaw + plannedNativeValueRaw;
       const currentBalanceRaw = await sourceClient.getBalance({ address: evmEphemeralAddress as `0x${string}` });
 
       if (currentBalanceRaw < requiredFundingRaw) {
-        logger.info(`Funding ${this.chain} ephemeral account ${evmEphemeralAddress}`);
-        await this.fundEvmEphemeralAccount(state, this.chain, requiredFundingRaw - currentBalanceRaw, requiredFundingRaw);
+        logger.info(`Funding ${sourceNetwork} ephemeral account ${evmEphemeralAddress}`);
+        await this.fundEvmEphemeralAccount(state, sourceNetwork, requiredFundingRaw - currentBalanceRaw, requiredFundingRaw);
       } else {
-        logger.info(`${this.chain} ephemeral address already funded.`);
+        logger.info(`${sourceNetwork} ephemeral address already funded.`);
       }
 
       const destinationNetwork = getNetworkFromDestination(state.to);

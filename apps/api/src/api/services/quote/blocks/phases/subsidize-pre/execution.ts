@@ -26,9 +26,6 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePreContext } from "./simulation";
 
-// EVM slice of the production SubsidizePreSwapPhaseHandler: tops up the ephemeral's Nabla input
-// token on Base until it matches the simulated swap input. Substrate and Alfredpay branches are
-// not ported.
 export class SubsidizePreSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "subsidizePreSwap";
@@ -53,10 +50,11 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
 
     try {
       const inputToken = metadata.inputCurrency as EvmToken;
-      const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inputToken) as EvmTokenDetails;
+      const inputNetwork = metadata.network as Networks;
+      const inputTokenDetails = getOnChainTokenDetails(inputNetwork, inputToken) as EvmTokenDetails;
       if (!inputTokenDetails) {
         throw new Error(
-          `Could not find token details for input token ${inputToken} on network ${Networks.Base}. Invalid quote metadata.`
+          `Could not find token details for input token ${inputToken} on network ${inputNetwork}. Invalid quote metadata.`
         );
       }
       const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;

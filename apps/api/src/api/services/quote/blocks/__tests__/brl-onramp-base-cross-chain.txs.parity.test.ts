@@ -199,6 +199,7 @@ function buildMetadata(): FlowMetadata<BrlBlockMetadata> {
         expectedOutputAmountRaw: "18000000",
         inputCurrency: EvmToken.BRLA,
         inputDecimals: 18,
+        network: Networks.Base,
         targetInputAmountRaw: "98800000000000000000"
       }
     },

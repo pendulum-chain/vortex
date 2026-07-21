@@ -36,6 +36,7 @@ export interface PhaseCtx {
     displayFiat?: QuoteFeeStructure;
     vortexFeePenPercentage?: number;
   };
+  targetFeeFiatCurrency?: RampCurrency;
 }
 
 // Nonce lanes. Per (network, signer): "main" intents get sequential nonces in flow order,
@@ -66,6 +67,7 @@ export interface PrepareGlobals {
   evmEphemeral: AccountMeta;
   destinationAddress: string;
   taxId?: string;
+  userId?: string;
 }
 
 export interface PrepareCtx<Metadata> extends PrepareGlobals {
@@ -83,6 +85,7 @@ export interface PreparedFlowTxs {
 }
 
 export interface PhaseResult<O extends PhaseIO, Metadata> {
+  fees?: PhaseCtx["fees"];
   metadata: Metadata;
   output: O;
 }
@@ -95,7 +98,7 @@ export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O 
   readonly simulate: (input: I, ctx: PhaseCtx) => Promise<PhaseResult<O, ContextSimulation<Context>>>;
   // One executor per entry in `phases`, in the same order. Optional while corridors
   // are ported incrementally; a flow whose phases all carry executors is fully
-  // execution-ready (registerable into the phase registry, unwired for now).
+  // execution-ready and registerable into the phase registry.
   readonly executors?: PhaseHandler[];
   // The unsigned transactions this phase's executors expect the ephemeral/user to presign,
   // as nonce-free intents; the flow assembler allocates nonces per (network, signer, lane).

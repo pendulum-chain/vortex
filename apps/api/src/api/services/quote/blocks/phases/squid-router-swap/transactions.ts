@@ -1,5 +1,6 @@
 import {
   createOnrampSquidrouterTransactionsFromBaseToEvm,
+  createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
   EvmNetworks,
   EvmToken,
@@ -20,8 +21,8 @@ import type { SquidRouterSwapMetadata } from "./simulation";
 
 export interface SquidRouterSwapPreparation {
   quoteId: string;
-  receiverHash: string;
-  receiverId: string;
+  receiverHash?: string;
+  receiverId?: string;
 }
 
 // Bound the backup approval to the bridged amount + 5% slippage cushion (replaces unbounded maxUint256).
@@ -52,8 +53,12 @@ export async function prepareSquidRouterSwapTxs(
     throw new Error(`prepareSquidRouterSwapTxs: Missing token details for ${toToken} on ${toChain}`);
   }
 
+  const createSourceTransactions =
+    fromChain === Networks.Polygon
+      ? createOnrampSquidrouterTransactionsFromPolygonToEvm
+      : createOnrampSquidrouterTransactionsFromBaseToEvm;
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
-    await createOnrampSquidrouterTransactionsFromBaseToEvm({
+    await createSourceTransactions({
       destinationAddress: evmEphemeral.address,
       fromAddress: evmEphemeral.address,
       fromToken: fromTokenDetails.erc20AddressSourceChain,
@@ -61,8 +66,8 @@ export async function prepareSquidRouterSwapTxs(
       toNetwork: toChain as Networks,
       toToken: toTokenDetails.erc20AddressSourceChain
     });
-  if (!squidRouterQuoteId || !squidRouterReceiverId || !squidRouterReceiverHash) {
-    throw new Error("prepareSquidRouterSwapTxs: Squid route identifiers are missing");
+  if (!squidRouterQuoteId) {
+    throw new Error("prepareSquidRouterSwapTxs: Squid quote ID is missing");
   }
 
   // Fallback re-swap input depends on the destination chain: the bridge delivers USDC on Ethereum
@@ -90,7 +95,10 @@ export async function prepareSquidRouterSwapTxs(
     });
 
   const fundingAccountAddress = getEvmFundingAccount(fromChain as EvmNetworks).address;
-  const backupApproveAmountRaw = new Big(bridgeInputAmountRaw).mul(BACKUP_APPROVE_SLIPPAGE_FACTOR).toFixed(0, 0);
+  const backupApproveAmountRaw =
+    fromChain === Networks.Polygon
+      ? (2n ** 256n - 1n).toString()
+      : new Big(bridgeInputAmountRaw).mul(BACKUP_APPROVE_SLIPPAGE_FACTOR).toFixed(0, 0);
   const backupApproveTransaction = await addDestinationChainApprovalTransaction({
     amountRaw: backupApproveAmountRaw,
     destinationNetwork: toChain as EvmNetworks,

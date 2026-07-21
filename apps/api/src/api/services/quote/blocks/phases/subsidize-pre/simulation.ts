@@ -1,6 +1,15 @@
-import { getOnChainTokenDetails, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
+import { getOnChainTokenDetails, multiplyByPowerOfTen, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
+import { findPartnerWithPricing } from "../../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../../priceFeed.service";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  DEFAULT_PARTNER_NAME,
+  resolveActivePartnerById,
+  toActivePartner
+} from "../../../engines/discount/helpers";
+import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 
@@ -23,10 +32,14 @@ export interface SubsidyMetadata {
 }
 
 export interface SubsidizePreMetadata {
+  applied?: boolean;
   expectedOutputAmountDecimal: SerializableBig;
   expectedOutputAmountRaw: string;
   inputCurrency: string;
   inputDecimals: number;
+  network: string;
+  outputCurrency?: string;
+  subsidyAmountInOutputTokenDecimal?: SerializableBig;
   targetInputAmountRaw: string;
 }
 
@@ -117,8 +130,57 @@ export async function simulateSubsidizePre<Token extends TokenBrand, Chain exten
       expectedOutputAmountRaw: expected.raw,
       inputCurrency: input.token,
       inputDecimals: tokenDetails.decimals,
+      network: input.chain,
       targetInputAmountRaw: input.amountRaw
     },
     output: input
+  };
+}
+
+export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Chain extends ChainBrand>(
+  input: PhaseIO<Token, Chain>,
+  ctx: PhaseCtx
+): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePreMetadata>> {
+  if (!ctx.fees?.usd) {
+    throw new Error("AlfredpaySubsidizePre: Missing provider-adjusted fees");
+  }
+  const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
+  if (!tokenDetails) {
+    throw new Error(`AlfredpaySubsidizePre: Missing token details for ${input.token} on ${input.chain}`);
+  }
+  const activePartner = ctx.partner?.id
+    ? await resolveActivePartnerById(ctx.partner.id, ctx.request.rampType)
+    : await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, ctx.request.rampType).then(partner =>
+        partner ? toActivePartner(partner) : null
+      );
+  const targetDiscount = activePartner?.targetDiscount ?? 0;
+  const maxSubsidy = activePartner?.maxSubsidy ?? 0;
+  const effectiveRate = input.amount.div(ctx.request.inputAmount);
+  const actualOutput = input.amount.minus(ctx.fees.usd.vortex).minus(ctx.fees.usd.partnerMarkup);
+  const { expectedOutput } = calculateExpectedOutput(
+    ctx.request.inputAmount,
+    effectiveRate,
+    targetDiscount,
+    false,
+    activePartner
+  );
+  const subsidy = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualOutput, maxSubsidy) : new Big(0);
+  const targetOutput = actualOutput.plus(subsidy);
+  const toRaw = (amount: Big) => multiplyByPowerOfTen(amount, tokenDetails.decimals).toFixed(0, 0);
+
+  ctx.addNote(`AlfredpaySubsidizePre: bridge target ${targetOutput.toFixed()} ${input.token}`);
+  return {
+    metadata: {
+      applied: subsidy.gt(0),
+      expectedOutputAmountDecimal: expectedOutput,
+      expectedOutputAmountRaw: toRaw(expectedOutput),
+      inputCurrency: input.token,
+      inputDecimals: tokenDetails.decimals,
+      network: input.chain,
+      outputCurrency: input.token,
+      subsidyAmountInOutputTokenDecimal: subsidy,
+      targetInputAmountRaw: toRaw(targetOutput)
+    },
+    output: evmIO(input.token, input.chain, targetOutput, toRaw(targetOutput))
   };
 }

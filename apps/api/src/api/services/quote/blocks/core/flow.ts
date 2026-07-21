@@ -72,7 +72,8 @@ export class FlowBuilder<I extends PhaseIO, O extends PhaseIO, Blocks extends Re
             globals: ctx.metadata.globals,
             ownMetadata: ctx.metadata.blocks[phase.context.key] as never,
             quote: ctx.quote,
-            taxId: ctx.taxId
+            taxId: ctx.taxId,
+            userId: ctx.userId
           });
           intents.push(...prepared.intents);
           if (prepared.state !== undefined) {
@@ -99,6 +100,9 @@ export class FlowBuilder<I extends PhaseIO, O extends PhaseIO, Blocks extends Re
         const blocks: Record<string, unknown> = {};
         for (const phase of phaseList) {
           const result = await phase.simulate(current as never, ctx);
+          if (result.fees) {
+            ctx.fees = result.fees;
+          }
           if (Object.hasOwn(blocks, phase.context.key)) {
             throw new Error(`Flow ${name} defines duplicate metadata key ${phase.context.key}`);
           }
