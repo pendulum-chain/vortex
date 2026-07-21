@@ -94,7 +94,7 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
       <CardFooter>
         {disabled ? (
           <Button className="w-full" disabled variant="outline">
-            {kind.toUpperCase()} is currently disabled in {corridor.name}
+            {kind.toUpperCase()} is temporarily unavailable
           </Button>
         ) : !available && (!onboarding || onboarding.status === "not_started" || onboarding.status === "rejected") ? (
           <Button className="w-full" disabled variant="outline">

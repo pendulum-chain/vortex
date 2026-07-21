@@ -20,7 +20,7 @@ test("EU onboarding is disabled: card action and wizard deep link are both block
   await page.getByRole("option", { name: /Europe/ }).click();
   await addDialog.getByRole("button", { name: "Add card" }).click();
 
-  await expect(page.getByRole("button", { name: "KYC is currently disabled in Europe" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "KYC is temporarily unavailable" })).toBeDisabled();
 
   await page.goto("/overview?onboarding=EU");
   const wizard = page.getByRole("dialog");
@@ -57,7 +57,7 @@ test("in-review Monerium onboarding requiring reauthentication is disabled inste
   await seedSession(page);
   await page.goto("/overview");
 
-  const disabledButton = page.getByRole("button", { name: "KYC is currently disabled in Europe" });
+  const disabledButton = page.getByRole("button", { name: "KYC is temporarily unavailable" });
   await expect(disabledButton).toBeDisabled({ timeout: 20_000 });
   expect(backend.unmatchedRequests).toEqual([]);
 });
