@@ -104,8 +104,8 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
             <DialogHeader>
               <DialogTitle>Add payout account</DialogTitle>
               <DialogDescription>
-                This account is only needed to receive money through offramps. Onramps and payments to third-party recipients
-                work without one.
+                This account enables reception of money through offramps. Onramps and payments to third-party recipients work
+                without one.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>

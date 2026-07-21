@@ -49,7 +49,8 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
       {savedAccounts.length === 0 ? (
         <>
           <p className="text-muted-foreground text-xs">
-            Add a payout account only to receive money through offramps. Onramps and third-party payments work without one.
+            Add a payout account to enable reception of money through offramps. Onramps and third-party payments work without
+            one.
           </p>
           <Button onClick={() => show("form")} type="button">
             Add payout account

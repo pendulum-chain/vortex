@@ -9,7 +9,7 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
 
   const card = page.getByTestId("corridor-card-MX");
   await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible({ timeout: 20_000 });
-  await expect(card.getByText(/only to receive money through offramps/)).toBeVisible();
+  await expect(card.getByText(/to enable reception of money through offramps/)).toBeVisible();
 
   const progress = card.getByRole("progressbar", { name: "Mexico onboarding progress" });
   await expect(progress).toHaveAttribute("aria-valuenow", "90");
@@ -17,7 +17,7 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
 
   await card.getByRole("button", { name: "Add payout account" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/only needed to receive money through offramps/)).toBeVisible();
+  await expect(dialog.getByText(/enables reception of money through offramps/)).toBeVisible();
   await dialog.getByLabel("CLABE").fill("646180157000000004");
   await dialog.getByLabel("Account holder name").fill("Vortex E2E CLABE");
   await dialog.getByRole("button", { name: "Save payout account" }).click();
