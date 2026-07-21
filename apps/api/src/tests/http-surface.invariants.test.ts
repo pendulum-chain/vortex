@@ -229,6 +229,63 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       const response = await requestJson(`/v1/ramp/history/${WALLET}`);
       expect(response.status).toBe(401);
     });
+
+    it("serves all non-initial ramps owned by the authenticated user without a wallet filter", async () => {
+      const owner = await createTestUser();
+      const stranger = await createTestUser();
+      const firstWallet = "0x3333333333333333333333333333333333333333";
+      const secondWallet = "0x4444444444444444444444444444444444444444";
+
+      const first = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: owner.id
+      });
+      const second = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: secondWallet } as StateMetadata,
+        userId: owner.id
+      });
+      await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: stranger.id
+      });
+
+      const history = await requestJson("/v1/ramp/history", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(history.status).toBe(200);
+      expect(history.body.totalCount).toBe(2);
+      const transactions = history.body.transactions as Array<{ id: string; walletAddress: string }>;
+      expect(new Set(transactions.map(transaction => transaction.id))).toEqual(new Set([first.id, second.id]));
+      expect(new Set(transactions.map(transaction => transaction.walletAddress))).toEqual(
+        new Set([firstWallet, secondWallet])
+      );
+    });
+
+    it("accepts a user-scoped API key and rejects anonymous all-user history", async () => {
+      const owner = await createTestUser();
+      const { plaintextKey } = await createTestApiKey({ userId: owner.id });
+
+      const authenticated = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(authenticated.status).toBe(200);
+      expect(authenticated.body).toEqual({ totalCount: 0, transactions: [] });
+
+      const anonymous = await requestJson("/v1/ramp/history");
+      expect(anonymous.status).toBe(401);
+    });
+
+    it("validates history pagination", async () => {
+      const owner = await createTestUser();
+      const response = await requestJson("/v1/ramp/history?limit=10x&offset=-1", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(response.status).toBe(400);
+    });
   });
 
   describe("public information routes", () => {

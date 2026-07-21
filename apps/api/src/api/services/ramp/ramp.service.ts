@@ -712,16 +712,18 @@ export class RampService extends BaseRampService {
   }
 
   /**
-   * Get ramp history for a wallet address
+   * Get ramp history for an owner, optionally filtered to a wallet address.
    */
   public async getRampHistory(
-    walletAddress: string,
+    walletAddress: string | undefined,
     owner: { partnerId: string } | { userId: string },
     limit?: number,
     offset?: number
   ): Promise<GetRampHistoryResponse> {
     const baseWhere = {
-      [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }],
+      ...(walletAddress
+        ? { [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }] }
+        : {}),
       currentPhase: {
         [Op.ne]: "initial"
       },
@@ -804,7 +806,8 @@ export class RampService extends BaseRampService {
           to: ramp.to,
           toAmount: quote.outputAmount,
           toCurrency: quote.outputCurrency,
-          type: ramp.type
+          type: ramp.type,
+          walletAddress: ramp.state.destinationAddress ?? ramp.state.walletAddress
         };
       })
     );

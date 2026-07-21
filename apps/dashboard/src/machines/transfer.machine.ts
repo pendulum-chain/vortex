@@ -1,4 +1,10 @@
-import type { GetRampStatusResponse, QuoteResponse, RampProcess, UnsignedTx } from "@vortexfi/shared";
+import {
+  type GetRampStatusResponse,
+  type QuoteResponse,
+  RampDirection,
+  type RampProcess,
+  type UnsignedTx
+} from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
 import {
@@ -29,6 +35,7 @@ export type TransferEvent =
   | { type: "START"; quote: QuoteResponse; additionalData: RegisterTransferInput["additionalData"]; meta: TransferMeta }
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
+  | { type: "PAYMENT_CONFIRMED" }
   | { type: "RESET" };
 
 export type TransferEmitted =
@@ -76,6 +83,9 @@ export const transferMachine = setup({
       )
     )
   },
+  guards: {
+    isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY
+  },
   types: {
     context: {} as TransferContext,
     emitted: {} as TransferEmitted,
@@ -89,6 +99,11 @@ export const transferMachine = setup({
     RESET: { actions: assign(() => initialContext), target: ".Idle" }
   },
   states: {
+    AwaitingPayment: {
+      on: {
+        PAYMENT_CONFIRMED: { target: "Starting" }
+      }
+    },
     Done: {
       on: {
         RESET: { actions: assign(() => initialContext), target: "Idle" },
@@ -138,10 +153,17 @@ export const transferMachine = setup({
           }
           return { additionalData: context.additionalData, quote: context.quote };
         },
-        onDone: {
-          actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
-          target: "SigningUserTxs"
-        },
+        onDone: [
+          {
+            actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
+            target: "SigningUserTxs"
+          }
+        ],
         onError: {
           actions: [
             assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
@@ -183,7 +205,14 @@ export const transferMachine = setup({
           return { rampId: context.ramp.id };
         },
         onDone: {
-          actions: assign(({ event }) => ({ ramp: event.output })),
+          actions: assign(({ context, event }) => ({
+            ramp: {
+              ...event.output,
+              achPaymentData: event.output.achPaymentData ?? context.ramp?.achPaymentData,
+              depositQrCode: event.output.depositQrCode ?? context.ramp?.depositQrCode,
+              ibanPaymentData: event.output.ibanPaymentData ?? context.ramp?.ibanPaymentData
+            }
+          })),
           target: "Tracking"
         },
         onError: {

@@ -20,19 +20,20 @@ type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "star
  * resolves by rail first, then provider + country — both are set so the corridor maps to MX
  * whichever branch runs; `state` (not `status`) is what the approval gate reads.
  */
-export function buildOnboardingStatus(state: OnboardingState = "approved") {
+export function buildOnboardingStatus(state: OnboardingState = "approved", corridor: "AR" | "BR" | "CO" | "MX" | "US" = "MX") {
+  const rail = { AR: "ars", BR: "brl", CO: "cop", MX: "mxn", US: "usd" }[corridor];
   return {
     activeEntityId: "entity-e2e-1",
     entities: [
       {
         accounts: [
           {
-            country: "MX",
+            country: corridor,
             customerType: "individual",
             id: "acct-e2e-mx",
             kycCase: null,
-            provider: "alfredpay",
-            rail: "mxn",
+            provider: corridor === "BR" ? "avenia" : "alfredpay",
+            rail,
             state,
             status: state
           }
@@ -258,6 +259,7 @@ interface MockBackendOptions {
   pendingInvitations?: Array<Record<string, unknown>>;
   // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
   fiatAccounts?: Array<Record<string, unknown>>;
+  onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -387,6 +389,12 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
+  const onrampCorridor = { ARS: "AR", BRL: "BR", COP: "CO", MXN: "MX", USD: "US" }[options.onrampCurrency ?? "MXN"] as
+    | "AR"
+    | "BR"
+    | "CO"
+    | "MX"
+    | "US";
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
   // the user-wallet transaction from that response.
@@ -480,7 +488,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         await fulfillJson(
           options.companyMode
             ? buildCompanyOnboardingStatus("alfredpay", "MX", options.onboardingState ?? "approved")
-            : buildOnboardingStatus(options.onboardingState)
+            : buildOnboardingStatus(options.onboardingState, onrampCorridor)
         );
         return;
       }
@@ -710,7 +718,21 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/quotes" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       quoteRequests.push(body);
-      await fulfillJson(buildQuoteResponse(body.inputAmount as string));
+      await fulfillJson(
+        body.rampType === "BUY"
+          ? buildQuoteResponse(body.inputAmount as string, {
+              feeCurrency: body.inputCurrency,
+              from: body.from,
+              inputCurrency: body.inputCurrency,
+              network: body.network,
+              outputAmount: "18.20",
+              outputCurrency: body.outputCurrency,
+              paymentMethod: body.paymentMethod,
+              rampType: "BUY",
+              to: body.to
+            })
+          : buildQuoteResponse(body.inputAmount as string)
+      );
       return;
     }
 
@@ -722,13 +744,77 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } & Record<string, unknown>;
       registerRequests.push(body);
       const evmEphemeral = body.signingAccounts?.find(account => account.type === "EVM")?.address ?? POLYGON_USDT;
-      unsignedTxs = buildSellUnsignedTxs(evmEphemeral);
-      await fulfillJson(buildRampProcess({ unsignedTxs }));
+      const isOnramp = quoteRequests.at(-1)?.rampType === "BUY";
+      unsignedTxs = isOnramp ? [] : buildSellUnsignedTxs(evmEphemeral);
+      const paymentData = isOnramp
+        ? options.onrampCurrency === "BRL"
+          ? { depositQrCode: "00020101021226850014br.gov.bcb.pix" }
+          : {
+              achPaymentData: {
+                accountHolderName: "Vortex Settlement",
+                alias: "vortex.ars",
+                bankAccountNumber: "123456789",
+                bankBeneficiaryName: "Vortex Settlement LLC",
+                bankName: "Vortex Bank",
+                bankRoutingNumber: "021000021",
+                clabe: "646180157000000004",
+                cvu: "0000003100098765432101",
+                expirationDate: "2026-07-22T00:00:00.000Z",
+                paymentDescription: "Payment reference: VORTEX1234",
+                reference: "VORTEX1234"
+              }
+            }
+        : {};
+      await fulfillJson(
+        buildRampProcess({
+          ...paymentData,
+          from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
+          inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
+          inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
+          outputAmount: isOnramp ? "18.20" : "1000.00",
+          outputCurrency: isOnramp ? quoteRequests.at(-1)?.outputCurrency : "MXN",
+          to: isOnramp ? quoteRequests.at(-1)?.to : "spei",
+          type: isOnramp ? "BUY" : "SELL",
+          unsignedTxs
+        })
+      );
       return;
     }
     if (path === "/v1/ramp/update" && method === "POST") {
       updateRequests.push(request.postDataJSON() as Record<string, unknown>);
-      await fulfillJson(buildRampProcess({ unsignedTxs }));
+      const isOnramp = quoteRequests.at(-1)?.rampType === "BUY";
+      const paymentData = isOnramp
+        ? options.onrampCurrency === "BRL"
+          ? { depositQrCode: "00020101021226850014br.gov.bcb.pix" }
+          : {
+              achPaymentData: {
+                accountHolderName: "Vortex Settlement",
+                alias: "vortex.ars",
+                bankAccountNumber: "123456789",
+                bankBeneficiaryName: "Vortex Settlement LLC",
+                bankName: "Vortex Bank",
+                bankRoutingNumber: "021000021",
+                clabe: "646180157000000004",
+                cvu: "0000003100098765432101",
+                expirationDate: "2026-07-22T00:00:00.000Z",
+                paymentDescription: "Payment reference: VORTEX1234",
+                reference: "VORTEX1234"
+              }
+            }
+        : {};
+      await fulfillJson(
+        buildRampProcess({
+          ...paymentData,
+          from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
+          inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
+          inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
+          outputAmount: isOnramp ? "18.20" : "1000.00",
+          outputCurrency: isOnramp ? quoteRequests.at(-1)?.outputCurrency : "MXN",
+          to: isOnramp ? quoteRequests.at(-1)?.to : "spei",
+          type: isOnramp ? "BUY" : "SELL",
+          unsignedTxs
+        })
+      );
       return;
     }
     if (path === "/v1/ramp/start" && method === "POST") {
@@ -737,8 +823,33 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
     // Checked before the /v1/ramp/:id status route below, which would otherwise swallow it.
-    if (path.startsWith("/v1/ramp/history/") && method === "GET") {
-      await fulfillJson({ totalCount: 0, transactions: [] });
+    if ((path === "/v1/ramp/history" || path.startsWith("/v1/ramp/history/")) && method === "GET") {
+      const quote = quoteRequests.at(-1);
+      const register = registerRequests.at(-1);
+      const destinationAddress = (register?.additionalData as { destinationAddress?: string } | undefined)?.destinationAddress;
+      await fulfillJson(
+        quote?.rampType === "BUY"
+          ? {
+              totalCount: 1,
+              transactions: [
+                {
+                  currentPhase: "squidRouterPay",
+                  date: new Date().toISOString(),
+                  from: quote.from,
+                  fromAmount: quote.inputAmount,
+                  fromCurrency: quote.inputCurrency,
+                  id: E2E_RAMP_ID,
+                  status: "PENDING",
+                  to: quote.to,
+                  toAmount: "18.20",
+                  toCurrency: quote.outputCurrency,
+                  type: "BUY",
+                  walletAddress: destinationAddress
+                }
+              ]
+            }
+          : { totalCount: 0, transactions: [] }
+      );
       return;
     }
     if (path === `/v1/ramp/${E2E_RAMP_ID}` && method === "GET") {
@@ -769,6 +880,8 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await route.fulfill({ json: answer(body) });
     });
   }
+
+  await page.route("https://v2.api.squidrouter.com/v2/tokens", route => route.fulfill({ json: { tokens: [] } }));
 
   for (const pattern of THIRD_PARTY_BLOCKLIST) {
     await page.route(pattern, route => route.abort());

@@ -1,4 +1,11 @@
-import { type CreateQuoteRequest, EvmToken, type QuoteResponse, RampDirection } from "@vortexfi/shared";
+import {
+  type CreateQuoteRequest,
+  type EvmNetworks,
+  EvmToken,
+  type OnChainToken,
+  type QuoteResponse,
+  RampDirection
+} from "@vortexfi/shared";
 import { USDC_RATES } from "@/domain/transfer";
 import type { CorridorId } from "@/domain/types";
 import { apiClient } from "./api-client";
@@ -10,6 +17,13 @@ export interface OfframpQuoteParams {
   payoutAmount: number;
   /** Dashboard transfer-network id the stablecoin leg settles on. */
   network: string;
+}
+
+export interface OnrampQuoteParams {
+  corridorId: CorridorId;
+  inputAmount: number;
+  network: EvmNetworks;
+  outputCurrency: OnChainToken;
 }
 
 /** The wire request for an offramp (SELL) quote: sender sends USDC, recipient receives fiat. */
@@ -53,4 +67,22 @@ export async function fetchOfframpQuote(params: OfframpQuoteParams): Promise<Quo
     return quote;
   }
   return requestQuote(params, (input * payoutAmount) / output);
+}
+
+export function buildOnrampQuoteRequest(params: OnrampQuoteParams): CreateQuoteRequest {
+  return {
+    countryCode: CORRIDOR_COUNTRY[params.corridorId],
+    from: CORRIDOR_PAYMENT_METHOD[params.corridorId],
+    inputAmount: params.inputAmount.toString(),
+    inputCurrency: CORRIDOR_FIAT[params.corridorId],
+    network: params.network,
+    outputCurrency: params.outputCurrency,
+    paymentMethod: CORRIDOR_PAYMENT_METHOD[params.corridorId],
+    rampType: RampDirection.BUY,
+    to: params.network
+  };
+}
+
+export function fetchOnrampQuote(params: OnrampQuoteParams): Promise<QuoteResponse> {
+  return apiClient.post<QuoteResponse>("/quotes", buildOnrampQuoteRequest(params));
 }

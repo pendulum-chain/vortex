@@ -78,7 +78,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 **Resolution:**
 
 1. **Legacy endpoints removed:** `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap` were deleted; the server now drives ramp progression internally.
-2. **Strict dual-track auth on all `/v1/ramp/*` endpoints** (`/register`, `/update`, `/start`, `/:id`, `/:id/errors`, `/history/:walletAddress`) and on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. The `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`) accepts **either**:
+2. **Strict dual-track auth on all `/v1/ramp/*` endpoints** (`/register`, `/update`, `/start`, `/:id`, `/:id/errors`, `/history`, `/history/:walletAddress`) and on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. The `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`) accepts **either**:
    - `X-API-Key: sk_*` — partner API key (used by the SDK), or
    - `Authorization: Bearer <jwt>` — Supabase access token (used by the first-party frontend).
 
@@ -86,7 +86,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 
 3. **Ownership enforcement:** every authenticated principal can only access its own resources.
    - **Partner principal:** ownership is the chain `RampState.quoteId → QuoteTicket.partnerId === authenticatedPartner.id`. `getRampHistory` joins through `QuoteTicket` to filter by `partnerId`.
-   - **Supabase user principal:** ownership is `RampState.userId === req.userId` (and the analogous check on `QuoteTicket.userId` for `/ramp/register`).
+   - **Supabase user principal:** ownership is `RampState.userId === req.userId` (and the analogous check on `QuoteTicket.userId` for `/ramp/register`). Account-wide `GET /v1/ramp/history` requires this effective user identity and never falls back to partner-wide access.
    - Cross-principal access is rejected with HTTP 403.
 
 4. **Other routes:** `requireAuth` was added to `/stellar/create` and the `/brla/*` user data endpoints; `adminAuth` was added to `/maintenance/*`; `apiKeyAuth` was added to `/webhook` POST/DELETE.

@@ -68,6 +68,7 @@ export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | 
 
 export interface Transaction {
   id: string;
+  direction: "BUY" | "SELL";
   accountId: string;
   recipientId: string;
   /** Denormalized for display so the table doesn't have to resolve recipients. */

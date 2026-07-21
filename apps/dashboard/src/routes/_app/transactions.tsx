@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/transactions")({
 
 function TransactionsPage() {
   const account = useActiveAccount();
-  const { transactions, walletConnected } = useTransactions(account);
+  const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
 
   if (!account) {
@@ -30,7 +30,7 @@ function TransactionsPage() {
     <Stagger className="mx-auto grid max-w-5xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Transactions</h1>
-        <p className="text-muted-foreground">Wallet-to-fiat payout history for {account.name}.</p>
+        <p className="text-muted-foreground">Onramp and offramp history for {account.name}.</p>
       </StaggerItem>
 
       {accountTransactions.length === 0 ? (
@@ -48,11 +48,9 @@ function TransactionsPage() {
               <div className="grid gap-1">
                 <p className="font-medium">No transactions yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
-                  {!walletConnected
-                    ? "Connect your wallet to see your payout history."
-                    : hasApprovedRecipient
-                      ? "Pay an approved recipient and the payout will appear here."
-                      : "Approve a recipient first, then your payouts will appear here."}
+                  {hasApprovedRecipient
+                    ? "Start an onramp or pay an approved payout account and it will appear here."
+                    : "Start an onramp or approve a payout account to create your first transaction."}
                 </p>
               </div>
               <Button asChild>

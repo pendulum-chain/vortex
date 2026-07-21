@@ -38,10 +38,10 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
       <TableHeader>
         <TableRow>
           <TableHead>Created at</TableHead>
-          <TableHead>Recipient</TableHead>
-          <TableHead>Payin wallet</TableHead>
-          <TableHead>Amount in</TableHead>
-          <TableHead>Fiat payout</TableHead>
+          <TableHead>Direction</TableHead>
+          <TableHead>Destination</TableHead>
+          <TableHead>Amount sent</TableHead>
+          <TableHead>Amount received</TableHead>
           <TableHead>Country / currency</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Action</TableHead>
@@ -67,10 +67,12 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
                   month: "short"
                 })}
               </TableCell>
-              <TableCell className="font-medium">{tx.recipientEmail}</TableCell>
+              <TableCell className="font-medium">{tx.direction === "BUY" ? "Onramp" : "Offramp"}</TableCell>
               <TableCell>
                 <div className="grid gap-0.5">
-                  <code className="font-mono text-xs">{shortenAddress(tx.payinWallet)}</code>
+                  <code className="font-mono text-xs">
+                    {tx.payinWallet ? shortenAddress(tx.payinWallet) : tx.recipientEmail}
+                  </code>
                   <span className="text-muted-foreground text-xs">{networkLabel(tx.payinNetwork)}</span>
                 </div>
               </TableCell>

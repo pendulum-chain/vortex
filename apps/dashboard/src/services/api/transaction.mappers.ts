@@ -21,18 +21,11 @@ export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "curren
 }
 
 /**
- * Maps a ramp-history entry to a dashboard transaction. Returns null for non-offramps or
- * payout currencies outside the supported corridors (nothing to render).
+ * Maps onramps and offramps into the dashboard's source/destination transaction shape.
  */
-export function mapRampHistoryTransaction(
-  tx: GetRampHistoryTransaction,
-  accountId: string,
-  walletAddress: string
-): Transaction | null {
-  if (tx.type !== RampDirection.SELL) {
-    return null;
-  }
-  const corridorId = CORRIDOR_BY_FIAT[tx.toCurrency as FiatToken];
+export function mapRampHistoryTransaction(tx: GetRampHistoryTransaction, accountId: string): Transaction | null {
+  const isOnramp = tx.type === RampDirection.BUY;
+  const corridorId = CORRIDOR_BY_FIAT[(isOnramp ? tx.fromCurrency : tx.toCurrency) as FiatToken];
   if (!corridorId) {
     return null;
   }
@@ -42,12 +35,13 @@ export function mapRampHistoryTransaction(
     amountInToken: String(tx.fromCurrency),
     corridorId,
     createdAt: tx.date,
+    direction: tx.type,
     fiatPayoutAmount: tx.toAmount,
     id: tx.id,
-    payinNetwork: String(tx.from),
-    payinWallet: walletAddress,
+    payinNetwork: String(isOnramp ? tx.to : tx.from),
+    payinWallet: tx.walletAddress ?? "",
     payoutCurrency: String(tx.toCurrency),
-    recipientEmail: "",
+    recipientEmail: isOnramp ? "Your wallet" : "Payout account",
     recipientId: "",
     status: mapTransactionStatus(tx)
   };

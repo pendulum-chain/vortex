@@ -527,6 +527,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ramp/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get authenticated user ramp history
+         * @description Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The maximum count of transaction items returned in this query. The maximum value is `100`. */
+                    limit?: number;
+                    /** @description The offset for querying older transactions. */
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Authenticated user's ramp history. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GetRampHistoryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ramp/history/{walletAddress}": {
         parameters: {
             query?: never;
@@ -1276,6 +1320,8 @@ export interface components {
             toAmount: string;
             toCurrency: components["schemas"]["RampCurrency"];
             type: components["schemas"]["RampDirection"];
+            /** @description Destination address for a BUY ramp when available. */
+            walletAddress?: string;
         };
         GetUserRemainingLimitResponse: {
             /**

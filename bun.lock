@@ -116,6 +116,7 @@
         "input-otp": "^1.4.2",
         "lucide-react": "^0.562.0",
         "motion": "^12.41.0",
+        "qrcode.react": "^4.2.0",
         "radix-ui": "^1.4.3",
         "react": "19.2.0",
         "react-dom": "19.2.0",
