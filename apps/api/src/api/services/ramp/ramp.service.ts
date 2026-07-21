@@ -62,9 +62,10 @@ import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
 import { resolveAlfredpayCustomerId } from "../quote/alfredpay-customer";
+import { getBlockMetadata, getBlockState, getFlowMetadata } from "../quote/blocks/core/metadata";
+import { AlfredpayMintContext, AlfredpayMintMetadata } from "../quote/blocks/phases/alfredpay-mint/simulation";
+import { AlfredpayMintPreparation } from "../quote/blocks/phases/alfredpay-mint/transactions";
 import { prepareOfframpTransactions } from "../transactions/offramp";
-import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
 import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
@@ -596,8 +597,9 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const usdFees = quote.metadata.fees?.usd;
-    const fiatFees = quote.metadata.fees?.displayFiat;
+    const fees = getFlowMetadata(quote.metadata).globals.fees;
+    const usdFees = fees.usd;
+    const fiatFees = fees.displayFiat;
     if (!usdFees || !fiatFees) {
       throw new APIError({
         message: "Quote fee structure is incomplete",
@@ -1172,14 +1174,13 @@ export class RampService extends BaseRampService {
 
     const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(derivedTaxId, quote, quote.inputAmount);
 
-    const params: AveniaOnrampTransactionParams = {
+    const { prepareBlockFlowTransactions } = await import("../quote/blocks/core/register");
+    const { unsignedTxs, stateMeta } = await prepareBlockFlowTransactions({
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
       taxId: derivedTaxId
-    };
-
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
+    });
 
     return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
@@ -1200,9 +1201,8 @@ export class RampService extends BaseRampService {
       });
     }
 
-    await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
-
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
+    const { prepareBlockFlowTransactions } = await import("../quote/blocks/core/register");
+    const { unsignedTxs, stateMeta } = await prepareBlockFlowTransactions({
       destinationAddress: additionalData.destinationAddress,
       quote,
       signingAccounts: normalizedSigningAccounts,
@@ -1304,6 +1304,8 @@ export class RampService extends BaseRampService {
     aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
+    const { assertBlockFlowMapped } = await import("../quote/blocks/core/register");
+    assertBlockFlowMapped(quote);
     switch (selectRampTransactionPreparationKind(quote, additionalData)) {
       case RampTransactionPreparationKind.OfframpBrl:
         return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
@@ -1444,7 +1446,7 @@ export class RampService extends BaseRampService {
     }
 
     const alfredpayService = AlfredpayApiService.getInstance();
-    const originalAlfredpayMint = quote.metadata.alfredpayMint;
+    const originalAlfredpayMint = getBlockMetadata(quote.metadata, AlfredpayMintContext);
     const originalQuoteId = originalAlfredpayMint?.quoteId;
 
     if (!originalQuoteId || !originalAlfredpayMint) {
@@ -1468,7 +1470,8 @@ export class RampService extends BaseRampService {
       });
     }
 
-    if (!rampState.state.alfredpayUserId) {
+    const alfredpayPreparation = getBlockState<AlfredpayMintPreparation>(rampState.state, AlfredpayMintContext);
+    if (!alfredpayPreparation.userId) {
       throw new APIError({
         message: "Missing Alfredpay user ID in ramp state",
         status: httpStatus.BAD_REQUEST
@@ -1489,7 +1492,7 @@ export class RampService extends BaseRampService {
     const orderRequest: CreateAlfredpayOnrampRequest = {
       amount: quote.inputAmount,
       chain: AlfredpayChain.MATIC,
-      customerId: rampState.state.alfredpayUserId,
+      customerId: alfredpayPreparation.userId,
       depositAddress: rampState.state.evmEphemeralAddress,
       fromCurrency,
       paymentMethodType: AlfredpayPaymentMethodType.BANK,
@@ -1515,7 +1518,7 @@ export class RampService extends BaseRampService {
 
   private async refreshAlfredpayOnrampQuoteIfMatching(
     quote: QuoteTicket,
-    originalAlfredpayMint: NonNullable<QuoteTicket["metadata"]["alfredpayMint"]>,
+    originalAlfredpayMint: AlfredpayMintMetadata,
     fromCurrency: AlfredpayFiatCurrency,
     userId: string,
     transaction: Transaction
@@ -1555,16 +1558,20 @@ export class RampService extends BaseRampService {
         return originalQuoteId;
       }
 
+      const flowMetadata = getFlowMetadata(quote.metadata);
       await quote.update(
         {
           metadata: {
-            ...quote.metadata,
-            alfredpayMint: {
-              ...originalAlfredpayMint,
-              expirationDate: new Date(freshQuote.expiration),
-              quoteId: freshQuote.quoteId
+            ...flowMetadata,
+            blocks: {
+              ...flowMetadata.blocks,
+              alfredpayMint: {
+                ...originalAlfredpayMint,
+                expirationDate: new Date(freshQuote.expiration),
+                quoteId: freshQuote.quoteId
+              }
             }
-          }
+          } as unknown as QuoteTicket["metadata"]
         },
         { transaction }
       );

@@ -9,7 +9,7 @@ Understanding the complete token flow for each corridor is critical for security
 2. **Each phase handler submits presigned or server-signed transactions** — incorrect ordering or skipped phases can leave funds in intermediate accounts.
 3. **Subsidy phases inject platform funds** — the platform tops up ephemeral accounts to cover gas, bridging fees, or amount shortfalls, creating a direct drain vector if amounts are unchecked.
 
-There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. The phase processor in `state-machine.md` orchestrates their execution. The authoritative registry lives in `register-handlers.ts`.
+The phase processor in `state-machine.md` orchestrates execution. The authoritative definitions live in `quote/blocks/flows/catalog.ts`: each mapped flow derives its `RampPhase[]`, transaction plan, and executors. `quote/blocks/register-handlers.ts` registers only those catalog executors. Corridors described below but absent from the catalog are unavailable at quote creation, not runtime fallbacks.
 
 ### Major Ramp Corridors
 
@@ -62,7 +62,7 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 
 ### Phase Transition Diagrams
 
-The following diagrams show the phase transitions for all on-ramp and off-ramp corridors as registered in `register-handlers.ts` and assembled by the route builders in `apps/api/src/api/services/transactions/{on,off}ramp/routes/`. Diamond nodes denote conditional branches resolved at route-build time (not runtime phase transitions).
+The following diagrams retain the intended phase transitions for corridors as they are ported. Only catalog-mapped flows are active; their transitions are assembled from block-owned `phases` rather than route-builder constants. Diamond nodes denote distinct flow selection, not runtime handler branching.
 
 #### On-Ramp Phase Flow
 

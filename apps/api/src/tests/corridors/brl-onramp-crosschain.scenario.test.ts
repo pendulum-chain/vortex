@@ -11,6 +11,9 @@ import {
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getBlockMetadata } from "../../api/services/quote/blocks/core/metadata";
+import { NablaSwapContext } from "../../api/services/quote/blocks/phases/nabla-swap/simulation";
+import { SquidRouterSwapContext } from "../../api/services/quote/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -210,9 +213,14 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const swapInputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.inputAmountForSwapRaw ?? "0");
-    const swapOutputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    if (!persistedQuote) {
+      throw new Error("Quote not found after creation");
+    }
+    const nablaMetadata = getBlockMetadata(persistedQuote.metadata, NablaSwapContext);
+    const squidMetadata = getBlockMetadata(persistedQuote.metadata, SquidRouterSwapContext);
+    const swapInputRaw = BigInt(nablaMetadata.inputAmountForSwapRaw);
+    const swapOutputRaw = BigInt(nablaMetadata.outputAmountRaw);
+    const bridgedAmountRaw = BigInt(squidMetadata.outputAmountRaw);
     expect(swapInputRaw).toBeGreaterThan(0n);
     expect(swapOutputRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);

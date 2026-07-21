@@ -14,6 +14,9 @@ import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { getEvmFundingAccount } from "../../api/services/phases/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getBlockMetadata } from "../../api/services/quote/blocks/core/metadata";
+import { AlfredpayMintContext } from "../../api/services/quote/blocks/phases/alfredpay-mint/simulation";
+import { SquidRouterSwapContext } from "../../api/services/quote/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy, { SubsidyToken } from "../../models/subsidy.model";
@@ -206,8 +209,11 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    if (!persistedQuote) {
+      throw new Error("Quote not found after registration");
+    }
+    const mintAmountRaw = BigInt(getBlockMetadata(persistedQuote.metadata, AlfredpayMintContext).outputAmountRaw);
+    const bridgedAmountRaw = BigInt(getBlockMetadata(persistedQuote.metadata, SquidRouterSwapContext).outputAmountRaw);
     expect(mintAmountRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);
 

@@ -61,6 +61,9 @@ const initializeApp = async () => {
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
 
+    // Recovery must not run before the flow-derived executor registry exists.
+    registerPhaseHandlers();
+
     // Start background workers
     new CleanupWorker().start();
     new ApiClientEventsRetentionWorker().start();
@@ -69,9 +72,6 @@ const initializeApp = async () => {
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
-
-    // Register phase handlers
-    registerPhaseHandlers();
 
     // Probe the Binance price feed so a geo-block (HTTP 451) or outage surfaces
     // loudly in the logs instead of silently degrading to the fiat fallback.

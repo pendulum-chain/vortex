@@ -46,16 +46,23 @@ the transactions the ephemerals/user must sign all live in one place.
    type-level enforcement would wreck readability, runtime checks and
    parity tests are the accepted fallback.
 
-**Scope:** the `BRL_ONRAMP_BASE_CROSS_CHAIN` corridor (Avenia PIX → BRLA on
-Base → Nabla BRLA→USDC → fee distribution → Squid bridge → destination
-transfer) — a **real production corridor**, expressed as a flow *family*
-parameterized by destination chain and token. Lives entirely under
-`apps/api/src/api/services/quote/blocks/` and coexists with the existing
-quote engine. The only shared state extension is the generic `blockState`
-and `transactionPlan` shape in `services/phases/meta-state-types.ts`;
-production handlers and route builders are imported read-only.
+**Scope:** block flows are the production source of truth for quote simulation,
+transaction preparation, phase ordering, and executor registration. The catalog
+currently maps `BRL_ONRAMP_BASE_CROSS_CHAIN` (Avenia PIX → BRLA on Base →
+Nabla BRLA→USDC → fee distribution → Squid bridge → destination transfer) and
+`ALFREDPAY_ONRAMP_CROSS_CHAIN` (USD/MXN/COP/ARS bank transfer → USDT on Polygon
+→ Squid bridge → destination transfer), expressed as flow *families*
+parameterized by destination chain and token.
+Unmapped corridors are rejected during quote creation until their flows are
+ported.
 
-**Status:** `10 pass, 1 skip, 0 fail` across the two parity tests;
+**Status:** the block catalog is wired into `QuoteService`, ramp registration,
+and the phase registry. `QuoteService` persists `{ globals, blocks }` metadata;
+ramp registration resolves that persisted request and calls `Flow.prepareTxs`;
+startup registers only catalog-derived executors before starting recovery
+workers. The block unit/parity/wiring suite passes `20 pass, 2 skip, 0 fail`,
+and the database-backed BRL cross-chain scenario passes quote creation,
+registration, signing, and execution through `complete`;
 `bun typecheck` clean for `blocks/`. The derived `RampPhase[]` deep-equals
 the production `BRL_ONRAMP_BASE_CROSS_CHAIN` array; the assembled
 `unsignedTxs` deep-equal the production route-prep
@@ -66,10 +73,7 @@ in the flow carries an executor ported
 from the corresponding production handler (EVM/Base BUY slice),
 registry-compatible via `BasePhaseHandler`, and — where its executors
 consume presigned transactions — a `prepareTxs` leg ported from the
-per-flow route-prep. **Nothing is wired into the PhaseProcessor,
-QuoteService, or ramp registration yet**: the production handlers in
-`phases/handlers/` and the route-prep in `transactions/` remain the ones
-that run. The earlier Morpho example flow was removed together with the
+per-flow route-prep. The earlier Morpho example flow was removed together with the
 Morpho production code; `MykoboMint` remains in the catalog for the EUR
 corridors.
 
@@ -82,6 +86,7 @@ corridors.
 ```
 apps/api/src/api/services/quote/blocks/
   README.md                                    # this file
+  CLEANUP-PLAN.md                              # follow-up removal plan after all corridors are ported
   TYPE-SYSTEM.md                               # walkthrough of the FlowBuilder brand/adjacency type system
   core/
     types.ts                                   # PhaseIO, Phase, Flow, PhaseCtx, PrepareCtx, TxIntent
@@ -92,7 +97,14 @@ apps/api/src/api/services/quote/blocks/
     fees.ts                                    # computeFees(ctx)
     phase-flow.ts                              # assemblePhaseFlow(flow) -> RampPhase[]
     prepare.ts                                 # nonce allocation + native prefunding aggregation
+    quote.ts                                   # production simulation, validation, persistence
+    quote-response.ts                          # public response from flow metadata
+    register.ts                                # production Flow.prepareTxs adapter
+    settlement.ts                              # structural settlement baseline helpers
+  flows/catalog.ts                             # authoritative request -> flow mapping
+  register-handlers.ts                         # catalog-derived executor registration
   phases/                                      # one directory per phase
+    alfredpay-mint/                            # fiat -> USDT on Polygon + provider fee override
     avenia-mint/
       index.ts                                 # phase assembly and public export
       simulation.ts                            # fiat BRL -> BRLA on Base
@@ -113,6 +125,7 @@ apps/api/src/api/services/quote/blocks/
     final-settlement-subsidy/                   # index.ts + simulation.ts + execution.ts
     destination-transfer/                      # index.ts + simulation.ts + execution.ts + transactions.ts
   flows/
+    alfredpay-onramp-cross-chain.ts            # makeAlfredpayOnrampCrossChainFlow(toChain, toToken)
     brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
   __tests__/
     brl-onramp-base-cross-chain.parity.test.ts     # structure + parity + executors + compile-time + simulate
@@ -203,6 +216,12 @@ adjacency guarantee that `pipe` already enforced.
 makes the next `pipe` argument `never`; simulation also checks duplicates at
 runtime before writing `{ globals, blocks }`.
 
+A phase may return a replacement fee snapshot when its provider quote is the
+source of an anchor fee. `Flow.simulate` installs that snapshot before the next
+phase and persists the final value in `globals.fees`. AlfredPay uses this
+because its fiat anchor fee is only known after `AlfredpayMint.simulate` calls
+the provider.
+
 Runtime: `build()` stores the phases; `Flow.simulate(ctx)` runs
 `computeFees(ctx)`, builds the first input via `requestToIO(ctx)`, then
 sequentially calls `phase.simulate(prevOutput, ctx)`. `Flow.phases` =
@@ -220,15 +239,16 @@ is one loop:
 flow.executors.forEach(executor => phaseRegistry.registerHandler(executor));
 ```
 
-Nothing calls this yet. The executors are faithful ports of the production
+Startup registers these executors from the flow catalog. The executors are faithful ports of the production
 handlers, **sliced to the path this corridor exercises** (EVM ephemeral,
-Base source chain, BUY direction):
+Base or Polygon source chain, BUY direction):
 
 | Executor | `RampPhase` | Ported from | Slice notes |
 |----------|-------------|-------------|-------------|
 | `BrlaOnrampMintExecutor` | `brlaOnrampMint` | `handlers/brla-onramp-mint-handler.ts` | Full port (already Base-specific). Waits for the Avenia subaccount balance, creates the live transfer ticket to the Base ephemeral, 95% recovery shortcut, 30-min payment timeout → `failed`. |
-| `FundEphemeralExecutor` | `fundEphemeral` | `handlers/fund-ephemeral-handler.ts` | Source-chain gas funding (including the flow's aggregated native prefunding plan) + destination EVM funding for BUY. Pendulum/Polygon-Alfredpay branches and SELL user-tx verification not ported. |
-| `SubsidizePreSwapExecutor` | `subsidizePreSwap` | `handlers/subsidize-pre-swap-handler.ts` | EVM branch only (`nablaSwapEvm` config). USD cap check + funding-account ERC-20 top-up + Subsidy record. |
+| `AlfredpayOnrampMintExecutor` | `alfredpayOnrampMint` | `handlers/alfredpay-onramp-mint-handler.ts` | Polygon balance/status race, terminal provider failure, recoverable balance timeout, and mint hash persistence. |
+| `FundEphemeralExecutor` | `fundEphemeral` | `handlers/fund-ephemeral-handler.ts` | Source-chain gas funding derived from its own metadata (including the flow's aggregated native prefunding plan) + destination EVM funding for BUY. Pendulum and SELL user-tx verification are not ported. |
+| `SubsidizePreSwapExecutor` | `subsidizePreSwap` | `handlers/subsidize-pre-swap-handler.ts` | Network-generic EVM branch. USD cap check + funding-account ERC-20 top-up + Subsidy record. |
 | `NablaApproveExecutor` | `nablaApprove` | `handlers/nabla-approve-handler.ts` | EVM branch: broadcast presigned approve on Base. |
 | `NablaSwapExecutor` | `nablaSwap` | `handlers/nabla-swap-handler.ts` | EVM branch: input-balance validation + broadcast presigned swap. Substrate soft-minimum dry-run not ported. |
 | `DistributeFeesExecutor` | `distributeFees` | `handlers/distribute-fees-handler.ts` | EVM branch: `distributeFeeHash` idempotency, USDC fee-balance precondition, presigned broadcast. Substrate/Subscan branch not ported. |
@@ -293,6 +313,13 @@ owning phase):
 | `backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove` | backup | `SquidRouterSwap` | contingency for *its* bridge falling short |
 | `baseCleanupBrla` | cleanup | `AveniaMint` | sweeps dust of the token *it* minted |
 | `baseCleanupUsdc` | cleanup | `NablaSwap` | sweeps dust of *its* swap output |
+| `polygonCleanup`, `alfredOnrampMintFallback` | cleanup | `AlfredpayMint` | cleanup and contingency transfer for its minted token |
+
+For AlfredPay, `SquidRouterSwap` owns the Polygon source approve/swap and the
+destination backup lane. Both production and block preparation consume the
+phase-owned `squidRouterSwap.inputAmountRaw`; the old production preparer used
+the gross mint amount for the source transaction and a different amount for
+the fallback quote.
 
 `Flow.prepareTxs` assembles corridor-level fields (`destinationAddress`,
 `evmEphemeralAddress`, `phaseFlow`, and static flow facts) separately from
@@ -333,6 +360,7 @@ assembles them linearly.
 
 | Phase | Metadata key | `phases` |
 |-------|--------------|----------|
+| `AlfredpayMint` | `alfredpayMint` | `["alfredpayOnrampMint"]` |
 | `AveniaMint` | `aveniaMint` | `["brlaOnrampMint"]` |
 | `MykoboMint` | `mykoboMint` | `["mykoboOnrampDeposit"]` |
 | `FundEphemeral(token, chain)` | `fundEphemeral` | `["fundEphemeral"]` |
@@ -417,8 +445,12 @@ every ported corridor must pass:
    the production `prepareAveniaToEvmOnrampTransactionsOnBase` output for
    the cross-chain path: the full `UnsignedTx[]` (phase, network, nonce,
     signer, txData). Preparation outputs are asserted beneath their owning
-    `blockState` entries and native prefunding is asserted in the transaction
-    plan.
+     `blockState` entries and native prefunding is asserted in the transaction
+     plan.
+8. **AlfredPay parity** — the AlfredPay tests repeat the structural, executor,
+   typed-adjacency, simulation, metadata, transaction, nonce, route-state, and
+   native-prefunding checks. They additionally assert that production and block
+   preparation sign the same phase-owned Squid input amount.
 
 ### Metadata ownership
 
@@ -520,9 +552,9 @@ the helpers it delegates to (`transactions/onramp/common/transactions.ts`,
 
 All handler paths relative to `apps/api/src/api/services/phases/`.
 
-### Known gaps & POC limitations
+### Current catalog boundaries
 
-All intentional scope cuts, not bugs:
+Unmapped cases fail at quote resolution rather than falling back to the old engine:
 
 1. **Subsidy simplified.** The subsidy phases compute metadata from
    `ctx.partner.targetDiscount` / `maxSubsidy` + a single oracle price
@@ -534,8 +566,8 @@ All intentional scope cuts, not bugs:
    mint/transfer fees and the network fee from a Squid quote; the blocks
    adapter reuses `calculateFeeComponents` only. Simulated amounts
    therefore drift from the old engine until fee parity (roadmap) is done.
-3. **Executors are corridor slices.** EVM ephemeral, Base source, BUY
-   direction. Substrate (Pendulum), Polygon/Alfredpay, and SELL branches
+3. **Executors are corridor slices.** EVM ephemeral, Base/Polygon source, BUY
+   direction. Substrate (Pendulum) and SELL branches
    of the production handlers are not ported — they belong to the
    corridors that exercise them.
 4. **Executors keep production's cross-phase metadata reads** (e.g.
@@ -556,7 +588,7 @@ All intentional scope cuts, not bugs:
    Substrate corridors (Pendulum nonce bumps, XCM txs, `additionalTxs`
    meta) are untouched.
 
-### Appendix: the existing code this refactor targets
+### Appendix: the code this refactor replaced
 
 The entanglement this model unwinds:
 
@@ -573,9 +605,9 @@ The entanglement this model unwinds:
 - **The gap:** quote stages ≠ execution phases; the mapping is implicit,
   spread across three files; `phaseFlow` correctness is runtime-only.
 
-The block model closes that gap one corridor at a time, without a
-big-bang rewrite: this corridor's quote simulation, phase sequence, and
-execution handlers are now defined by a single flow.
+The block model closes that gap: a mapped corridor's quote simulation,
+transaction plan, phase sequence, and execution handlers are defined by a
+single flow. There is no runtime fallback to the strategy engine.
 
 ### Roadmap (next steps, in priority order)
 
@@ -585,15 +617,13 @@ execution handlers are now defined by a single flow.
    `Flow.prepareTxs` allocates nonces per `(network, signer)` in flow
    order and assembles `stateMeta`. Asserted tx-for-tx against the
    production route-prep in the txs parity test.
-2. **Wire the flow behind a flag.** Register `flow.executors` into the
-   phase registry, route `QuoteService` through `flow.simulate`, and
-   route ramp registration through `flow.prepareTxs` for this corridor;
-   run real numerical parity vs `onrampAveniaToEvmBaseStrategy`
-   (requires closing gap #2 first).
+2. ~~**Wire the flow.**~~ **Done.** The catalog drives quote simulation,
+   transaction preparation, and executor registration globally. Unmapped
+   corridors fail during quote creation.
 3. **Port the remaining corridors.** `EUR_ONRAMP_BASE_*` next (MykoboMint
    exists; executors for `mykoboOnrampDeposit` pending), then
    `BRL_ONRAMP_BASE_{DIRECT,SAME_CHAIN}` (subsets of this flow family),
-   `ALFREDPAY_*`, the offramps.
+    remaining `ALFREDPAY_*`, the offramps.
 4. **Persist per-phase IO boundaries** into metadata so executors read
    their own phase's simulated output instead of downstream keys (gap #4).
 5. **Delete the old strategy + `ramp-flow-definitions.ts` entry + handlers**

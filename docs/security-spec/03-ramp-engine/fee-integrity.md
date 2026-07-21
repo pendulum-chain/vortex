@@ -4,7 +4,11 @@
 
 Fee calculation determines how much the user pays for a ramp operation and how that payment is distributed. This is a **critical financial security concern** because incorrect fee handling directly impacts user funds and platform revenue.
 
-### ⚠️ KNOWN ISSUE: Dual Fee System Discrepancy
+### Block-Flow Fee Source
+
+Mapped block flows compute the persisted fee snapshot once through `blocks/core/fees.ts`. `DistributeFees` deducts and prepares transfers from that same `globals.fees.usd` snapshot, excluding the anchor fee already charged by the provider. The prior strategy engine and its token-config/display split remain in the repository for historical comparison but are not called by `QuoteService`.
+
+### Historical Dual Fee System Discrepancy
 
 **Two parallel fee calculation systems exist, and they do NOT agree:**
 
@@ -39,7 +43,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 
 ## Security Invariants
 
-1. **The fees actually deducted MUST match the fees displayed to the user** — **CURRENTLY VIOLATED**. The token-config fees (actually deducted) and database fees (displayed) are calculated independently and may differ. This must be reconciled.
+1. **The fees actually deducted MUST match the fees displayed to the user** — A mapped flow MUST use its immutable `globals.fees` snapshot for both response construction and `DistributeFees` transaction preparation.
 2. **Fee parameters MUST NOT be client-controllable** — All fee rates (basis points, fixed components) must come from server-side configuration (token config or database), never from request parameters.
 3. **Fee calculations MUST use safe decimal arithmetic** — The code uses `Big.js` for fee calculations, avoiding floating-point precision errors. All monetary calculations MUST use arbitrary-precision arithmetic, never native JavaScript `number`.
 4. **Negative output amounts MUST be blocked** — If fees exceed the input/output amount, the result must be clamped to zero, never negative. Both helper functions check `totalReceiveRaw.gt(0)` and return `'0'` otherwise.

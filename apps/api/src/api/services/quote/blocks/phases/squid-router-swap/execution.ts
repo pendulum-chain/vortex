@@ -7,6 +7,7 @@ import {
   EvmNetworks,
   EvmTokenDetails,
   evmTokenConfig,
+  getEvmBalance,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
@@ -30,6 +31,7 @@ import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
+import { settlementBalanceKey } from "../../core/settlement";
 import { SquidRouterSwapContext } from "./simulation";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -96,6 +98,36 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
 
       if (!approveTransaction || !swapTransaction) {
         throw new Error("Missing presigned transactions for squidRouter phase");
+      }
+
+      const destinationNetwork = bridgeMeta.toNetwork as EvmNetworks;
+      const destinationTokenDetails = getOnChainTokenDetails(destinationNetwork, quote.outputCurrency as OnChainToken);
+      if (!destinationTokenDetails || !isEvmTokenDetails(destinationTokenDetails)) {
+        throw new Error(`Could not resolve destination token details on ${destinationNetwork}`);
+      }
+      const baselineKey = settlementBalanceKey(
+        destinationNetwork,
+        evmEphemeralAddress,
+        destinationTokenDetails.erc20AddressSourceChain
+      );
+      if (!state.state.transactionPlan?.settlementBaselines?.[baselineKey]) {
+        const baseline = await getEvmBalance({
+          chain: destinationNetwork,
+          ownerAddress: evmEphemeralAddress as `0x${string}`,
+          tokenDetails: destinationTokenDetails
+        });
+        await state.update({
+          state: {
+            ...state.state,
+            transactionPlan: {
+              ...state.state.transactionPlan,
+              settlementBaselines: {
+                ...state.state.transactionPlan?.settlementBaselines,
+                [baselineKey]: baseline.toFixed(0)
+              }
+            }
+          }
+        });
       }
 
       let approveHash = state.state.squidRouterApproveHash;

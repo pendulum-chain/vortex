@@ -8,7 +8,6 @@ import {
   Networks,
   nativeToDecimal,
   RampCurrency,
-  RampDirection,
   RampPhase
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -25,6 +24,8 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePostContext } from "./simulation";
+
+const EVM_SETTLEMENT_DELAY_MS = parseInt(process.env.SUBSIDY_SETTLEMENT_DELAY_MS || "15000", 10);
 
 // EVM slice of the production SubsidizePostSwapPhaseHandler: tops up the ephemeral's Nabla output
 // token on Base until it matches the amount the next phase expects (the simulated Squid bridge
@@ -62,7 +63,7 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
       }
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
 
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",

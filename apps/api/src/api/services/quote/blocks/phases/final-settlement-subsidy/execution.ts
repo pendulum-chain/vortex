@@ -22,10 +22,12 @@ import logger from "../../../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../../../phases/handlers/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -96,9 +98,16 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       }
     }
 
-    // 2. Wait for the bridge to deliver on the destination chain
+    const baselineKey = settlementBalanceKey(destinationNetwork, ephemeralAddress, outTokenDetails.erc20AddressSourceChain);
+    const baselineValue = state.state.transactionPlan?.settlementBaselines?.[baselineKey];
+    if (baselineValue === undefined) {
+      throw this.createUnrecoverableError("FinalSettlementSubsidyExecutor: Missing destination settlement baseline");
+    }
+    const baseline = new Big(baselineValue);
+
+    // 2. Wait for the bridge delivery delta, excluding any balance that existed before the bridge.
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: expectedAmountRaw.mul(MIN_BRIDGE_DELIVERY_RATIO).toFixed(0, 0),
+      amountDesiredRaw: baseline.plus(expectedAmountRaw.mul(MIN_BRIDGE_DELIVERY_RATIO)).toFixed(0, 0),
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
@@ -118,7 +127,12 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       ? multiplyByPowerOfTen(DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork], outTokenDetails.decimals)
       : new Big(0);
     const requiredBalanceRaw = expectedAmountRaw.plus(destinationGasReserveRaw);
-    const subsidyAmountRaw = requiredBalanceRaw.minus(actualBalance);
+    const subsidyAmountRaw = calculateSettlementSubsidyRaw(
+      expectedAmountRaw,
+      actualBalance,
+      baseline,
+      destinationGasReserveRaw
+    );
     logger.debug(
       `FinalSettlementSubsidyExecutor: subsidyAmountRaw=${subsidyAmountRaw.toString()} (required=${requiredBalanceRaw.toString()} - actualBalance=${actualBalance.toString()})`
     );
@@ -293,6 +307,17 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       if (!receipt || receipt.status !== "success") {
         throw new Error(`Failed to confirm subsidy transaction after ${attempt} attempts`);
       }
+      if (!txHash) {
+        throw new Error("Subsidy transaction confirmed without a transaction hash");
+      }
+
+      await this.createSubsidy(
+        state,
+        subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals)).toNumber(),
+        quote.outputCurrency as unknown as SubsidyToken,
+        fundingAccount.address,
+        txHash
+      );
 
       await state.update({
         state: {

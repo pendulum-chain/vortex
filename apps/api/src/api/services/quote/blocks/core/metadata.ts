@@ -1,4 +1,4 @@
-import type { CreateQuoteRequest, QuoteFeeStructure } from "@vortexfi/shared";
+import type { CreateQuoteRequest, QuoteFeeStructure, RampCurrency } from "@vortexfi/shared";
 import type { Big } from "big.js";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../core/types";
@@ -28,11 +28,20 @@ export interface FlowGlobals {
   };
   partner: PartnerInfo | null;
   request: CreateQuoteRequest & { userId?: string };
+  subsidyDisplay?: { currency: RampCurrency; fiat: string; usd: string };
 }
 
 export interface FlowMetadata<Blocks extends Record<string, unknown> = Record<string, unknown>> {
   blocks: Blocks;
   globals: FlowGlobals;
+}
+
+export function getFlowMetadata(metadata: unknown): FlowMetadata {
+  const value = metadata as Partial<FlowMetadata> | null;
+  if (!value?.blocks || !value.globals?.request || !value.globals.fees?.usd) {
+    throw new Error("Quote does not contain block flow metadata");
+  }
+  return value as FlowMetadata;
 }
 
 export function getBlockMetadata<Context extends AnyContextMetadata>(
