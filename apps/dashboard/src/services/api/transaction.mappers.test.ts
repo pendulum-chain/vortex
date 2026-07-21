@@ -47,5 +47,30 @@ describe("mapRampHistoryTransaction", () => {
     assert.equal(transaction?.payinWallet, "0x1111111111111111111111111111111111111111");
     assert.equal(transaction?.amountInToken, "BRL");
     assert.equal(transaction?.payoutCurrency, "USDC");
+    assert.equal(transaction?.recipientEmail, "Your wallet");
+  });
+
+  it("keeps a SELL source wallet separate from its payout destination label", () => {
+    const transaction = mapRampHistoryTransaction(
+      {
+        currentPhase: "complete",
+        date: "2026-07-21T00:00:00.000Z",
+        from: Networks.Polygon,
+        fromAmount: "54.054054",
+        fromCurrency: EvmToken.USDC,
+        id: "ramp-sell",
+        status: WireTransactionStatus.COMPLETE,
+        to: EPaymentMethod.SPEI,
+        toAmount: "1000.00",
+        toCurrency: FiatToken.MXN,
+        type: RampDirection.SELL,
+        walletAddress: "0x2222222222222222222222222222222222222222"
+      },
+      "account-1"
+    );
+
+    assert.equal(transaction?.direction, RampDirection.SELL);
+    assert.equal(transaction?.payinWallet, "0x2222222222222222222222222222222222222222");
+    assert.equal(transaction?.recipientEmail, "Payout account");
   });
 });

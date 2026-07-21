@@ -56,7 +56,7 @@ describe("transferMachine BUY flow", () => {
     actor.stop();
   });
 
-  it("returns to idle and clears the cancelled ramp while awaiting payment", async () => {
+  it("returns to idle and clears an expired ramp while awaiting payment", async () => {
     const machine = transferMachine.provide({
       actors: {
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] }))

@@ -1,8 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { ArrowLeft, Check, Copy } from "lucide-react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { resetTransferState, transferActor } from "@/machines/transferActor";
@@ -78,7 +79,15 @@ function instructionRows(ramp: RampProcess): Array<{ label: string; value: unkno
 export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   const navigate = useNavigate();
   const starting = useSelector(transferActor, snapshot => snapshot.matches("Starting"));
+  const [now, setNow] = useState(() => Date.now());
   const rows = instructionRows(ramp);
+  const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
+  const expired = Number.isFinite(expiresAt) && expiresAt <= now;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   function confirmPayment() {
     const subscription = transferActor.subscribe(snapshot => {
@@ -92,6 +101,23 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
       }
     });
     transferActor.send({ type: "PAYMENT_CONFIRMED" });
+  }
+
+  if (expired) {
+    return (
+      <div className="grid gap-5">
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive">
+          <TriangleAlert className="mt-px size-5 shrink-0" />
+          <div className="grid gap-1">
+            <h2 className="font-semibold">Payment instructions expired</h2>
+            <p className="text-sm">Do not send money using these details. Get a new quote and fresh payment instructions.</p>
+          </div>
+        </div>
+        <Button onClick={resetTransferState} size="lg" type="button">
+          Get a new quote
+        </Button>
+      </div>
+    );
   }
 
   return (
@@ -118,14 +144,9 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         </div>
       )}
 
-      <div className="grid grid-cols-[auto_1fr] gap-3">
-        <Button disabled={starting} onClick={resetTransferState} size="lg" type="button" variant="outline">
-          <ArrowLeft /> Back
-        </Button>
-        <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
-          <Check /> {starting ? "Starting transfer…" : "I have made the payment"}
-        </Button>
-      </div>
+      <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
+        <Check /> {starting ? "Starting transfer…" : "I have made the payment"}
+      </Button>
     </div>
   );
 }

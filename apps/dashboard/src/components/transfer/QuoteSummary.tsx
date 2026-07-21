@@ -42,6 +42,13 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
   const netRate = input > 0 ? output / input : 0;
   const fiat = quote.feeCurrency;
   const isOnramp = quote.rampType === RampDirection.BUY;
+  const grossRate = isOnramp
+    ? input - effectiveTotalFee > 0
+      ? output / (input - effectiveTotalFee)
+      : 0
+    : input > 0
+      ? (output + effectiveTotalFee) / input
+      : 0;
   const inputCurrency = String(quote.inputCurrency);
   const outputCurrency = String(quote.outputCurrency);
 
@@ -76,7 +83,7 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
         <div className="flex items-center gap-2">
           <RefreshCw className={cn("size-3.5 text-muted-foreground", isFetching && "animate-spin")} />
           <span className="font-medium text-sm tabular-nums">
-            1 {inputCurrency} = {formatRate(netRate)} {outputCurrency}
+            1 {inputCurrency} = {formatRate(grossRate)} {outputCurrency}
           </span>
         </div>
       </div>

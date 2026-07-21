@@ -165,7 +165,9 @@ provider-shaped rather than UI-shaped.
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not
   currently avoid it. The machine snapshot is persisted under a dashboard-specific key so provider
-  payment instructions survive navigation and reload, and is cleared on reset/logout.
+  payment instructions survive navigation and reload. Registered instructions cannot be discarded
+  before their 15-minute start window closes because the server still considers that ramp active;
+  once expired, the dashboard hides the stale details and allows resetting for a new quote.
 
 - **Only one ramp may be active per user.** Registration takes a database row lock on the user and
   rejects a second nonterminal ramp, including requests from another tab, client, or API instance.

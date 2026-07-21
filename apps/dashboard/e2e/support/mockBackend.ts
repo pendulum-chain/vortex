@@ -189,6 +189,7 @@ export function buildRampProcess(overrides: Record<string, unknown> = {}) {
   return {
     createdAt: new Date().toISOString(),
     currentPhase: "initial",
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     from: "polygon",
     id: E2E_RAMP_ID,
     inputAmount: "54.054054",
@@ -259,6 +260,9 @@ interface MockBackendOptions {
   pendingInvitations?: Array<Record<string, unknown>>;
   // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
   fiatAccounts?: Array<Record<string, unknown>>;
+  rampExpiresAt?: string;
+  rampHistory?: Array<Record<string, unknown>>;
+  rampRegisterError?: string;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
 }
 
@@ -752,6 +756,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         signingAccounts?: Array<{ address: string; type: string }>;
       } & Record<string, unknown>;
       registerRequests.push(body);
+      if (options.rampRegisterError) {
+        await fulfillJson({ message: options.rampRegisterError }, 500);
+        return;
+      }
       const evmEphemeral = body.signingAccounts?.find(account => account.type === "EVM")?.address ?? POLYGON_USDT;
       const isOnramp = quoteRequests.at(-1)?.rampType === "BUY";
       unsignedTxs = isOnramp ? [] : buildSellUnsignedTxs(evmEphemeral);
@@ -777,6 +785,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson(
         buildRampProcess({
           ...paymentData,
+          expiresAt: options.rampExpiresAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString(),
           from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
           inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
           inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
@@ -814,6 +823,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       await fulfillJson(
         buildRampProcess({
           ...paymentData,
+          expiresAt: options.rampExpiresAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString(),
           from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
           inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
           inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
@@ -833,6 +843,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     // Checked before the /v1/ramp/:id status route below, which would otherwise swallow it.
     if ((path === "/v1/ramp/history" || path.startsWith("/v1/ramp/history/")) && method === "GET") {
+      if (options.rampHistory) {
+        await fulfillJson({ totalCount: options.rampHistory.length, transactions: options.rampHistory });
+        return;
+      }
       const quote = quoteRequests.at(-1);
       const register = registerRequests.at(-1);
       const destinationAddress = (register?.additionalData as { destinationAddress?: string } | undefined)?.destinationAddress;

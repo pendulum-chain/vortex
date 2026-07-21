@@ -232,6 +232,16 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
           />
         </div>
 
+        {transferState.matches("Failed") && transferState.context.errorMessage && (
+          <div
+            className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm"
+            role="alert"
+          >
+            <TriangleAlert className="mt-px size-4 shrink-0" />
+            <p>{transferState.context.errorMessage}</p>
+          </div>
+        )}
+
         {error ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm">
             <TriangleAlert className="mt-px size-4 shrink-0" />

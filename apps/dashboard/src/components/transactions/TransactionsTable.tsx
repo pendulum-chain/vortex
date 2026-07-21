@@ -71,9 +71,11 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
               <TableCell>
                 <div className="grid gap-0.5">
                   <code className="font-mono text-xs">
-                    {tx.payinWallet ? shortenAddress(tx.payinWallet) : tx.recipientEmail}
+                    {tx.direction === "BUY" && tx.payinWallet ? shortenAddress(tx.payinWallet) : tx.recipientEmail}
                   </code>
-                  <span className="text-muted-foreground text-xs">{networkLabel(tx.payinNetwork)}</span>
+                  {tx.direction === "BUY" && (
+                    <span className="text-muted-foreground text-xs">{networkLabel(tx.payinNetwork)}</span>
+                  )}
                 </div>
               </TableCell>
               <TableCell>
@@ -97,7 +99,7 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
               </TableCell>
               <TableCell className="text-right">
                 {tx.status === "failed" ? (
-                  <FailedAction reason={tx.failureReason} recipientEmail={tx.recipientEmail} />
+                  <FailedAction direction={tx.direction} reason={tx.failureReason} />
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>
                 )}
@@ -110,13 +112,14 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
   );
 }
 
-function FailedAction({ reason, recipientEmail }: { reason?: string; recipientEmail: string }) {
+function FailedAction({ direction, reason }: { direction: Transaction["direction"]; reason?: string }) {
+  const transferLabel = direction === "BUY" ? "onramp" : "payout";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           onClick={() =>
-            toast.success("Support request opened", { description: `We'll email you about the ${recipientEmail} payout.` })
+            toast.success("Support request opened", { description: `We'll email you about this failed ${transferLabel}.` })
           }
           size="sm"
           variant="outline"
@@ -125,7 +128,7 @@ function FailedAction({ reason, recipientEmail }: { reason?: string; recipientEm
           Get help
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{reason ?? "This payout failed. Contact support to resolve it."}</TooltipContent>
+      <TooltipContent>{reason ?? `This ${transferLabel} failed. Contact support to resolve it.`}</TooltipContent>
     </Tooltip>
   );
 }
