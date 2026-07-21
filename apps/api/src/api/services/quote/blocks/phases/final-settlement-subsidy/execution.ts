@@ -24,6 +24,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../../../phases/handlers/helpers";
 import { priceFeedService } from "../../../../priceFeed.service";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -106,10 +107,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     });
     logger.debug(`FinalSettlementSubsidyExecutor: Ephemeral balance=${actualBalance.toString()}`);
 
-    const preBalance = new Big(state.state.preSettlementBalance ?? "0");
-    const deliveredRaw = actualBalance.minus(preBalance);
-    const delivered = deliveredRaw.gte(0) ? deliveredRaw : new Big(0);
-
     // 3. Check funding account balance
     const actualBalanceFundingAccount = await getEvmBalance({
       chain: destinationNetwork,
@@ -117,14 +114,18 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       tokenDetails: outTokenDetails
     });
 
-    const subsidyAmountRaw = expectedAmountRaw.minus(delivered);
+    const destinationGasReserveRaw = isNative
+      ? multiplyByPowerOfTen(DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork], outTokenDetails.decimals)
+      : new Big(0);
+    const requiredBalanceRaw = expectedAmountRaw.plus(destinationGasReserveRaw);
+    const subsidyAmountRaw = requiredBalanceRaw.minus(actualBalance);
     logger.debug(
-      `FinalSettlementSubsidyExecutor: subsidyAmountRaw=${subsidyAmountRaw.toString()} (expected=${expectedAmountRaw.toString()} - delivered=${delivered.toString()}, actualBalance=${actualBalance.toString()}, preSettlementBalance=${preBalance.toString()})`
+      `FinalSettlementSubsidyExecutor: subsidyAmountRaw=${subsidyAmountRaw.toString()} (required=${requiredBalanceRaw.toString()} - actualBalance=${actualBalance.toString()})`
     );
 
     if (subsidyAmountRaw.lte(0)) {
       logger.info(
-        `FinalSettlementSubsidyExecutor: Delivered amount (${delivered.toString()}) meets expected amount with actualBalance=${actualBalance.toString()} and preSettlementBalance=${preBalance.toString()}. No subsidy needed.`
+        `FinalSettlementSubsidyExecutor: Actual balance ${actualBalance.toString()} meets required balance ${requiredBalanceRaw.toString()}. No subsidy needed.`
       );
       return state;
     }

@@ -9,7 +9,6 @@ import {
   RampPhase,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
-import { type Hex, parseTransaction } from "viem";
 import logger from "../../../../../../config/logger";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
@@ -19,16 +18,12 @@ import RampState from "../../../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
-import {
-  DESTINATION_EVM_FUNDING_AMOUNTS,
-  isBaseEphemeralFunded,
-  isDestinationEvmEphemeralFunded,
-  isPolygonEphemeralFunded
-} from "../../../../phases/handlers/helpers";
+import { DESTINATION_EVM_FUNDING_AMOUNTS, isDestinationEvmEphemeralFunded } from "../../../../phases/handlers/helpers";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { getNativePrefunding } from "../../core/prepare";
 
 // EVM-ephemeral onramp slice of the production FundEphemeralPhaseHandler: funds the source-chain
-// ephemeral (native gas + the presigned squidRouter swap value) and, for BUY ramps to an EVM
+// ephemeral (native gas + the flow's planned transaction value) and, for BUY ramps to an EVM
 // destination, the destination-chain ephemeral. Substrate/Polygon-Alfredpay branches are not ported.
 export class FundEphemeralExecutor extends BasePhaseHandler {
   constructor(private readonly chain: EvmNetworks) {
@@ -46,14 +41,21 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     }
 
     try {
-      const isSourceFunded =
-        this.chain === Networks.Polygon
-          ? await isPolygonEphemeralFunded(evmEphemeralAddress)
-          : await isBaseEphemeralFunded(evmEphemeralAddress);
+      const sourceClient = EvmClientManager.getInstance().getClient(this.chain);
+      const chain = sourceClient.chain;
+      if (!chain) {
+        throw new Error(`FundEphemeralExecutor: Could not get chain info for ${this.chain}`);
+      }
+      const fixedFundingUnits =
+        this.chain === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+      const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
+      const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, this.chain, evmEphemeralAddress);
+      const requiredFundingRaw = fixedFundingRaw + plannedNativeValueRaw;
+      const currentBalanceRaw = await sourceClient.getBalance({ address: evmEphemeralAddress as `0x${string}` });
 
-      if (!isSourceFunded) {
+      if (currentBalanceRaw < requiredFundingRaw) {
         logger.info(`Funding ${this.chain} ephemeral account ${evmEphemeralAddress}`);
-        await this.fundEvmEphemeralAccount(state, this.chain);
+        await this.fundEvmEphemeralAccount(state, this.chain, requiredFundingRaw - currentBalanceRaw, requiredFundingRaw);
       } else {
         logger.info(`${this.chain} ephemeral address already funded.`);
       }
@@ -86,7 +88,12 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     return state;
   }
 
-  protected async fundEvmEphemeralAccount(state: RampState, network: EvmNetworks): Promise<void> {
+  protected async fundEvmEphemeralAccount(
+    state: RampState,
+    network: EvmNetworks,
+    fundingAmountRaw: bigint,
+    requiredFundingRaw: bigint
+  ): Promise<void> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
       const networkClient = evmClientManager.getClient(network);
@@ -96,35 +103,14 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         throw new Error(`FundEphemeralExecutor: Could not get chain info for ${network}`);
       }
 
-      const amountToFundUnits =
-        network === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
-
       const ephemeralAddress = state.state.evmEphemeralAddress;
-      const baseFundingRaw = BigInt(multiplyByPowerOfTen(amountToFundUnits, chain.nativeCurrency.decimals).toFixed());
-
-      // Cover the exact native value the presigned squidRouter swap will send (bridge gas etc.).
-      // The value already includes a safety margin from computeSwapValueWithSafetyMargin.
-      // squidRouterPay remains as a top-up safety net if the route value still falls short.
-      const swapTx = this.getPresignedTransaction(state, "squidRouterSwap");
-      let swapValueRaw = 0n;
-      if (swapTx?.txData && typeof swapTx.txData === "string") {
-        try {
-          swapValueRaw = parseTransaction(swapTx.txData as Hex).value ?? 0n;
-        } catch (decodeError) {
-          logger.warn(
-            `FundEphemeralExecutor: Could not decode squidRouterSwap presigned tx for value extraction on ${network}: ${decodeError}`
-          );
-        }
-      }
-
-      const fundingAmountRaw = (baseFundingRaw + swapValueRaw).toString();
 
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
 
       const txHash = await walletClient.sendTransaction({
         to: ephemeralAddress as `0x${string}`,
-        value: BigInt(fundingAmountRaw)
+        value: fundingAmountRaw
       });
 
       const receipt = await networkClient.waitForTransactionReceipt({
@@ -138,13 +124,12 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       // The receipt confirms inclusion, but downstream phases use a different RPC client which
       // may briefly lag behind. Poll the balance until it reflects the funded amount so that
       // subsequent phases (nablaApprove etc.) don't read a stale balance.
-      const isFundedCheck =
-        network === Networks.Polygon
-          ? () => isPolygonEphemeralFunded(ephemeralAddress)
-          : () => isBaseEphemeralFunded(ephemeralAddress);
-
       try {
-        await waitUntilTrueWithTimeout(isFundedCheck, 1000, 30000);
+        await waitUntilTrueWithTimeout(
+          async () => (await networkClient.getBalance({ address: ephemeralAddress as `0x${string}` })) >= requiredFundingRaw,
+          1000,
+          30000
+        );
       } catch (pollError) {
         throw new Error(
           `FundEphemeralExecutor: Funded ${ephemeralAddress} on ${network} but balance not reflected on RPC within timeout: ${pollError}`

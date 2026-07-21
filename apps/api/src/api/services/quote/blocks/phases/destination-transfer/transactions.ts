@@ -1,33 +1,29 @@
 import {
   EvmNetworks,
-  getNetworkFromDestination,
   getOnChainTokenDetails,
   isEvmTokenDetails,
   isNativeEvmToken,
-  multiplyByPowerOfTen,
+  Networks,
   OnChainToken
 } from "@vortexfi/shared";
 import { addOnrampDestinationChainTransactions } from "../../../../transactions/onramp/common/transactions";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
+import type { DestinationTransferMetadata } from "./simulation";
 
 // The presigned final transfer the DestinationTransferExecutor broadcasts: quote.outputAmount
 // from the destination-chain ephemeral to the user's address.
-export async function prepareDestinationTransferTxs(ctx: PrepareCtx): Promise<PreparedPhaseTxs> {
-  const { quote, evmEphemeral, destinationAddress } = ctx;
+export async function prepareDestinationTransferTxs(ctx: PrepareCtx<DestinationTransferMetadata>): Promise<PreparedPhaseTxs> {
+  const { evmEphemeral, destinationAddress, ownMetadata } = ctx;
 
-  const toNetwork = getNetworkFromDestination(quote.to);
-  if (!toNetwork) {
-    throw new Error(`prepareDestinationTransferTxs: Invalid network for destination ${quote.to}`);
-  }
+  const toNetwork = ownMetadata.network as Networks;
 
-  const outputTokenDetails = getOnChainTokenDetails(toNetwork, quote.outputCurrency as OnChainToken);
+  const outputTokenDetails = getOnChainTokenDetails(toNetwork, ownMetadata.token as OnChainToken);
   if (!outputTokenDetails || !isEvmTokenDetails(outputTokenDetails)) {
-    throw new Error(`prepareDestinationTransferTxs: Output token ${quote.outputCurrency} is not an EVM token on ${toNetwork}`);
+    throw new Error(`prepareDestinationTransferTxs: Output token ${ownMetadata.token} is not an EVM token on ${toNetwork}`);
   }
 
-  const finalAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outputTokenDetails.decimals).toFixed(0, 0);
   const finalDestinationTransfer = await addOnrampDestinationChainTransactions({
-    amountRaw: finalAmountRaw,
+    amountRaw: ownMetadata.amountRaw,
     destinationNetwork: toNetwork as EvmNetworks,
     isNativeToken: isNativeEvmToken(outputTokenDetails),
     toAddress: destinationAddress,

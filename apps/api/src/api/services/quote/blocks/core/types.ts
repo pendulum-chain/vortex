@@ -13,6 +13,7 @@ import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.mo
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../core/types";
+import type { AnyContextMetadata, ContextSimulation, FlowMetadata } from "./metadata";
 
 export type TokenBrand = string;
 export type ChainBrand = string;
@@ -22,7 +23,6 @@ export interface PhaseIO<Token extends TokenBrand = TokenBrand, Chain extends Ch
   amountRaw: string;
   token: Token;
   chain: Chain;
-  meta: Record<string, unknown>;
 }
 
 export interface PhaseCtx {
@@ -34,6 +34,7 @@ export interface PhaseCtx {
   fees?: {
     usd?: { vortex: string; anchor: string; partnerMarkup: string; network: string; total: string };
     displayFiat?: QuoteFeeStructure;
+    vortexFeePenPercentage?: number;
   };
 }
 
@@ -49,19 +50,31 @@ export interface TxIntent {
   signer: string;
   txData: UnsignedTx["txData"];
   lane: TxLane;
+  prefundNativeValueRaw?: string;
   reuseFirstMainNonce?: boolean;
 }
 
 export interface PreparedPhaseTxs {
   intents: TxIntent[];
-  stateMeta?: Partial<StateMetadata>;
+  state?: unknown;
 }
 
-export interface PrepareCtx {
-  quote: QuoteTicketAttributes;
+export type QuoteFields = Omit<QuoteTicketAttributes, "metadata">;
+
+export interface PrepareGlobals {
+  quote: QuoteFields;
   evmEphemeral: AccountMeta;
   destinationAddress: string;
   taxId?: string;
+}
+
+export interface PrepareCtx<Metadata> extends PrepareGlobals {
+  globals: FlowMetadata["globals"];
+  ownMetadata: Readonly<Metadata>;
+}
+
+export interface FlowPrepareCtx<Blocks extends Record<string, unknown>> extends PrepareGlobals {
+  metadata: FlowMetadata<Blocks>;
 }
 
 export interface PreparedFlowTxs {
@@ -69,11 +82,17 @@ export interface PreparedFlowTxs {
   stateMeta: Partial<StateMetadata>;
 }
 
-export interface Phase<I extends PhaseIO, O extends PhaseIO> {
+export interface PhaseResult<O extends PhaseIO, Metadata> {
+  metadata: Metadata;
+  output: O;
+}
+
+export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O extends PhaseIO> {
+  readonly context: Context;
   readonly name: string;
   readonly phases: RampPhase[];
   // Property (not method) so pipe's brand check stays contravariant under strictFunctionTypes.
-  readonly simulate: (input: I, ctx: PhaseCtx) => Promise<O>;
+  readonly simulate: (input: I, ctx: PhaseCtx) => Promise<PhaseResult<O, ContextSimulation<Context>>>;
   // One executor per entry in `phases`, in the same order. Optional while corridors
   // are ported incrementally; a flow whose phases all carry executors is fully
   // execution-ready (registerable into the phase registry, unwired for now).
@@ -81,13 +100,13 @@ export interface Phase<I extends PhaseIO, O extends PhaseIO> {
   // The unsigned transactions this phase's executors expect the ephemeral/user to presign,
   // as nonce-free intents; the flow assembler allocates nonces per (network, signer, lane).
   // Optional: phases whose executors sign live (funding account) or need no tx omit it.
-  readonly prepareTxs?: (ctx: PrepareCtx) => Promise<PreparedPhaseTxs>;
+  readonly prepareTxs?: (ctx: PrepareCtx<ContextSimulation<Context>>) => Promise<PreparedPhaseTxs>;
 }
 
-export interface Flow {
+export interface Flow<O extends PhaseIO = PhaseIO, Blocks extends Record<string, unknown> = Record<string, unknown>> {
   readonly name: string;
   readonly phases: RampPhase[];
   readonly executors: PhaseHandler[];
-  simulate(ctx: PhaseCtx): Promise<PhaseIO>;
-  prepareTxs(ctx: PrepareCtx): Promise<PreparedFlowTxs>;
+  simulate(ctx: PhaseCtx): Promise<{ metadata: FlowMetadata<Blocks>; output: O }>;
+  prepareTxs(ctx: FlowPrepareCtx<Blocks>): Promise<PreparedFlowTxs>;
 }

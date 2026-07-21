@@ -14,6 +14,8 @@ import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getBlockMetadata } from "../../core/metadata";
+import { NablaSwapContext } from "./simulation";
 
 // EVM slice of the production NablaApprovePhaseHandler: broadcasts the presigned ERC-20 approve
 // for the Nabla router on Base. The substrate (Pendulum) branch is not ported.
@@ -69,25 +71,23 @@ export class NablaSwapExecutor extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw || !quote.metadata.nablaSwapEvm.inputCurrency) {
-      throw new Error("Missing nablaSwapEvm input metadata required to validate pre-swap balance");
-    }
+    const metadata = getBlockMetadata(quote.metadata, NablaSwapContext);
 
     const evmEphemeralAddress = state.state.evmEphemeralAddress;
     if (!evmEphemeralAddress) {
       throw new Error("Missing EVM ephemeral address to validate nabla swap input balance");
     }
 
-    const inputTokenDetails = evmTokenConfig[Networks.Base]?.[quote.metadata.nablaSwapEvm.inputCurrency as EvmToken] as
+    const inputTokenDetails = evmTokenConfig[Networks.Base]?.[metadata.inputCurrency as EvmToken] as
       | EvmTokenDetails
       | undefined;
     if (!inputTokenDetails) {
-      throw new Error(`Invalid input token ${quote.metadata.nablaSwapEvm.inputCurrency} for Base nabla swap`);
+      throw new Error(`Invalid input token ${metadata.inputCurrency} for Base nabla swap`);
     }
 
     try {
       await checkEvmBalanceForToken({
-        amountDesiredRaw: quote.metadata.nablaSwapEvm.inputAmountForSwapRaw,
+        amountDesiredRaw: metadata.inputAmountForSwapRaw,
         chain: Networks.Base,
         intervalMs: 1000,
         ownerAddress: evmEphemeralAddress,

@@ -1,25 +1,36 @@
-import { RampDirection } from "@vortexfi/shared";
+import { getOnChainTokenDetails, Networks, OnChainToken, RampDirection } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { priceFeedService } from "../../../../priceFeed.service";
-import type { ChainBrand, PhaseCtx, PhaseIO, TokenBrand } from "../../core/types";
+import { defineContext, type SerializableBig } from "../../core/metadata";
+import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 
-export interface SubsidyMeta {
-  applied: boolean;
-  subsidyRate: Big;
-  partnerId: string | null;
-  expectedOutputAmountDecimal: Big;
-  expectedOutputAmountRaw: string;
-  actualOutputAmountDecimal: Big;
+export interface SubsidyMetadata {
+  actualOutputAmountDecimal: SerializableBig;
   actualOutputAmountRaw: string;
-  subsidyAmountInOutputTokenDecimal: Big;
-  subsidyAmountInOutputTokenRaw: string;
-  idealSubsidyAmountInOutputTokenDecimal: Big;
+  adjustedDifference: SerializableBig;
+  adjustedTargetDiscount: SerializableBig;
+  applied: boolean;
+  expectedOutputAmountDecimal: SerializableBig;
+  expectedOutputAmountRaw: string;
+  idealSubsidyAmountInOutputTokenDecimal: SerializableBig;
   idealSubsidyAmountInOutputTokenRaw: string;
-  targetOutputAmountDecimal: Big;
+  partnerId: string | null;
+  subsidyAmountInOutputTokenDecimal: SerializableBig;
+  subsidyAmountInOutputTokenRaw: string;
+  subsidyRate: SerializableBig;
+  targetOutputAmountDecimal: SerializableBig;
   targetOutputAmountRaw: string;
-  adjustedDifference: Big;
-  adjustedTargetDiscount: Big;
 }
+
+export interface SubsidizePreMetadata {
+  expectedOutputAmountDecimal: SerializableBig;
+  expectedOutputAmountRaw: string;
+  inputCurrency: string;
+  inputDecimals: number;
+  targetInputAmountRaw: string;
+}
+
+export const SubsidizePreContext = defineContext<SubsidizePreMetadata>()("subsidizePreSwap");
 
 export function buildFullSubsidy(
   actualOutputAmountDecimal: Big,
@@ -27,7 +38,7 @@ export function buildFullSubsidy(
   expectedOutputAmountDecimal: Big,
   expectedOutputAmountRaw: string,
   ctx: PhaseCtx
-): SubsidyMeta {
+): SubsidyMetadata {
   const partner = ctx.partner;
   const targetDiscount = partner?.targetDiscount ?? 0;
   const maxSubsidy = partner?.maxSubsidy ?? 0;
@@ -93,17 +104,21 @@ export async function computeExpectedOutput(ctx: PhaseCtx): Promise<{ decimal: B
 export async function simulateSubsidizePre<Token extends TokenBrand, Chain extends ChainBrand>(
   input: PhaseIO<Token, Chain>,
   ctx: PhaseCtx
-): Promise<PhaseIO<Token, Chain>> {
+): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePreMetadata>> {
   const expected = await computeExpectedOutput(ctx);
+  const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
+  if (!tokenDetails) {
+    throw new Error(`SubsidizePre: Missing token details for ${input.token} on ${input.chain}`);
+  }
   ctx.addNote(`SubsidizePre: expected output ${expected.decimal.toFixed()} ${input.token}`);
   return {
-    ...input,
-    meta: {
-      ...input.meta,
-      subsidy: {
-        expectedOutputAmountDecimal: expected.decimal,
-        expectedOutputAmountRaw: expected.raw
-      }
-    }
+    metadata: {
+      expectedOutputAmountDecimal: expected.decimal,
+      expectedOutputAmountRaw: expected.raw,
+      inputCurrency: input.token,
+      inputDecimals: tokenDetails.decimals,
+      targetInputAmountRaw: input.amountRaw
+    },
+    output: input
   };
 }

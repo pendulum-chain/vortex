@@ -16,6 +16,8 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { getBlockMetadata } from "../../core/metadata";
+import { DistributeFeesContext, type DistributeFeesMetadata } from "./simulation";
 
 const FEE_BALANCE_POLL_INTERVAL_MS = 5_000;
 const FEE_BALANCE_POLL_TIMEOUT_MS = 60_000;
@@ -59,7 +61,10 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       // The funding token (USDC) may not yet be on the ephemeral when we reach this phase.
       // Poll for it before submitting; if it never arrives within the timeout, throw a
       // recoverable error so we retry the phase.
-      await this.ensureEvmFeeTokenBalance(quote, distributeFeeTransaction.signer);
+      await this.ensureEvmFeeTokenBalance(
+        getBlockMetadata(quote.metadata, DistributeFeesContext),
+        distributeFeeTransaction.signer
+      );
 
       logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
       const txData = distributeFeeTransaction.txData;
@@ -94,13 +99,8 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     }
   }
 
-  private computeRequiredFeeRaw(quote: QuoteTicket, decimals: number): Big | null {
-    const usdFeeStructure = quote.metadata.fees?.usd;
-    if (!usdFeeStructure) {
-      return null;
-    }
-
-    const totalUsd = new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex).plus(usdFeeStructure.partnerMarkup);
+  private computeRequiredFeeRaw(metadata: DistributeFeesMetadata, decimals: number): Big | null {
+    const totalUsd = new Big(metadata.totalFeesUsd);
     if (totalUsd.lte(0)) {
       return null;
     }
@@ -108,13 +108,13 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     return multiplyByPowerOfTen(totalUsd, decimals);
   }
 
-  private async ensureEvmFeeTokenBalance(quote: QuoteTicket, signerAddress: string): Promise<void> {
+  private async ensureEvmFeeTokenBalance(metadata: DistributeFeesMetadata, signerAddress: string): Promise<void> {
     const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC] as EvmTokenDetails | undefined;
     if (!baseUsdcConfig) {
       throw this.createUnrecoverableError("Base USDC configuration not found; cannot verify fee balance.");
     }
 
-    const requiredRaw = this.computeRequiredFeeRaw(quote, baseUsdcConfig.decimals);
+    const requiredRaw = this.computeRequiredFeeRaw(metadata, baseUsdcConfig.decimals);
     if (!requiredRaw) {
       logger.info("No positive USD fees configured; skipping fee balance precondition check.");
       return;

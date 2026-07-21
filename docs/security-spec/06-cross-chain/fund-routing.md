@@ -4,6 +4,8 @@
 
 Fund routing covers the mechanisms by which the platform ensures ephemeral accounts have the correct token amounts at each stage of a ramp. This includes **subsidization** (topping up ephemeral accounts with platform funds) and **final settlement** (transferring tokens from EVM ephemeral accounts to the user's destination).
 
+> **Unwired block-flow prototype:** `apps/api/src/api/services/quote/blocks/` is not registered with `QuoteService`, ramp registration, or `PhaseProcessor`, so the production invariants below remain authoritative. Its BRL cross-chain prototype models exact native call value as a structural `TxIntent.prefundNativeValueRaw`, aggregates it per `(network, signer)` into `state.transactionPlan.nativePrefunding`, and lets `FundEphemeralExecutor` fund the shortfall to `fixed gas reserve + aggregated prefunding`. Its prototype final-settlement executor currently uses the observable required-balance shortfall (plus the fixed reserve for native outputs) rather than production's `preSettlementBalance` delta. That alternate behavior must be audited against invariant 10 before the block flow is wired into production.
+
 There are now **five** subsidization-related phase handlers and one settlement phase, split between Substrate (Pendulum) and EVM (Base + legacy chains):
 
 **Phase handlers (Substrate):**

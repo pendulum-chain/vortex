@@ -7,7 +7,6 @@ import {
   EvmNetworks,
   EvmTokenDetails,
   evmTokenConfig,
-  getEvmBalance,
   getNetworkFromDestination,
   getNetworkId,
   getOnChainTokenDetails,
@@ -30,6 +29,8 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { getBlockMetadata, getBlockState } from "../../core/metadata";
+import { SquidRouterSwapContext } from "./simulation";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
@@ -56,16 +57,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    const bridgeMeta = quote.metadata.evmToEvm;
-    if (
-      !bridgeMeta?.inputAmountRaw ||
-      !bridgeMeta.fromNetwork ||
-      !bridgeMeta.fromToken ||
-      !bridgeMeta.toNetwork ||
-      !bridgeMeta.toToken
-    ) {
-      throw new Error("Missing bridge metadata required to validate squidRouter input balance");
-    }
+    const bridgeMeta = getBlockMetadata(quote.metadata, SquidRouterSwapContext);
 
     const evmEphemeralAddress = state.state.evmEphemeralAddress;
     if (!evmEphemeralAddress) {
@@ -132,7 +124,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       const swapHash = await this.executeTransaction(sourceNetwork, swapTransaction.txData as string);
       logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
-      let updatedState = await state.update({
+      const updatedState = await state.update({
         state: {
           ...state.state,
           squidRouterSwapHash: swapHash
@@ -141,37 +133,6 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
 
       await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
-
-      // Snapshot the destination-token balance so finalSettlementSubsidy can compute the actual
-      // bridge delivery rather than the total balance (which may include leftover dust).
-      let preSettlementBalance = "0";
-      try {
-        const destinationNetwork = quote.network as EvmNetworks;
-        const outTokenDetails = getOnChainTokenDetails(quote.network, quote.outputCurrency);
-
-        if (!outTokenDetails || !isEvmTokenDetails(outTokenDetails)) {
-          throw new Error(`Could not resolve destination token details for ${quote.outputCurrency} on ${destinationNetwork}`);
-        }
-
-        preSettlementBalance = (
-          await getEvmBalance({
-            chain: destinationNetwork,
-            ownerAddress: state.state.evmEphemeralAddress as `0x${string}`,
-            tokenDetails: outTokenDetails
-          })
-        ).toString();
-      } catch (error) {
-        logger.warn(
-          `SquidRouterSwapExecutor: Failed to snapshot pre-settlement balance for ramp ${state.id}; storing 0. Error: ${error}`
-        );
-      }
-
-      updatedState = await updatedState.update({
-        state: {
-          ...updatedState.state,
-          preSettlementBalance
-        }
-      });
 
       return updatedState;
     } catch (error) {
@@ -389,7 +350,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
             const logIndex = Number(axelarScanStatus.id.split("_")[2]);
 
-            const fromChain = (quote.metadata.evmToEvm?.fromNetwork as EvmNetworks) ?? Networks.Base;
+            const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork as EvmNetworks;
 
             payTxHash = await this.executeFundTransaction(fromChain, nativeToFundRaw, swapHash as `0x${string}`, logIndex);
 
@@ -461,10 +422,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
   private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
     try {
-      const fromChain = quote.metadata.evmToEvm?.fromNetwork as Networks | undefined;
-      if (!fromChain) {
-        throw new Error("SquidRouterPayExecutor: Missing evmToEvm bridge metadata for status check");
-      }
+      const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork;
       const fromChainId = getNetworkId(fromChain)?.toString();
       // Axelar routes through Moonbeam for AssetHub destinations, so the Squid status API
       // expects Moonbeam's chain id when the destination is AssetHub.
@@ -476,7 +434,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         throw new Error("SquidRouterPayExecutor: Invalid from or to network for Squidrouter status check");
       }
 
-      const squidRouterStatus = await getStatus(swapHash, fromChainId, toChainId, state.state.squidRouterQuoteId);
+      const squidRouterQuoteId = getBlockState<{ quoteId: string }>(state.state, SquidRouterSwapContext).quoteId;
+      const squidRouterStatus = await getStatus(swapHash, fromChainId, toChainId, squidRouterQuoteId);
       return squidRouterStatus;
     } catch (squidRouterError) {
       logger.warn(
@@ -520,7 +479,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     if (directNetwork) {
       return directNetwork;
     }
-    return quote.metadata.evmToEvm?.toNetwork as Networks | undefined;
+    return getBlockMetadata(quote.metadata, SquidRouterSwapContext).toNetwork;
   }
 
   private calculateGasFeeInUnits(feeResponse: AxelarScanStatusFees, estimatedGas: string | number): string {

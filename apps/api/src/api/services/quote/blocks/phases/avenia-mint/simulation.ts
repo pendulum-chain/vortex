@@ -7,16 +7,34 @@ import {
   FiatToken,
   getAnyFiatTokenDetailsMoonbeam,
   multiplyByPowerOfTen,
-  Networks
+  Networks,
+  RampCurrency
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { evmIO } from "../../core/io";
-import type { PhaseCtx, PhaseIO } from "../../core/types";
+import { defineContext, type SerializableBig } from "../../core/metadata";
+import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
+
+export interface AnchorOperationMetadata {
+  currency: RampCurrency;
+  fee: SerializableBig;
+  inputAmountDecimal: SerializableBig;
+  inputAmountRaw: string;
+  outputAmountDecimal: SerializableBig;
+  outputAmountRaw: string;
+}
+
+export interface AveniaMintMetadata {
+  mint: AnchorOperationMetadata;
+  transfer: AnchorOperationMetadata;
+}
+
+export const AveniaMintContext = defineContext<AveniaMintMetadata>()("aveniaMint");
 
 export async function simulateAveniaMint(
   input: PhaseIO<typeof FiatToken.BRL, "fiat">,
   ctx: PhaseCtx
-): Promise<PhaseIO<typeof EvmToken.BRLA, typeof Networks.Base>> {
+): Promise<PhaseResult<PhaseIO<typeof EvmToken.BRLA, typeof Networks.Base>, AveniaMintMetadata>> {
   const brlaTokenDetails = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
   const inputAmountDecimal = new Big(input.amount);
   const inputAmountRaw = multiplyByPowerOfTen(inputAmountDecimal, brlaTokenDetails.decimals).toFixed(0, 0);
@@ -66,24 +84,25 @@ export async function simulateAveniaMint(
 
   ctx.addNote(`AveniaMint: assuming ${mintedBrlaDecimal.toFixed()} BRLA minted on the Base ephemeral account`);
 
-  return evmIO(EvmToken.BRLA, Networks.Base, mintedBrlaDecimal, mintedBrlaRaw, {
-    ...input.meta,
-    aveniaMint: {
-      currency: FiatToken.BRL,
-      fee: inputAmountDecimal.minus(aveniaPayInToInternalQuote.outputAmount),
-      inputAmountDecimal,
-      inputAmountRaw,
-      outputAmountDecimal: receivedBrlaDecimal,
-      outputAmountRaw: receivedBrlaRaw
+  return {
+    metadata: {
+      mint: {
+        currency: FiatToken.BRL,
+        fee: inputAmountDecimal.minus(aveniaPayInToInternalQuote.outputAmount),
+        inputAmountDecimal,
+        inputAmountRaw,
+        outputAmountDecimal: receivedBrlaDecimal,
+        outputAmountRaw: receivedBrlaRaw
+      },
+      transfer: {
+        currency: FiatToken.BRL,
+        fee: transferFee,
+        inputAmountDecimal: receivedBrlaDecimal,
+        inputAmountRaw: receivedBrlaRaw,
+        outputAmountDecimal: mintedBrlaDecimal,
+        outputAmountRaw: mintedBrlaRaw
+      }
     },
-    aveniaTransfer: {
-      currency: FiatToken.BRL,
-      fee: transferFee,
-      inputAmountDecimal: receivedBrlaDecimal,
-      inputAmountRaw: receivedBrlaRaw,
-      outputAmountDecimal: mintedBrlaDecimal,
-      outputAmountRaw: mintedBrlaRaw
-    },
-    fees: ctx.fees
-  });
+    output: evmIO(EvmToken.BRLA, Networks.Base, mintedBrlaDecimal, mintedBrlaRaw)
+  };
 }

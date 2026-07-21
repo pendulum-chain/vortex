@@ -1,7 +1,7 @@
 import { EvmToken, Networks } from "@vortexfi/shared";
 import { FlowBuilder } from "../core/flow";
 import { assemblePhaseFlow } from "../core/phase-flow";
-import type { ChainBrand, Flow, TokenBrand } from "../core/types";
+import type { ChainBrand, TokenBrand } from "../core/types";
 import { AveniaMint } from "../phases/avenia-mint";
 import { DestinationTransfer } from "../phases/destination-transfer";
 import { DistributeFees } from "../phases/distribute-fees";
@@ -18,7 +18,7 @@ import { SubsidizePre } from "../phases/subsidize-pre";
 export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToToken extends TokenBrand>(
   toChain: ToChain,
   toToken: ToToken
-): Flow {
+) {
   return FlowBuilder.start(AveniaMint)
     .pipe(FundEphemeral(EvmToken.BRLA, Networks.Base))
     .pipe(SubsidizePre<typeof EvmToken.BRLA, typeof Networks.Base>())
@@ -31,5 +31,5 @@ export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToTo
     .build("BrlOnrampBaseCrossChain", { isDirectTransfer: false });
 }
 
-export const brlOnrampBaseCrossChainFlow: Flow = makeBrlOnrampBaseCrossChainFlow(Networks.Arbitrum, EvmToken.USDC);
+export const brlOnrampBaseCrossChainFlow = makeBrlOnrampBaseCrossChainFlow(Networks.Arbitrum, EvmToken.USDC);
 export const brlOnrampBaseCrossChainPhaseFlow = assemblePhaseFlow(brlOnrampBaseCrossChainFlow);

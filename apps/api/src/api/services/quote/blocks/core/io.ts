@@ -7,7 +7,6 @@ export function requestToIO(ctx: PhaseCtx): PhaseIO<RampCurrency, "fiat"> {
     amount: new Big(ctx.request.inputAmount),
     amountRaw: ctx.request.inputAmount,
     chain: "fiat",
-    meta: {},
     token: ctx.request.inputCurrency
   };
 }
@@ -16,8 +15,7 @@ export function evmIO<Token extends TokenBrand, Chain extends ChainBrand>(
   token: Token,
   chain: Chain,
   amount: Big,
-  amountRaw: string,
-  meta?: Record<string, unknown>
+  amountRaw: string
 ): PhaseIO<Token, Chain> {
-  return { amount, amountRaw, chain, meta: meta ?? {}, token };
+  return { amount, amountRaw, chain, token };
 }

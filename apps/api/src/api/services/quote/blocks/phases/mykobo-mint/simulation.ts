@@ -8,12 +8,20 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { evmIO } from "../../core/io";
-import type { PhaseCtx, PhaseIO } from "../../core/types";
+import { defineContext } from "../../core/metadata";
+import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
+import type { AnchorOperationMetadata } from "../avenia-mint/simulation";
+
+export interface MykoboMintMetadata {
+  mint: AnchorOperationMetadata;
+}
+
+export const MykoboMintContext = defineContext<MykoboMintMetadata>()("mykoboMint");
 
 export async function simulateMykoboMint(
   input: PhaseIO<typeof FiatToken.EURC, "fiat">,
   ctx: PhaseCtx
-): Promise<PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>> {
+): Promise<PhaseResult<PhaseIO<typeof EvmToken.EURC, typeof Networks.Base>, MykoboMintMetadata>> {
   const eurcBaseDetails = getOnChainTokenDetails(Networks.Base, EvmToken.EURC);
   if (!eurcBaseDetails) {
     throw new Error("MykoboMint: EURC token details not found for Base");
@@ -35,16 +43,17 @@ export async function simulateMykoboMint(
     `MykoboMint: ${deliveredEurcDecimal.toFixed()} EURC delivered on Base after ${mykoboFeeDecimal.toFixed()} EUR fee`
   );
 
-  return evmIO(EvmToken.EURC, Networks.Base, deliveredEurcDecimal, deliveredEurcRaw, {
-    ...input.meta,
-    fees: ctx.fees,
-    mykoboMint: {
-      currency: FiatToken.EURC,
-      fee: mykoboFeeDecimal,
-      inputAmountDecimal,
-      inputAmountRaw: input.amountRaw,
-      outputAmountDecimal: deliveredEurcDecimal,
-      outputAmountRaw: deliveredEurcRaw
-    }
-  });
+  return {
+    metadata: {
+      mint: {
+        currency: FiatToken.EURC,
+        fee: mykoboFeeDecimal,
+        inputAmountDecimal,
+        inputAmountRaw: input.amountRaw,
+        outputAmountDecimal: deliveredEurcDecimal,
+        outputAmountRaw: deliveredEurcRaw
+      }
+    },
+    output: evmIO(EvmToken.EURC, Networks.Base, deliveredEurcDecimal, deliveredEurcRaw)
+  };
 }

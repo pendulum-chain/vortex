@@ -3,6 +3,30 @@ import type { TxIntent, TxLane } from "./types";
 
 const LANE_ORDER: TxLane[] = ["main", "backup", "cleanup"];
 
+function nativePrefundingKey(network: string, signer: string): string {
+  return `${network}:${signer.toLowerCase()}`;
+}
+
+export function aggregateNativePrefunding(intents: TxIntent[]): Record<string, string> {
+  const requirements = new Map<string, bigint>();
+  for (const intent of intents) {
+    if (!intent.prefundNativeValueRaw) {
+      continue;
+    }
+    const key = nativePrefundingKey(intent.network, intent.signer);
+    requirements.set(key, (requirements.get(key) ?? 0n) + BigInt(intent.prefundNativeValueRaw));
+  }
+  return Object.fromEntries([...requirements].map(([key, value]) => [key, value.toString()]));
+}
+
+export function getNativePrefunding(
+  transactionPlan: { nativePrefunding?: Record<string, string> } | undefined,
+  network: string,
+  signer: string
+): bigint {
+  return BigInt(transactionPlan?.nativePrefunding?.[nativePrefundingKey(network, signer)] ?? "0");
+}
+
 export function allocateNonces(intents: TxIntent[]): UnsignedTx[] {
   const nextNonce = new Map<string, number>();
   const firstMainNonce = new Map<string, number>();

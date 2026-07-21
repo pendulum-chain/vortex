@@ -4,7 +4,26 @@ import logger from "../../../../../../config/logger";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { calculateNablaSwapOutputEvm } from "../../../core/nabla";
 import { evmIO } from "../../core/io";
-import type { ChainBrand, PhaseCtx, PhaseIO, TokenBrand } from "../../core/types";
+import { defineContext, type SerializableBig } from "../../core/metadata";
+import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
+
+export interface NablaSwapMetadata {
+  ammOutputAmountRaw?: string;
+  effectiveExchangeRate?: string;
+  inputAmountForSwapDecimal: string;
+  inputAmountForSwapRaw: string;
+  inputCurrency: string;
+  inputDecimals: number;
+  inputToken: string;
+  oraclePrice?: SerializableBig;
+  outputAmountDecimal: SerializableBig;
+  outputAmountRaw: string;
+  outputCurrency: string;
+  outputDecimals: number;
+  outputToken: string;
+}
+
+export const NablaSwapContext = defineContext<NablaSwapMetadata>()("nablaSwap");
 
 export async function simulateNablaSwap<Chain extends ChainBrand, InToken extends TokenBrand, OutToken extends TokenBrand>(
   chain: Chain,
@@ -12,7 +31,7 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
   outToken: OutToken,
   input: PhaseIO<InToken, Chain>,
   ctx: PhaseCtx
-): Promise<PhaseIO<OutToken, Chain>> {
+): Promise<PhaseResult<PhaseIO<OutToken, Chain>, NablaSwapMetadata>> {
   const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inToken) as EvmTokenDetails;
   const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outToken) as EvmTokenDetails;
   if (!inputTokenDetails || !outputTokenDetails) {
@@ -36,9 +55,8 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
   ctx.addNote(
     `NablaSwap: ${inputAmountForSwap} ${inToken} -> ${result.nablaOutputAmountDecimal.toFixed()} ${outToken} on ${chain}`
   );
-  return evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw, {
-    ...input.meta,
-    nablaSwapEvm: {
+  return {
+    metadata: {
       effectiveExchangeRate: result.effectiveExchangeRate,
       inputAmountForSwapDecimal: inputAmountForSwap,
       inputAmountForSwapRaw,
@@ -51,6 +69,7 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
       outputCurrency: outToken,
       outputDecimals: outputTokenDetails.decimals,
       outputToken: outputTokenDetails.erc20AddressSourceChain
-    }
-  });
+    },
+    output: evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw)
+  };
 }

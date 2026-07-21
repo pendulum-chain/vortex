@@ -15,21 +15,21 @@ import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { encodeEvmTransactionData } from "../../../../transactions";
 import { prepareBaseCleanupApproval } from "../../../../transactions/base/cleanup";
 import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../../core/types";
+import type { NablaSwapMetadata } from "./simulation";
+
+export interface NablaSwapPreparation {
+  softMinimumOutputRaw: string;
+}
 
 // The presigned approve+swap the NablaApprove/NablaSwap executors broadcast, plus the cleanup
-// approval sweeping leftover swap-output dust. Reads only this phase's own simulate output
-// (quote.metadata.nablaSwapEvm).
+// approval sweeping leftover swap-output dust. Reads only this phase's own simulated metadata.
 export async function prepareNablaSwapTxs(
   chain: ChainBrand,
   inToken: TokenBrand,
   outToken: TokenBrand,
-  ctx: PrepareCtx
+  ctx: PrepareCtx<NablaSwapMetadata>
 ): Promise<PreparedPhaseTxs> {
-  const { quote, evmEphemeral } = ctx;
-
-  if (!quote.metadata.nablaSwapEvm?.inputAmountForSwapRaw) {
-    throw new Error("prepareNablaSwapTxs: Missing nablaSwapEvm input amount in quote metadata");
-  }
+  const { evmEphemeral, ownMetadata } = ctx;
 
   const inputTokenDetails = evmTokenConfig[chain as EvmNetworks]?.[inToken as EvmToken];
   const outputTokenDetails = evmTokenConfig[chain as EvmNetworks]?.[outToken as EvmToken];
@@ -37,10 +37,10 @@ export async function prepareNablaSwapTxs(
     throw new Error(`prepareNablaSwapTxs: Missing token config for ${inToken} or ${outToken} on ${chain}`);
   }
 
-  const inputAmountForNablaSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
+  const inputAmountForNablaSwapRaw = ownMetadata.inputAmountForSwapRaw;
   // For offramps, outputAmountRaw may include a partner subsidy; use the AMM-only amount when
   // available so the on-chain minimum reflects what the AMM can actually deliver.
-  const minOutputBaseRaw = quote.metadata.nablaSwapEvm.ammOutputAmountRaw ?? quote.metadata.nablaSwapEvm.outputAmountRaw;
+  const minOutputBaseRaw = ownMetadata.ammOutputAmountRaw ?? ownMetadata.outputAmountRaw;
 
   const nablaSoftMinimumOutputRaw = Big(minOutputBaseRaw)
     .mul(1 - AMM_MINIMUM_OUTPUT_SOFT_MARGIN)
@@ -90,6 +90,6 @@ export async function prepareNablaSwapTxs(
         txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
       }
     ],
-    stateMeta: { nablaSoftMinimumOutputRaw }
+    state: { softMinimumOutputRaw: nablaSoftMinimumOutputRaw }
   };
 }

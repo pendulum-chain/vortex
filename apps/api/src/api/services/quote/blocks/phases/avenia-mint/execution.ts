@@ -26,6 +26,9 @@ import TaxId from "../../../../../../models/taxId.model";
 import { APIError } from "../../../../../errors/api-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { getBlockMetadata, getBlockState } from "../../core/metadata";
+import { AveniaMintContext } from "./simulation";
+import type { AveniaMintPreparation } from "./transactions";
 
 const PAYMENT_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
@@ -52,15 +55,9 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
-    if (!quote.metadata.aveniaMint) {
-      throw new Error("Missing 'aveniaMint' in quote metadata");
-    }
+    const metadata = getBlockMetadata(quote.metadata, AveniaMintContext);
 
-    if (!quote.metadata.aveniaTransfer) {
-      throw new Error("Missing 'aveniaTransfer' in quote metadata");
-    }
-
-    const taxIdRecord = await TaxId.findByPk(state.state.taxId);
+    const taxIdRecord = await TaxId.findByPk(getBlockState<AveniaMintPreparation>(state.state, AveniaMintContext).taxId);
     if (!taxIdRecord) {
       throw new APIError({
         message: "Subaccount not found",
@@ -73,7 +70,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       throw new Error("BRLA token details not found for Base network");
     }
 
-    const preComputedExpectedAmountRaw = quote.metadata.aveniaTransfer.outputAmountRaw;
+    const preComputedExpectedAmountRaw = metadata.transfer.outputAmountRaw;
 
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
     // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.
@@ -89,19 +86,15 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     const brlaApiService = BrlaApiService.getInstance();
     try {
       logger.info(
-        `BrlaOnrampMintExecutor: Waiting for Avenia balance to have at least ${quote.metadata.aveniaMint.outputAmountDecimal} BRL`
+        `BrlaOnrampMintExecutor: Waiting for Avenia balance to have at least ${metadata.mint.outputAmountDecimal} BRL`
       );
       await waitUntilTrueWithTimeout(
         async () => {
-          if (!quote.metadata.aveniaMint) {
-            return false;
-          }
-
           const { balances } = await brlaApiService.getAccountBalance(taxIdRecord.subAccountId);
           if (!balances || balances.BRLA === undefined || balances.BRLA === null) {
             return false;
           }
-          return Number(balances.BRLA) >= Number(Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0));
+          return Number(balances.BRLA) >= Number(Big(metadata.mint.outputAmountDecimal).toFixed(2, 0));
         },
         5000,
         PAYMENT_TIMEOUT_MS
@@ -123,7 +116,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     // Transfer the funds from the subaccount to the ephemeral address
     const aveniaQuote = await brlaApiService.createPayInQuote({
       blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: Big(quote.metadata.aveniaMint.outputAmountDecimal).toFixed(2, 0),
+      inputAmount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
       inputCurrency: BrlaCurrency.BRLA,
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,

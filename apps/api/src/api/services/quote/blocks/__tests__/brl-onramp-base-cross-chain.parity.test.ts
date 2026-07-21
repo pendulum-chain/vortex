@@ -34,10 +34,11 @@ mock.module("../../../priceFeed.service", () => ({
 import { BRL_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
 import { assemblePhaseFlow } from "../core/phase-flow";
-import type { PhaseCtx, PhaseIO } from "../core/types";
+import type { PhaseCtx } from "../core/types";
 import type { SubsidyMeta } from "../phases/subsidize-pre";
 import { AveniaMint } from "../phases/avenia-mint";
 import { DistributeFees } from "../phases/distribute-fees";
+import { FundEphemeral } from "../phases/fund-ephemeral";
 import { NablaSwap } from "../phases/nabla-swap";
 import { SquidRouterSwap } from "../phases/squid-router-swap";
 import {
@@ -103,6 +104,12 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — compile-time adjacency", ()
     // @ts-expect-error adjacency: DistributeFees chain brand (base) != bridge output chain (arbitrum)
     const _wrongChain = bridged.pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>());
     void _wrongChain;
+
+    const funded = FlowBuilder.start(FundEphemeral(EvmToken.USDC, Networks.Base));
+    // @ts-expect-error ownership: one flow cannot contain the same metadata key twice
+    const _duplicateKey = funded.pipe(FundEphemeral(EvmToken.USDC, Networks.Base));
+    void _duplicateKey;
+
   });
 });
 
@@ -130,7 +137,7 @@ function buildCtx(): PhaseCtx {
   };
 }
 
-async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow): Promise<PhaseIO> {
+async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow) {
   BrlaApiService.getInstance = mock(() => ({
     createPayInQuote: mock(async (request: { inputCurrency: string }) => ({
       appliedFees: [{ amount: "0.2", type: "Gas Fee" }],
@@ -144,65 +151,53 @@ async function runFlow(flow: typeof brlOnrampBaseCrossChainFlow): Promise<PhaseI
 
 describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — simulate smoke", () => {
   it("runs the flow end-to-end and lands on the destination token", async () => {
-    const output: PhaseIO = await runFlow(brlOnrampBaseCrossChainFlow);
+    const { output } = await runFlow(brlOnrampBaseCrossChainFlow);
     expect(output.amount.gt(0)).toBe(true);
     expect(output.token).toBe(EvmToken.USDC);
     expect(output.chain).toBe(Networks.Arbitrum);
   });
 });
 
-describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata parity", () => {
-  it("accumulates aveniaMint, aveniaTransfer, fees, nablaSwapEvm, evmToEvm, subsidy in the flow meta", async () => {
-    const output: PhaseIO = await runFlow(brlOnrampBaseCrossChainFlow);
-    const { meta } = output;
+describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => {
+  it("accumulates one context per block beneath explicit globals", async () => {
+    const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow);
+    const { blocks, globals } = metadata;
 
-    expect(meta.fees).toBeDefined();
-    expect((meta.fees as { usd: { total: string } }).usd.total).toBe("0.3");
+    expect(globals.fees.usd.total).toBe("0.3");
+    expect(Object.keys(blocks)).toEqual([
+      "aveniaMint",
+      "fundEphemeral",
+      "subsidizePreSwap",
+      "nablaSwap",
+      "distributeFees",
+      "subsidizePostSwap",
+      "squidRouterSwap",
+      "finalSettlementSubsidy",
+      "destinationTransfer"
+    ]);
 
-    const aveniaMint = meta.aveniaMint as {
-      currency: FiatToken;
-      fee: Big;
-      inputAmountDecimal: Big;
-      outputAmountDecimal: Big;
-      outputAmountRaw: string;
-    };
+    const aveniaMint = blocks.aveniaMint.mint;
     expect(aveniaMint).toBeDefined();
     expect(aveniaMint.currency).toBe(FiatToken.BRL);
     // 100 BRL in, 99 BRLA quoted -> 1 BRL mint fee, 0.2 gas fee deducted from delivery
-    expect(aveniaMint.fee.toFixed()).toBe("1");
-    expect(aveniaMint.inputAmountDecimal.toFixed()).toBe("100");
-    expect(aveniaMint.outputAmountDecimal.toFixed()).toBe("98.8");
+    expect(Big(aveniaMint.fee).toFixed()).toBe("1");
+    expect(Big(aveniaMint.inputAmountDecimal).toFixed()).toBe("100");
+    expect(Big(aveniaMint.outputAmountDecimal).toFixed()).toBe("98.8");
 
-    const aveniaTransfer = meta.aveniaTransfer as {
-      fee: Big;
-      inputAmountDecimal: Big;
-      outputAmountDecimal: Big;
-      outputAmountRaw: string;
-    };
+    const aveniaTransfer = blocks.aveniaMint.transfer;
     expect(aveniaTransfer).toBeDefined();
-    expect(aveniaTransfer.inputAmountDecimal.toFixed()).toBe("98.8");
+    expect(Big(aveniaTransfer.inputAmountDecimal).toFixed()).toBe("98.8");
     // transfer quote outputs 98.5, minus the 0.2 gas-fee buffer ((0.2 + 0.2) * 0.5)
-    expect(aveniaTransfer.outputAmountDecimal.toFixed()).toBe("98.3");
+    expect(Big(aveniaTransfer.outputAmountDecimal).toFixed()).toBe("98.3");
 
-    const nabla = meta.nablaSwapEvm as {
-      inputCurrency: string;
-      outputAmountRaw: string;
-      outputCurrency: string;
-      effectiveExchangeRate?: string;
-    };
+    const nabla = blocks.nablaSwap;
     expect(nabla).toBeDefined();
     expect(nabla.inputCurrency).toBe(EvmToken.BRLA);
     expect(nabla.outputCurrency).toBe(EvmToken.USDC);
     expect(nabla.outputAmountRaw).toBe("18000000");
     expect(nabla.effectiveExchangeRate).toBe("0.18");
 
-    const evmToEvm = meta.evmToEvm as {
-      fromNetwork: string;
-      inputAmountRaw: string;
-      outputAmountRaw: string;
-      toNetwork: string;
-      networkFeeUSD: string;
-    };
+    const evmToEvm = blocks.squidRouterSwap;
     expect(evmToEvm).toBeDefined();
     expect(evmToEvm.fromNetwork).toBe(Networks.Base);
     expect(evmToEvm.toNetwork).toBe(Networks.Arbitrum);
@@ -210,10 +205,13 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata parity", () => {
     expect(evmToEvm.outputAmountRaw).toBe("17500000");
     expect(evmToEvm.networkFeeUSD).toBe("0.1");
 
-    const subsidy = meta.subsidy as SubsidyMeta;
+    const subsidy: SubsidyMeta = blocks.finalSettlementSubsidy;
     expect(subsidy).toBeDefined();
     expect(subsidy.applied).toBe(false);
-    expect(subsidy.actualOutputAmountDecimal.gt(0)).toBe(true);
+    expect(Big(subsidy.actualOutputAmountDecimal).gt(0)).toBe(true);
     expect(subsidy.partnerId).toBeNull();
+    expect(blocks.subsidizePreSwap.inputCurrency).toBe(EvmToken.BRLA);
+    expect(blocks.subsidizePostSwap.outputCurrency).toBe(EvmToken.USDC);
+    expect(blocks.destinationTransfer.amountRaw).toBe("17500000");
   });
 });

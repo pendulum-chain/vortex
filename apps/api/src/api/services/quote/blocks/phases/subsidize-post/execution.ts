@@ -23,6 +23,8 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { getBlockMetadata } from "../../core/metadata";
+import { SubsidizePostContext } from "./simulation";
 
 // EVM slice of the production SubsidizePostSwapPhaseHandler: tops up the ephemeral's Nabla output
 // token on Base until it matches the amount the next phase expects (the simulated Squid bridge
@@ -47,20 +49,10 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
       throw new Error("SubsidizePostSwapExecutor: State metadata corrupted. This is a bug.");
     }
 
-    if (!quote.metadata.evmToEvm) {
-      throw new Error("Missing evmToEvm information in quote metadata");
-    }
-
-    if (!quote.metadata.nablaSwapEvm) {
-      throw new Error("Missing nablaSwapEvm information in quote metadata");
-    }
-
-    if (!quote.metadata.subsidy) {
-      throw new Error("Missing subsidy information in quote metadata");
-    }
+    const metadata = getBlockMetadata(quote.metadata, SubsidizePostContext);
 
     try {
-      const outputToken = quote.metadata.nablaSwapEvm.outputCurrency as EvmToken;
+      const outputToken = metadata.outputCurrency as EvmToken;
 
       const outputTokenDetails = getOnChainTokenDetails(Networks.Base, outputToken) as EvmTokenDetails;
       if (!outputTokenDetails) {
@@ -87,16 +79,13 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
 
       // For BUY operations, top up to the simulated Squid bridge input; for SELL, to the
       // simulated Nabla output.
-      const expectedSwapOutputAmountRaw =
-        state.type === RampDirection.BUY
-          ? Big(quote.metadata.evmToEvm.inputAmountRaw)
-          : Big(quote.metadata.nablaSwapEvm.outputAmountRaw);
+      const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
 
       const requiredAmount = Big(expectedSwapOutputAmountRaw).sub(currentBalance);
       logger.debug(`SubsidizePostSwapExecutor: requiredAmount ${requiredAmount.toString()}`);
 
       if (requiredAmount.gt(Big(0))) {
-        const subsidyDecimal = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.outputDecimals).toString();
+        const subsidyDecimal = nativeToDecimal(requiredAmount, metadata.outputDecimals).toString();
         const subsidyUsd = await priceFeedService.convertCurrency(
           subsidyDecimal,
           outputToken as RampCurrency,
@@ -142,8 +131,8 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           value: 0n
         });
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.outputDecimals).toNumber();
-        const subsidyToken = quote.metadata.nablaSwapEvm.outputCurrency as unknown as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, metadata.outputDecimals).toNumber();
+        const subsidyToken = metadata.outputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
 

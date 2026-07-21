@@ -23,6 +23,8 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { getBlockMetadata } from "../../core/metadata";
+import { SubsidizePreContext } from "./simulation";
 
 // EVM slice of the production SubsidizePreSwapPhaseHandler: tops up the ephemeral's Nabla input
 // token on Base until it matches the simulated swap input. Substrate and Alfredpay branches are
@@ -47,19 +49,17 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       throw new Error("SubsidizePreSwapExecutor: State metadata corrupted. This is a bug.");
     }
 
-    if (!quote.metadata.nablaSwapEvm) {
-      throw new Error("Missing nablaSwapEvm information in quote metadata");
-    }
+    const metadata = getBlockMetadata(quote.metadata, SubsidizePreContext);
 
     try {
-      const inputToken = quote.metadata.nablaSwapEvm.inputCurrency as EvmToken;
+      const inputToken = metadata.inputCurrency as EvmToken;
       const inputTokenDetails = getOnChainTokenDetails(Networks.Base, inputToken) as EvmTokenDetails;
       if (!inputTokenDetails) {
         throw new Error(
           `Could not find token details for input token ${inputToken} on network ${Networks.Base}. Invalid quote metadata.`
         );
       }
-      const expectedInputAmountForSwapRaw = quote.metadata.nablaSwapEvm.inputAmountForSwapRaw;
+      const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;
 
       // Wait for token settlement before checking balance
       await new Promise(resolve => setTimeout(resolve, 15000));
@@ -81,7 +81,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       logger.debug(`SubsidizePreSwapExecutor: requiredAmount ${requiredAmount.toString()}`);
 
       if (requiredAmount.gt(Big(0))) {
-        const subsidyDecimal = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.inputDecimals).toString();
+        const subsidyDecimal = nativeToDecimal(requiredAmount, metadata.inputDecimals).toString();
         const subsidyUsd = await priceFeedService.convertCurrency(
           subsidyDecimal,
           inputToken as RampCurrency,
@@ -127,8 +127,8 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           value: 0n
         });
 
-        const subsidyAmount = nativeToDecimal(requiredAmount, quote.metadata.nablaSwapEvm.inputDecimals).toNumber();
-        const subsidyToken = quote.metadata.nablaSwapEvm.inputCurrency as unknown as SubsidyToken;
+        const subsidyAmount = nativeToDecimal(requiredAmount, metadata.inputDecimals).toNumber();
+        const subsidyToken = metadata.inputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
 

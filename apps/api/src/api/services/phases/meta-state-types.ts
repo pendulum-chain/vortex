@@ -1,6 +1,8 @@
 import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, Networks, RampPhase } from "@vortexfi/shared";
 
 export interface StateMetadata {
+  blockState?: Record<string, unknown>;
+  transactionPlan?: { nativePrefunding?: Record<string, string> };
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
   squidRouterReceiverId: string;

@@ -2,7 +2,23 @@ import { EvmTokenDetails, getOnChainTokenDetails, Networks, OnChainToken } from 
 import { Big } from "big.js";
 import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../../core/squidrouter";
 import { evmIO } from "../../core/io";
-import type { ChainBrand, PhaseCtx, PhaseIO, TokenBrand } from "../../core/types";
+import { defineContext, type SerializableBig } from "../../core/metadata";
+import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
+
+export interface SquidRouterSwapMetadata {
+  effectiveExchangeRate?: string;
+  fromNetwork: Networks;
+  fromToken: string;
+  inputAmountDecimal: SerializableBig;
+  inputAmountRaw: string;
+  networkFeeUSD: string;
+  outputAmountDecimal: SerializableBig;
+  outputAmountRaw: string;
+  toNetwork: Networks;
+  toToken: string;
+}
+
+export const SquidRouterSwapContext = defineContext<SquidRouterSwapMetadata>()("squidRouterSwap");
 
 export async function simulateSquidRouterSwap<
   FromChain extends ChainBrand,
@@ -16,7 +32,7 @@ export async function simulateSquidRouterSwap<
   toToken: ToToken,
   input: PhaseIO<FromToken, FromChain>,
   ctx: PhaseCtx
-): Promise<PhaseIO<ToToken, ToChain>> {
+): Promise<PhaseResult<PhaseIO<ToToken, ToChain>, SquidRouterSwapMetadata>> {
   if (!ctx.fees?.usd) {
     throw new Error("SquidRouterSwap: Missing ctx.fees.usd - ensure computeFees ran successfully");
   }
@@ -39,9 +55,8 @@ export async function simulateSquidRouterSwap<
   ctx.addNote(
     `SquidRouterSwap: ${input.amount} ${fromToken} on ${fromChain} -> ${bridgeResult.finalGrossOutputAmountDecimal.toFixed()} ${toToken} on ${toChain}`
   );
-  return evmIO(toToken, toChain, bridgeResult.finalGrossOutputAmountDecimal, outputAmountRaw, {
-    ...input.meta,
-    evmToEvm: {
+  return {
+    metadata: {
       effectiveExchangeRate: bridgeResult.finalEffectiveExchangeRate,
       fromNetwork: fromChain as Networks,
       fromToken: bridgeSourceToken,
@@ -52,6 +67,7 @@ export async function simulateSquidRouterSwap<
       outputAmountRaw,
       toNetwork: toChain as Networks,
       toToken: bridgeTargetToken
-    }
-  });
+    },
+    output: evmIO(toToken, toChain, bridgeResult.finalGrossOutputAmountDecimal, outputAmountRaw)
+  };
 }

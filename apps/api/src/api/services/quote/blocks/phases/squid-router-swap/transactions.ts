@@ -16,6 +16,13 @@ import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { encodeEvmTransactionData } from "../../../../transactions";
 import { addDestinationChainApprovalTransaction } from "../../../../transactions/onramp/common/transactions";
 import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../../core/types";
+import type { SquidRouterSwapMetadata } from "./simulation";
+
+export interface SquidRouterSwapPreparation {
+  quoteId: string;
+  receiverHash: string;
+  receiverId: string;
+}
 
 // Bound the backup approval to the bridged amount + 5% slippage cushion (replaces unbounded maxUint256).
 const BACKUP_APPROVE_SLIPPAGE_FACTOR = "1.05";
@@ -23,20 +30,17 @@ const BACKUP_APPROVE_SLIPPAGE_FACTOR = "1.05";
 // The presigned bridge approve+swap the SquidRouterSwapExecutor broadcasts, plus the bridge's
 // contingency lane on the destination chain: a re-swap of the bridged fallback token to the target
 // token and an approval letting the funding account recover it. Reads only this phase's own
-// simulate output (quote.metadata.evmToEvm).
+// simulated metadata.
 export async function prepareSquidRouterSwapTxs(
   fromChain: ChainBrand,
   toChain: ChainBrand,
   fromToken: TokenBrand,
   toToken: TokenBrand,
-  ctx: PrepareCtx
+  ctx: PrepareCtx<SquidRouterSwapMetadata>
 ): Promise<PreparedPhaseTxs> {
-  const { quote, evmEphemeral } = ctx;
+  const { evmEphemeral, ownMetadata } = ctx;
 
-  const bridgeInputAmountRaw = quote.metadata.evmToEvm?.inputAmountRaw;
-  if (!bridgeInputAmountRaw) {
-    throw new Error("prepareSquidRouterSwapTxs: Missing evmToEvm inputAmountRaw in quote metadata");
-  }
+  const bridgeInputAmountRaw = ownMetadata.inputAmountRaw;
 
   const fromTokenDetails = evmTokenConfig[fromChain as EvmNetworks]?.[fromToken as EvmToken];
   if (!fromTokenDetails) {
@@ -57,6 +61,9 @@ export async function prepareSquidRouterSwapTxs(
       toNetwork: toChain as Networks,
       toToken: toTokenDetails.erc20AddressSourceChain
     });
+  if (!squidRouterQuoteId || !squidRouterReceiverId || !squidRouterReceiverHash) {
+    throw new Error("prepareSquidRouterSwapTxs: Squid route identifiers are missing");
+  }
 
   // Fallback re-swap input depends on the destination chain: the bridge delivers USDC on Ethereum
   // and axlUSDC everywhere else.
@@ -104,6 +111,7 @@ export async function prepareSquidRouterSwapTxs(
         lane: "main",
         network: fromChain as Networks,
         phase: "squidRouterSwap",
+        prefundNativeValueRaw: swapData.value?.toString() ?? "0",
         signer: evmEphemeral.address,
         txData: encodeEvmTransactionData(swapData) as EvmTransactionData
       },
@@ -132,6 +140,10 @@ export async function prepareSquidRouterSwapTxs(
         txData: backupApproveTransaction
       }
     ],
-    stateMeta: { squidRouterQuoteId, squidRouterReceiverHash, squidRouterReceiverId }
+    state: {
+      quoteId: squidRouterQuoteId,
+      receiverHash: squidRouterReceiverHash,
+      receiverId: squidRouterReceiverId
+    }
   };
 }
