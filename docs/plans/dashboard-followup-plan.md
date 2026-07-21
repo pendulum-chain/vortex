@@ -86,7 +86,7 @@ Also, for Avenia, add changes to store name of Companies on table (provider_cust
 
 ## 2. Add AlfredPay fiat-account management to the dashboard
 
-**Status:** planned, not started. **Reworked 2026-07-15** — this section overrules the earlier
+**Status:** complete (2026-07-21). **Reworked 2026-07-15** — this section overrules the earlier
 version of itself: the entry point moves from the Recipients/Transfer pages to the **Onboarding
 section** (corridor cards), v1 is **list + add only (no delete)**, and two product requirements
 were added (approved-without-account progress bar at ~90% blue, offramp-only messaging).

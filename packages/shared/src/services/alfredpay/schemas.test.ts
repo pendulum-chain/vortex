@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   alfredpayConfigsResponseSchema,
+  alfredpayCreateFiatAccountResponseSchema,
   alfredpayCreateOnrampResponseSchema,
   alfredpayFiatAccountsResponseSchema,
   alfredpayKycStatusResponseSchema,
@@ -9,6 +10,14 @@ import {
   alfredpayOnrampTransactionSchema,
   alfredpayQuoteResponseSchema
 } from "./schemas";
+
+describe("alfredpayCreateFiatAccountResponseSchema", () => {
+  test("requires a non-empty fiat account id", () => {
+    expect(() => alfredpayCreateFiatAccountResponseSchema.parse({ fiatAccountId: "fa-1" })).not.toThrow();
+    expect(() => alfredpayCreateFiatAccountResponseSchema.parse({ fiatAccountId: "" })).toThrow();
+    expect(() => alfredpayCreateFiatAccountResponseSchema.parse({})).toThrow();
+  });
+});
 
 function validQuoteBody() {
   return {

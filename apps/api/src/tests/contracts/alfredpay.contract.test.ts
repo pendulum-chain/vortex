@@ -15,6 +15,10 @@
  * stays CREATED / awaiting payment). `getQuote` has no production consumers and
  * is deliberately uncovered.
  *
+ * Individual KYC provisioning is opt-in because it leaves a customer behind. Run it with:
+ *
+ *   RUN_LIVE_TESTS=1 ALFREDPAY_CONTRACT_RUN_KYC_FLOW=1 bun test alfredpay.contract
+ *
  * KYB: the details read runs with the rest of the live half against a hard-coded sandbox
  * business customer (KYB_CUSTOMER_ID). The full company-onboarding sequence is opt-in via
  * ALFREDPAY_CONTRACT_RUN_KYB_FLOW=1 because it leaves a business customer behind per run:
@@ -26,15 +30,19 @@ import {
   AlfredpayApiService,
   AlfredpayChain,
   alfredpayConfigsResponseSchema,
+  alfredpayCreateFiatAccountResponseSchema,
   alfredpayCreateOnrampResponseSchema,
   AlfredpayFeeType,
   alfredpayFiatAccountsResponseSchema,
+  type AlfredpayFiatAccountFields,
   AlfredpayCustomerType,
   AlfredpayFiatAccountType,
   AlfredpayFiatCurrency,
   alfredpayKybBusinessDetailsResponseSchema,
   AlfredpayKybFileType,
   AlfredpayKybRelatedPersonFileType,
+  AlfredpayKycFileType,
+  AlfredpayKycStatus,
   alfredpayKycStatusResponseSchema,
   alfredpayOfframpTransactionSchema,
   AlfredpayOnChainCurrency,
@@ -53,7 +61,54 @@ const HAS_CREDS = !!(process.env.ALFREDPAY_API_KEY && process.env.ALFREDPAY_API_
 const CUSTOMER_ID = process.env.ALFREDPAY_CONTRACT_CUSTOMER_ID;
 const FIAT_ACCOUNT_ID = process.env.ALFREDPAY_CONTRACT_FIAT_ACCOUNT_ID;
 const KYC_SUBMISSION_ID = process.env.ALFREDPAY_CONTRACT_KYC_SUBMISSION_ID;
+const RUN_KYC_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYC_FLOW;
 const RUN_KYB_FLOW = !!process.env.ALFREDPAY_CONTRACT_RUN_KYB_FLOW;
+// Completed Argentina sandbox customer reserved for the create/list/delete account lifecycle.
+const AR_COMPLETED_CUSTOMER_ID = "cd0a7a0d-1b2d-4894-bbb2-f05fe3b5c7df";
+const AR_CONTRACT_ACCOUNT_NUMBER = "0720369388000033954918";
+const CO_COMPLETED_CUSTOMER_ID = "2be2683f-9594-4b8f-9578-69212b6240fd";
+const MX_COMPLETED_CUSTOMER_ID = "230ee85f-5f2d-4cbf-af7c-afa46591d9ef";
+
+interface FiatAccountLifecycleCase {
+  accountFields: AlfredpayFiatAccountFields;
+  country: "AR" | "CO" | "MX";
+  customerId: string;
+  expectedFields: Record<string, unknown>;
+  type: AlfredpayFiatAccountType;
+}
+
+const FIAT_ACCOUNT_LIFECYCLE_CASES: FiatAccountLifecycleCase[] = [
+  {
+    accountFields: { accountNumber: AR_CONTRACT_ACCOUNT_NUMBER, accountType: "CBU" },
+    country: "AR",
+    customerId: AR_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountNumber: AR_CONTRACT_ACCOUNT_NUMBER, accountType: "CBU" },
+    type: AlfredpayFiatAccountType.COELSA
+  },
+  {
+    accountFields: {
+      accountName: "BANCOLOMBIA",
+      accountNumber: "12345678901",
+      accountType: "AHORRO",
+      metadata: { accountHolderName: "Vortex Contract Test", documentNumber: "1234567890", documentType: "CC" }
+    },
+    country: "CO",
+    customerId: CO_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountName: "BANCOLOMBIA", accountNumber: "12345678901", accountType: "AHORRO" },
+    type: AlfredpayFiatAccountType.ACH
+  },
+  {
+    accountFields: {
+      accountNumber: "012020477538404708",
+      accountType: "CLABE",
+      metadata: { accountHolderName: "Vortex Contract Test" }
+    },
+    country: "MX",
+    customerId: MX_COMPLETED_CUSTOMER_ID,
+    expectedFields: { accountNumber: "012020477538404708", accountType: "CLABE" },
+    type: AlfredpayFiatAccountType.SPEI
+  }
+];
 
 // A sandbox MX company put through the full KYB by the flow test below, so the details read
 // exercises a fully populated business: four company documents, both representative documents, and a
@@ -219,6 +274,49 @@ describe("Alfredpay external API contract — hermetic (fake)", () => {
 describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — live", () => {
   const api = () => AlfredpayApiService.getInstance();
 
+  async function runFiatAccountLifecycle(accountCase: FiatAccountLifecycleCase): Promise<void> {
+    let fiatAccountId: string | undefined;
+    let deleted = false;
+
+    try {
+      const created = await runLive(`alfredpay create ${accountCase.country} fiat account`, () =>
+        api().createFiatAccount(accountCase.customerId, accountCase.type, accountCase.accountFields, false)
+      );
+      if (!created) return;
+      fiatAccountId = created.fiatAccountId;
+      alfredpayCreateFiatAccountResponseSchema.parse(created);
+
+      const accounts = await runLive(`alfredpay list ${accountCase.country} fiat accounts after create`, () =>
+        api().listFiatAccounts(accountCase.customerId)
+      );
+      if (!accounts) return;
+      alfredpayFiatAccountsResponseSchema.parse(accounts);
+      expect(accounts).toContainEqual(
+        expect.objectContaining({ ...accountCase.expectedFields, fiatAccountId, type: accountCase.type })
+      );
+
+      const deleteResult = await runLive(`alfredpay delete ${accountCase.country} fiat account`, () =>
+        api().deleteFiatAccount(accountCase.customerId, fiatAccountId as string)
+      );
+      if (deleteResult === null) return;
+      expect(deleteResult).toBeUndefined();
+      deleted = true;
+
+      const remainingAccounts = await runLive(`alfredpay list ${accountCase.country} fiat accounts after delete`, () =>
+        api().listFiatAccounts(accountCase.customerId)
+      );
+      if (!remainingAccounts) return;
+      alfredpayFiatAccountsResponseSchema.parse(remainingAccounts);
+      expect(remainingAccounts.some(account => account.fiatAccountId === fiatAccountId)).toBe(false);
+    } finally {
+      if (fiatAccountId && !deleted) {
+        await runLive(`alfredpay clean up ${accountCase.country} fiat account`, () =>
+          api().deleteFiatAccount(accountCase.customerId, fiatAccountId as string)
+        );
+      }
+    }
+  }
+
   test(
     "GET /configurations response satisfies the configs contract",
     async () => {
@@ -282,6 +380,14 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
     },
     60_000
   );
+
+  for (const accountCase of FIAT_ACCOUNT_LIFECYCLE_CASES) {
+    test(
+      `POST, GET and DELETE a ${accountCase.country} fiat account satisfy their contracts`,
+      () => runFiatAccountLifecycle(accountCase),
+      120_000
+    );
+  }
 
   test.skipIf(!CUSTOMER_ID || !KYC_SUBMISSION_ID)(
     "GET /kyc/{submissionId}/status response satisfies the KYC status contract",
@@ -382,6 +488,59 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Alfredpay external API contract — li
       alfredpayKybBusinessDetailsResponseSchema.parse(details);
     },
     60_000
+  );
+});
+
+/**
+ * Provisions the completed individual fixture consumed by the MX fiat-account lifecycle. This is
+ * opt-in because Alfredpay has no customer deletion endpoint and every run leaves a customer behind.
+ * The sandbox guarantees KYC acceptance regardless of placeholder personal data/documents.
+ */
+describe.skipIf(!RUN_LIVE || !HAS_CREDS || !RUN_KYC_FLOW)("Alfredpay individual KYC sandbox flow — live", () => {
+  test(
+    "a Mexican individual customer reaches completed KYC",
+    async () => {
+      const api = AlfredpayApiService.getInstance();
+      const email = `vortex-kyc-contract-${Date.now()}@example.com`;
+
+      const customer = await api.createCustomer(email, AlfredpayCustomerType.INDIVIDUAL, "MX");
+      console.info(`[contract:kyc] createCustomer -> ${JSON.stringify(customer)}`);
+      expect(customer.customerId).toBeTruthy();
+
+      const submission = await api.submitKycInformation(customer.customerId, {
+        address: "Avenida Paseo de la Reforma 100",
+        city: "Ciudad de Mexico",
+        country: "MX",
+        dateOfBirth: "1990-05-20",
+        dni: "GOMM900520MDFXYZ01",
+        email,
+        firstName: "Maria",
+        lastName: "Gomez",
+        state: "CDMX",
+        zipCode: "06600"
+      });
+      console.info(`[contract:kyc] submitKycInformation -> ${JSON.stringify(submission)}`);
+      expect(submission.submissionId).toBeTruthy();
+
+      await api.submitKycFile(customer.customerId, submission.submissionId, AlfredpayKycFileType.FRONT, blankPng("front.png"));
+      await api.submitKycFile(customer.customerId, submission.submissionId, AlfredpayKycFileType.BACK, blankPng("back.png"));
+      await api.sendKycSubmission(customer.customerId, submission.submissionId);
+
+      const deadline = Date.now() + 90_000;
+      while (Date.now() < deadline) {
+        const status = await api.getKycStatus(customer.customerId, submission.submissionId);
+        console.info(`[contract:kyc] getKycStatus -> ${JSON.stringify(status)}`);
+        alfredpayKycStatusResponseSchema.parse(status);
+        if (status.status === AlfredpayKycStatus.COMPLETED) return;
+        if (status.status === AlfredpayKycStatus.FAILED || status.status === AlfredpayKycStatus.UPDATE_REQUIRED) {
+          throw new Error(`Sandbox KYC reached ${status.status}: ${JSON.stringify(status)}`);
+        }
+        await Bun.sleep(3_000);
+      }
+
+      throw new Error(`Sandbox KYC did not complete within 90 seconds for customer ${customer.customerId}`);
+    },
+    120_000
   );
 });
 

@@ -256,6 +256,8 @@ interface MockBackendOptions {
   moneriumRequireRefresh?: boolean;
   // Served as GET /v1/recipients → pendingInvitations (default: none).
   pendingInvitations?: Array<Record<string, unknown>>;
+  // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
+  fiatAccounts?: Array<Record<string, unknown>>;
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -360,6 +362,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const kybFormSubmissions: Array<Record<string, unknown>> = [];
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
   const archiveInvitationRequests: Array<Record<string, unknown>> = [];
+  const fiatAccountRequests: Array<Record<string, unknown>> = [];
   const unmatchedRequests: string[] = [];
   const unexpectedExternalRequests: string[] = [];
   const status = { polls: 0 };
@@ -382,6 +385,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const auth = { refreshes: 0 };
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
+  const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
 
   // The real API keeps returning the ramp's unsignedTxs on /ramp/update; the signing step reads
   // the user-wallet transaction from that response.
@@ -653,7 +657,19 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     // Saved payout accounts: each becomes a "send to yourself" recipient. Only the approved
     // corridor (MX) is ever queried.
     if (path === "/v1/alfredpay/fiatAccounts" && method === "GET") {
-      await fulfillJson(url.searchParams.get("country") === "MX" ? buildFiatAccounts() : []);
+      await fulfillJson(url.searchParams.get("country") === "MX" ? fiatAccounts : []);
+      return;
+    }
+    if (path === "/v1/alfredpay/fiatAccounts" && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      fiatAccountRequests.push(body);
+      const fiatAccountId = `fiat-account-e2e-${fiatAccountRequests.length}`;
+      fiatAccounts.push({
+        ...body,
+        customerId: "alfred-customer-e2e-1",
+        fiatAccountId
+      });
+      await fulfillJson({ fiatAccountId }, 201);
       return;
     }
     // Third-party recipients: seeded pending invitations only, so the auto-selected
@@ -762,6 +778,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     auth,
     avenia,
     brlaCreateSubaccountRequests,
+    fiatAccountRequests,
     kybFileTypes,
     kybFormSubmissions,
     kybRelatedPersonFileTypes,

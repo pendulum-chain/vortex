@@ -1,5 +1,9 @@
 import { type AlfredpayKycApi, createAlfredpayKycApi } from "@vortexfi/kyc";
-import type { AlfredpayListFiatAccountsResponse } from "@vortexfi/shared";
+import type {
+  AlfredpayAddFiatAccountRequest,
+  AlfredpayAddFiatAccountResponse,
+  AlfredpayListFiatAccountsResponse
+} from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
 /**
@@ -8,9 +12,14 @@ import { apiClient } from "./api-client";
  * KYB and US provider-hosted KYB.
  */
 export const AlfredpayService: AlfredpayKycApi & {
+  addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse>;
   listFiatAccounts(country: string, signal?: AbortSignal): Promise<AlfredpayListFiatAccountsResponse>;
 } = {
   ...createAlfredpayKycApi(apiClient),
+
+  addFiatAccount(payload: AlfredpayAddFiatAccountRequest): Promise<AlfredpayAddFiatAccountResponse> {
+    return apiClient.post<AlfredpayAddFiatAccountResponse>("/alfredpay/fiatAccounts", payload);
+  },
 
   /**
    * The user's saved AlfredPay payout accounts for a country (US/MX/CO/AR). Each account's

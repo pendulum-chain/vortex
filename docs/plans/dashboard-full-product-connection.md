@@ -524,11 +524,15 @@ else a `blockingReasonCode` (`invite_not_accepted`, `recipient_onboarding_pendin
 Phase-3 it reads existing provider tables; post-Phase-3 it (or a `transfer_eligibility` view)
 reads `provider_customers` + `kyc_cases`.
 
-### 7.1 Recipient payout instrument — **TBD** (blocks the "payout verified" gate)
+### 7.1 Recipient payout instrument — **Widget receive mode selected**
 
-**Status: to be decided.** This is the one open mechanism in Phase 1. It does not block Phase 0
-(the core connection), but the eligibility gate above cannot flip to `verified` until it's
-resolved.
+**Decision:** option (A). Invited recipients add their payout instrument in the same widget session
+as their locked-corridor onboarding. The implementation still blocks the eligibility gate from
+flipping to `verified`, but its product location is no longer open.
+
+The dashboard separately owns Alfredpay fiat-account setup for the authenticated sender's **self
+offramps**. That account-management UI does not create `recipient_payout_references` and does not
+solve invited-recipient payout capture.
 
 **The problem.** A recipient "receiving" needs KYC/KYB **plus a payout account** (PIX key /
 CLABE / IBAN / bank account) — the thing `recipient_payout_references.provider_instrument_id`
@@ -540,8 +544,8 @@ Provider endpoints that already create/validate payout instruments: AlfredPay
 fiat-account id; BRLA `GET /v1/brla/validatePixKey` → validated PIX key; Mykobo IBAN in the
 profile flow.
 
-**Options.**
-- **(A) — recommended — Widget "receive" mode.** Extend the existing `?kybLocked=` hand-off so
+**Decision detail.**
+- **(A) — selected — Widget "receive" mode.** Extend the existing `?kybLocked=` hand-off so
   the same widget session also runs the provider's payout-account step (skipping wallet/quote/
   ramp), pinned to the invite's corridor. On provider confirmation, a webhook/poll writes a thin
   `recipient_payout_references` (id + masked label, `pending → verified`). Keeps all payout
@@ -558,9 +562,6 @@ profile flow.
 instrument object (AlfredPay `fiatAccounts`), others take payout details per-ramp (BRLA PIX). So
 `recipient_payout_references` stores a durable id where one exists, else a masked reference +
 validation status re-validated at transfer time — **never** raw PIX/IBAN/CLABE PII locally.
-
-**Decision needed:** (A) vs (B) for v1 — i.e. whether the widget gains a receive mode, or the
-dashboard owns a thin payout form as a stopgap. Recommendation: (A).
 
 ---
 
