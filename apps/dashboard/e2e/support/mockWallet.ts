@@ -8,7 +8,7 @@ export const MOCK_WALLET_TX_HASH = `0x${"cd".repeat(32)}`;
 // Copied from apps/frontend/e2e/support/mockWallet.ts. Injects a minimal EIP-1193 provider
 // announced via EIP-6963 before the app loads. wagmi discovers announced providers by default
 // and reconnects to any connector whose isAuthorized() passes — the stub answers eth_accounts
-// with an address, so it auto-connects without driving the ConnectKit modal.
+// with an address, so it auto-connects without driving the AppKit modal.
 //
 // The dashboard's transfer journey lives on Polygon, so callers pass chainIdHex "0x89" to avoid
 // a mid-flow chain switch in signAndSubmitEvmTransaction.

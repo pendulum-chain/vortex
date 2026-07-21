@@ -1,6 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { ConnectKitProvider } from "connectkit";
 import { createRoot } from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 import "@/App.css";
@@ -19,9 +18,7 @@ if (!root) {
 createRoot(root).render(
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
-      <ConnectKitProvider mode="auto">
-        <RouterProvider router={router} />
-      </ConnectKitProvider>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   </WagmiProvider>
 );

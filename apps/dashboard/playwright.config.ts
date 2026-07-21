@@ -19,9 +19,9 @@ export default defineConfig({
     // --host 127.0.0.1 is required: vite's default binds IPv6 ::1 only, which the url check
     // below (and every page.goto) would never reach.
     command: "bun x --bun vite --port 5174 --strictPort --host 127.0.0.1",
-    // No env is needed: the dashboard has no Supabase import, VITE_API_URL already defaults
-    // to http://localhost:3000 (intercepted per-test) and VITE_WALLETCONNECT_PROJECT_ID
-    // falls back to a placeholder in src/lib/wagmi.ts.
+    // A placeholder Alchemy key keeps the frontend-matched transport path active; every endpoint
+    // is intercepted per-test. VITE_API_URL defaults to the likewise-intercepted localhost API.
+    env: { VITE_ALCHEMY_API_KEY: "e2e-mock-key" },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:5174/"

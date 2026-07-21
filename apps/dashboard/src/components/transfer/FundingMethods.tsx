@@ -1,5 +1,5 @@
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import type { QuoteResponse } from "@vortexfi/shared";
-import { ConnectKitButton } from "connectkit";
 import { Check, Loader2, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
@@ -25,21 +25,19 @@ interface FundingMethodsProps {
  * crypto deposits are not supported.
  */
 export function FundingMethods({ quote, submitting, onSubmit }: FundingMethodsProps) {
-  const { address, isConnected } = useAccount();
+  const { address } = useAccount();
+  const { isConnected } = useAppKitAccount();
+  const { open } = useAppKit();
 
   if (!isConnected || !address) {
     return (
       <div className="grid gap-3">
         <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
           <p className="text-muted-foreground text-sm">Connect your wallet.</p>
-          <ConnectKitButton.Custom>
-            {({ show }) => (
-              <Button className="mx-auto" onClick={show} type="button">
-                <Wallet className="size-4" />
-                Connect wallet
-              </Button>
-            )}
-          </ConnectKitButton.Custom>
+          <Button className="mx-auto" onClick={() => open({ view: "Connect" })} type="button">
+            <Wallet className="size-4" />
+            Connect wallet
+          </Button>
         </div>
       </div>
     );

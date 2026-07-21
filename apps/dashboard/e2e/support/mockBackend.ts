@@ -266,26 +266,27 @@ const ALFREDPAY_VERIFYING = "VERIFYING";
 // Customer exists but no KYC submission yet — a reopened wizard resumes into the details form.
 const ALFREDPAY_CONSULTED = "CONSULTED";
 
-// Chains the dashboard's wagmi config can reach (src/lib/wagmi.ts uses http() with no URL, so
-// viem falls back to these per-chain defaults). Polygon is genuinely exercised — the user
-// transaction's receipt is awaited through the wagmi transport, not the wallet — and mainnet is
-// hit by ConnectKit's ENS lookup after connect.
+// RPC endpoints the dashboard's wagmi config can reach. Polygon is genuinely exercised — the
+// user transaction's receipt is awaited through the wagmi transport, not the wallet — while the
+// remaining defaults keep wallet account lookups hermetic.
 const RPC_ENDPOINTS: Array<{ chainIdHex: string; pattern: string }> = [
+  { chainIdHex: "0x89", pattern: "https://polygon-mainnet.g.alchemy.com/**" },
   { chainIdHex: "0x89", pattern: "https://polygon.drpc.org/**" },
+  { chainIdHex: "0x89", pattern: "https://polygon-rpc.com/**" },
   { chainIdHex: "0x1", pattern: "https://eth.merkle.io/**" },
   { chainIdHex: "0xa4b1", pattern: "https://arb1.arbitrum.io/**" },
   { chainIdHex: "0x2105", pattern: "https://mainnet.base.org/**" }
 ];
 
-// Third parties the app reaches for but does not need. main.tsx always mounts WagmiProvider +
-// ConnectKitProvider, which probes for the Family wallet and loads the Coinbase Wallet SDK; the
-// Topbar renders a connect button. index.html pulls a Google font. All have graceful fallbacks.
+// Third parties the app reaches for but does not need. AppKit loads remote wallet configuration,
+// and index.html pulls a Google font. Both have graceful fallbacks.
 const THIRD_PARTY_BLOCKLIST = [
   "**/*.walletconnect.com/**",
   "**/*.walletconnect.org/**",
   "**/*.web3modal.org/**",
   "https://app.family.co/**",
   "https://cca-lite.coinbase.com/**",
+  "https://fonts.reown.com/**",
   "https://fonts.googleapis.com/**",
   "https://fonts.gstatic.com/**"
 ];
@@ -307,7 +308,7 @@ function answerRpc(chainIdHex: string) {
         result = chainIdHex;
         break;
       // Contract reads (ENS resolution): empty return data, which viem surfaces as a failed
-      // read. ConnectKit falls back to the truncated address.
+      // read. The wallet UI falls back to the truncated address.
       case "eth_call":
         result = "0x";
         break;

@@ -21,4 +21,17 @@ test("funding panel offers connected-wallet submission only", async ({ page }) =
   await expect(page.getByText("Send crypto")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Send/ })).toBeEnabled();
   await expect(page.getByText(/reach out to/)).toHaveCount(0);
+
+  await page.getByRole("button", { name: /0xf39F/ }).click();
+  await expect(page.getByRole("alertdialog").getByRole("button", { name: "Disconnect" })).toBeVisible();
+});
+
+test("connect wallet opens the AppKit connect view", async ({ page }) => {
+  await mockBackend(page);
+  await seedSession(page);
+
+  await page.goto("/transfer");
+  await page.getByRole("button", { name: "Connect wallet" }).first().click();
+
+  await expect(page.getByText("Connect Wallet", { exact: true })).toBeVisible();
 });

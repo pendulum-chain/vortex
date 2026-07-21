@@ -47,6 +47,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   // Stage 3: submitting runs register -> presign -> user signing -> start. The form toasts and
   // navigates once the machine reaches Tracking.
   await sendButton.click();
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/transactions/);
 
@@ -135,6 +136,7 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await sendButton.click();
 
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
 
   expect(backend.registerRequests).toHaveLength(1);
