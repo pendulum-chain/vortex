@@ -1,11 +1,11 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { Check, Copy } from "lucide-react";
+import { ArrowLeft, Check, Copy } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { transferActor } from "@/machines/transferActor";
+import { resetTransferState, transferActor } from "@/machines/transferActor";
 
 function copy(value: string) {
   navigator.clipboard.writeText(value);
@@ -118,9 +118,14 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         </div>
       )}
 
-      <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
-        <Check /> {starting ? "Starting transfer…" : "I have made the payment"}
-      </Button>
+      <div className="grid grid-cols-[auto_1fr] gap-3">
+        <Button disabled={starting} onClick={resetTransferState} size="lg" type="button" variant="outline">
+          <ArrowLeft /> Back
+        </Button>
+        <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
+          <Check /> {starting ? "Starting transfer…" : "I have made the payment"}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -45,6 +45,31 @@ test("Onramp prefills the connected wallet but keeps a manually edited destinati
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("Onramp payment instructions can be cancelled without deleting recovery keys", async ({ page }) => {
+  const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: "MXN" });
+  await seedSession(page);
+  await page.goto("/transfer?mode=onramp");
+
+  await page.getByLabel("Destination wallet address").fill(DESTINATION);
+  await page.getByLabel("You pay (MXN)").fill("100");
+  const continueButton = page.getByRole("button", { name: "Continue to payment" });
+  await expect(continueButton).toBeEnabled({ timeout: 20_000 });
+  await continueButton.click();
+  await expect(page.getByText("CLABE", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  const recoveryKeys = await page.evaluate(() => localStorage.getItem("vortex_dashboard_rampEphemerals"));
+  expect(recoveryKeys).not.toBeNull();
+
+  await page.getByRole("button", { name: "Back" }).click();
+
+  await expect(page.getByLabel("Destination wallet address")).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("vortex-dashboard-transfer-state"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("vortex_dashboard_rampEphemerals"))).toBe(recoveryKeys);
+  expect(backend.startRequests).toHaveLength(0);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 for (const journey of CASES) {
   test(`BUY ${journey.currency}: quote, ephemeral registration, instructions, confirmation, start`, async ({ page }) => {
     const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: journey.currency });

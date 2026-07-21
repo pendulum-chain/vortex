@@ -55,4 +55,46 @@ describe("transferMachine BUY flow", () => {
     assert.equal(startCalls, 1);
     actor.stop();
   });
+
+  it("returns to idle and clears the cancelled ramp while awaiting payment", async () => {
+    const machine = transferMachine.provide({
+      actors: {
+        registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] }))
+      }
+    });
+    const actor = createActor(machine).start();
+
+    actor.send({
+      additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
+      meta: {
+        accountId: "account-1",
+        amountIn: "100",
+        amountInToken: "MXN",
+        corridorId: "MX",
+        direction: RampDirection.BUY,
+        fiatPayoutAmount: "5",
+        payinNetwork: "polygon",
+        payoutCurrency: "USDC",
+        recipientEmail: "Your wallet",
+        recipientId: "",
+        summary: "5 USDC to your wallet"
+      },
+      quote,
+      type: "START"
+    });
+    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+
+    actor.send({ type: "RESET" });
+
+    const snapshot = actor.getSnapshot();
+    assert.equal(snapshot.value, "Idle");
+    assert.equal(snapshot.context.quote, null);
+    assert.equal(snapshot.context.additionalData, null);
+    assert.equal(snapshot.context.meta, null);
+    assert.equal(snapshot.context.ramp, null);
+    assert.deepEqual(snapshot.context.userTxs, []);
+    assert.equal(snapshot.context.lastStatus, null);
+    assert.equal(snapshot.context.errorMessage, null);
+    actor.stop();
+  });
 });
