@@ -20,6 +20,7 @@ import { transferActor } from "@/machines/transferActor";
 import { useOnrampQuote } from "@/services/api/hooks";
 import { OnrampPaymentInstructions } from "./OnrampPaymentInstructions";
 import { QuoteSummary } from "./QuoteSummary";
+import { TokenCombobox } from "./TokenCombobox";
 
 const schema = z.object({
   amount: z.string().refine(value => Number(value) > 0, "Enter an amount greater than zero."),
@@ -37,7 +38,10 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getOnrampTokenOptions();
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
-  const defaultNetwork = tokenOptions[0]?.network ?? "polygon";
+  const networkOptions = [...new Map(tokenOptions.map(option => [option.network, option.networkLabel])).entries()].sort(
+    (a, b) => a[1].localeCompare(b[1])
+  );
+  const defaultNetwork = networkOptions[0]?.[0] ?? "polygon";
   const form = useForm<OnrampFormValues>({
     defaultValues: {
       amount: "",
@@ -200,13 +204,11 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {[...new Map(tokenOptions.map(option => [option.network, option.networkLabel])).entries()].map(
-                      ([id, label]) => (
-                        <SelectItem key={id} value={id}>
-                          {label}
-                        </SelectItem>
-                      )
-                    )}
+                    {networkOptions.map(([id, label]) => (
+                      <SelectItem key={id} value={id}>
+                        {label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormItem>
@@ -218,20 +220,13 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Token</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {networkTokens.map(option => (
-                      <SelectItem key={option.currency} value={option.currency}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <TokenCombobox
+                    onChange={option => field.onChange(option.currency)}
+                    options={networkTokens}
+                    value={field.value}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />

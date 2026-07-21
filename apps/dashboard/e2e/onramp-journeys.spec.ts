@@ -59,6 +59,7 @@ for (const journey of CASES) {
     await page.getByLabel("Network").click();
     await page.getByRole("option", { exact: true, name: "Polygon" }).click();
     await page.getByLabel("Token").click();
+    await page.getByPlaceholder("Search token or network").fill("usdc");
     await page.getByRole("option", { exact: true, name: "USDC" }).click();
 
     const continueButton = page.getByRole("button", { name: "Continue to payment" });

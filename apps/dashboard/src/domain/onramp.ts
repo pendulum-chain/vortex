@@ -20,6 +20,30 @@ export interface OnrampTokenOption {
   token: EvmTokenDetails;
 }
 
+export function sortOnrampTokenOptions(options: OnrampTokenOption[]): OnrampTokenOption[] {
+  return [...options].sort((a, b) => {
+    const isStaticA = a.token.isFromStaticConfig === true;
+    const isStaticB = b.token.isFromStaticConfig === true;
+    if (isStaticA !== isStaticB) {
+      return isStaticA ? -1 : 1;
+    }
+    return a.label.localeCompare(b.label) || a.networkLabel.localeCompare(b.networkLabel);
+  });
+}
+
+export function filterOnrampTokenOptions(options: OnrampTokenOption[], search: string): OnrampTokenOption[] {
+  const term = search.trim().toLowerCase();
+  if (!term) {
+    return options;
+  }
+  return options.filter(
+    option =>
+      option.label.toLowerCase().includes(term) ||
+      String(option.currency).toLowerCase().includes(term) ||
+      option.networkLabel.toLowerCase().includes(term)
+  );
+}
+
 export function getOnrampTokenOptions(): OnrampTokenOption[] {
   const config = getEvmTokenConfig();
   const options: OnrampTokenOption[] = [];
@@ -51,5 +75,5 @@ export function getOnrampTokenOptions(): OnrampTokenOption[] {
     }
   }
 
-  return options.sort((a, b) => a.networkLabel.localeCompare(b.networkLabel) || a.label.localeCompare(b.label));
+  return sortOnrampTokenOptions(options);
 }
