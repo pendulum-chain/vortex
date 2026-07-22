@@ -43,7 +43,7 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
   const payoutAccountMissing = managesPayoutAccounts && fiatAccounts.data?.length === 0;
 
   return (
-    <Card data-testid={`corridor-card-${corridor.id}`}>
+    <Card className="h-full" data-testid={`corridor-card-${corridor.id}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -85,7 +85,9 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
         )}
       </CardContent>
 
-      <CardFooter>
+      {/* Reserve the height of the tallest footer variant (payout hint + button) so cards
+          don't resize when the payout section replaces a plain action button. */}
+      <CardFooter className="mt-auto min-h-20">
         {managesPayoutAccounts ? (
           <PayoutAccountsSection
             accounts={fiatAccounts.data}
