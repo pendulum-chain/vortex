@@ -260,6 +260,9 @@ interface MockBackendOptions {
   pendingInvitations?: Array<Record<string, unknown>>;
   // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
   fiatAccounts?: Array<Record<string, unknown>>;
+  // When set, POST /v1/alfredpay/fiatAccounts fails with this sanitized 400 body (the shape
+  // AlfredpayController.handleFiatAccountError returns for provider rejections).
+  fiatAccountAddError?: { error: string; fields?: Array<{ field: string; message: string }> };
   rampExpiresAt?: string;
   rampHistory?: Array<Record<string, unknown>>;
   rampRegisterError?: string;
@@ -679,6 +682,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/alfredpay/fiatAccounts" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       fiatAccountRequests.push(body);
+      if (options.fiatAccountAddError) {
+        await fulfillJson(options.fiatAccountAddError, 400);
+        return;
+      }
       const fiatAccountId = `fiat-account-e2e-${fiatAccountRequests.length}`;
       // Mirror AlfredpayController.addFiatAccount's per-type provider mapping instead of
       // echoing the POST body: holder names land in metadata.accountHolderName (SPEI/ACH),

@@ -2,6 +2,7 @@ import {
   AlfredPayCountry,
   AlfredPayStatus,
   AlfredpayAddFiatAccountRequest,
+  AlfredpayApiError,
   AlfredpayApiService,
   AlfredpayCreateCustomerRequest,
   AlfredpayCreateCustomerResponse,
@@ -34,6 +35,48 @@ import {
 } from "../services/alfredpay/alfredpay-customer.service";
 import { ALFREDPAY_EFFECTIVE_USER_REQUIRED_MESSAGE } from "../services/quote/alfredpay-customer";
 
+/**
+ * Maps an Alfredpay 4xx rejection on the fiat-account routes to a sanitized caller-facing
+ * 400 body, or returns null for anything that should stay an opaque 500 (5xx, transport
+ * failures, non-provider errors). The raw provider body is never forwarded — only known
+ * error codes (docs: alfredpay.readme.io/docs/error-codes) select the message. 111301
+ * (UNKNOWN_ERROR) is Alfredpay's catch-all and is what production returns for account
+ * numbers the rails cannot verify (e.g. a nonexistent CBU), so it gets the same
+ * "could not verify" treatment as the generic case.
+ */
+export function mapFiatAccountProviderRejection(
+  error: unknown
+): { error: string; fields?: Array<{ field: string; message: string }> } | null {
+  if (!(error instanceof AlfredpayApiError) || error.status < 400 || error.status >= 500) {
+    return null;
+  }
+  let errorCode: number | undefined;
+  try {
+    errorCode = (JSON.parse(error.responseBody) as { errorCode?: number }).errorCode;
+  } catch {
+    // Non-JSON provider body — fall through to the generic rejection message.
+  }
+  switch (errorCode) {
+    case 111484:
+      return {
+        error: "The payout provider rejected this account number. Double-check it and try again.",
+        fields: [{ field: "accountNumber", message: "This account number was rejected by the payout provider." }]
+      };
+    case 111485:
+      return { error: "This account is already registered as a payout account." };
+    case 110002:
+    case 111302:
+    case 111303:
+      return { error: "The payout provider rejected these account details. Double-check them and try again." };
+    case 111309:
+      return { error: "This payout account belongs to a different customer." };
+    case 111482:
+      return { error: "This payout account no longer exists." };
+    default:
+      return { error: "The payout provider could not verify this account. Double-check the details and try again." };
+  }
+}
+
 export class AlfredpayController {
   private static getRequiredUserId(req: Request): string {
     if (!req.userId) {
@@ -57,6 +100,10 @@ export class AlfredpayController {
       return res.status(httpStatus.BAD_REQUEST).json({
         error: "This endpoint requires an API key linked to a user or Supabase user authentication."
       });
+    }
+    const rejection = mapFiatAccountProviderRejection(error);
+    if (rejection) {
+      return res.status(httpStatus.BAD_REQUEST).json(rejection);
     }
     return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
   }

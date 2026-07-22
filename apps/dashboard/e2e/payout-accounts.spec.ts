@@ -43,6 +43,36 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("a provider-rejected payout account surfaces field and form errors instead of a generic failure", async ({ page }) => {
+  const backend = await mockBackend(page, {
+    fiatAccountAddError: {
+      error: "The payout provider rejected this account number. Double-check it and try again.",
+      fields: [{ field: "accountNumber", message: "This account number was rejected by the payout provider." }]
+    },
+    fiatAccounts: []
+  });
+  await seedSession(page);
+  await page.goto("/overview");
+
+  const card = page.getByTestId("corridor-card-MX");
+  await card.getByRole("button", { name: "Add payout account" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("CLABE").fill("646180157000000004");
+  await dialog.getByLabel("Account holder name").fill("Vortex E2E CLABE");
+  await dialog.getByRole("button", { name: "Save payout account" }).click();
+
+  await expect(dialog.getByText("This account number was rejected by the payout provider.")).toBeVisible();
+  await expect(
+    dialog.getByText("The payout provider rejected this account number. Double-check it and try again.")
+  ).toBeVisible();
+  // The form stays open for correction and nothing was added.
+  await expect(dialog.getByRole("button", { name: "Save payout account" })).toBeEnabled();
+  await expect(card.getByText("Verification complete · 1 payout account")).toBeHidden();
+  expect(backend.fiatAccountRequests).toHaveLength(1);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 test("an approved AlfredPay corridor removes a payout account after confirmation", async ({ page }) => {
   const backend = await mockBackend(page, {
     fiatAccounts: [
