@@ -2,7 +2,13 @@ import { ArrowRight, ExternalLink, FileText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { isOnboardingAvailable, onboardingKindFor, PROVIDER_LABEL, routeFor } from "@/domain/corridors";
+import {
+  isCorridorOnboardingDisabled,
+  isOnboardingAvailable,
+  onboardingKindFor,
+  PROVIDER_LABEL,
+  routeFor
+} from "@/domain/corridors";
 import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
 import { STATUS_META } from "@/domain/status";
 import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
@@ -36,6 +42,16 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
   const kind = onboardingKindFor(corridor, account.type);
   const available = isOnboardingAvailable(corridor, kind);
   const onboarding = account.onboardings[corridor.id];
+  // Suppress every actionable state (start, continue, retry, re-authenticate) while the
+  // corridor is disabled; purely informational buttons (awaiting review, complete) stay.
+  const actionable =
+    !onboarding ||
+    onboarding.status === "not_started" ||
+    onboarding.status === "pending" ||
+    onboarding.status === "started" ||
+    onboarding.status === "rejected" ||
+    (onboarding.status === "in_review" && onboarding.reauthenticationRequired === true);
+  const disabled = isCorridorOnboardingDisabled(corridor) && actionable;
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
   const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
   const managesPayoutAccounts = corridor.provider === "alfredpay" && onboarding?.status === "approved";
@@ -98,6 +114,10 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
               fiatAccounts.refetch();
             }}
           />
+        ) : disabled ? (
+          <Button className="w-full" disabled variant="outline">
+            {kind.toUpperCase()} is temporarily unavailable
+          </Button>
         ) : !available && (!onboarding || onboarding.status === "not_started" || onboarding.status === "rejected") ? (
           <Button className="w-full" disabled variant="outline">
             {kind.toUpperCase()} not yet available

@@ -2,7 +2,13 @@ import { expect, test } from "@playwright/test";
 import { mockBackend } from "./support/mockBackend";
 import { E2E_USER_EMAIL, E2E_USER_ID, SESSION_KEYS, seedSession } from "./support/session";
 
-test("Monerium EU OAuth returns securely and refreshes approval", async ({ page }) => {
+// EU onboarding (KYC and KYB) is temporarily disabled: the corridor card must not offer any
+// actionable button and the wizard must refuse the corridor even via the ?onboarding=EU deep
+// link, so no user can reach the Monerium flow. When EU is re-enabled, restore the OAuth
+// round-trip coverage this file carried before (git history: "Monerium EU OAuth returns
+// securely and refreshes approval").
+
+test("EU onboarding is disabled: card action and wizard deep link are both blocked", async ({ page }) => {
   const backend = await mockBackend(page, { moneriumKyc: true });
   await seedSession(page);
   await page.goto("/overview");
@@ -14,36 +20,12 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   await page.getByRole("option", { name: /Europe/ }).click();
   await addDialog.getByRole("button", { name: "Add card" }).click();
 
-  await page.getByRole("button", { name: "Start KYC" }).click();
+  await expect(page.getByRole("button", { name: "KYC is temporarily unavailable" })).toBeDisabled();
+
+  await page.goto("/overview?onboarding=EU");
   const wizard = page.getByRole("dialog");
-  await expect(wizard.getByText("Verify with Monerium")).toBeVisible({ timeout: 20_000 });
-  let continueNavigation: () => void;
-  const navigationGate = new Promise<void>(resolve => {
-    continueNavigation = resolve;
-  });
-  await page.route(`${new URL(page.url()).origin}/monerium/callback?**`, async route => {
-    await navigationGate;
-    await route.continue();
-  });
-  const connectingShown = page.evaluate(
-    () =>
-      new Promise<boolean>(resolve => {
-        const observer = new MutationObserver(() => {
-          if (document.body.textContent?.includes("Connecting to Monerium")) {
-            observer.disconnect();
-            resolve(true);
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-      })
-  );
-  const navigation = wizard.getByRole("button", { name: "Continue to Monerium" }).click();
-  try {
-    await expect(connectingShown).resolves.toBe(true);
-  } finally {
-    continueNavigation();
-  }
-  await navigation;
+  await expect(wizard.getByText("KYC is currently disabled in Europe.")).toBeVisible({ timeout: 20_000 });
+  await wizard.getByRole("button", { exact: true, name: "Close" }).first().click();
 
   await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
   await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
@@ -62,7 +44,7 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
-test("Monerium callback refreshes an expired dashboard session before exchange", async ({ page }) => {
+test("Monerium callback refreshes an expired dashboard session, then lands on the disabled notice", async ({ page }) => {
   const backend = await mockBackend(page, { moneriumKyc: true, moneriumRequireRefresh: true });
   await page.addInitScript(
     ({ email, keys, userId }) => {
@@ -77,22 +59,17 @@ test("Monerium callback refreshes an expired dashboard session before exchange",
   await page.goto("/monerium/callback?code=e2e-code&state=e2e-state");
 
   await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
-  await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("KYC is currently disabled in Europe.")).toBeVisible();
   expect(backend.auth.refreshes).toBe(1);
 });
 
-test("in-review Monerium onboarding offers reauthentication when the status response requires it", async ({ page }) => {
+test("in-review Monerium onboarding requiring reauthentication is disabled instead of actionable", async ({ page }) => {
   const backend = await mockBackend(page, { moneriumKyc: true });
   backend.monerium.completed = true;
   await seedSession(page);
   await page.goto("/overview");
 
-  const reauthenticateButton = page.getByRole("button", { name: "Re-authenticate with Monerium" });
-  await expect(reauthenticateButton).toBeVisible({ timeout: 20_000 });
-  await reauthenticateButton.click();
-
-  const wizard = page.getByRole("dialog");
-  await expect(wizard.getByText("Verify with Monerium")).toBeVisible();
-  await expect(wizard.getByRole("button", { name: "Continue to Monerium" })).toBeVisible();
+  const disabledButton = page.getByRole("button", { name: "KYC is temporarily unavailable" });
+  await expect(disabledButton).toBeDisabled({ timeout: 20_000 });
   expect(backend.unmatchedRequests).toEqual([]);
 });
