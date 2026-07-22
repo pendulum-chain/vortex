@@ -1,8 +1,11 @@
 import {
+  EvmToken,
+  evmTokenConfig,
   FiatToken,
   getNetworkFromDestination,
   isAlfredpayToken,
   isNetworkEVM,
+  mapFiatToDestination,
   Networks,
   RampDirection
 } from "@vortexfi/shared";
@@ -11,7 +14,9 @@ import { APIError } from "../../../../errors/api-error";
 import type { FlowMetadata } from "../core/metadata";
 import type { Flow } from "../core/types";
 import { alfredpayOnrampCrossChainFlow, makeAlfredpayOnrampCrossChainFlow } from "./alfredpay-onramp-cross-chain";
+import { alfredpayOnrampDirectFlow, makeAlfredpayOnrampDirectFlow } from "./alfredpay-onramp-direct";
 import { brlOnrampBaseCrossChainFlow, makeBrlOnrampBaseCrossChainFlow } from "./brl-onramp-base-cross-chain";
+import { brlOnrampBaseDirectFlow } from "./brl-onramp-base-direct";
 
 type FlowRequest = FlowMetadata["globals"]["request"];
 
@@ -22,6 +27,36 @@ interface FlowDefinition {
 }
 
 const flowDefinitions: FlowDefinition[] = [
+  {
+    create(request) {
+      return makeAlfredpayOnrampDirectFlow(request.outputCurrency);
+    },
+    executorFlow: alfredpayOnrampDirectFlow,
+    matches(request) {
+      return (
+        request.rampType === RampDirection.BUY &&
+        isAlfredpayToken(request.inputCurrency) &&
+        request.from === mapFiatToDestination(request.inputCurrency) &&
+        evmTokenConfig[Networks.Polygon][request.outputCurrency as EvmToken] !== undefined &&
+        getNetworkFromDestination(request.to) === Networks.Polygon
+      );
+    }
+  },
+  {
+    create() {
+      return brlOnrampBaseDirectFlow;
+    },
+    executorFlow: brlOnrampBaseDirectFlow,
+    matches(request) {
+      return (
+        request.rampType === RampDirection.BUY &&
+        request.inputCurrency === FiatToken.BRL &&
+        request.from === mapFiatToDestination(FiatToken.BRL) &&
+        request.outputCurrency === EvmToken.BRLA &&
+        getNetworkFromDestination(request.to) === Networks.Base
+      );
+    }
+  },
   {
     create(request) {
       const network = getNetworkFromDestination(request.to);

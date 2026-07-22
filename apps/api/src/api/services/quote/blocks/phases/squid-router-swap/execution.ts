@@ -43,9 +43,7 @@ const BALANCE_POLLING_TIME_MS = 10000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000";
 
-// Port of the production SquidRouterPhaseHandler without the route short-circuits
-// (direct-transfer, Alfredpay, same-chain passthrough): a flow that pipes this block always
-// bridges, so the skips are dead branches here.
+// Port of the production SquidRouterPhaseHandler for block-owned bridge and passthrough routes.
 export class SquidRouterSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "squidRouterSwap";
@@ -60,6 +58,35 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     }
 
     const bridgeMeta = getBlockMetadata(quote.metadata, SquidRouterSwapContext);
+
+    if (
+      bridgeMeta.fromNetwork === bridgeMeta.toNetwork &&
+      bridgeMeta.fromToken.toLowerCase() === bridgeMeta.toToken.toLowerCase()
+    ) {
+      const evmEphemeralAddress = state.state.evmEphemeralAddress;
+      if (!evmEphemeralAddress) {
+        throw new Error("Missing EVM ephemeral address for squidRouter passthrough");
+      }
+      const tokenDetails = getOnChainTokenDetails(bridgeMeta.toNetwork, quote.outputCurrency as OnChainToken);
+      if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {
+        throw new Error(`Could not resolve passthrough token details on ${bridgeMeta.toNetwork}`);
+      }
+      const baselineKey = settlementBalanceKey(bridgeMeta.toNetwork, evmEphemeralAddress, tokenDetails.erc20AddressSourceChain);
+      await state.update({
+        state: {
+          ...state.state,
+          transactionPlan: {
+            ...state.state.transactionPlan,
+            settlementBaselines: {
+              ...state.state.transactionPlan?.settlementBaselines,
+              [baselineKey]: "0"
+            }
+          }
+        }
+      });
+      logger.info(`SquidRouterSwapExecutor: Skipping same-chain same-token passthrough for ramp ${state.id}`);
+      return state;
+    }
 
     const evmEphemeralAddress = state.state.evmEphemeralAddress;
     if (!evmEphemeralAddress) {
@@ -153,15 +180,19 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       await this.waitForTransactionConfirmation(sourceNetwork, approveHash);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
-      const swapHash = await this.executeTransaction(sourceNetwork, swapTransaction.txData as string);
-      logger.info(`Swap transaction executed with hash: ${swapHash}`);
+      let swapHash = state.state.squidRouterSwapHash;
+      let updatedState = state;
+      if (!swapHash) {
+        swapHash = await this.executeTransaction(sourceNetwork, swapTransaction.txData as string);
+        logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
-      const updatedState = await state.update({
-        state: {
-          ...state.state,
-          squidRouterSwapHash: swapHash
-        }
-      });
+        updatedState = await state.update({
+          state: {
+            ...state.state,
+            squidRouterSwapHash: swapHash
+          }
+        });
+      }
 
       await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
       logger.info(`Swap transaction confirmed: ${swapHash}`);

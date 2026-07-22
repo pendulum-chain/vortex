@@ -155,3 +155,55 @@ export async function prepareSquidRouterSwapTxs(
     }
   };
 }
+
+export async function prepareSameChainSquidRouterSwapTxs(
+  fromChain: ChainBrand,
+  toChain: ChainBrand,
+  fromToken: TokenBrand,
+  toToken: TokenBrand,
+  ctx: PrepareCtx<SquidRouterSwapMetadata>
+): Promise<PreparedPhaseTxs> {
+  const fromTokenDetails = evmTokenConfig[fromChain as EvmNetworks]?.[fromToken as EvmToken];
+  const toTokenDetails = getOnChainTokenDetails(toChain as Networks, toToken as OnChainToken) as EvmTokenDetails | undefined;
+  if (!fromTokenDetails || !toTokenDetails) {
+    throw new Error(`prepareSameChainSquidRouterSwapTxs: Missing token details for ${fromToken}/${toToken} on ${fromChain}`);
+  }
+
+  const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
+    await createOnrampSquidrouterTransactionsFromPolygonToEvm({
+      destinationAddress: ctx.evmEphemeral.address,
+      fromAddress: ctx.evmEphemeral.address,
+      fromToken: fromTokenDetails.erc20AddressSourceChain,
+      rawAmount: ctx.ownMetadata.inputAmountRaw,
+      toNetwork: toChain as Networks,
+      toToken: toTokenDetails.erc20AddressSourceChain
+    });
+  if (!squidRouterQuoteId) {
+    throw new Error("prepareSameChainSquidRouterSwapTxs: Squid quote ID is missing");
+  }
+
+  return {
+    intents: [
+      {
+        lane: "main",
+        network: fromChain as Networks,
+        phase: "squidRouterApprove",
+        signer: ctx.evmEphemeral.address,
+        txData: encodeEvmTransactionData(approveData) as EvmTransactionData
+      },
+      {
+        lane: "main",
+        network: fromChain as Networks,
+        phase: "squidRouterSwap",
+        prefundNativeValueRaw: swapData.value?.toString() ?? "0",
+        signer: ctx.evmEphemeral.address,
+        txData: encodeEvmTransactionData(swapData) as EvmTransactionData
+      }
+    ],
+    state: {
+      quoteId: squidRouterQuoteId,
+      receiverHash: squidRouterReceiverHash,
+      receiverId: squidRouterReceiverId
+    }
+  };
+}

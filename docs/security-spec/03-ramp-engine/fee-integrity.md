@@ -18,7 +18,7 @@ Mapped block flows compute the persisted fee snapshot once through `blocks/core/
 
 This means the fees shown to the user (from the database system) may differ from the fees actually applied (from the token config system). This is documented in `docs/architecture/current-fee-derivation.md` as a partially-implemented refactor.
 
-**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. `OnRampAveniaToEvmFeeEngine` now reports zero network fee for these corridors (same `isFiatToOwnStablecoinBaseDirect` predicate as the squidrouter passthrough engines); output amounts were never affected. Pinned by the quote pricing goldens (`apps/api/src/tests/quote-pricing.golden.test.ts`).
+**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. The legacy fee engine and the catalog-mapped BRL `AveniaDirectMint` block report zero network fee for these corridors; output amounts were never affected. Pinned by the quote pricing goldens and block-flow parity tests.
 
 ### Fee Application Points
 

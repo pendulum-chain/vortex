@@ -20,6 +20,31 @@ export interface SquidRouterSwapMetadata {
 
 export const SquidRouterSwapContext = defineContext<SquidRouterSwapMetadata>()("squidRouterSwap");
 
+export async function simulateSquidRouterPassthrough<Token extends TokenBrand, Chain extends ChainBrand>(
+  token: Token,
+  chain: Chain,
+  input: PhaseIO<Token, Chain>,
+  ctx: PhaseCtx
+): Promise<PhaseResult<PhaseIO<Token, Chain>, SquidRouterSwapMetadata>> {
+  const tokenDetails = getOnChainTokenDetails(chain as Networks, token as OnChainToken) as EvmTokenDetails;
+  ctx.addNote(`SquidRouterSwap: passthrough ${input.amount.toFixed()} ${token} on ${chain}`);
+  return {
+    metadata: {
+      effectiveExchangeRate: "1",
+      fromNetwork: chain as Networks,
+      fromToken: tokenDetails.erc20AddressSourceChain,
+      inputAmountDecimal: input.amount,
+      inputAmountRaw: input.amountRaw,
+      networkFeeUSD: "0",
+      outputAmountDecimal: input.amount,
+      outputAmountRaw: input.amountRaw,
+      toNetwork: chain as Networks,
+      toToken: tokenDetails.erc20AddressSourceChain
+    },
+    output: input
+  };
+}
+
 export async function simulateSquidRouterSwap<
   FromChain extends ChainBrand,
   ToChain extends ChainBrand,

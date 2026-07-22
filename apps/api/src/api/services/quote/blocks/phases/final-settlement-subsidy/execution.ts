@@ -48,8 +48,7 @@ const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> =
 
 // BUY slice of the production FinalSettlementSubsidyHandler: waits for the bridge to deliver on
 // the destination chain, then tops the ephemeral up to exactly quote.outputAmount (swapping the
-// funding account's native token to the output token via SquidRouter when needed). SELL/Alfredpay
-// and direct-transfer branches are not ported.
+// funding account's native token to the output token via SquidRouter when needed). SELL is not ported.
 export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
     return "finalSettlementSubsidy";

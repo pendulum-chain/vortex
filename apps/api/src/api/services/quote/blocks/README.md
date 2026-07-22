@@ -48,11 +48,9 @@ the transactions the ephemerals/user must sign all live in one place.
 
 **Scope:** block flows are the production source of truth for quote simulation,
 transaction preparation, phase ordering, and executor registration. The catalog
-currently maps `BRL_ONRAMP_BASE_CROSS_CHAIN` (Avenia PIX → BRLA on Base →
-Nabla BRLA→USDC → fee distribution → Squid bridge → destination transfer) and
-`ALFREDPAY_ONRAMP_CROSS_CHAIN` (USD/MXN/COP/ARS bank transfer → USDT on Polygon
-→ Squid bridge → destination transfer), expressed as flow *families*
-parameterized by destination chain and token.
+currently maps the direct and cross-chain BRL/Avenia onramps and the direct and
+cross-chain AlfredPay onramps, expressed as flow *families* parameterized by
+destination chain and token where needed.
 Unmapped corridors are rejected during quote creation until their flows are
 ported.
 
@@ -60,10 +58,9 @@ ported.
 and the phase registry. `QuoteService` persists `{ globals, blocks }` metadata;
 ramp registration resolves that persisted request and calls `Flow.prepareTxs`;
 startup registers only catalog-derived executors before starting recovery
-workers. The block unit/parity/wiring suite passes `20 pass, 2 skip, 0 fail`,
+workers. The block unit/parity/wiring suite passes `33 pass, 2 skip, 0 fail`,
 and the database-backed BRL cross-chain scenario passes quote creation,
-registration, signing, and execution through `complete`;
-`bun typecheck` clean for `blocks/`. The derived `RampPhase[]` deep-equals
+registration, signing, and execution through `complete`. The derived `RampPhase[]` deep-equals
 the production `BRL_ONRAMP_BASE_CROSS_CHAIN` array; the assembled
 `unsignedTxs` deep-equal the production route-prep
 (`transactions/onramp/routes/avenia-to-evm-base.ts`, cross-chain path)
@@ -74,8 +71,7 @@ from the corresponding production handler (EVM/Base BUY slice),
 registry-compatible via `BasePhaseHandler`, and — where its executors
 consume presigned transactions — a `prepareTxs` leg ported from the
 per-flow route-prep. The earlier Morpho example flow was removed together with the
-Morpho production code; `MykoboMint` remains in the catalog for the EUR
-corridors.
+Morpho production code; `MykoboMint` remains available as a phase for the pending EUR corridors.
 
 ---
 
@@ -125,7 +121,9 @@ apps/api/src/api/services/quote/blocks/
     final-settlement-subsidy/                   # index.ts + simulation.ts + execution.ts
     destination-transfer/                      # index.ts + simulation.ts + execution.ts + transactions.ts
   flows/
+    alfredpay-onramp-direct.ts                 # Polygon passthrough/same-chain family
     alfredpay-onramp-cross-chain.ts            # makeAlfredpayOnrampCrossChainFlow(toChain, toToken)
+    brl-onramp-base-direct.ts                  # BRL -> BRLA on Base
     brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
   __tests__/
     brl-onramp-base-cross-chain.parity.test.ts     # structure + parity + executors + compile-time + simulate

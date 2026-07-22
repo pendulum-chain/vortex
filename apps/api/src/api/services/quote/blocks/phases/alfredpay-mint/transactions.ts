@@ -17,31 +17,35 @@ export async function prepareAlfredpayMintTxs(ctx: PrepareCtx<AlfredpayMintMetad
   }
   const fundingAccount = getEvmFundingAccount(Networks.Polygon);
   const cleanup = await preparePolygonCleanupApproval(ERC20_USDC_POLYGON, fundingAccount.address, Networks.Polygon);
-  const fallback = await addOnrampDestinationChainTransactions({
-    amountRaw: ctx.ownMetadata.outputAmountRaw,
-    destinationNetwork: Networks.Polygon as EvmNetworks,
-    toAddress: ctx.destinationAddress,
-    toToken: ALFREDPAY_ERC20_TOKEN
-  });
   const alfredpayUserId = await resolveAlfredpayCustomerId(ctx.ownMetadata.currency, ctx.userId);
+  const intents: PreparedPhaseTxs["intents"] = [
+    {
+      lane: "cleanup",
+      network: Networks.Polygon,
+      phase: "polygonCleanup",
+      signer: ctx.evmEphemeral.address,
+      txData: encodeEvmTransactionData(cleanup) as EvmTransactionData
+    }
+  ];
+
+  if (ctx.globals.request.to !== Networks.Polygon) {
+    const fallback = await addOnrampDestinationChainTransactions({
+      amountRaw: ctx.ownMetadata.outputAmountRaw,
+      destinationNetwork: Networks.Polygon as EvmNetworks,
+      toAddress: ctx.destinationAddress,
+      toToken: ALFREDPAY_ERC20_TOKEN
+    });
+    intents.push({
+      lane: "cleanup",
+      network: Networks.Polygon,
+      phase: "alfredOnrampMintFallback",
+      signer: ctx.evmEphemeral.address,
+      txData: encodeEvmTransactionData(fallback) as EvmTransactionData
+    });
+  }
 
   return {
-    intents: [
-      {
-        lane: "cleanup",
-        network: Networks.Polygon,
-        phase: "polygonCleanup",
-        signer: ctx.evmEphemeral.address,
-        txData: encodeEvmTransactionData(cleanup) as EvmTransactionData
-      },
-      {
-        lane: "cleanup",
-        network: Networks.Polygon,
-        phase: "alfredOnrampMintFallback",
-        signer: ctx.evmEphemeral.address,
-        txData: encodeEvmTransactionData(fallback) as EvmTransactionData
-      }
-    ],
+    intents,
     state: { userId: alfredpayUserId }
   };
 }
