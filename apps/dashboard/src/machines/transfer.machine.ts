@@ -101,7 +101,7 @@ export const transferMachine = setup({
   states: {
     AwaitingPayment: {
       on: {
-        PAYMENT_CONFIRMED: { target: "Starting" }
+        PAYMENT_CONFIRMED: { actions: assign(() => ({ errorMessage: null })), target: "Starting" }
       }
     },
     Done: {
@@ -215,13 +215,25 @@ export const transferMachine = setup({
           })),
           target: "Tracking"
         },
-        onError: {
-          actions: [
-            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
-            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
-          ],
-          target: "Failed"
-        },
+        // A BUY user may already have paid, so the ramp and its instructions must survive a
+        // failed start: back to AwaitingPayment, where PAYMENT_CONFIRMED retries the same ramp.
+        onError: [
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            target: "Failed"
+          }
+        ],
         src: "startRamp"
       }
     },

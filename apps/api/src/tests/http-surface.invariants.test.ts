@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestApiKey, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
+import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, TEST_OTP_CODE, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
@@ -277,6 +277,14 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
 
       const anonymous = await requestJson("/v1/ramp/history");
       expect(anonymous.status).toBe(401);
+    });
+
+    it("rejects a partner-only secret key instead of falling back to partner-wide history", async () => {
+      const partner = await createTestPartner();
+      const { plaintextKey } = await createTestApiKey({ partnerName: partner.name });
+
+      const response = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(response.status).toBe(403);
     });
 
     it("validates history pagination", async () => {

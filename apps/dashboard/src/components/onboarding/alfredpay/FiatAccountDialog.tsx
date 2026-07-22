@@ -105,7 +105,8 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-sm">
-                      {account.accountName || "Payout account"} · ••••{account.accountNumber.slice(-4)}
+                      {account.metadata?.accountHolderName || account.accountName || "Payout account"} · ••••
+                      {account.accountNumber.slice(-4)}
                     </p>
                     <p className="text-muted-foreground text-xs">{config.methodLabel}</p>
                   </div>

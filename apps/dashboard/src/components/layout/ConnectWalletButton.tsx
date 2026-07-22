@@ -1,4 +1,4 @@
-import { useAppKit, useAppKitAccount, useAppKitNetwork } from "@reown/appkit/react";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { wagmiConfig } from "@/lib/wagmi";
 export function ConnectWalletButton() {
   const { address, chainId } = useAccount();
   const { isConnected } = useAppKitAccount();
-  const { caipNetwork, switchNetwork } = useAppKitNetwork();
   const { open } = useAppKit();
   const isOnSupportedNetwork = wagmiConfig.chains.some(chain => chain.id === chainId);
 
@@ -22,16 +21,10 @@ export function ConnectWalletButton() {
   }
 
   if (!isOnSupportedNetwork) {
+    // AppKit reports the wallet's current (unsupported) network as caipNetwork here, so
+    // switchNetwork(caipNetwork) would be a no-op — let the user pick a supported one.
     return (
-      <Button
-        className="gap-2"
-        onClick={() => {
-          if (caipNetwork) {
-            switchNetwork(caipNetwork);
-          }
-        }}
-        type="button"
-      >
+      <Button className="gap-2" onClick={() => open({ view: "Networks" })} type="button">
         Wrong network
       </Button>
     );

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { getEvmTokensLoadedSnapshot, subscribeEvmTokensLoaded } from "@vortexfi/shared";
+import { getEvmTokensLoadedSnapshot, RampDirection, subscribeEvmTokensLoaded } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
@@ -23,7 +23,10 @@ import { QuoteSummary } from "./QuoteSummary";
 import { TokenCombobox } from "./TokenCombobox";
 
 const schema = z.object({
-  amount: z.string().refine(value => Number(value) > 0, "Enter an amount greater than zero."),
+  amount: z
+    .string()
+    .regex(/^\d+(\.\d{1,2})?$/, "Enter an amount with at most two decimals.")
+    .refine(value => Number(value) > 0, "Enter an amount greater than zero."),
   corridorId: z.string().min(1, "Choose a fiat currency."),
   destinationAddress: z.string().refine((value): boolean => isAddress(value), "Enter a valid EVM wallet address."),
   network: z.string().min(1),
@@ -232,15 +235,17 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
           />
         </div>
 
-        {transferState.matches("Failed") && transferState.context.errorMessage && (
-          <div
-            className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm"
-            role="alert"
-          >
-            <TriangleAlert className="mt-px size-4 shrink-0" />
-            <p>{transferState.context.errorMessage}</p>
-          </div>
-        )}
+        {transferState.matches("Failed") &&
+          transferState.context.errorMessage &&
+          transferState.context.quote?.rampType === RampDirection.BUY && (
+            <div
+              className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm"
+              role="alert"
+            >
+              <TriangleAlert className="mt-px size-4 shrink-0" />
+              <p>{transferState.context.errorMessage}</p>
+            </div>
+          )}
 
         {error ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm">

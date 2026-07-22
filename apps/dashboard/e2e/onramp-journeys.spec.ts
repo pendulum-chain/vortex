@@ -107,6 +107,33 @@ test("Onramp registration errors are shown on the form", async ({ page }) => {
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("A failed onramp start keeps the payment instructions and retries the same ramp", async ({ page }) => {
+  const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: "MXN", rampStartFailures: 1 });
+  await seedSession(page);
+  await page.goto("/transfer?mode=onramp");
+
+  await page.getByLabel("Destination wallet address").fill(DESTINATION);
+  await page.getByLabel("You pay (MXN)").fill("100");
+  const continueButton = page.getByRole("button", { name: "Continue to payment" });
+  await expect(continueButton).toBeEnabled({ timeout: 20_000 });
+  await continueButton.click();
+  await expect(page.getByText("CLABE", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "I have made the payment" }).click();
+  await expect.poll(() => backend.startRequests.length).toBe(1);
+
+  // The user may already have paid: the same ramp's instructions must survive the failure.
+  await expect(page.getByText("CLABE", { exact: true })).toBeVisible();
+  await expect(page.getByText(/you can safely try again/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => backend.startRequests.length).toBe(2);
+  await expect(page).toHaveURL(/\/transactions/, { timeout: 20_000 });
+  expect(backend.registerRequests).toHaveLength(1);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 for (const journey of CASES) {
   test(`BUY ${journey.currency}: quote, ephemeral registration, instructions, confirmation, start`, async ({ page }) => {
     const backend = await mockBackend(page, { fiatAccounts: [], onrampCurrency: journey.currency });

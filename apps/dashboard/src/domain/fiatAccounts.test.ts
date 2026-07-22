@@ -23,7 +23,6 @@ describe("fiat account validation", () => {
     assert.equal(
       buildFiatAccountSchema("US").safeParse({
         accountBankCode: "Example Bank",
-        accountName: "Maria",
         accountNumber: "12345678",
         accountType: "CHECKING",
         routingNumber: "021000021"
@@ -31,8 +30,7 @@ describe("fiat account validation", () => {
       true
     );
     assert.equal(
-      buildFiatAccountSchema("AR").safeParse({ accountName: "Maria", accountNumber: "maria.alias", accountType: "ALIAS" })
-        .success,
+      buildFiatAccountSchema("AR").safeParse({ accountNumber: "maria.alias", accountType: "ALIAS" }).success,
       true
     );
   });
@@ -53,7 +51,6 @@ describe("fiat account validation", () => {
     assert.equal(
       buildFiatAccountSchema("US").safeParse({
         accountBankCode: "Bank",
-        accountName: "Maria",
         accountNumber: "12345678",
         accountType: "CHECKING",
         routingNumber: "123"

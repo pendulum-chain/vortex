@@ -93,4 +93,4 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [ ] Verify request ID middleware runs before routes and returns `X-Request-ID` without using request IDs for authorization.
 - [ ] Verify partner-facing API observability writes are best-effort and cannot alter response status, response body, or quote/ramp state.
 - [x] Verify active maintenance windows are enforced by the backend on quote creation and ramp register/update/start, not only by frontend UI state.
-- [x] `GET /v1/ramp/history` precedes the dynamic `/:id` route, requires an effective user, and returns only non-initial ramps whose `RampState.userId` matches that user. HTTP tests cover multiple destination wallets, cross-user isolation, user-scoped API keys, and anonymous rejection.
+- [x] `GET /v1/ramp/history` precedes the dynamic `/:id` route, requires an effective user, and returns only non-initial ramps whose `RampState.userId` matches that user. HTTP tests cover multiple destination wallets, cross-user isolation, user-scoped API keys, anonymous rejection, and the `403` for a partner-only secret key (no partner-wide fallback).

@@ -19,6 +19,8 @@ interface FiatAccountConfig {
 }
 
 // Ported from apps/frontend/src/constants/fiatAccountForms.ts and fiatAccountMethods.ts.
+// AR and US have no holder-name field: the API's COELSA and BANK_USA mappings never
+// forward one to the provider, so collecting it would gather unused PII.
 export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig> = {
   AR: {
     fields: [
@@ -32,8 +34,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
           { label: "Alias", value: "ALIAS" }
         ],
         type: "select"
-      },
-      { label: "Account holder name", name: "accountName", type: "text" }
+      }
     ],
     methodLabel: "COELSA",
     type: AlfredpayFiatAccountType.COELSA
@@ -78,8 +79,7 @@ export const FIAT_ACCOUNT_CONFIG: Record<AlfredpayCorridorId, FiatAccountConfig>
         options: [{ label: "Checking", value: "CHECKING" }],
         type: "select"
       },
-      { label: "Account number", name: "accountNumber", type: "text" },
-      { label: "Account holder name", name: "accountName", type: "text" }
+      { label: "Account number", name: "accountNumber", type: "text" }
     ],
     methodLabel: "US bank account",
     type: AlfredpayFiatAccountType.BANK_USA

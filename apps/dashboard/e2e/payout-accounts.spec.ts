@@ -47,10 +47,10 @@ test("an approved AlfredPay corridor removes a payout account after confirmation
   const backend = await mockBackend(page, {
     fiatAccounts: [
       {
-        accountName: "Vortex E2E CLABE",
         accountNumber: "646180157000000004",
         country: "MX",
         fiatAccountId: "fiat-account-to-delete",
+        metadata: { accountHolderName: "Vortex E2E CLABE" },
         type: "SPEI"
       }
     ]

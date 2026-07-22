@@ -38,9 +38,13 @@ function usdReference(payment: AlfredpayFiatPaymentInstructions): string | undef
 
 function instructionRows(ramp: RampProcess): Array<{ label: string; value: unknown }> {
   const payment = ramp.achPaymentData;
+  // inputAmount is already a decimal string from the API — no float math, which would
+  // truncate (e.g. 4.35 -> 4.34) the exact amount the user is told to send.
+  const amountRow = { label: "Amount", value: `${ramp.inputAmount} ${ramp.inputCurrency}` };
   switch (ramp.inputCurrency) {
     case "MXN":
       return [
+        amountRow,
         { label: "CLABE", value: payment?.clabe },
         { label: "Bank", value: payment?.bankName },
         { label: "Beneficiary", value: payment?.accountHolderName },
@@ -49,15 +53,16 @@ function instructionRows(ramp: RampProcess): Array<{ label: string; value: unkno
       ];
     case "USD":
       return [
+        amountRow,
         { label: "Beneficiary", value: payment?.bankBeneficiaryName },
         { label: "Routing number (ACH)", value: payment?.bankRoutingNumber },
         { label: "Account number", value: payment?.bankAccountNumber },
         { label: "Account type", value: "Checking" },
-        { label: "Amount", value: `${Math.floor(Number(ramp.inputAmount) * 100) / 100} USD` },
         { label: "Payment reference", value: payment ? usdReference(payment) : undefined }
       ];
     case "COP":
       return [
+        amountRow,
         { label: "Destination account", value: payment?.bankAccountNumber },
         { label: "Bank", value: payment?.bankName },
         { label: "Beneficiary", value: payment?.accountHolderName },
@@ -66,6 +71,7 @@ function instructionRows(ramp: RampProcess): Array<{ label: string; value: unkno
       ];
     case "ARS":
       return [
+        amountRow,
         { label: "CVU", value: payment?.cvu },
         { label: "Alias", value: payment?.alias },
         { label: "Reference", value: payment?.reference },
@@ -79,6 +85,7 @@ function instructionRows(ramp: RampProcess): Array<{ label: string; value: unkno
 export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   const navigate = useNavigate();
   const starting = useSelector(transferActor, snapshot => snapshot.matches("Starting"));
+  const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
   const [now, setNow] = useState(() => Date.now());
   const rows = instructionRows(ramp);
   const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
@@ -95,7 +102,8 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         subscription.unsubscribe();
         toast.success("Onramp initiated", { description: "We’ll update your transaction as the payment settles." });
         navigate({ to: "/transactions" });
-      } else if (snapshot.matches("Failed")) {
+      } else if (snapshot.matches("AwaitingPayment") || snapshot.matches("Failed")) {
+        // A failed start returns to AwaitingPayment so the ramp and instructions survive.
         subscription.unsubscribe();
         toast.error("Could not start onramp", { description: snapshot.context.errorMessage ?? undefined });
       }
@@ -144,8 +152,21 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         </div>
       )}
 
+      {startError && !starting && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm"
+          role="alert"
+        >
+          <TriangleAlert className="mt-px size-4 shrink-0" />
+          <div className="grid gap-1">
+            <p>{startError}</p>
+            <p>Your payment details are unchanged — you can safely try again.</p>
+          </div>
+        </div>
+      )}
+
       <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
-        <Check /> {starting ? "Starting transfer…" : "I have made the payment"}
+        <Check /> {starting ? "Starting transfer…" : startError ? "Try again" : "I have made the payment"}
       </Button>
     </div>
   );

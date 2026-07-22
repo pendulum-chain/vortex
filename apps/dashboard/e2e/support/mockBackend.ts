@@ -130,25 +130,25 @@ export function buildEmptyOnboardingStatus(companyMode = false) {
  * second must change the fiatAccountId the offramp registers against.
  */
 export function buildFiatAccounts() {
+  // Mirrors the real SPEI list shape: no top-level accountName; the holder name the user
+  // entered lives in metadata.accountHolderName (see AlfredpayController.addFiatAccount).
   return [
     {
-      accountName: "Vortex E2E CLABE",
       accountNumber: "646180157000000004",
       accountType: "CLABE",
       createdAt: "2026-01-01T00:00:00.000Z",
       customerId: "alfred-customer-e2e-1",
       fiatAccountId: E2E_FIAT_ACCOUNT_ID,
-      metadata: { accountHolderName: "Vortex E2E" },
+      metadata: { accountHolderName: "Vortex E2E CLABE" },
       type: "SPEI"
     },
     {
-      accountName: "Vortex E2E Savings",
       accountNumber: "646180157000000099",
       accountType: "CLABE",
       createdAt: "2026-01-02T00:00:00.000Z",
       customerId: "alfred-customer-e2e-1",
       fiatAccountId: E2E_FIAT_ACCOUNT_ID_2,
-      metadata: { accountHolderName: "Vortex E2E" },
+      metadata: { accountHolderName: "Vortex E2E Savings" },
       type: "SPEI"
     }
   ];
@@ -263,6 +263,8 @@ interface MockBackendOptions {
   rampExpiresAt?: string;
   rampHistory?: Array<Record<string, unknown>>;
   rampRegisterError?: string;
+  // Fail this many POST /v1/ramp/start calls with a 500 before succeeding.
+  rampStartFailures?: number;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
 }
 
@@ -678,12 +680,33 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       const body = request.postDataJSON() as Record<string, unknown>;
       fiatAccountRequests.push(body);
       const fiatAccountId = `fiat-account-e2e-${fiatAccountRequests.length}`;
-      fiatAccounts.push({
-        ...body,
-        customerId: "alfred-customer-e2e-1",
-        fiatAccountId
-      });
-      await fulfillJson({ fiatAccountId }, 201);
+      // Mirror AlfredpayController.addFiatAccount's per-type provider mapping instead of
+      // echoing the POST body: holder names land in metadata.accountHolderName (SPEI/ACH),
+      // accountName is the bank name for ACH/BANK_USA and absent for SPEI/COELSA.
+      const mapped =
+        body.type === "SPEI"
+          ? { accountNumber: body.accountNumber, accountType: "CLABE", metadata: { accountHolderName: body.accountName } }
+          : body.type === "ACH"
+            ? {
+                accountName: body.accountBankCode,
+                accountNumber: body.accountNumber,
+                accountType: body.accountType ?? "",
+                metadata: {
+                  accountHolderName: body.accountName,
+                  documentNumber: body.documentNumber,
+                  documentType: body.documentType
+                }
+              }
+            : body.type === "COELSA"
+              ? { accountNumber: body.accountNumber, accountType: body.accountType ?? "" }
+              : {
+                  accountName: body.accountBankCode,
+                  accountNumber: body.accountNumber,
+                  accountType: body.accountType ?? "",
+                  routingNumber: body.routingNumber
+                };
+      fiatAccounts.push({ ...mapped, customerId: "alfred-customer-e2e-1", fiatAccountId, type: body.type });
+      await fulfillJson({ fiatAccountId });
       return;
     }
     if (path.startsWith("/v1/alfredpay/fiatAccounts/") && method === "DELETE") {
@@ -838,6 +861,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/ramp/start" && method === "POST") {
       startRequests.push(request.postDataJSON() as Record<string, unknown>);
+      if (startRequests.length <= (options.rampStartFailures ?? 0)) {
+        await fulfillJson({ message: "Ramp start failed" }, 500);
+        return;
+      }
       await fulfillJson(buildRampProcess({ currentPhase: "squidRouterPay", status: "PENDING", unsignedTxs }));
       return;
     }
