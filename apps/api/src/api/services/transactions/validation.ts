@@ -361,6 +361,7 @@ export async function validatePresignedTxs(
     );
     const isSquidBridgePhase = tx.phase === "squidRouterSwap" || tx.phase === "squidRouterApprove";
     const isAlwaysUserWalletPhase =
+      tx.phase === "assethubToPendulum" ||
       tx.phase === "squidRouterNoPermitTransfer" ||
       tx.phase === "squidRouterNoPermitApprove" ||
       tx.phase === "squidRouterNoPermitSwap" ||

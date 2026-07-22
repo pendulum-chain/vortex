@@ -2,6 +2,7 @@ import {
   createOnrampSquidrouterTransactionsFromBaseToEvm,
   createOnrampSquidrouterTransactionsFromPolygonToEvm,
   createOnrampSquidrouterTransactionsOnDestinationChain,
+  EphemeralAccountType,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
@@ -16,6 +17,7 @@ import Big from "big.js";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { encodeEvmTransactionData } from "../../../../transactions";
 import { addDestinationChainApprovalTransaction } from "../../../../transactions/onramp/common/transactions";
+import { requireAccount } from "../../core/accounts";
 import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../../core/types";
 import type { SquidRouterSwapMetadata } from "./simulation";
 
@@ -39,7 +41,8 @@ export async function prepareSquidRouterSwapTxs(
   toToken: TokenBrand,
   ctx: PrepareCtx<SquidRouterSwapMetadata>
 ): Promise<PreparedPhaseTxs> {
-  const { evmEphemeral, ownMetadata } = ctx;
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
+  const { ownMetadata } = ctx;
 
   const bridgeInputAmountRaw = ownMetadata.inputAmountRaw;
 
@@ -163,16 +166,21 @@ export async function prepareSameChainSquidRouterSwapTxs(
   toToken: TokenBrand,
   ctx: PrepareCtx<SquidRouterSwapMetadata>
 ): Promise<PreparedPhaseTxs> {
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
   const fromTokenDetails = evmTokenConfig[fromChain as EvmNetworks]?.[fromToken as EvmToken];
   const toTokenDetails = getOnChainTokenDetails(toChain as Networks, toToken as OnChainToken) as EvmTokenDetails | undefined;
   if (!fromTokenDetails || !toTokenDetails) {
     throw new Error(`prepareSameChainSquidRouterSwapTxs: Missing token details for ${fromToken}/${toToken} on ${fromChain}`);
   }
 
+  const createSourceTransactions =
+    fromChain === Networks.Polygon
+      ? createOnrampSquidrouterTransactionsFromPolygonToEvm
+      : createOnrampSquidrouterTransactionsFromBaseToEvm;
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
-    await createOnrampSquidrouterTransactionsFromPolygonToEvm({
-      destinationAddress: ctx.evmEphemeral.address,
-      fromAddress: ctx.evmEphemeral.address,
+    await createSourceTransactions({
+      destinationAddress: evmEphemeral.address,
+      fromAddress: evmEphemeral.address,
       fromToken: fromTokenDetails.erc20AddressSourceChain,
       rawAmount: ctx.ownMetadata.inputAmountRaw,
       toNetwork: toChain as Networks,
@@ -188,7 +196,7 @@ export async function prepareSameChainSquidRouterSwapTxs(
         lane: "main",
         network: fromChain as Networks,
         phase: "squidRouterApprove",
-        signer: ctx.evmEphemeral.address,
+        signer: evmEphemeral.address,
         txData: encodeEvmTransactionData(approveData) as EvmTransactionData
       },
       {
@@ -196,7 +204,7 @@ export async function prepareSameChainSquidRouterSwapTxs(
         network: fromChain as Networks,
         phase: "squidRouterSwap",
         prefundNativeValueRaw: swapData.value?.toString() ?? "0",
-        signer: ctx.evmEphemeral.address,
+        signer: evmEphemeral.address,
         txData: encodeEvmTransactionData(swapData) as EvmTransactionData
       }
     ],

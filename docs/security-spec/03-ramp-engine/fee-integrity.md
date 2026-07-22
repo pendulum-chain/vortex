@@ -6,7 +6,7 @@ Fee calculation determines how much the user pays for a ramp operation and how t
 
 ### Block-Flow Fee Source
 
-Mapped block flows compute the persisted fee snapshot once through `blocks/core/fees.ts`. `DistributeFees` deducts and prepares transfers from that same `globals.fees.usd` snapshot, excluding the anchor fee already charged by the provider. The prior strategy engine and its token-config/display split remain in the repository for historical comparison but are not called by `QuoteService`.
+Mapped block flows compute the persisted fee snapshot through `blocks/core/fees.ts`. Provider-backed phases may replace components before downstream phases run. `MykoboMint` installs the live deposit fee for onramps. On EUR offramps, `EvmOfframpSource` installs the simulated Squid network fee before `DistributeFees`, then `MykoboOfframpFee` replaces only the anchor component with the live withdrawal fee while preserving network, Vortex, and partner components. `DistributeFees` excludes the anchor fee already charged by the provider. The prior strategy engine remains only for historical comparison.
 
 ### Historical Dual Fee System Discrepancy
 
@@ -84,12 +84,13 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 - [x] Partner markup payout uses the pricing partner when present. **PASS** — fee distribution resolves payout from `pricing_partner_id ?? partner_id`, preserving profile-assigned quote payouts while keeping older partner-owned quotes compatible.
 - [x] Anchor fee deduction by external services (BRLA, Stellar) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
 - [ ] Mykobo anchor fee in the quote MUST match the tier Mykobo actually charges. The fee tier is selected by `MYKOBO_CLIENT_DOMAIN`; an unset env var silently degrades to Mykobo's default tier (~5x worse), causing `defaultDepositFee` / `defaultWithdrawFee` and on-chain settlement to diverge. See `07-operations/secret-management.md` (invariant 9) and `05-integrations/mykobo.md` (invariant 20).
+- [x] Direct EUR→EURC-on-Base quotes preserve the live Mykobo deposit fee and set network fee to zero without requesting a bridge quote. **PASS** — `EurOnrampBaseDirect` uses `MykoboMint.simulate`, whose same-token Base branch supplies the provider fee override and skips `calculateEvmBridgeAndNetworkFee`.
 - [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not a generic failure. The optional env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED` → flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE`) is **display-only** and MUST NOT price a ramp execution; a fallback-priced quote MUST re-validate the live Mykobo fee before a rail runs (EUR registration is currently disabled). See `05-integrations/mykobo.md` (invariant 26).
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
 - [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
 - [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.
 - [x] EVM branch of `distributeFees` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
 - [x] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts`.
-- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — verified in `evm-to-brl-base.ts`.
+- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — derived by `BrlOfframpBase`; the live Avenia payout fee is then installed before discount subsidy and net PIX finalization.
 - [x] **Vortex `payout_address_evm` NULL fallback**: `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` / `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address.
 - [x] **Partner `payout_address_evm` NULL no longer drops markup silently**: BRL-on-Base quote creation rejects partner-markup routes when the partner lacks EVM payout config, and runtime fee distribution logs a warning if the condition slips through.

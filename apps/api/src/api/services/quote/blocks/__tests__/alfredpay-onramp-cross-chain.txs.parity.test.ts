@@ -167,7 +167,7 @@ describe("ALFREDPAY_ONRAMP_CROSS_CHAIN transaction parity", () => {
     const { metadata: _metadata, ...quote } = buildQuote();
     const blocks = await makeAlfredpayOnrampCrossChainFlow(Networks.Arbitrum, EvmToken.USDC).prepareTxs({
       destinationAddress: DESTINATION_ADDRESS,
-      evmEphemeral: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM },
+      accounts: { [EphemeralAccountType.EVM]: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM } },
       metadata: buildMetadata() as never,
       quote,
       userId: "user-id"

@@ -124,7 +124,7 @@ export async function resolvePermitDomain(
       return { chainId, name: tokenName, verifyingContract: tokenAddress, version };
     }
     if (onChainSeparator === minimalHash) {
-      return { chainId, verifyingContract: tokenAddress };
+      return { chainId, verifyingContract: tokenAddress } as TypedDataDomain;
     }
     // On-chain separator exists but doesn't match standard or minimal - try salt hash.
     const salt = pad(toHex(chainId), { size: 32 });

@@ -1,5 +1,8 @@
+import { submitExtrinsic } from "@pendulum-chain/api-solang";
 import {
+  ApiManager,
   checkEvmBalanceForToken,
+  decodeSubmittableExtrinsic,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
@@ -37,6 +40,27 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     }
 
     const existingHash = state.state.distributeFeeHash || null;
+    const metadata = getBlockMetadata(quote.metadata, DistributeFeesContext);
+    if (metadata.network === Networks.Pendulum) {
+      if (existingHash) return state;
+      const transaction = this.getPresignedTransaction(state, "distributeFees");
+      if (!transaction) return state;
+      const substrateAddress = state.state.substrateEphemeralAddress;
+      if (!substrateAddress || !metadata.outputCurrencyId || metadata.outputDecimals === undefined) {
+        throw new Error("DistributeFeesExecutor: missing Pendulum state");
+      }
+      const manager = ApiManager.getInstance();
+      const pendulum = await manager.getApi("pendulum");
+      const required = multiplyByPowerOfTen(metadata.totalFeesUsd, metadata.outputDecimals);
+      const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.outputCurrencyId);
+      const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+      if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
+      const result = await submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api));
+      if (result.status.type === "error") throw this.createRecoverableError("Pendulum fee distribution failed");
+      state.state = { ...state.state, distributeFeeHash: result.txHash.toString() };
+      await state.update({ state: state.state });
+      return state;
+    }
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
@@ -61,10 +85,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       // The funding token (USDC) may not yet be on the ephemeral when we reach this phase.
       // Poll for it before submitting; if it never arrives within the timeout, throw a
       // recoverable error so we retry the phase.
-      await this.ensureEvmFeeTokenBalance(
-        getBlockMetadata(quote.metadata, DistributeFeesContext),
-        distributeFeeTransaction.signer
-      );
+      await this.ensureEvmFeeTokenBalance(metadata, distributeFeeTransaction.signer);
 
       logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
       const txData = distributeFeeTransaction.txData;

@@ -125,7 +125,7 @@ export function defaultQuoteFees(currency: FiatToken = FiatToken.EURC): NonNulla
 
 /**
  * A pending EUR→USDC-on-Base onramp quote by default; override anything.
- * Metadata carries a minimal fee structure — pass a realistic `metadata`
+ * Metadata carries a minimal catalog structure — pass realistic `metadata`
  * override for tests that exercise ramp registration.
  */
 export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> = {}): Promise<QuoteTicket> {
@@ -137,7 +137,14 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
     from: EPaymentMethod.SEPA as DestinationType,
     inputAmount: "100",
     inputCurrency: FiatToken.EURC,
-    metadata: { fees: defaultQuoteFees(), ...(overrides.metadata ?? {}) } as QuoteTicketMetadata,
+    metadata: (overrides.metadata ?? {
+      blocks: {},
+      globals: {
+        fees: defaultQuoteFees(),
+        partner: null,
+        request: {}
+      }
+    }) as QuoteTicketMetadata,
     network: Networks.Base,
     outputAmount: "105",
     outputCurrency: EvmToken.USDC,

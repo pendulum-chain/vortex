@@ -19,7 +19,6 @@ import { offrampToPixStrategy } from "./strategies/offramp-to-pix.strategy";
 import { offrampToPixEvmStrategy } from "./strategies/offramp-to-pix-base.strategy";
 import { offrampToSepaEvmStrategy } from "./strategies/offramp-to-sepa-evm.strategy";
 import { onrampAlfredpayToEvmStrategy } from "./strategies/onramp-alfredpay-to-evm.strategy";
-import { onrampAveniaToAssethubStrategy } from "./strategies/onramp-avenia-to-assethub.strategy";
 import { onrampAveniaToEvmBaseStrategy } from "./strategies/onramp-avenia-to-evm.strategy-base";
 import { onrampMykoboToEvmStrategy } from "./strategies/onramp-mykobo-to-evm.strategy";
 
@@ -47,7 +46,7 @@ export class RouteResolver {
         if (ctx.request.outputCurrency !== AssetHubToken.USDC) {
           throw new APIError({ message: QuoteError.UnsupportedCurrency, status: httpStatus.BAD_REQUEST });
         }
-        return onrampAveniaToAssethubStrategy;
+        throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
       } else {
         if (ctx.request.inputCurrency === FiatToken.EURC) {
           return onrampMykoboToEvmStrategy;

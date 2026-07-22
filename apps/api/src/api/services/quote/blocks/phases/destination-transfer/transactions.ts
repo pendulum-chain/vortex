@@ -1,4 +1,5 @@
 import {
+  EphemeralAccountType,
   EvmNetworks,
   getOnChainTokenDetails,
   isEvmTokenDetails,
@@ -7,13 +8,18 @@ import {
   OnChainToken
 } from "@vortexfi/shared";
 import { addOnrampDestinationChainTransactions } from "../../../../transactions/onramp/common/transactions";
+import { requireAccount } from "../../core/accounts";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import type { DestinationTransferMetadata } from "./simulation";
 
 // The presigned final transfer the DestinationTransferExecutor broadcasts: quote.outputAmount
 // from the destination-chain ephemeral to the user's address.
 export async function prepareDestinationTransferTxs(ctx: PrepareCtx<DestinationTransferMetadata>): Promise<PreparedPhaseTxs> {
-  const { evmEphemeral, destinationAddress, ownMetadata } = ctx;
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
+  const { destinationAddress, ownMetadata } = ctx;
+  if (!destinationAddress) {
+    throw new Error("prepareDestinationTransferTxs: Destination address is required");
+  }
 
   const toNetwork = ownMetadata.network as Networks;
 

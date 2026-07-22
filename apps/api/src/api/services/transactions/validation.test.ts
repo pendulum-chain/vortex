@@ -867,6 +867,25 @@ describe("Presigned Transaction validation", () => {
     );
   });
 
+  it("rejects presignedTx submitted for user-authority AssetHub to Pendulum XCM", async () => {
+    const tx: PresignedTx = {
+      meta: {},
+      network: Networks.AssetHub,
+      nonce: 0,
+      phase: "assethubToPendulum",
+      signer: "5FxM3dFCnXJXEbMozuVbhEUQuQK1gmquFpUJ577HebqBc7pz",
+      txData: MOCK_TX_DATA_SUBSTRATE_SIGNER_1
+    };
+    await expect(
+      validatePresignedTxs(
+        RampDirection.SELL,
+        [tx],
+        { EVM: "", Substrate: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY" },
+        [tx]
+      )
+    ).rejects.toThrow("Phase assethubToPendulum is broadcast by the user wallet");
+  });
+
   it("rejects presignedTx for squidRouterNoPermitApprove and squidRouterNoPermitSwap (user-wallet phases)", async () => {
     const ephemerals: { [key in EphemeralAccountType]: string } = { Substrate: "", EVM: EVM_SIGNER_2 };
     const approveTx: PresignedTx = { meta: {}, network: Networks.Polygon, nonce: 0, phase: "squidRouterNoPermitApprove", signer: EVM_SIGNER, txData: "data" };

@@ -235,7 +235,10 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     if (!persistedQuote) {
       throw new Error("Quote not persisted");
     }
-    const mykoboMintRaw = BigInt(persistedQuote.metadata.mykoboMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote.metadata as unknown as {
+      blocks: { mykoboMint?: { mint: { outputAmountRaw?: string } } };
+    };
+    const mykoboMintRaw = BigInt(metadata.blocks.mykoboMint?.mint.outputAmountRaw ?? "0");
     expect(mykoboMintRaw).toBeGreaterThan(0n);
 
     const rampState = await registerEurOnrampBelowKillSwitch(persistedQuote, user.id, ephemeral, destination);

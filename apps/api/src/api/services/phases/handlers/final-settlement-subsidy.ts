@@ -114,10 +114,14 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
         break;
       case RampDirection.SELL:
         if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-          if (!quote.metadata.alfredpayOfframp) {
+          const alfredpayOfframp =
+            quote.metadata.alfredpayOfframp ??
+            (quote.metadata as unknown as { blocks?: { alfredpayOfframp?: { inputAmountRaw: string } } }).blocks
+              ?.alfredpayOfframp;
+          if (!alfredpayOfframp) {
             throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay offramp metadata");
           }
-          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
+          expectedAmountRaw = Big(alfredpayOfframp.inputAmountRaw);
           break;
         }
         break;

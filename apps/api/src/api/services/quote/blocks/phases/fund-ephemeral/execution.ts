@@ -1,6 +1,8 @@
 import {
+  ApiManager,
   EvmClientManager,
   EvmNetworks,
+  FiatToken,
   getNetworkFromDestination,
   isNetworkEVM,
   multiplyByPowerOfTen,
@@ -10,6 +12,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
@@ -17,12 +20,20 @@ import {
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
-import { DESTINATION_EVM_FUNDING_AMOUNTS, isDestinationEvmEphemeralFunded } from "../../../../phases/handlers/helpers";
+import {
+  DESTINATION_EVM_FUNDING_AMOUNTS,
+  isDestinationEvmEphemeralFunded,
+  isPendulumEphemeralFunded
+} from "../../../../phases/handlers/helpers";
+import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
-import { getBlockMetadata } from "../../core/metadata";
+import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
+import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
+import { EvmOfframpSourceContext, EvmOfframpSourceMetadata } from "../evm-offramp-source/simulation";
 import { FundEphemeralContext } from "./simulation";
 
 export class FundEphemeralExecutor extends BasePhaseHandler {
@@ -31,26 +42,54 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
   }
 
   protected async executePhase(state: RampState): Promise<RampState> {
-    const { evmEphemeralAddress } = state.state as StateMetadata;
-    if (!evmEphemeralAddress) {
-      throw new Error("FundEphemeralExecutor: State metadata corrupted, missing evmEphemeralAddress. This is a bug.");
-    }
-
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
     }
-    const metadata = getBlockMetadata(quote.metadata, FundEphemeralContext);
-    const sourceNetwork = metadata.network as EvmNetworks;
+    const blocks = getFlowMetadata(quote.metadata).blocks;
+    if (blocks[AssethubOfframpSourceContext.key]) {
+      await this.verifyAssethubSourceTransaction(state);
+      const substrateAddress = state.state.substrateEphemeralAddress;
+      if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for AssetHub route");
+      const pendulum = await ApiManager.getInstance().getApi("pendulum");
+      if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
+        await fundEphemeralAccount("pendulum", substrateAddress, true);
+      }
+      return state;
+    }
+
+    const { evmEphemeralAddress } = state.state as StateMetadata;
+    if (!evmEphemeralAddress) {
+      throw new Error("FundEphemeralExecutor: State metadata corrupted, missing evmEphemeralAddress. This is a bug.");
+    }
+    await this.verifyUserSubmittedSourceTransactions(state, quote);
+    const metadata = blocks[EvmOfframpSourceContext.key]
+      ? (blocks[EvmOfframpSourceContext.key] as EvmOfframpSourceMetadata)
+      : blocks.alfredpayOfframp
+        ? (blocks.alfredpayOfframp as { network?: string; fromNetwork: EvmNetworks })
+        : getBlockMetadata(quote.metadata, FundEphemeralContext);
+    const sourceNetwork = (metadata.network ?? (metadata as { fromNetwork?: EvmNetworks }).fromNetwork) as EvmNetworks;
 
     try {
+      if (sourceNetwork === Networks.Moonbeam) {
+        const substrateAddress = state.state.substrateEphemeralAddress;
+        if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for Moonbeam route");
+        const pendulum = await ApiManager.getInstance().getApi("pendulum");
+        if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
+          await fundEphemeralAccount("pendulum", substrateAddress, false);
+        }
+      }
       const sourceClient = EvmClientManager.getInstance().getClient(sourceNetwork);
       const chain = sourceClient.chain;
       if (!chain) {
         throw new Error(`FundEphemeralExecutor: Could not get chain info for ${sourceNetwork}`);
       }
       const fixedFundingUnits =
-        sourceNetwork === Networks.Polygon ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
+        sourceNetwork === Networks.Polygon
+          ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
+          : sourceNetwork === Networks.Moonbeam
+            ? DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Moonbeam]
+            : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
       const requiredFundingRaw = fixedFundingRaw + plannedNativeValueRaw;
@@ -89,6 +128,52 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     }
 
     return state;
+  }
+
+  private async verifyAssethubSourceTransaction(state: RampState): Promise<void> {
+    if (!state.state.assethubToPendulumHash) {
+      throw this.createRecoverableError("AssetHub to Pendulum transaction hash not yet reported by frontend");
+    }
+    const blueprint = state.unsignedTxs.find(tx => tx.phase === "assethubToPendulum");
+    if (!blueprint || blueprint.network !== (config.sandboxEnabled ? Networks.Paseo : Networks.AssetHub)) {
+      throw this.createUnrecoverableError("AssetHub to Pendulum transaction blueprint is missing or on the wrong network");
+    }
+    const facts = getBlockState<AssethubOfframpSourceRegistrationFacts>(state.state, AssethubOfframpSourceContext);
+    if (blueprint.signer !== facts.userAddress || typeof blueprint.txData !== "string") {
+      throw this.createUnrecoverableError("AssetHub to Pendulum transaction authority does not match registration");
+    }
+  }
+
+  private async verifyUserSubmittedSourceTransactions(state: RampState, quote: QuoteTicket): Promise<void> {
+    if (state.type !== RampDirection.SELL || quote.outputCurrency !== FiatToken.BRL) return;
+    const metadata = getFlowMetadata(quote.metadata).blocks[EvmOfframpSourceContext.key] as
+      | EvmOfframpSourceMetadata
+      | undefined;
+    if (!metadata) return;
+    if (state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitTransfer")) {
+      await verifyUserSubmittedTxByHash({
+        fromNetwork: metadata.fromNetwork,
+        hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
+        label: "User direct USDC transfer to ephemeral",
+        presignedPhase: "squidRouterNoPermitTransfer",
+        state
+      });
+      return;
+    }
+    await verifyUserSubmittedTxByHash({
+      fromNetwork: metadata.fromNetwork,
+      hash: state.state.squidRouterApproveHash as `0x${string}` | undefined,
+      label: "User squidRouter approve",
+      presignedPhase: "squidRouterApprove",
+      state
+    });
+    await verifyUserSubmittedTxByHash({
+      fromNetwork: metadata.fromNetwork,
+      hash: state.state.squidRouterSwapHash as `0x${string}` | undefined,
+      label: "User squidRouter swap",
+      presignedPhase: "squidRouterSwap",
+      state
+    });
   }
 
   protected async fundEvmEphemeralAccount(

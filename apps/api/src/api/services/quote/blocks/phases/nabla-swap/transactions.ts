@@ -2,6 +2,7 @@ import {
   AMM_MINIMUM_OUTPUT_HARD_MARGIN,
   AMM_MINIMUM_OUTPUT_SOFT_MARGIN,
   createNablaTransactionsForOnrampOnEVM,
+  EphemeralAccountType,
   EvmNetworks,
   EvmToken,
   EvmTransactionData,
@@ -14,6 +15,7 @@ import { config } from "../../../../../../config/vars";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { encodeEvmTransactionData } from "../../../../transactions";
 import { prepareBaseCleanupApproval } from "../../../../transactions/base/cleanup";
+import { requireAccount } from "../../core/accounts";
 import type { ChainBrand, PrepareCtx, PreparedPhaseTxs, TokenBrand } from "../../core/types";
 import type { NablaSwapMetadata } from "./simulation";
 
@@ -27,9 +29,11 @@ export async function prepareNablaSwapTxs(
   chain: ChainBrand,
   inToken: TokenBrand,
   outToken: TokenBrand,
-  ctx: PrepareCtx<NablaSwapMetadata>
+  ctx: PrepareCtx<NablaSwapMetadata>,
+  includeCleanup = true
 ): Promise<PreparedPhaseTxs> {
-  const { evmEphemeral, ownMetadata } = ctx;
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
+  const { ownMetadata } = ctx;
 
   const inputTokenDetails = evmTokenConfig[chain as EvmNetworks]?.[inToken as EvmToken];
   const outputTokenDetails = evmTokenConfig[chain as EvmNetworks]?.[outToken as EvmToken];
@@ -59,12 +63,21 @@ export async function prepareNablaSwapTxs(
     getNablaBasePool(inputTokenDetails.erc20AddressSourceChain, outputTokenDetails.erc20AddressSourceChain).router
   );
 
-  const fundingAccountAddress = getEvmFundingAccount(chain as EvmNetworks).address;
-  const usdcCleanupApproval = await prepareBaseCleanupApproval(
-    outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
-    fundingAccountAddress,
-    chain as EvmNetworks
-  );
+  const cleanupIntent = includeCleanup
+    ? {
+        lane: "cleanup" as const,
+        network: chain as Networks,
+        phase: "baseCleanupUsdc" as const,
+        signer: evmEphemeral.address,
+        txData: encodeEvmTransactionData(
+          await prepareBaseCleanupApproval(
+            outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
+            getEvmFundingAccount(chain as EvmNetworks).address,
+            chain as EvmNetworks
+          )
+        ) as EvmTransactionData
+      }
+    : undefined;
 
   return {
     intents: [
@@ -82,13 +95,7 @@ export async function prepareNablaSwapTxs(
         signer: evmEphemeral.address,
         txData: swap
       },
-      {
-        lane: "cleanup",
-        network: chain as Networks,
-        phase: "baseCleanupUsdc",
-        signer: evmEphemeral.address,
-        txData: encodeEvmTransactionData(usdcCleanupApproval) as EvmTransactionData
-      }
+      ...(cleanupIntent ? [cleanupIntent] : [])
     ],
     state: { softMinimumOutputRaw: nablaSoftMinimumOutputRaw }
   };

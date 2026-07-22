@@ -48,15 +48,20 @@ the transactions the ephemerals/user must sign all live in one place.
 
 **Scope:** block flows are the production source of truth for quote simulation,
 transaction preparation, phase ordering, and executor registration. The catalog
-currently maps the direct and cross-chain BRL/Avenia onramps and the direct and
-cross-chain AlfredPay onramps, expressed as flow *families* parameterized by
-destination chain and token where needed.
+ currently maps the direct, Base-destination, and cross-chain BRL/Avenia and
+ EUR/Mykobo onramps, their Base offramps, plus the AlfredPay flows,
+ expressed as flow *families* parameterized by destination chain and token
+where needed.
 Unmapped corridors are rejected during quote creation until their flows are
-ported.
+ported. `BrlOnrampAssethubUsdc` and `BrlOfframpAssethubUsdc` are cataloged for
+deterministic persisted-quote preparation and recovery, but an explicit
+quote-service gate keeps both BRL↔AssetHub directions disabled. Only AssetHub
+USDC is represented; USDT, DOT, AlfredPay, and dormant Hydration variants are excluded.
 
 **Status:** the block catalog is wired into `QuoteService`, ramp registration,
 and the phase registry. `QuoteService` persists `{ globals, blocks }` metadata;
-ramp registration resolves that persisted request and calls `Flow.prepareTxs`;
+ramp registration resolves that persisted request, calls `Flow.register`, and
+passes its typed phase-owned facts into `Flow.prepareTxs`;
 startup registers only catalog-derived executors before starting recovery
 workers. The block unit/parity/wiring suite passes `33 pass, 2 skip, 0 fail`,
 and the database-backed BRL cross-chain scenario passes quote creation,
@@ -71,7 +76,7 @@ from the corresponding production handler (EVM/Base BUY slice),
 registry-compatible via `BasePhaseHandler`, and — where its executors
 consume presigned transactions — a `prepareTxs` leg ported from the
 per-flow route-prep. The earlier Morpho example flow was removed together with the
-Morpho production code; `MykoboMint` remains available as a phase for the pending EUR corridors.
+ Morpho production code; `MykoboMint` is shared by the catalog-backed EUR corridors. `BrlOfframpBase` covers Base-USDC direct funding, other-Base-token same-chain Squid, and other-EVM cross-chain Squid through one runtime phase family, with source and Avenia payout registration facts owned by their respective blocks.
 
 ---
 
@@ -86,7 +91,7 @@ apps/api/src/api/services/quote/blocks/
   TYPE-SYSTEM.md                               # walkthrough of the FlowBuilder brand/adjacency type system
   core/
     types.ts                                   # PhaseIO, Phase, Flow, PhaseCtx, PrepareCtx, TxIntent
-    io.ts                                      # requestToIO, evmIO
+    io.ts                                      # typed fiat/EVM/AssetHub request resolvers, evmIO
     metadata.ts                                # simulation context descriptors and accessors
     flow.ts                                    # FlowBuilder + metadata accumulation
     combinators.ts                             # branch(), passthrough()
@@ -106,9 +111,7 @@ apps/api/src/api/services/quote/blocks/
       simulation.ts                            # fiat BRL -> BRLA on Base
       execution.ts                             # brlaOnrampMint executor
       transactions.ts                          # baseCleanupBrla (cleanup lane) + taxId stateMeta
-    mykobo-mint/
-      index.ts
-      simulation.ts                            # fiat EUR -> EURC on Base; other layers not ported yet
+    mykobo-mint/                               # EUR fee/mint simulation, deposit registration/executor, EURC cleanup
     fund-ephemeral/
       index.ts
       simulation.ts
@@ -124,10 +127,19 @@ apps/api/src/api/services/quote/blocks/
     alfredpay-onramp-direct.ts                 # Polygon passthrough/same-chain family
     alfredpay-onramp-cross-chain.ts            # makeAlfredpayOnrampCrossChainFlow(toChain, toToken)
     brl-onramp-base-direct.ts                  # BRL -> BRLA on Base
+    brl-onramp-base-same-chain.ts              # Base USDC passthrough and routed Base outputs
     brl-onramp-base-cross-chain.ts             # makeBrlOnrampBaseCrossChainFlow(toChain, toToken)
+    eur-onramp-base-direct.ts                  # EUR -> EURC on Base
+    eur-onramp-base-same-chain.ts              # Base USDC passthrough and routed Base outputs
+    eur-onramp-base-cross-chain.ts             # makeEurOnrampBaseCrossChainFlow(toChain, toToken)
   __tests__/
+    brl-onramp-base-same-chain.parity.test.ts      # Base variant topology, executors, and simulation
+    brl-onramp-base-same-chain.txs.parity.test.ts  # Base variant tx/state/nonce parity
     brl-onramp-base-cross-chain.parity.test.ts     # structure + parity + executors + compile-time + simulate
     brl-onramp-base-cross-chain.txs.parity.test.ts # unsignedTxs + stateMeta parity vs production route-prep
+    eur-onramp-base-direct.*.test.ts            # direct structure/simulation/registration/tx/state parity
+    eur-onramp-base-same-chain.*.test.ts        # Base token topology/registration/tx/state/nonce parity
+    eur-onramp-base-cross-chain.*.test.ts       # structure/simulation/registration/tx/recovery parity
 ```
 
 ### Core types (`core/types.ts`)
@@ -152,13 +164,16 @@ export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O 
   readonly executors?: PhaseHandler[]; // one per entry in `phases`, same order
   readonly prepareTxs?: (ctx: PrepareCtx<ContextSimulation<Context>>) =>
     Promise<PreparedPhaseTxs>;
+  readonly register?: (ctx: RegisterCtx<ContextSimulation<Context>>) =>
+    Promise<RegistrationResult>;
 }
 
 export interface Flow<O extends PhaseIO, Blocks extends Record<string, unknown>> {
   readonly name: string;
   readonly phases: RampPhase[];      // flatMap(p => p.phases)
   readonly executors: PhaseHandler[];// flatMap(p => p.executors ?? [])
-  simulate(ctx: PhaseCtx): Promise<{ metadata: FlowMetadata<Blocks>; output: O }>;
+  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata<Blocks>; output: O }>;
+  register(ctx: FlowRegisterCtx<Blocks>): Promise<FlowRegistrationResult>;
   prepareTxs(ctx: FlowPrepareCtx<Blocks>): Promise<PreparedFlowTxs>;
 }
 ```
@@ -189,18 +204,26 @@ type MetadataOf<P> = Record<MetadataKeyOf<P>, ContextSimulation<ContextOf<P>>>;
 export class FlowBuilder<
   I extends PhaseIO,
   O extends PhaseIO,
-  Blocks extends Record<string, unknown>
+  Blocks extends Record<string, unknown>,
+  RegistrationFacts extends Record<string, unknown>,
+  RegistrationInput extends Record<string, unknown>
 > {
   private constructor(private readonly phaseList: AnyPhase[]) {}
 
-  static start<P extends AnyPhase>(first: P):
-    FlowBuilder<PhaseIO, OutputOf<P>, MetadataOf<P>>;
+  static start<R extends FlowInputResolver, P extends PhaseAccepting<OutputOf<R>>>(resolver: R, first: P):
+    FlowBuilder<OutputOf<R>, OutputOf<P>, MetadataOf<P>, RegistrationFactsOf<P>, RegistrationInputOf<P>>;
 
   pipe<P extends CompatiblePhase<O>>(
     next: P & (MetadataKeyOf<P> extends keyof Blocks ? never : unknown)
-  ): FlowBuilder<I, OutputOf<P>, Blocks & MetadataOf<P>>;
+  ): FlowBuilder<
+    I,
+    OutputOf<P>,
+    Blocks & MetadataOf<P>,
+    RegistrationFacts & RegistrationFactsOf<P>,
+    RegistrationInput & RegistrationInputOf<P>
+  >;
 
-  build(name: string): Flow<O, Blocks>;
+  build(name: string): Flow<O, Blocks, RegistrationFacts, RegistrationInput>;
 }
 ```
 
@@ -221,9 +244,11 @@ because its fiat anchor fee is only known after `AlfredpayMint.simulate` calls
 the provider.
 
 Runtime: `build()` stores the phases; `Flow.simulate(ctx)` runs
-`computeFees(ctx)`, builds the first input via `requestToIO(ctx)`, then
+`computeFees(ctx)`, builds the first input via the source-aware resolver, then
 sequentially calls `phase.simulate(prevOutput, ctx)`. `Flow.phases` =
 `flatMap(p => p.phases)`; `Flow.executors` = `flatMap(p => p.executors)`.
+Fiat, EVM, and AssetHub request resolvers validate token/chain at runtime;
+on-chain resolvers convert request decimals to configured integer raw units.
 
 ### Executors (the execution side)
 
@@ -275,8 +300,14 @@ the corridor decision the quote strategy already made.
 **Requirements (same ethos as invariant 1 & 2):**
 
 - A phase's `prepareTxs` is **hermetic**: `Flow.prepareTxs` passes its
-  typed `ownMetadata`, explicit globals, and registration facts. It never
+  typed `ownMetadata`, explicit globals, and `ownRegistrationFacts`. It never
   receives another phase's metadata and never knows its position in the flow.
+- Registration is optional and phase-owned. `Flow.register` namespaces facts
+  and response artifacts by context key, and a phase may refresh only its own
+  metadata. Registration receives a read-only quote, authenticated user,
+  normalized input, signing accounts, and optional DB transaction/IP context.
+- Preparation account capabilities are keyed by `EphemeralAccountType`.
+  EVM phases explicitly require EVM; destination address is optional in core.
 - Phases whose executors sign live (funding-account subsidies, Avenia
   API calls, bridge gas payment) simply omit `prepareTxs`.
 - **Nonces are a flow-level resource**, so no phase picks its own nonce.
@@ -298,6 +329,8 @@ the corridor decision the quote strategy already made.
   An intent may set `reuseFirstMainNonce` to pin itself to the first
   main-lane nonce on its network — production's `backupApprove` trick, so
   a recovery tx can never be stranded behind an unreachable nonce.
+  `nonceSpan` reserves consecutive nonces (default `1`); it must be a positive
+  safe integer and cannot be combined with `reuseFirstMainNonce`.
 
 **Ownership mapping for this corridor** (production route-prep line →
 owning phase):
@@ -374,6 +407,13 @@ assembles them linearly.
 `toChain` args (not from `ctx.request.outputCurrency`) — the phase carries
 its complete contract in its signature.
 
+`MykoboMint.register` derives the approved Mykobo customer from the authenticated
+user, creates the provider deposit intent against the Base EVM ephemeral, and
+returns IBAN response artifacts plus facts namespaced under `mykoboMint`.
+`MykoboMint.prepareTxs` receives only those own registration facts, persists them
+under `blockState.mykoboMint`, and owns the Base EURC cleanup approval where the
+route can leave EURC dust. The direct Base EURC route emits no cleanup intent.
+
 ### The flow family (`flows/brl-onramp-base-cross-chain.ts`)
 
 The destination chain/token vary per request (`quote.to` /
@@ -385,7 +425,7 @@ export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToTo
   toChain: ToChain,
   toToken: ToToken
 ): Flow {
-  return FlowBuilder.start(AveniaMint)
+  return FlowBuilder.start(fiatRequestIO(FiatToken.BRL), AveniaMint)
     .pipe(FundEphemeral(EvmToken.BRLA, Networks.Base))
     .pipe(SubsidizePre<typeof EvmToken.BRLA, typeof Networks.Base>())
     .pipe(NablaSwap(Networks.Base, EvmToken.BRLA, EvmToken.USDC))
@@ -579,10 +619,18 @@ Unmapped cases fail at quote resolution rather than falling back to the old engi
 7. **Smoke test mock leakage.** `mock.module("../../../priceFeed.service", ...)`
    does not fully intercept the real module. Harmless: oracle calls are
    wrapped in `try/catch` inside the phases, so the flow completes.
-8. **`prepareTxs` is the cross-chain slice.** The production route-prep's
-   direct-transfer and same-chain early returns are route decisions, not
-   phase logic — they belong to the `BRL_ONRAMP_BASE_{DIRECT,SAME_CHAIN}`
-   flows when those are ported (different pipelines, same blocks).
+8. **BRL Base variants are statically selected.** Base USDC omits Squid and
+   uses `BRL_ONRAMP_BASE_SAME_CHAIN`; other configured Base outputs use the
+   one-phase `SameChainSquidRouterSwap` block and
+   `BRL_ONRAMP_BASE_SAME_CHAIN_SWAP`. The latter emits source approve/swap
+   transactions only, with destination transfer at the next nonce and no
+   Squid pay, backup bridge, or final-settlement work.
+9. **EUR Base variants use the same static split.** Base EURC is owned only by
+   `EurOnrampBaseDirect`; Base USDC uses `EUR_ONRAMP_BASE_SAME_CHAIN` without
+   Squid; Base USDT, ETH, AXLUSDC, and BRLA use
+   `EUR_ONRAMP_BASE_SAME_CHAIN_SWAP` with one Base-built same-chain Squid swap
+   immediately before destination transfer. No same-chain variant includes
+   Squid pay, backups, or final settlement.
    Substrate corridors (Pendulum nonce bumps, XCM txs, `additionalTxs`
    meta) are untouched.
 
@@ -618,10 +666,13 @@ single flow. There is no runtime fallback to the strategy engine.
 2. ~~**Wire the flow.**~~ **Done.** The catalog drives quote simulation,
    transaction preparation, and executor registration globally. Unmapped
    corridors fail during quote creation.
-3. **Port the remaining corridors.** `EUR_ONRAMP_BASE_*` next (MykoboMint
-   exists; executors for `mykoboOnrampDeposit` pending), then
-   `BRL_ONRAMP_BASE_{DIRECT,SAME_CHAIN}` (subsets of this flow family),
-    remaining `ALFREDPAY_*`, the offramps.
+3. **Port the remaining corridors.** The EUR/Mykobo onramp variants and
+   `EUR_OFFRAMP_BASE` are ported. The EUR offramp is one EVM-source family:
+   Base USDC uses a direct user transfer, other Base tokens use same-chain
+   Squid, and other EVM sources route through Squid to Base USDC. Mykobo
+   identity, intent registration, receivables, payout, and recovery are owned
+   by `MykoboOfframpPayout`. `ALFREDPAY_OFFRAMP` is also ported as one
+   USD/MXN/COP/ARS family. Other offramps remain.
 4. **Persist per-phase IO boundaries** into metadata so executors read
    their own phase's simulated output instead of downstream keys (gap #4).
 5. **Delete the old strategy + `ramp-flow-definitions.ts` entry + handlers**

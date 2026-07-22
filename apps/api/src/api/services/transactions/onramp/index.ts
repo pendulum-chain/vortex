@@ -6,7 +6,6 @@ import {
   OnrampTransactionsWithMeta
 } from "./common/types";
 import { prepareAlfredpayToEvmOnrampTransactions } from "./routes/alfredpay-to-evm";
-import { prepareAveniaToAssethubOnrampTransactions } from "./routes/avenia-to-assethub";
 import { prepareAveniaToEvmOnrampTransactionsOnBase } from "./routes/avenia-to-evm-base";
 
 export async function prepareOnrampTransactions(
@@ -22,7 +21,7 @@ export async function prepareOnrampTransactions(
     const aveniaParams: AveniaOnrampTransactionParams = { ...params, taxId: params.taxId };
 
     if (quote.to === Networks.AssetHub) {
-      return prepareAveniaToAssethubOnrampTransactions(aveniaParams);
+      throw new Error("AssetHub Avenia onramp is prepared by its block flow");
     } else {
       return prepareAveniaToEvmOnrampTransactionsOnBase(aveniaParams);
     }

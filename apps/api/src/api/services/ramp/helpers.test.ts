@@ -77,6 +77,21 @@ describe("getFinalTransactionHashForRampV2", () => {
     });
   });
 
+  it("uses the Pendulum to Moonbeam hash for AssetHub BRL offramps", () => {
+    const result = getFinalTransactionHashForRampV2(
+      createRampState({
+        state: { pendulumToMoonbeamXcmHash: "0xmoonbeam" },
+        type: RampDirection.SELL
+      }),
+      createQuote(Networks.AssetHub)
+    );
+
+    expect(result).toEqual({
+      transactionExplorerLink: "https://pendulum.subscan.io/block/0xmoonbeam",
+      transactionHash: "0xmoonbeam"
+    });
+  });
+
   it("uses Polygon explorer links for Alfredpay offramps", () => {
     const result = getFinalTransactionHashForRampV2(
       createRampState({

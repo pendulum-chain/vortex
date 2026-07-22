@@ -1,5 +1,6 @@
-import { EvmToken, Networks } from "@vortexfi/shared";
+import { EvmToken, FiatToken, Networks } from "@vortexfi/shared";
 import { FlowBuilder } from "../core/flow";
+import { fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { ChainBrand, TokenBrand } from "../core/types";
 import { AveniaMint } from "../phases/avenia-mint";
@@ -19,7 +20,7 @@ export function makeBrlOnrampBaseCrossChainFlow<ToChain extends ChainBrand, ToTo
   toChain: ToChain,
   toToken: ToToken
 ) {
-  return FlowBuilder.start(AveniaMint)
+  return FlowBuilder.start(fiatRequestIO(FiatToken.BRL), AveniaMint)
     .pipe(FundEphemeral(EvmToken.BRLA, Networks.Base))
     .pipe(SubsidizePre<typeof EvmToken.BRLA, typeof Networks.Base>())
     .pipe(NablaSwap(Networks.Base, EvmToken.BRLA, EvmToken.USDC))

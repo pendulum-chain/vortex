@@ -162,7 +162,7 @@ describe("ALFREDPAY_ONRAMP_DIRECT transaction parity", () => {
       const { metadata: _metadata, ...quote } = buildQuote(outputCurrency);
       const blocks = await makeAlfredpayOnrampDirectFlow(outputCurrency).prepareTxs({
         destinationAddress: DESTINATION_ADDRESS,
-        evmEphemeral: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM },
+        accounts: { [EphemeralAccountType.EVM]: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM } },
         metadata: buildMetadata(outputCurrency) as never,
         quote,
         userId: "user-id"

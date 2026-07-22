@@ -29,12 +29,12 @@ User-wallet phases:
 - `squidRouterNoPermitApprove` — User wallet approves Squid spender.
 - `squidRouterNoPermitSwap` — User wallet calls Squid swap.
 
-**Layer 1 — `validatePresignedTxs` REJECTS presigned txs for these phases.** Any submitted presigned tx whose phase is in the user-wallet set throws `APIError(BAD_REQUEST, "Phase <phase> is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.")`. The previous behavior silently `continue`d past these phases, which allowed a malicious client to attach an unrelated presigned tx that would never be validated. The reject closes that surface.
+**Layer 1 — `validatePresignedTxs` REJECTS presigned txs for these phases.** Any submitted presigned tx whose phase is in the user-wallet set, including AssetHub `assethubToPendulum`, throws `APIError(BAD_REQUEST, "Phase <phase> is broadcast by the user wallet; do not submit a presigned transaction for it. Submit only the on-chain tx hash via additionalData.")`. The previous behavior silently `continue`d past these phases, which allowed a malicious client to attach an unrelated presigned tx that would never be validated. The reject closes that surface.
 
 **Layer 2 — Phase handlers verify the user-reported tx hash by reading the on-chain receipt and transaction**, then comparing against the server-issued unsigned payload (`txData.to`, `txData.data`, `txData.value`, and `signer`) plus receipt status. The shared helper is `verifyUserSubmittedTxByHash` in `apps/api/src/api/services/phases/helpers/user-tx-verifier.ts`. It is invoked from:
 
 - `squidrouter-permit-execution-handler.ts` → `waitForUserHash` — covers `squidRouterNoPermit{Approve,Swap,Transfer}` during the permit-execution phase.
-- `fund-ephemeral-handler.ts` → `verifyUserSubmittedSquidHashes` — covers SELL standard EVM `squidRouterApprove` + `squidRouterSwap` at the top of `executePhase`, gated on `SELL && from!==AssetHub && !isAlfredpayToken(outputCurrency) && isNetworkEVM(from)`. This closes the historical F-041 gap (SELL squid runtime validation).
+- `fund-ephemeral-handler.ts` → `verifyUserSubmittedSquidHashes` for legacy ramps, and the catalog `FundEphemeralExecutor` → `verifyUserSubmittedSourceTransactions` for block ramps. Both cover SELL EVM `squidRouterApprove` + `squidRouterSwap` and the Base-USDC `squidRouterNoPermitTransfer` before platform funding. This closes the historical F-041 gap (SELL source runtime validation).
 
 The two layers together guarantee that the client cannot (a) sneak a malicious presigned tx through validation by labeling it with a user-wallet phase, nor (b) point the backend at an arbitrary on-chain tx hash that does not match the server-issued payload.
 
@@ -50,6 +50,7 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 8. **No chain type or transaction format may be silently skipped during validation** — If a new chain or transaction format is added, the validator must either handle it or reject it. Silent pass-through (`return` without validation) is forbidden.
 9. **Validation MUST occur before any presigned transaction is persisted or executed** — The `updateRamp` and `startRamp` flows must reject invalid transactions before merging them into ramp state.
 10. **Ephemeral addresses submitted at `registerRamp` MUST be proven fresh on every supported chain of their type before transactions are built** — Address format validation is insufficient. For each ephemeral type the client submits, the server MUST query every supported chain of that type (not only the chains the specific ramp route will use) and reject the registration if any check finds non-zero nonce, non-zero free balance, or (for Stellar) an account that already exists on-chain. Checking the full supported set prevents future phase-handler additions from silently reopening the freshness gap. Fail-closed on RPC errors. Without this, the server builds presigned transactions with assumed-fresh nonces, and execution halts mid-ramp on the first chain where the assumption breaks.
+11. **Multi-account block preparation MUST preserve signer capabilities and nonce domains** — EVM and Substrate account metadata are supplied as typed capabilities to each phase. Nonces are allocated independently per `(network, signer)`. A transaction that consumes more than one nonce declares a positive `nonceSpan`; Moonbeam→Pendulum XCM uses span 2, while Pendulum Nabla, fee, XCM, and cleanup remain contiguous from nonce 0.
 
 ## Threat Vectors & Mitigations
 

@@ -1,6 +1,7 @@
-import { Networks } from "@vortexfi/shared";
+import { EphemeralAccountType, Networks } from "@vortexfi/shared";
 import type { QuoteTicketAttributes } from "../../../../../../models/quoteTicket.model";
 import { createEvmFeeDistributionTransaction } from "../../../../transactions/common/feeDistribution";
+import { requireAccount } from "../../core/accounts";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import type { DistributeFeesMetadata } from "./simulation";
 
@@ -8,6 +9,7 @@ import type { DistributeFeesMetadata } from "./simulation";
 // createEvmFeeDistributionTransaction returns null when there are no fees to distribute; the
 // executor tolerates the missing presigned tx and skips.
 export async function prepareDistributeFeesTxs(ctx: PrepareCtx<DistributeFeesMetadata>): Promise<PreparedPhaseTxs> {
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
   const quote = {
     ...ctx.quote,
     metadata: { fees: ctx.globals.fees, request: ctx.globals.request }
@@ -24,7 +26,7 @@ export async function prepareDistributeFeesTxs(ctx: PrepareCtx<DistributeFeesMet
         lane: "main",
         network: Networks.Base,
         phase: "distributeFees",
-        signer: ctx.evmEphemeral.address,
+        signer: evmEphemeral.address,
         txData: feeDistributionTx
       }
     ]

@@ -12,6 +12,7 @@ import {
   NATIVE_TOKEN_ADDRESS,
   Networks,
   RampCurrency,
+  RampDirection,
   RampPhase,
   TokenType
 } from "@vortexfi/shared";
@@ -65,15 +66,22 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     const evmClientManager = EvmClientManager.getInstance();
     const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
-    const outTokenDetailsRaw = getOnChainTokenDetails(quote.network, quote.outputCurrency);
+    const alfredpayMetadata = (quote.metadata as unknown as { blocks?: { alfredpayOfframp?: { inputAmountRaw: string } } })
+      .blocks?.alfredpayOfframp;
+    const isAlfredpayOfframp = state.type === RampDirection.SELL && alfredpayMetadata !== undefined;
+    const outputNetwork = isAlfredpayOfframp ? Networks.Polygon : quote.network;
+    const outputCurrency = isAlfredpayOfframp ? "USDT" : quote.outputCurrency;
+    const outTokenDetailsRaw = getOnChainTokenDetails(outputNetwork, outputCurrency);
     if (!outTokenDetailsRaw || outTokenDetailsRaw.type === TokenType.AssetHub) {
       throw new Error("FinalSettlementSubsidyExecutor: Output currency is not an EVM token");
     }
     const outTokenDetails = outTokenDetailsRaw as EvmTokenDetails;
 
     const isNative = isNativeEvmToken(outTokenDetails);
-    const expectedAmountRaw = multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
-    const destinationNetwork = quote.network as EvmNetworks;
+    const expectedAmountRaw = isAlfredpayOfframp
+      ? new Big(alfredpayMetadata.inputAmountRaw)
+      : multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
+    const destinationNetwork = outputNetwork as EvmNetworks;
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 
@@ -98,7 +106,8 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     }
 
     const baselineKey = settlementBalanceKey(destinationNetwork, ephemeralAddress, outTokenDetails.erc20AddressSourceChain);
-    const baselineValue = state.state.transactionPlan?.settlementBaselines?.[baselineKey];
+    const baselineValue =
+      state.state.transactionPlan?.settlementBaselines?.[baselineKey] ?? (isAlfredpayOfframp ? "0" : undefined);
     if (baselineValue === undefined) {
       throw this.createUnrecoverableError("FinalSettlementSubsidyExecutor: Missing destination settlement baseline");
     }

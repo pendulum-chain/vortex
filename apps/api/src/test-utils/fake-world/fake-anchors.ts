@@ -196,10 +196,10 @@ export class FakeBrla {
       this.pixInputTickets.push(ticket);
       return ticket;
     },
-    createPixOutputTicket: async (payload?: { ticketBlockchainOutput?: { walletAddress?: string } }) => {
+    createPixOutputTicket: async (payload?: { ticketBlockchainInput?: { walletAddress?: string } }) => {
       const ticket = { id: `pix-out-${++this.counter}` };
       this.pixOutputTickets.push(ticket);
-      this.onPixOutputTicket?.({ id: ticket.id, walletAddress: payload?.ticketBlockchainOutput?.walletAddress });
+      this.onPixOutputTicket?.({ id: ticket.id, walletAddress: payload?.ticketBlockchainInput?.walletAddress });
       return ticket;
     },
     getAccountBalance: async () => ({

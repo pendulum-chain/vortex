@@ -21,7 +21,8 @@ import { StateMetadata } from "../../../phases/meta-state-types";
 import {
   EUR_ONRAMP_BASE_CROSS_CHAIN,
   EUR_ONRAMP_BASE_DIRECT,
-  EUR_ONRAMP_BASE_SAME_CHAIN
+  EUR_ONRAMP_BASE_SAME_CHAIN,
+  EUR_ONRAMP_BASE_SAME_CHAIN_SWAP
 } from "../../../phases/ramp-flow-definitions";
 import { isEurToEurcBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
@@ -268,7 +269,7 @@ export async function prepareMykoboToEvmOnrampTransactions({
 
     stateMeta = {
       ...stateMeta,
-      phaseFlow: EUR_ONRAMP_BASE_SAME_CHAIN,
+      phaseFlow: EUR_ONRAMP_BASE_SAME_CHAIN_SWAP,
       squidRouterQuoteId,
       squidRouterReceiverHash,
       squidRouterReceiverId

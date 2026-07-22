@@ -13,12 +13,15 @@ export interface NablaSwapMetadata {
   inputAmountForSwapDecimal: string;
   inputAmountForSwapRaw: string;
   inputCurrency: string;
+  inputCurrencyId?: ReturnType<typeof import("@vortexfi/shared").getPendulumDetails>["currencyId"];
   inputDecimals: number;
   inputToken: string;
+  network?: string;
   oraclePrice?: SerializableBig;
   outputAmountDecimal: SerializableBig;
   outputAmountRaw: string;
   outputCurrency: string;
+  outputCurrencyId?: ReturnType<typeof import("@vortexfi/shared").getPendulumDetails>["currencyId"];
   outputDecimals: number;
   outputToken: string;
 }

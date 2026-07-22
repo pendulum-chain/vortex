@@ -1,9 +1,17 @@
-import { ALFREDPAY_ERC20_TOKEN, ERC20_USDC_POLYGON, EvmNetworks, EvmTransactionData, Networks } from "@vortexfi/shared";
+import {
+  ALFREDPAY_ERC20_TOKEN,
+  EphemeralAccountType,
+  ERC20_USDC_POLYGON,
+  EvmNetworks,
+  EvmTransactionData,
+  Networks
+} from "@vortexfi/shared";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
 import { encodeEvmTransactionData } from "../../../../transactions";
 import { addOnrampDestinationChainTransactions } from "../../../../transactions/onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../../../transactions/polygon/cleanup";
 import { resolveAlfredpayCustomerId } from "../../../alfredpay-customer";
+import { requireAccount } from "../../core/accounts";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import type { AlfredpayMintMetadata } from "./simulation";
 
@@ -12,6 +20,7 @@ export interface AlfredpayMintPreparation {
 }
 
 export async function prepareAlfredpayMintTxs(ctx: PrepareCtx<AlfredpayMintMetadata>): Promise<PreparedPhaseTxs> {
+  const evmEphemeral = requireAccount(ctx.accounts, EphemeralAccountType.EVM);
   if (!ctx.userId) {
     throw new Error("prepareAlfredpayMintTxs: User ID is required");
   }
@@ -23,12 +32,15 @@ export async function prepareAlfredpayMintTxs(ctx: PrepareCtx<AlfredpayMintMetad
       lane: "cleanup",
       network: Networks.Polygon,
       phase: "polygonCleanup",
-      signer: ctx.evmEphemeral.address,
+      signer: evmEphemeral.address,
       txData: encodeEvmTransactionData(cleanup) as EvmTransactionData
     }
   ];
 
   if (ctx.globals.request.to !== Networks.Polygon) {
+    if (!ctx.destinationAddress) {
+      throw new Error("prepareAlfredpayMintTxs: Destination address is required");
+    }
     const fallback = await addOnrampDestinationChainTransactions({
       amountRaw: ctx.ownMetadata.outputAmountRaw,
       destinationNetwork: Networks.Polygon as EvmNetworks,
@@ -39,7 +51,7 @@ export async function prepareAlfredpayMintTxs(ctx: PrepareCtx<AlfredpayMintMetad
       lane: "cleanup",
       network: Networks.Polygon,
       phase: "alfredOnrampMintFallback",
-      signer: ctx.evmEphemeral.address,
+      signer: evmEphemeral.address,
       txData: encodeEvmTransactionData(fallback) as EvmTransactionData
     });
   }

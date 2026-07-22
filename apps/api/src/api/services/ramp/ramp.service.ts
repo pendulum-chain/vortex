@@ -7,10 +7,10 @@ import {
   AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
   AlfredpayPaymentMethodType,
+  AssetHubToken,
   AveniaPaymentMethod,
   BrlaApiService,
   BrlaCurrency,
-  CreateAlfredpayOfframpQuoteRequest,
   CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   FiatToken,
@@ -20,9 +20,6 @@ import {
   IbanPaymentData,
   isAlfredpayToken,
   Limit,
-  MykoboApiService,
-  MykoboCurrency,
-  MykoboTransactionType,
   Networks,
   normalizeTaxId,
   QuoteError,
@@ -57,16 +54,23 @@ import {
 } from "../../services/quote/engines/discount/helpers";
 import { findAveniaCustomerByTaxId } from "../avenia/avenia-customer.service";
 import { resolveAveniaAccountForRamp } from "../avenia-account";
-import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { PriceFeedService } from "../priceFeed.service";
 import { resolveAlfredpayCustomerId } from "../quote/alfredpay-customer";
+import { accountCapabilities } from "../quote/blocks/core/accounts";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../quote/blocks/core/metadata";
 import { AlfredpayMintContext, AlfredpayMintMetadata } from "../quote/blocks/phases/alfredpay-mint/simulation";
 import { AlfredpayMintPreparation } from "../quote/blocks/phases/alfredpay-mint/transactions";
-import { prepareOfframpTransactions } from "../transactions/offramp";
-import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
+import { AlfredpayOfframpContext } from "../quote/blocks/phases/alfredpay-offramp/simulation";
+import type { AlfredpayOfframpPreparation } from "../quote/blocks/phases/alfredpay-offramp/transactions";
+import type {
+  AveniaOfframpPayoutRegistrationFacts,
+  AveniaOfframpPayoutResponseArtifacts
+} from "../quote/blocks/phases/avenia-offramp-payout/registration";
+import type { MykoboMintResponseArtifacts } from "../quote/blocks/phases/mykobo-mint/registration";
+import type { MykoboOfframpPayoutRegistrationFacts } from "../quote/blocks/phases/mykobo-offramp-payout/registration";
+import { MykoboOfframpPayoutContext } from "../quote/blocks/phases/mykobo-offramp-payout/simulation";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
@@ -1080,38 +1084,44 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    userId: string
+    userId: string,
+    transaction: Transaction
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (!additionalData || !additionalData.pixDestination) {
-      throw new APIError({
-        message: "pixDestination is required for offramp to BRL",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
-    const derivedTaxId = aveniaAccount.taxId;
-    const derivedReceiverTaxId = normalizeTaxId(additionalData.receiverTaxId || derivedTaxId);
-
-    const subaccount = await this.validateBrlaOfframpRequest(
-      derivedTaxId,
-      additionalData.pixDestination,
-      derivedReceiverTaxId,
-      quote.outputAmount
-    );
-
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      brlaEvmAddress: subaccount.wallets.evm,
-      pixDestination: additionalData.pixDestination,
-      quote,
-      receiverTaxId: derivedReceiverTaxId,
+    const metadata = getFlowMetadata(quote.metadata);
+    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
+    const flow = resolveBlockFlow(metadata.globals.request);
+    const quoteFields = quote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: userId },
+      input: {
+        pixDestination: additionalData?.pixDestination,
+        receiverTaxId: additionalData?.receiverTaxId,
+        taxId: additionalData?.taxId,
+        walletAddress: additionalData?.walletAddress
+      },
+      metadata,
+      quote: quoteFields,
       signingAccounts: normalizedSigningAccounts,
-      taxId: derivedTaxId,
-      userAddress: additionalData.walletAddress,
+      transaction
+    });
+    const prepared = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
       userId
     });
-
-    return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
+    const facts = (registered.registrationFacts.aveniaOfframpPayout ?? registered.registrationFacts.aveniaPendulumOfframp) as
+      | AveniaOfframpPayoutRegistrationFacts
+      | undefined;
+    const artifacts = (registered.responseArtifacts.aveniaOfframpPayout ??
+      registered.responseArtifacts.aveniaPendulumOfframp) as AveniaOfframpPayoutResponseArtifacts | undefined;
+    if (!facts || !artifacts) throw new Error("BRL offramp registration did not return Avenia facts");
+    return {
+      depositQrCode: artifacts.depositQrCode,
+      stateMeta: { ...prepared.stateMeta, ...facts },
+      unsignedTxs: prepared.unsignedTxs
+    };
   }
 
   private async prepareOfframpNonBrlTransactions(
@@ -1121,30 +1131,75 @@ export class RampService extends BaseRampService {
     transaction: Transaction,
     userId: string
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    // We refresh the quote. It will be used in the transaction creation process, right after this.
-    if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
-      const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
-      await this.refreshAlfredpayOfframpQuoteIfMatching(
-        quote,
-        quote.metadata.alfredpayOfframp,
-        toCurrency,
-        userId,
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
+      const metadata = getFlowMetadata(quote.metadata);
+      const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
+      const flow = resolveBlockFlow(metadata.globals.request);
+      const quoteFields = quote.get({ plain: true });
+      const registered = await flow.register({
+        authenticatedUser: { id: userId },
+        input: {
+          fiatAccountId: additionalData?.fiatAccountId,
+          walletAddress: additionalData?.walletAddress
+        },
+        metadata,
+        quote: quoteFields,
+        signingAccounts: normalizedSigningAccounts,
         transaction
-      );
+      });
+      await quote.update({ metadata: registered.metadata as unknown as QuoteTicket["metadata"] }, { transaction });
+      const prepared = await flow.prepareTxs({
+        accounts: accountCapabilities(normalizedSigningAccounts),
+        metadata: registered.metadata,
+        quote: quoteFields,
+        registrationFacts: registered.registrationFacts,
+        userId
+      });
+      const phaseState = prepared.stateMeta.blockState?.[AlfredpayOfframpContext.key] as
+        | AlfredpayOfframpPreparation
+        | undefined;
+      if (!phaseState) throw new Error("Alfredpay offramp preparation state is missing");
+      return {
+        stateMeta: { ...prepared.stateMeta, ...phaseState },
+        unsignedTxs: prepared.unsignedTxs
+      };
     }
 
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      destinationAddress: additionalData?.destinationAddress,
-      email: additionalData?.email,
-      fiatAccountId: additionalData?.fiatAccountId as string | undefined,
-      ipAddress: additionalData?.ipAddress,
-      quote,
+    if (!additionalData?.destinationAddress || !additionalData.ipAddress) {
+      throw new APIError({
+        message: "Parameters destinationAddress and ipAddress are required for Mykobo EUR offramp",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    const metadata = getFlowMetadata(quote.metadata);
+    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
+    const flow = resolveBlockFlow(metadata.globals.request);
+    const quoteFields = quote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: userId },
+      input: { email: additionalData.email, walletAddress: additionalData.walletAddress },
+      ipAddress: additionalData.ipAddress,
+      metadata,
+      quote: quoteFields,
       signingAccounts: normalizedSigningAccounts,
-      userAddress: additionalData?.walletAddress,
+      transaction
+    });
+    const prepared = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      destinationAddress: additionalData.destinationAddress,
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
       userId
     });
-
-    return { stateMeta, unsignedTxs };
+    const payoutState = getBlockState<MykoboOfframpPayoutRegistrationFacts>(
+      prepared.stateMeta as StateMetadata,
+      MykoboOfframpPayoutContext
+    );
+    return {
+      stateMeta: { ...prepared.stateMeta, ...payoutState, walletAddress: additionalData.walletAddress },
+      unsignedTxs: prepared.unsignedTxs
+    };
   }
 
   private async prepareAveniaOnrampTransactions(
@@ -1152,7 +1207,8 @@ export class RampService extends BaseRampService {
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
     signingAccounts: AccountMeta[],
-    userId: string
+    userId: string,
+    transaction: Transaction
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
     if (!additionalData || !additionalData.destinationAddress) {
       throw new APIError({
@@ -1167,6 +1223,45 @@ export class RampService extends BaseRampService {
         message: "Base ephemeral not found",
         status: httpStatus.BAD_REQUEST
       });
+    }
+
+    if (quote.to === Networks.AssetHub && quote.outputCurrency === AssetHubToken.USDC) {
+      if (!signingAccounts.some(ephemeral => ephemeral.type === EphemeralAccountType.Substrate)) {
+        throw new APIError({ message: "Pendulum ephemeral not found", status: httpStatus.BAD_REQUEST });
+      }
+      const metadata = getFlowMetadata(quote.metadata);
+      const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
+      const flow = resolveBlockFlow(metadata.globals.request);
+      const quoteFields = quote.get({ plain: true });
+      const registered = await flow.register({
+        authenticatedUser: { id: userId },
+        input: { taxId: additionalData.taxId },
+        metadata,
+        quote: quoteFields,
+        signingAccounts: normalizedSigningAccounts,
+        transaction
+      });
+      const prepared = await flow.prepareTxs({
+        accounts: accountCapabilities(normalizedSigningAccounts),
+        destinationAddress: additionalData.destinationAddress,
+        metadata: registered.metadata,
+        quote: quoteFields,
+        registrationFacts: registered.registrationFacts,
+        userId
+      });
+      const facts = registered.registrationFacts.aveniaMint as
+        | import("../quote/blocks/phases/avenia-moonbeam-mint/registration").AveniaMoonbeamRegistrationFacts
+        | undefined;
+      const artifacts = registered.responseArtifacts.aveniaMint as
+        | import("../quote/blocks/phases/avenia-moonbeam-mint/registration").AveniaMoonbeamResponseArtifacts
+        | undefined;
+      if (!facts || !artifacts) throw new Error("AssetHub Avenia registration facts are missing");
+      return {
+        aveniaTicketId: facts.aveniaTicketId,
+        depositQrCode: artifacts.depositQrCode,
+        stateMeta: { ...prepared.stateMeta, ...facts },
+        unsignedTxs: prepared.unsignedTxs
+      };
     }
 
     const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
@@ -1216,7 +1311,8 @@ export class RampService extends BaseRampService {
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    userId: string
+    userId: string,
+    transaction: Transaction
   ): Promise<{
     unsignedTxs: UnsignedTx[];
     stateMeta: Partial<StateMetadata>;
@@ -1229,65 +1325,32 @@ export class RampService extends BaseRampService {
       });
     }
 
-    // The Mykobo email is derived from the effective user's profile (and KYC must be approved);
-    // a client-supplied email is accepted only if it matches. See resolveMykoboCustomerForUser.
-    const { email } = await resolveMykoboCustomerForUser(userId, additionalData.email);
-
-    const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
-    if (!evmEphemeralEntry) {
-      throw new APIError({
-        message: "EVM ephemeral account is required for Mykobo EUR onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const mykobo = MykoboApiService.getInstance();
-    const intent = await mykobo.createTransactionIntent({
-      currency: MykoboCurrency.EURC,
-      email_address: email,
-      ip_address: additionalData.ipAddress,
-      transaction_type: MykoboTransactionType.DEPOSIT,
-      value: new Big(quote.inputAmount).toFixed(2, 0),
-      wallet_address: evmEphemeralEntry.address
-    });
-
-    // Mocking mykobo intent call
-    // const intent = {
-    //   instructions: {
-    //     bank_account_name: "Mykobo Test",
-    //     iban: "DE89370400440532013000"
-    //   },
-    //   transaction: {
-    //     id: "mykobo-transaction-id",
-    //     reference: "mykobo-transaction-reference"
-    //   }
-    // };
-    const instructions = intent.instructions;
-    if (!instructions || !("iban" in instructions)) {
-      throw new APIError({
-        message: "Mykobo deposit intent did not return IBAN instructions",
-        status: httpStatus.BAD_GATEWAY
-      });
-    }
-
-    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
+    const metadata = getFlowMetadata(quote.metadata);
+    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
+    const flow = resolveBlockFlow(metadata.globals.request);
+    const quoteFields = quote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: userId },
+      input: { email: additionalData.email },
       ipAddress: additionalData.ipAddress,
-      mykoboEmail: email,
-      mykoboTransactionId: intent.transaction.id,
-      mykoboTransactionReference: intent.transaction.reference,
-      quote,
-      signingAccounts: normalizedSigningAccounts
+      metadata,
+      quote: quoteFields,
+      signingAccounts: normalizedSigningAccounts,
+      transaction
     });
-
-    const ibanPaymentData: IbanPaymentData = {
-      bic: "",
-      iban: instructions.iban,
-      receiverName: instructions.bank_account_name,
-      reference: intent.transaction.reference
-    };
-
-    return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
+    const { unsignedTxs, stateMeta } = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      destinationAddress: additionalData.destinationAddress,
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
+      userId
+    });
+    const artifacts = registered.responseArtifacts.mykoboMint as MykoboMintResponseArtifacts | undefined;
+    if (!artifacts) {
+      throw new Error("Mykobo registration did not return payment instructions");
+    }
+    return { ibanPaymentData: artifacts.ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
   }
 
   private async prepareRampTransactions(
@@ -1308,19 +1371,26 @@ export class RampService extends BaseRampService {
     assertBlockFlowMapped(quote);
     switch (selectRampTransactionPreparationKind(quote, additionalData)) {
       case RampTransactionPreparationKind.OfframpBrl:
-        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId, transaction);
 
       case RampTransactionPreparationKind.OfframpNonBrl:
         return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
 
       case RampTransactionPreparationKind.OnrampMykobo:
-        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
+        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId, transaction);
 
       case RampTransactionPreparationKind.OnrampAlfredpay:
         return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
 
       case RampTransactionPreparationKind.OnrampAvenia:
-        return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts, userId);
+        return this.prepareAveniaOnrampTransactions(
+          quote,
+          normalizedSigningAccounts,
+          additionalData,
+          signingAccounts,
+          userId,
+          transaction
+        );
     }
   }
 
@@ -1590,64 +1660,6 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private async refreshAlfredpayOfframpQuoteIfMatching(
-    quote: QuoteTicket,
-    originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
-    toCurrency: AlfredpayFiatCurrency,
-    userId: string,
-    transaction: Transaction
-  ): Promise<string> {
-    const alfredpayService = AlfredpayApiService.getInstance();
-    const originalQuoteId = originalAlfredpayOfframp.quoteId;
-
-    const customerId = await resolveAlfredpayCustomerId(toCurrency, userId);
-
-    const freshQuote = await alfredpayService.createOfframpQuote({
-      chain: AlfredpayChain.MATIC,
-      fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      metadata: { businessId: "vortex", customerId },
-      paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      toCurrency
-    } satisfies CreateAlfredpayOfframpQuoteRequest);
-
-    const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
-    const freshToAmount = new Big(freshQuote.toAmount);
-
-    const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
-    const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
-
-    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
-      throw new APIError({
-        message:
-          `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
-          `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
-          `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
-          "Cannot proceed with offramp order.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    await quote.update(
-      {
-        metadata: {
-          ...quote.metadata,
-          alfredpayOfframp: {
-            ...originalAlfredpayOfframp,
-            expirationDate: new Date(freshQuote.expiration),
-            quoteId: freshQuote.quoteId
-          }
-        }
-      },
-      { transaction }
-    );
-
-    logger.info(
-      `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: swapped Alfredpay offramp quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
-    );
-    return freshQuote.quoteId;
-  }
-
   private async processAlfredpayOfframpStart(
     rampState: RampState,
     quote: QuoteTicket,
@@ -1657,7 +1669,9 @@ export class RampService extends BaseRampService {
       return;
     }
 
-    const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
+    const alfredpayQuoteId =
+      quote.metadata.alfredpayOfframp?.quoteId ??
+      (quote.metadata as unknown as { blocks?: { alfredpayOfframp?: { quoteId: string } } }).blocks?.alfredpayOfframp?.quoteId;
 
     if (!alfredpayQuoteId) {
       throw new APIError({

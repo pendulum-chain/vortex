@@ -27,12 +27,14 @@ mock.module("../../core/squidrouter", () => ({
 
 mock.module("../../../priceFeed.service", () => ({
   priceFeedService: {
+    convertCurrency: async (amount: string) => amount,
     getFiatToUsdExchangeRate: async () => new Big(0.18)
   }
 }));
 
 import { BRL_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
+import { evmRequestIO, fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { PhaseCtx } from "../core/types";
 import type { SubsidyMeta } from "../phases/subsidize-pre";
@@ -94,18 +96,27 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — executors", () => {
 
 describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — compile-time adjacency", () => {
   it.skip("rejects brand mismatches at compile time", () => {
+    // @ts-expect-error entry adjacency: an EVM resolver cannot feed a fiat phase
+    const _wrongEntry = FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), AveniaMint);
+    void _wrongEntry;
+
     // AveniaMint outputs BRLA on Base; a EURC-input swap cannot follow.
-    // @ts-expect-error adjacency: NablaSwap input brand (EURC) != AveniaMint output brand (BRLA)
-    const _wrongToken = FlowBuilder.start(AveniaMint).pipe(NablaSwap(Networks.Base, EvmToken.EURC, EvmToken.USDC));
+    const _wrongToken = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), AveniaMint).pipe(
+      // @ts-expect-error adjacency: NablaSwap input brand (EURC) != AveniaMint output brand (BRLA)
+      NablaSwap(Networks.Base, EvmToken.EURC, EvmToken.USDC)
+    );
     void _wrongToken;
 
     // The bridge lands on Arbitrum; a Base-only phase cannot follow.
-    const bridged = FlowBuilder.start(SquidRouterSwap(Networks.Base, Networks.Arbitrum, EvmToken.USDC, EvmToken.USDC));
+    const bridged = FlowBuilder.start(
+      evmRequestIO(EvmToken.USDC, Networks.Base),
+      SquidRouterSwap(Networks.Base, Networks.Arbitrum, EvmToken.USDC, EvmToken.USDC)
+    );
     // @ts-expect-error adjacency: DistributeFees chain brand (base) != bridge output chain (arbitrum)
     const _wrongChain = bridged.pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>());
     void _wrongChain;
 
-    const funded = FlowBuilder.start(FundEphemeral(EvmToken.USDC, Networks.Base));
+    const funded = FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), FundEphemeral(EvmToken.USDC, Networks.Base));
     // @ts-expect-error ownership: one flow cannot contain the same metadata key twice
     const _duplicateKey = funded.pipe(FundEphemeral(EvmToken.USDC, Networks.Base));
     void _duplicateKey;
@@ -120,6 +131,7 @@ function buildCtx(): PhaseCtx {
       notes.push(note);
     },
     fees: {
+      displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0.1", partnerMarkup: "0", total: "0.3", vortex: "0.1" },
       usd: { anchor: "0.1", network: "0.1", partnerMarkup: "0", total: "0.3", vortex: "0.1" }
     },
     notes,
@@ -163,7 +175,7 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => 
     const { metadata } = await runFlow(brlOnrampBaseCrossChainFlow);
     const { blocks, globals } = metadata;
 
-    expect(globals.fees.usd.total).toBe("0.3");
+    expect(globals.fees.usd).toMatchObject({ anchor: "1.5", network: "0.1", total: "1.700000", vortex: "0.1" });
     expect(Object.keys(blocks)).toEqual([
       "aveniaMint",
       "fundEphemeral",

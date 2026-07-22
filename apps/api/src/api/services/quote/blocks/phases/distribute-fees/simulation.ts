@@ -10,6 +10,9 @@ export interface DistributeFeesMetadata {
   networkFeeUsd: string;
   partnerMarkupUsd: string;
   totalFeesUsd: string;
+  network?: string;
+  outputCurrencyId?: ReturnType<typeof import("@vortexfi/shared").getPendulumDetails>["currencyId"];
+  outputDecimals?: number;
   vortexFeeUsd: string;
 }
 

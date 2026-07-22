@@ -1,12 +1,20 @@
 import {
+  EvmNetworks,
   EvmToken,
+  EvmTokenDetails,
   FiatToken,
+  getNetworkFromDestination,
   getOnChainTokenDetails,
-  MykoboApiService,
+  isNetworkEVM,
   multiplyByPowerOfTen,
-  Networks
+  Networks,
+  OnChainToken,
+  RampCurrency
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { calculateEvmBridgeAndNetworkFee, getBridgeTargetTokenDetails } from "../../../core/squidrouter";
+import { resolveMykoboDepositFee } from "../../../engines/mykobo-fee";
+import { calculateFees } from "../../core/fees";
 import { evmIO } from "../../core/io";
 import { defineContext } from "../../core/metadata";
 import type { PhaseCtx, PhaseIO, PhaseResult } from "../../core/types";
@@ -28,8 +36,7 @@ export async function simulateMykoboMint(
   }
 
   const inputAmountDecimal = new Big(input.amount);
-  const mykoboFeeResponse = await MykoboApiService.getInstance().defaultDepositFee(inputAmountDecimal.toFixed(2, 0));
-  const mykoboFeeDecimal = new Big(mykoboFeeResponse.total);
+  const mykoboFeeDecimal = new Big(await resolveMykoboDepositFee(inputAmountDecimal.toFixed(2, 0)));
 
   const deliveredEurcDecimal = inputAmountDecimal.minus(mykoboFeeDecimal);
   if (deliveredEurcDecimal.lte(0)) {
@@ -38,18 +45,45 @@ export async function simulateMykoboMint(
     );
   }
   const deliveredEurcRaw = multiplyByPowerOfTen(deliveredEurcDecimal, eurcBaseDetails.decimals).toFixed(0, 0);
+  const toNetwork = getNetworkFromDestination(ctx.request.to);
+  if (!toNetwork || !isNetworkEVM(toNetwork)) {
+    throw new Error(`MykoboMint: Invalid EVM destination ${ctx.request.to}`);
+  }
+  const toToken = getBridgeTargetTokenDetails(ctx.request.outputCurrency as OnChainToken, toNetwork);
+  const isDirectTransfer =
+    toNetwork === Networks.Base &&
+    (eurcBaseDetails as EvmTokenDetails).erc20AddressSourceChain.toLowerCase() ===
+      toToken.erc20AddressSourceChain.toLowerCase();
+  const networkFee = isDirectTransfer
+    ? "0"
+    : (
+        await calculateEvmBridgeAndNetworkFee({
+          amountRaw: multiplyByPowerOfTen(inputAmountDecimal, eurcBaseDetails.decimals).toFixed(0, 0),
+          fromNetwork: Networks.Base as EvmNetworks,
+          fromToken: (eurcBaseDetails as EvmTokenDetails).erc20AddressSourceChain,
+          originalInputAmountForRateCalc: ctx.request.inputAmount,
+          rampType: ctx.request.rampType,
+          toNetwork,
+          toToken: toToken.erc20AddressSourceChain
+        })
+      ).networkFeeUSD;
+  const fees = await calculateFees(ctx, {
+    anchor: { amount: mykoboFeeDecimal.toString(), currency: FiatToken.EURC as RampCurrency },
+    network: { amount: networkFee, currency: EvmToken.USDC as RampCurrency }
+  });
 
   ctx.addNote(
     `MykoboMint: ${deliveredEurcDecimal.toFixed()} EURC delivered on Base after ${mykoboFeeDecimal.toFixed()} EUR fee`
   );
 
   return {
+    fees,
     metadata: {
       mint: {
         currency: FiatToken.EURC,
         fee: mykoboFeeDecimal,
         inputAmountDecimal,
-        inputAmountRaw: input.amountRaw,
+        inputAmountRaw: multiplyByPowerOfTen(inputAmountDecimal, eurcBaseDetails.decimals).toFixed(0, 0),
         outputAmountDecimal: deliveredEurcDecimal,
         outputAmountRaw: deliveredEurcRaw
       }

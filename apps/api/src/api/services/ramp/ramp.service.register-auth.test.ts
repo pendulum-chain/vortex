@@ -1,4 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
+import { FiatToken } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import type { Transaction } from "sequelize";
 import { config } from "../../../config/vars";
@@ -24,6 +25,7 @@ function stubQuote(overrides: { userId: string | null }): void {
     expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     flowVariant: config.flowVariant,
     id: "quote-1",
+    inputCurrency: FiatToken.EURC,
     status: "pending",
     userId: overrides.userId
   })) as unknown as typeof QuoteTicket.findByPk;
@@ -68,10 +70,10 @@ describe("RampService.registerRamp user gating", () => {
       await service.registerRamp({ additionalData: {}, quoteId: "quote-1", signingAccounts: [], userId: "user-a" } as never);
       throw new Error("registerRamp did not reject");
     } catch (error) {
-      // The stubbed quote has no currencies/signing accounts, so registration fails later
-      // (missing destinationAddress) — but it must get past the gating guards.
+      // The EUR kill switch runs after the user guards and before flow preparation, so this
+      // proves the anonymous quote was claimable without requiring unrelated flow metadata.
       expect(error).toBeInstanceOf(APIError);
-      expect((error as APIError).status).not.toBe(httpStatus.FORBIDDEN);
+      expect((error as APIError).status).toBe(httpStatus.SERVICE_UNAVAILABLE);
       expect((error as APIError).message).not.toContain("Invalid quote");
     }
   });

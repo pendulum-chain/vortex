@@ -103,7 +103,7 @@ Ramp registration today is structurally a **self-offramp** flow, and (post owner
 enforcement) payout destinations are already bound to the *sender* on two of three corridors —
 verified against the code:
 
-- **Mykobo/EUR** (`evm-to-mykobo.ts`): the withdraw intent is created for the sender's own
+- **Mykobo/EUR** (`MykoboOfframpPayout.register`): the withdraw intent is created for the sender's own
   anchor profile (email derived from the effective user); the payout IBAN lives anchor-side.
   Third-party payout impossible.
 - **Alfredpay** (`evm-to-alfredpay.ts`): `customerId` is server-derived from the effective user;

@@ -36,6 +36,7 @@ export interface SubsidizePreMetadata {
   expectedOutputAmountDecimal: SerializableBig;
   expectedOutputAmountRaw: string;
   inputCurrency: string;
+  inputCurrencyId?: ReturnType<typeof import("@vortexfi/shared").getPendulumDetails>["currencyId"];
   inputDecimals: number;
   network: string;
   outputCurrency?: string;

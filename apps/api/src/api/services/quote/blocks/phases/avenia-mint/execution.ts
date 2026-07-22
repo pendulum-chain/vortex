@@ -9,6 +9,8 @@ import {
   EvmAddress,
   EvmToken,
   evmTokenConfig,
+  FiatToken,
+  getAnyFiatTokenDetailsMoonbeam,
   getEvmTokenBalance,
   multiplyByPowerOfTen,
   Networks,
@@ -71,10 +73,21 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     }
     const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
-    const tokenDetails = evmTokenConfig[Networks.Base][EvmToken.BRLA];
-    if (!tokenDetails) {
-      throw new Error("BRLA token details not found for Base network");
+    const isMoonbeam = metadata.network === Networks.Moonbeam;
+    const baseToken = evmTokenConfig[Networks.Base][EvmToken.BRLA];
+    const moonbeamToken = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
+    let tokenAddress: string;
+    let tokenDecimals: number;
+    if (isMoonbeam) {
+      tokenAddress = moonbeamToken.moonbeamErc20Address;
+      tokenDecimals = moonbeamToken.decimals;
+    } else {
+      if (!baseToken) throw new Error("BRLA token details not found for Base network");
+      tokenAddress = baseToken.erc20AddressSourceChain;
+      tokenDecimals = baseToken.decimals;
     }
+    const network = isMoonbeam ? Networks.Moonbeam : Networks.Base;
+    const paymentMethod = isMoonbeam ? AveniaPaymentMethod.MOONBEAM : AveniaPaymentMethod.BASE;
 
     const preComputedExpectedAmountRaw = metadata.transfer.outputAmountRaw;
 
@@ -82,7 +95,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.
     const recoveryThresholdRaw = new Big(preComputedExpectedAmountRaw).times(EPHEMERAL_FUNDED_TOLERANCE_FACTOR).toFixed(0, 0);
 
-    if (await this.ephemeralAlreadyFunded(tokenDetails.erc20AddressSourceChain, evmEphemeralAddress, recoveryThresholdRaw)) {
+    if (await this.ephemeralAlreadyFunded(tokenAddress, evmEphemeralAddress, recoveryThresholdRaw, network)) {
       logger.info(
         `BrlaOnrampMintExecutor: Ephemeral ${evmEphemeralAddress} already holds at least 95% of the expected ${preComputedExpectedAmountRaw} BRLA (threshold: ${recoveryThresholdRaw}). Skipping mint flow.`
       );
@@ -139,7 +152,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
       inputThirdParty: false,
       outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.BASE,
+      outputPaymentMethod: paymentMethod,
       outputThirdParty: false,
       subAccountId: aveniaSubAccountId
     });
@@ -148,7 +161,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
 
     // Derive the expected on-chain amount from the live quote rather than the stale pre-computed
     // metadata value: the live quote accounts for the fees actually applied at execution time.
-    const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDetails.decimals).toFixed(0, 0);
+    const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDecimals).toFixed(0, 0);
 
     logger.info(
       `BrlaOnrampMintExecutor: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`
@@ -159,7 +172,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
         quoteToken: aveniaQuote.quoteToken,
         ticketBlockchainOutput: {
           walletAddress: state.state.evmEphemeralAddress,
-          walletChain: AveniaPaymentMethod.BASE
+          walletChain: paymentMethod
         }
       },
       aveniaSubAccountId
@@ -173,12 +186,12 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       const pollingTimeMs = 1000;
 
       await checkEvmBalancePeriodically(
-        tokenDetails.erc20AddressSourceChain,
+        tokenAddress,
         evmEphemeralAddress,
         expectedAmountReceived,
         pollingTimeMs,
         EVM_BALANCE_CHECK_TIMEOUT_MS,
-        Networks.Base,
+        network,
         signal
       );
     } catch (error) {
@@ -201,11 +214,12 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
   private async ephemeralAlreadyFunded(
     tokenAddress: string,
     ownerAddress: string,
-    expectedAmountRaw: string
+    expectedAmountRaw: string,
+    chain: typeof Networks.Base | typeof Networks.Moonbeam
   ): Promise<boolean> {
     try {
       const balance = await getEvmTokenBalance({
-        chain: Networks.Base,
+        chain,
         ownerAddress: ownerAddress as EvmAddress,
         tokenAddress: tokenAddress as EvmAddress
       });

@@ -19,22 +19,27 @@ QuoteTicket.findByPk = mock(async () => ({
   inputAmount: "25003",
   inputCurrency: FiatToken.BRL,
   metadata: {
-    fees: {
-      displayFiat: {
-        anchor: "0.75",
-        currency: "BRL",
-        network: "0",
-        partnerMarkup: "0",
-        total: "0.75",
-        vortex: "0"
+    blocks: {},
+    globals: {
+      fees: {
+        displayFiat: {
+          anchor: "0.75",
+          currency: "BRL",
+          network: "0",
+          partnerMarkup: "0",
+          total: "0.75",
+          vortex: "0"
+        },
+        usd: {
+          anchor: "0.15",
+          network: "0",
+          partnerMarkup: "0",
+          total: "0.15",
+          vortex: "0"
+        }
       },
-      usd: {
-        anchor: "0.15",
-        network: "0",
-        partnerMarkup: "0",
-        total: "0.15",
-        vortex: "0"
-      }
+      partner: null,
+      request: {}
     }
   },
   network: Networks.Base,

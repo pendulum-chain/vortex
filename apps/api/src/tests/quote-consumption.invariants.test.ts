@@ -81,8 +81,11 @@ describe("quote consumption invariants (BRL onramp)", () => {
 
     const persisted = await QuoteTicket.findByPk(quote.id);
     expect(persisted?.status).toBe("pending");
-    expect(persisted?.metadata.fees?.usd).toBeDefined();
-    expect(persisted?.metadata.fees?.displayFiat).toBeDefined();
+    const metadata = persisted?.metadata as unknown as
+      | { globals: { fees: { displayFiat?: unknown; usd?: unknown } } }
+      | undefined;
+    expect(metadata?.globals.fees.usd).toBeDefined();
+    expect(metadata?.globals.fees.displayFiat).toBeDefined();
   });
 
   it("registers a ramp and consumes the quote exactly once", async () => {

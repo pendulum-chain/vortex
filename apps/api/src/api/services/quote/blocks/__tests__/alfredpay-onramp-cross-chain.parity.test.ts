@@ -52,6 +52,7 @@ mock.module("../../core/squidrouter", () => ({
 
 import { ALFREDPAY_ONRAMP_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
+import { fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { PhaseCtx } from "../core/types";
 import { AlfredpayMint } from "../phases/alfredpay-mint";
@@ -102,8 +103,13 @@ describe("ALFREDPAY_ONRAMP_CROSS_CHAIN block flow", () => {
   });
 
   it.skip("rejects incompatible adjacency at compile time", () => {
-    // @ts-expect-error AlfredpayMint outputs USDT on Polygon, not Base.
-    const wrongChain = FlowBuilder.start(AlfredpayMint).pipe(FundEphemeral(EvmToken.USDT, Networks.Base));
+    const wrongChain = FlowBuilder.start(
+      fiatRequestIO(FiatToken.ARS, FiatToken.COP, FiatToken.MXN, FiatToken.USD),
+      AlfredpayMint
+    ).pipe(
+      // @ts-expect-error AlfredpayMint outputs USDT on Polygon, not Base.
+      FundEphemeral(EvmToken.USDT, Networks.Base)
+    );
     void wrongChain;
   });
 

@@ -215,7 +215,9 @@ function buildPrepareCtx() {
   const { metadata: _metadata, ...quote } = buildQuote();
   return {
     destinationAddress: DESTINATION_ADDRESS,
-    evmEphemeral: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM },
+    accounts: {
+      [EphemeralAccountType.EVM]: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM } as const
+    },
     metadata: buildMetadata(),
     quote,
     taxId: "tax-123"

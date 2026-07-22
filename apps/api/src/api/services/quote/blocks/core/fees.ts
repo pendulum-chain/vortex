@@ -9,6 +9,41 @@ interface FeeOverride {
   network?: { amount: string; currency: RampCurrency };
 }
 
+export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promise<NonNullable<PhaseCtx["fees"]>> {
+  if (!ctx.fees?.displayFiat || !ctx.fees.usd) {
+    throw new Error("Cannot override an incomplete fee snapshot");
+  }
+  const displayCurrency = ctx.fees.displayFiat.currency;
+  const [anchorUsd, anchorDisplay, networkUsd, networkDisplay] = await Promise.all([
+    priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, EvmToken.USDC),
+    priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, displayCurrency),
+    override.network
+      ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, EvmToken.USDC)
+      : ctx.fees.usd.network,
+    override.network
+      ? priceFeedService.convertCurrency(override.network.amount, override.network.currency, displayCurrency)
+      : ctx.fees.displayFiat.network
+  ]);
+  return {
+    displayFiat: {
+      ...ctx.fees.displayFiat,
+      anchor: anchorDisplay,
+      network: networkDisplay,
+      total: new Big(anchorDisplay)
+        .plus(networkDisplay)
+        .plus(ctx.fees.displayFiat.partnerMarkup)
+        .plus(ctx.fees.displayFiat.vortex)
+        .toFixed(2)
+    },
+    usd: {
+      ...ctx.fees.usd,
+      anchor: anchorUsd,
+      network: networkUsd,
+      total: new Big(anchorUsd).plus(networkUsd).plus(ctx.fees.usd.partnerMarkup).plus(ctx.fees.usd.vortex).toFixed(6)
+    }
+  };
+}
+
 export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Promise<NonNullable<PhaseCtx["fees"]>> {
   const { vortexFee, anchorFee, partnerMarkupFee, feeCurrency } = await calculateFeeComponents({
     from: ctx.request.from,

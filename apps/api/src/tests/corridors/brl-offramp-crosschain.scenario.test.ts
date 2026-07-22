@@ -12,6 +12,7 @@ import {
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getFlowMetadata } from "../../api/services/quote/blocks/core/metadata";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -144,13 +145,6 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     return (await response.json()) as { id: string; outputAmount: string };
   }
 
-  // The EVM→BRL route still requires a Substrate entry in signingAccounts
-  // (validateOfframpQuote legacy default) even though this path never uses it to
-  // sign — all signing here is EVM. A static well-known SS58 address keeps the test
-  // off the @polkadot WASM keyring, whose CJS/ESM dual-load intermittently leaves an
-  // uninitialized bridge under Bun and crashed this suite in CI.
-  const SUBSTRATE_PLACEHOLDER_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
-
   async function registerViaApi(
     quoteId: string,
     userId: string,
@@ -166,10 +160,7 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
           walletAddress: userWallet.address
         },
         quoteId,
-        signingAccounts: [
-          { address: ephemeral.address, type: "EVM" },
-          { address: SUBSTRATE_PLACEHOLDER_ADDRESS, type: "Substrate" }
-        ]
+        signingAccounts: [{ address: ephemeral.address, type: "EVM" }]
       }),
       headers: {
         Authorization: `Bearer ${testUserToken(userId)}`,
@@ -229,8 +220,9 @@ describe("BRL offramp cross-chain corridor (USDC on Polygon → Base → pix via
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const swapInputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.inputAmountForSwapRaw ?? "0");
-    const swapOutputRaw = BigInt(persistedQuote?.metadata.nablaSwapEvm?.outputAmountRaw ?? "0");
+    const blocks = getFlowMetadata(persistedQuote?.metadata).blocks;
+    const swapInputRaw = BigInt((blocks.nablaSwap as { inputAmountForSwapRaw: string }).inputAmountForSwapRaw);
+    const swapOutputRaw = BigInt((blocks.aveniaOfframpPayout as { transferAmountRaw: string }).transferAmountRaw);
     expect(swapInputRaw).toBeGreaterThan(0n);
     expect(swapOutputRaw).toBeGreaterThan(0n);
 

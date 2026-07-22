@@ -21,7 +21,8 @@ import { StateMetadata } from "../../../phases/meta-state-types";
 import {
   BRL_ONRAMP_BASE_CROSS_CHAIN,
   BRL_ONRAMP_BASE_DIRECT,
-  BRL_ONRAMP_BASE_SAME_CHAIN
+  BRL_ONRAMP_BASE_SAME_CHAIN,
+  BRL_ONRAMP_BASE_SAME_CHAIN_SWAP
 } from "../../../phases/ramp-flow-definitions";
 import { isBrlToBrlaBaseDirect } from "../../../quote/utils";
 import { prepareBaseCleanupApproval } from "../../base/cleanup";
@@ -260,7 +261,7 @@ export async function prepareAveniaToEvmOnrampTransactionsOnBase({
       squidRouterReceiverId
     };
 
-    return { stateMeta: { ...stateMeta, phaseFlow: BRL_ONRAMP_BASE_SAME_CHAIN }, unsignedTxs };
+    return { stateMeta: { ...stateMeta, phaseFlow: BRL_ONRAMP_BASE_SAME_CHAIN_SWAP }, unsignedTxs };
   }
 
   const baseFundingAccountAddress = getEvmFundingAccount(Networks.Base).address;

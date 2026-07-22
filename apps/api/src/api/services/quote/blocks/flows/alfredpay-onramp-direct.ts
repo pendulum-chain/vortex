@@ -1,5 +1,6 @@
-import { ALFREDPAY_EVM_TOKEN, EvmToken, Networks } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, EvmToken, FiatToken, Networks } from "@vortexfi/shared";
 import { FlowBuilder } from "../core/flow";
+import { fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { TokenBrand } from "../core/types";
 import { AlfredpayMint } from "../phases/alfredpay-mint";
@@ -10,7 +11,7 @@ import { SameChainSquidRouterSwap, SquidRouterPassthrough } from "../phases/squi
 import { AlfredpaySubsidizePre } from "../phases/subsidize-pre";
 
 export function makeAlfredpayOnrampDirectFlow<ToToken extends TokenBrand>(toToken: ToToken) {
-  const start = FlowBuilder.start(AlfredpayMint)
+  const start = FlowBuilder.start(fiatRequestIO(FiatToken.ARS, FiatToken.COP, FiatToken.MXN, FiatToken.USD), AlfredpayMint)
     .pipe(FundEphemeral(ALFREDPAY_EVM_TOKEN, Networks.Polygon))
     .pipe(AlfredpaySubsidizePre<typeof ALFREDPAY_EVM_TOKEN, typeof Networks.Polygon>());
 

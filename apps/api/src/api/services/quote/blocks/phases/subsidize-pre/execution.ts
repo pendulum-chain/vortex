@@ -1,10 +1,12 @@
 import {
+  ApiManager,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
   EvmToken,
   EvmTokenDetails,
   getOnChainTokenDetails,
+  getPendulumDetails,
   Networks,
   nativeToDecimal,
   RampCurrency,
@@ -18,6 +20,7 @@ import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { getFundingAccount } from "../../../../../controllers/subsidize.controller";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
@@ -25,6 +28,8 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePreContext } from "./simulation";
+
+const EVM_SETTLEMENT_DELAY_MS = parseInt(process.env.SUBSIDY_SETTLEMENT_DELAY_MS || "15000", 10);
 
 export class SubsidizePreSwapExecutor extends BasePhaseHandler {
   public getPhaseName(): RampPhase {
@@ -41,12 +46,43 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       throw new Error("Quote not found for the given state");
     }
 
+    const metadata = getBlockMetadata(quote.metadata, SubsidizePreContext);
+
+    if (metadata.network === Networks.Pendulum) {
+      const substrateAddress = state.state.substrateEphemeralAddress;
+      if (!substrateAddress) throw new Error("SubsidizePreSwapExecutor: missing Substrate ephemeral");
+      const manager = ApiManager.getInstance();
+      const pendulum = await manager.getApi("pendulum");
+      const currencyId = metadata.inputCurrencyId ?? getPendulumDetails(metadata.inputCurrency as RampCurrency).currencyId;
+      const balance = await pendulum.api.query.tokens.accounts(substrateAddress, currencyId);
+      const current = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+      if (current.eq(0)) throw this.createRecoverableError("Input token did not arrive on Pendulum");
+      const required = new Big(metadata.targetInputAmountRaw).minus(current);
+      if (required.gt(0)) {
+        const funding = getFundingAccount();
+        const fundingBalance = await pendulum.api.query.tokens.accounts(funding.address, currencyId);
+        const available = new Big((fundingBalance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+        if (available.lt(required)) throw this.createUnrecoverableError("Pendulum pre-swap funding balance too low");
+        const result = await manager.executeApiCall(
+          api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
+          funding,
+          "pendulum"
+        );
+        await this.createSubsidy(
+          state,
+          nativeToDecimal(required, metadata.inputDecimals).toNumber(),
+          metadata.inputCurrency as SubsidyToken,
+          funding.address,
+          result.hash
+        );
+      }
+      return state;
+    }
+
     const { evmEphemeralAddress } = state.state as StateMetadata;
     if (!evmEphemeralAddress) {
       throw new Error("SubsidizePreSwapExecutor: State metadata corrupted. This is a bug.");
     }
-
-    const metadata = getBlockMetadata(quote.metadata, SubsidizePreContext);
 
     try {
       const inputToken = metadata.inputCurrency as EvmToken;
@@ -60,7 +96,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
 
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",

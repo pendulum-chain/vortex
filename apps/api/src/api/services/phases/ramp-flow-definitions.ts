@@ -25,6 +25,21 @@ export const BRL_ONRAMP_BASE_SAME_CHAIN: RampPhase[] = [
   "complete"
 ];
 
+/** BRL → non-USDC output on Base. Nabla swap followed by a same-chain SquidRouter swap. */
+export const BRL_ONRAMP_BASE_SAME_CHAIN_SWAP: RampPhase[] = [
+  "initial",
+  "brlaOnrampMint",
+  "fundEphemeral",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "distributeFees",
+  "subsidizePostSwap",
+  "squidRouterSwap",
+  "destinationTransfer",
+  "complete"
+];
+
 /** BRL → USDC cross-chain (EVM destination). Full Nabla + SquidRouter bridge. */
 export const BRL_ONRAMP_BASE_CROSS_CHAIN: RampPhase[] = [
   "initial",
@@ -63,6 +78,21 @@ export const EUR_ONRAMP_BASE_SAME_CHAIN: RampPhase[] = [
   "nablaSwap",
   "distributeFees",
   "subsidizePostSwap",
+  "destinationTransfer",
+  "complete"
+];
+
+/** EUR → another Base token. Nabla EURC→USDC followed by one same-chain SquidRouter swap. */
+export const EUR_ONRAMP_BASE_SAME_CHAIN_SWAP: RampPhase[] = [
+  "initial",
+  "mykoboOnrampDeposit",
+  "fundEphemeral",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "distributeFees",
+  "subsidizePostSwap",
+  "squidRouterSwap",
   "destinationTransfer",
   "complete"
 ];
@@ -122,6 +152,19 @@ export const BRL_OFFRAMP_BASE: RampPhase[] = [
   "nablaApprove",
   "nablaSwap",
   "subsidizePostSwap",
+  "brlaPayoutOnBase",
+  "complete"
+];
+
+export const BRL_OFFRAMP_ASSETHUB_USDC: RampPhase[] = [
+  "initial",
+  "fundEphemeral",
+  "distributeFees",
+  "subsidizePreSwap",
+  "nablaApprove",
+  "nablaSwap",
+  "subsidizePostSwap",
+  "pendulumToMoonbeamXcm",
   "brlaPayoutOnBase",
   "complete"
 ];

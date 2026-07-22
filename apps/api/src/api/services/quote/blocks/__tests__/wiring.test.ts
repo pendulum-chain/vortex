@@ -1,9 +1,12 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
-import { BlockInitialExecutor } from "../core/initial-executor";
-import { getBlockExecutorFlows, resolveBlockFlow } from "../flows/catalog";
-import { getBlockFlowHandlers } from "../register-handlers";
+
+mock.module("../../../ramp/ramp.service", () => ({ default: {} }));
+
+const { BlockInitialExecutor } = await import("../core/initial-executor");
+const { getBlockExecutorFlows, resolveBlockFlow } = await import("../flows/catalog");
+const { getBlockFlowHandlers } = await import("../register-handlers");
 
 const mappedRequest = {
   from: EPaymentMethod.PIX,
@@ -31,6 +34,40 @@ describe("block flow production wiring", () => {
     expect(flow.name).toBe("AlfredpayOnrampCrossChain");
   });
 
+  it("resolves non-Base SEPA EUR onramps to the Mykobo cross-chain flow", () => {
+    const flow = resolveBlockFlow({
+      ...mappedRequest,
+      from: EPaymentMethod.SEPA,
+      inputCurrency: FiatToken.EURC
+    });
+    expect(flow.name).toBe("EurOnrampBaseCrossChain");
+    expect(() =>
+      resolveBlockFlow({
+        ...mappedRequest,
+        from: EPaymentMethod.ACH,
+        inputCurrency: FiatToken.EURC
+      })
+    ).toThrow(APIError);
+  });
+
+  it("resolves every supported EUR Base output to its exact non-overlapping flow", () => {
+    const eurBaseRequest = {
+      ...mappedRequest,
+      from: EPaymentMethod.SEPA,
+      inputCurrency: FiatToken.EURC,
+      network: Networks.Base,
+      to: Networks.Base
+    };
+    expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency: EvmToken.EURC }).name).toBe("EurOnrampBaseDirect");
+    expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency: EvmToken.USDC }).name).toBe("EurOnrampBaseSameChain");
+    for (const outputCurrency of [EvmToken.USDT, EvmToken.ETH, EvmToken.AXLUSDC, EvmToken.BRLA]) {
+      expect(resolveBlockFlow({ ...eurBaseRequest, outputCurrency }).name).toBe("EurOnrampBaseSameChainSwap");
+    }
+    expect(() => resolveBlockFlow({ ...eurBaseRequest, from: EPaymentMethod.ACH, outputCurrency: EvmToken.USDC })).toThrow(
+      APIError
+    );
+  });
+
   it("resolves both Alfredpay Polygon variants to the direct flow family", () => {
     for (const outputCurrency of [EvmToken.USDT, EvmToken.USDC]) {
       const flow = resolveBlockFlow({
@@ -45,8 +82,21 @@ describe("block flow production wiring", () => {
     }
   });
 
-  it("rejects an unmapped corridor at quote resolution", () => {
-    expect(() => resolveBlockFlow({ ...mappedRequest, outputCurrency: EvmToken.USDC, to: Networks.Base })).toThrow(APIError);
+  it("resolves every supported BRL Base output to its exact static flow", () => {
+    expect(resolveBlockFlow({ ...mappedRequest, network: Networks.Base, to: Networks.Base }).name).toBe(
+      "BrlOnrampBaseSameChain"
+    );
+    for (const outputCurrency of [EvmToken.USDT, EvmToken.ETH, EvmToken.AXLUSDC, EvmToken.EURC]) {
+      expect(resolveBlockFlow({ ...mappedRequest, network: Networks.Base, outputCurrency, to: Networks.Base }).name).toBe(
+        "BrlOnrampBaseSameChainSwap"
+      );
+    }
+  });
+
+  it("rejects Base requests outside the exact BRL PIX predicates", () => {
+    expect(() =>
+      resolveBlockFlow({ ...mappedRequest, from: EPaymentMethod.SPEI, network: Networks.Base, to: Networks.Base })
+    ).toThrow(APIError);
   });
 
   it("resolves BRL to BRLA on Base to the direct flow only", () => {

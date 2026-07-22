@@ -21,6 +21,8 @@ XCM (Cross-Consensus Messaging) is the inter-parachain transfer protocol used to
 - Balance polling is used to confirm token arrival on the destination chain
 - Phase transitions are returned to the processor, never directly mutated
 
+The BRL→AssetHub USDC block flow owns Moonbeam→Pendulum and Pendulum→AssetHub preparation and executors. The reverse AssetHub USDC→BRL flow owns the user-authority AssetHub→Pendulum blueprint, Pendulum fee/Nabla sequence, Pendulum→Moonbeam transfer to the trusted Avenia wallet, and Pendulum cleanup. New quotes remain disabled in both directions. Moonbeam XCM declares `nonceSpan: 2`, preserving the next usable Moonbeam nonce for cleanup. The non-USDC Hydration topology remains dormant and is not part of either flow.
+
 ## Security Invariants
 
 1. **Moonbeam→Pendulum XCM MUST use RPC shuffling on retry** — `moonbeam-to-pendulum-xcm-handler.ts` maintains a `submittedToRpcIndexes` array per ramp. On retry, it selects a different RPC node. When all RPCs are exhausted, it throws `RecoverablePhaseError` with a 30-minute wait to allow chain recovery.
@@ -33,6 +35,10 @@ XCM (Cross-Consensus Messaging) is the inter-parachain transfer protocol used to
 8. **Hydration swap MUST use a presigned transaction** — The swap extrinsic is presigned at ramp creation and stored. The handler decodes and submits it. Server cannot modify swap parameters at execution time.
 9. **All XCM handlers MUST treat already-executed transfers as success, not error** — Re-execution detection (nonce checks, balance checks, hash checks) must transition forward, never re-submit.
 10. **Moonbeam→Pendulum handler retry loop MUST be bounded** — The handler retries `executeXCM` up to 5 attempts with 20-second delays. After exhaustion, the error propagates to the phase processor for higher-level retry.
+11. **Moonbeam XCM nonce consumption MUST be represented structurally** — The transaction intent MUST declare `nonceSpan: 2`; cleanup MUST receive Moonbeam nonce 2 without a dummy transaction or phase-local explicit nonce.
+12. **Catalog presence MUST NOT bypass BRL↔AssetHub eligibility** — Either block flow may resolve for persisted recovery and parity tests, but public quote creation MUST reject both directions while the corridor is disabled.
+13. **AssetHub→Pendulum authority MUST remain with the user** — `assethubToPendulum` is an unsigned server-issued blueprint signed and broadcast by the user's AssetHub wallet. It MUST NOT be accepted as an ephemeral presigned transaction. The reported hash and blueprint authority MUST be present before platform-funded Pendulum execution begins.
+14. **AssetHub off-ramp Pendulum nonces MUST remain contiguous** — Fee distribution, Nabla approve, Nabla swap, and Pendulum→Moonbeam XCM use nonces 0–3; post-complete Pendulum cleanup uses nonce 4. Backup extrinsics are generated from these same primary blueprints through `meta.additionalTxs` and MUST pass Substrate call-equivalence validation.
 
 ## Threat Vectors & Mitigations
 

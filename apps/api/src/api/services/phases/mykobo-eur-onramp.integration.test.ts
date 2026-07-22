@@ -255,7 +255,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR onramp contract test (r
     expect(Object.values(MykoboTransactionStatus)).toContain(fetched.transaction.status as MykoboTransactionStatus);
   });
 
-  it("creates a EUR onramp quote on Base via QuoteService and populates mykoboMint metadata", async () => {
+  it("creates a EUR onramp quote on Base via QuoteService and populates the mykoboMint block", async () => {
     const quoteService = new QuoteService();
 
     const quote = await quoteService.createQuote({
@@ -274,15 +274,18 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR onramp contract test (r
       outputAmount: quote.outputAmount,
       totalFeeFiat: quote.totalFeeFiat
     });
-    console.log("mykoboMint metadata:", quoteTicket.metadata.mykoboMint);
+    const metadata = quoteTicket.metadata as unknown as {
+      blocks: { mykoboMint?: { mint: { outputAmountRaw?: string } } };
+    };
+    console.log("mykoboMint metadata:", metadata.blocks.mykoboMint);
 
     expect(quote.inputCurrency).toBe(FiatToken.EURC);
     expect(quote.outputCurrency).toBe(EvmToken.USDC);
     expect(Number(quote.outputAmount)).toBeGreaterThan(0);
     expect(Number(quote.totalFeeFiat)).toBeGreaterThanOrEqual(0);
-    expect(quoteTicket.metadata.mykoboMint).toBeDefined();
-    expect(quoteTicket.metadata.mykoboMint?.outputAmountRaw).toBeDefined();
-    expect(Number(quoteTicket.metadata.mykoboMint?.outputAmountRaw)).toBeGreaterThan(0);
+    expect(metadata.blocks.mykoboMint).toBeDefined();
+    expect(metadata.blocks.mykoboMint?.mint.outputAmountRaw).toBeDefined();
+    expect(Number(metadata.blocks.mykoboMint?.mint.outputAmountRaw)).toBeGreaterThan(0);
   });
 
   // SKIPPED: registerRamp unconditionally rejects EURC quotes with 503 "EUR ramps are

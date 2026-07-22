@@ -41,7 +41,7 @@ describe("RouteResolver", () => {
     expect(() => new RouteResolver().resolve(ctx)).toThrow(APIError);
   });
 
-  it("keeps BRL onramp to AssetHub USDC available", () => {
+  it("keeps BRL onramp to AssetHub USDC disabled", () => {
     const ctx = createQuoteContext({
       partner: null,
       request: {
@@ -56,6 +56,6 @@ describe("RouteResolver", () => {
       targetFeeFiatCurrency: FiatToken.BRL
     });
 
-    expect(new RouteResolver().resolve(ctx).name).toBe("OnRampAveniaToAssetHub");
+    expect(() => new RouteResolver().resolve(ctx)).toThrow(APIError);
   });
 });

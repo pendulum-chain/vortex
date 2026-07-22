@@ -347,7 +347,10 @@ describe("SDK ↔ API contract (Alfredpay onramps, fiat → USDT on Polygon)", (
         expect(order.depositAddress.toLowerCase()).toBe(ephemeralAddress.toLowerCase());
 
         const persistedQuote = await QuoteTicket.findByPk(quote.id);
-        const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+        const metadata = persistedQuote?.metadata as unknown as
+          | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+          | undefined;
+        const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
         expect(mintAmountRaw).toBeGreaterThan(0n);
 
         scriptHappyWorld(ephemeralAddress, mintAmountRaw);

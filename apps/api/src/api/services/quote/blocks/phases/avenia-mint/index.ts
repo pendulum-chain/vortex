@@ -1,4 +1,6 @@
 import { EvmToken, FiatToken, Networks } from "@vortexfi/shared";
+import Big from "big.js";
+import { overrideFees } from "../../core/fees";
 import type { Phase, PhaseIO } from "../../core/types";
 import { BrlaOnrampMintExecutor } from "./execution";
 import { AveniaMintContext, simulateAveniaMint } from "./simulation";
@@ -14,5 +16,16 @@ export const AveniaMint: Phase<
   name: "AveniaMint",
   phases: ["brlaOnrampMint"],
   prepareTxs: prepareAveniaMintTxs,
-  simulate: simulateAveniaMint
+  async simulate(input, ctx) {
+    const result = await simulateAveniaMint(input, ctx);
+    return {
+      ...result,
+      fees: await overrideFees(ctx, {
+        anchor: {
+          amount: new Big(result.metadata.mint.fee).plus(result.metadata.transfer.fee).toString(),
+          currency: FiatToken.BRL
+        }
+      })
+    };
+  }
 };

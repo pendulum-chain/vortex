@@ -104,7 +104,7 @@ describe("BRL_ONRAMP_BASE_DIRECT block flow transaction parity", () => {
     });
     const blocks = await brlOnrampBaseDirectFlow.prepareTxs({
       destinationAddress: DESTINATION_ADDRESS,
-      evmEphemeral: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM },
+      accounts: { [EphemeralAccountType.EVM]: { address: EVM_EPHEMERAL_ADDRESS, type: EphemeralAccountType.EVM } },
       metadata: buildMetadata(),
       quote: quote as never,
       taxId: "tax-123"
@@ -116,6 +116,7 @@ describe("BRL_ONRAMP_BASE_DIRECT block flow transaction parity", () => {
       ["destinationTransfer", Networks.Base, 0]
     ]);
     expect(blocks.stateMeta).toEqual({
+      accountAddresses: { [EphemeralAccountType.EVM]: EVM_EPHEMERAL_ADDRESS },
       blockState: { aveniaMint: { taxId: "tax-123" } },
       destinationAddress: DESTINATION_ADDRESS,
       evmEphemeralAddress: EVM_EPHEMERAL_ADDRESS,

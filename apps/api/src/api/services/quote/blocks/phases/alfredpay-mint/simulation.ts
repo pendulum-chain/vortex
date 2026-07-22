@@ -58,11 +58,13 @@ export async function simulateAlfredpayMint(
   });
 
   ctx.addNote(`AlfredpayMint: ${input.amount.toFixed()} ${input.token} -> ${outputAmountDecimal.toFixed()} USDT on Polygon`);
+  const expiresAt = new Date(quote.expiration);
   return {
+    expiresAt,
     fees,
     metadata: {
       currency: input.token,
-      expirationDate: new Date(quote.expiration),
+      expirationDate: expiresAt,
       fee,
       inputAmountDecimal,
       inputAmountRaw: multiplyByPowerOfTen(inputAmountDecimal, 2).toFixed(0, 0),

@@ -8,6 +8,7 @@ import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 enum TransactionHashKey {
   HydrationToAssethubXcmHash = "hydrationToAssethubXcmHash",
   PendulumToAssethubXcmHash = "pendulumToAssethubXcmHash",
+  PendulumToMoonbeamXcmHash = "pendulumToMoonbeamXcmHash",
   SquidRouterSwapHash = "squidRouterSwapHash",
   DestinationTransferTxHash = "destinationTransferTxHash",
   BrlaPayoutTxHash = "brlaPayoutTxHash",
@@ -103,6 +104,8 @@ const EXPLORER_LINK_BUILDERS: Record<TransactionHashKey, ExplorerLinkBuilder> = 
 
   [TransactionHashKey.PendulumToAssethubXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
 
+  [TransactionHashKey.PendulumToMoonbeamXcmHash]: hash => `https://pendulum.subscan.io/block/${hash}`,
+
   [TransactionHashKey.SquidRouterSwapHash]: hash => `https://axelarscan.io/gmp/${hash}`,
 
   [TransactionHashKey.DestinationTransferTxHash]: (hash, _rampState, quote) => buildEvmExplorerLink(hash, quote.network),
@@ -128,6 +131,7 @@ const BUY_TRANSACTION_HASH_V2_PRIORITY: readonly TransactionHashKey[] = [
 
 const SELL_TRANSACTION_HASH_V2_PRIORITY: readonly TransactionHashKey[] = [
   TransactionHashKey.BrlaPayoutTxHash,
+  TransactionHashKey.PendulumToMoonbeamXcmHash,
   TransactionHashKey.MykoboPayoutTxHash,
   TransactionHashKey.AlfredpayOfframpTransferTxHash
 ] as const;

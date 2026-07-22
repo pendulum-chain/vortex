@@ -26,6 +26,7 @@ export interface AnchorOperationMetadata {
 
 export interface AveniaMintMetadata {
   mint: AnchorOperationMetadata;
+  network?: Networks;
   transfer: AnchorOperationMetadata;
 }
 
