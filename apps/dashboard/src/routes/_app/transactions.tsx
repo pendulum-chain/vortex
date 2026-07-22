@@ -53,12 +53,26 @@ function TransactionsPage() {
                     : "Start an onramp or approve a payout account to create your first transaction."}
                 </p>
               </div>
-              <Button asChild>
-                <Link to={hasApprovedRecipient ? "/transfer" : "/recipients"}>
-                  {hasApprovedRecipient ? "Start a transfer" : "Go to Recipients"}
-                  <ArrowRight />
-                </Link>
-              </Button>
+              {hasApprovedRecipient ? (
+                <Button asChild>
+                  <Link to="/transfer">
+                    Start a transfer
+                    <ArrowRight />
+                  </Link>
+                </Button>
+              ) : (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button asChild>
+                    <Link search={{ mode: "onramp" }} to="/transfer">
+                      Start an onramp
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/overview">Set up a payout account</Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </StaggerItem>

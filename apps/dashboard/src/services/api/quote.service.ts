@@ -21,7 +21,8 @@ export interface OfframpQuoteParams {
 
 export interface OnrampQuoteParams {
   corridorId: CorridorId;
-  inputAmount: number;
+  /** Validated decimal string, passed to the wire untouched to preserve precision. */
+  inputAmount: string;
   network: EvmNetworks;
   outputCurrency: OnChainToken;
 }
@@ -73,7 +74,7 @@ export function buildOnrampQuoteRequest(params: OnrampQuoteParams): CreateQuoteR
   return {
     countryCode: CORRIDOR_COUNTRY[params.corridorId],
     from: CORRIDOR_PAYMENT_METHOD[params.corridorId],
-    inputAmount: params.inputAmount.toString(),
+    inputAmount: params.inputAmount,
     inputCurrency: CORRIDOR_FIAT[params.corridorId],
     network: params.network,
     outputCurrency: params.outputCurrency,

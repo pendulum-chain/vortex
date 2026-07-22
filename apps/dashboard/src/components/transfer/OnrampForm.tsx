@@ -22,10 +22,12 @@ import { OnrampPaymentInstructions } from "./OnrampPaymentInstructions";
 import { QuoteSummary } from "./QuoteSummary";
 import { TokenCombobox } from "./TokenCombobox";
 
+const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
+
 const schema = z.object({
   amount: z
     .string()
-    .regex(/^\d+(\.\d{1,2})?$/, "Enter an amount with at most two decimals.")
+    .regex(AMOUNT_PATTERN, "Enter an amount with at most two decimals.")
     .refine(value => Number(value) > 0, "Enter an amount greater than zero."),
   corridorId: z.string().min(1, "Choose a fiat currency."),
   destinationAddress: z.string().refine((value): boolean => isAddress(value), "Enter a valid EVM wallet address."),
@@ -81,10 +83,11 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
   }, [form, networkTokens, outputCurrency]);
 
   const quoteParams =
-    corridorId && Number(amount) > 0 && network && outputCurrency
+    corridorId && AMOUNT_PATTERN.test(amount) && Number(amount) > 0 && network && outputCurrency
       ? {
           corridorId,
-          inputAmount: Number(amount),
+          // The validated string goes to the wire untouched — Number would round large decimals.
+          inputAmount: amount,
           network: network as (typeof tokenOptions)[number]["network"],
           outputCurrency: outputCurrency as (typeof tokenOptions)[number]["currency"]
         }

@@ -17,7 +17,7 @@ describe("buildOnrampQuoteRequest", () => {
     it(`builds a ${fiat} BUY quote`, () => {
       const request = buildOnrampQuoteRequest({
         corridorId,
-        inputAmount: 125.5,
+        inputAmount: "125.5",
         network: Networks.Polygon,
         outputCurrency: "USDC" as never
       });
