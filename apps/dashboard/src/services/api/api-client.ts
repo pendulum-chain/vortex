@@ -18,9 +18,13 @@ function refreshTokenOnce(): Promise<AuthTokens | null> {
 
 export class ApiError extends Error {
   status: number;
-  data: { error?: string; message?: string; details?: string };
+  data: { error?: string; message?: string; details?: string; fields?: Array<{ field: string; message: string }> };
 
-  constructor(status: number, data: { error?: string; message?: string; details?: string }, message: string) {
+  constructor(
+    status: number,
+    data: { error?: string; message?: string; details?: string; fields?: Array<{ field: string; message: string }> },
+    message: string
+  ) {
     super(message);
     this.status = status;
     this.data = data;
@@ -79,6 +83,7 @@ async function apiFetch<T>(
   if (!response.ok) {
     const errorData = (await response.json().catch(() => ({}))) as {
       error?: string | { message?: string; code?: string };
+      fields?: Array<{ field: string; message: string }>;
       message?: string;
     };
     // The backend uses both `{ error: "..." }` and `{ error: { code, message } }` shapes.
@@ -88,7 +93,11 @@ async function apiFetch<T>(
       response.statusText;
     throw new ApiError(
       response.status,
-      { error: typeof errorData.error === "string" ? errorData.error : errorData.error?.message, message: errorData.message },
+      {
+        error: typeof errorData.error === "string" ? errorData.error : errorData.error?.message,
+        fields: errorData.fields,
+        message: errorData.message
+      },
       serverMessage
     );
   }

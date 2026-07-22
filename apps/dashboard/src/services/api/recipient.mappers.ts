@@ -109,8 +109,11 @@ export function selfRecipientsFromFiatAccounts(
 ): Recipient[] {
   const corridor = CORRIDORS[corridorId];
   return accounts.map(fiatAccount => {
-    const label = fiatAccount.accountName
-      ? `${fiatAccount.accountName} · ${maskAccountNumber(fiatAccount.accountNumber)}`
+    // MX/CO/US holder names arrive in metadata.accountHolderName; top-level accountName is
+    // absent for SPEI and holds the bank name for ACH/BANK_USA.
+    const holderName = fiatAccount.metadata?.accountHolderName || fiatAccount.accountName;
+    const label = holderName
+      ? `${holderName} · ${maskAccountNumber(fiatAccount.accountNumber)}`
       : maskAccountNumber(fiatAccount.accountNumber);
     return {
       accountId: account.id,

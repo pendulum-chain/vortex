@@ -27,7 +27,19 @@ test("EU onboarding is disabled: card action and wizard deep link are both block
   await expect(wizard.getByText("KYC is currently disabled in Europe.")).toBeVisible({ timeout: 20_000 });
   await wizard.getByRole("button", { exact: true, name: "Close" }).first().click();
 
-  expect(backend.monerium.startRequests).toEqual([]);
+  await expect(page).toHaveURL(/\/overview\?onboarding=EU$/, { timeout: 20_000 });
+  await expect(page.getByRole("dialog").getByText("Verification in review")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue in background" })).toBeVisible();
+  expect(backend.monerium.startRequests).toEqual([{ customerType: "individual" }]);
+
+  await page.getByRole("button", { name: "Continue in background" }).click();
+  await expect.poll(() => new URL(page.url()).search).toBe("");
+  await expect(page.getByRole("button", { name: "Awaiting provider review" })).toBeVisible({ timeout: 20_000 });
+
+  backend.monerium.approved = true;
+  const euCard = page.getByTestId("corridor-card-EU");
+  await expect(euCard.getByText("Approved", { exact: true })).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByRole("button", { name: "Awaiting provider review" })).toBeHidden();
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });

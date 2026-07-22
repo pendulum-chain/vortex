@@ -1,0 +1,173 @@
+import { useNavigate } from "@tanstack/react-router";
+import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
+import { useSelector } from "@xstate/react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { resetTransferState, transferActor } from "@/machines/transferActor";
+
+function copy(value: string) {
+  navigator.clipboard.writeText(value);
+  toast.success("Copied to clipboard");
+}
+
+function PaymentRow({ label, value }: { label: string; value: unknown }) {
+  const text = typeof value === "string" && value ? value : "Not available";
+  return (
+    <div className="grid gap-1 border-b py-3 last:border-0">
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="break-all font-medium text-sm">{text}</span>
+        {text !== "Not available" && (
+          <Button aria-label={`Copy ${label}`} onClick={() => copy(text)} size="icon" type="button" variant="ghost">
+            <Copy className="size-4" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function usdReference(payment: AlfredpayFiatPaymentInstructions): string | undefined {
+  const description = payment.paymentDescription;
+  const match = description?.match(/:\s*([A-Z0-9]+)\s*$/i);
+  return match?.[1] && match[1].length >= 8 ? match[1] : description;
+}
+
+function instructionRows(ramp: RampProcess): Array<{ label: string; value: unknown }> {
+  const payment = ramp.achPaymentData;
+  // inputAmount is already a decimal string from the API — no float math, which would
+  // truncate (e.g. 4.35 -> 4.34) the exact amount the user is told to send.
+  const amountRow = { label: "Amount", value: `${ramp.inputAmount} ${ramp.inputCurrency}` };
+  switch (ramp.inputCurrency) {
+    case "MXN":
+      return [
+        amountRow,
+        { label: "CLABE", value: payment?.clabe },
+        { label: "Bank", value: payment?.bankName },
+        { label: "Beneficiary", value: payment?.accountHolderName },
+        { label: "Reference", value: payment?.reference },
+        { label: "Expires", value: payment?.expirationDate }
+      ];
+    case "USD":
+      return [
+        amountRow,
+        { label: "Beneficiary", value: payment?.bankBeneficiaryName },
+        { label: "Routing number (ACH)", value: payment?.bankRoutingNumber },
+        { label: "Account number", value: payment?.bankAccountNumber },
+        { label: "Account type", value: "Checking" },
+        { label: "Payment reference", value: payment ? usdReference(payment) : undefined }
+      ];
+    case "COP":
+      return [
+        amountRow,
+        { label: "Destination account", value: payment?.bankAccountNumber },
+        { label: "Bank", value: payment?.bankName },
+        { label: "Beneficiary", value: payment?.accountHolderName },
+        { label: "Reference", value: payment?.reference },
+        { label: "Expires", value: payment?.expirationDate }
+      ];
+    case "ARS":
+      return [
+        amountRow,
+        { label: "CVU", value: payment?.cvu },
+        { label: "Alias", value: payment?.alias },
+        { label: "Reference", value: payment?.reference },
+        { label: "Expires", value: payment?.expirationDate }
+      ];
+    default:
+      return [];
+  }
+}
+
+export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
+  const navigate = useNavigate();
+  const starting = useSelector(transferActor, snapshot => snapshot.matches("Starting"));
+  const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
+  const [now, setNow] = useState(() => Date.now());
+  const rows = instructionRows(ramp);
+  const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
+  const expired = Number.isFinite(expiresAt) && expiresAt <= now;
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  function confirmPayment() {
+    const subscription = transferActor.subscribe(snapshot => {
+      if (snapshot.matches("Tracking")) {
+        subscription.unsubscribe();
+        toast.success("Onramp initiated", { description: "We’ll update your transaction as the payment settles." });
+        navigate({ to: "/transactions" });
+      } else if (snapshot.matches("AwaitingPayment") || snapshot.matches("Failed")) {
+        // A failed start returns to AwaitingPayment so the ramp and instructions survive.
+        subscription.unsubscribe();
+        toast.error("Could not start onramp", { description: snapshot.context.errorMessage ?? undefined });
+      }
+    });
+    transferActor.send({ type: "PAYMENT_CONFIRMED" });
+  }
+
+  if (expired) {
+    return (
+      <div className="grid gap-5">
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-destructive">
+          <TriangleAlert className="mt-px size-5 shrink-0" />
+          <div className="grid gap-1">
+            <h2 className="font-semibold">Payment instructions expired</h2>
+            <p className="text-sm">Do not send money using these details. Get a new quote and fresh payment instructions.</p>
+          </div>
+        </div>
+        <Button onClick={resetTransferState} size="lg" type="button">
+          Get a new quote
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-1">
+        <h2 className="font-semibold text-lg">Make your {ramp.inputCurrency} payment</h2>
+        <p className="text-muted-foreground text-sm">
+          Use the exact details below. Start the transfer only after your payment has been submitted.
+        </p>
+      </div>
+
+      {ramp.inputCurrency === "BRL" && ramp.depositQrCode ? (
+        <div className="grid justify-items-center gap-4 rounded-lg border bg-white p-5 text-black">
+          <QRCodeSVG size={184} value={ramp.depositQrCode} />
+          <Button onClick={() => copy(ramp.depositQrCode as string)} type="button" variant="outline">
+            <Copy /> Copy PIX code
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-lg border px-4">
+          {rows.map(row => (
+            <PaymentRow key={row.label} {...row} />
+          ))}
+        </div>
+      )}
+
+      {startError && !starting && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm"
+          role="alert"
+        >
+          <TriangleAlert className="mt-px size-4 shrink-0" />
+          <div className="grid gap-1">
+            <p>{startError}</p>
+            <p>Your payment details are unchanged — you can safely try again.</p>
+          </div>
+        </div>
+      )}
+
+      <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
+        <Check /> {starting ? "Starting transfer…" : startError ? "Try again" : "I have made the payment"}
+      </Button>
+    </div>
+  );
+}

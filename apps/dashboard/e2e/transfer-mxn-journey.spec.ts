@@ -22,10 +22,7 @@ const EXPECTED_PAYIN_USDC = "54.054054";
 //   "broadcast" by the wallet stub, and its receipt is answered by the mocked Polygon RPC.
 // - Only the direct Polygon no-permit path is exercised; the permit/TokenRelayer variant needs
 //   relayer-contract execution that the mock does not model.
-//
-// Skipped while the submit button in FundingMethods is commented out — self-serve transfers are
-// enabled per account on request, so there is no button to drive. Un-skip together with it.
-test.skip("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast, start, tracking", async ({ page }) => {
+test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast, start, tracking", async ({ page }) => {
   const backend = await mockBackend(page);
   // The whole journey lives on Polygon, so the wallet connects on chain 137 and
   // signAndSubmitEvmTransaction never needs a chain switch.
@@ -46,10 +43,14 @@ test.skip("SELL MXN transfer: quote, register, ephemeral presigning, wallet broa
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await expect(sendButton).toContainText(EXPECTED_PAYIN_USDC);
+  await expect(page.getByText("1 USDC = 18.69 MXN", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Fee details" }).click();
+  await expect(page.getByText("1 USDC = 18.50 MXN", { exact: true })).toBeVisible();
 
   // Stage 3: submitting runs register -> presign -> user signing -> start. The form toasts and
   // navigates once the machine reaches Tracking.
   await sendButton.click();
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/transactions/);
 
@@ -111,9 +112,7 @@ test.skip("SELL MXN transfer: quote, register, ephemeral presigning, wallet broa
 // Each saved payout account is its own self-recipient, and the offramp registers against the
 // selected one's fiatAccountId. Picking the second account must send the money there — the first
 // account is auto-selected, so a broken selector would silently pay out to the wrong account.
-//
-// Skipped for the same reason as the journey above: no submit button to drive.
-test.skip("SELL MXN transfer: choosing a different payout account registers against that account", async ({ page }) => {
+test("SELL MXN transfer: choosing a different payout account registers against that account", async ({ page }) => {
   const backend = await mockBackend(page);
   await injectMockWallet(page, { chainIdHex: "0x89" });
   await seedSession(page);
@@ -140,6 +139,7 @@ test.skip("SELL MXN transfer: choosing a different payout account registers agai
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await sendButton.click();
 
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
 
   expect(backend.registerRequests).toHaveLength(1);

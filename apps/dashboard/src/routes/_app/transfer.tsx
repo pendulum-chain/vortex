@@ -1,24 +1,31 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Lock } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Globe2, Lock } from "lucide-react";
 import { motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
+import { OnrampForm } from "@/components/transfer/OnrampForm";
 import { TransferForm } from "@/components/transfer/TransferForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
 
+type TransferMode = "offramp" | "onramp" | "cross-border";
+
 export const Route = createFileRoute("/_app/transfer")({
   component: TransferPage,
-  validateSearch: (search: Record<string, unknown>): { recipient?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { mode?: TransferMode; recipient?: string } => ({
+    mode: search.mode === "onramp" || search.mode === "cross-border" || search.mode === "offramp" ? search.mode : "offramp",
     recipient: typeof search.recipient === "string" ? search.recipient : undefined
   })
 });
 
 function TransferPage() {
   const account = useActiveAccount();
-  const { recipient } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const { mode: searchMode, recipient } = Route.useSearch();
+  const mode = searchMode ?? "offramp";
   const { recipients } = useRecipients(account);
 
   if (!account) {
@@ -33,10 +40,60 @@ function TransferPage() {
     <Stagger className="mx-auto grid max-w-xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">New transfer</h1>
-        <p className="text-pretty text-muted-foreground">Pay an approved recipient by funding your Vortex wallet.</p>
+        <p className="text-pretty text-muted-foreground">
+          {mode === "offramp"
+            ? "Convert stablecoins into fiat through an approved payout account."
+            : mode === "onramp"
+              ? "Pay with fiat and receive tokens in an EVM wallet."
+              : "Send money directly across borders."}
+        </p>
       </StaggerItem>
 
-      {hasApproved ? (
+      <StaggerItem>
+        <Tabs
+          onValueChange={value =>
+            navigate({
+              search: previous => ({ ...previous, mode: value as TransferMode, recipient: undefined })
+            })
+          }
+          value={mode}
+        >
+          <TabsList className="grid h-11 w-full grid-cols-3">
+            <TabsTrigger value="offramp">Offramp</TabsTrigger>
+            <TabsTrigger value="onramp">Onramp</TabsTrigger>
+            <TabsTrigger value="cross-border">Cross-border</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </StaggerItem>
+
+      {mode === "onramp" ? (
+        <StaggerItem>
+          <Card>
+            <CardHeader>
+              <CardTitle>Onramp details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OnrampForm account={account} />
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      ) : mode === "cross-border" ? (
+        <StaggerItem>
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Globe2 className="size-5" />
+              </span>
+              <div className="grid gap-1">
+                <p className="font-medium">Cross-border transfers are coming soon</p>
+                <p className="max-w-sm text-pretty text-muted-foreground text-sm">
+                  You’ll be able to pay approved recipients directly across supported countries from here.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      ) : hasApproved ? (
         <StaggerItem>
           <Card>
             <CardHeader>

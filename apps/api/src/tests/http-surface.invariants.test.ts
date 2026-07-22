@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestApiKey, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
+import { createTestApiKey, createTestPartner, createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../test-utils/fake-world";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, TEST_OTP_CODE, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
@@ -228,6 +228,71 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
     it("requires authentication", async () => {
       const response = await requestJson(`/v1/ramp/history/${WALLET}`);
       expect(response.status).toBe(401);
+    });
+
+    it("serves all non-initial ramps owned by the authenticated user without a wallet filter", async () => {
+      const owner = await createTestUser();
+      const stranger = await createTestUser();
+      const firstWallet = "0x3333333333333333333333333333333333333333";
+      const secondWallet = "0x4444444444444444444444444444444444444444";
+
+      const first = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: owner.id
+      });
+      const second = await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: secondWallet } as StateMetadata,
+        userId: owner.id
+      });
+      await createTestRampState({
+        currentPhase: "complete",
+        quoteId: (await createTestQuote()).id,
+        state: { destinationAddress: firstWallet } as StateMetadata,
+        userId: stranger.id
+      });
+
+      const history = await requestJson("/v1/ramp/history", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(history.status).toBe(200);
+      expect(history.body.totalCount).toBe(2);
+      const transactions = history.body.transactions as Array<{ id: string; walletAddress: string }>;
+      expect(new Set(transactions.map(transaction => transaction.id))).toEqual(new Set([first.id, second.id]));
+      expect(new Set(transactions.map(transaction => transaction.walletAddress))).toEqual(
+        new Set([firstWallet, secondWallet])
+      );
+    });
+
+    it("accepts a user-scoped API key and rejects anonymous all-user history", async () => {
+      const owner = await createTestUser();
+      const { plaintextKey } = await createTestApiKey({ userId: owner.id });
+
+      const authenticated = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(authenticated.status).toBe(200);
+      expect(authenticated.body).toEqual({ totalCount: 0, transactions: [] });
+
+      const anonymous = await requestJson("/v1/ramp/history");
+      expect(anonymous.status).toBe(401);
+    });
+
+    it("rejects a partner-only secret key instead of falling back to partner-wide history", async () => {
+      const partner = await createTestPartner();
+      const { plaintextKey } = await createTestApiKey({ partnerName: partner.name });
+
+      const response = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
+      expect(response.status).toBe(403);
+    });
+
+    it("validates history pagination", async () => {
+      const owner = await createTestUser();
+      const response = await requestJson("/v1/ramp/history?limit=10x&offset=-1", {
+        headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
+      });
+      expect(response.status).toBe(400);
     });
   });
 

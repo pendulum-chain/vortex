@@ -295,6 +295,7 @@ The dual-track auth model — partner SDK key OR Supabase user session — is th
 | `POST /v1/ramp/start` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, rampId)` — same condition as update |
 | `GET /v1/ramp/:id` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, id)` — same condition as update |
 | `GET /v1/ramp/:id/errors` | `optionalPartnerOrUserAuth()` | `assertRampOwnership(req, id)` — same condition as update |
+| `GET /v1/ramp/history` | `requirePartnerOrUserAuth()` | Effective user required; direct `RampState.userId` filter across wallets. No partner-wide fallback and never anonymous. |
 | `GET /v1/ramp/history/:walletAddress` | `requirePartnerOrUserAuth()` | Service-layer filter: partner → owned `quoteId`s; user → matching `userId`. **Never anonymous.** |
 | `/v1/brla/*` user data | `requireAuth` | Supabase userId scoping |
 | `/v1/maintenance/*` | `adminAuth` | n/a |

@@ -1,4 +1,4 @@
-import type { QuoteResponse } from "@vortexfi/shared";
+import { type QuoteResponse, RampDirection } from "@vortexfi/shared";
 import { ChevronDown, Info, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
@@ -39,14 +39,25 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
   const output = Number(quote.outputAmount);
   const discount = Number(quote.discountFiat ?? "0");
   const effectiveTotalFee = Number(quote.totalFeeFiat) - discount;
-  const interbankRate = input > 0 ? (output + effectiveTotalFee) / input : 0;
   const netRate = input > 0 ? output / input : 0;
   const fiat = quote.feeCurrency;
+  const isOnramp = quote.rampType === RampDirection.BUY;
+  const grossRate = isOnramp
+    ? input - effectiveTotalFee > 0
+      ? output / (input - effectiveTotalFee)
+      : 0
+    : input > 0
+      ? (output + effectiveTotalFee) / input
+      : 0;
+  const inputCurrency = String(quote.inputCurrency);
+  const outputCurrency = String(quote.outputCurrency);
 
   const feeItems: { label: string; tooltip: string; value: string }[] = [
     {
       label: "Processing fee",
-      tooltip: "Provider and Vortex fees for settling to the recipient's bank.",
+      tooltip: isOnramp
+        ? "Provider and Vortex fees for converting your fiat payment on-chain."
+        : "Provider and Vortex fees for settling to the recipient's bank.",
       value: `${quote.processingFeeFiat} ${fiat}`
     }
   ];
@@ -72,7 +83,7 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
         <div className="flex items-center gap-2">
           <RefreshCw className={cn("size-3.5 text-muted-foreground", isFetching && "animate-spin")} />
           <span className="font-medium text-sm tabular-nums">
-            1 USDC = {formatRate(interbankRate)} {fiat}
+            1 {inputCurrency} = {formatRate(grossRate)} {outputCurrency}
           </span>
         </div>
       </div>
@@ -133,7 +144,7 @@ export function QuoteSummary({ quote, isFetching }: QuoteSummaryProps) {
                 </Tooltip>
               </span>
               <span className="font-medium tabular-nums">
-                1 USDC = {formatRate(netRate)} {fiat}
+                1 {inputCurrency} = {formatRate(netRate)} {outputCurrency}
               </span>
             </div>
           </motion.div>

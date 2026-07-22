@@ -474,6 +474,10 @@
           },
           "type": {
             "$ref": "#/components/schemas/RampDirection"
+          },
+          "walletAddress": {
+            "description": "Destination address for a BUY ramp when available.",
+            "type": "string"
           }
         },
         "required": ["id", "type", "from", "to", "fromAmount", "toAmount", "fromCurrency", "toCurrency", "status", "date"],
@@ -3023,6 +3027,38 @@
         },
         "security": [],
         "summary": "Get ramp error logs",
+        "tags": ["Ramp"]
+      }
+    },
+    "/v1/ramp/history": {
+      "get": {
+        "deprecated": false,
+        "description": "Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.",
+        "parameters": [
+          {
+            "description": "The maximum count of transaction items returned in this query. The maximum value is `100`.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": { "default": 20, "type": "integer" }
+          },
+          {
+            "description": "The offset for querying older transactions.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": { "default": 0, "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GetRampHistoryResponse" } } },
+            "description": "Authenticated user's ramp history.",
+            "headers": {}
+          }
+        },
+        "security": [],
+        "summary": "Get authenticated user ramp history",
         "tags": ["Ramp"]
       }
     },

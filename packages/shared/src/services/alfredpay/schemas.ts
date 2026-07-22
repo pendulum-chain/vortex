@@ -14,6 +14,7 @@ import {
   AlfredpayOnrampQuote,
   AlfredpayOnrampStatus,
   AlfredpayOnrampTransaction,
+  CreateAlfredpayFiatAccountResponse,
   GetKycStatusResponse
 } from "./types";
 
@@ -46,6 +47,7 @@ type ConsumedOfframpTransaction = Pick<
 type ConsumedFiatAccount = Pick<AlfredpayFiatAccount, "fiatAccountId" | "accountNumber" | "type" | "accountName"> & {
   metadata?: { accountHolderName?: string };
 };
+type ConsumedCreateFiatAccount = Pick<CreateAlfredpayFiatAccountResponse, "fiatAccountId">;
 type ConsumedKycStatus = Pick<GetKycStatusResponse, "status"> & {
   metadata?: { failureReason?: string } | null;
 };
@@ -144,6 +146,11 @@ export const alfredpayFiatAccountsResponseSchema = z.array(
     type: z.enum(AlfredpayFiatAccountType)
   })
 ) satisfies z.ZodType<ConsumedFiatAccount[]>;
+
+/** The body of a POST …/fiatAccounts response. */
+export const alfredpayCreateFiatAccountResponseSchema = z.looseObject({
+  fiatAccountId: z.string().min(1)
+}) satisfies z.ZodType<ConsumedCreateFiatAccount>;
 
 /**
  * The body of a GET …/customers/{customerId}/kyb/details response: one entry per business the

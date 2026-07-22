@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CORRIDORS } from "@/domain/corridors";
 import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
@@ -59,8 +58,8 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const [amount, setAmount] = useState("");
   const [pixKey, setPixKey] = useState("");
 
-  const selected = recipients.find(recipient => recipient.id === recipientId);
-  // Only self-recipients are sendable today; third-party sending is coming soon.
+  const selfRecipients = recipients.filter(recipient => recipient.isSelf);
+  const selected = selfRecipients.find(recipient => recipient.id === recipientId);
   const isSendable = selected?.isSelf === true && selected.status === "approved";
   const corridor = selected ? CORRIDORS[selected.corridorId] : undefined;
   const payoutAmount = Number(amount);
@@ -82,6 +81,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     snapshot =>
       snapshot.matches("Registering") ||
       snapshot.matches("SigningUserTxs") ||
+      snapshot.matches("AwaitingPayment") ||
       snapshot.matches("Starting") ||
       snapshot.matches("Tracking")
   );
@@ -120,6 +120,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
         amountIn: quote.inputAmount,
         amountInToken: "USDC",
         corridorId: selected.corridorId,
+        direction: quote.rampType,
         fiatPayoutAmount: quote.outputAmount,
         payinNetwork: network,
         payoutCurrency: selected.payoutCurrency,
@@ -141,23 +142,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             <SelectValue placeholder="Select a recipient" />
           </SelectTrigger>
           <SelectContent>
-            {recipients.map(recipient => {
-              // Third-party sending isn't available yet — those rows are disabled with a
-              // "coming soon" tooltip; a self-recipient still awaiting KYC is disabled too.
-              if (!recipient.isSelf) {
-                return (
-                  <SelectItem className="text-muted-foreground" disabled key={recipient.id} value={recipient.id}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="pointer-events-auto">
-                          {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name} — Coming soon
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Coming soon — sending to third-party recipients isn't available yet.</TooltipContent>
-                    </Tooltip>
-                  </SelectItem>
-                );
-              }
+            {selfRecipients.map(recipient => {
               return (
                 <SelectItem disabled={recipient.status !== "approved"} key={recipient.id} value={recipient.id}>
                   {recipientLabel(recipient)} · {CORRIDORS[recipient.corridorId].name}
@@ -167,18 +152,14 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             })}
           </SelectContent>
         </Select>
-        <p className="text-muted-foreground text-xs">
-          You can send to your own payout accounts. Third-party sending is coming soon.
-        </p>
+        <p className="text-muted-foreground text-xs">Choose one of your approved payout accounts.</p>
       </div>
 
       {selected && !isSendable && (
         <div className="flex items-center gap-3 rounded-lg border border-dashed p-3 text-sm">
           <Lock className="size-4 text-muted-foreground" />
           <p className="text-muted-foreground">
-            {selected.isSelf
-              ? `${recipientLabel(selected)} is ${RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked until it's approved.`
-              : "Sending to third-party recipients is coming soon — you can only pay your own payout accounts for now."}
+            {`${recipientLabel(selected)} is ${RECIPIENT_STATUS_META[selected.status].label.toLowerCase()}. Transfers stay blocked until it's approved.`}
           </p>
         </div>
       )}

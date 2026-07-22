@@ -96,6 +96,11 @@ out against another tenant's relationship.
    (`403 NO_APPROVED_CORRIDOR`; approvals are read from `provider_customers.status`, which every
    provider persists). The dashboard's corridor filter is a UX mirror of these rules, not the
    enforcement point.
+10. **Sender self accounts are not recipient payout references.** For Alfredpay self offramps, the
+    dashboard lists and creates provider-side fiat accounts owned by the authenticated sender and
+    registration carries their `fiatAccountId` in `additionalData`. This does not create a
+    `recipient_payout_references` row and does not satisfy an invited recipient's payout gate;
+    recipient payout capture remains in the recipient's widget onboarding session.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 
@@ -172,6 +177,9 @@ payout-instrument decision (no code path writes `verified` payout references yet
       (`recipients.integration.test.ts`).
 - [ ] Eligibility walks the full ladder; each blocking reason is covered by the integration test.
 - [ ] No route or table stores raw PIX/IBAN/CLABE/account values for recipients.
+- [x] Alfredpay sender self accounts remain provider-side, registration carries only the
+      sender-owned `fiatAccountId`, and creating one does not write a
+      `recipient_payout_references` row or satisfy invited-recipient eligibility. **PASS**.
 
 ## Next Steps
 

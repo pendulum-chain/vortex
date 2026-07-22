@@ -11,6 +11,7 @@ import {
   Networks,
   type PresignedTx,
   type QuoteResponse,
+  RampDirection,
   type RampProcess,
   type RegisterRampRequest,
   signUnsignedTransactions,
@@ -24,7 +25,7 @@ const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY
 
 export interface RegisterTransferInput {
   quote: QuoteResponse;
-  additionalData: RegisterRampRequest["additionalData"] & { walletAddress: string };
+  additionalData: NonNullable<RegisterRampRequest["additionalData"]>;
 }
 
 export interface RegisterTransferOutput {
@@ -40,7 +41,10 @@ export interface RegisterTransferOutput {
  */
 export async function registerTransfer(input: RegisterTransferInput): Promise<RegisterTransferOutput> {
   const { quote, additionalData } = input;
-  const walletAddress = additionalData.walletAddress.toLowerCase();
+  const walletAddress = additionalData.walletAddress?.toLowerCase();
+  if (quote.rampType === RampDirection.SELL && !walletAddress) {
+    throw new Error("A connected wallet is required for an offramp");
+  }
 
   const substrateEphemeral = await createPendulumEphemeral();
   const evmEphemeral = createMoonbeamEphemeral();
@@ -53,9 +57,9 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
   const rampProcess = await RampService.registerRamp(quote.id, signingAccounts, additionalData);
   bindRampEphemerals(quote.id, rampProcess.id);
 
-  // The dashboard wallet is EVM-only, so every transaction not signed by the connected
-  // address belongs to an ephemeral (substrate signers can never match).
-  const ephemeralTxs = (rampProcess.unsignedTxs ?? []).filter(tx => tx.signer.toLowerCase() !== walletAddress);
+  const ephemeralTxs = (rampProcess.unsignedTxs ?? []).filter(
+    tx => quote.rampType === RampDirection.BUY || tx.signer.toLowerCase() !== walletAddress
+  );
 
   const apiManager = ApiManager.getInstance();
   const pendulumApiComponents = ephemeralTxs.some(tx => tx.network === Networks.Pendulum)
@@ -83,8 +87,17 @@ export async function registerTransfer(input: RegisterTransferInput): Promise<Re
     ALCHEMY_API_KEY
   );
 
-  const updatedRamp = await RampService.updateRamp(rampProcess.id, signedTransactions);
-  const userTxs = (updatedRamp.unsignedTxs ?? []).filter(tx => tx.signer.toLowerCase() === walletAddress);
+  const updateResponse = await RampService.updateRamp(rampProcess.id, signedTransactions);
+  const updatedRamp = {
+    ...updateResponse,
+    achPaymentData: updateResponse.achPaymentData ?? rampProcess.achPaymentData,
+    depositQrCode: updateResponse.depositQrCode ?? rampProcess.depositQrCode,
+    ibanPaymentData: updateResponse.ibanPaymentData ?? rampProcess.ibanPaymentData
+  };
+  const userTxs =
+    quote.rampType === RampDirection.SELL
+      ? (updatedRamp.unsignedTxs ?? []).filter(tx => tx.signer.toLowerCase() === walletAddress)
+      : [];
 
   return { ramp: updatedRamp, userTxs };
 }

@@ -63,23 +63,24 @@ export interface SenderAccount {
   onboardings: Partial<Record<CorridorId, Onboarding>>;
 }
 
-/** Wallet-to-fiat payout lifecycle: fund the payin wallet, then settle to the recipient bank. */
+/** Transfer lifecycle: fund the payin side, then settle to the destination. */
 export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | "failed" | "cancelled";
 
 export interface Transaction {
   id: string;
+  direction: "BUY" | "SELL";
   accountId: string;
   recipientId: string;
-  /** Denormalized for display so the table doesn't have to resolve recipients. */
+  /** Denormalized display label; for ramp-history rows a destination label ("Payout account", "Your wallet"). */
   recipientEmail: string;
   corridorId: CorridorId;
-  /** Vortex-created (Privy) deposit address the sender pays into. */
+  /** SELL: the sender's funding wallet. BUY: the wallet tokens are delivered to. */
   payinWallet: string;
   payinNetwork: string;
-  /** Crypto / stablecoin amount expected into the payin wallet. */
+  /** Amount the user pays in: stablecoin for SELL, fiat for BUY. */
   amountIn: string;
   amountInToken: string;
-  /** Fiat amount paid out to the recipient bank account. */
+  /** Amount received at the destination: fiat to the payout account for SELL, crypto to the wallet for BUY. */
   fiatPayoutAmount: string;
   payoutCurrency: string;
   status: TransactionStatus;

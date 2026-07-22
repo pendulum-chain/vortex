@@ -2,11 +2,10 @@ import type { GetRampHistoryResponse } from "@vortexfi/shared";
 import { apiClient } from "./api-client";
 
 /**
- * Ramp (transaction) history for a wallet, scoped server-side to the authenticated owner.
- * The dashboard shows the connected wallet's payouts.
+ * Ramp history scoped server-side to the authenticated user across all wallet addresses.
  */
 export const TransactionsService = {
-  history(walletAddress: string, limit = 50): Promise<GetRampHistoryResponse> {
-    return apiClient.get<GetRampHistoryResponse>(`/ramp/history/${walletAddress}`, { params: { limit } });
+  history(limit = 50): Promise<GetRampHistoryResponse> {
+    return apiClient.get<GetRampHistoryResponse>("/ramp/history", { params: { limit } });
   }
 };

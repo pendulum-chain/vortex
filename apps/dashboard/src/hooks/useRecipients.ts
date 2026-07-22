@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { AlfredpayListFiatAccountsResponse } from "@vortexfi/shared";
 import { useMemo } from "react";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
-import { AlfredpayService } from "@/services/api/alfredpay.service";
 import { ALFREDPAY_CORRIDORS } from "@/services/api/mappers";
 import {
   fallbackSelfRecipient,
@@ -12,21 +11,9 @@ import {
 } from "@/services/api/recipient.mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 import { useApprovedCorridors } from "./useApprovedCorridors";
+import { useFiatAccounts } from "./useFiatAccounts";
 
 export const RECIPIENTS_QUERY_KEY = ["recipients"] as const;
-
-const FIVE_MINUTES = 5 * 60_000;
-
-/** Saved AlfredPay payout accounts for a corridor. A missing customer 404s → treated as none. */
-function useFiatAccounts(corridorId: CorridorId, enabled: boolean) {
-  return useQuery<AlfredpayListFiatAccountsResponse>({
-    enabled,
-    queryFn: ({ signal }) => AlfredpayService.listFiatAccounts(corridorId, signal),
-    queryKey: ["fiatAccounts", corridorId],
-    retry: false,
-    staleTime: FIVE_MINUTES
-  });
-}
 
 /**
  * The "send to yourself" recipients, derived from data the widget already fetches:

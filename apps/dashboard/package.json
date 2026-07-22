@@ -1,6 +1,8 @@
 {
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
+    "@reown/appkit": "^1.8.8",
+    "@reown/appkit-adapter-wagmi": "^1.8.8",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-router": "^1.170.16",
     "@vortexfi/kyc": "workspace:*",
@@ -8,10 +10,10 @@
     "@xstate/react": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "connectkit": "^1.9.2",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.562.0",
     "motion": "^12.41.0",
+    "qrcode.react": "^4.2.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",

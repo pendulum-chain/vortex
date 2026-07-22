@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { ConnectKitProvider } from "connectkit";
+import { initializeEvmTokens } from "@vortexfi/shared";
 import { createRoot } from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 import "@/App.css";
@@ -9,6 +9,8 @@ import { wagmiConfig } from "@/lib/wagmi";
 import { getRouter } from "@/router";
 
 const router = getRouter();
+
+void initializeEvmTokens();
 
 const root = document.getElementById("app");
 
@@ -19,9 +21,7 @@ if (!root) {
 createRoot(root).render(
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
-      <ConnectKitProvider mode="auto">
-        <RouterProvider router={router} />
-      </ConnectKitProvider>
+      <RouterProvider router={router} />
     </QueryClientProvider>
   </WagmiProvider>
 );
