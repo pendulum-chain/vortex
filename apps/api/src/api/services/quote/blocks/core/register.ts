@@ -1,6 +1,7 @@
 import type { AccountMeta } from "@vortexfi/shared";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import { resolveBlockFlow } from "../flows/catalog";
+import { accountCapabilities } from "./accounts";
 import { getFlowMetadata } from "./metadata";
 import type { PreparedFlowTxs } from "./types";
 
@@ -23,15 +24,11 @@ export async function prepareBlockFlowTransactions({
   taxId,
   userId
 }: PrepareBlockFlowTransactionsArgs): Promise<PreparedFlowTxs> {
-  const evmEphemeral = signingAccounts.find(account => account.type === "EVM");
-  if (!evmEphemeral) {
-    throw new Error("Block flow transaction preparation requires an EVM ephemeral account");
-  }
   const metadata = getFlowMetadata(quote.metadata);
   const quoteFields = quote.get({ plain: true });
   return resolveBlockFlow(metadata.globals.request).prepareTxs({
+    accounts: accountCapabilities(signingAccounts),
     destinationAddress,
-    evmEphemeral,
     metadata,
     quote: quoteFields,
     taxId,

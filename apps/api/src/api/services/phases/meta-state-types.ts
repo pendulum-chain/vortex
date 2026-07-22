@@ -1,6 +1,14 @@
-import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData, Networks, RampPhase } from "@vortexfi/shared";
+import {
+  AlfredpayFiatPaymentInstructions,
+  EphemeralAccountType,
+  ExtrinsicOptions,
+  IbanPaymentData,
+  Networks,
+  RampPhase
+} from "@vortexfi/shared";
 
 export interface StateMetadata {
+  accountAddresses?: Partial<Record<EphemeralAccountType, string>>;
   blockState?: Record<string, unknown>;
   transactionPlan?: {
     nativePrefunding?: Record<string, string>;

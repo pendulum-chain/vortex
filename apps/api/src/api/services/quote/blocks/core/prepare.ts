@@ -38,13 +38,23 @@ export function allocateNonces(intents: TxIntent[]): UnsignedTx[] {
         continue;
       }
       const key = `${intent.network}:${intent.signer}`;
+      const span = intent.nonceSpan ?? 1;
+      if (!Number.isSafeInteger(span) || span <= 0) {
+        throw new Error(`Invalid nonce span ${span} for ${intent.phase}`);
+      }
+      if (intent.reuseFirstMainNonce && span !== 1) {
+        throw new Error(`Intent ${intent.phase} cannot combine reuseFirstMainNonce with nonceSpan ${span}`);
+      }
       let nonce: number;
       const pinnedNonce = firstMainNonce.get(key);
       if (intent.reuseFirstMainNonce && pinnedNonce !== undefined) {
         nonce = pinnedNonce;
       } else {
         nonce = nextNonce.get(key) ?? 0;
-        nextNonce.set(key, nonce + 1);
+        if (!Number.isSafeInteger(nonce + span)) {
+          throw new Error(`Nonce span ${span} for ${intent.phase} exceeds the safe nonce range`);
+        }
+        nextNonce.set(key, nonce + span);
       }
       if (lane === "main" && !firstMainNonce.has(key)) {
         firstMainNonce.set(key, nonce);

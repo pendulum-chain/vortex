@@ -2,6 +2,7 @@ import type {
   AccountMeta,
   CleanupPhase,
   CreateQuoteRequest,
+  EphemeralAccountType,
   Networks,
   QuoteFeeStructure,
   RampCurrency,
@@ -9,6 +10,7 @@ import type {
   UnsignedTx
 } from "@vortexfi/shared";
 import type { Big } from "big.js";
+import type { Transaction } from "sequelize";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
@@ -39,6 +41,12 @@ export interface PhaseCtx {
   targetFeeFiatCurrency?: RampCurrency;
 }
 
+export type FlowInputResolver<O extends PhaseIO> = (ctx: PhaseCtx) => O | Promise<O>;
+
+export type AccountCapabilities = Readonly<{
+  [Type in EphemeralAccountType]?: AccountMeta & { type: Type };
+}>;
+
 // Nonce lanes. Per (network, signer): "main" intents get sequential nonces in flow order,
 // "backup" intents follow after all main nonces, "cleanup" intents come last. An intent with
 // reuseFirstMainNonce takes the first main-lane nonce on its (network, signer) instead of the
@@ -53,6 +61,7 @@ export interface TxIntent {
   lane: TxLane;
   prefundNativeValueRaw?: string;
   reuseFirstMainNonce?: boolean;
+  nonceSpan?: number;
 }
 
 export interface PreparedPhaseTxs {
@@ -63,20 +72,25 @@ export interface PreparedPhaseTxs {
 export type QuoteFields = Omit<QuoteTicketAttributes, "metadata">;
 
 export interface PrepareGlobals {
-  quote: QuoteFields;
-  evmEphemeral: AccountMeta;
-  destinationAddress: string;
+  accounts: AccountCapabilities;
+  quote: Readonly<QuoteFields>;
+  destinationAddress?: string;
   taxId?: string;
   userId?: string;
 }
 
-export interface PrepareCtx<Metadata> extends PrepareGlobals {
+export interface PrepareCtx<Metadata, RegistrationFacts = never> extends PrepareGlobals {
   globals: FlowMetadata["globals"];
   ownMetadata: Readonly<Metadata>;
+  ownRegistrationFacts: Readonly<RegistrationFacts> | undefined;
 }
 
-export interface FlowPrepareCtx<Blocks extends Record<string, unknown>> extends PrepareGlobals {
+export interface FlowPrepareCtx<
+  Blocks extends Record<string, unknown>,
+  RegistrationFacts extends Record<string, unknown> = Record<string, never>
+> extends PrepareGlobals {
   metadata: FlowMetadata<Blocks>;
+  registrationFacts?: RegistrationFacts;
 }
 
 export interface PreparedFlowTxs {
@@ -85,12 +99,35 @@ export interface PreparedFlowTxs {
 }
 
 export interface PhaseResult<O extends PhaseIO, Metadata> {
+  expiresAt?: Date;
   fees?: PhaseCtx["fees"];
   metadata: Metadata;
   output: O;
 }
 
-export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O extends PhaseIO> {
+export interface RegisterCtx<Metadata, RegistrationInput extends Record<string, unknown> = Record<string, unknown>> {
+  authenticatedUser: Readonly<{ id: string }>;
+  input: Readonly<RegistrationInput>;
+  ipAddress?: string;
+  metadata: Readonly<Metadata>;
+  quote: Readonly<QuoteFields>;
+  signingAccounts: readonly AccountMeta[];
+  transaction?: Transaction;
+}
+
+export interface RegistrationResult<Facts, Metadata> {
+  facts: Facts;
+  metadata?: Metadata;
+  responseArtifacts?: Readonly<Record<string, unknown>>;
+}
+
+export interface Phase<
+  Context extends AnyContextMetadata,
+  I extends PhaseIO,
+  O extends PhaseIO,
+  RegistrationFacts = never,
+  RegistrationInput extends Record<string, unknown> = Record<string, unknown>
+> {
   readonly context: Context;
   readonly name: string;
   readonly phases: RampPhase[];
@@ -103,13 +140,38 @@ export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O 
   // The unsigned transactions this phase's executors expect the ephemeral/user to presign,
   // as nonce-free intents; the flow assembler allocates nonces per (network, signer, lane).
   // Optional: phases whose executors sign live (funding account) or need no tx omit it.
-  readonly prepareTxs?: (ctx: PrepareCtx<ContextSimulation<Context>>) => Promise<PreparedPhaseTxs>;
+  readonly prepareTxs?: (ctx: PrepareCtx<ContextSimulation<Context>, RegistrationFacts>) => Promise<PreparedPhaseTxs>;
+  readonly register?: (
+    ctx: RegisterCtx<ContextSimulation<Context>, RegistrationInput>
+  ) => Promise<RegistrationResult<RegistrationFacts, ContextSimulation<Context>>>;
 }
 
-export interface Flow<O extends PhaseIO = PhaseIO, Blocks extends Record<string, unknown> = Record<string, unknown>> {
+export interface FlowRegisterCtx<
+  Blocks extends Record<string, unknown>,
+  RegistrationInput extends Record<string, unknown> = Record<string, unknown>
+> extends Omit<RegisterCtx<never, RegistrationInput>, "metadata"> {
+  metadata: FlowMetadata<Blocks>;
+}
+
+export interface FlowRegistrationResult<
+  Blocks extends Record<string, unknown>,
+  RegistrationFacts extends Record<string, unknown>
+> {
+  metadata: FlowMetadata<Blocks>;
+  registrationFacts: RegistrationFacts;
+  responseArtifacts: Record<string, unknown>;
+}
+
+export interface Flow<
+  O extends PhaseIO = PhaseIO,
+  Blocks extends Record<string, unknown> = Record<string, unknown>,
+  RegistrationFacts extends Record<string, unknown> = Record<string, unknown>,
+  RegistrationInput extends Record<string, unknown> = Record<string, unknown>
+> {
   readonly name: string;
   readonly phases: RampPhase[];
   readonly executors: PhaseHandler[];
-  simulate(ctx: PhaseCtx): Promise<{ metadata: FlowMetadata<Blocks>; output: O }>;
-  prepareTxs(ctx: FlowPrepareCtx<Blocks>): Promise<PreparedFlowTxs>;
+  register(ctx: FlowRegisterCtx<Blocks, RegistrationInput>): Promise<FlowRegistrationResult<Blocks, RegistrationFacts>>;
+  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata<Blocks>; output: O }>;
+  prepareTxs(ctx: FlowPrepareCtx<Blocks, RegistrationFacts>): Promise<PreparedFlowTxs>;
 }

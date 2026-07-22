@@ -112,6 +112,10 @@ function buildTemporaryResponse(ctx: QuoteContext, metadata: FlowMetadata, outpu
   };
 }
 
+export function resolveBlockQuoteExpiry(providerExpiresAt: Date | undefined, now = new Date()): Date {
+  return providerExpiresAt ?? new Date(now.getTime() + 10 * 60 * 1000);
+}
+
 export async function runBlockQuoteFlow(ctx: QuoteContext): Promise<void> {
   const phaseCtx: PhaseCtx = {
     addNote: note => ctx.addNote?.(note),
@@ -121,10 +125,10 @@ export async function runBlockQuoteFlow(ctx: QuoteContext): Promise<void> {
     request: ctx.request,
     targetFeeFiatCurrency: ctx.targetFeeFiatCurrency
   };
-  const { metadata, output } = await resolveBlockFlow(ctx.request).simulate(phaseCtx);
+  const { expiresAt: providerExpiresAt, metadata, output } = await resolveBlockFlow(ctx.request).simulate(phaseCtx);
   const decimals = await validateOutput(ctx, output);
   const outputAmount = output.amount.toFixed(decimals, 0);
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const expiresAt = resolveBlockQuoteExpiry(providerExpiresAt);
   await assignSubsidyDisplay(metadata, ctx);
   ctx.fees = phaseCtx.fees;
 
