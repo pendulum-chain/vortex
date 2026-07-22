@@ -73,7 +73,7 @@ export function mapFiatAccountProviderRejection(
     case 111482:
       return { error: "This payout account no longer exists." };
     default:
-      return { error: "The payout provider could not verify this account. Double-check the details and try again." };
+      return { error: "Could not verify this account. Double-check the details and try again." };
   }
 }
 

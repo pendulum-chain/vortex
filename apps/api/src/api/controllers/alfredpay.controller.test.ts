@@ -72,7 +72,7 @@ describe("mapFiatAccountProviderRejection", () => {
 
   it("maps the UNKNOWN_ERROR catch-all (111301, seen for nonexistent CBUs) to a verification message", () => {
     const mapped = mapFiatAccountProviderRejection(providerError(400, '{"errorCode":111301,"errorMessage":"UNKNOWN_ERROR"}'));
-    expect(mapped?.error).toBe("The payout provider could not verify this account. Double-check the details and try again.");
+    expect(mapped?.error).toBe("Could not verify this account. Double-check the details and try again.");
   });
 
   it("never forwards the raw provider body", () => {
@@ -85,7 +85,7 @@ describe("mapFiatAccountProviderRejection", () => {
 
   it("maps a non-JSON 4xx body to the generic verification message", () => {
     const mapped = mapFiatAccountProviderRejection(providerError(400, "<html>Bad Request</html>"));
-    expect(mapped?.error).toBe("The payout provider could not verify this account. Double-check the details and try again.");
+    expect(mapped?.error).toBe("Could not verify this account. Double-check the details and try again.");
   });
 
   it("returns null for provider 5xx responses, transport failures, and non-provider errors", () => {
