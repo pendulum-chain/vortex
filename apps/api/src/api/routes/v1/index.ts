@@ -3,6 +3,7 @@ import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
+import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import alfredpayRoutes from "./alfredpay.route";
 import apiKeysRoutes from "./api-keys.route";
@@ -228,6 +229,13 @@ router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
  * DELETE /v1/admin/profile-partner-assignments/:assignmentId
  */
 router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes);
+
+/**
+ * Admin routes for partner pricing configs (optionally scoped to one fiat corridor)
+ * POST /v1/admin/partner-pricing-configs
+ * DELETE /v1/admin/partner-pricing-configs/:configId
+ */
+router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
 
 /**
  * Admin routes for API client observability dashboards
