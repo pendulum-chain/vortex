@@ -330,7 +330,10 @@ function parseHistoryPagination(query: { limit?: string; offset?: string }): { l
   const limit = query.limit === undefined ? 20 : Number(query.limit);
   const offset = query.offset === undefined ? undefined : Number(query.offset);
   if (!Number.isInteger(limit) || limit <= 0 || (offset !== undefined && (!Number.isInteger(offset) || offset < 0))) {
-    throw new APIError({ message: "History limit must be a positive integer and offset must be a non-negative integer", status: httpStatus.BAD_REQUEST });
+    throw new APIError({
+      message: "History limit must be a positive integer and offset must be a non-negative integer",
+      status: httpStatus.BAD_REQUEST
+    });
   }
   return { limit: Math.min(limit, 100), offset };
 }
