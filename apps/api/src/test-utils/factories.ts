@@ -63,6 +63,7 @@ export async function createTestPartner(overrides: TestPartnerOverrides = {}): P
   });
 
   await PartnerPricingConfig.create({
+    fiatCurrency: overrides.fiatCurrency ?? null,
     isActive: overrides.isActive ?? true,
     markupCurrency: overrides.markupCurrency ?? FiatToken.EURC,
     markupType: overrides.markupType ?? "none",

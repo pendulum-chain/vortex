@@ -85,7 +85,7 @@ async function calculatePartnerAndVortexFees(
 
   // 1. Fetch and process the partner's pricing config if a partner id is provided
   if (partnerId) {
-    const pricing = await findPartnerWithPricing({ id: partnerId }, rampType);
+    const pricing = await findPartnerWithPricing({ id: partnerId }, rampType, feeCurrency);
 
     if (pricing) {
       let hasApplicableFees = false;
@@ -146,7 +146,7 @@ async function calculatePartnerAndVortexFees(
 
   // 2. If no partner was provided initially, use default Vortex fees
   if (!partnerId) {
-    const vortexPricing = await findPartnerWithPricing({ name: "vortex" }, rampType);
+    const vortexPricing = await findPartnerWithPricing({ name: "vortex" }, rampType, feeCurrency);
 
     if (!vortexPricing) {
       logger.error(`Vortex partner configuration not found for ${rampType}-ramp in database.`);

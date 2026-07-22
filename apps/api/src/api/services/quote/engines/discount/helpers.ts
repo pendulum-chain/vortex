@@ -1,9 +1,10 @@
-import { EvmToken, FiatToken, normalizeTokenSymbol, RampDirection } from "@vortexfi/shared";
+import { EvmToken, FiatToken, normalizeTokenSymbol, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../priceFeed.service";
+import { getTargetFiatCurrency } from "../../core/helpers";
 import { QuoteContext } from "../../core/types";
 import { DiscountComputation } from "./index";
 
@@ -33,7 +34,7 @@ export type ActivePartner = {
   maxSubsidy: number;
   minDynamicDifference: number;
   maxDynamicDifference: number;
-  /** Discount-state map key, scoped per (partner, ramp direction). */
+  /** Discount-state map key, scoped per (partner, ramp direction, fiat corridor). */
   stateKey: string;
 } | null;
 
@@ -50,27 +51,32 @@ export function toActivePartner(pricing: PartnerWithPricing): ActivePartner {
     maxSubsidy: pricing.maxSubsidy,
     minDynamicDifference: pricing.minDynamicDifference,
     name: pricing.name,
-    stateKey: `${pricing.id}:${pricing.rampType}`,
+    stateKey: `${pricing.id}:${pricing.rampType}:${pricing.fiatCurrency ?? "*"}`,
     targetDiscount: pricing.targetDiscount
   };
 }
 
-export async function resolveActivePartnerById(partnerId: string, rampType: RampDirection): Promise<ActivePartner> {
-  const pricing = await findPartnerWithPricing({ id: partnerId }, rampType);
+export async function resolveActivePartnerById(
+  partnerId: string,
+  rampType: RampDirection,
+  fiatCurrency: RampCurrency
+): Promise<ActivePartner> {
+  const pricing = await findPartnerWithPricing({ id: partnerId }, rampType, fiatCurrency);
   return pricing ? toActivePartner(pricing) : null;
 }
 
 export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
   const partnerId = ctx.partner?.id;
+  const fiatCurrency = getTargetFiatCurrency(rampType, ctx.request.inputCurrency, ctx.request.outputCurrency);
 
   if (partnerId) {
-    const partner = await resolveActivePartnerById(partnerId, rampType);
+    const partner = await resolveActivePartnerById(partnerId, rampType, fiatCurrency);
     if (partner) {
       return partner;
     }
   }
 
-  const vortexPricing = await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, rampType);
+  const vortexPricing = await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, rampType, fiatCurrency);
   return vortexPricing ? toActivePartner(vortexPricing) : null;
 }
 

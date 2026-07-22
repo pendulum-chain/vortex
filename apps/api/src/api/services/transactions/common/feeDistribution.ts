@@ -22,10 +22,15 @@ import { MULTICALL3_ADDRESS, multicall3ABI } from "../../../../contracts/Multica
 import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
 import { findPartnerWithPricing } from "../../partners/partner-pricing.service";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
+import { getTargetFiatCurrency } from "../../quote/core/helpers";
 import { getZenlinkIdForAsset } from "../../zenlink";
 
 function getQuotePricingPartnerId(quote: QuoteTicketAttributes): string | null {
   return quote.pricingPartnerId ?? quote.partnerId ?? null;
+}
+
+function getQuoteFiatCurrency(quote: QuoteTicketAttributes) {
+  return getTargetFiatCurrency(quote.rampType, quote.inputCurrency, quote.outputCurrency);
 }
 
 /**
@@ -52,7 +57,7 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get payout addresses
-  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType);
+  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType, getQuoteFiatCurrency(quote));
   if (!vortexPartner) {
     logger.error(
       "FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
@@ -76,7 +81,7 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddress = null;
   if (pricingPartnerId) {
-    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType);
+    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType, getQuoteFiatCurrency(quote));
     if (quotePartner?.payoutAddressSubstrate) {
       partnerPayoutAddress = quotePartner.payoutAddressSubstrate;
     }
@@ -218,7 +223,7 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
 
   // Get vortex payout address (EVM)
-  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType);
+  const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType, getQuoteFiatCurrency(quote));
   if (!vortexPartner) {
     logger.error(
       "EVM FEE DISTRIBUTION FAILED: No active 'vortex' partner found for rampType=" +
@@ -251,7 +256,7 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
   const pricingPartnerId = getQuotePricingPartnerId(quote);
   let partnerPayoutAddressEvm: string | null = null;
   if (pricingPartnerId) {
-    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType);
+    const quotePartner = await findPartnerWithPricing({ id: pricingPartnerId }, quote.rampType, getQuoteFiatCurrency(quote));
     if (quotePartner?.payoutAddressEvm) {
       partnerPayoutAddressEvm = quotePartner.payoutAddressEvm;
     }
