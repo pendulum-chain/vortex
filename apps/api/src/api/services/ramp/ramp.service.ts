@@ -60,6 +60,7 @@ import { PriceFeedService } from "../priceFeed.service";
 import { resolveAlfredpayCustomerId } from "../quote/alfredpay-customer";
 import { accountCapabilities } from "../quote/blocks/core/accounts";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../quote/blocks/core/metadata";
+import { resolveBlockFlow } from "../quote/blocks/flows/catalog";
 import { AlfredpayMintContext, AlfredpayMintMetadata } from "../quote/blocks/phases/alfredpay-mint/simulation";
 import { AlfredpayMintPreparation } from "../quote/blocks/phases/alfredpay-mint/transactions";
 import { AlfredpayOfframpContext } from "../quote/blocks/phases/alfredpay-offramp/simulation";
@@ -1088,7 +1089,6 @@ export class RampService extends BaseRampService {
     transaction: Transaction
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
     const metadata = getFlowMetadata(quote.metadata);
-    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
     const flow = resolveBlockFlow(metadata.globals.request);
     const quoteFields = quote.get({ plain: true });
     const registered = await flow.register({
@@ -1133,7 +1133,6 @@ export class RampService extends BaseRampService {
   ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
     if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
       const metadata = getFlowMetadata(quote.metadata);
-      const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
       const flow = resolveBlockFlow(metadata.globals.request);
       const quoteFields = quote.get({ plain: true });
       const registered = await flow.register({
@@ -1172,7 +1171,6 @@ export class RampService extends BaseRampService {
       });
     }
     const metadata = getFlowMetadata(quote.metadata);
-    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
     const flow = resolveBlockFlow(metadata.globals.request);
     const quoteFields = quote.get({ plain: true });
     const registered = await flow.register({
@@ -1230,7 +1228,6 @@ export class RampService extends BaseRampService {
         throw new APIError({ message: "Pendulum ephemeral not found", status: httpStatus.BAD_REQUEST });
       }
       const metadata = getFlowMetadata(quote.metadata);
-      const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
       const flow = resolveBlockFlow(metadata.globals.request);
       const quoteFields = quote.get({ plain: true });
       const registered = await flow.register({
@@ -1326,7 +1323,6 @@ export class RampService extends BaseRampService {
     }
 
     const metadata = getFlowMetadata(quote.metadata);
-    const { resolveBlockFlow } = await import("../quote/blocks/flows/catalog");
     const flow = resolveBlockFlow(metadata.globals.request);
     const quoteFields = quote.get({ plain: true });
     const registered = await flow.register({

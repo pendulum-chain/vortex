@@ -98,6 +98,13 @@ legacy handlers. Preserve their behavioral cases by moving them to block unit te
 end-to-end corridor scenarios first. Do not delete a security regression merely
 because its original implementation file is removed.
 
+Delete or convert the block `*.txs.parity.test.ts` tests that compare
+`Flow.prepareTxs` with legacy corridor transaction builders. Those comparisons cannot
+remain after the legacy builders are deleted. Before removing them, preserve durable
+transaction-plan expectations, including transaction presence, signer, network, nonce
+lane/order, calldata invariants, and cleanup/recovery behavior, in block-owned tests or
+end-to-end corridor scenarios that do not import legacy route preparation.
+
 ## Move Or Split First
 
 The following files contain behavior currently reused by block flows. Move the named
