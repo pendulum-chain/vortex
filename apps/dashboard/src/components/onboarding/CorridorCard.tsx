@@ -173,9 +173,6 @@ function CorridorAction({
       </Button>
     );
   }
-  return (
-    <Button className="w-full text-success hover:text-success" disabled variant="ghost">
-      Verification complete
-    </Button>
-  );
+  // Approved: the status badge already says it — no footer action needed.
+  return null;
 }

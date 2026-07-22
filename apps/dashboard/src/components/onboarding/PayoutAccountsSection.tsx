@@ -57,14 +57,9 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
           </Button>
         </>
       ) : (
-        <>
-          <p className="text-center text-sm text-success">
-            Verification complete · {savedAccounts.length} payout account{savedAccounts.length === 1 ? "" : "s"}
-          </p>
-          <Button onClick={() => show("list")} type="button" variant="outline">
-            View payout accounts
-          </Button>
-        </>
+        <Button onClick={() => show("list")} type="button" variant="outline">
+          View payout accounts
+        </Button>
       )}
       <FiatAccountDialog
         accounts={savedAccounts}

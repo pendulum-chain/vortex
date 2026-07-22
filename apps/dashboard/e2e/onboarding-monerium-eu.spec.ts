@@ -55,7 +55,9 @@ test("Monerium EU OAuth returns securely and refreshes approval", async ({ page 
   await expect(page.getByRole("button", { name: "Awaiting provider review" })).toBeVisible({ timeout: 20_000 });
 
   backend.monerium.approved = true;
-  await expect(page.getByRole("button", { name: "Verification complete" })).toBeVisible({ timeout: 25_000 });
+  const euCard = page.getByTestId("corridor-card-EU");
+  await expect(euCard.getByText("Approved", { exact: true })).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByRole("button", { name: "Awaiting provider review" })).toBeHidden();
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });

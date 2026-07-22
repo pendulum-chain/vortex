@@ -22,9 +22,9 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
   await dialog.getByLabel("Account holder name").fill("Vortex E2E CLABE");
   await dialog.getByRole("button", { name: "Save payout account" }).click();
 
-  await expect(card.getByText("Verification complete · 1 payout account")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+  await expect(card.getByRole("button", { name: "View payout accounts" })).toBeVisible();
   await expect(progress).toHaveAttribute("aria-valuenow", "100");
   await expect(progress.locator('[data-slot="progress-indicator"]')).toHaveClass(/bg-success/);
   expect(backend.fiatAccountRequests).toEqual([
@@ -67,7 +67,9 @@ test("a provider-rejected payout account surfaces field and form errors instead 
   ).toBeVisible();
   // The form stays open for correction and nothing was added.
   await expect(dialog.getByRole("button", { name: "Save payout account" })).toBeEnabled();
-  await expect(card.getByText("Verification complete · 1 payout account")).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible();
   expect(backend.fiatAccountRequests).toHaveLength(1);
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
