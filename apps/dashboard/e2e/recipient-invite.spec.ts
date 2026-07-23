@@ -52,6 +52,26 @@ test("one approved corridor unlocks inviting to every live corridor, minus unsup
   expect(backend.unmatchedRequests).toEqual([]);
 });
 
+// The invite backend keys corridors by CorridorCountry, where "EU" is the euro zone — reusing
+// the quote-flow ISO proxy ("DE") made every Europe invite 400 with INVALID_INVITE_CORRIDOR.
+test("a Europe invite posts the EU corridor key, not the quote-flow ISO country proxy", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/recipients");
+
+  await page.getByRole("button", { name: "Add recipient" }).first().click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("combobox").click();
+  await page.getByRole("option", { name: /Europe/ }).click();
+  await dialog.getByLabel("Alias").fill("Anna · EURC");
+  await dialog.getByRole("button", { name: "Create invite link" }).click();
+
+  await expect(dialog.getByText("Invite link ready")).toBeVisible();
+  expect(backend.inviteRequests).toHaveLength(1);
+  expect(backend.inviteRequests[0]).toMatchObject({ country: "EU", payoutCurrency: "eur", rail: "eur" });
+  expect(backend.unmatchedRequests).toEqual([]);
+});
+
 // US individual KYC runs through Alfredpay's hosted redirect in the widget; the deep link must
 // pin the corridor (kybLocked=US) and carry the invite token.
 test("a US individual invite deep link pins the widget to the US corridor", async ({ page }) => {

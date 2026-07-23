@@ -25,7 +25,7 @@ import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
-import { CORRIDOR_COUNTRY, CORRIDOR_RAIL } from "@/services/api/mappers";
+import { CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
 const bpsSchema = z.coerce
@@ -89,7 +89,9 @@ export function RecipientDialog({
     mutationFn: (values: FormValues) =>
       RecipientsService.createInvite({
         alias: values.alias,
-        country: CORRIDOR_COUNTRY[values.corridorId],
+        // The invite backend keys corridors by CorridorCountry (where "EU" is the euro zone),
+        // not by ISO country — CORRIDOR_COUNTRY's quote-flow proxy ("DE") would 400 here.
+        country: values.corridorId,
         inviteeType: values.recipientType === "company" ? "business" : "individual",
         payoutCurrency: CORRIDOR_RAIL[values.corridorId],
         rail: CORRIDOR_RAIL[values.corridorId],

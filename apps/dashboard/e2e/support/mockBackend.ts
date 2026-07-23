@@ -374,6 +374,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const kybFormSubmissions: Array<Record<string, unknown>> = [];
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
   const archiveInvitationRequests: Array<Record<string, unknown>> = [];
+  const inviteRequests: Array<Record<string, unknown>> = [];
   const fiatAccountRequests: Array<Record<string, unknown>> = [];
   const fiatAccountDeleteRequests: Array<{ country: string | null; fiatAccountId: string }> = [];
   const unmatchedRequests: string[] = [];
@@ -746,6 +747,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
     if (path === "/v1/recipients/invite" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
+      inviteRequests.push(body);
       await fulfillJson({
         ...body,
         createdAt: new Date().toISOString(),
@@ -951,6 +953,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     brlaCreateSubaccountRequests,
     fiatAccountDeleteRequests,
     fiatAccountRequests,
+    inviteRequests,
     kybFileTypes,
     kybFormSubmissions,
     kybRelatedPersonFileTypes,
