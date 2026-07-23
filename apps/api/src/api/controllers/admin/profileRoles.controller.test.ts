@@ -69,4 +69,23 @@ describe("profile roles admin routes", () => {
     const revokedAgain = await fetch(`${baseUrl}/${user.id}/discount_manager`, { headers: ADMIN_HEADERS, method: "DELETE" });
     expect(revokedAgain.status).toBe(404);
   });
+
+  it("addresses the profile by email as well as by id", async () => {
+    const user = await createTestUser({ email: "manager@example.com" });
+
+    const granted = await post({ email: "manager@example.com", role: "discount_manager" });
+    expect(granted.status).toBe(201);
+    const body = (await granted.json()) as { role: { userId: string } };
+    expect(body.role.userId).toBe(user.id);
+
+    const unknown = await post({ email: "ghost@example.com", role: "discount_manager" });
+    expect(unknown.status).toBe(404);
+
+    const revoked = await fetch(`${baseUrl}/${encodeURIComponent("manager@example.com")}/discount_manager`, {
+      headers: ADMIN_HEADERS,
+      method: "DELETE"
+    });
+    expect(revoked.status).toBe(204);
+    expect(await ProfileRole.count({ where: { userId: user.id } })).toBe(0);
+  });
 });

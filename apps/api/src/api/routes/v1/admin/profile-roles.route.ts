@@ -8,14 +8,14 @@ router.use(adminAuth);
 
 /**
  * POST /v1/admin/profile-roles
- * Grant a role to a profile (idempotent). Body: { userId, role }.
+ * Grant a role to a profile (idempotent). Body: { userId | email, role }.
  */
 router.post("/", addProfileRole);
 
 /**
- * DELETE /v1/admin/profile-roles/:userId/:role
- * Revoke a role from a profile.
+ * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
+ * Revoke a role from a profile, addressed by id or email (unique on profiles).
  */
-router.delete("/:userId/:role", removeProfileRole);
+router.delete("/:userIdOrEmail/:role", removeProfileRole);
 
 export default router;

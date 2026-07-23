@@ -239,9 +239,10 @@ router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes
 router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
 
 /**
- * Admin routes for profile capability roles (e.g. discount_manager)
+ * Admin routes for profile capability roles (e.g. discount_manager); profiles are
+ * addressed by id or email (unique key)
  * POST /v1/admin/profile-roles
- * DELETE /v1/admin/profile-roles/:userId/:role
+ * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
  */
 router.use("/admin/profile-roles", profileRolesRoutes);
 
