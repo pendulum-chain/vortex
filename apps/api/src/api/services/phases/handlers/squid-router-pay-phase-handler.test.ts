@@ -93,15 +93,22 @@ mock.module("../../ramp/ramp.service", () => ({
 }));
 
 const { default: QuoteTicket } = await import("../../../../models/quoteTicket.model");
+const { default: RampState } = await import("../../../../models/rampState.model");
 const { SquidRouterPayPhaseHandler } = await import("./squid-router-pay-phase-handler");
 
 const realQuoteTicketFindByPk = QuoteTicket.findByPk;
+const realRampStateUpdate = RampState.update;
+
+// Static conditional update used by the atomic gas top-up claim; [1] = claim won.
+const rampStateUpdate = mock(async () => [1]);
+RampState.update = rampStateUpdate as unknown as typeof RampState.update;
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../evm-funding", () => ({ ...evmFundingReal }));
   mock.module("../../ramp/ramp.service", () => ({ ...rampServiceReal }));
   QuoteTicket.findByPk = realQuoteTicketFindByPk;
+  RampState.update = realRampStateUpdate;
 });
 
 let quote: {
@@ -168,6 +175,8 @@ describe("SquidRouterPayPhaseHandler", () => {
     getStatusAxelarScan.mockClear();
     recoverAxelarStuckConfirm.mockClear();
     checkEvmBalanceForToken.mockClear();
+    rampStateUpdate.mockClear();
+    rampStateUpdate.mockImplementation(async () => [1]);
     quote = {
       inputCurrency: FiatToken.BRL,
       outputCurrency: "USDC",
@@ -308,6 +317,36 @@ describe("SquidRouterPayPhaseHandler", () => {
       const text = (sendMessage.mock.calls[0] as any)[0].text as string;
       expect(text).toContain("classification: insufficient_gas");
       expect(text).toContain("0xtopup");
+    });
+
+    it("does not send when a concurrent execution already claimed the top-up", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
+      // Conditional claim loses: another execution flipped the marker first.
+      rampStateUpdate.mockImplementationOnce(async () => [0]);
+
+      const { handler, sendMessage } = makeStuckHandler();
+      const executeFundTransaction = mock(async () => "0xtopup");
+      (handler as any).executeFundTransaction = executeFundTransaction;
+
+      const state = makeState();
+      await handler.execute(state);
+
+      expect(executeFundTransaction).not.toHaveBeenCalled();
+      expect(state.state.squidRouterExtraGasTxHash).toBeUndefined();
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("already claimed by a concurrent execution");
+    });
+
+    it("reports the real recovery outcome instead of a generic attempted message", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+
+      const { handler, sendMessage } = makeStuckHandler();
+      // Cooldown active: the alert must say so rather than claim an attempt was made.
+      await handler.execute(makeState({ axelarConfirmRecoveryAt: new Date().toISOString(), squidRouterStuckAlertedAt: undefined }));
+
+      expect(recoverAxelarStuckConfirm).not.toHaveBeenCalled();
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("confirm recovery on cooldown");
     });
 
     it("never retries a top-up whose outcome is unknown (pending marker)", async () => {
