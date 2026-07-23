@@ -488,6 +488,8 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         isExpired: invitation.status === "expired" || Boolean(invitation.expiresAt && invitation.expiresAt < now),
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail,
+        // Discount-carrying invites deep-link to the dashboard, so re-copy must know.
+        seededDiscounts: invitation.seededDiscounts,
         // Raw token for sender re-copy; null for invites created before it was retained.
         token: invitation.token
       })),

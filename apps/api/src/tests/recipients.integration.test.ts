@@ -787,6 +787,14 @@ describe("invite discounts (discount_manager)", () => {
       { bps: 10, fiatCurrency: FiatToken.MXN, rampType: RampDirection.BUY },
       { bps: 5, fiatCurrency: FiatToken.MXN, rampType: RampDirection.SELL }
     ]);
+
+    // The sender's list carries the seeds so re-copy can rebuild the dashboard deep link.
+    const list = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const { pendingInvitations } = (await list.json()) as { pendingInvitations: Array<Record<string, unknown>> };
+    expect(pendingInvitations[0].seededDiscounts).toEqual([
+      { bps: 10, fiatCurrency: FiatToken.MXN, rampType: RampDirection.BUY },
+      { bps: 5, fiatCurrency: FiatToken.MXN, rampType: RampDirection.SELL }
+    ]);
   });
 
   it("materializes partner pricing for the accepting profile, carrying the vortex fee forward", async () => {

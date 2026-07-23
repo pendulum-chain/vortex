@@ -118,6 +118,16 @@ out against another tenant's relationship.
     is discarded and the invite only connects the recipient. Roles are admin-managed via
     `POST/DELETE /v1/admin/profile-roles` behind `adminAuth` and surfaced to the dashboard as
     `roles` on `GET /v1/onboarding/status`.
+    Discount-carrying invites deep-link to the **dashboard** (`/invite/<token>`, rebuilt for
+    re-copy from `seededDiscounts` on the pending-invitations listing) instead of the widget:
+    the invitee signs in (email OTP) on the invite page, the dashboard calls the same
+    `POST /v1/recipients/invite/:token/accept` endpoint — every redemption invariant above
+    (token binding, email binding, first-redeemer, expiry, self-accept rejection) applies
+    unchanged — then fixes the account type from the invitation via
+    `PUT /v1/onboarding/active-entity`, so provider onboarding attaches to the same
+    `(profile, type)` customer entity the acceptance linked. Sender-side KYC tracking is
+    client-agnostic either way: list/eligibility read `provider_customers` scoped by the
+    relationship's recipient entity + the invitation's provider/type/country.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 

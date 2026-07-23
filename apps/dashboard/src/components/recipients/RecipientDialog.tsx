@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
-import { inviteUrl } from "@/domain/recipient";
+import { dashboardInviteUrl, inviteUrl } from "@/domain/recipient";
 import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/types";
 import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
@@ -107,7 +107,10 @@ export function RecipientDialog({
       notifyInviteLinkReady(selected.name);
       // Show the new invite as a pending recipient the moment it's created.
       queryClient.invalidateQueries({ queryKey: RECIPIENTS_QUERY_KEY });
-      setCreated({ corridorName: selected.name, id: invite.id, url: inviteUrl(invite.token, values.corridorId) });
+      const url = invite.seededDiscounts?.length
+        ? dashboardInviteUrl(invite.token)
+        : inviteUrl(invite.token, values.corridorId);
+      setCreated({ corridorName: selected.name, id: invite.id, url });
     }
   });
 

@@ -15,6 +15,7 @@ function pendingInvitation(overrides: Partial<PendingInvitationDto> = {}): Pendi
     isExpired: false,
     payoutCurrency: "mxn",
     rail: "mxn",
+    seededDiscounts: null,
     token: null,
     ...overrides
   };

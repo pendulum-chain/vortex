@@ -258,6 +258,10 @@ interface MockBackendOptions {
   moneriumRequireRefresh?: boolean;
   // Served as GET /v1/recipients → pendingInvitations (default: none).
   pendingInvitations?: Array<Record<string, unknown>>;
+  // Capability roles returned on GET /v1/onboarding/status (default: none).
+  roles?: string[];
+  // Response for POST /v1/recipients/invite/:token/accept (default: an accepted MX individual invite).
+  acceptInvite?: { status: number; body: Record<string, unknown> };
   // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
   fiatAccounts?: Array<Record<string, unknown>>;
   // When set, POST /v1/alfredpay/fiatAccounts fails with this sanitized 400 body (the shape
@@ -373,6 +377,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const kycFormSubmissions: Array<Record<string, unknown>> = [];
   const kybFormSubmissions: Array<Record<string, unknown>> = [];
   const brlaCreateSubaccountRequests: Array<Record<string, unknown>> = [];
+  const acceptInviteRequests: Array<Record<string, unknown>> = [];
   const archiveInvitationRequests: Array<Record<string, unknown>> = [];
   const inviteRequests: Array<Record<string, unknown>> = [];
   const fiatAccountRequests: Array<Record<string, unknown>> = [];
@@ -471,16 +476,18 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
 
     if (path === "/v1/onboarding/status" && method === "GET") {
+      // Capability roles ride on every status response, whatever the KYC scenario.
+      const fulfillStatus = (data: Record<string, unknown>) => fulfillJson({ ...data, roles: options.roles ?? [] });
       if (!hasActiveEntity) {
-        await fulfillJson({ activeEntityId: null, entities: [], selectionRequired: true });
+        await fulfillStatus({ activeEntityId: null, entities: [], selectionRequired: true });
         return;
       }
       if (options.selectionRequired) {
-        await fulfillJson(buildEmptyOnboardingStatus(selectedCompany));
+        await fulfillStatus(buildEmptyOnboardingStatus(selectedCompany));
         return;
       }
       if (options.aveniaKyb) {
-        await fulfillJson(
+        await fulfillStatus(
           avenia.submitted
             ? buildCompanyOnboardingStatus("avenia", "BR", avenia.approved ? "approved" : "in_review")
             : buildEmptyOnboardingStatus(true)
@@ -488,7 +495,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         return;
       }
       if (options.moneriumKyc) {
-        await fulfillJson(
+        await fulfillStatus(
           monerium.completed
             ? buildMoneriumOnboardingStatus(monerium.approved ? "approved" : "in_review", !monerium.authorized)
             : buildEmptyOnboardingStatus()
@@ -496,7 +503,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         return;
       }
       if (!options.alfredpayKyc) {
-        await fulfillJson(
+        await fulfillStatus(
           options.companyMode
             ? buildCompanyOnboardingStatus("alfredpay", "MX", options.onboardingState ?? "approved")
             : buildOnboardingStatus(options.onboardingState, onrampCorridor)
@@ -506,13 +513,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       // KYC test: reflect progress so the card tracks it (empty keeps the card action enabled for
       // reopen; in_review turns on the 15s background refetch that flips it to approved live).
       if (options.alfredpayKyc.reflectOnboarding === false) {
-        await fulfillJson(buildEmptyOnboardingStatus(options.companyMode));
+        await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       } else if (kyc.approved) {
-        await fulfillJson(
+        await fulfillStatus(
           options.companyMode ? buildCompanyOnboardingStatus("alfredpay", "MX", "approved") : buildOnboardingStatus("approved")
         );
       } else if (kyc.submitted) {
-        await fulfillJson(
+        await fulfillStatus(
           options.companyMode
             ? buildCompanyOnboardingStatus("alfredpay", "MX", "in_review")
             : buildOnboardingStatus("in_review")
@@ -521,11 +528,11 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         // Real backend: createCustomer writes provider_customers.status = started (Consulted)
         // before any KYC data is submitted, so the aggregator reports `started` here — the card
         // must keep this resumable, not lock the user out.
-        await fulfillJson(
+        await fulfillStatus(
           options.companyMode ? buildCompanyOnboardingStatus("alfredpay", "MX", "started") : buildOnboardingStatus("started")
         );
       } else {
-        await fulfillJson(buildEmptyOnboardingStatus(options.companyMode));
+        await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
       return;
     }
@@ -748,15 +755,35 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/recipients/invite" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       inviteRequests.push(body);
+      // Mirror the real controller: bps > 0 entries become stored seeds, 0/absent stays null.
+      const discounts = (body.discounts ?? {}) as { buyBps?: number; sellBps?: number };
+      const seededDiscounts = [
+        ...(discounts.buyBps ? [{ bps: discounts.buyBps, fiatCurrency: "MXN", rampType: "BUY" }] : []),
+        ...(discounts.sellBps ? [{ bps: discounts.sellBps, fiatCurrency: "MXN", rampType: "SELL" }] : [])
+      ];
       await fulfillJson({
         ...body,
         createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         id: "invite-e2e-1",
         inviteeEmail: null,
+        seededDiscounts: seededDiscounts.length > 0 ? seededDiscounts : null,
         status: "pending",
         token: `e2e-${"long-token-".repeat(30)}`
       });
+      return;
+    }
+    if (path.startsWith("/v1/recipients/invite/") && path.endsWith("/accept") && method === "POST") {
+      acceptInviteRequests.push({ token: path.split("/")[4] });
+      const response = options.acceptInvite ?? {
+        body: {
+          id: "sender-recipient-e2e-1",
+          invitation: { country: "MX", id: "invitation-e2e-1", inviteeType: "individual", payoutCurrency: "mxn", rail: "mxn" },
+          relationshipStatus: "active"
+        },
+        status: 201
+      };
+      await fulfillJson(response.body, response.status);
       return;
     }
 
@@ -947,6 +974,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   }
 
   return {
+    acceptInviteRequests,
     archiveInvitationRequests,
     auth,
     avenia,
