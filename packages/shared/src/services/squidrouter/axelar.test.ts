@@ -36,6 +36,9 @@ describe("classifyGmpStatus", () => {
     expect(classifyGmpStatus(status({ status: "called" }))).toBe("waiting_source_confirmation");
     expect(classifyGmpStatus(status({ confirm_failed: true, status: "called" }))).toBe("source_confirmation_stuck");
     expect(classifyGmpStatus(status({ status: "confirming" }))).toBe("waiting_source_confirmation");
+    // Confirmation already succeeded — must NOT be classified as waiting, which
+    // would drive irrelevant ConfirmGatewayTx recovery broadcasts.
+    expect(classifyGmpStatus(status({ status: "confirmed" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "approving" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "approved" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "executing" }))).toBe("relayer_pending");

@@ -58,8 +58,10 @@ export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined |
   // "approved" solely because the paid gas no longer covers execution.
   if (status.is_insufficient_fee || status.gas_status === "gas_paid_not_enough_gas") return "insufficient_gas";
   if (status.status === "called") return status.confirm_failed ? "source_confirmation_stuck" : "waiting_source_confirmation";
-  if (status.status === "confirming" || status.status === "confirmed") return "waiting_source_confirmation";
-  if (status.status === "approving" || status.status === "approved" || status.status === "executing") return "relayer_pending";
+  if (status.status === "confirming") return "waiting_source_confirmation";
+  // "confirmed" means the source confirmation already succeeded — the transfer is
+  // waiting on approval/execution, so another ConfirmGatewayTx would be irrelevant.
+  if (["confirmed", "approving", "approved", "executing"].includes(status.status)) return "relayer_pending";
   if (status.status === "error") return "execution_failed";
   return "unknown";
 }
