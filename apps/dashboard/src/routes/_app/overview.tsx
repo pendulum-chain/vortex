@@ -15,7 +15,8 @@ import { spring } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
-  validateSearch: z.object({ onboarding: z.literal("EU").optional() })
+  // Any corridor, so the quote page can deep-link a sender straight into the onboarding they lack.
+  validateSearch: z.object({ onboarding: z.enum(["AR", "BR", "CO", "EU", "MX", "US"]).optional() })
 });
 
 function OverviewPage() {

@@ -44,7 +44,8 @@ export function filterOnrampTokenOptions(options: OnrampTokenOption[], search: s
   );
 }
 
-export function getOnrampTokenOptions(): OnrampTokenOption[] {
+/** Every EVM token the ramp supports, in both directions — bought on BUY, sold on SELL. */
+export function getRampTokenOptions(): OnrampTokenOption[] {
   const config = getEvmTokenConfig();
   const options: OnrampTokenOption[] = [];
 

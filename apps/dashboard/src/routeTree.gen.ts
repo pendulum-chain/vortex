@@ -17,6 +17,7 @@ import { Route as AppTransferRouteImport } from './routes/_app/transfer'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
+import { Route as AppQuoteRouteImport } from './routes/_app/quote'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 
 const LoginRoute = LoginRouteImport.update({
@@ -58,6 +59,11 @@ const AppRecipientsRoute = AppRecipientsRouteImport.update({
   path: '/recipients',
   getParentRoute: () => AppRoute,
 } as any)
+const AppQuoteRoute = AppQuoteRouteImport.update({
+  id: '/quote',
+  path: '/quote',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOverviewRoute = AppOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/overview': typeof AppOverviewRoute
+  '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/overview': typeof AppOverviewRoute
+  '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
@@ -90,6 +98,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/overview': typeof AppOverviewRoute
+  '/_app/quote': typeof AppQuoteRoute
   '/_app/recipients': typeof AppRecipientsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
@@ -102,6 +111,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/overview'
+    | '/quote'
     | '/recipients'
     | '/settings'
     | '/transactions'
@@ -112,6 +122,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/overview'
+    | '/quote'
     | '/recipients'
     | '/settings'
     | '/transactions'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/overview'
+    | '/_app/quote'
     | '/_app/recipients'
     | '/_app/settings'
     | '/_app/transactions'
@@ -195,6 +207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRecipientsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/quote': {
+      id: '/_app/quote'
+      path: '/quote'
+      fullPath: '/quote'
+      preLoaderRoute: typeof AppQuoteRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/overview': {
       id: '/_app/overview'
       path: '/overview'
@@ -207,6 +226,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppOverviewRoute: typeof AppOverviewRoute
+  AppQuoteRoute: typeof AppQuoteRoute
   AppRecipientsRoute: typeof AppRecipientsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
@@ -215,6 +235,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppOverviewRoute: AppOverviewRoute,
+  AppQuoteRoute: AppQuoteRoute,
   AppRecipientsRoute: AppRecipientsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTransactionsRoute: AppTransactionsRoute,

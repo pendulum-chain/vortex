@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CORRIDORS } from "@/domain/corridors";
-import { getOnrampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
+import { getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import type { CorridorId, SenderAccount } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { transferActor } from "@/machines/transferActor";
@@ -37,23 +37,33 @@ const schema = z.object({
 
 type OnrampFormValues = z.infer<typeof schema>;
 
-export function OnrampForm({ account }: { account: SenderAccount }) {
+/** Carried over from the quote page so a priced onramp doesn't have to be re-entered. */
+interface OnrampPrefill {
+  amount?: string;
+  corridorId?: CorridorId;
+  network?: string;
+  token?: string;
+}
+
+export function OnrampForm({ account, prefill }: { account: SenderAccount; prefill?: OnrampPrefill }) {
   const { address } = useAccount();
   const { approved } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
-  const tokenOptions = getOnrampTokenOptions();
+  const tokenOptions = getRampTokenOptions();
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
   const networkOptions = [...new Map(tokenOptions.map(option => [option.network, option.networkLabel])).entries()].sort(
     (a, b) => a[1].localeCompare(b[1])
   );
-  const defaultNetwork = networkOptions[0]?.[0] ?? "polygon";
+  // Prefilled values are trusted as-is: the token list and onboarding status may still be
+  // loading on first render, when the option lists they'd be validated against are empty.
+  const defaultNetwork = prefill?.network ?? networkOptions[0]?.[0] ?? "polygon";
   const form = useForm<OnrampFormValues>({
     defaultValues: {
-      amount: "",
-      corridorId: corridors[0] ?? "",
+      amount: prefill?.amount ?? "",
+      corridorId: prefill?.corridorId ?? corridors[0] ?? "",
       destinationAddress: address ?? "",
       network: defaultNetwork,
-      outputCurrency: tokenOptions.find(option => option.network === defaultNetwork)?.currency ?? ""
+      outputCurrency: prefill?.token ?? tokenOptions.find(option => option.network === defaultNetwork)?.currency ?? ""
     },
     resolver: zodResolver(schema)
   });
@@ -78,9 +88,10 @@ export function OnrampForm({ account }: { account: SenderAccount }) {
 
   useEffect(() => {
     if (!networkTokens.some(option => option.currency === outputCurrency)) {
-      form.setValue("outputCurrency", networkTokens[0]?.currency ?? "");
+      const preferred = networkTokens.find(option => option.currency === prefill?.token);
+      form.setValue("outputCurrency", preferred?.currency ?? networkTokens[0]?.currency ?? "");
     }
-  }, [form, networkTokens, outputCurrency]);
+  }, [form, networkTokens, outputCurrency, prefill?.token]);
 
   const quoteParams =
     corridorId && AMOUNT_PATTERN.test(amount) && Number(amount) > 0 && network && outputCurrency

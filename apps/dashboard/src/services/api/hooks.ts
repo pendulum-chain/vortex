@@ -1,7 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchOfframpQuote, fetchOnrampQuote, type OfframpQuoteParams, type OnrampQuoteParams } from "./quote.service";
+import {
+  fetchOfframpQuote,
+  fetchOnrampQuote,
+  fetchQuote,
+  type OfframpQuoteParams,
+  type OnrampQuoteParams,
+  type QuoteParams
+} from "./quote.service";
 
 const QUOTE_REFRESH_MS = 60_000;
+
+/** Indicative, input-driven quote in either direction. Pass null while the form is incomplete. */
+export function useQuote(params: QuoteParams | null) {
+  return useQuery({
+    enabled: params !== null,
+    queryFn: () => fetchQuote(params as QuoteParams),
+    queryKey: ["quote", params?.direction, params?.corridorId, params?.inputAmount, params?.network, params?.token],
+    refetchInterval: QUOTE_REFRESH_MS,
+    staleTime: QUOTE_REFRESH_MS
+  });
+}
 
 /**
  * Fetches an offramp quote and auto-refreshes it before it expires, mirroring the

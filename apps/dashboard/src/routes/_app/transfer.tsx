@@ -7,24 +7,39 @@ import { TransferForm } from "@/components/transfer/TransferForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { CorridorId } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
 
 type TransferMode = "offramp" | "onramp" | "cross-border";
 
+interface TransferSearch {
+  amount?: string;
+  corridorId?: CorridorId;
+  mode?: TransferMode;
+  network?: string;
+  recipient?: string;
+  token?: string;
+}
+
 export const Route = createFileRoute("/_app/transfer")({
   component: TransferPage,
-  validateSearch: (search: Record<string, unknown>): { mode?: TransferMode; recipient?: string } => ({
+  validateSearch: (search: Record<string, unknown>): TransferSearch => ({
+    // Onramp prefill, carried over from the quote page.
+    amount: typeof search.amount === "string" ? search.amount : undefined,
+    corridorId: typeof search.corridorId === "string" ? (search.corridorId as CorridorId) : undefined,
     mode: search.mode === "onramp" || search.mode === "cross-border" || search.mode === "offramp" ? search.mode : "offramp",
-    recipient: typeof search.recipient === "string" ? search.recipient : undefined
+    network: typeof search.network === "string" ? search.network : undefined,
+    recipient: typeof search.recipient === "string" ? search.recipient : undefined,
+    token: typeof search.token === "string" ? search.token : undefined
   })
 });
 
 function TransferPage() {
   const account = useActiveAccount();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { mode: searchMode, recipient } = Route.useSearch();
+  const { amount, corridorId, mode: searchMode, network, recipient, token } = Route.useSearch();
   const mode = searchMode ?? "offramp";
   const { recipients } = useRecipients(account);
 
@@ -73,7 +88,7 @@ function TransferPage() {
               <CardTitle>Onramp details</CardTitle>
             </CardHeader>
             <CardContent>
-              <OnrampForm account={account} />
+              <OnrampForm account={account} prefill={{ amount, corridorId, network, token }} />
             </CardContent>
           </Card>
         </StaggerItem>
