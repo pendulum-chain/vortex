@@ -1,8 +1,11 @@
 # The Flow Type System
 
-`FlowBuilder` checks the boundaries that make blocks composable:
-source resolver/first-phase adjacency, phase input/output adjacency, and
-simulation metadata ownership.
+`FlowBuilder` checks the boundaries that make blocks composable at compile
+time: source resolver/first-phase adjacency and phase input/output adjacency.
+Simulation metadata ownership (no duplicate context keys) is enforced at
+`build()` time, which runs at module load. Metadata, registration facts, and
+registration input are typed per phase but erased at the flow level — the
+catalog returns bare `Flow`, so nothing downstream consumed those types.
 Preparation and execution remain implementation concerns verified by tests.
 
 ## 1. Monetary IO uses literal brands
@@ -71,45 +74,46 @@ interface PhaseResult<O extends PhaseIO, Metadata> {
 `output` feeds the next block. `metadata` is stored under the block's context
 key and never enters the next block's `PhaseIO`.
 
-## 4. The builder tracks five things
+## 4. The builder tracks one thing
 
 ```ts
-FlowBuilder<I, O, Blocks, RegistrationFacts, RegistrationInput>
+FlowBuilder<O>
 ```
 
-- `I` is the flow's entry IO type.
-- `O` is the output type of the most recently composed block.
-- `Blocks` is the accumulated simulation metadata map.
-- `RegistrationFacts` is the phase-context-keyed registration output map.
-- `RegistrationInput` is the intersection of normalized inputs required by registering phases.
-
-Starting with Avenia produces approximately:
+`O` is the output type of the most recently composed block. It is the only
+type-level state the builder carries: it is what the next `pipe` checks its
+phase against. Starting with Avenia produces:
 
 ```ts
-FlowBuilder<
-  PhaseIO<"BRL", "fiat">,
-  PhaseIO<"BRLA", "base">,
-  { aveniaMint: AveniaMintMetadata },
-  {},
-  {}
->
+FlowBuilder<PhaseIO<"BRLA", "base">>
 ```
+
+Simulation metadata, registration facts, and registration input are not
+accumulated. Each phase types them locally (section 7), and the flow handles
+them as `Record<string, unknown>` keyed by context key.
 
 ## 5. `start` and `pipe` check adjacency
 
-`start` independently infers the concrete resolver type `R` and first phase
-type `P`. It extracts both sides of their boundary:
+Both signatures state their boundary check directly — the next output is
+inferred from the covariant return position of the argument's `simulate`,
+and the input side is checked contravariantly in place:
 
 ```ts
-ResolverOutput<R> // value produced by the resolver
-InputOf<P>        // value accepted by the first phase
+static start<First extends PhaseIO, Next extends PhaseIO>(
+  inputResolver: FlowInputResolver<First>,
+  first: AnyPhase & { simulate: (input: First, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+): FlowBuilder<Next>;
+
+pipe<Next extends PhaseIO>(
+  next: AnyPhase & { simulate: (input: O, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+): FlowBuilder<Next>;
 ```
 
-The requirement is assignability, not type equality:
-
-```ts
-ResolverOutput<R> extends InputOf<P>
-```
+In `start`, `First` may be inferred from either argument; soundness does not
+depend on which one wins. Whatever `First` resolves to, the call only checks
+if the resolver's output is assignable to `First` (covariant) and `First` is
+assignable to the phase's input (contravariant) — together forcing resolver
+output ⊆ phase input. The requirement is assignability, not type equality.
 
 For example, `AlfredpayMint` accepts four fiat tokens:
 
@@ -130,36 +134,21 @@ FlowBuilder.start(resolver, AlfredpayMint); // valid
 `ResolverIO` and `InputOfAlfredpayMint` are not equal, but every value the
 resolver can produce is accepted by the phase. The reverse relationship would
 be unsafe: a resolver that may produce a token outside the phase's accepted
-union is rejected. In the implementation this comparison is expressed as a
-function assignability check against `P["simulate"]`; under
-`strictFunctionTypes`, it enforces the same resolver-output-to-phase-input
-direction.
+union is rejected, because under `strictFunctionTypes` the phase's `simulate`
+property is checked contravariantly in its input.
 
 `pipe` performs the corresponding check between the previous phase's output
-and the next phase's input, and also checks metadata key ownership.
+and the next phase's input. A successful call advances `O`.
 
-The real signature is expressed with the type-erased `AnyPhase`, but its two
-constraints are equivalent to:
+Metadata key ownership is no longer a compile-time constraint. `build()`
+walks the phase list and throws on a duplicate context key; since every flow
+is constructed at module load, a duplicate key fails the process (and any
+test run) immediately.
 
-```ts
-pipe<P extends PhaseAccepting<O>>(
-  next: P & (MetadataKeyOf<P> extends keyof Blocks ? never : unknown)
-): FlowBuilder<
-  I,
-  OutputOf<P>,
-  Blocks & MetadataOf<P>,
-  RegistrationFacts & RegistrationFactsOf<P>,
-  RegistrationInput & RegistrationInputOf<P>
->;
-```
-
-The first constraint asks whether `next.simulate` accepts the current `O`.
-The second rejects a context key already present in `Blocks`. A successful
-call advances `O` and intersects the new metadata entry into `Blocks`.
-
-The skipped compile-time test pins wrong-token, wrong-chain, and duplicate-key
-failures with `@ts-expect-error`. If a guard stops working, the directive
-becomes unused and typecheck fails.
+The skipped compile-time test pins wrong-token and wrong-chain failures with
+`@ts-expect-error`. If a guard stops working, the directive becomes unused
+and typecheck fails. Duplicate keys are pinned by a runtime test against
+`build()`.
 
 ## 6. Runtime storage is deliberately erased
 
@@ -189,8 +178,10 @@ for (const phase of phaseList) {
 }
 ```
 
-The built `Flow<O, Blocks>` retains its final output and metadata types even
-though the internal phase array is erased.
+The built `Flow<O>` retains its final output type even though the internal
+phase array and the accumulated metadata map are erased. Typed access to a
+block's metadata goes through its context descriptor
+(`getBlockMetadata(metadata, SomeContext)`), the same path executors use.
 
 ## 7. Registration and preparation
 
@@ -223,20 +214,21 @@ interface RegistrationResult<RegistrationFacts, Metadata> {
   normalized tax ID, a validated destination, or a provider transaction ID.
   Later phases do not accept these values directly from caller input.
 
-Each registering phase declares both types:
+Each registering phase declares both types locally:
 
 ```ts
 Phase<Context, I, O, RegistrationFacts, RegistrationInput>
 ```
 
-`FlowBuilder` intersects the input requirements of all registering phases into
-one flat flow input. It namespaces the resulting facts by context key:
+They type the phase's own `register` and `prepareTxs` pairing and nothing
+else. At the flow level both are erased: `Flow.register` accepts the shared
+caller input as `Record<string, unknown>` — consistent with it being
+untrusted, since every registering phase must runtime-validate the fields it
+consumes regardless — and namespaces the resulting facts by context key at
+runtime:
 
 ```ts
-// Registration input required by two phases
-{ walletAddress: string } & { pixDestination: string }
-
-// Facts produced by those phases
+// Facts produced by two registering phases
 {
   evmOfframpSource: { userAddress: string };
   aveniaOfframpPayout: { brlaEvmAddress: string; pixDestination: string };
@@ -315,6 +307,7 @@ FlowBuilder.start(fiatRequestIO(FiatToken.BRL), AveniaMint)             // BRLA 
   .build("BrlOnrampBaseCrossChain", { isDirectTransfer: false });
 ```
 
-The type system guarantees the simulation chain and metadata ownership. The
-parity tests verify phase expansion, executors, prepared transactions, nonce
-lanes, namespaced preparation state, and native prefunding aggregation.
+The type system guarantees the simulation chain; `build()` guarantees
+metadata ownership at module load. The parity tests verify phase expansion,
+executors, prepared transactions, nonce lanes, namespaced preparation state,
+and native prefunding aggregation.

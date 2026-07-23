@@ -2,7 +2,7 @@ import { EphemeralAccountType, type RampPhase } from "@vortexfi/shared";
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import { computeFees } from "./fees";
-import type { AnyContextMetadata, ContextKey, ContextSimulation } from "./metadata";
+import type { AnyContextMetadata } from "./metadata";
 import { aggregateNativePrefunding, allocateNonces } from "./prepare";
 import type {
   Flow,
@@ -19,31 +19,6 @@ import type {
   TxIntent
 } from "./types";
 
-type OutputOf<P> = P extends { simulate: (input: never, ctx: PhaseCtx) => Promise<PhaseResult<infer O, unknown>> } ? O : never;
-type ContextOf<P> = P extends { context: infer Context extends AnyContextMetadata } ? Context : never;
-type MetadataKeyOf<P> = ContextKey<ContextOf<P>>;
-type MetadataOf<P> = Record<MetadataKeyOf<P>, ContextSimulation<ContextOf<P>>>;
-type ResolverOutput<R> = R extends (ctx: PhaseCtx) => infer Result
-  ? Awaited<Result> extends PhaseIO
-    ? Awaited<Result>
-    : never
-  : never;
-type RawRegistrationFactsOf<P extends AnyPhase> = NonNullable<P["register"]> extends (
-  ctx: never
-) => Promise<RegistrationResult<infer Facts, unknown>>
-  ? Facts
-  : never;
-type RegistrationFactsOf<P extends AnyPhase> = RawRegistrationFactsOf<P> extends infer Facts
-  ? [Facts] extends [never]
-    ? Record<never, never>
-    : Record<MetadataKeyOf<P>, Facts>
-  : Record<never, never>;
-type RegistrationInputOf<P extends AnyPhase> = [RawRegistrationFactsOf<P>] extends [never]
-  ? Record<never, never>
-  : Parameters<NonNullable<P["register"]>>[0] extends { input: Readonly<infer Input extends Record<string, unknown>> }
-    ? Input
-    : Record<never, never>;
-
 // Internal type-erased phase storage. `never` input makes any Phase<I, O> assignable under
 // contravariance; the builder's pipe() adjacency check is what guarantees the runtime inputs line up.
 type AnyPhase = {
@@ -56,55 +31,42 @@ type AnyPhase = {
   readonly simulate: (input: never, ctx: PhaseCtx) => Promise<PhaseResult<PhaseIO, unknown>>;
 };
 
-export class FlowBuilder<
-  I extends PhaseIO,
-  O extends PhaseIO,
-  Blocks extends Record<string, unknown>,
-  RegistrationFacts extends Record<string, unknown>,
-  RegistrationInput extends Record<string, unknown>
-> {
+export class FlowBuilder<O extends PhaseIO> {
   private constructor(
-    private readonly inputResolver: FlowInputResolver<I>,
+    private readonly inputResolver: FlowInputResolver<PhaseIO>,
     private readonly phaseList: AnyPhase[]
   ) {}
 
-  static start<R, P extends AnyPhase>(
-    inputResolver: R & FlowInputResolver<ResolverOutput<R>>,
-    first: P &
-      (P extends {
-        simulate: (input: ResolverOutput<R>, ctx: PhaseCtx) => Promise<PhaseResult<PhaseIO, unknown>>;
-      }
-        ? unknown
-        : never)
-  ): FlowBuilder<ResolverOutput<R>, OutputOf<P>, MetadataOf<P>, RegistrationFactsOf<P>, RegistrationInputOf<P>> {
-    return new FlowBuilder<ResolverOutput<R>, OutputOf<P>, MetadataOf<P>, RegistrationFactsOf<P>, RegistrationInputOf<P>>(
-      inputResolver,
-      [first]
-    );
+  static start<First extends PhaseIO, Next extends PhaseIO>(
+    inputResolver: FlowInputResolver<First>,
+    first: AnyPhase & { simulate: (input: First, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+  ): FlowBuilder<Next> {
+    return new FlowBuilder<Next>(inputResolver, [first]);
   }
 
-  pipe<P extends AnyPhase & { simulate: (input: O, ctx: PhaseCtx) => Promise<PhaseResult<PhaseIO, unknown>> }>(
-    next: P & (MetadataKeyOf<P> extends keyof Blocks ? never : unknown)
-  ): FlowBuilder<
-    I,
-    OutputOf<P>,
-    Blocks & MetadataOf<P>,
-    RegistrationFacts & RegistrationFactsOf<P>,
-    RegistrationInput & RegistrationInputOf<P>
-  > {
-    return new FlowBuilder(this.inputResolver, [...this.phaseList, next]);
+  pipe<Next extends PhaseIO>(
+    next: AnyPhase & { simulate: (input: O, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+  ): FlowBuilder<Next> {
+    return new FlowBuilder<Next>(this.inputResolver, [...this.phaseList, next]);
   }
 
-  build(name: string, staticStateMeta: Partial<StateMetadata> = {}): Flow<O, Blocks, RegistrationFacts, RegistrationInput> {
+  build(name: string, staticStateMeta: Partial<StateMetadata> = {}): Flow<O> {
     const inputResolver = this.inputResolver;
     const phaseList = this.phaseList;
+    const seenKeys = new Set<string>();
+    for (const phase of phaseList) {
+      if (seenKeys.has(phase.context.key)) {
+        throw new Error(`Flow ${name} defines duplicate metadata key ${phase.context.key}`);
+      }
+      seenKeys.add(phase.context.key);
+    }
     const phases: RampPhase[] = phaseList.flatMap(phase => phase.phases);
     const executors = phaseList.flatMap(phase => phase.executors ?? []);
     return {
       executors,
       name,
       phases,
-      async prepareTxs(ctx: FlowPrepareCtx<Blocks, RegistrationFacts>): Promise<PreparedFlowTxs> {
+      async prepareTxs(ctx: FlowPrepareCtx): Promise<PreparedFlowTxs> {
         const intents: TxIntent[] = [];
         const blockState: Record<string, unknown> = {};
         const accountAddresses = Object.fromEntries(
@@ -152,8 +114,8 @@ export class FlowBuilder<
           unsignedTxs: allocateNonces(intents)
         };
       },
-      async register(ctx: FlowRegisterCtx<Blocks, RegistrationInput>) {
-        const blocks = { ...ctx.metadata.blocks } as Record<string, unknown>;
+      async register(ctx: FlowRegisterCtx) {
+        const blocks = { ...ctx.metadata.blocks };
         const registrationFacts: Record<string, unknown> = {};
         const responseArtifacts: Record<string, unknown> = {};
         for (const phase of phaseList) {
@@ -178,8 +140,8 @@ export class FlowBuilder<
           }
         }
         return {
-          metadata: { ...ctx.metadata, blocks: blocks as Blocks },
-          registrationFacts: registrationFacts as RegistrationFacts,
+          metadata: { ...ctx.metadata, blocks },
+          registrationFacts,
           responseArtifacts
         };
       },
@@ -196,9 +158,6 @@ export class FlowBuilder<
           if (result.fees) {
             ctx.fees = result.fees;
           }
-          if (Object.hasOwn(blocks, phase.context.key)) {
-            throw new Error(`Flow ${name} defines duplicate metadata key ${phase.context.key}`);
-          }
           blocks[phase.context.key] = result.metadata;
           if (result.expiresAt && (!expiresAt || result.expiresAt < expiresAt)) {
             expiresAt = result.expiresAt;
@@ -208,7 +167,7 @@ export class FlowBuilder<
         return {
           expiresAt,
           metadata: {
-            blocks: blocks as Blocks,
+            blocks,
             globals: { fees: ctx.fees as never, partner: ctx.partner, request: ctx.request }
           },
           output: current as O

@@ -42,8 +42,10 @@ afterAll(() => {
 });
 
 import { EUR_ONRAMP_BASE_DIRECT } from "../../../phases/ramp-flow-definitions";
+import { getBlockMetadata } from "../core/metadata";
 import type { PhaseCtx } from "../core/types";
 import { resolveBlockFlow } from "../flows/catalog";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 import { eurOnrampBaseDirectFlow, eurOnrampBaseDirectPhaseFlow } from "../flows/eur-onramp-base-direct";
 
 const CORE_PHASES: RampPhase[] = ["mykoboOnrampDeposit", "fundEphemeral", "destinationTransfer"];
@@ -89,7 +91,7 @@ describe("EUR_ONRAMP_BASE_DIRECT block flow", () => {
     });
     expect(calculateBridgeFee).not.toHaveBeenCalled();
     expect(Object.keys(result.metadata.blocks)).toEqual(["mykoboMint", "fundEphemeral", "destinationTransfer"]);
-    expect(result.metadata.blocks.destinationTransfer.amountRaw).toBe("99940000");
+    expect(getBlockMetadata(result.metadata, DestinationTransferContext).amountRaw).toBe("99940000");
   });
 
   it("uses the exact SEPA EUR to Base EURC catalog predicate", () => {

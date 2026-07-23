@@ -85,12 +85,9 @@ export interface PrepareCtx<Metadata, RegistrationFacts = never> extends Prepare
   ownRegistrationFacts: Readonly<RegistrationFacts> | undefined;
 }
 
-export interface FlowPrepareCtx<
-  Blocks extends Record<string, unknown>,
-  RegistrationFacts extends Record<string, unknown> = Record<string, never>
-> extends PrepareGlobals {
-  metadata: FlowMetadata<Blocks>;
-  registrationFacts?: RegistrationFacts;
+export interface FlowPrepareCtx extends PrepareGlobals {
+  metadata: FlowMetadata;
+  registrationFacts?: Record<string, unknown>;
 }
 
 export interface PreparedFlowTxs {
@@ -146,32 +143,21 @@ export interface Phase<
   ) => Promise<RegistrationResult<RegistrationFacts, ContextSimulation<Context>>>;
 }
 
-export interface FlowRegisterCtx<
-  Blocks extends Record<string, unknown>,
-  RegistrationInput extends Record<string, unknown> = Record<string, unknown>
-> extends Omit<RegisterCtx<never, RegistrationInput>, "metadata"> {
-  metadata: FlowMetadata<Blocks>;
+export interface FlowRegisterCtx extends Omit<RegisterCtx<never>, "metadata"> {
+  metadata: FlowMetadata;
 }
 
-export interface FlowRegistrationResult<
-  Blocks extends Record<string, unknown>,
-  RegistrationFacts extends Record<string, unknown>
-> {
-  metadata: FlowMetadata<Blocks>;
-  registrationFacts: RegistrationFacts;
+export interface FlowRegistrationResult {
+  metadata: FlowMetadata;
+  registrationFacts: Record<string, unknown>;
   responseArtifacts: Record<string, unknown>;
 }
 
-export interface Flow<
-  O extends PhaseIO = PhaseIO,
-  Blocks extends Record<string, unknown> = Record<string, unknown>,
-  RegistrationFacts extends Record<string, unknown> = Record<string, unknown>,
-  RegistrationInput extends Record<string, unknown> = Record<string, unknown>
-> {
+export interface Flow<O extends PhaseIO = PhaseIO> {
   readonly name: string;
   readonly phases: RampPhase[];
   readonly executors: PhaseHandler[];
-  register(ctx: FlowRegisterCtx<Blocks, RegistrationInput>): Promise<FlowRegistrationResult<Blocks, RegistrationFacts>>;
-  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata<Blocks>; output: O }>;
-  prepareTxs(ctx: FlowPrepareCtx<Blocks, RegistrationFacts>): Promise<PreparedFlowTxs>;
+  register(ctx: FlowRegisterCtx): Promise<FlowRegistrationResult>;
+  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata; output: O }>;
+  prepareTxs(ctx: FlowPrepareCtx): Promise<PreparedFlowTxs>;
 }

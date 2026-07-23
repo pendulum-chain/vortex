@@ -65,8 +65,11 @@ import {
   EUR_ONRAMP_BASE_SAME_CHAIN,
   EUR_ONRAMP_BASE_SAME_CHAIN_SWAP
 } from "../../../phases/ramp-flow-definitions";
+import { getBlockMetadata } from "../core/metadata";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { PhaseCtx } from "../core/types";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
+import { MykoboMintContext } from "../phases/mykobo-mint/simulation";
 import {
   eurOnrampBaseSameChainFlow,
   eurOnrampBaseSameChainPhaseFlow,
@@ -147,9 +150,10 @@ describe("EUR Base same-chain block flows", () => {
       expect(output.token).toBe(outputCurrency);
       expect(output.amount.gt(0)).toBe(true);
       expect(Object.hasOwn(metadata.blocks, "squidRouterSwap")).toBe(outputCurrency !== EvmToken.USDC);
-      expect(metadata.blocks.mykoboMint.mint.outputAmountRaw).toBe("99940000");
-      expect(metadata.blocks.destinationTransfer.network).toBe(Networks.Base);
-      expect(metadata.blocks.destinationTransfer.token).toBe(outputCurrency);
+      expect(getBlockMetadata(metadata, MykoboMintContext).mint.outputAmountRaw).toBe("99940000");
+      const destinationTransfer = getBlockMetadata(metadata, DestinationTransferContext);
+      expect(destinationTransfer.network).toBe(Networks.Base);
+      expect(destinationTransfer.token).toBe(outputCurrency);
       expect(feeOverride).toEqual({
         anchor: { amount: "0.06", currency: FiatToken.EURC },
         network: { amount: "0.1", currency: EvmToken.USDC }

@@ -168,13 +168,13 @@ export interface Phase<Context extends AnyContextMetadata, I extends PhaseIO, O 
     Promise<RegistrationResult>;
 }
 
-export interface Flow<O extends PhaseIO, Blocks extends Record<string, unknown>> {
+export interface Flow<O extends PhaseIO = PhaseIO> {
   readonly name: string;
   readonly phases: RampPhase[];      // flatMap(p => p.phases)
   readonly executors: PhaseHandler[];// flatMap(p => p.executors ?? [])
-  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata<Blocks>; output: O }>;
-  register(ctx: FlowRegisterCtx<Blocks>): Promise<FlowRegistrationResult>;
-  prepareTxs(ctx: FlowPrepareCtx<Blocks>): Promise<PreparedFlowTxs>;
+  simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata; output: O }>;
+  register(ctx: FlowRegisterCtx): Promise<FlowRegistrationResult>;
+  prepareTxs(ctx: FlowPrepareCtx): Promise<PreparedFlowTxs>;
 }
 ```
 
@@ -199,33 +199,28 @@ with no overload fallback to escape to, so a brand mismatch is a hard type
 error.
 
 ```ts
-type MetadataOf<P> = Record<MetadataKeyOf<P>, ContextSimulation<ContextOf<P>>>;
-
-export class FlowBuilder<
-  I extends PhaseIO,
-  O extends PhaseIO,
-  Blocks extends Record<string, unknown>,
-  RegistrationFacts extends Record<string, unknown>,
-  RegistrationInput extends Record<string, unknown>
-> {
+export class FlowBuilder<O extends PhaseIO> {
   private constructor(private readonly phaseList: AnyPhase[]) {}
 
-  static start<R extends FlowInputResolver, P extends PhaseAccepting<OutputOf<R>>>(resolver: R, first: P):
-    FlowBuilder<OutputOf<R>, OutputOf<P>, MetadataOf<P>, RegistrationFactsOf<P>, RegistrationInputOf<P>>;
+  static start<First extends PhaseIO, Next extends PhaseIO>(
+    inputResolver: FlowInputResolver<First>,
+    first: AnyPhase & { simulate: (input: First, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+  ): FlowBuilder<Next>;
 
-  pipe<P extends CompatiblePhase<O>>(
-    next: P & (MetadataKeyOf<P> extends keyof Blocks ? never : unknown)
-  ): FlowBuilder<
-    I,
-    OutputOf<P>,
-    Blocks & MetadataOf<P>,
-    RegistrationFacts & RegistrationFactsOf<P>,
-    RegistrationInput & RegistrationInputOf<P>
-  >;
+  pipe<Next extends PhaseIO>(
+    next: AnyPhase & { simulate: (input: O, ctx: PhaseCtx) => Promise<PhaseResult<Next, unknown>> }
+  ): FlowBuilder<Next>;
 
-  build(name: string): Flow<O, Blocks, RegistrationFacts, RegistrationInput>;
+  build(name: string): Flow<O>;
 }
 ```
+
+The builder tracks a single type: the output of the most recently composed
+phase. `pipe` checks the argument's `simulate` against it contravariantly and
+infers the next output from the covariant return position. Simulation
+metadata, registration facts, and registration input are typed per phase and
+erased at the flow level (the catalog returns bare `Flow`, so nothing
+downstream consumed them).
 
 The internal list is stored as a type-erased `AnyPhase[]` whose simulation
 input is `never`. Any concrete phase is assignable to it under
@@ -233,9 +228,9 @@ contravariance, but it cannot be called without a cast. The single
 `input as never` in `build()`'s simulation loop is the handoff to the
 adjacency guarantee that `pipe` already enforced.
 
-`Blocks` accumulates each context key and simulation type. Reusing a key
-makes the next `pipe` argument `never`; simulation also checks duplicates at
-runtime before writing `{ globals, blocks }`.
+`build()` rejects duplicate context keys at construction time; flows are
+built at module load, so a duplicate key fails startup and every test run
+immediately.
 
 A phase may return a replacement fee snapshot when its provider quote is the
 source of an anchor fee. `Flow.simulate` installs that snapshot before the next
@@ -466,10 +461,11 @@ every ported corridor must pass:
 3. **Executor coverage** — `flow.executors.map(e => e.getPhaseName())`
    deep-equals `flow.phases`: every execution phase has exactly one
    executor, in order.
-4. **Compile-time adjacency and ownership** — `// @ts-expect-error` blocks
-   cover wrong token/chain adjacency and duplicate metadata keys. They are
-   type-checked by tsc. If the brand guard were broken, the directives
-   would be unused and `bun typecheck` would fail.
+4. **Compile-time adjacency, build-time ownership** — `// @ts-expect-error`
+   blocks cover wrong token/chain adjacency; they are type-checked by tsc,
+   so if the brand guard were broken the directives would be unused and
+   `bun typecheck` would fail. Duplicate metadata keys are pinned by a
+   runtime test asserting `build()` throws.
 5. **Simulate smoke** — with externals mocked (`BrlaApiService`,
    `calculateNablaSwapOutputEvm`, `calculateEvmBridgeAndNetworkFee`,
    `priceFeedService`), `simulate(ctx)` lands on the destination
@@ -496,9 +492,10 @@ every ported corridor must pass:
 `ContextMetadata` descriptor binding its key to its simulation type. `Phase`
 carries that descriptor and returns exactly one simulation context; only
 `Flow.simulate` accumulates those contexts into `{ globals, blocks }`.
-`FlowBuilder` infers the quote metadata map without a global key/type
+Typed metadata access goes through context descriptors
+(`getBlockMetadata(metadata, SomeContext)`) without a global key/type
 registry. A phase cannot read previous metadata, and duplicate keys are
-rejected at compile time and checked again at runtime. Preparation and
+rejected when the flow is built at module load. Preparation and
 execution are deliberately type-erased and verified by implementation tests;
 blocks never declare dependencies on other block identities. Persisted
 decimal metadata uses JSON-safe scalar unions, so consumers explicitly

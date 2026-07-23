@@ -36,13 +36,20 @@ import { BRL_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitio
 import { FlowBuilder } from "../core/flow";
 import { evmRequestIO, fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
+import { getBlockMetadata } from "../core/metadata";
 import type { PhaseCtx } from "../core/types";
-import type { SubsidyMeta } from "../phases/subsidize-pre";
 import { AveniaMint } from "../phases/avenia-mint";
+import { AveniaMintContext } from "../phases/avenia-mint/simulation";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 import { DistributeFees } from "../phases/distribute-fees";
+import { FinalSettlementSubsidyContext } from "../phases/final-settlement-subsidy/simulation";
 import { FundEphemeral } from "../phases/fund-ephemeral";
 import { NablaSwap } from "../phases/nabla-swap";
+import { NablaSwapContext } from "../phases/nabla-swap/simulation";
 import { SquidRouterSwap } from "../phases/squid-router-swap";
+import { SquidRouterSwapContext } from "../phases/squid-router-swap/simulation";
+import { SubsidizePostContext } from "../phases/subsidize-post/simulation";
+import { SubsidizePreContext } from "../phases/subsidize-pre/simulation";
 import {
   brlOnrampBaseCrossChainFlow,
   brlOnrampBaseCrossChainPhaseFlow,
@@ -116,11 +123,14 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — compile-time adjacency", ()
     const _wrongChain = bridged.pipe(DistributeFees<typeof EvmToken.USDC, typeof Networks.Base>());
     void _wrongChain;
 
-    const funded = FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), FundEphemeral(EvmToken.USDC, Networks.Base));
-    // @ts-expect-error ownership: one flow cannot contain the same metadata key twice
-    const _duplicateKey = funded.pipe(FundEphemeral(EvmToken.USDC, Networks.Base));
-    void _duplicateKey;
+  });
 
+  it("rejects duplicate metadata keys when the flow is built", () => {
+    expect(() =>
+      FlowBuilder.start(evmRequestIO(EvmToken.USDC, Networks.Base), FundEphemeral(EvmToken.USDC, Networks.Base))
+        .pipe(FundEphemeral(EvmToken.USDC, Networks.Base))
+        .build("DuplicateKey")
+    ).toThrow("duplicate metadata key fundEphemeral");
   });
 });
 
@@ -188,7 +198,7 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => 
       "destinationTransfer"
     ]);
 
-    const aveniaMint = blocks.aveniaMint.mint;
+    const aveniaMint = getBlockMetadata(metadata, AveniaMintContext).mint;
     expect(aveniaMint).toBeDefined();
     expect(aveniaMint.currency).toBe(FiatToken.BRL);
     // 100 BRL in, 99 BRLA quoted -> 1 BRL mint fee, 0.2 gas fee deducted from delivery
@@ -196,20 +206,20 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => 
     expect(Big(aveniaMint.inputAmountDecimal).toFixed()).toBe("100");
     expect(Big(aveniaMint.outputAmountDecimal).toFixed()).toBe("98.8");
 
-    const aveniaTransfer = blocks.aveniaMint.transfer;
+    const aveniaTransfer = getBlockMetadata(metadata, AveniaMintContext).transfer;
     expect(aveniaTransfer).toBeDefined();
     expect(Big(aveniaTransfer.inputAmountDecimal).toFixed()).toBe("98.8");
     // transfer quote outputs 98.5, minus the 0.2 gas-fee buffer ((0.2 + 0.2) * 0.5)
     expect(Big(aveniaTransfer.outputAmountDecimal).toFixed()).toBe("98.3");
 
-    const nabla = blocks.nablaSwap;
+    const nabla = getBlockMetadata(metadata, NablaSwapContext);
     expect(nabla).toBeDefined();
     expect(nabla.inputCurrency).toBe(EvmToken.BRLA);
     expect(nabla.outputCurrency).toBe(EvmToken.USDC);
     expect(nabla.outputAmountRaw).toBe("18000000");
     expect(nabla.effectiveExchangeRate).toBe("0.18");
 
-    const evmToEvm = blocks.squidRouterSwap;
+    const evmToEvm = getBlockMetadata(metadata, SquidRouterSwapContext);
     expect(evmToEvm).toBeDefined();
     expect(evmToEvm.fromNetwork).toBe(Networks.Base);
     expect(evmToEvm.toNetwork).toBe(Networks.Arbitrum);
@@ -217,13 +227,13 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => 
     expect(evmToEvm.outputAmountRaw).toBe("17500000");
     expect(evmToEvm.networkFeeUSD).toBe("0.1");
 
-    const subsidy: SubsidyMeta = blocks.finalSettlementSubsidy;
+    const subsidy = getBlockMetadata(metadata, FinalSettlementSubsidyContext);
     expect(subsidy).toBeDefined();
     expect(subsidy.applied).toBe(false);
     expect(Big(subsidy.actualOutputAmountDecimal).gt(0)).toBe(true);
     expect(subsidy.partnerId).toBeNull();
-    expect(blocks.subsidizePreSwap.inputCurrency).toBe(EvmToken.BRLA);
-    expect(blocks.subsidizePostSwap.outputCurrency).toBe(EvmToken.USDC);
-    expect(blocks.destinationTransfer.amountRaw).toBe("17500000");
+    expect(getBlockMetadata(metadata, SubsidizePreContext).inputCurrency).toBe(EvmToken.BRLA);
+    expect(getBlockMetadata(metadata, SubsidizePostContext).outputCurrency).toBe(EvmToken.USDC);
+    expect(getBlockMetadata(metadata, DestinationTransferContext).amountRaw).toBe("17500000");
   });
 });

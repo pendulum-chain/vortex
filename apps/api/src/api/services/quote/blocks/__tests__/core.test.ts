@@ -130,10 +130,6 @@ const PlainPhase: Phase<typeof PlainContext, FiatBrlIO, FiatBrlIO> = {
 describe("block flow registration", () => {
   it("namespaces facts, metadata refreshes, artifacts, and preparation input by phase key", async () => {
     const flow = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), RegisteredPhase).pipe(PlainPhase).build("Registration");
-    type RegistrationInput = Parameters<typeof flow.register>[0]["input"];
-    // @ts-expect-error the registering phase requires normalized taxId input
-    const _invalidRegistrationInput: RegistrationInput = {};
-    void _invalidRegistrationInput;
     const metadata = {
       blocks: { plain: { value: "plain" }, registered: { version: 1 } },
       globals: { fees: {} as never, partner: null, request: phaseCtx(FiatToken.BRL, Networks.Base).request }

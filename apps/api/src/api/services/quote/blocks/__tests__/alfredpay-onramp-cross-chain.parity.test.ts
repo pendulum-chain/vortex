@@ -53,10 +53,14 @@ mock.module("../../core/squidrouter", () => ({
 import { ALFREDPAY_ONRAMP_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
 import { fiatRequestIO } from "../core/io";
+import { getBlockMetadata } from "../core/metadata";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { PhaseCtx } from "../core/types";
 import { AlfredpayMint } from "../phases/alfredpay-mint";
+import { AlfredpayMintContext } from "../phases/alfredpay-mint/simulation";
 import { FundEphemeral } from "../phases/fund-ephemeral";
+import { SquidRouterSwapContext } from "../phases/squid-router-swap/simulation";
+import { SubsidizePreContext } from "../phases/subsidize-pre/simulation";
 import {
   alfredpayOnrampCrossChainFlow,
   alfredpayOnrampCrossChainPhaseFlow,
@@ -144,8 +148,8 @@ describe("ALFREDPAY_ONRAMP_CROSS_CHAIN block flow", () => {
       "finalSettlementSubsidy",
       "destinationTransfer"
     ]);
-    expect(metadata.blocks.alfredpayMint.outputAmountRaw).toBe("98000000");
-    expect(metadata.blocks.subsidizePreSwap.targetInputAmountRaw).toBe("96000000");
-    expect(metadata.blocks.squidRouterSwap.inputAmountRaw).toBe("96000000");
+    expect(getBlockMetadata(metadata, AlfredpayMintContext).outputAmountRaw).toBe("98000000");
+    expect(getBlockMetadata(metadata, SubsidizePreContext).targetInputAmountRaw).toBe("96000000");
+    expect(getBlockMetadata(metadata, SquidRouterSwapContext).inputAmountRaw).toBe("96000000");
   });
 });

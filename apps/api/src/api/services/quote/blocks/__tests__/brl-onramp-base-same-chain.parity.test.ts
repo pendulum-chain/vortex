@@ -50,7 +50,10 @@ import {
   BRL_ONRAMP_BASE_SAME_CHAIN,
   BRL_ONRAMP_BASE_SAME_CHAIN_SWAP
 } from "../../../phases/ramp-flow-definitions";
+import { getBlockMetadata } from "../core/metadata";
 import type { PhaseCtx } from "../core/types";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
+import { SubsidizePostContext } from "../phases/subsidize-post/simulation";
 const { assemblePhaseFlow } = await import("../core/phase-flow");
 const {
   brlOnrampBaseSameChainFlow,
@@ -139,10 +142,11 @@ describe("BRL Base same-chain block flows", () => {
       expect(output.token).toBe(outputCurrency);
       expect(output.amount.gt(0)).toBe(true);
       expect(Object.hasOwn(metadata.blocks, "squidRouterSwap")).toBe(outputCurrency !== EvmToken.USDC);
-      expect(metadata.blocks.destinationTransfer.network).toBe(Networks.Base);
-      expect(metadata.blocks.destinationTransfer.token).toBe(outputCurrency);
+      const destinationTransfer = getBlockMetadata(metadata, DestinationTransferContext);
+      expect(destinationTransfer.network).toBe(Networks.Base);
+      expect(destinationTransfer.token).toBe(outputCurrency);
       expect(metadata.globals.fees.usd.anchor).toBe("1.5");
-      expect(metadata.blocks.subsidizePostSwap.applied).toBe(false);
+      expect(getBlockMetadata(metadata, SubsidizePostContext).applied).toBe(false);
     });
   }
 });

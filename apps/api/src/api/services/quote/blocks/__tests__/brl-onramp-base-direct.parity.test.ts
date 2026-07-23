@@ -2,7 +2,9 @@ import { afterAll, describe, expect, it, mock } from "bun:test";
 import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
 import * as feesNamespace from "../core/fees";
 import { BRL_ONRAMP_BASE_DIRECT } from "../../../phases/ramp-flow-definitions";
+import { getBlockMetadata } from "../core/metadata";
 import type { PhaseCtx } from "../core/types";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 
 const feesReal = { ...feesNamespace };
 const FEES = {
@@ -72,6 +74,6 @@ describe("BRL_ONRAMP_BASE_DIRECT block flow", () => {
     );
     expect(result.metadata.globals.fees).toEqual(FEES);
     expect(Object.keys(result.metadata.blocks)).toEqual(["aveniaMint", "fundEphemeral", "destinationTransfer"]);
-    expect(result.metadata.blocks.destinationTransfer.amountRaw).toBe("98300000000000000000");
+    expect(getBlockMetadata(result.metadata, DestinationTransferContext).amountRaw).toBe("98300000000000000000");
   });
 });

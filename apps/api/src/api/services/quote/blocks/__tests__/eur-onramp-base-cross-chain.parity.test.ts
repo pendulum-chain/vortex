@@ -69,6 +69,7 @@ afterAll(() => {
 import { EUR_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
 import { fiatRequestIO } from "../core/io";
+import { getBlockMetadata } from "../core/metadata";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { PhaseCtx } from "../core/types";
 import {
@@ -76,8 +77,12 @@ import {
   eurOnrampBaseCrossChainPhaseFlow,
   makeEurOnrampBaseCrossChainFlow
 } from "../flows/eur-onramp-base-cross-chain";
+import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 import { MykoboMint } from "../phases/mykobo-mint";
+import { MykoboMintContext } from "../phases/mykobo-mint/simulation";
 import { NablaSwap } from "../phases/nabla-swap";
+import { NablaSwapContext } from "../phases/nabla-swap/simulation";
+import { SquidRouterSwapContext } from "../phases/squid-router-swap/simulation";
 
 const CORE_PHASES: RampPhase[] = [
   "mykoboOnrampDeposit",
@@ -162,15 +167,17 @@ describe("EUR_ONRAMP_BASE_CROSS_CHAIN block flow", () => {
       "finalSettlementSubsidy",
       "destinationTransfer"
     ]);
-    expect(metadata.blocks.mykoboMint.mint).toMatchObject({
+    const mykoboMint = getBlockMetadata(metadata, MykoboMintContext);
+    expect(mykoboMint.mint).toMatchObject({
       currency: FiatToken.EURC,
       inputAmountRaw: "100000000",
       outputAmountRaw: "99940000"
     });
-    expect(Big(metadata.blocks.mykoboMint.mint.fee).toFixed()).toBe("0.06");
-    expect(metadata.blocks.nablaSwap.inputCurrency).toBe(EvmToken.EURC);
-    expect(metadata.blocks.nablaSwap.outputCurrency).toBe(EvmToken.USDC);
-    expect(metadata.blocks.squidRouterSwap.toNetwork).toBe(Networks.Arbitrum);
-    expect(metadata.blocks.destinationTransfer.amountRaw).toBe("107500000");
+    expect(Big(mykoboMint.mint.fee).toFixed()).toBe("0.06");
+    const nablaSwap = getBlockMetadata(metadata, NablaSwapContext);
+    expect(nablaSwap.inputCurrency).toBe(EvmToken.EURC);
+    expect(nablaSwap.outputCurrency).toBe(EvmToken.USDC);
+    expect(getBlockMetadata(metadata, SquidRouterSwapContext).toNetwork).toBe(Networks.Arbitrum);
+    expect(getBlockMetadata(metadata, DestinationTransferContext).amountRaw).toBe("107500000");
   });
 });
