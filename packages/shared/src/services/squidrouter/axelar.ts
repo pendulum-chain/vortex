@@ -148,7 +148,7 @@ export async function recoverAxelarStuckConfirm(txHash: string, sourceChain: str
   return rpcJson.result.hash;
 }
 
-export async function getStatusAxelarScan(swapHash: string): Promise<AxelarScanStatusResponse> {
+export async function getStatusAxelarScan(swapHash: string, signal?: AbortSignal): Promise<AxelarScanStatusResponse> {
   try {
     // POST call, https://api.axelarscan.io/gmp/searchGMP
     const response = await fetch("https://api.axelarscan.io/gmp/searchGMP", {
@@ -158,7 +158,8 @@ export async function getStatusAxelarScan(swapHash: string): Promise<AxelarScanS
       headers: {
         "Content-Type": "application/json"
       },
-      method: "POST"
+      method: "POST",
+      signal
     });
 
     if (!response.ok) {

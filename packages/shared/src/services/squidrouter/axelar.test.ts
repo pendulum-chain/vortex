@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
-import { AxelarScanStatusResponse, classifyGmpStatus, recoverAxelarStuckConfirm } from "./axelar";
+import { AxelarScanStatusResponse, classifyGmpStatus, getStatusAxelarScan, recoverAxelarStuckConfirm } from "./axelar";
 
 const TX_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const SIGNED_TX_BYTES = [10, 137, 1, 42, 0, 255];
@@ -50,6 +50,18 @@ describe("classifyGmpStatus", () => {
     expect(classifyGmpStatus(status({ is_insufficient_fee: true }))).toBe("insufficient_gas");
     expect(classifyGmpStatus(status({ gas_status: "gas_paid_not_enough_gas", status: "approved" }))).toBe("insufficient_gas");
     expect(classifyGmpStatus(status({ is_insufficient_fee: true, status: "executed" }))).toBe("executed");
+  });
+});
+
+describe("getStatusAxelarScan", () => {
+  it("aborts the request when the signal fires", async () => {
+    // With an already-aborted signal, fetch must reject without any network I/O —
+    // this is what bounds a hung axelarscan request in the status loop.
+    globalThis.fetch = realFetch;
+    const abortController = new AbortController();
+    abortController.abort(new Error("status request timed out"));
+
+    await expect(getStatusAxelarScan(TX_HASH, abortController.signal)).rejects.toThrow();
   });
 });
 
