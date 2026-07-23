@@ -13,11 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CORRIDORS } from "@/domain/corridors";
-import { getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
+import { getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import type { CorridorId, SenderAccount } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { transferActor } from "@/machines/transferActor";
-import { useOnrampQuote } from "@/services/api/hooks";
+import { useQuote } from "@/services/api/hooks";
 import { OnrampPaymentInstructions } from "./OnrampPaymentInstructions";
 import { QuoteSummary } from "./QuoteSummary";
 import { TokenCombobox } from "./TokenCombobox";
@@ -51,19 +51,17 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getRampTokenOptions();
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
-  const networkOptions = [...new Map(tokenOptions.map(option => [option.network, option.networkLabel])).entries()].sort(
-    (a, b) => a[1].localeCompare(b[1])
-  );
+  const networkOptions = getNetworkOptions(tokenOptions);
   // Prefilled values are trusted as-is: the token list and onboarding status may still be
   // loading on first render, when the option lists they'd be validated against are empty.
-  const defaultNetwork = prefill?.network ?? networkOptions[0]?.[0] ?? "polygon";
   const form = useForm<OnrampFormValues>({
     defaultValues: {
       amount: prefill?.amount ?? "",
       corridorId: prefill?.corridorId ?? corridors[0] ?? "",
       destinationAddress: address ?? "",
-      network: defaultNetwork,
-      outputCurrency: prefill?.token ?? tokenOptions.find(option => option.network === defaultNetwork)?.currency ?? ""
+      network: prefill?.network ?? networkOptions[0]?.id ?? "polygon",
+      // Left empty on purpose — the reconciliation effect below is the single place that resolves it.
+      outputCurrency: ""
     },
     resolver: zodResolver(schema)
   });
@@ -97,13 +95,14 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
     corridorId && AMOUNT_PATTERN.test(amount) && Number(amount) > 0 && network && outputCurrency
       ? {
           corridorId,
+          direction: RampDirection.BUY,
           // The validated string goes to the wire untouched — Number would round large decimals.
           inputAmount: amount,
           network: network as (typeof tokenOptions)[number]["network"],
-          outputCurrency: outputCurrency as (typeof tokenOptions)[number]["currency"]
+          token: outputCurrency as (typeof tokenOptions)[number]["currency"]
         }
       : null;
-  const { data: quote, error, isFetching } = useOnrampQuote(quoteParams);
+  const { data: quote, error, isFetching } = useQuote(quoteParams);
   const transferState = useSelector(transferActor, snapshot => snapshot);
   const activeTransfer =
     transferState.matches("Registering") ||
@@ -221,9 +220,9 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {networkOptions.map(([id, label]) => (
-                      <SelectItem key={id} value={id}>
-                        {label}
+                    {networkOptions.map(option => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

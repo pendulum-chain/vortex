@@ -19,14 +19,6 @@ export interface OfframpQuoteParams {
   network: string;
 }
 
-export interface OnrampQuoteParams {
-  corridorId: CorridorId;
-  /** Validated decimal string, passed to the wire untouched to preserve precision. */
-  inputAmount: string;
-  network: EvmNetworks;
-  outputCurrency: OnChainToken;
-}
-
 /** The wire request for an offramp (SELL) quote: sender sends USDC, recipient receives fiat. */
 export function buildOfframpQuoteRequest(params: OfframpQuoteParams, inputAmount: string): CreateQuoteRequest {
   const { corridorId, network } = params;
@@ -106,22 +98,4 @@ export function buildQuoteRequest(params: QuoteParams): CreateQuoteRequest {
 
 export function fetchQuote(params: QuoteParams): Promise<QuoteResponse> {
   return apiClient.post<QuoteResponse>("/quotes", buildQuoteRequest(params));
-}
-
-export function buildOnrampQuoteRequest(params: OnrampQuoteParams): CreateQuoteRequest {
-  return {
-    countryCode: CORRIDOR_COUNTRY[params.corridorId],
-    from: CORRIDOR_PAYMENT_METHOD[params.corridorId],
-    inputAmount: params.inputAmount,
-    inputCurrency: CORRIDOR_FIAT[params.corridorId],
-    network: params.network,
-    outputCurrency: params.outputCurrency,
-    paymentMethod: CORRIDOR_PAYMENT_METHOD[params.corridorId],
-    rampType: RampDirection.BUY,
-    to: params.network
-  };
-}
-
-export function fetchOnrampQuote(params: OnrampQuoteParams): Promise<QuoteResponse> {
-  return apiClient.post<QuoteResponse>("/quotes", buildOnrampQuoteRequest(params));
 }

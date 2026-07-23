@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
+import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
   // Any corridor, so the quote page can deep-link a sender straight into the onboarding they lack.
-  validateSearch: z.object({ onboarding: z.enum(["AR", "BR", "CO", "EU", "MX", "US"]).optional() })
+  validateSearch: z.object({ onboarding: corridorIdSchema.optional() })
 });
 
 function OverviewPage() {

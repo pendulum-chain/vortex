@@ -4,12 +4,12 @@ import { TokenIcon } from "@/components/assets/AssetIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { filterOnrampTokenOptions, type OnrampTokenOption } from "@/domain/onramp";
+import { filterRampTokenOptions, type RampTokenOption } from "@/domain/onramp";
 import { cn } from "@/lib/cn";
 
 interface TokenComboboxProps extends Omit<React.ComponentProps<typeof Button>, "onChange" | "value"> {
-  onChange: (option: OnrampTokenOption) => void;
-  options: OnrampTokenOption[];
+  onChange: (option: RampTokenOption) => void;
+  options: RampTokenOption[];
   value: string;
 }
 
@@ -18,7 +18,7 @@ export function TokenCombobox({ onChange, options, value, className, ...triggerP
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const selected = options.find(option => option.currency === value);
-  const filtered = filterOnrampTokenOptions(options, deferredSearch);
+  const filtered = filterRampTokenOptions(options, deferredSearch);
 
   function changeOpen(nextOpen: boolean) {
     setOpen(nextOpen);

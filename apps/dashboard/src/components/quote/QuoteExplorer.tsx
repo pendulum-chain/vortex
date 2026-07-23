@@ -16,12 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDOR_LIST, CORRIDORS } from "@/domain/corridors";
-import { getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
+import { getNetworkOptions, getRampTokenOptions, ONRAMP_CORRIDORS } from "@/domain/onramp";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { clampDecimals } from "@/lib/amount";
+import { clampDecimals, stripTrailingSeparator } from "@/lib/amount";
 import { springSnappy } from "@/lib/motion";
 import { useQuote } from "@/services/api/hooks";
 import { QuoteSummary } from "../transfer/QuoteSummary";
@@ -47,9 +47,11 @@ const TAB_CLASSES =
 
 export function QuoteExplorer() {
   const [direction, setDirection] = useState<RampDirection>(RampDirection.BUY);
-  const [corridorId, setCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
-  const [network, setNetwork] = useState<EvmNetworks>(Networks.Polygon);
-  const [tokenCurrency, setTokenCurrency] = useState<string>("");
+  // `requested*` is what the user last picked; the `active*` value below is what survives
+  // reconciliation and is the only one anything reads.
+  const [requestedCorridorId, setRequestedCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
+  const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Polygon);
+  const [requestedToken, setRequestedToken] = useState<string>("");
   const [typedAmount, setTypedAmount] = useState("");
 
   const { approved } = useApprovedCorridors();
@@ -58,46 +60,23 @@ export function QuoteExplorer() {
 
   const isBuy = direction === RampDirection.BUY;
 
-  // Every selection is derived rather than synced: flipping direction can drop the chosen
-  // corridor (EU has no onramp) and changing network can drop the chosen token.
+  // Every selection is derived rather than synced: flipping direction can drop the requested
+  // corridor (EU has no onramp) and changing network can drop the requested token.
   const corridors = isBuy ? ONRAMP_CORRIDORS : OFFRAMP_CORRIDORS;
-  const activeCorridor = corridors.includes(corridorId) ? corridorId : (corridors[0] ?? DEFAULT_CORRIDOR);
+  const activeCorridor = corridors.includes(requestedCorridorId) ? requestedCorridorId : (corridors[0] ?? DEFAULT_CORRIDOR);
   const corridor = CORRIDORS[activeCorridor];
 
-  const networkOptions = [...new Map(tokenOptions.map(option => [option.network, option.networkLabel])).entries()].sort(
-    (a, b) => a[1].localeCompare(b[1])
-  );
-  const activeNetwork = networkOptions.some(([id]) => id === network) ? network : (networkOptions[0]?.[0] ?? network);
-  const activeNetworkLabel = networkOptions.find(([id]) => id === activeNetwork)?.[1] ?? activeNetwork;
-  const networkTokens = tokenOptions.filter(option => option.network === activeNetwork);
-  const token = networkTokens.find(option => option.currency === tokenCurrency) ?? networkTokens[0];
-
-  // Flipping direction swaps which leg the amount belongs to, so the extra digits are cut rather
-  // than sent to a rail that would reject them.
-  const payDecimals = isBuy ? FIAT_DECIMALS : TOKEN_DECIMALS;
-  const receiveDecimals = isBuy ? TOKEN_DECIMALS : FIAT_DECIMALS;
-  const amount = clampDecimals(typedAmount, payDecimals);
-  const debouncedAmount = useDebouncedValue(amount, AMOUNT_DEBOUNCE_MS);
-  // A half-typed "12." parses fine but is not a shape the wire should carry.
-  const inputAmount = debouncedAmount.endsWith(".") ? debouncedAmount.slice(0, -1) : debouncedAmount;
-  const amountReady = Number(inputAmount) > 0;
-
-  const quoteParams =
-    amountReady && token
-      ? {
-          corridorId: activeCorridor,
-          direction,
-          inputAmount,
-          network: activeNetwork,
-          token: token.currency
-        }
-      : null;
-  const { data: quote, error, isFetching } = useQuote(quoteParams);
+  const networkOptions = getNetworkOptions(tokenOptions);
+  // Before the token list loads there are no options, and the requested network still labels the chip.
+  const activeNetwork = networkOptions.find(option => option.id === requestedNetwork) ??
+    networkOptions[0] ?? { id: requestedNetwork, label: requestedNetwork };
+  const networkTokens = tokenOptions.filter(option => option.network === activeNetwork.id);
+  const token = networkTokens.find(option => option.currency === requestedToken) ?? networkTokens[0];
 
   const isApproved = approved.has(activeCorridor);
 
   const fiatSelector = (
-    <Select onValueChange={value => setCorridorId(value as CorridorId)} value={activeCorridor}>
+    <Select onValueChange={value => setRequestedCorridorId(value as CorridorId)} value={activeCorridor}>
       <SelectTrigger aria-label="Fiat currency" className={CHIP_CLASSES} id="quote-corridor">
         <FiatIcon currency={corridor.currency} />
         <span>{corridor.currency}</span>
@@ -117,7 +96,7 @@ export function QuoteExplorer() {
   const tokenSelector = (
     <TokenCombobox
       className={CHIP_CLASSES}
-      onChange={option => setTokenCurrency(option.currency)}
+      onChange={option => setRequestedToken(option.currency)}
       options={networkTokens}
       value={token?.currency ?? ""}
     />
@@ -135,25 +114,49 @@ export function QuoteExplorer() {
   const networkHint = (
     <>
       <span className="text-muted-foreground">Network</span>
-      <Select onValueChange={value => setNetwork(value as EvmNetworks)} value={activeNetwork}>
+      <Select onValueChange={value => setRequestedNetwork(value as EvmNetworks)} value={activeNetwork.id}>
         <SelectTrigger
           aria-label="Network"
           className="h-11 w-auto gap-2 border-0 bg-transparent px-2 font-medium shadow-none transition-[color,background-color,box-shadow,scale] hover:bg-muted active:scale-[0.96] motion-reduce:active:scale-100"
         >
-          <NetworkIcon className="size-5" network={activeNetwork} />
-          <span>{activeNetworkLabel}</span>
+          <NetworkIcon className="size-5" network={activeNetwork.id} />
+          <span>{activeNetwork.label}</span>
         </SelectTrigger>
         <SelectContent align="end">
-          {networkOptions.map(([id, label]) => (
-            <SelectItem className="py-2" key={id} value={id}>
-              <NetworkIcon className="size-5" network={id} />
-              <span>{label}</span>
+          {networkOptions.map(option => (
+            <SelectItem className="py-2" key={option.id} value={option.id}>
+              <NetworkIcon className="size-5" network={option.id} />
+              <span>{option.label}</span>
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
     </>
   );
+
+  // The one inversion for the whole screen: on BUY the sender pays fiat and receives the token,
+  // on SELL it is the other way round. Everything below reads the leg, never `isBuy`.
+  const fiatLeg = { decimals: FIAT_DECIMALS, hint: railHint, selector: fiatSelector };
+  const tokenLeg = { decimals: TOKEN_DECIMALS, hint: networkHint, selector: tokenSelector };
+  const [payLeg, receiveLeg] = isBuy ? [fiatLeg, tokenLeg] : [tokenLeg, fiatLeg];
+
+  // Flipping direction swaps which leg the amount belongs to, so the extra digits are cut rather
+  // than sent to a rail that would reject them.
+  const amount = clampDecimals(typedAmount, payLeg.decimals);
+  const quotedAmount = stripTrailingSeparator(useDebouncedValue(amount, AMOUNT_DEBOUNCE_MS));
+  const amountReady = Number(quotedAmount) > 0;
+
+  const quoteParams =
+    amountReady && token
+      ? {
+          corridorId: activeCorridor,
+          direction,
+          inputAmount: quotedAmount,
+          network: activeNetwork.id,
+          token: token.currency
+        }
+      : null;
+  const { data: quote, error, isFetching } = useQuote(quoteParams);
 
   return (
     <div className="grid gap-5">
@@ -169,20 +172,15 @@ export function QuoteExplorer() {
       </Tabs>
 
       <div className="grid gap-2">
-        <AmountPanel
-          hint={isBuy ? railHint : networkHint}
-          label="You pay"
-          labelFor="quote-amount"
-          selector={isBuy ? fiatSelector : tokenSelector}
-        >
-          <AmountInput id="quote-amount" maxDecimals={payDecimals} onChange={setTypedAmount} value={amount} />
+        <AmountPanel hint={payLeg.hint} label="You pay" labelFor="quote-amount" selector={payLeg.selector}>
+          <AmountInput id="quote-amount" maxDecimals={payLeg.decimals} onChange={setTypedAmount} value={amount} />
         </AmountPanel>
-        <AmountPanel hint={isBuy ? networkHint : railHint} label="You receive" selector={isBuy ? tokenSelector : fiatSelector}>
+        <AmountPanel hint={receiveLeg.hint} label="You receive" selector={receiveLeg.selector}>
           <ReceiveAmount
             amount={quote?.outputAmount}
             isFetching={isFetching}
             isPending={amountReady && !error}
-            maxDecimals={receiveDecimals}
+            maxDecimals={receiveLeg.decimals}
           />
         </AmountPanel>
       </div>
@@ -211,11 +209,11 @@ export function QuoteExplorer() {
             </StaggerItem>
             <StaggerItem>
               <QuoteCta
-                amount={inputAmount}
+                amount={quotedAmount}
                 corridorId={activeCorridor}
                 isApproved={isApproved}
                 isBuy={isBuy}
-                network={activeNetwork}
+                network={activeNetwork.id}
                 token={token?.currency ?? ""}
               />
             </StaggerItem>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { clampDecimals, toDisplayAmount, toRawAmount } from "./amount";
+import { clampDecimals, stripTrailingSeparator, toDisplayAmount, toRawAmount } from "./amount";
 
 describe("toRawAmount", () => {
   it("strips thousand separators and normalises the decimal separator", () => {
@@ -35,5 +35,17 @@ describe("clampDecimals", () => {
 
   it("keeps a trailing separator so typing the first decimal is not swallowed", () => {
     assert.equal(clampDecimals("12.", 2), "12.");
+  });
+});
+
+describe("stripTrailingSeparator", () => {
+  it("drops a trailing dot the wire would reject", () => {
+    assert.equal(stripTrailingSeparator("12."), "12");
+  });
+
+  it("leaves a complete amount alone", () => {
+    assert.equal(stripTrailingSeparator("12.5"), "12.5");
+    assert.equal(stripTrailingSeparator("12"), "12");
+    assert.equal(stripTrailingSeparator(""), "");
   });
 });

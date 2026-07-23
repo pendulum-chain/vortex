@@ -7,7 +7,7 @@ import { TransferForm } from "@/components/transfer/TransferForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { CorridorId } from "@/domain/types";
+import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { popIn } from "@/lib/motion";
@@ -28,7 +28,8 @@ export const Route = createFileRoute("/_app/transfer")({
   validateSearch: (search: Record<string, unknown>): TransferSearch => ({
     // Onramp prefill, carried over from the quote page.
     amount: typeof search.amount === "string" ? search.amount : undefined,
-    corridorId: typeof search.corridorId === "string" ? (search.corridorId as CorridorId) : undefined,
+    // Parsed, not cast: a hand-edited corridor would otherwise reach CORRIDORS[...] unchecked.
+    corridorId: corridorIdSchema.optional().catch(undefined).parse(search.corridorId),
     mode: search.mode === "onramp" || search.mode === "cross-border" || search.mode === "offramp" ? search.mode : "offramp",
     network: typeof search.network === "string" ? search.network : undefined,
     recipient: typeof search.recipient === "string" ? search.recipient : undefined,

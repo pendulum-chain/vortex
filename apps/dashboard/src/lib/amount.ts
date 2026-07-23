@@ -23,3 +23,8 @@ export function clampDecimals(raw: string, maxDecimals: number): string {
   }
   return maxDecimals === 0 ? raw.slice(0, separator) : raw.slice(0, separator + maxDecimals + 1);
 }
+
+/** A half-typed "12." parses fine but is not a shape the wire should carry. */
+export function stripTrailingSeparator(raw: string): string {
+  return raw.endsWith(".") ? raw.slice(0, -1) : raw;
+}
