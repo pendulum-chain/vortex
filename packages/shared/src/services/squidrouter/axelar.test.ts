@@ -36,18 +36,25 @@ describe("classifyGmpStatus", () => {
     expect(classifyGmpStatus(status({ status: "called" }))).toBe("waiting_source_confirmation");
     expect(classifyGmpStatus(status({ confirm_failed: true, status: "called" }))).toBe("source_confirmation_stuck");
     expect(classifyGmpStatus(status({ status: "confirming" }))).toBe("waiting_source_confirmation");
+    expect(classifyGmpStatus(status({ status: "confirmable" }))).toBe("waiting_source_confirmation");
     // Confirmation already succeeded — must NOT be classified as waiting, which
     // would drive irrelevant ConfirmGatewayTx recovery broadcasts.
     expect(classifyGmpStatus(status({ status: "confirmed" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "approving" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "approvable" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "approved" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "executing" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "executable" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "express_executable" }))).toBe("relayer_pending");
     expect(classifyGmpStatus(status({ status: "error" }))).toBe("execution_failed");
     expect(classifyGmpStatus(status({ status: "something_new" }))).toBe("unknown");
   });
 
   it("prioritizes insufficient gas over the raw status, except when already executed", () => {
     expect(classifyGmpStatus(status({ is_insufficient_fee: true }))).toBe("insufficient_gas");
+    expect(classifyGmpStatus(status({ status: "insufficient_fee" }))).toBe("insufficient_gas");
+    expect(classifyGmpStatus(status({ status: "executable_without_gas_paid" }))).toBe("insufficient_gas");
+    expect(classifyGmpStatus(status({ status: "express_executable_without_gas_paid" }))).toBe("insufficient_gas");
     expect(classifyGmpStatus(status({ gas_status: "gas_paid_not_enough_gas", status: "approved" }))).toBe("insufficient_gas");
     expect(classifyGmpStatus(status({ is_insufficient_fee: true, status: "executed" }))).toBe("executed");
   });
