@@ -87,7 +87,9 @@ export async function enrichAdditionalDataWithClientIp(
 
   let resolvedIpAddress = providedIpAddress ?? normalizeClientIp(request.ip);
 
-  if (config.deploymentEnv !== "production" && (!resolvedIpAddress || isLoopbackIp(resolvedIpAddress))) {
+  // Only local development produces loopback/missing client IPs; deployed environments
+  // (staging, sandbox, production) must never substitute the host's public IP.
+  if (config.deploymentEnv === "development" && (!resolvedIpAddress || isLoopbackIp(resolvedIpAddress))) {
     const hostPublicIp = await fetchHostPublicIp();
     if (hostPublicIp) {
       resolvedIpAddress = hostPublicIp;
