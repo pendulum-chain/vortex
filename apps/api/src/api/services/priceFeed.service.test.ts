@@ -224,6 +224,22 @@ describe("PriceFeedService", () => {
       expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "brl");
     });
 
+    it("should use Binance spot as the primary source for COP", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? mockBinanceResponse(4100, "USDTCOP") : mockFastforexResponse(4100, COP)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 4095);
+
+      const rate = await instance.getUsdToFiatExchangeRate(COP);
+
+      expect(rate).toBe(4100);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTCOP", expect.anything());
+      expect(fetchMock).not.toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=COP", expect.anything());
+      expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "cop");
+    });
+
     it("should fall back to fastforex when Binance is unavailable", async () => {
       const instance = PriceFeedService.getInstance();
       fetchMock = mock(async (url: string) =>
@@ -447,8 +463,9 @@ describe("PriceFeedService", () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("should price every non-USD Vortex fiat currency, using Binance for BRL and fastforex otherwise", async () => {
+    it("should price every non-USD Vortex fiat currency, using Binance for BRL/COP and fastforex otherwise", async () => {
       const instance = PriceFeedService.getInstance();
+      const binanceSymbols: Record<string, string> = { BRL: "USDTBRL", COP: "USDTCOP" };
       const fastforexRates: Record<string, number> = {
         ARS: 1200,
         BRL: 5.85,
@@ -466,7 +483,12 @@ describe("PriceFeedService", () => {
 
       fetchMock = mock(async (url: string) => {
         if (isBinanceUrl(url)) {
-          return mockBinanceResponse(fastforexRates.BRL);
+          const symbol = new URL(url).searchParams.get("symbol") ?? "";
+          const currency = Object.keys(binanceSymbols).find(key => binanceSymbols[key] === symbol);
+          if (!currency) {
+            throw new Error(`Unexpected Binance symbol in test request: ${symbol}`);
+          }
+          return mockBinanceResponse(fastforexRates[currency], symbol);
         }
         const currency = new URL(url).searchParams.get("to");
         if (!currency) {
@@ -489,8 +511,11 @@ describe("PriceFeedService", () => {
         const rate = await instance.getUsdToFiatExchangeRate(currency);
 
         expect(rate).toBe(fastforexRates[currency]);
-        if (currency === BRL) {
-          expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL", expect.anything());
+        if (binanceSymbols[currency]) {
+          expect(fetchMock).toHaveBeenCalledWith(
+            `https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbols[currency]}`,
+            expect.anything()
+          );
         } else {
           expect(fetchMock).toHaveBeenCalledWith(
             `https://api.fastforex.io/fetch-one?from=USD&to=${currency}`,
@@ -512,15 +537,19 @@ describe("PriceFeedService", () => {
   });
 
   describe("verifyBinanceReachability", () => {
-    it("should log an info line when Binance is reachable", async () => {
+    it("should log an info line for every mapped market when Binance is reachable", async () => {
       const instance = PriceFeedService.getInstance();
-      fetchMock = mock(async () => mockBinanceResponse(5.2));
+      fetchMock = mock(async (url: string) =>
+        mockBinanceResponse(5.2, new URL(url).searchParams.get("symbol") ?? "")
+      );
       global.fetch = fetchMock as unknown as typeof fetch;
 
       await instance.verifyBinanceReachability();
 
       expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL", expect.anything());
+      expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTCOP", expect.anything());
       expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining("Binance price feed reachable: USD-BRL spot rate 5.2"));
+      expect(loggerMock.info).toHaveBeenCalledWith(expect.stringContaining("Binance price feed reachable: USD-COP spot rate 5.2"));
       expect(loggerMock.error).not.toHaveBeenCalled();
     });
 
