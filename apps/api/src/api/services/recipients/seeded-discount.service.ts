@@ -1,18 +1,22 @@
-import type { Transaction } from "sequelize";
+import { Transaction } from "sequelize";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import PartnerPricingConfig from "../../../models/partnerPricingConfig.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
 import type { SeededDiscount } from "../../../models/recipientInvitation.model";
-import { findPartnerWithPricing } from "../partners/partner-pricing.service";
+import User from "../../../models/user.model";
+import { findPartnerWithPricing, type PartnerWithPricing } from "../partners/partner-pricing.service";
 
-export type SeededDiscountOutcome = "created" | "skipped_existing_assignment";
+export type SeededDiscountOutcome = "created" | "skipped_existing_assignment" | "skipped_missing_vortex_pricing";
 
 /**
  * Materializes the discounts a discount_manager attached to an invite as partner pricing
- * for the accepting profile.
+ * for the accepting profile: a dedicated partner row, one pricing config per seeded
+ * direction, and a profile assignment — all inside the acceptance transaction.
  *
- * A profile that already holds an active, unexpired partner assignment keeps it.
+ * A profile that already holds an active, unexpired partner assignment keeps it: the
+ * invite then only connects the recipient, it never overrides existing pricing. Skips
+ * never fail the acceptance — a seed that cannot be applied safely is dropped, loudly.
  */
 export async function materializeSeededDiscounts(
   userId: string,
@@ -20,6 +24,11 @@ export async function materializeSeededDiscounts(
   seeds: SeededDiscount[],
   transaction: Transaction
 ): Promise<SeededDiscountOutcome> {
+  // Serialize on the profile row — the same lock the admin assignment path takes — so a
+  // concurrent admin assignment (or second discounted acceptance) cannot race this check
+  // into the active-assignment unique index or get deactivated by the replacement below.
+  await User.findByPk(userId, { lock: Transaction.LOCK.UPDATE, transaction });
+
   const now = new Date();
   const activeAssignments = await ProfilePartnerAssignment.findAll({
     transaction,
@@ -27,6 +36,22 @@ export async function materializeSeededDiscounts(
   });
   if (activeAssignments.some(assignment => !assignment.expiresAt || assignment.expiresAt > now)) {
     return "skipped_existing_assignment";
+  }
+
+  // A quote priced by a partner config takes its platform fee from that config instead of
+  // the default vortex row (see quote-fees.ts), so the vortex fee must be copied forward.
+  // Without it the seeded config would ramp platform-fee-free — in that case seed nothing
+  // (acceptance still connects the recipient) rather than materialize a fee-free config.
+  const vortexPricingBySeed: PartnerWithPricing[] = [];
+  for (const seed of seeds) {
+    const vortexPricing = await findPartnerWithPricing({ name: "vortex" }, seed.rampType, seed.fiatCurrency);
+    if (!vortexPricing) {
+      logger.error(
+        `Seeded discount for invite ${invitationId}: no vortex pricing for ${seed.rampType}/${seed.fiatCurrency}; seeding skipped`
+      );
+      return "skipped_missing_vortex_pricing";
+    }
+    vortexPricingBySeed.push(vortexPricing);
   }
 
   const partnerName = `invite-discount-${invitationId}`;
@@ -39,19 +64,13 @@ export async function materializeSeededDiscounts(
     { transaction }
   );
 
-  for (const seed of seeds) {
-    // A quote priced by a partner config takes its platform fee from that config instead of
-    // the default vortex row (see quote-fees.ts), so copy the vortex fee forward — otherwise
-    // seeded profiles would ramp platform-fee-free.
-    const vortexPricing = await findPartnerWithPricing({ name: "vortex" }, seed.rampType, seed.fiatCurrency);
-    if (!vortexPricing) {
-      logger.warn(`Seeded discount for invite ${invitationId}: no vortex pricing for ${seed.rampType}; fee set to none`);
-    }
+  for (const [index, seed] of seeds.entries()) {
+    const vortexPricing = vortexPricingBySeed[index];
     await PartnerPricingConfig.create(
       {
         fiatCurrency: seed.fiatCurrency,
         isActive: true,
-        markupCurrency: vortexPricing?.markupCurrency ?? null,
+        markupCurrency: vortexPricing.markupCurrency,
         markupType: "none",
         markupValue: 0,
         maxDynamicDifference: 0,
@@ -60,8 +79,8 @@ export async function materializeSeededDiscounts(
         partnerId: partner.id,
         rampType: seed.rampType,
         targetDiscount: seed.bps / 10000,
-        vortexFeeType: vortexPricing?.markupType ?? "none",
-        vortexFeeValue: vortexPricing?.markupValue ?? 0
+        vortexFeeType: vortexPricing.markupType,
+        vortexFeeValue: vortexPricing.markupValue
       },
       { transaction }
     );

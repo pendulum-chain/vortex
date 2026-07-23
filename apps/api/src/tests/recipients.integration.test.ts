@@ -4,6 +4,7 @@ import { findPartnerWithPricing } from "../api/services/partners/partner-pricing
 import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
 import Partner from "../models/partner.model";
+import PartnerPricingConfig from "../models/partnerPricingConfig.model";
 import ProfilePartnerAssignment from "../models/profilePartnerAssignment.model";
 import ProfileRole from "../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
@@ -853,6 +854,23 @@ describe("invite discounts (discount_manager)", () => {
     const assignments = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
     expect(assignments).toHaveLength(1);
     expect(assignments[0].partnerId).toBe(existingPartner.id);
+  });
+
+  it("skips seeding (but still accepts) when the vortex pricing config is missing", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // Without the vortex row to copy the platform fee from, seeding a config would make the
+    // invited profile ramp fee-free — the seed must be dropped, not materialized fee-free.
+    await PartnerPricingConfig.destroy({ where: {} });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.relationshipStatus).toBe("active");
+
+    expect(await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } })).toBeNull();
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(0);
   });
 
   it("does not seed again on re-entry", async () => {

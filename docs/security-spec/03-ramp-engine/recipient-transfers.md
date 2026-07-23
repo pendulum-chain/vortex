@@ -113,9 +113,13 @@ out against another tenant's relationship.
     (`invite-discount-<invitationId>`), one corridor-scoped pricing config per seed
     (`targetDiscount = bps/10000`, `maxSubsidy = 0`, partner markup `none`, and the default
     vortex platform fee copied into the config's vortex-fee fields so seeded profiles do not
-    ramp platform-fee-free), and an active `profile_partner_assignments` row for the accepting
-    profile. A profile that already holds an active, unexpired assignment keeps it — the seed
-    is discarded and the invite only connects the recipient. Roles are admin-managed via
+    ramp platform-fee-free — if the vortex pricing row for a seeded direction/corridor is
+    missing, seeding is skipped entirely and logged rather than materializing a fee-free
+    config), and an active `profile_partner_assignments` row for the accepting profile.
+    Seeding locks the profile row first (the same serialization point as admin assignment
+    replacement) so it cannot race a concurrent admin assignment. A profile that already
+    holds an active, unexpired assignment keeps it — the seed is discarded and the invite
+    only connects the recipient. Roles are admin-managed via
     `POST/DELETE /v1/admin/profile-roles` behind `adminAuth` and surfaced to the dashboard as
     `roles` on `GET /v1/onboarding/status`.
     Discount-carrying invites deep-link to the **dashboard** (`/invite/<token>`, rebuilt for

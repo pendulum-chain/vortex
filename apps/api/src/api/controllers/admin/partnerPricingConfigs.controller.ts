@@ -53,7 +53,9 @@ function serializePricingConfig(config: PartnerPricingConfig, partnerName: strin
 
 export async function createPartnerPricingConfig(req: Request, res: Response): Promise<void> {
   try {
-    const { partnerName, rampType, fiatCurrency } = req.body;
+    // An empty or non-JSON POST leaves req.body undefined — validate, don't 500.
+    const body = req.body ?? {};
+    const { partnerName, rampType, fiatCurrency } = body;
 
     if (!partnerName || typeof partnerName !== "string") {
       invalidInput(res, "partnerName is a required string field");
@@ -74,14 +76,14 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
     }
 
     for (const field of NUMERIC_FIELDS) {
-      const value = req.body[field];
+      const value = body[field];
       if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
         invalidInput(res, `${field} must be a finite number`);
         return;
       }
     }
 
-    const { markupType, vortexFeeType, markupCurrency, payoutAddressSubstrate, payoutAddressEvm } = req.body;
+    const { markupType, vortexFeeType, markupCurrency, payoutAddressSubstrate, payoutAddressEvm } = body;
     if (markupType !== undefined && !FEE_TYPES.has(markupType)) {
       invalidInput(res, "markupType must be absolute, relative or none");
       return;
@@ -95,6 +97,13 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
         invalidInput(res, `${field} must be a string`);
         return;
       }
+    }
+    // Both fee components convert through markupCurrency at quote time (quote-fees.ts); an
+    // active fee without one would make every matching quote fail. The value itself is not
+    // enum-checked because the crypto leg resolves dynamic symbols at runtime.
+    if (((markupType ?? "none") !== "none" || (vortexFeeType ?? "none") !== "none") && !markupCurrency) {
+      invalidInput(res, "markupCurrency is required when markupType or vortexFeeType is not none");
+      return;
     }
 
     const partner = await Partner.findOne({
@@ -119,17 +128,17 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
       fiatCurrency: fiatCurrency ?? null,
       markupCurrency: markupCurrency ?? null,
       markupType: markupType ?? "none",
-      markupValue: req.body.markupValue ?? 0,
-      maxDynamicDifference: req.body.maxDynamicDifference ?? 0,
-      maxSubsidy: req.body.maxSubsidy ?? 0,
-      minDynamicDifference: req.body.minDynamicDifference ?? 0,
+      markupValue: body.markupValue ?? 0,
+      maxDynamicDifference: body.maxDynamicDifference ?? 0,
+      maxSubsidy: body.maxSubsidy ?? 0,
+      minDynamicDifference: body.minDynamicDifference ?? 0,
       partnerId: partner.id,
       payoutAddressEvm: payoutAddressEvm ?? null,
       payoutAddressSubstrate: payoutAddressSubstrate ?? null,
       rampType,
-      targetDiscount: req.body.targetDiscount ?? 0,
+      targetDiscount: body.targetDiscount ?? 0,
       vortexFeeType: vortexFeeType ?? "none",
-      vortexFeeValue: req.body.vortexFeeValue ?? 0
+      vortexFeeValue: body.vortexFeeValue ?? 0
     });
 
     res.status(httpStatus.CREATED).json({

@@ -75,6 +75,31 @@ describe("partner pricing configs admin routes", () => {
     expect(body.error.code).toBe("INVALID_PRICING_CONFIG_INPUT");
   });
 
+  it("rejects an empty body with 400 instead of crashing", async () => {
+    const response = await fetch(baseUrl, { headers: { Authorization: ADMIN_HEADERS.Authorization }, method: "POST" });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("INVALID_PRICING_CONFIG_INPUT");
+  });
+
+  it("requires markupCurrency when a fee type is active", async () => {
+    await createTestPartner({ name: "acme", rampType: RampDirection.BUY });
+
+    const missing = await post({ markupType: "relative", markupValue: 0.001, partnerName: "acme", rampType: "SELL" });
+    expect(missing.status).toBe(400);
+    const body = (await missing.json()) as { error: { message: string } };
+    expect(body.error.message).toContain("markupCurrency");
+
+    const withCurrency = await post({
+      markupCurrency: "USDC",
+      markupType: "relative",
+      markupValue: 0.001,
+      partnerName: "acme",
+      rampType: "SELL"
+    });
+    expect(withCurrency.status).toBe(201);
+  });
+
   it("returns 404 for an unknown partner and 409 for a duplicate scope", async () => {
     const missing = await post({ partnerName: "ghost", rampType: "BUY" });
     expect(missing.status).toBe(404);
