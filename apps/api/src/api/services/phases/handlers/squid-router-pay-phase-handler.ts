@@ -1,12 +1,15 @@
 import {
   AxelarScanStatusFees,
+  AxelarScanStatusResponse,
   BalanceCheckError,
   BalanceCheckErrorType,
   checkEvmBalanceForToken,
+  classifyGmpStatus,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
   FiatToken,
+  GmpClassification,
   getNetworkId,
   getOnChainTokenDetails,
   getStatus,
@@ -29,9 +32,10 @@ import { axelarGasServiceAbi } from "../../../../contracts/AxelarGasService";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../models/subsidy.model";
+import { SlackNotifier } from "../../slack.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
-import { getSquidRouterPayTimeoutMs } from "../phase-processor-config";
+import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../phase-processor-config";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
@@ -41,6 +45,9 @@ const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000"; // Estimate used to calculat
 // Minimum time between Axelar stuck-confirm recovery broadcasts for the same ramp. A new
 // validator poll needs a few minutes to complete, so re-broadcasting sooner is pure noise.
 const AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS = 10 * 60 * 1000;
+// Minimum time between stuck-GMP alerts for the same ramp, so a multi-hour outage
+// produces periodic reminders instead of one alert per 10s poll iteration.
+const STUCK_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
@@ -54,6 +61,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   // Instance fields (not module constants) so tests can shrink the waits.
   private initialDelayMs = SQUIDROUTER_INITIAL_DELAY_MS;
   private pollIntervalMs = AXELAR_POLLING_INTERVAL_MS;
+  // Test override; when unset the env-backed default applies per call.
+  private stuckAlertThresholdMs?: number;
+  // Lazily created so environments without SLACK_WEB_HOOK_TOKEN (dev, tests) still
+  // load the handler; stuck alerts then only go to the logs.
+  private slackNotifier?: SlackNotifier | null;
 
   constructor() {
     super();
@@ -226,6 +238,11 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         throw this.createRecoverableError(`SquidRouterPayPhaseHandler: Bridge status check timed out after ${timeoutMs}ms`);
       }
 
+      // Set when the initial gas funding ran this iteration: the fetched status
+      // predates that payment, so acting on it (e.g. topping up "insufficient" gas)
+      // would double-pay. The next iteration sees a fresh status.
+      let fundedThisIteration = false;
+
       try {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
 
@@ -250,6 +267,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
             break;
           } else if (!payTxHash) {
             logger.info("SquidRouterPayPhaseHandler: Bridge transaction detected on Axelar. Proceeding to fund gas.");
+            fundedThisIteration = true;
 
             const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
             const logIndex = Number(axelarScanStatus.id.split("_")[2]);
@@ -279,10 +297,17 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
           } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
             await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
+
+          if (!fundedThisIteration) {
+            await this.monitorStuckGmp(state, swapHash, quote, axelarScanStatus ?? undefined, signal);
+          }
         } else {
           logger.info("SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.");
         }
       } catch (error) {
+        // Status APIs down is exactly how a stuck transfer looked in production, so
+        // the stuck check must also run when no status could be fetched at all.
+        await this.monitorStuckGmp(state, swapHash, quote, undefined, signal, error);
         throw this.createRecoverableError(
           `SquidRouterPayPhaseHandler: Failed to check bridge status for ${swapHash}, error: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -336,6 +361,185 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         `SquidRouterPayPhaseHandler: Axelar stuck-confirm recovery attempt failed for ${swapHash}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  /** Time since the ramp entered squidRouterPay, spanning retried executions. */
+  private getElapsedInPhaseMs(state: RampState): number {
+    const entry = [...(state.phaseHistory ?? [])].reverse().find(e => e.phase === "squidRouterPay");
+    const startIso = entry?.timestamp ?? state.createdAt;
+    const start = startIso ? new Date(startIso).getTime() : Number.NaN;
+    return Number.isFinite(start) ? Date.now() - start : 0;
+  }
+
+  /**
+   * Active monitoring for a GMP that has been in squidRouterPay past the stuck
+   * threshold: classify the Axelar state, take the safe recovery action for that
+   * state, and alert ops. Never throws — the surrounding status loop (or its error
+   * path) must proceed unchanged. Completion still requires an executed status or
+   * arrived destination balance; nothing here marks the phase successful.
+   */
+  private async monitorStuckGmp(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    signal?: AbortSignal,
+    lastError?: unknown
+  ): Promise<void> {
+    try {
+      const elapsedMs = this.getElapsedInPhaseMs(state);
+      if (elapsedMs < (this.stuckAlertThresholdMs ?? getSquidRouterPayStuckAlertMs())) {
+        return;
+      }
+
+      const classification = classifyGmpStatus(axelarScanStatus);
+      if (classification === "executed") {
+        return;
+      }
+
+      let actionTaken = "none";
+      if (classification === "insufficient_gas") {
+        actionTaken = await this.maybeTopUpGas(state, swapHash, quote, axelarScanStatus);
+      } else if (classification === "waiting_source_confirmation" || classification === "source_confirmation_stuck") {
+        // A transfer sitting in "called" this long has a stalled validator poll even
+        // when axelarscan has not flagged confirm_failed; a fresh ConfirmGatewayTx is
+        // safe (public tx hash only) and restarts the poll. Cooldown-gated.
+        await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus?.call?.chain, signal);
+        actionTaken = "attempted Axelar ConfirmGatewayTx recovery (cooldown-gated)";
+      }
+
+      await this.alertStuckGmp(state, swapHash, classification, axelarScanStatus, elapsedMs, actionTaken, lastError);
+    } catch (error) {
+      logger.warn(
+        `SquidRouterPayPhaseHandler: Stuck-GMP monitor failed for ramp ${state.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * One-time supplemental addNativeGas top-up for a transfer whose paid gas Axelar
+   * reports as insufficient. Guarded by the persisted squidRouterExtraGasTxHash so
+   * it can never be sent twice; overpayment is refunded by the gas service to the
+   * funding wallet. Returns a human-readable summary for the ops alert.
+   */
+  private async maybeTopUpGas(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    axelarScanStatus: AxelarScanStatusResponse | undefined
+  ): Promise<string> {
+    if (!state.state.squidRouterPayTxHash) {
+      return "initial gas payment still pending; regular funding flow will pay";
+    }
+    if (state.state.squidRouterExtraGasTxHash) {
+      return `gas top-up already sent (${state.state.squidRouterExtraGasTxHash}); not topping up again`;
+    }
+    if (!axelarScanStatus?.fees) {
+      return "cannot top up gas: Axelar status has no fee data";
+    }
+    const logIndex = Number(axelarScanStatus.id?.split("_")[2]);
+    if (!Number.isFinite(logIndex)) {
+      return `cannot top up gas: malformed Axelar status id "${axelarScanStatus.id}"`;
+    }
+
+    const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+    const extraGasTxHash = await this.executeFundTransaction(
+      nativeToFundRaw,
+      swapHash as `0x${string}`,
+      logIndex,
+      state,
+      quote
+    );
+    await state.update({
+      state: { ...state.state, squidRouterExtraGasTxHash: extraGasTxHash }
+    });
+
+    // The Subsidy dedup guard (one row per ramp+phase) already holds the initial gas
+    // payment, so this top-up is not recorded there. Keep this line alertable for
+    // accounting.
+    logger.warn(
+      `SQUIDROUTER_EXTRA_GAS_PAID: supplemental Axelar gas top-up sent. ramp=${state.id} amountRaw=${nativeToFundRaw} tx=${extraGasTxHash}`
+    );
+    return `sent one-time gas top-up ${extraGasTxHash} (${nativeToDecimal(nativeToFundRaw, 18).toNumber()} native units)`;
+  }
+
+  private async alertStuckGmp(
+    state: RampState,
+    swapHash: string,
+    classification: GmpClassification,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    elapsedMs: number,
+    actionTaken: string,
+    lastError?: unknown
+  ): Promise<void> {
+    // NaN-safe like axelarConfirmRecoveryAt: an unparseable timestamp means "never".
+    const parsedLastAlert = state.state.squidRouterStuckAlertedAt
+      ? new Date(state.state.squidRouterStuckAlertedAt).getTime()
+      : 0;
+    const lastAlert = Number.isFinite(parsedLastAlert) ? parsedLastAlert : 0;
+    if (Date.now() - lastAlert < STUCK_ALERT_REPEAT_MS) {
+      return;
+    }
+
+    // Persist before sending so a failing webhook is not hammered every poll iteration.
+    await state.update({
+      state: { ...state.state, squidRouterStuckAlertedAt: new Date().toISOString() }
+    });
+
+    const guidanceByClassification: Record<GmpClassification, string> = {
+      executed: "",
+      execution_failed: "destination execution failed — external; retry the execution manually from the Axelarscan page",
+      insufficient_gas: "Vortex-actionable: Axelar reports the paid gas as insufficient",
+      relayer_pending:
+        "gas paid and call approved — likely external Axelar/Squid relayer latency; manual execute possible on Axelarscan",
+      source_confirmation_stuck: "validator confirm poll failed — auto-recovery attempted; external if it persists",
+      unknown: "status unavailable or not indexed — possible Squid/Axelarscan API outage; check the Axelarscan link manually",
+      waiting_source_confirmation: "waiting for Axelar source confirmation — auto-recovery attempted; external if it persists"
+    };
+
+    const lastErrorLog = state.errorLogs?.[state.errorLogs.length - 1];
+    const lastErrorText =
+      lastError instanceof Error ? lastError.message : lastError ? String(lastError) : (lastErrorLog?.error ?? "none");
+
+    const text = [
+      `squidRouterPay stuck for ${Math.round(elapsedMs / 60000)} minutes`,
+      `- ramp: ${state.id}`,
+      `- classification: ${classification} (${guidanceByClassification[classification]})`,
+      `- axelar status: ${axelarScanStatus?.status ?? "unavailable"} (confirm_failed=${axelarScanStatus?.confirm_failed ?? "n/a"}, is_insufficient_fee=${axelarScanStatus?.is_insufficient_fee ?? "n/a"}, gas_status=${axelarScanStatus?.gas_status ?? "n/a"})`,
+      `- source tx: ${swapHash}`,
+      `- squid quote id: ${state.state.squidRouterQuoteId ?? "unknown"}`,
+      `- axelarscan: https://axelarscan.io/gmp/${swapHash}`,
+      `- gas payment tx: ${state.state.squidRouterPayTxHash ?? "none"}`,
+      `- action taken: ${actionTaken}`,
+      `- last error: ${lastErrorText}`
+    ].join("\n");
+
+    logger.warn(`SQUIDROUTER_PAY_STUCK: ${text}`);
+
+    const notifier = this.getSlackNotifier();
+    if (notifier) {
+      try {
+        await notifier.sendMessage({ text });
+      } catch (error) {
+        logger.warn(
+          `SquidRouterPayPhaseHandler: Failed to send stuck-GMP Slack alert for ramp ${state.id}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+
+  private getSlackNotifier(): SlackNotifier | null {
+    if (this.slackNotifier === undefined) {
+      try {
+        this.slackNotifier = new SlackNotifier();
+      } catch {
+        logger.warn(
+          "SquidRouterPayPhaseHandler: Slack notifier unavailable (SLACK_WEB_HOOK_TOKEN not set); stuck-GMP alerts will only be logged."
+        );
+        this.slackNotifier = null;
+      }
+    }
+    return this.slackNotifier;
   }
 
   /**

@@ -208,6 +208,144 @@ describe("SquidRouterPayPhaseHandler", () => {
     expect(recoverAxelarStuckConfirm).not.toHaveBeenCalled();
   });
 
+  describe("stuck-GMP monitoring", () => {
+    const CALLED_STATUS = {
+      call: { chain: "base" },
+      id: `${SWAP_HASH}_55_172`,
+      is_insufficient_fee: false,
+      status: "called"
+    };
+
+    const INSUFFICIENT_GAS_STATUS = {
+      ...CALLED_STATUS,
+      fees: {
+        execute_gas_multiplier: 1.1,
+        source_base_fee: 0.01,
+        source_token: { gas_price: "0.00000002", gas_price_in_units: { decimals: 18, value: "20000000000" } }
+      },
+      is_insufficient_fee: true
+    };
+
+    function makeStuckHandler() {
+      const handler = makeHandler();
+      (handler as any).stuckAlertThresholdMs = 0;
+      const sendMessage = mock(async () => undefined);
+      (handler as any).slackNotifier = { sendMessage };
+      return { handler, sendMessage };
+    }
+
+    it("alerts once with classification and context when stuck past the threshold", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+
+      // Uses the real 20-minute default threshold; elapsed time comes from phaseHistory.
+      const handler = makeHandler();
+      const sendMessage = mock(async () => undefined);
+      (handler as any).slackNotifier = { sendMessage };
+
+      const state = makeState({ squidRouterQuoteId: "squid-quote-1" });
+      state.phaseHistory = [{ phase: "squidRouterPay", timestamp: new Date(Date.now() - 30 * 60 * 1000) }];
+      state.errorLogs = [
+        { error: "Bridge status check timed out after 480000ms", phase: "squidRouterPay", timestamp: new Date().toISOString() }
+      ];
+
+      await handler.execute(state);
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("stuck for 30 minutes");
+      expect(text).toContain("ramp-1");
+      expect(text).toContain("classification: waiting_source_confirmation");
+      expect(text).toContain(SWAP_HASH);
+      expect(text).toContain("squid-quote-1");
+      expect(text).toContain(`https://axelarscan.io/gmp/${SWAP_HASH}`);
+      expect(text).toContain("Bridge status check timed out after 480000ms");
+      expect(state.state.squidRouterStuckAlertedAt).toBeString();
+    });
+
+    it("attempts confirm recovery for a transfer stuck at called even without confirm_failed", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+
+      const { handler } = makeStuckHandler();
+      await handler.execute(makeState());
+
+      expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+      expect(recoverAxelarStuckConfirm).toHaveBeenCalledWith(SWAP_HASH, "base", undefined);
+    });
+
+    it("does not re-alert within the repeat window", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+
+      const { handler, sendMessage } = makeStuckHandler();
+      await handler.execute(makeState({ squidRouterStuckAlertedAt: new Date().toISOString() }));
+
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("does not alert or recover before the threshold", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+
+      const handler = makeHandler(); // default 20-minute threshold, phase just started
+      const sendMessage = mock(async () => undefined);
+      (handler as any).slackNotifier = { sendMessage };
+      await handler.execute(makeState());
+
+      expect(sendMessage).not.toHaveBeenCalled();
+      expect(recoverAxelarStuckConfirm).not.toHaveBeenCalled();
+    });
+
+    it("sends exactly one supplemental gas top-up when Axelar reports insufficient gas after payment", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
+
+      const { handler, sendMessage } = makeStuckHandler();
+      const executeFundTransaction = mock(async () => "0xtopup");
+      (handler as any).executeFundTransaction = executeFundTransaction;
+
+      const state = makeState(); // squidRouterPayTxHash "0xpay" already set
+      await handler.execute(state);
+
+      expect(executeFundTransaction).toHaveBeenCalledTimes(1);
+      expect(state.state.squidRouterExtraGasTxHash).toBe("0xtopup");
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("classification: insufficient_gas");
+      expect(text).toContain("0xtopup");
+    });
+
+    it("does not top up in the same iteration as the initial gas funding", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
+
+      const { handler } = makeStuckHandler();
+      const executeFundTransaction = mock(async () => "0xinitialpay");
+      (handler as any).executeFundTransaction = executeFundTransaction;
+
+      const state = makeState({ squidRouterPayTxHash: undefined });
+      await handler.execute(state);
+
+      // Only the regular initial funding ran; the stale pre-payment status must not
+      // additionally trigger a top-up.
+      expect(executeFundTransaction).toHaveBeenCalledTimes(1);
+      expect(state.state.squidRouterPayTxHash).toBe("0xinitialpay");
+      expect(state.state.squidRouterExtraGasTxHash).toBeUndefined();
+    });
+
+    it("alerts with unknown classification when the status APIs are down", async () => {
+      getStatus.mockImplementationOnce(() => Promise.reject(new Error("squid down")));
+      getStatusAxelarScan.mockImplementationOnce(() => Promise.reject(new Error("axelarscan down")));
+      // Non-EVM destination: bridge-status-only path, so the status failure rejects the
+      // execution instead of losing the Promise.any race to a pending balance check.
+      quote = { inputCurrency: FiatToken.EURC, outputCurrency: "USDC", to: Networks.AssetHub };
+
+      const { handler, sendMessage } = makeStuckHandler();
+      const state = makeState();
+
+      await expect(handler.execute(state)).rejects.toThrow("Failed to check bridge status");
+
+      expect(sendMessage).toHaveBeenCalledTimes(1);
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("classification: unknown");
+      expect(text).toContain("axelar status: unavailable");
+    });
+  });
+
   it("stops polling when the processor aborts the execution", async () => {
     // Regression test for the retry storm: abandoned executions must unwind on abort
     // instead of polling the status APIs forever.

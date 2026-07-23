@@ -36,6 +36,12 @@ export interface StateMetadata {
   // Timestamp of the last Axelar stuck-confirm recovery attempt, persisted so
   // retried phase executions respect the cooldown instead of re-broadcasting.
   axelarConfirmRecoveryAt?: string;
+  // Timestamp of the last stuck-GMP alert for squidRouterPay, persisted so retried
+  // phase executions don't re-alert before the repeat window elapses.
+  squidRouterStuckAlertedAt?: string;
+  // One-time supplemental addNativeGas top-up sent when Axelar reported the paid
+  // gas as insufficient. Presence of the hash prevents any further top-ups.
+  squidRouterExtraGasTxHash?: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;
   // Set to true once update-time validation gate passes (all presigned txs valid + complete,
