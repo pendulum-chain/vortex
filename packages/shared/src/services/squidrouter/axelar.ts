@@ -33,6 +33,35 @@ export interface AxelarScanStatusResponse {
   call?: {
     chain: string; // source chain in Axelar naming, e.g. "base"
   };
+  // e.g. "gas_paid", "gas_unpaid", "gas_paid_not_enough_gas"
+  gas_status?: string;
+}
+
+/**
+ * Coarse GMP states that matter for stuck-transfer handling. Derived from the
+ * axelarscan status so callers can decide between alerting, adding gas, or
+ * triggering confirm recovery.
+ */
+export type GmpClassification =
+  | "executed"
+  | "insufficient_gas"
+  | "source_confirmation_stuck"
+  | "waiting_source_confirmation"
+  | "relayer_pending"
+  | "execution_failed"
+  | "unknown";
+
+export function classifyGmpStatus(status: AxelarScanStatusResponse | undefined | null): GmpClassification {
+  if (!status || !status.status) return "unknown";
+  if (status.status === "executed" || status.status === "express_executed") return "executed";
+  // Checked before the per-status mapping: a transfer can sit in "called" or
+  // "approved" solely because the paid gas no longer covers execution.
+  if (status.is_insufficient_fee || status.gas_status === "gas_paid_not_enough_gas") return "insufficient_gas";
+  if (status.status === "called") return status.confirm_failed ? "source_confirmation_stuck" : "waiting_source_confirmation";
+  if (status.status === "confirming" || status.status === "confirmed") return "waiting_source_confirmation";
+  if (status.status === "approving" || status.status === "approved" || status.status === "executing") return "relayer_pending";
+  if (status.status === "error") return "execution_failed";
+  return "unknown";
 }
 const AXELAR_SIGNING_RELAYER_URL = "https://axelar-signing-relayer-mainnet.axelar.dev";
 const AXELAR_RPC_URL = "https://mainnet.rpc.axelar.dev/chain/axelar";

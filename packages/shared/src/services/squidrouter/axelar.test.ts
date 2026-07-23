@@ -1,5 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
-import { recoverAxelarStuckConfirm } from "./axelar";
+import { AxelarScanStatusResponse, classifyGmpStatus, recoverAxelarStuckConfirm } from "./axelar";
 
 const TX_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const SIGNED_TX_BYTES = [10, 137, 1, 42, 0, 255];
@@ -21,6 +21,34 @@ function jsonResponse(body: unknown, ok = true, status = 200): Response {
     status
   } as Response;
 }
+
+describe("classifyGmpStatus", () => {
+  function status(overrides: Partial<AxelarScanStatusResponse>): AxelarScanStatusResponse {
+    return { fees: {} as AxelarScanStatusResponse["fees"], id: "0xabc_1_2", is_insufficient_fee: false, status: "called", ...overrides };
+  }
+
+  it("maps axelarscan statuses to actionable states", () => {
+    expect(classifyGmpStatus(undefined)).toBe("unknown");
+    expect(classifyGmpStatus(null)).toBe("unknown");
+    expect(classifyGmpStatus(status({ status: "" }))).toBe("unknown");
+    expect(classifyGmpStatus(status({ status: "executed" }))).toBe("executed");
+    expect(classifyGmpStatus(status({ status: "express_executed" }))).toBe("executed");
+    expect(classifyGmpStatus(status({ status: "called" }))).toBe("waiting_source_confirmation");
+    expect(classifyGmpStatus(status({ confirm_failed: true, status: "called" }))).toBe("source_confirmation_stuck");
+    expect(classifyGmpStatus(status({ status: "confirming" }))).toBe("waiting_source_confirmation");
+    expect(classifyGmpStatus(status({ status: "approving" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "approved" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "executing" }))).toBe("relayer_pending");
+    expect(classifyGmpStatus(status({ status: "error" }))).toBe("execution_failed");
+    expect(classifyGmpStatus(status({ status: "something_new" }))).toBe("unknown");
+  });
+
+  it("prioritizes insufficient gas over the raw status, except when already executed", () => {
+    expect(classifyGmpStatus(status({ is_insufficient_fee: true }))).toBe("insufficient_gas");
+    expect(classifyGmpStatus(status({ gas_status: "gas_paid_not_enough_gas", status: "approved" }))).toBe("insufficient_gas");
+    expect(classifyGmpStatus(status({ is_insufficient_fee: true, status: "executed" }))).toBe("executed");
+  });
+});
 
 describe("recoverAxelarStuckConfirm", () => {
   it("decodes the relayer's numeric-keyed byte response and broadcasts it", async () => {
