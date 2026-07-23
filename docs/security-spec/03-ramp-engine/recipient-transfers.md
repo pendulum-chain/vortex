@@ -103,35 +103,43 @@ out against another tenant's relationship.
     recipient payout capture remains in the recipient's widget onboarding session.
 11. **Invite discounts are role-gated at creation and materialized only once, at first
     acceptance.** `POST /v1/recipients/invite` accepts an optional `discounts` body
-    (`buyBps`/`sellBps`, integers `0..1000`; `0` means none) only from profiles holding the
-    `discount_manager` role in `profile_roles` (`403 DISCOUNT_ROLE_REQUIRED` otherwise — the
-    role check is server-side, the dashboard's field visibility is UX only). Validated seeds
-    are stored on `recipient_invitations.seeded_discounts` as
-    `{ rampType, fiatCurrency, bps }[]`, with `fiatCurrency` derived server-side from the
-    invite's corridor (never client-supplied). Inside the first-acceptance transaction (never
-    on re-entry), `materializeSeededDiscounts` creates a dedicated partner row
-    (`invite-discount-<invitationId>`), one corridor-scoped pricing config per seed
-    (`targetDiscount = bps/10000`, `maxSubsidy = 0`, partner markup `none`, and the default
-    vortex platform fee copied into the config's vortex-fee fields so seeded profiles do not
-    ramp platform-fee-free — if the vortex pricing row for a seeded direction/corridor is
-    missing, seeding is skipped entirely and logged rather than materializing a fee-free
-    config), and an active `profile_partner_assignments` row for the accepting profile.
-    Seeding locks the profile row first (the same serialization point as admin assignment
-    replacement) so it cannot race a concurrent admin assignment. A profile that already
-    holds an active, unexpired assignment keeps it — the seed is discarded and the invite
-    only connects the recipient. Roles are admin-managed via
-    `POST/DELETE /v1/admin/profile-roles` behind `adminAuth` and surfaced to the dashboard as
-    `roles` on `GET /v1/onboarding/status`.
+    (`buyBps`/`sellBps`, integers `0..300` — bounded so the advertised discount always fits
+    under the runtime EVM discount-subsidy cap with execution headroom; `0` means none)
+    only from profiles holding the `discount_manager` role in `profile_roles`
+    (`403 DISCOUNT_ROLE_REQUIRED` otherwise — the role check is server-side, the dashboard's
+    field visibility is UX only). Validated seeds are stored on
+    `recipient_invitations.seeded_discounts` as `{ rampType, fiatCurrency, bps }[]`, with
+    `fiatCurrency` derived server-side from the invite's corridor (never client-supplied).
+    Inside the first-acceptance transaction (never on re-entry), `materializeSeededDiscounts`
+    creates a dedicated partner row (`invite-discount-<invitationId>`), one corridor-scoped
+    pricing config per seed (`targetDiscount = bps/10000`, `maxSubsidy` mirroring the runtime
+    EVM discount-subsidy cap fraction so a quote-time subsidy can never exceed what
+    subsidize-post-swap will execute, partner markup `none`, and the default vortex platform
+    fee copied into the config's vortex-fee fields so seeded profiles do not ramp
+    platform-fee-free — if the vortex pricing row for a seeded direction/corridor is missing,
+    seeding is skipped entirely and logged rather than materializing a fee-free config), and
+    an active `profile_partner_assignments` row for the accepting profile. Seeding locks the
+    profile row first (the same serialization point as admin assignment replacement) so it
+    cannot race a concurrent admin assignment. A profile that already holds an active,
+    unexpired assignment keeps it — the seed is discarded and the invite only connects the
+    recipient. Roles are admin-managed via `POST/DELETE /v1/admin/profile-roles` behind
+    `adminAuth` and surfaced to the dashboard as `roles` on `GET /v1/onboarding/status`.
     Discount-carrying invites deep-link to the **dashboard** (`/invite/<token>`, rebuilt for
-    re-copy from `seededDiscounts` on the pending-invitations listing) instead of the widget:
-    the invitee signs in (email OTP) on the invite page, the dashboard calls the same
-    `POST /v1/recipients/invite/:token/accept` endpoint — every redemption invariant above
-    (token binding, email binding, first-redeemer, expiry, self-accept rejection) applies
-    unchanged — then fixes the account type from the invitation via
-    `PUT /v1/onboarding/active-entity`, so provider onboarding attaches to the same
-    `(profile, type)` customer entity the acceptance linked. Sender-side KYC tracking is
-    client-agnostic either way: list/eligibility read `provider_customers` scoped by the
-    relationship's recipient entity + the invitation's provider/type/country.
+    re-copy from `seededDiscounts` on the pending-invitations listing) instead of the widget.
+    The invitee signs in (email OTP) on the invite page, then must **explicitly confirm with
+    the active account shown** before anything is redeemed — links are bearer tokens and
+    redemption binds the first acceptor permanently, so a "use a different account" action is
+    offered. The confirm screen is fed by `GET /v1/recipients/invite/:token`, a read-only
+    preview that runs the same gate checks as acceptance (existence, expiry, email binding,
+    self-accept) but consumes and mutates nothing. On confirmation the dashboard first fixes
+    the account type from the invitation via `PUT /v1/onboarding/active-entity` — an
+    established profile of the other type fails here (`ACTIVE_ENTITY_IMMUTABLE`) **before**
+    the invite is consumed — and only then calls the same
+    `POST /v1/recipients/invite/:token/accept` endpoint; every redemption invariant above
+    applies unchanged, and provider onboarding attaches to the same `(profile, type)`
+    customer entity the acceptance linked. Sender-side KYC tracking is client-agnostic
+    either way: list/eligibility read `provider_customers` scoped by the relationship's
+    recipient entity + the invitation's provider/type/country.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 

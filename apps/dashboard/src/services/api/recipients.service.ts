@@ -91,6 +91,14 @@ export interface CreateInviteResponse {
   createdAt: string;
 }
 
+/** GET /v1/recipients/invite/:token — read-only gate-checked preview, consumes nothing. */
+export interface InvitePreviewResponse {
+  country: string;
+  rail: string;
+  payoutCurrency: string;
+  inviteeType: RecipientInviteeType;
+}
+
 /** POST /v1/recipients/invite/:token/accept — links the authenticated profile to the sender. */
 export interface AcceptedInviteResponse {
   id: string;
@@ -122,5 +130,9 @@ export const RecipientsService = {
   },
   list(): Promise<ListRecipientsResponse> {
     return apiClient.get<ListRecipientsResponse>("/recipients");
+  },
+  /** Gate-checked invite preview for the confirm screen; leaves the invite untouched. */
+  previewInvite(token: string): Promise<InvitePreviewResponse> {
+    return apiClient.get<InvitePreviewResponse>(`/recipients/invite/${token}`);
   }
 };

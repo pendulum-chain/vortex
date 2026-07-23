@@ -28,11 +28,13 @@ import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
 import { CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
+// Mirrors the backend's MAX_DISCOUNT_BPS: larger discounts cannot execute under the
+// runtime 5% subsidy cap and would stall ramps for operator intervention.
 const bpsSchema = z.coerce
   .number("Enter a whole number of bps")
   .int("Enter a whole number of bps")
   .min(0, "Must be 0 or more")
-  .max(1000, "At most 1000 bps");
+  .max(300, "At most 300 bps");
 
 const schema = z.object({
   alias: z.string().trim().min(1, "Enter a name for this link").max(100, "Keep it under 100 characters"),
@@ -241,7 +243,7 @@ export function RecipientDialog({
                         <FormItem>
                           <FormLabel>Buy discount (bps)</FormLabel>
                           <FormControl>
-                            <Input max={1000} min={0} step={1} type="number" {...field} />
+                            <Input max={300} min={0} step={1} type="number" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -254,7 +256,7 @@ export function RecipientDialog({
                         <FormItem>
                           <FormLabel>Sell discount (bps)</FormLabel>
                           <FormControl>
-                            <Input max={1000} min={0} step={1} type="number" {...field} />
+                            <Input max={300} min={0} step={1} type="number" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

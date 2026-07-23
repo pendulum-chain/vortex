@@ -746,6 +746,54 @@ describe("GET /v1/recipients/:id/eligibility", () => {
   });
 });
 
+describe("GET /v1/recipients/invite/:token (preview)", () => {
+  async function previewInvite(token: string, inviteToken: string): Promise<{ status: number; body: Record<string, unknown> }> {
+    const response = await api.request(`/v1/recipients/invite/${inviteToken}`, { headers: authHeaders(token) });
+    return { body: (await response.json()) as Record<string, unknown>, status: response.status };
+  }
+
+  it("returns the corridor and invitee type without consuming the invite", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token, { inviteeType: "business" });
+
+    const { status, body } = await previewInvite(recipient.token, invite.body.token as string);
+    expect(status).toBe(200);
+    expect(body).toEqual({ country: "MX", inviteeType: "business", payoutCurrency: "mxn", rail: "mxn" });
+
+    const stored = await RecipientInvitation.findByPk(invite.body.id as string);
+    expect(stored?.status).toBe("pending");
+    expect(stored?.token).toBe(invite.body.token as string);
+    expect(stored?.acceptedByProfileId).toBeNull();
+  });
+
+  it("applies the acceptance gates: unknown, expired, foreign-accepted, email-bound, own invite", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const other = await createAuthedUser("other@example.com");
+
+    expect((await previewInvite(recipient.token, "unknown-token")).status).toBe(404);
+
+    const expired = await createInvite(sender.token);
+    await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: expired.body.id as string } });
+    expect((await previewInvite(recipient.token, expired.body.token as string)).status).toBe(410);
+    // The read-only preview must not have flipped the stored status.
+    expect((await RecipientInvitation.findByPk(expired.body.id as string))?.status).toBe("pending");
+
+    const accepted = await createInvite(sender.token);
+    await acceptInvite(other.token, accepted.body.token as string);
+    expect((await previewInvite(recipient.token, accepted.body.token as string)).status).toBe(409);
+    // The acceptor still previews their own accepted link (re-entry).
+    expect((await previewInvite(other.token, accepted.body.token as string)).status).toBe(200);
+
+    const bound = await createInvite(sender.token, { inviteeEmail: "someone-else@example.com" });
+    expect((await previewInvite(recipient.token, bound.body.token as string)).status).toBe(403);
+
+    const own = await createInvite(sender.token);
+    expect((await previewInvite(sender.token, own.body.token as string)).status).toBe(409);
+  });
+});
+
 describe("invite discounts (discount_manager)", () => {
   async function grantDiscountManager(userId: string): Promise<void> {
     await ProfileRole.create({ role: "discount_manager", userId });
@@ -763,8 +811,10 @@ describe("invite discounts (discount_manager)", () => {
     await grantDiscountManager(sender.user.id);
 
     expect((await createInvite(sender.token, { discounts: { buyBps: 1.5 } })).status).toBe(400);
-    expect((await createInvite(sender.token, { discounts: { sellBps: 1001 } })).status).toBe(400);
+    // 300 bps is the ceiling: larger discounts cannot execute under the 5% runtime subsidy cap.
+    expect((await createInvite(sender.token, { discounts: { sellBps: 301 } })).status).toBe(400);
     expect((await createInvite(sender.token, { discounts: { buyBps: -1 } })).status).toBe(400);
+    expect((await createInvite(sender.token, { discounts: { sellBps: 300 } })).status).toBe(201);
   });
 
   it("treats zero bps as no discount and requires no role for it", async () => {
@@ -823,6 +873,9 @@ describe("invite discounts (discount_manager)", () => {
     expect(buyPricing?.vortexFeeType).toBe("relative");
     expect(Number(buyPricing?.vortexFeeValue)).toBe(0.0001);
     expect(buyPricing?.markupType).toBe("none");
+    // Quote-time cap mirrors the runtime EVM discount-subsidy cap so a seeded discount can
+    // never compute a subsidy the subsidize-post-swap handler would refuse to execute.
+    expect(Number(buyPricing?.maxSubsidy)).toBe(0.05);
 
     const sellPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN);
     expect(Number(sellPricing?.targetDiscount)).toBe(0.0005);

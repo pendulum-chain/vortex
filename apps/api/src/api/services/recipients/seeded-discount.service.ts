@@ -1,5 +1,6 @@
 import { Transaction } from "sequelize";
 import logger from "../../../config/logger";
+import { config } from "../../../config/vars";
 import Partner from "../../../models/partner.model";
 import PartnerPricingConfig from "../../../models/partnerPricingConfig.model";
 import ProfilePartnerAssignment from "../../../models/profilePartnerAssignment.model";
@@ -74,7 +75,9 @@ export async function materializeSeededDiscounts(
         markupType: "none",
         markupValue: 0,
         maxDynamicDifference: 0,
-        maxSubsidy: 0,
+        // Mirror the runtime EVM discount-subsidy cap: a quote-time subsidy above this
+        // fraction would stall the ramp at subsidize-post-swap for operator intervention.
+        maxSubsidy: config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction,
         minDynamicDifference: 0,
         partnerId: partner.id,
         rampType: seed.rampType,

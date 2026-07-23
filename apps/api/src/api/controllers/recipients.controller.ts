@@ -56,7 +56,9 @@ interface CreateInviteBody {
   discounts?: { buyBps?: number; sellBps?: number };
 }
 
-const MAX_DISCOUNT_BPS = 1000;
+// Bounded by the runtime EVM discount-subsidy cap (5% of quote output, which also absorbs
+// adverse execution): a larger advertised discount could never execute without stalling.
+const MAX_DISCOUNT_BPS = 300;
 
 function isValidBps(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_DISCOUNT_BPS;
@@ -198,6 +200,60 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
   } catch (error) {
     logger.error("Error creating recipient invite:", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create invite");
+  }
+}
+
+/**
+ * Read-only invite preview for the dashboard's confirm-before-accept screen: same gate
+ * checks as acceptance (existence, expiry, email binding, self-accept) but consumes
+ * nothing and writes nothing, so a declined confirmation leaves the invite redeemable.
+ */
+export async function previewInvite(req: Request<{ token: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const invitation = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(req.params.token) } });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "Invite not found");
+      return;
+    }
+    const isReEntry = invitation.status === "accepted" && invitation.acceptedByProfileId === userId;
+    if (invitation.status === "accepted" && !isReEntry) {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (invitation.status === "revoked") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
+      return;
+    }
+    if (invitation.inviteeEmailCanonical && canonicalizeEmail(req.userEmail ?? "") !== invitation.inviteeEmailCanonical) {
+      sendError(res, httpStatus.FORBIDDEN, "INVITE_EMAIL_MISMATCH", "This invite is bound to a different email address");
+      return;
+    }
+    const senderEntity = await CustomerEntity.findByPk(invitation.senderCustomerEntityId);
+    if (!senderEntity) {
+      sendError(res, httpStatus.GONE, "INVITE_SENDER_GONE", "The sender of this invite no longer exists");
+      return;
+    }
+    if (senderEntity.profileId === userId) {
+      sendError(res, httpStatus.CONFLICT, "CANNOT_ACCEPT_OWN_INVITE", "You cannot accept your own invite");
+      return;
+    }
+
+    res.status(httpStatus.OK).json({
+      country: invitation.country,
+      inviteeType: invitation.inviteeType,
+      payoutCurrency: invitation.payoutCurrency,
+      rail: invitation.rail
+    });
+  } catch (error) {
+    logger.error("Error previewing recipient invite:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to preview invite");
   }
 }
 

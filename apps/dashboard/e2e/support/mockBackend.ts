@@ -262,6 +262,10 @@ interface MockBackendOptions {
   roles?: string[];
   // Response for POST /v1/recipients/invite/:token/accept (default: an accepted MX individual invite).
   acceptInvite?: { status: number; body: Record<string, unknown> };
+  // Response for GET /v1/recipients/invite/:token (default: a pending MX individual invite).
+  invitePreview?: { status: number; body: Record<string, unknown> };
+  // When set, PUT /v1/onboarding/active-entity fails with this response instead of succeeding.
+  selectActiveEntityError?: { status: number; body: Record<string, unknown> };
   // Initial provider-side payout accounts. Defaults to the two seeded MX accounts.
   fiatAccounts?: Array<Record<string, unknown>>;
   // When set, POST /v1/alfredpay/fiatAccounts fails with this sanitized 400 body (the shape
@@ -465,6 +469,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     }
 
     if (path === "/v1/onboarding/active-entity" && method === "PUT") {
+      if (options.selectActiveEntityError) {
+        await fulfillJson(options.selectActiveEntityError.body, options.selectActiveEntityError.status);
+        return;
+      }
       const body = request.postDataJSON() as { type?: string };
       selectedCompany = body.type === "business";
       hasActiveEntity = true;
@@ -771,6 +779,14 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         status: "pending",
         token: `e2e-${"long-token-".repeat(30)}`
       });
+      return;
+    }
+    if (path.startsWith("/v1/recipients/invite/") && !path.endsWith("/accept") && method === "GET") {
+      const response = options.invitePreview ?? {
+        body: { country: "MX", inviteeType: "individual", payoutCurrency: "mxn", rail: "mxn" },
+        status: 200
+      };
+      await fulfillJson(response.body, response.status);
       return;
     }
     if (path.startsWith("/v1/recipients/invite/") && path.endsWith("/accept") && method === "POST") {
