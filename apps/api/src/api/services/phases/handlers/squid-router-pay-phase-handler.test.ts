@@ -97,18 +97,21 @@ const { default: RampState } = await import("../../../../models/rampState.model"
 const { SquidRouterPayPhaseHandler } = await import("./squid-router-pay-phase-handler");
 
 const realQuoteTicketFindByPk = QuoteTicket.findByPk;
-const realRampStateUpdate = RampState.update;
+const sequelizeInstance = RampState.sequelize;
+if (!sequelizeInstance) throw new Error("RampState has no sequelize instance");
+const realSequelizeQuery = sequelizeInstance.query;
 
-// Static conditional update used by the atomic gas top-up claim; [1] = claim won.
-const rampStateUpdate = mock(async () => [1]);
-RampState.update = rampStateUpdate as unknown as typeof RampState.update;
+// Raw conditional jsonb_set patch used by patchStateKey; [rows, rowCount] with
+// rowCount 1 = claim won.
+const statePatchQuery = mock(async () => [[], 1]);
+sequelizeInstance.query = statePatchQuery as unknown as typeof sequelizeInstance.query;
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../evm-funding", () => ({ ...evmFundingReal }));
   mock.module("../../ramp/ramp.service", () => ({ ...rampServiceReal }));
   QuoteTicket.findByPk = realQuoteTicketFindByPk;
-  RampState.update = realRampStateUpdate;
+  sequelizeInstance.query = realSequelizeQuery;
 });
 
 let quote: {
@@ -175,8 +178,8 @@ describe("SquidRouterPayPhaseHandler", () => {
     getStatusAxelarScan.mockClear();
     recoverAxelarStuckConfirm.mockClear();
     checkEvmBalanceForToken.mockClear();
-    rampStateUpdate.mockClear();
-    rampStateUpdate.mockImplementation(async () => [1]);
+    statePatchQuery.mockClear();
+    statePatchQuery.mockImplementation(async () => [[], 1]);
     quote = {
       inputCurrency: FiatToken.BRL,
       outputCurrency: "USDC",
@@ -322,7 +325,7 @@ describe("SquidRouterPayPhaseHandler", () => {
     it("does not send when a concurrent execution already claimed the top-up", async () => {
       axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
       // Conditional claim loses: another execution flipped the marker first.
-      rampStateUpdate.mockImplementationOnce(async () => [0]);
+      statePatchQuery.mockImplementationOnce(async () => [[], 0]);
 
       const { handler, sendMessage } = makeStuckHandler();
       const executeFundTransaction = mock(async () => "0xtopup");
@@ -347,6 +350,50 @@ describe("SquidRouterPayPhaseHandler", () => {
       expect(recoverAxelarStuckConfirm).not.toHaveBeenCalled();
       const text = (sendMessage.mock.calls[0] as any)[0].text as string;
       expect(text).toContain("confirm recovery on cooldown");
+    });
+
+    it("reports the just-made recovery broadcast instead of a cooldown for confirm_failed transfers", async () => {
+      axelarStatusQueue = [STUCK_CONFIRM_STATUS, EXECUTED_STATUS];
+
+      const { handler, sendMessage } = makeStuckHandler();
+      await handler.execute(makeState());
+
+      // The confirm_failed branch broadcasts once; the monitor must report that
+      // outcome, not re-invoke the helper into the cooldown it just started.
+      expect(recoverAxelarStuckConfirm).toHaveBeenCalledTimes(1);
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("broadcast recovery ConfirmGatewayTx AXELAR_TX_HASH");
+    });
+
+    it("suppresses the alert when a concurrent execution claims the alert slot", async () => {
+      axelarStatusQueue = [CALLED_STATUS, EXECUTED_STATUS];
+      // Call 1 = recovery-timestamp patch succeeds; call 2 = alert CAS loses.
+      statePatchQuery.mockImplementationOnce(async () => [[], 1]);
+      statePatchQuery.mockImplementationOnce(async () => [[], 0]);
+
+      const { handler, sendMessage } = makeStuckHandler();
+      await handler.execute(makeState());
+
+      expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("classifies the real GMP state when the failure happens after the status fetch", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS];
+      quote = { inputCurrency: FiatToken.EURC, outputCurrency: "USDC", to: Networks.AssetHub };
+
+      const { handler, sendMessage } = makeStuckHandler();
+      // Initial gas funding fails after a successful status fetch.
+      (handler as any).executeFundTransaction = mock(async () => {
+        throw new Error("rpc rejected");
+      });
+
+      const state = makeState({ squidRouterPayTxHash: undefined });
+      await expect(handler.execute(state)).rejects.toThrow("Failed to check bridge status");
+
+      const text = (sendMessage.mock.calls[0] as any)[0].text as string;
+      expect(text).toContain("classification: insufficient_gas");
+      expect(text).not.toContain("classification: unknown");
+      expect(text).toContain("rpc rejected");
     });
 
     it("never retries a top-up whose outcome is unknown (pending marker)", async () => {

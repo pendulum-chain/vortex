@@ -25,7 +25,7 @@ import {
   sleep
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { Op, Sequelize } from "sequelize";
+import { QueryTypes } from "sequelize";
 import { createWalletClient, encodeFunctionData, Hash, PublicClient } from "viem";
 import { base, polygon } from "viem/chains";
 import logger from "../../../../config/logger";
@@ -36,6 +36,7 @@ import { SubsidyToken } from "../../../../models/subsidy.model";
 import { SlackNotifier } from "../../slack.service";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
+import { StateMetadata } from "../meta-state-types";
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../phase-processor-config";
 
 const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
@@ -249,6 +250,12 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       // predates that payment, so acting on it (e.g. topping up "insufficient" gas)
       // would double-pay. The next iteration sees a fresh status.
       let fundedThisIteration = false;
+      // Kept for the failure path: an error after a successful status fetch (e.g. in
+      // gas funding) must not masquerade as an "unknown/API outage" classification.
+      let lastAxelarScanStatus: AxelarScanStatusResponse | undefined;
+      // Outcome of a confirm recovery already attempted this iteration, so the stuck
+      // monitor reports it instead of re-invoking the helper into its own cooldown.
+      let recoveryOutcome: string | undefined;
 
       try {
         const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote, this.statusRequestSignal(signal));
@@ -265,6 +272,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
         if (isGmp) {
           const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
+          lastAxelarScanStatus = axelarScanStatus ?? undefined;
 
           if (!axelarScanStatus) {
             logger.info(`SquidRouterPayPhaseHandler: Axelar status not found yet for hash ${swapHash}.`);
@@ -302,19 +310,21 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
               state: { ...state.state, squidRouterPayTxHash: payTxHash }
             });
           } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
-            await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
+            recoveryOutcome = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
 
           if (!fundedThisIteration) {
-            await this.monitorStuckGmp(state, swapHash, quote, axelarScanStatus ?? undefined, signal);
+            await this.monitorStuckGmp(state, swapHash, quote, axelarScanStatus ?? undefined, signal, { recoveryOutcome });
           }
         } else {
           logger.info("SquidRouterPayPhaseHandler: Same-chain transaction detected. Skipping Axelar check.");
         }
       } catch (error) {
         // Status APIs down is exactly how a stuck transfer looked in production, so
-        // the stuck check must also run when no status could be fetched at all.
-        await this.monitorStuckGmp(state, swapHash, quote, undefined, signal, error);
+        // the stuck check must also run when no status could be fetched at all. When
+        // the failure happened after a successful fetch (e.g. gas funding), the
+        // fetched status is passed along so the alert classifies the real GMP state.
+        await this.monitorStuckGmp(state, swapHash, quote, lastAxelarScanStatus, signal, { lastError: error, recoveryOutcome });
         throw this.createRecoverableError(
           `SquidRouterPayPhaseHandler: Failed to check bridge status for ${swapHash}, error: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -332,6 +342,42 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   private statusRequestSignal(signal?: AbortSignal): AbortSignal {
     const timeoutSignal = AbortSignal.timeout(STATUS_REQUEST_TIMEOUT_MS);
     return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+  }
+
+  /**
+   * Atomically patch a single key of the JSONB state column via jsonb_set instead
+   * of writing the whole blob: a full-blob write from a stale in-memory snapshot
+   * could erase keys a concurrent execution persisted in the meantime (e.g. wipe
+   * the top-up marker and re-open a payment claim). `guardSql` turns the patch
+   * into a conditional claim; the return value is the number of rows updated.
+   * Also mirrors a successful patch into the in-memory state. Raw SQL because
+   * Model.update() JSON-stringifies fn/where expression objects on JSONB columns
+   * instead of rendering them; `key` and `guardSql` are compile-time literals,
+   * the value and guard parameters are bound replacements.
+   */
+  private async patchStateKey(
+    state: RampState,
+    key: keyof StateMetadata & string,
+    value: string,
+    guardSql = "TRUE",
+    guardReplacements: Record<string, unknown> = {}
+  ): Promise<number> {
+    const sequelizeInstance = RampState.sequelize;
+    if (!sequelizeInstance) {
+      throw new Error("SquidRouterPayPhaseHandler: RampState model is not attached to a sequelize instance");
+    }
+    const [, affectedRows] = await sequelizeInstance.query(
+      `UPDATE ramp_states SET state = jsonb_set(state, '{${key}}', :patchValue::jsonb), updated_at = NOW() WHERE id = :rampId AND (${guardSql})`,
+      {
+        replacements: { patchValue: JSON.stringify(value), rampId: state.id, ...guardReplacements },
+        type: QueryTypes.UPDATE
+      }
+    );
+    const updatedRows = typeof affectedRows === "number" ? affectedRows : 0;
+    if (updatedRows > 0) {
+      state.state = { ...state.state, [key]: value };
+    }
+    return updatedRows;
   }
 
   /**
@@ -364,10 +410,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
 
     // Persist the attempt timestamp before broadcasting so a failing relayer is not
-    // hammered on every 10s poll iteration.
-    await state.update({
-      state: { ...state.state, axelarConfirmRecoveryAt: new Date().toISOString() }
-    });
+    // hammered on every 10s poll iteration. Single-key patch: a full-blob write from
+    // this execution's snapshot could erase the top-up marker a concurrent
+    // execution just claimed.
+    await this.patchStateKey(state, "axelarConfirmRecoveryAt", new Date().toISOString());
 
     try {
       const axelarTxHash = await recoverAxelarStuckConfirm(swapHash, sourceChain, signal);
@@ -403,7 +449,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     quote: QuoteTicket,
     axelarScanStatus: AxelarScanStatusResponse | undefined,
     signal?: AbortSignal,
-    lastError?: unknown
+    context: { lastError?: unknown; recoveryOutcome?: string } = {}
   ): Promise<void> {
     try {
       // An aborted execution has been abandoned by the processor (a retry may already
@@ -428,11 +474,15 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       } else if (classification === "waiting_source_confirmation" || classification === "source_confirmation_stuck") {
         // A transfer sitting in "called" this long has a stalled validator poll even
         // when axelarscan has not flagged confirm_failed; a fresh ConfirmGatewayTx is
-        // safe (public tx hash only) and restarts the poll. Cooldown-gated.
-        actionTaken = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus?.call?.chain, signal);
+        // safe (public tx hash only) and restarts the poll. Cooldown-gated. When the
+        // confirm_failed branch already recovered this iteration, report that real
+        // outcome instead of re-invoking the helper into its own fresh cooldown.
+        actionTaken =
+          context.recoveryOutcome ??
+          (await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus?.call?.chain, signal));
       }
 
-      await this.alertStuckGmp(state, swapHash, classification, axelarScanStatus, elapsedMs, actionTaken, lastError);
+      await this.alertStuckGmp(state, swapHash, classification, axelarScanStatus, elapsedMs, actionTaken, context.lastError);
     } catch (error) {
       logger.warn(
         `SquidRouterPayPhaseHandler: Stuck-GMP monitor failed for ramp ${state.id}: ${error instanceof Error ? error.message : String(error)}`
@@ -480,19 +530,15 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     // Atomic claim: only the execution that flips the still-absent marker to
     // "pending" may broadcast. A concurrent execution (e.g. a timed-out handler
     // racing its retry) loses the conditional update and takes no action.
-    const [claimedRows] = await RampState.update(
-      { state: { ...state.state, squidRouterExtraGasTxHash: EXTRA_GAS_PENDING_MARKER } },
-      {
-        where: {
-          id: state.id,
-          [Op.and]: [Sequelize.where(Sequelize.literal(`"state"->>'squidRouterExtraGasTxHash'`), { [Op.is]: null })]
-        }
-      }
+    const claimedRows = await this.patchStateKey(
+      state,
+      "squidRouterExtraGasTxHash",
+      EXTRA_GAS_PENDING_MARKER,
+      `state->>'squidRouterExtraGasTxHash' IS NULL`
     );
     if (claimedRows === 0) {
       return "gas top-up already claimed by a concurrent execution; not sending";
     }
-    state.state = { ...state.state, squidRouterExtraGasTxHash: EXTRA_GAS_PENDING_MARKER };
     const extraGasTxHash = await this.executeFundTransaction(
       nativeToFundRaw,
       swapHash as `0x${string}`,
@@ -500,9 +546,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       state,
       quote
     );
-    await state.update({
-      state: { ...state.state, squidRouterExtraGasTxHash: extraGasTxHash }
-    });
+    await this.patchStateKey(state, "squidRouterExtraGasTxHash", extraGasTxHash);
 
     // The Subsidy dedup guard (one row per ramp+phase) already holds the initial gas
     // payment, so this top-up is not recorded there. Keep this line alertable for
@@ -523,18 +567,33 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     lastError?: unknown
   ): Promise<void> {
     // NaN-safe like axelarConfirmRecoveryAt: an unparseable timestamp means "never".
-    const parsedLastAlert = state.state.squidRouterStuckAlertedAt
-      ? new Date(state.state.squidRouterStuckAlertedAt).getTime()
-      : 0;
+    const previousAlertAt = state.state.squidRouterStuckAlertedAt;
+    const parsedLastAlert = previousAlertAt ? new Date(previousAlertAt).getTime() : 0;
     const lastAlert = Number.isFinite(parsedLastAlert) ? parsedLastAlert : 0;
     if (Date.now() - lastAlert < STUCK_ALERT_REPEAT_MS) {
       return;
     }
 
-    // Persist before sending so a failing webhook is not hammered every poll iteration.
-    await state.update({
-      state: { ...state.state, squidRouterStuckAlertedAt: new Date().toISOString() }
-    });
+    // Claim the alert slot with a compare-and-set on the persisted timestamp —
+    // before sending, so a failing webhook is not hammered every poll iteration,
+    // and conditionally, so concurrent executions cannot double-alert.
+    const claimedRows = previousAlertAt
+      ? await this.patchStateKey(
+          state,
+          "squidRouterStuckAlertedAt",
+          new Date().toISOString(),
+          `state->>'squidRouterStuckAlertedAt' = :previousAlertAt`,
+          { previousAlertAt }
+        )
+      : await this.patchStateKey(
+          state,
+          "squidRouterStuckAlertedAt",
+          new Date().toISOString(),
+          `state->>'squidRouterStuckAlertedAt' IS NULL`
+        );
+    if (claimedRows === 0) {
+      return;
+    }
 
     const guidanceByClassification: Record<GmpClassification, string> = {
       executed: "",
