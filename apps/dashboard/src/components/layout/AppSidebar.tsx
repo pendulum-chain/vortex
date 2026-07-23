@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowLeftRight, Send, Settings, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeftRight, Calculator, Send, Settings, ShieldCheck, Users } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,6 +16,7 @@ import { VortexLogo } from "./VortexLogo";
 const NAV_ITEMS = [
   { icon: ShieldCheck, label: "Onboarding", to: "/overview" },
   { icon: Users, label: "Recipients", to: "/recipients" },
+  { icon: Calculator, label: "Get a quote", to: "/quote" },
   { icon: Send, label: "New transfer", to: "/transfer" },
   { icon: ArrowLeftRight, label: "Transactions", to: "/transactions" },
   { icon: Settings, label: "Settings", to: "/settings" }

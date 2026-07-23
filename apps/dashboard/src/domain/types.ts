@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Mocked onboarding domain for the Vortex dashboard.
  *
@@ -10,7 +12,10 @@
 
 export type OnboardingStatus = "not_started" | "pending" | "started" | "in_review" | "approved" | "rejected";
 
-export type CorridorId = "BR" | "EU" | "MX" | "CO" | "US" | "AR";
+/** The one corridor list. Routes validate their search params against this rather than re-listing it. */
+export const corridorIdSchema = z.enum(["BR", "EU", "MX", "CO", "US", "AR"]);
+
+export type CorridorId = z.infer<typeof corridorIdSchema>;
 
 export type OnboardingKind = "kyb" | "kyc";
 

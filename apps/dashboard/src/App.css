@@ -150,14 +150,41 @@
 }
 
 /*
-  Raised surface treatment: a top inner highlight + a 1px bottom edge (plus a soft
-  lift to keep the surface separated from the background) used in place of a solid
-  border on cards and surface panels. The lift is intentionally light so nested
-  panels don't read as floating.
+  Elevation scale. Every level is layered transparent shadows rather than a solid border, so a
+  surface reads correctly whatever sits underneath it: a top inner highlight, a hairline that draws
+  the edge, then ambient layers that lift it off the page.
+
+  The hairline carries more weight the lower the level and the lift carries less. A nested panel is
+  the same colour as the card holding it and has no tonal contrast to fall back on, so it needs the
+  edge; a card sits on the tinted page background and already has contrast, so it needs the lift.
+  Using one level for both is what made nested surfaces disappear.
 */
+
+/* Level 1 — panels nested inside a card. */
 @utility surface-raised {
   box-shadow:
-    inset 0 1px 0 0 #fff,
-    0 1px 0 0 rgba(0, 0, 0, 0.04),
-    0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.07),
+    0 1px 2px -1px rgba(0, 0, 0, 0.07),
+    0 2px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Level 2 — cards, the outermost surface on a page. */
+@utility surface-raised-lg {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 1px 2px 0 rgba(0, 0, 0, 0.04),
+    0 6px 12px -4px rgba(0, 0, 0, 0.05),
+    0 16px 32px -12px rgba(0, 0, 0, 0.08);
+}
+
+/* Level 3 — menus and popovers, floating above the page. */
+@utility surface-floating {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px rgba(0, 0, 0, 0.06),
+    0 2px 4px -2px rgba(0, 0, 0, 0.06),
+    0 12px 24px -8px rgba(0, 0, 0, 0.1),
+    0 24px 48px -16px rgba(0, 0, 0, 0.12);
 }

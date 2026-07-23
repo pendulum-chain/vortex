@@ -19,14 +19,6 @@ export interface OfframpQuoteParams {
   network: string;
 }
 
-export interface OnrampQuoteParams {
-  corridorId: CorridorId;
-  /** Validated decimal string, passed to the wire untouched to preserve precision. */
-  inputAmount: string;
-  network: EvmNetworks;
-  outputCurrency: OnChainToken;
-}
-
 /** The wire request for an offramp (SELL) quote: sender sends USDC, recipient receives fiat. */
 export function buildOfframpQuoteRequest(params: OfframpQuoteParams, inputAmount: string): CreateQuoteRequest {
   const { corridorId, network } = params;
@@ -70,20 +62,40 @@ export async function fetchOfframpQuote(params: OfframpQuoteParams): Promise<Quo
   return requestQuote(params, (input * payoutAmount) / output);
 }
 
-export function buildOnrampQuoteRequest(params: OnrampQuoteParams): CreateQuoteRequest {
+export interface QuoteParams {
+  corridorId: CorridorId;
+  direction: RampDirection;
+  /** Validated decimal string, passed to the wire untouched to preserve precision. */
+  inputAmount: string;
+  network: EvmNetworks;
+  /** The on-chain leg: bought on BUY, sold on SELL. */
+  token: OnChainToken;
+}
+
+/**
+ * Input-driven quote in either direction — the shape `/quotes` natively speaks. Unlike
+ * `fetchOfframpQuote`, a SELL here quotes what the *sender* puts in rather than inverting
+ * from a target payout, so no rate estimate and no second pass are needed.
+ */
+export function buildQuoteRequest(params: QuoteParams): CreateQuoteRequest {
+  const { corridorId, direction, inputAmount, network, token } = params;
+  const fiat = CORRIDOR_FIAT[corridorId];
+  const paymentMethod = CORRIDOR_PAYMENT_METHOD[corridorId];
+  const isBuy = direction === RampDirection.BUY;
+
   return {
-    countryCode: CORRIDOR_COUNTRY[params.corridorId],
-    from: CORRIDOR_PAYMENT_METHOD[params.corridorId],
-    inputAmount: params.inputAmount,
-    inputCurrency: CORRIDOR_FIAT[params.corridorId],
-    network: params.network,
-    outputCurrency: params.outputCurrency,
-    paymentMethod: CORRIDOR_PAYMENT_METHOD[params.corridorId],
-    rampType: RampDirection.BUY,
-    to: params.network
+    countryCode: CORRIDOR_COUNTRY[corridorId],
+    from: isBuy ? paymentMethod : network,
+    inputAmount,
+    inputCurrency: isBuy ? fiat : token,
+    network,
+    outputCurrency: isBuy ? token : fiat,
+    paymentMethod,
+    rampType: direction,
+    to: isBuy ? network : paymentMethod
   };
 }
 
-export function fetchOnrampQuote(params: OnrampQuoteParams): Promise<QuoteResponse> {
-  return apiClient.post<QuoteResponse>("/quotes", buildOnrampQuoteRequest(params));
+export function fetchQuote(params: QuoteParams): Promise<QuoteResponse> {
+  return apiClient.post<QuoteResponse>("/quotes", buildQuoteRequest(params));
 }
