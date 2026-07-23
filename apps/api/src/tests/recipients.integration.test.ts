@@ -864,7 +864,7 @@ describe("invite discounts (discount_manager)", () => {
     const accepted = await acceptInvite(recipient.token, invite.body.token as string);
     expect(accepted.status).toBe(201);
 
-    const partner = await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } });
+    const partner = await Partner.findOne({ where: { name: "recipient@example.com" } });
     expect(partner?.isActive).toBe(true);
 
     const buyPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.MXN);
@@ -903,7 +903,7 @@ describe("invite discounts (discount_manager)", () => {
     expect(accepted.status).toBe(201);
     expect(accepted.body.relationshipStatus).toBe("active");
 
-    expect(await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } })).toBeNull();
+    expect(await Partner.findOne({ where: { name: "recipient@example.com" } })).toBeNull();
     const assignments = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
     expect(assignments).toHaveLength(1);
     expect(assignments[0].partnerId).toBe(existingPartner.id);
@@ -922,7 +922,7 @@ describe("invite discounts (discount_manager)", () => {
     expect(accepted.status).toBe(201);
     expect(accepted.body.relationshipStatus).toBe("active");
 
-    expect(await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } })).toBeNull();
+    expect(await Partner.findOne({ where: { name: "recipient@example.com" } })).toBeNull();
     expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(0);
   });
 
@@ -935,8 +935,48 @@ describe("invite discounts (discount_manager)", () => {
     expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(201);
     expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(200);
 
-    expect(await Partner.count({ where: { name: `invite-discount-${invite.body.id}` } })).toBe(1);
+    expect(await Partner.count({ where: { name: "recipient@example.com" } })).toBe(1);
     expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(1);
+  });
+
+  it("re-seeds the same email-named partner after the previous assignment ended, replacing its configs", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const first = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, first.body.token as string)).status).toBe(201);
+    // The entitlement ends (admin revocation) — a later discount invite may seed again.
+    await ProfilePartnerAssignment.update({ isActive: false }, { where: { userId: recipient.user.id } });
+
+    const second = await createInvite(sender.token, { discounts: { sellBps: 5 } });
+    expect((await acceptInvite(recipient.token, second.body.token as string)).status).toBe(201);
+
+    // Still one partner row, named by the profile's email; configs replaced wholesale.
+    expect(await Partner.count({ where: { name: "recipient@example.com" } })).toBe(1);
+    const partner = await Partner.findOne({ where: { name: "recipient@example.com" } });
+    expect(await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.MXN)).toBeNull();
+    expect(
+      Number((await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN))?.targetDiscount)
+    ).toBe(0.0005);
+    const active = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
+    expect(active).toHaveLength(1);
+    expect(active[0].partnerId).toBe(partner?.id as string);
+  });
+
+  it("never repurposes an unrelated partner that carries the profile's email as its name", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // A pre-existing real partner coincidentally named like the email must stay untouched.
+    const foreign = await createTestPartner({ name: "recipient@example.com", targetDiscount: 0.02 });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(201);
+
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(0);
+    const untouched = await findPartnerWithPricing({ id: foreign.id }, RampDirection.BUY, FiatToken.MXN);
+    expect(Number(untouched?.targetDiscount)).toBe(0.02);
   });
 
   it("returns the profile's roles from the onboarding status endpoint", async () => {

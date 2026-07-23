@@ -111,8 +111,11 @@ out against another tenant's relationship.
     `recipient_invitations.seeded_discounts` as `{ rampType, fiatCurrency, bps }[]`, with
     `fiatCurrency` derived server-side from the invite's corridor (never client-supplied).
     Inside the first-acceptance transaction (never on re-entry), `materializeSeededDiscounts`
-    creates a dedicated partner row (`invite-discount-<invitationId>`), one corridor-scoped
-    pricing config per seed (`targetDiscount = bps/10000`, `maxSubsidy` mirroring the runtime
+    creates a dedicated partner row named by the accepting profile's email (reused — with its
+    seeded configs replaced wholesale — when a later discount invite re-seeds the same
+    profile after its previous assignment ended; an unrelated partner that merely carries
+    that name is never repurposed, guarded by requiring a prior assignment linking it to the
+    profile), one corridor-scoped pricing config per seed (`targetDiscount = bps/10000`, `maxSubsidy` mirroring the runtime
     EVM discount-subsidy cap fraction so a quote-time subsidy can never exceed what
     subsidize-post-swap will execute, partner markup `none`, and the default vortex platform
     fee copied into the config's vortex-fee fields so seeded profiles do not ramp

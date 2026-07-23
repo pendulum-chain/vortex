@@ -8,7 +8,12 @@ import type { SeededDiscount } from "../../../models/recipientInvitation.model";
 import User from "../../../models/user.model";
 import { findPartnerWithPricing, type PartnerWithPricing } from "../partners/partner-pricing.service";
 
-export type SeededDiscountOutcome = "created" | "skipped_existing_assignment" | "skipped_missing_vortex_pricing";
+export type SeededDiscountOutcome =
+  | "created"
+  | "skipped_existing_assignment"
+  | "skipped_missing_vortex_pricing"
+  | "skipped_profile_missing"
+  | "skipped_partner_name_conflict";
 
 /**
  * Materializes the discounts a discount_manager attached to an invite as partner pricing
@@ -28,7 +33,11 @@ export async function materializeSeededDiscounts(
   // Serialize on the profile row — the same lock the admin assignment path takes — so a
   // concurrent admin assignment (or second discounted acceptance) cannot race this check
   // into the active-assignment unique index or get deactivated by the replacement below.
-  await User.findByPk(userId, { lock: Transaction.LOCK.UPDATE, transaction });
+  const lockedUser = await User.findByPk(userId, { lock: Transaction.LOCK.UPDATE, transaction });
+  if (!lockedUser) {
+    logger.error(`Seeded discount for invite ${invitationId}: profile ${userId} not found; seeding skipped`);
+    return "skipped_profile_missing";
+  }
 
   const now = new Date();
   const activeAssignments = await ProfilePartnerAssignment.findAll({
@@ -55,15 +64,39 @@ export async function materializeSeededDiscounts(
     vortexPricingBySeed.push(vortexPricing);
   }
 
-  const partnerName = `invite-discount-${invitationId}`;
-  const partner = await Partner.create(
-    {
-      displayName: `Invite discount ${invitationId.slice(0, 8)}`,
+  // The dedicated partner row is named by the accepting profile's email (unique on
+  // profiles; both columns are STRING(100), hence the defensive slice).
+  const partnerName = lockedUser.email.slice(0, 100);
+  const [partner, createdPartner] = await Partner.findOrCreate({
+    defaults: {
+      displayName: partnerName,
       isActive: true,
       name: partnerName
     },
-    { transaction }
-  );
+    transaction,
+    where: { name: partnerName }
+  });
+
+  if (!createdPartner) {
+    // An email-named partner already exists. Reuse it only if it was previously seeded for
+    // this same profile (a later discount invite after the earlier assignment ended) —
+    // never repurpose an unrelated partner that happens to carry this name.
+    const priorAssignment = await ProfilePartnerAssignment.findOne({
+      transaction,
+      where: { partnerId: partner.id, userId }
+    });
+    if (!priorAssignment) {
+      logger.error(
+        `Seeded discount for invite ${invitationId}: partner named '${partnerName}' exists but was never assigned to profile ${userId}; seeding skipped`
+      );
+      return "skipped_partner_name_conflict";
+    }
+    // Re-seeding replaces the previous invite's seeded configs wholesale.
+    await PartnerPricingConfig.destroy({ transaction, where: { partnerId: partner.id } });
+    if (!partner.isActive) {
+      await partner.update({ isActive: true }, { transaction });
+    }
+  }
 
   for (const [index, seed] of seeds.entries()) {
     const vortexPricing = vortexPricingBySeed[index];

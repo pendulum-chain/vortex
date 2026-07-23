@@ -132,8 +132,8 @@ function ConfirmInviteCard({ email, token }: { email: string; token: string }) {
         <CardTitle className="text-xl">Accept your invite</CardTitle>
         <CardDescription>
           You've been invited to Vortex as a {inviteTypeLabel(preview.data)}
-          {corridor ? ` for ${corridor.flag} ${corridor.name} · ${corridor.currency}` : ""}. Accepting links the invite to{" "}
-          <span className="font-medium">{email}</span> permanently.
+          {corridor ? ` for ${corridor.name} · ${corridor.currency}` : ""}. Signed in as{" "}
+          <span className="font-medium">{email}</span>.
         </CardDescription>
       </CardHeader>
       {accept.isError && (
