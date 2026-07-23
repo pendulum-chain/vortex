@@ -3,14 +3,16 @@ import sequelize from "../config/database";
 
 export type SenderRecipientStatus = "invited" | "active" | "blocked" | "archived";
 
-// The sender↔recipient relationship after an invite is accepted. The sender owns this row;
-// the recipient owns their own profile/entity/compliance identity, reusable across senders
-// (UNIQUE(sender, recipient) — one recipient can be linked to many senders).
+// The sender↔recipient relationship after an invite is accepted, one row per payout rail
+// (UNIQUE(sender, recipient, rail) — the same pair can hold several corridors, and one
+// recipient can be linked to many senders). rail is null only on legacy rows created
+// before migration 054.
 export interface SenderRecipientAttributes {
   id: string;
   senderCustomerEntityId: string;
   recipientCustomerEntityId: string;
   invitationId: string | null;
+  rail: string | null;
   relationshipStatus: SenderRecipientStatus;
   nickname: string | null;
   disabledAt: Date | null;
@@ -20,7 +22,7 @@ export interface SenderRecipientAttributes {
 
 type SenderRecipientCreationAttributes = Optional<
   SenderRecipientAttributes,
-  "id" | "invitationId" | "relationshipStatus" | "nickname" | "disabledAt" | "createdAt" | "updatedAt"
+  "id" | "invitationId" | "rail" | "relationshipStatus" | "nickname" | "disabledAt" | "createdAt" | "updatedAt"
 >;
 
 class SenderRecipient
@@ -31,6 +33,7 @@ class SenderRecipient
   declare senderCustomerEntityId: string;
   declare recipientCustomerEntityId: string;
   declare invitationId: string | null;
+  declare rail: string | null;
   declare relationshipStatus: SenderRecipientStatus;
   declare nickname: string | null;
   declare disabledAt: Date | null;
@@ -71,6 +74,10 @@ SenderRecipient.init(
       allowNull: true,
       type: DataTypes.STRING(100)
     },
+    rail: {
+      allowNull: true,
+      type: DataTypes.STRING(8)
+    },
     recipientCustomerEntityId: {
       allowNull: false,
       field: "recipient_customer_entity_id",
@@ -109,8 +116,10 @@ SenderRecipient.init(
   {
     indexes: [
       {
-        fields: ["sender_customer_entity_id", "recipient_customer_entity_id"],
-        name: "uniq_sender_recipients_pair",
+        // The real index (migration 054) folds NULL rail into '*' via COALESCE so legacy
+        // rows are unique too; migrations are the schema source of truth.
+        fields: ["sender_customer_entity_id", "recipient_customer_entity_id", "rail"],
+        name: "uniq_sender_recipients_pair_rail",
         unique: true
       },
       {

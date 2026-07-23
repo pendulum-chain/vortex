@@ -386,6 +386,55 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
     const invitation = await RecipientInvitation.findByPk(second.body.id as string);
     expect(invitation?.status).toBe("pending");
   });
+
+  it("keeps both corridors when the same pair accepts invites on two rails", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const mx = await createInvite(sender.token);
+    const mxAccepted = await acceptInvite(recipient.token, mx.body.token as string);
+    expect(mxAccepted.status).toBe(201);
+
+    const ar = await createInvite(sender.token, { country: "AR", payoutCurrency: "ars", rail: "ars" });
+    const arAccepted = await acceptInvite(recipient.token, ar.body.token as string);
+    expect(arAccepted.status).toBe(201);
+
+    // Two relationship rows, each keeping its own invitation — the AR acceptance must not
+    // repoint the MX row (that used to hide the first corridor from the sender's list and
+    // its transfer-eligibility gate).
+    expect(arAccepted.body.id).not.toBe(mxAccepted.body.id as string);
+    const mxRow = await SenderRecipient.findByPk(mxAccepted.body.id as string);
+    expect(mxRow?.rail).toBe("mxn");
+    expect(mxRow?.invitationId).toBe(mx.body.id as string);
+    const arRow = await SenderRecipient.findByPk(arAccepted.body.id as string);
+    expect(arRow?.rail).toBe("ars");
+    expect(arRow?.invitationId).toBe(ar.body.id as string);
+
+    const list = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const { recipients } = (await list.json()) as { recipients: Array<{ invitation: { rail: string } | null }> };
+    expect(recipients.map(r => r.invitation?.rail).sort()).toEqual(["ars", "mxn"]);
+  });
+
+  it("blocks a new-rail invite when the pair is blocked on another rail", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const mx = await createInvite(sender.token);
+    const accepted = await acceptInvite(recipient.token, mx.body.token as string);
+
+    await api.request(`/v1/recipients/${accepted.body.id}`, {
+      body: JSON.stringify({ status: "blocked" }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+
+    const ar = await createInvite(sender.token, { country: "AR", payoutCurrency: "ars", rail: "ars" });
+    const retry = await acceptInvite(recipient.token, ar.body.token as string);
+    expect(retry.status).toBe(409);
+    expect((retry.body.error as { code: string }).code).toBe("RELATIONSHIP_BLOCKED");
+    expect(
+      await SenderRecipient.count({ where: { senderCustomerEntityId: sender.entity.id } })
+    ).toBe(1);
+  });
 });
 
 describe("GET /v1/recipients", () => {

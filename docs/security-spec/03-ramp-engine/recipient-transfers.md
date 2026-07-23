@@ -65,10 +65,18 @@ out against another tenant's relationship.
    OTP authentication and calls `POST /recipients/invite/:token/accept` before onboarding. The
    accepted invitation response, not the editable URL, selects the locked corridor and recipient
    type. Provider records are attached to the corresponding individual or business entity.
-5. **A `blocked` relationship is never resurrected by a new invite.** Acceptance against a
-   blocked pair returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
+5. **A `blocked` relationship is never resurrected by a new invite.** The block applies to
+   the sender↔recipient **pair**: acceptance of any invite for the pair — including one on a
+   different rail — returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs
    in one transaction.
+5a. **Relationships are per payout rail.** `sender_recipients` is unique on
+   `(sender, recipient, COALESCE(rail, '*'))` (migration 054; `rail` backfilled from the linked
+   invitation): the same pair holds one relationship row per corridor, each keeping its own
+   `invitation_id`. Accepting an invite on a *new* rail adds a row; accepting on an already-linked
+   rail repoints that rail's row (a renewal). Before the split, a second-rail acceptance repointed
+   the pair's single row, silently dropping the first corridor from the sender's list *and* its
+   invitation-derived transfer-eligibility gate.
 6. **All sender-side routes are entity-scoped.** List/PATCH (relationship and invitation
    archive)/eligibility resolve the caller's `customer_entity` from `req.userId` and filter on
    `sender_customer_entity_id`; foreign ids

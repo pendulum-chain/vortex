@@ -338,30 +338,42 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       // pending invite into a re-entry between the unlocked pre-check and this transaction.
       const reEntry = lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId === userId;
 
+      // The sender's block applies to the pair, not one rail: a new invite on a different
+      // rail must not slip past it and create a fresh active relationship.
+      const blockedSibling = await SenderRecipient.findOne({
+        transaction,
+        where: {
+          recipientCustomerEntityId: recipientEntity.id,
+          relationshipStatus: "blocked",
+          senderCustomerEntityId: invitation.senderCustomerEntityId
+        }
+      });
+      if (blockedSibling) {
+        return "blocked" as const;
+      }
+
+      // One relationship per (sender, recipient, rail): an invite on a new rail adds a row
+      // instead of repointing the pair's single row and dropping its previous corridor.
       const [row, created] = await SenderRecipient.findOrCreate({
         defaults: {
           invitationId: invitation.id,
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           relationshipStatus: "active",
           senderCustomerEntityId: invitation.senderCustomerEntityId
         },
         transaction,
         where: {
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           senderCustomerEntityId: invitation.senderCustomerEntityId
         }
       });
 
-      if (!created) {
-        if (row.relationshipStatus === "blocked") {
-          // The sender blocked this recipient; a new invite acceptance must not undo that.
-          return "blocked" as const;
-        }
+      if (!created && !reEntry) {
         // Re-entry reads the relationship, it does not revive it: the sender may have archived
         // this recipient, and reopening the link must not silently undo that.
-        if (!reEntry) {
-          await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
-        }
+        await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
       }
 
       if (!reEntry) {
