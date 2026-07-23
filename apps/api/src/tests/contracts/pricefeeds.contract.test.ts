@@ -9,8 +9,12 @@
  *
  * The live half mirrors getCryptoPrice's request construction: the ids/currencies
  * requested are the ones production actually asks for ("usd-coin" as the USD proxy
- * for the CoinGecko fiat fallback with vs_currencies mxn/cop/ars, and tokenIdMap
- * entries like "ethereum" priced in usd). No credentials are strictly required:
+ * for the CoinGecko fiat fallback with vs_currencies mxn/ars, and tokenIdMap
+ * entries like "ethereum" priced in usd). COP is deliberately NOT asserted:
+ * CoinGecko dropped it from /simple/supported_vs_currencies (observed 2026-07-23),
+ * so the COP sanity-band reference and last-resort fallback in PriceFeedService are
+ * knowingly degraded — fastforex is the only live USD-COP source now.
+ * No credentials are strictly required:
  * with COINGECKO_API_KEY set it uses the configured (pro) base URL like production,
  * otherwise it falls back to the keyless public API, which serves the same shape.
  */
@@ -21,7 +25,7 @@ import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 
 const REQUESTED_IDS = ["usd-coin", "ethereum"];
-const REQUESTED_CURRENCIES = ["usd", "mxn", "cop", "ars"];
+const REQUESTED_CURRENCIES = ["usd", "mxn", "ars"];
 
 describe("CoinGecko external API contract — hermetic (fixtures)", () => {
   test("accepts the consumed simple/price shape including unknown keys", () => {
