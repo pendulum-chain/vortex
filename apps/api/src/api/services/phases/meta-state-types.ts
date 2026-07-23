@@ -40,7 +40,9 @@ export interface StateMetadata {
   // phase executions don't re-alert before the repeat window elapses.
   squidRouterStuckAlertedAt?: string;
   // One-time supplemental addNativeGas top-up sent when Axelar reported the paid
-  // gas as insufficient. Presence of the hash prevents any further top-ups.
+  // gas as insufficient. Set to "pending" before the broadcast and reconciled to
+  // the tx hash after; any present value prevents further top-ups, so a crash or
+  // send failure in between can never cause a second payment.
   squidRouterExtraGasTxHash?: string;
   unhandledPaymentAlertSent: boolean;
   depositQrCode: string | undefined;

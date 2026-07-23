@@ -310,6 +310,38 @@ describe("SquidRouterPayPhaseHandler", () => {
       expect(text).toContain("0xtopup");
     });
 
+    it("never retries a top-up whose outcome is unknown (pending marker)", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
+
+      const { handler } = makeStuckHandler();
+      const executeFundTransaction = mock(async () => "0xtopup");
+      (handler as any).executeFundTransaction = executeFundTransaction;
+
+      const state = makeState({ squidRouterExtraGasTxHash: "pending" });
+      await handler.execute(state);
+
+      expect(executeFundTransaction).not.toHaveBeenCalled();
+      expect(state.state.squidRouterExtraGasTxHash).toBe("pending");
+    });
+
+    it("leaves the pending marker in place when the top-up broadcast fails", async () => {
+      axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
+
+      const { handler } = makeStuckHandler();
+      const executeFundTransaction = mock(async () => {
+        throw new Error("rpc rejected");
+      });
+      (handler as any).executeFundTransaction = executeFundTransaction;
+
+      const state = makeState();
+      await handler.execute(state);
+
+      // The failed attempt persists "pending" first; the second insufficient-gas
+      // iteration must not send again.
+      expect(executeFundTransaction).toHaveBeenCalledTimes(1);
+      expect(state.state.squidRouterExtraGasTxHash).toBe("pending");
+    });
+
     it("does not top up in the same iteration as the initial gas funding", async () => {
       axelarStatusQueue = [INSUFFICIENT_GAS_STATUS, EXECUTED_STATUS];
 

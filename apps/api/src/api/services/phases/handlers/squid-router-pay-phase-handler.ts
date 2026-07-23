@@ -48,6 +48,9 @@ const AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS = 10 * 60 * 1000;
 // Minimum time between stuck-GMP alerts for the same ramp, so a multi-hour outage
 // produces periodic reminders instead of one alert per 10s poll iteration.
 const STUCK_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
+// Sentinel persisted to squidRouterExtraGasTxHash before broadcasting the top-up;
+// its presence (never cleared on failure) guarantees at most one top-up ever.
+const EXTRA_GAS_PENDING_MARKER = "pending";
 /**
  * Handler for the squidRouter pay phase. Checks the status of the Axelar bridge and pays on native GLMR fee.
  */
@@ -418,9 +421,12 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
 
   /**
    * One-time supplemental addNativeGas top-up for a transfer whose paid gas Axelar
-   * reports as insufficient. Guarded by the persisted squidRouterExtraGasTxHash so
-   * it can never be sent twice; overpayment is refunded by the gas service to the
-   * funding wallet. Returns a human-readable summary for the ops alert.
+   * reports as insufficient. A "pending" sentinel is persisted to
+   * squidRouterExtraGasTxHash BEFORE broadcasting and reconciled to the tx hash
+   * after, so a crash or send failure in between can never lead to a second
+   * payment — a top-up with unknown outcome is left for manual handling via the
+   * ops alert. Overpayment is refunded by the gas service to the funding wallet.
+   * Returns a human-readable summary for the ops alert.
    */
   private async maybeTopUpGas(
     state: RampState,
@@ -430,6 +436,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
   ): Promise<string> {
     if (!state.state.squidRouterPayTxHash) {
       return "initial gas payment still pending; regular funding flow will pay";
+    }
+    if (state.state.squidRouterExtraGasTxHash === EXTRA_GAS_PENDING_MARKER) {
+      return "gas top-up previously attempted with unknown outcome; not retrying — check the funding wallet's transactions manually";
     }
     if (state.state.squidRouterExtraGasTxHash) {
       return `gas top-up already sent (${state.state.squidRouterExtraGasTxHash}); not topping up again`;
@@ -443,6 +452,9 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
 
     const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+    await state.update({
+      state: { ...state.state, squidRouterExtraGasTxHash: EXTRA_GAS_PENDING_MARKER }
+    });
     const extraGasTxHash = await this.executeFundTransaction(
       nativeToFundRaw,
       swapHash as `0x${string}`,
