@@ -258,7 +258,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       let recoveryOutcome: string | undefined;
 
       try {
-        const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote, this.statusRequestSignal(signal));
+        const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote, signal);
 
         if (!squidRouterStatus) {
           logger.warn(`SquidRouterPayPhaseHandler: No squidRouter status found for swap hash ${swapHash}.`);
@@ -306,9 +306,10 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
               await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
             }
 
-            await state.update({
-              state: { ...state.state, squidRouterPayTxHash: payTxHash }
-            });
+            // Single-key patch: a full-blob write from this execution's snapshot
+            // could erase the top-up marker a concurrent execution claimed while
+            // the (abort-unaware) funding transaction was in flight.
+            await this.patchStateKey(state, "squidRouterPayTxHash", payTxHash);
           } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
             recoveryOutcome = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
           }
@@ -762,11 +763,14 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
     }
   }
 
+  // Takes the processor signal (not a pre-bounded request signal): each request gets
+  // its own fresh 30s child bound, so a Squid request that hangs into its timeout
+  // does not leave an already-aborted signal for the Axelar fallback.
   private async getSquidrouterStatus(
     swapHash: string,
     state: RampState,
     quote: QuoteTicket,
-    requestSignal?: AbortSignal
+    signal?: AbortSignal
   ): Promise<SquidRouterPayResponse> {
     try {
       // Always Polygon for Monerium/Alfredpay onramp, Base for BRL
@@ -789,7 +793,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
         fromChainId,
         toChainId,
         state.state.squidRouterQuoteId,
-        requestSignal
+        this.statusRequestSignal(signal)
       );
       return squidRouterStatus;
     } catch (squidRouterError) {
@@ -798,7 +802,7 @@ export class SquidRouterPayPhaseHandler extends BasePhaseHandler {
       );
 
       try {
-        const axelarScanStatus = await getStatusAxelarScan(swapHash, requestSignal);
+        const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
 
         if (!axelarScanStatus) {
           throw new Error(
