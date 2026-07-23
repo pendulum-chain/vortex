@@ -62,6 +62,8 @@ export interface CreateInviteRequest {
   alias: string;
   inviteeEmail?: string;
   inviteeType?: RecipientInviteeType;
+  /** discount_manager only — bps discounts seeded into the accepting profile's pricing. */
+  discounts?: { buyBps?: number; sellBps?: number };
 }
 
 /** The backend retains the raw `token` while the invite is pending, for re-copy from the list. */

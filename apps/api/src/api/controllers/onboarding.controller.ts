@@ -4,6 +4,7 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
+import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import User from "../../models/user.model";
 import { APIError } from "../errors/api-error";
@@ -47,9 +48,10 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
   }
 
   try {
-    const [profile, entities] = await Promise.all([
+    const [profile, entities, profileRoles] = await Promise.all([
       User.findByPk(userId, { attributes: ["activeCustomerEntityId"] }),
-      CustomerEntity.findAll({ where: { profileId: userId } })
+      CustomerEntity.findAll({ where: { profileId: userId } }),
+      ProfileRole.findAll({ attributes: ["role"], where: { userId } })
     ]);
     const activeEntityId = entities.some(entity => entity.id === profile?.activeCustomerEntityId)
       ? (profile?.activeCustomerEntityId ?? null)
@@ -261,6 +263,8 @@ export async function getOnboardingStatus(req: Request, res: Response): Promise<
           type: entity.type
         };
       }),
+      // Capability roles for role-gated dashboard UI (e.g. discount_manager invite fields).
+      roles: profileRoles.map(profileRole => profileRole.role),
       selectionRequired: !activeEntityId
     });
   } catch (error) {

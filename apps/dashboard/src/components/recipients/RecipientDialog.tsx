@@ -22,15 +22,24 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
 import { inviteUrl } from "@/domain/recipient";
 import type { AccountType, Corridor, CorridorId, SenderAccount } from "@/domain/types";
+import { useOnboardingStatusQuery } from "@/hooks/useApprovedCorridors";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { notifyInviteCopied, notifyInviteLinkReady } from "@/lib/notify";
 import { CORRIDOR_COUNTRY, CORRIDOR_RAIL } from "@/services/api/mappers";
 import { RecipientsService } from "@/services/api/recipients.service";
 
+const bpsSchema = z.coerce
+  .number("Enter a whole number of bps")
+  .int("Enter a whole number of bps")
+  .min(0, "Must be 0 or more")
+  .max(1000, "At most 1000 bps");
+
 const schema = z.object({
   alias: z.string().trim().min(1, "Enter a name for this link").max(100, "Keep it under 100 characters"),
+  buyBps: bpsSchema,
   corridorId: z.enum(["BR", "EU", "MX", "CO", "US", "AR"]),
-  recipientType: z.enum(["individual", "company"])
+  recipientType: z.enum(["individual", "company"]),
+  sellBps: bpsSchema
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -57,11 +66,17 @@ export function RecipientDialog({
   const form = useForm<FormValues>({
     defaultValues: {
       alias: "",
+      buyBps: 0,
       corridorId: defaultCorridorId ?? corridors[0]?.id ?? "BR",
-      recipientType: "individual"
+      recipientType: "individual",
+      sellBps: 0
     },
     resolver: standardSchemaResolver(schema)
   });
+
+  // Only discount managers see (and may submit) the per-invite discount fields.
+  const { data: onboardingStatus } = useOnboardingStatusQuery();
+  const isDiscountManager = onboardingStatus?.roles?.includes("discount_manager") ?? false;
 
   const corridorId = form.watch("corridorId");
   const recipientType = form.watch("recipientType");
@@ -77,7 +92,10 @@ export function RecipientDialog({
         country: CORRIDOR_COUNTRY[values.corridorId],
         inviteeType: values.recipientType === "company" ? "business" : "individual",
         payoutCurrency: CORRIDOR_RAIL[values.corridorId],
-        rail: CORRIDOR_RAIL[values.corridorId]
+        rail: CORRIDOR_RAIL[values.corridorId],
+        ...(isDiscountManager && (values.buyBps > 0 || values.sellBps > 0)
+          ? { discounts: { buyBps: values.buyBps, sellBps: values.sellBps } }
+          : {})
       }),
     onError: error => {
       toast.error("Could not create the invite", { description: error instanceof Error ? error.message : undefined });
@@ -97,7 +115,13 @@ export function RecipientDialog({
 
   function reset() {
     setCreated(null);
-    form.reset({ alias: "", corridorId: form.getValues("corridorId"), recipientType: form.getValues("recipientType") });
+    form.reset({
+      alias: "",
+      buyBps: 0,
+      corridorId: form.getValues("corridorId"),
+      recipientType: form.getValues("recipientType"),
+      sellBps: 0
+    });
   }
 
   function onOpenChange(next: boolean) {
@@ -202,6 +226,37 @@ export function RecipientDialog({
                     )}
                   />
                 </div>
+
+                {isDiscountManager && (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="buyBps"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Buy discount (bps)</FormLabel>
+                          <FormControl>
+                            <Input max={1000} min={0} step={1} type="number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sellBps"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sell discount (bps)</FormLabel>
+                          <FormControl>
+                            <Input max={1000} min={0} step={1} type="number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
 
                 <DialogFooter>
                   <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">

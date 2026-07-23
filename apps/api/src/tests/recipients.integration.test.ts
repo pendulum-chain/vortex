@@ -1,13 +1,18 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { findPartnerWithPricing } from "../api/services/partners/partner-pricing.service";
 import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
+import Partner from "../models/partner.model";
+import ProfilePartnerAssignment from "../models/profilePartnerAssignment.model";
+import ProfileRole from "../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import RecipientInvitation from "../models/recipientInvitation.model";
 import RecipientPayoutReference from "../models/recipientPayoutReference.model";
 import SenderRecipient from "../models/senderRecipient.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestUser } from "../test-utils/factories";
+import { createTestPartner, createTestUser, updatePartnerPricing } from "../test-utils/factories";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -737,5 +742,131 @@ describe("GET /v1/recipients/:id/eligibility", () => {
       blockingReasonCode: "relationship_not_active",
       canCreateTransfer: false
     });
+  });
+});
+
+describe("invite discounts (discount_manager)", () => {
+  async function grantDiscountManager(userId: string): Promise<void> {
+    await ProfileRole.create({ role: "discount_manager", userId });
+  }
+
+  it("rejects discount-carrying invites from senders without the role", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect(status).toBe(403);
+    expect((body.error as { code: string }).code).toBe("DISCOUNT_ROLE_REQUIRED");
+  });
+
+  it("rejects non-integer and out-of-range bps", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+
+    expect((await createInvite(sender.token, { discounts: { buyBps: 1.5 } })).status).toBe(400);
+    expect((await createInvite(sender.token, { discounts: { sellBps: 1001 } })).status).toBe(400);
+    expect((await createInvite(sender.token, { discounts: { buyBps: -1 } })).status).toBe(400);
+  });
+
+  it("treats zero bps as no discount and requires no role for it", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 0, sellBps: 0 } });
+    expect(status).toBe(201);
+
+    const stored = await RecipientInvitation.findByPk(body.id as string);
+    expect(stored?.seededDiscounts).toBeNull();
+  });
+
+  it("stores the seeded discounts scoped to the invite's corridor fiat", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 10, sellBps: 5 } });
+    expect(status).toBe(201);
+
+    const stored = await RecipientInvitation.findByPk(body.id as string);
+    expect(stored?.seededDiscounts).toEqual([
+      { bps: 10, fiatCurrency: FiatToken.MXN, rampType: RampDirection.BUY },
+      { bps: 5, fiatCurrency: FiatToken.MXN, rampType: RampDirection.SELL }
+    ]);
+  });
+
+  it("materializes partner pricing for the accepting profile, carrying the vortex fee forward", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // The platform fee lives on the vortex config's markup fields; a seeded config must copy
+    // it into its vortexFee fields or the invited profile would ramp platform-fee-free.
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      markupCurrency: EvmToken.USDC,
+      markupType: "relative",
+      markupValue: 0.0001
+    });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10, sellBps: 5 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+
+    const partner = await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } });
+    expect(partner?.isActive).toBe(true);
+
+    const buyPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.MXN);
+    expect(Number(buyPricing?.targetDiscount)).toBe(0.001);
+    expect(buyPricing?.fiatCurrency).toBe(FiatToken.MXN);
+    expect(buyPricing?.vortexFeeType).toBe("relative");
+    expect(Number(buyPricing?.vortexFeeValue)).toBe(0.0001);
+    expect(buyPricing?.markupType).toBe("none");
+
+    const sellPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN);
+    expect(Number(sellPricing?.targetDiscount)).toBe(0.0005);
+    // A config scoped to the seeded corridor must not price other corridors.
+    expect(await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.BRL)).toBeNull();
+
+    const assignment = await ProfilePartnerAssignment.findOne({ where: { isActive: true, userId: recipient.user.id } });
+    expect(assignment?.partnerId).toBe(partner?.id as string);
+  });
+
+  it("keeps an existing active assignment: the invite connects the recipient but seeds nothing", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    const existingPartner = await createTestPartner({ name: "existing-partner" });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: existingPartner.id,
+      partnerName: "existing-partner",
+      userId: recipient.user.id
+    });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.relationshipStatus).toBe("active");
+
+    expect(await Partner.findOne({ where: { name: `invite-discount-${invite.body.id}` } })).toBeNull();
+    const assignments = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
+    expect(assignments).toHaveLength(1);
+    expect(assignments[0].partnerId).toBe(existingPartner.id);
+  });
+
+  it("does not seed again on re-entry", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(201);
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(200);
+
+    expect(await Partner.count({ where: { name: `invite-discount-${invite.body.id}` } })).toBe(1);
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(1);
+  });
+
+  it("returns the profile's roles from the onboarding status endpoint", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const before = await api.request("/v1/onboarding/status", { headers: authHeaders(sender.token) });
+    expect(((await before.json()) as { roles: string[] }).roles).toEqual([]);
+
+    await grantDiscountManager(sender.user.id);
+    const after = await api.request("/v1/onboarding/status", { headers: authHeaders(sender.token) });
+    expect(((await after.json()) as { roles: string[] }).roles).toEqual(["discount_manager"]);
   });
 });

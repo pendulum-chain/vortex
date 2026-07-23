@@ -5,6 +5,7 @@ import apiClientEventsRoutes from "./admin/api-client-events.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
+import profileRolesRoutes from "./admin/profile-roles.route";
 import alfredpayRoutes from "./alfredpay.route";
 import apiKeysRoutes from "./api-keys.route";
 import authRoutes from "./auth.route";
@@ -236,6 +237,13 @@ router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes
  * DELETE /v1/admin/partner-pricing-configs/:configId
  */
 router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
+
+/**
+ * Admin routes for profile capability roles (e.g. discount_manager)
+ * POST /v1/admin/profile-roles
+ * DELETE /v1/admin/profile-roles/:userId/:role
+ */
+router.use("/admin/profile-roles", profileRolesRoutes);
 
 /**
  * Admin routes for API client observability dashboards
