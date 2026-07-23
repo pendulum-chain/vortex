@@ -81,10 +81,12 @@ Every commit message and PR title follows [Conventional Commits](https://www.con
   no trailing period, ≤ 72 characters.
 - Append `!` after the scope for breaking changes (e.g. `feat(sdk)!: …`).
 - Body is optional; when present, explain **why**, not what — the diff shows what.
-- PR titles use the same format as commit subjects. PRs are merged with merge commits,
-  so individual commits land in history — format each one, not just the PR title.
+- **PR titles** are plain, human-friendly text instead — sentence case, describing the
+  change for a reviewer (e.g. "Add searchable token selection to the dashboard"). The
+  conventional format applies to commits only; PRs are merged with merge commits, so
+  every individual commit lands in history — format each one.
 
-Examples from history: `fix(api): keep active phase retries below lock expiry`,
+Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
 `feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
 feature specs`.
 
