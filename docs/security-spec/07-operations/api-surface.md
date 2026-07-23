@@ -5,7 +5,7 @@
 This spec covers the external-facing attack surface of the Vortex API (`apps/api/`): how requests enter the system, what validation is applied, how errors are returned, and what network-level protections exist.
 
 **Express configuration** (`config/express.ts`):
-- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify, `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for non-production dashboard deployments; resolved once at boot, wildcard entries dropped)
+- CORS: Explicit origin whitelist — `app.vortexfinance.co`, `dashboard.vortexfinance.co`, `metrics.vortexfinance.co`, staging Netlify (non-production only, gated on `DEPLOYMENT_ENV`), `localhost` (dev only), plus the optional `DASHBOARD_ORIGINS` env var (comma-separated fixed origins for non-production dashboard deployments; resolved once at boot, wildcard entries dropped) and the optional `DASHBOARD_PREVIEW_SITE` env var (a single Netlify site slug; enables the fixed-shape pattern `https://deploy-preview-<n>--<slug>.netlify.app` for dashboard deploy previews, non-production only; helpers in `config/corsOrigins.ts`)
 - Rate limiting: 100 requests per minute per IP (global, all endpoints)
 - Helmet: Standard HTTP security headers
 - Body parser: JSON with **20MB limit**
@@ -37,7 +37,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 
 ## Security Invariants
 
-1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts`. No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header). The `DASHBOARD_ORIGINS` env var extends the whitelist with additional *fixed* origins only: it is parsed once at boot and entries containing `*` are silently discarded, so it cannot be used to introduce a wildcard.
+1. **CORS MUST only allow explicit origins** — The whitelist is defined in `express.ts` (helpers in `corsOrigins.ts`). No wildcard (`*`) origins. No dynamic origin reflection (echoing back the `Origin` header). The `DASHBOARD_ORIGINS` env var extends the whitelist with additional *fixed* origins only: it is parsed once at boot and entries containing `*` are silently discarded, so it cannot be used to introduce a wildcard. The only permitted pattern-based entry is the dashboard deploy-preview regex: `DASHBOARD_PREVIEW_SITE` supplies a Netlify site slug (validated against `[a-z0-9-]`, so it cannot alter the regex), and the code builds the fixed-shape, fully-anchored pattern `^https://deploy-preview-\d+--<slug>\.netlify\.app$`. It is disabled when `DEPLOYMENT_ENV` is `production` (gated on `config.deploymentEnv`, not `NODE_ENV` — staging also runs with `NODE_ENV=production`) — deploy previews must never become CORS-allowed origins of the production API.
 2. **Rate limiting MUST be enforced on all endpoints** — 100 req/min per IP applies globally via `express-rate-limit`. No endpoint should bypass this.
 3. **Body size MUST be bounded** — The JSON body parser has a limit. **⚠️ FINDING: The limit is 20MB (`"20mb"`), which is still large for a JSON API.** A typical API allows 1-10MB. 20MB still enables avoidable memory pressure.
 4. **All user input MUST be validated before reaching controllers** — Validators run as middleware before the controller function. Missing validation on an endpoint means raw user input reaches business logic.
