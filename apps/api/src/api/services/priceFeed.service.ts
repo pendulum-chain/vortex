@@ -21,7 +21,8 @@ const FIAT_SANITY_SPREAD_LIMITS: Record<string, number> = {
 // Binance spot symbols quoted against USDT (treated as USD) and priced in fiat.
 // Only currencies with a liquid Binance USDT market are listed; any fiat not
 // present here skips Binance and falls straight through to fastforex.
-const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
+// Exported so the live Binance contract test covers exactly this mapping.
+export const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
   BRL: "USDTBRL",
   COP: "USDTCOP"
 };

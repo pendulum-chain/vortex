@@ -21,11 +21,13 @@
  * reference and last-resort fallback production actually consumes.
  *
  * Binance spot is the primary USD rate source for the currencies mapped in
- * PriceFeedService's BINANCE_USDT_FIAT_SYMBOLS (mirrored below): its live half
- * asserts each mapped ticker still exists and serves a usable price, so a
- * delisted market alerts the nightly instead of silently degrading to fastforex.
+ * BINANCE_USDT_FIAT_SYMBOLS (imported from the service, so the live check can
+ * never drift from what production queries): its live half asserts each mapped
+ * ticker still exists and serves a usable price, so a delisted market alerts
+ * the nightly instead of silently degrading to fastforex.
  */
 import { describe, expect, test } from "bun:test";
+import { BINANCE_USDT_FIAT_SYMBOLS } from "../../api/services/priceFeed.service";
 import { coingeckoSimplePriceResponseSchema } from "../../api/services/priceFeed.schemas";
 import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 
@@ -35,12 +37,6 @@ const REQUESTED_IDS = ["usd-coin", "ethereum"];
 const REQUESTED_CURRENCIES = ["usd", "mxn", "cop", "ars"];
 // Pro-only on CoinGecko since ~2026-07 (see header); asserted only when a key is set.
 const PRO_ONLY_CURRENCIES = ["cop"];
-
-// Mirrors BINANCE_USDT_FIAT_SYMBOLS in priceFeed.service.ts.
-const BINANCE_SYMBOLS: Record<string, string> = {
-  BRL: "USDTBRL",
-  COP: "USDTCOP"
-};
 
 describe("CoinGecko external API contract — hermetic (fixtures)", () => {
   test("accepts the consumed simple/price shape including unknown keys", () => {
@@ -102,22 +98,28 @@ describe.skipIf(!RUN_LIVE)("Binance external API contract — live", () => {
     "GET /api/v3/ticker/price serves every mapped USDT-fiat symbol",
     async () => {
       const { config } = await import("../../config/vars");
-      for (const symbol of Object.values(BINANCE_SYMBOLS)) {
-        const body = await runLive(`binance ticker ${symbol}`, async () => {
+      for (const symbol of Object.values(BINANCE_USDT_FIAT_SYMBOLS)) {
+        const outcome = await runLive(`binance ticker ${symbol}`, async () => {
           const url = new URL("api/v3/ticker/price", `${config.priceProviders.binance.baseUrl}/`);
           url.searchParams.append("symbol", symbol);
           const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
-          if (!response.ok) {
-            throw new Error(`Binance API error for ${symbol}: ${response.status} ${await response.text()}`);
+          // Only availability failures may stay inconclusive (rate limit, geo-block,
+          // 5xx, network). A definitive 4xx — Binance answers an unknown or delisted
+          // symbol with 400 code -1121 — is exactly the drift this test exists to
+          // catch, so it is returned for assertion instead of thrown into runLive's
+          // catch-all.
+          if (response.status >= 500 || response.status === 429 || response.status === 451) {
+            throw new Error(`Binance API unavailable for ${symbol}: ${response.status} ${await response.text()}`);
           }
-          return (await response.json()) as { symbol: string; price: string };
+          return { body: (await response.json()) as { price?: string; symbol?: string }, status: response.status };
         });
-        if (!body) continue; // inconclusive (e.g. geo-blocked egress) — see test-utils/contract-support.ts
+        if (!outcome) continue; // inconclusive — see test-utils/contract-support.ts
 
+        expect(outcome.status).toBe(200);
         // getBinanceUsdtToFiatRate rejects a mismatched symbol or non-positive price,
         // so both are part of the consumed contract.
-        expect(body.symbol).toBe(symbol);
-        expect(Number(body.price)).toBeGreaterThan(0);
+        expect(outcome.body.symbol).toBe(symbol);
+        expect(Number(outcome.body.price)).toBeGreaterThan(0);
       }
     },
     60_000
