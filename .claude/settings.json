@@ -12,6 +12,9 @@
       "Read(**/.env.development)",
       "Read(**/.env.production)",
       "Read(**/.env.staging)",
+      "Read(**/.env.test)",
+      "Read(**/.env.preview)",
+      "Read(**/.env.ci)",
       "Read(./.api-key.json)",
       "Read(**/.api-key.json)"
     ]
