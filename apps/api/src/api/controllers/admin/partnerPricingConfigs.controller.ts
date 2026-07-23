@@ -1,10 +1,11 @@
 import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
-import { UniqueConstraintError } from "sequelize";
+import { Op, UniqueConstraintError } from "sequelize";
 import logger from "../../../config/logger";
 import Partner from "../../../models/partner.model";
 import PartnerPricingConfig from "../../../models/partnerPricingConfig.model";
+import QuoteTicket from "../../../models/quoteTicket.model";
 
 const FEE_TYPES = new Set(["absolute", "relative", "none"]);
 const FIAT_CURRENCIES = new Set<string>(Object.values(FiatToken));
@@ -82,6 +83,12 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
         return;
       }
     }
+    // The discount engine only applies the cap when maxSubsidy > 0, so a negative value
+    // would silently mean "uncapped", not "invalid" — reject it here.
+    if (body.maxSubsidy !== undefined && body.maxSubsidy < 0) {
+      invalidInput(res, "maxSubsidy must be non-negative");
+      return;
+    }
 
     const { markupType, vortexFeeType, markupCurrency, payoutAddressSubstrate, payoutAddressEvm } = body;
     if (markupType !== undefined && !FEE_TYPES.has(markupType)) {
@@ -124,6 +131,27 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
       return;
     }
 
+    // A corridor-scoped vortex row wins resolution over the wildcard, and substrate fee
+    // distribution throws when the resolved vortex config lacks payout_address_substrate —
+    // a scoped vortex row without addresses would brick every ramp in that corridor.
+    // Inherit missing addresses from the wildcard row; refuse if none is inheritable.
+    let effectivePayoutSubstrate: string | null = payoutAddressSubstrate ?? null;
+    let effectivePayoutEvm: string | null = payoutAddressEvm ?? null;
+    if (partner.name === "vortex" && fiatCurrency && (!effectivePayoutSubstrate || !effectivePayoutEvm)) {
+      const wildcard = await PartnerPricingConfig.findOne({
+        where: { fiatCurrency: null, partnerId: partner.id, rampType }
+      });
+      effectivePayoutSubstrate = effectivePayoutSubstrate ?? wildcard?.payoutAddressSubstrate ?? null;
+      effectivePayoutEvm = effectivePayoutEvm ?? wildcard?.payoutAddressEvm ?? null;
+      if (!effectivePayoutSubstrate) {
+        invalidInput(
+          res,
+          "a corridor-scoped vortex config requires payoutAddressSubstrate (none provided and the wildcard config has none to inherit)"
+        );
+        return;
+      }
+    }
+
     const config = await PartnerPricingConfig.create({
       fiatCurrency: fiatCurrency ?? null,
       markupCurrency: markupCurrency ?? null,
@@ -133,8 +161,8 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
       maxSubsidy: body.maxSubsidy ?? 0,
       minDynamicDifference: body.minDynamicDifference ?? 0,
       partnerId: partner.id,
-      payoutAddressEvm: payoutAddressEvm ?? null,
-      payoutAddressSubstrate: payoutAddressSubstrate ?? null,
+      payoutAddressEvm: effectivePayoutEvm,
+      payoutAddressSubstrate: effectivePayoutSubstrate,
       rampType,
       targetDiscount: body.targetDiscount ?? 0,
       vortexFeeType: vortexFeeType ?? "none",
@@ -191,6 +219,29 @@ export async function deletePartnerPricingConfig(req: Request<{ configId: string
         error: {
           code: "VORTEX_CONFIG_PROTECTED",
           message: "The default vortex wildcard pricing config cannot be deleted.",
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
+
+    // Fee distribution re-resolves (partner, ramp_type, corridor) when the ramp's presigned
+    // transactions are built at registration. Deleting a config while pending quotes still
+    // reference the partner would re-route or drop their markup between quoting and
+    // registration — block until those quotes are consumed or expire (quote TTL).
+    const pendingQuotes = await QuoteTicket.count({
+      where: {
+        [Op.or]: [{ pricingPartnerId: config.partnerId }, { partnerId: config.partnerId }],
+        expiresAt: { [Op.gt]: new Date() },
+        rampType: config.rampType,
+        status: "pending"
+      }
+    });
+    if (pendingQuotes > 0) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "PRICING_CONFIG_IN_USE",
+          message: `${pendingQuotes} pending quote(s) still reference this partner's pricing; retry after they expire`,
           status: httpStatus.CONFLICT
         }
       });

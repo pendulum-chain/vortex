@@ -3,7 +3,7 @@ import { FiatToken, RampDirection } from "@vortexfi/shared";
 import express from "express";
 import PartnerPricingConfig from "../../../models/partnerPricingConfig.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
-import { createTestPartner } from "../../../test-utils/factories";
+import { createTestPartner, createTestQuote, updatePartnerPricing } from "../../../test-utils/factories";
 import { findPartnerWithPricing } from "../../services/partners/partner-pricing.service";
 import partnerPricingConfigsRoutes from "../../routes/v1/admin/partner-pricing-configs.route";
 
@@ -98,6 +98,52 @@ describe("partner pricing configs admin routes", () => {
       rampType: "SELL"
     });
     expect(withCurrency.status).toBe(201);
+  });
+
+  it("rejects a negative maxSubsidy, which the discount engine would read as uncapped", async () => {
+    await createTestPartner({ name: "acme", rampType: RampDirection.BUY });
+    const response = await post({ maxSubsidy: -0.01, partnerName: "acme", rampType: "SELL" });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { error: { message: string } };
+    expect(body.error.message).toContain("maxSubsidy");
+  });
+
+  it("inherits vortex payout addresses onto a scoped config, and refuses when none are inheritable", async () => {
+    // No wildcard payout address anywhere: a scoped vortex row would brick the corridor's
+    // substrate fee distribution, so creation must refuse.
+    const refused = await post({ fiatCurrency: FiatToken.MXN, partnerName: "vortex", rampType: "BUY" });
+    expect(refused.status).toBe(400);
+    const refusedBody = (await refused.json()) as { error: { message: string } };
+    expect(refusedBody.error.message).toContain("payoutAddressSubstrate");
+
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      payoutAddressEvm: "0x000000000000000000000000000000000000dEaD",
+      payoutAddressSubstrate: "6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy"
+    });
+
+    const created = await post({ fiatCurrency: FiatToken.MXN, partnerName: "vortex", rampType: "BUY" });
+    expect(created.status).toBe(201);
+    const scoped = await findPartnerWithPricing({ name: "vortex" }, RampDirection.BUY, FiatToken.MXN);
+    expect(scoped?.fiatCurrency).toBe(FiatToken.MXN);
+    expect(scoped?.payoutAddressSubstrate).toBe("6emGJgvN86YVYj5jENjfoMfEvX5p8hMHJGSYPpbtvHNEHTgy");
+    expect(scoped?.payoutAddressEvm).toBe("0x000000000000000000000000000000000000dEaD");
+  });
+
+  it("refuses to delete a config while pending quotes reference the partner's pricing", async () => {
+    const partner = await createTestPartner({ fiatCurrency: FiatToken.MXN, name: "acme", rampType: RampDirection.BUY });
+    const config = await PartnerPricingConfig.findOne({ where: { partnerId: partner.id } });
+    const quote = await createTestQuote({ pricingPartnerId: partner.id, rampType: RampDirection.BUY });
+
+    const blocked = await fetch(`${baseUrl}/${config?.id}`, { headers: ADMIN_HEADERS, method: "DELETE" });
+    expect(blocked.status).toBe(409);
+    const body = (await blocked.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("PRICING_CONFIG_IN_USE");
+
+    // Once the quote is consumed (its presigned fee distribution is built at registration),
+    // deletion is safe again.
+    await quote.update({ status: "consumed" });
+    const allowed = await fetch(`${baseUrl}/${config?.id}`, { headers: ADMIN_HEADERS, method: "DELETE" });
+    expect(allowed.status).toBe(204);
   });
 
   it("returns 404 for an unknown partner and 409 for a duplicate scope", async () => {
