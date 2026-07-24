@@ -10,6 +10,7 @@ import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
 import PartnerPricingConfig from "./partnerPricingConfig.model";
 import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
+import ProfileRole from "./profileRole.model";
 import ProviderCustomer from "./providerCustomer.model";
 import QuoteTicket from "./quoteTicket.model";
 import RampState from "./rampState.model";
@@ -43,6 +44,9 @@ TaxId.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfilePartnerAssignment, { as: "partnerAssignments", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
+
+User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
+ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
 ProfilePartnerAssignment.belongsTo(Partner, { as: "buyPartner", foreignKey: "buyPartnerId" });
 ProfilePartnerAssignment.belongsTo(Partner, { as: "sellPartner", foreignKey: "sellPartnerId" });
 Partner.hasMany(ProfilePartnerAssignment, { as: "buyProfileAssignments", foreignKey: "buyPartnerId" });
@@ -105,6 +109,7 @@ const models = {
   Partner,
   PartnerPricingConfig,
   ProfilePartnerAssignment,
+  ProfileRole,
   ProviderCustomer,
   QuoteTicket,
   RampState,

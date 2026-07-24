@@ -65,10 +65,18 @@ out against another tenant's relationship.
    OTP authentication and calls `POST /recipients/invite/:token/accept` before onboarding. The
    accepted invitation response, not the editable URL, selects the locked corridor and recipient
    type. Provider records are attached to the corresponding individual or business entity.
-5. **A `blocked` relationship is never resurrected by a new invite.** Acceptance against a
-   blocked pair returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
+5. **A `blocked` relationship is never resurrected by a new invite.** The block applies to
+   the sender↔recipient **pair**: acceptance of any invite for the pair — including one on a
+   different rail — returns `409 RELATIONSHIP_BLOCKED` and leaves the invite `pending`; only
    `archived` reactivates. Acceptance (entity resolve + relationship upsert + invite state) runs
    in one transaction.
+5a. **Relationships are per payout rail.** `sender_recipients` is unique on
+   `(sender, recipient, COALESCE(rail, '*'))` (migration 054; `rail` backfilled from the linked
+   invitation): the same pair holds one relationship row per corridor, each keeping its own
+   `invitation_id`. Accepting an invite on a *new* rail adds a row; accepting on an already-linked
+   rail repoints that rail's row (a renewal). Before the split, a second-rail acceptance repointed
+   the pair's single row, silently dropping the first corridor from the sender's list *and* its
+   invitation-derived transfer-eligibility gate.
 6. **All sender-side routes are entity-scoped.** List/PATCH (relationship and invitation
    archive)/eligibility resolve the caller's `customer_entity` from `req.userId` and filter on
    `sender_customer_entity_id`; foreign ids
@@ -101,6 +109,48 @@ out against another tenant's relationship.
     registration carries their `fiatAccountId` in `additionalData`. This does not create a
     `recipient_payout_references` row and does not satisfy an invited recipient's payout gate;
     recipient payout capture remains in the recipient's widget onboarding session.
+11. **Invite discounts are role-gated at creation and materialized only once, at first
+    acceptance.** `POST /v1/recipients/invite` accepts an optional `discounts` body
+    (`buyBps`/`sellBps`, integers `0..300` — bounded so the advertised discount always fits
+    under the runtime EVM discount-subsidy cap with execution headroom; `0` means none)
+    only from profiles holding the `discount_manager` role in `profile_roles`
+    (`403 DISCOUNT_ROLE_REQUIRED` otherwise — the role check is server-side, the dashboard's
+    field visibility is UX only). Validated seeds are stored on
+    `recipient_invitations.seeded_discounts` as `{ rampType, fiatCurrency, bps }[]`, with
+    `fiatCurrency` derived server-side from the invite's corridor (never client-supplied).
+    Inside the first-acceptance transaction (never on re-entry), `materializeSeededDiscounts`
+    creates a dedicated partner row named by the accepting profile's email (reused — with its
+    seeded configs replaced wholesale — when a later discount invite re-seeds the same
+    profile after its previous assignment ended; an unrelated partner that merely carries
+    that name is never repurposed, guarded by requiring a prior assignment linking it to the
+    profile), one corridor-scoped pricing config per seed (`targetDiscount = bps/10000`, `maxSubsidy` mirroring the runtime
+    EVM discount-subsidy cap fraction so a quote-time subsidy can never exceed what
+    subsidize-post-swap will execute, partner markup `none`, and the default vortex platform
+    fee copied into the config's vortex-fee fields so seeded profiles do not ramp
+    platform-fee-free — if the vortex pricing row for a seeded direction/corridor is missing,
+    seeding is skipped entirely and logged rather than materializing a fee-free config), and
+    an active `profile_partner_assignments` row for the accepting profile. Seeding locks the
+    profile row first (the same serialization point as admin assignment replacement) so it
+    cannot race a concurrent admin assignment. A profile that already holds an active,
+    unexpired assignment keeps it — the seed is discarded and the invite only connects the
+    recipient. Roles are admin-managed via `POST/DELETE /v1/admin/profile-roles` behind
+    `adminAuth` and surfaced to the dashboard as `roles` on `GET /v1/onboarding/status`.
+    Discount-carrying invites deep-link to the **dashboard** (`/invite/<token>`, rebuilt for
+    re-copy from `seededDiscounts` on the pending-invitations listing) instead of the widget.
+    The invitee signs in (email OTP) on the invite page, then must **explicitly confirm with
+    the active account shown** before anything is redeemed — links are bearer tokens and
+    redemption binds the first acceptor permanently, so a "use a different account" action is
+    offered. The confirm screen is fed by `GET /v1/recipients/invite/:token`, a read-only
+    preview that runs the same gate checks as acceptance (existence, expiry, email binding,
+    self-accept) but consumes and mutates nothing. On confirmation the dashboard first fixes
+    the account type from the invitation via `PUT /v1/onboarding/active-entity` — an
+    established profile of the other type fails here (`ACTIVE_ENTITY_IMMUTABLE`) **before**
+    the invite is consumed — and only then calls the same
+    `POST /v1/recipients/invite/:token/accept` endpoint; every redemption invariant above
+    applies unchanged, and provider onboarding attaches to the same `(profile, type)`
+    customer entity the acceptance linked. Sender-side KYC tracking is client-agnostic
+    either way: list/eligibility read `provider_customers` scoped by the relationship's
+    recipient entity + the invitation's provider/type/country.
 
 ### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
 
@@ -152,6 +202,12 @@ payout-instrument decision (no code path writes `verified` payout references yet
 - **Blocked-recipient bypass via re-invite**: invariant 5.
 - **Recipient bank PII exposure to the sender**: capture-at-transfer-time was rejected (plan §7.1
   option C); only provider-side references with masks are stored.
+- **Self-granted pricing discount via invite**: a sender without the `discount_manager` role
+  posts `discounts` directly to the API (bypassing the role-gated UI), or a discount manager
+  posts oversized bps. The role is checked server-side against `profile_roles` and bps are
+  bounded (`0..1000`, integers); the seeded `fiatCurrency` comes from the validated corridor, so
+  a seed can never price a corridor the invite was not created for. An accepting profile with an
+  existing active assignment keeps it (admin-set pricing is never clobbered by a link).
 - **Transfer to an unverified/restricted recipient**: the eligibility gate reports
   `recipient_onboarding_pending` / `provider_restricted` / `provider_payout_reference_unverified`
   — advisory (UI-consulted) until the recipient-context extension above makes it a registration
@@ -177,6 +233,10 @@ payout-instrument decision (no code path writes `verified` payout references yet
       (`recipients.integration.test.ts`).
 - [ ] Eligibility walks the full ladder; each blocking reason is covered by the integration test.
 - [ ] No route or table stores raw PIX/IBAN/CLABE/account values for recipients.
+- [ ] Discount-carrying invite creation without the `discount_manager` role returns `403`;
+      seeding happens only inside the first-acceptance transaction, is skipped when the profile
+      has an active unexpired assignment, and copies the vortex platform fee into the seeded
+      config (`recipients.integration.test.ts` "invite discounts").
 - [x] Alfredpay sender self accounts remain provider-side, registration carries only the
       sender-owned `fiatAccountId`, and creating one does not write a
       `recipient_payout_references` row or satisfy invited-recipient eligibility. **PASS**.

@@ -1,13 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { findPartnerWithPricing } from "../api/services/partners/partner-pricing.service";
 import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
+import Partner from "../models/partner.model";
+import PartnerPricingConfig from "../models/partnerPricingConfig.model";
+import ProfilePartnerAssignment from "../models/profilePartnerAssignment.model";
+import ProfileRole from "../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import RecipientInvitation from "../models/recipientInvitation.model";
 import RecipientPayoutReference from "../models/recipientPayoutReference.model";
 import SenderRecipient from "../models/senderRecipient.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestUser } from "../test-utils/factories";
+import { createTestPartner, createTestUser, updatePartnerPricing } from "../test-utils/factories";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -380,6 +386,55 @@ describe("POST /v1/recipients/invite/:token/accept", () => {
     const invitation = await RecipientInvitation.findByPk(second.body.id as string);
     expect(invitation?.status).toBe("pending");
   });
+
+  it("keeps both corridors when the same pair accepts invites on two rails", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const mx = await createInvite(sender.token);
+    const mxAccepted = await acceptInvite(recipient.token, mx.body.token as string);
+    expect(mxAccepted.status).toBe(201);
+
+    const ar = await createInvite(sender.token, { country: "AR", payoutCurrency: "ars", rail: "ars" });
+    const arAccepted = await acceptInvite(recipient.token, ar.body.token as string);
+    expect(arAccepted.status).toBe(201);
+
+    // Two relationship rows, each keeping its own invitation — the AR acceptance must not
+    // repoint the MX row (that used to hide the first corridor from the sender's list and
+    // its transfer-eligibility gate).
+    expect(arAccepted.body.id).not.toBe(mxAccepted.body.id as string);
+    const mxRow = await SenderRecipient.findByPk(mxAccepted.body.id as string);
+    expect(mxRow?.rail).toBe("mxn");
+    expect(mxRow?.invitationId).toBe(mx.body.id as string);
+    const arRow = await SenderRecipient.findByPk(arAccepted.body.id as string);
+    expect(arRow?.rail).toBe("ars");
+    expect(arRow?.invitationId).toBe(ar.body.id as string);
+
+    const list = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const { recipients } = (await list.json()) as { recipients: Array<{ invitation: { rail: string } | null }> };
+    expect(recipients.map(r => r.invitation?.rail).sort()).toEqual(["ars", "mxn"]);
+  });
+
+  it("blocks a new-rail invite when the pair is blocked on another rail", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const mx = await createInvite(sender.token);
+    const accepted = await acceptInvite(recipient.token, mx.body.token as string);
+
+    await api.request(`/v1/recipients/${accepted.body.id}`, {
+      body: JSON.stringify({ status: "blocked" }),
+      headers: authHeaders(sender.token),
+      method: "PATCH"
+    });
+
+    const ar = await createInvite(sender.token, { country: "AR", payoutCurrency: "ars", rail: "ars" });
+    const retry = await acceptInvite(recipient.token, ar.body.token as string);
+    expect(retry.status).toBe(409);
+    expect((retry.body.error as { code: string }).code).toBe("RELATIONSHIP_BLOCKED");
+    expect(
+      await SenderRecipient.count({ where: { senderCustomerEntityId: sender.entity.id } })
+    ).toBe(1);
+  });
 });
 
 describe("GET /v1/recipients", () => {
@@ -737,5 +792,249 @@ describe("GET /v1/recipients/:id/eligibility", () => {
       blockingReasonCode: "relationship_not_active",
       canCreateTransfer: false
     });
+  });
+});
+
+describe("GET /v1/recipients/invite/:token (preview)", () => {
+  async function previewInvite(token: string, inviteToken: string): Promise<{ status: number; body: Record<string, unknown> }> {
+    const response = await api.request(`/v1/recipients/invite/${inviteToken}`, { headers: authHeaders(token) });
+    return { body: (await response.json()) as Record<string, unknown>, status: response.status };
+  }
+
+  it("returns the corridor and invitee type without consuming the invite", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const invite = await createInvite(sender.token, { inviteeType: "business" });
+
+    const { status, body } = await previewInvite(recipient.token, invite.body.token as string);
+    expect(status).toBe(200);
+    expect(body).toEqual({ country: "MX", inviteeType: "business", payoutCurrency: "mxn", rail: "mxn" });
+
+    const stored = await RecipientInvitation.findByPk(invite.body.id as string);
+    expect(stored?.status).toBe("pending");
+    expect(stored?.token).toBe(invite.body.token as string);
+    expect(stored?.acceptedByProfileId).toBeNull();
+  });
+
+  it("applies the acceptance gates: unknown, expired, foreign-accepted, email-bound, own invite", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const recipient = await createAuthedUser("recipient@example.com");
+    const other = await createAuthedUser("other@example.com");
+
+    expect((await previewInvite(recipient.token, "unknown-token")).status).toBe(404);
+
+    const expired = await createInvite(sender.token);
+    await RecipientInvitation.update({ expiresAt: new Date(Date.now() - 1000) }, { where: { id: expired.body.id as string } });
+    expect((await previewInvite(recipient.token, expired.body.token as string)).status).toBe(410);
+    // The read-only preview must not have flipped the stored status.
+    expect((await RecipientInvitation.findByPk(expired.body.id as string))?.status).toBe("pending");
+
+    const accepted = await createInvite(sender.token);
+    await acceptInvite(other.token, accepted.body.token as string);
+    expect((await previewInvite(recipient.token, accepted.body.token as string)).status).toBe(409);
+    // The acceptor still previews their own accepted link (re-entry).
+    expect((await previewInvite(other.token, accepted.body.token as string)).status).toBe(200);
+
+    const bound = await createInvite(sender.token, { inviteeEmail: "someone-else@example.com" });
+    expect((await previewInvite(recipient.token, bound.body.token as string)).status).toBe(403);
+
+    const own = await createInvite(sender.token);
+    expect((await previewInvite(sender.token, own.body.token as string)).status).toBe(409);
+  });
+});
+
+describe("invite discounts (discount_manager)", () => {
+  async function grantDiscountManager(userId: string): Promise<void> {
+    await ProfileRole.create({ role: "discount_manager", userId });
+  }
+
+  it("rejects discount-carrying invites from senders without the role", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect(status).toBe(403);
+    expect((body.error as { code: string }).code).toBe("DISCOUNT_ROLE_REQUIRED");
+  });
+
+  it("rejects non-integer and out-of-range bps", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+
+    expect((await createInvite(sender.token, { discounts: { buyBps: 1.5 } })).status).toBe(400);
+    // 300 bps is the ceiling: larger discounts cannot execute under the 5% runtime subsidy cap.
+    expect((await createInvite(sender.token, { discounts: { sellBps: 301 } })).status).toBe(400);
+    expect((await createInvite(sender.token, { discounts: { buyBps: -1 } })).status).toBe(400);
+    expect((await createInvite(sender.token, { discounts: { sellBps: 300 } })).status).toBe(201);
+  });
+
+  it("treats zero bps as no discount and requires no role for it", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 0, sellBps: 0 } });
+    expect(status).toBe(201);
+
+    const stored = await RecipientInvitation.findByPk(body.id as string);
+    expect(stored?.seededDiscounts).toBeNull();
+  });
+
+  it("stores the seeded discounts scoped to the invite's corridor fiat", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+
+    const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 10, sellBps: 5 } });
+    expect(status).toBe(201);
+
+    const stored = await RecipientInvitation.findByPk(body.id as string);
+    expect(stored?.seededDiscounts).toEqual([
+      { bps: 10, fiatCurrency: FiatToken.MXN, rampType: RampDirection.BUY },
+      { bps: 5, fiatCurrency: FiatToken.MXN, rampType: RampDirection.SELL }
+    ]);
+
+    // The sender's list carries the seeds so re-copy can rebuild the dashboard deep link.
+    const list = await api.request("/v1/recipients", { headers: authHeaders(sender.token) });
+    const { pendingInvitations } = (await list.json()) as { pendingInvitations: Array<Record<string, unknown>> };
+    expect(pendingInvitations[0].seededDiscounts).toEqual([
+      { bps: 10, fiatCurrency: FiatToken.MXN, rampType: RampDirection.BUY },
+      { bps: 5, fiatCurrency: FiatToken.MXN, rampType: RampDirection.SELL }
+    ]);
+  });
+
+  it("materializes partner pricing for the accepting profile, carrying the vortex fee forward", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // The platform fee lives on the vortex config's markup fields; a seeded config must copy
+    // it into its vortexFee fields or the invited profile would ramp platform-fee-free.
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      markupCurrency: EvmToken.USDC,
+      markupType: "relative",
+      markupValue: 0.0001
+    });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10, sellBps: 5 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+
+    const partner = await Partner.findOne({ where: { name: "recipient@example.com" } });
+    expect(partner?.isActive).toBe(true);
+
+    const buyPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.MXN);
+    expect(Number(buyPricing?.targetDiscount)).toBe(0.001);
+    expect(buyPricing?.fiatCurrency).toBe(FiatToken.MXN);
+    expect(buyPricing?.vortexFeeType).toBe("relative");
+    expect(Number(buyPricing?.vortexFeeValue)).toBe(0.0001);
+    expect(buyPricing?.markupType).toBe("none");
+    // Quote-time cap mirrors the runtime EVM discount-subsidy cap so a seeded discount can
+    // never compute a subsidy the subsidize-post-swap handler would refuse to execute.
+    expect(Number(buyPricing?.maxSubsidy)).toBe(0.05);
+
+    const sellPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN);
+    expect(Number(sellPricing?.targetDiscount)).toBe(0.0005);
+    // A config scoped to the seeded corridor must not price other corridors.
+    expect(await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.BRL)).toBeNull();
+
+    const assignment = await ProfilePartnerAssignment.findOne({ where: { isActive: true, userId: recipient.user.id } });
+    expect(assignment?.partnerId).toBe(partner?.id as string);
+  });
+
+  it("keeps an existing active assignment: the invite connects the recipient but seeds nothing", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    const existingPartner = await createTestPartner({ name: "existing-partner" });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: existingPartner.id,
+      partnerName: "existing-partner",
+      userId: recipient.user.id
+    });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.relationshipStatus).toBe("active");
+
+    expect(await Partner.findOne({ where: { name: "recipient@example.com" } })).toBeNull();
+    const assignments = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
+    expect(assignments).toHaveLength(1);
+    expect(assignments[0].partnerId).toBe(existingPartner.id);
+  });
+
+  it("skips seeding (but still accepts) when the vortex pricing config is missing", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // Without the vortex row to copy the platform fee from, seeding a config would make the
+    // invited profile ramp fee-free — the seed must be dropped, not materialized fee-free.
+    await PartnerPricingConfig.destroy({ where: {} });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    const accepted = await acceptInvite(recipient.token, invite.body.token as string);
+    expect(accepted.status).toBe(201);
+    expect(accepted.body.relationshipStatus).toBe("active");
+
+    expect(await Partner.findOne({ where: { name: "recipient@example.com" } })).toBeNull();
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(0);
+  });
+
+  it("does not seed again on re-entry", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(201);
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(200);
+
+    expect(await Partner.count({ where: { name: "recipient@example.com" } })).toBe(1);
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(1);
+  });
+
+  it("re-seeds the same email-named partner after the previous assignment ended, replacing its configs", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+
+    const first = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, first.body.token as string)).status).toBe(201);
+    // The entitlement ends (admin revocation) — a later discount invite may seed again.
+    await ProfilePartnerAssignment.update({ isActive: false }, { where: { userId: recipient.user.id } });
+
+    const second = await createInvite(sender.token, { discounts: { sellBps: 5 } });
+    expect((await acceptInvite(recipient.token, second.body.token as string)).status).toBe(201);
+
+    // Still one partner row, named by the profile's email; configs replaced wholesale.
+    expect(await Partner.count({ where: { name: "recipient@example.com" } })).toBe(1);
+    const partner = await Partner.findOne({ where: { name: "recipient@example.com" } });
+    expect(await findPartnerWithPricing({ id: partner?.id }, RampDirection.BUY, FiatToken.MXN)).toBeNull();
+    expect(
+      Number((await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN))?.targetDiscount)
+    ).toBe(0.0005);
+    const active = await ProfilePartnerAssignment.findAll({ where: { isActive: true, userId: recipient.user.id } });
+    expect(active).toHaveLength(1);
+    expect(active[0].partnerId).toBe(partner?.id as string);
+  });
+
+  it("never repurposes an unrelated partner that carries the profile's email as its name", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const recipient = await createAuthedUser("recipient@example.com");
+    // A pre-existing real partner coincidentally named like the email must stay untouched.
+    const foreign = await createTestPartner({ name: "recipient@example.com", targetDiscount: 0.02 });
+
+    const invite = await createInvite(sender.token, { discounts: { buyBps: 10 } });
+    expect((await acceptInvite(recipient.token, invite.body.token as string)).status).toBe(201);
+
+    expect(await ProfilePartnerAssignment.count({ where: { userId: recipient.user.id } })).toBe(0);
+    const untouched = await findPartnerWithPricing({ id: foreign.id }, RampDirection.BUY, FiatToken.MXN);
+    expect(Number(untouched?.targetDiscount)).toBe(0.02);
+  });
+
+  it("returns the profile's roles from the onboarding status endpoint", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    const before = await api.request("/v1/onboarding/status", { headers: authHeaders(sender.token) });
+    expect(((await before.json()) as { roles: string[] }).roles).toEqual([]);
+
+    await grantDiscountManager(sender.user.id);
+    const after = await api.request("/v1/onboarding/status", { headers: authHeaders(sender.token) });
+    expect(((await after.json()) as { roles: string[] }).roles).toEqual(["discount_manager"]);
   });
 });

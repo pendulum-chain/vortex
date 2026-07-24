@@ -113,6 +113,8 @@ export interface Recipient {
   status: RecipientStatus;
   /** Raw invite token for re-copying the link — empty once accepted or for legacy invites. */
   inviteCode: string;
+  /** Discount-carrying invitations deep-link to the dashboard; re-copy rebuilds that URL. */
+  hasSeededDiscounts?: boolean;
   /** How many times the invite link was copied — tracked per product request. */
   copyCount: number;
   /** The account holder's own "send to myself" recipient, derived from fetched payout accounts. */

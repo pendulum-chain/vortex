@@ -30,6 +30,8 @@ export interface OnboardingEntityDto {
 export interface OnboardingStatusResponse {
   activeEntityId: string | null;
   entities: OnboardingEntityDto[];
+  /** Capability roles of the profile (e.g. "discount_manager" unlocks invite discount fields). */
+  roles: string[];
   selectionRequired: boolean;
 }
 

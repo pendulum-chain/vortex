@@ -87,6 +87,7 @@ export function mapPendingInvitationDto(dto: PendingInvitationDto, accountId: st
     corridorId,
     createdAt: dto.createdAt,
     email: dto.inviteeEmail ?? "",
+    hasSeededDiscounts: (dto.seededDiscounts?.length ?? 0) > 0,
     id: dto.id,
     inviteCode: dto.token ?? "",
     isSelf: false,

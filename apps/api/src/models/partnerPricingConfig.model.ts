@@ -1,13 +1,15 @@
-import { RampCurrency, RampDirection } from "@vortexfi/shared";
+import { FiatToken, RampCurrency, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 // Per-direction pricing for a partner, split out of the partners table (which keeps only the
-// commercial identity under a unique name). Resolved by (partner_id, ramp_type).
+// commercial identity under a unique name). Resolved by (partner_id, ramp_type, fiat_currency):
+// a NULL fiat_currency is the wildcard row for every corridor; a scoped row wins over it.
 export interface PartnerPricingConfigAttributes {
   id: string;
   partnerId: string;
   rampType: RampDirection;
+  fiatCurrency: FiatToken | null;
   markupType: "absolute" | "relative" | "none";
   markupValue: number;
   markupCurrency: RampCurrency | null;
@@ -27,6 +29,7 @@ export interface PartnerPricingConfigAttributes {
 type PartnerPricingConfigCreationAttributes = Optional<
   PartnerPricingConfigAttributes,
   | "id"
+  | "fiatCurrency"
   | "markupType"
   | "markupValue"
   | "markupCurrency"
@@ -50,6 +53,7 @@ class PartnerPricingConfig
   declare id: string;
   declare partnerId: string;
   declare rampType: RampDirection;
+  declare fiatCurrency: FiatToken | null;
   declare markupType: "absolute" | "relative" | "none";
   declare markupValue: number;
   declare markupCurrency: RampCurrency | null;
@@ -73,6 +77,12 @@ PartnerPricingConfig.init(
       defaultValue: DataTypes.NOW,
       field: "created_at",
       type: DataTypes.DATE
+    },
+    fiatCurrency: {
+      allowNull: true,
+      defaultValue: null,
+      field: "fiat_currency",
+      type: DataTypes.STRING(8)
     },
     id: {
       defaultValue: DataTypes.UUIDV4,
@@ -174,8 +184,10 @@ PartnerPricingConfig.init(
   {
     indexes: [
       {
-        fields: ["partner_id", "ramp_type"],
-        name: "uniq_partner_pricing_configs_partner_ramp",
+        // The real index (migration 051) is on (partner_id, ramp_type, COALESCE(fiat_currency, '*'))
+        // so NULL wildcard rows are unique too; migrations are the schema source of truth.
+        fields: ["partner_id", "ramp_type", "fiat_currency"],
+        name: "uniq_partner_pricing_configs_partner_ramp_fiat",
         unique: true
       }
     ],

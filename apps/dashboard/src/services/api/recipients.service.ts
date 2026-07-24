@@ -2,6 +2,13 @@ import { apiClient } from "./api-client";
 
 export type RecipientInviteeType = "individual" | "business";
 
+/** A discount seeded into the invite by a discount_manager, in bps of the corridor rate. */
+export interface SeededDiscountDto {
+  rampType: "BUY" | "SELL";
+  fiatCurrency: string;
+  bps: number;
+}
+
 /** The corridor slice echoed on both invitations and accepted relationships. */
 export interface RecipientInvitationDto {
   id: string;
@@ -46,6 +53,8 @@ export interface PendingInvitationDto {
   inviteeEmail: string | null;
   inviteeType: RecipientInviteeType;
   isExpired: boolean;
+  /** Discount-carrying invites deep-link to the dashboard, so re-copy must know. */
+  seededDiscounts: SeededDiscountDto[] | null;
   /** Raw invite token for re-copy; null for legacy invites created before it was retained. */
   token: string | null;
 }
@@ -62,6 +71,8 @@ export interface CreateInviteRequest {
   alias: string;
   inviteeEmail?: string;
   inviteeType?: RecipientInviteeType;
+  /** discount_manager only — bps discounts seeded into the accepting profile's pricing. */
+  discounts?: { buyBps?: number; sellBps?: number };
 }
 
 /** The backend retains the raw `token` while the invite is pending, for re-copy from the list. */
@@ -75,11 +86,37 @@ export interface CreateInviteResponse {
   alias: string | null;
   inviteeEmail: string | null;
   inviteeType: RecipientInviteeType;
+  seededDiscounts: SeededDiscountDto[] | null;
   expiresAt: string;
   createdAt: string;
 }
 
+/** GET /v1/recipients/invite/:token — read-only gate-checked preview, consumes nothing. */
+export interface InvitePreviewResponse {
+  country: string;
+  rail: string;
+  payoutCurrency: string;
+  inviteeType: RecipientInviteeType;
+}
+
+/** POST /v1/recipients/invite/:token/accept — links the authenticated profile to the sender. */
+export interface AcceptedInviteResponse {
+  id: string;
+  invitation: {
+    id: string;
+    country: string;
+    rail: string;
+    payoutCurrency: string;
+    inviteeType: RecipientInviteeType;
+  };
+  relationshipStatus: string;
+}
+
 export const RecipientsService = {
+  /** Redeem an invite for the authenticated profile (idempotent for the accepting user). */
+  acceptInvite(token: string): Promise<AcceptedInviteResponse> {
+    return apiClient.post<AcceptedInviteResponse>(`/recipients/invite/${token}/accept`, {});
+  },
   /** Hide a pending invitation from the list; the link stays redeemable. */
   archiveInvitation(id: string): Promise<{ id: string; archived: boolean }> {
     return apiClient.patch<{ id: string; archived: boolean }>(`/recipients/invitations/${id}`, { archived: true });
@@ -93,5 +130,9 @@ export const RecipientsService = {
   },
   list(): Promise<ListRecipientsResponse> {
     return apiClient.get<ListRecipientsResponse>("/recipients");
+  },
+  /** Gate-checked invite preview for the confirm screen; leaves the invite untouched. */
+  previewInvite(token: string): Promise<InvitePreviewResponse> {
+    return apiClient.get<InvitePreviewResponse>(`/recipients/invite/${token}`);
   }
 };

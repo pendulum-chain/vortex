@@ -2,7 +2,9 @@ import {
   CORRIDOR_CAPABILITIES,
   type CorridorCapability,
   type CorridorCountry,
-  type CorridorCustomerType
+  type CorridorCustomerType,
+  FiatToken,
+  RampDirection
 } from "@vortexfi/shared";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
@@ -10,8 +12,9 @@ import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
+import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
-import RecipientInvitation, { type RecipientInviteeType } from "../../models/recipientInvitation.model";
+import RecipientInvitation, { type RecipientInviteeType, type SeededDiscount } from "../../models/recipientInvitation.model";
 import RecipientPayoutReference from "../../models/recipientPayoutReference.model";
 import SenderRecipient, { type SenderRecipientStatus } from "../../models/senderRecipient.model";
 import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
@@ -22,6 +25,7 @@ import {
   hashInviteToken,
   inviteExpiryDate
 } from "../services/recipients/recipient-invite.service";
+import { materializeSeededDiscounts } from "../services/recipients/seeded-discount.service";
 import {
   getTransferEligibility,
   isProviderApproved,
@@ -49,13 +53,22 @@ interface CreateInviteBody {
   alias?: string;
   inviteeEmail?: string;
   inviteeType?: string;
+  discounts?: { buyBps?: number; sellBps?: number };
+}
+
+// Bounded by the runtime EVM discount-subsidy cap (5% of quote output, which also absorbs
+// adverse execution): a larger advertised discount could never execute without stalling.
+const MAX_DISCOUNT_BPS = 300;
+
+function isValidBps(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_DISCOUNT_BPS;
 }
 
 export async function createInvite(req: Request, res: Response): Promise<void> {
   const userId = requireUserId(req, res);
   if (!userId) return;
 
-  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType } = (req.body ?? {}) as CreateInviteBody;
+  const { country, rail, payoutCurrency, alias, inviteeEmail, inviteeType, discounts } = (req.body ?? {}) as CreateInviteBody;
 
   if (!country || country.length > 4 || !rail || rail.length > 8 || !payoutCurrency || payoutCurrency.length > 8) {
     sendError(
@@ -92,8 +105,43 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
     );
     return;
   }
+  if (
+    discounts !== undefined &&
+    (typeof discounts !== "object" ||
+      discounts === null ||
+      (discounts.buyBps !== undefined && !isValidBps(discounts.buyBps)) ||
+      (discounts.sellBps !== undefined && !isValidBps(discounts.sellBps)))
+  ) {
+    sendError(
+      res,
+      httpStatus.BAD_REQUEST,
+      "INVALID_DISCOUNTS",
+      `discounts.buyBps and discounts.sellBps must be integers between 0 and ${MAX_DISCOUNT_BPS}`
+    );
+    return;
+  }
+  // 0 bps means "no discount" — the corridor rail uppercased is exactly its FiatToken value.
+  const seededFiat = corridor.rail.toUpperCase() as FiatToken;
+  const seededDiscounts: SeededDiscount[] = [
+    ...(discounts?.buyBps ? [{ bps: discounts.buyBps, fiatCurrency: seededFiat, rampType: RampDirection.BUY }] : []),
+    ...(discounts?.sellBps ? [{ bps: discounts.sellBps, fiatCurrency: seededFiat, rampType: RampDirection.SELL }] : [])
+  ];
+  if (seededDiscounts.length > 0 && !Object.values(FiatToken).includes(seededFiat)) {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_DISCOUNTS", "This corridor does not support discounts");
+    return;
+  }
 
   try {
+    // Attaching discounts is a privileged capability — enforce the role server-side so a
+    // raw API call cannot seed pricing the UI would never have offered.
+    if (seededDiscounts.length > 0) {
+      const role = await ProfileRole.findOne({ where: { role: "discount_manager", userId } });
+      if (!role) {
+        sendError(res, httpStatus.FORBIDDEN, "DISCOUNT_ROLE_REQUIRED", "Only discount managers can attach invite discounts");
+        return;
+      }
+    }
+
     // Invites unlock once any of the sender's corridors is approved (the dashboard rule) —
     // enforce it here too. Approvals are persisted on provider_customers by every provider.
     const senderEntityIds = (await CustomerEntity.findAll({ attributes: ["id"], where: { profileId: userId } })).map(
@@ -127,6 +175,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       inviteeType: (inviteeType ?? "individual") as RecipientInviteeType,
       payoutCurrency: payoutCurrency.toLowerCase(),
       rail: rail.toLowerCase(),
+      seededDiscounts: seededDiscounts.length > 0 ? seededDiscounts : null,
       senderCustomerEntityId: senderEntity.id,
       // The raw token is kept while the invite is pending so the sender can re-copy the
       // link; redemption looks up by hash only, and acceptance clears the raw token.
@@ -144,12 +193,67 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       inviteeType: invitation.inviteeType,
       payoutCurrency: invitation.payoutCurrency,
       rail: invitation.rail,
+      seededDiscounts: invitation.seededDiscounts,
       status: invitation.status,
       token
     });
   } catch (error) {
     logger.error("Error creating recipient invite:", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to create invite");
+  }
+}
+
+/**
+ * Read-only invite preview for the dashboard's confirm-before-accept screen: same gate
+ * checks as acceptance (existence, expiry, email binding, self-accept) but consumes
+ * nothing and writes nothing, so a declined confirmation leaves the invite redeemable.
+ */
+export async function previewInvite(req: Request<{ token: string }>, res: Response): Promise<void> {
+  const userId = requireUserId(req, res);
+  if (!userId) return;
+
+  try {
+    const invitation = await RecipientInvitation.findOne({ where: { tokenHash: hashInviteToken(req.params.token) } });
+    if (!invitation) {
+      sendError(res, httpStatus.NOT_FOUND, "INVITE_NOT_FOUND", "Invite not found");
+      return;
+    }
+    const isReEntry = invitation.status === "accepted" && invitation.acceptedByProfileId === userId;
+    if (invitation.status === "accepted" && !isReEntry) {
+      sendError(res, httpStatus.CONFLICT, "INVITE_ALREADY_ACCEPTED", "Invite has already been accepted");
+      return;
+    }
+    if (invitation.status === "revoked") {
+      sendError(res, httpStatus.GONE, "INVITE_REVOKED", "Invite has been revoked");
+      return;
+    }
+    if (invitation.status === "expired" || (!isReEntry && invitation.expiresAt && invitation.expiresAt < new Date())) {
+      sendError(res, httpStatus.GONE, "INVITE_EXPIRED", "Invite has expired");
+      return;
+    }
+    if (invitation.inviteeEmailCanonical && canonicalizeEmail(req.userEmail ?? "") !== invitation.inviteeEmailCanonical) {
+      sendError(res, httpStatus.FORBIDDEN, "INVITE_EMAIL_MISMATCH", "This invite is bound to a different email address");
+      return;
+    }
+    const senderEntity = await CustomerEntity.findByPk(invitation.senderCustomerEntityId);
+    if (!senderEntity) {
+      sendError(res, httpStatus.GONE, "INVITE_SENDER_GONE", "The sender of this invite no longer exists");
+      return;
+    }
+    if (senderEntity.profileId === userId) {
+      sendError(res, httpStatus.CONFLICT, "CANNOT_ACCEPT_OWN_INVITE", "You cannot accept your own invite");
+      return;
+    }
+
+    res.status(httpStatus.OK).json({
+      country: invitation.country,
+      inviteeType: invitation.inviteeType,
+      payoutCurrency: invitation.payoutCurrency,
+      rail: invitation.rail
+    });
+  } catch (error) {
+    logger.error("Error previewing recipient invite:", error);
+    sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to preview invite");
   }
 }
 
@@ -234,30 +338,42 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
       // pending invite into a re-entry between the unlocked pre-check and this transaction.
       const reEntry = lockedInvitation.status === "accepted" && lockedInvitation.acceptedByProfileId === userId;
 
+      // The sender's block applies to the pair, not one rail: a new invite on a different
+      // rail must not slip past it and create a fresh active relationship.
+      const blockedSibling = await SenderRecipient.findOne({
+        transaction,
+        where: {
+          recipientCustomerEntityId: recipientEntity.id,
+          relationshipStatus: "blocked",
+          senderCustomerEntityId: invitation.senderCustomerEntityId
+        }
+      });
+      if (blockedSibling) {
+        return "blocked" as const;
+      }
+
+      // One relationship per (sender, recipient, rail): an invite on a new rail adds a row
+      // instead of repointing the pair's single row and dropping its previous corridor.
       const [row, created] = await SenderRecipient.findOrCreate({
         defaults: {
           invitationId: invitation.id,
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           relationshipStatus: "active",
           senderCustomerEntityId: invitation.senderCustomerEntityId
         },
         transaction,
         where: {
+          rail: invitation.rail,
           recipientCustomerEntityId: recipientEntity.id,
           senderCustomerEntityId: invitation.senderCustomerEntityId
         }
       });
 
-      if (!created) {
-        if (row.relationshipStatus === "blocked") {
-          // The sender blocked this recipient; a new invite acceptance must not undo that.
-          return "blocked" as const;
-        }
+      if (!created && !reEntry) {
         // Re-entry reads the relationship, it does not revive it: the sender may have archived
         // this recipient, and reopening the link must not silently undo that.
-        if (!reEntry) {
-          await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
-        }
+        await row.update({ disabledAt: null, invitationId: invitation.id, relationshipStatus: "active" }, { transaction });
       }
 
       if (!reEntry) {
@@ -267,6 +383,19 @@ export async function acceptInvite(req: Request<{ token: string }>, res: Respons
           { acceptedAt: new Date(), acceptedByProfileId: userId, status: "accepted", token: null },
           { transaction }
         );
+
+        // A discount-carrying invite materializes its pricing for the accepting profile
+        // atomically with the acceptance. A profile with an active partner assignment keeps
+        // it — the invite then only connects the recipient.
+        if (lockedInvitation.seededDiscounts?.length) {
+          const outcome = await materializeSeededDiscounts(
+            userId,
+            lockedInvitation.id,
+            lockedInvitation.seededDiscounts,
+            transaction
+          );
+          logger.info(`Seeded discounts for invite ${lockedInvitation.id}, profile ${userId}: ${outcome}`);
+        }
       }
       return { reEntry, row };
     });
@@ -427,6 +556,8 @@ export async function listRecipients(req: Request, res: Response): Promise<void>
         isExpired: invitation.status === "expired" || Boolean(invitation.expiresAt && invitation.expiresAt < now),
         payoutCurrency: invitation.payoutCurrency,
         rail: invitation.rail,
+        // Discount-carrying invites deep-link to the dashboard, so re-copy must know.
+        seededDiscounts: invitation.seededDiscounts,
         // Raw token for sender re-copy; null for invites created before it was retained.
         token: invitation.token
       })),

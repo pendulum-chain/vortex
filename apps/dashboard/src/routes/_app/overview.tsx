@@ -15,7 +15,11 @@ import { spring } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
-  validateSearch: z.object({ onboarding: z.literal("EU").optional() })
+  validateSearch: z.object({
+    // Corridor an accepted invite deep-linked in — pre-added so its card is ready to start.
+    invited: z.enum(["AR", "BR", "CO", "EU", "MX", "US"]).optional(),
+    onboarding: z.literal("EU").optional()
+  })
 });
 
 function OverviewPage() {
@@ -23,7 +27,7 @@ function OverviewPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
-  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>([]);
+  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>(search.invited ? [search.invited] : []);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedToAdd, setSelectedToAdd] = useState<CorridorId | "">("");
 
