@@ -119,11 +119,18 @@ describe("getUsdDenominatedInputAmount", () => {
     expect(usd.toString()).toBe("194.757138");
   });
 
-  it("falls back to the raw input when the fiat-peg rate lookup fails and no bridged amount exists", async () => {
+  it("fails closed when the fiat-peg rate lookup fails and no bridged amount exists (SPEC-002)", async () => {
     rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
 
-    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
-    expect(usd.toString()).toBe("1000");
+    // The raw 1000 (BRLA) must never be handed to the discount math as 1000 USD — that
+    // unit confusion inflated the subsidy by the BRL-USD rate (~5x) in the original incident.
+    const error = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000")).then(
+      () => {
+        throw new Error("getUsdDenominatedInputAmount did not reject");
+      },
+      e => e
+    );
+    expect((error as Error).message).toContain("Refusing to treat the raw input amount as USD");
   });
 
   it("falls back to the bridged USDC amount for tokens without a fiat peg", async () => {
@@ -131,8 +138,13 @@ describe("getUsdDenominatedInputAmount", () => {
     expect(usd.toString()).toBe("1834.201");
   });
 
-  it("falls back to the request amount when no bridged amount is available", async () => {
-    const usd = await getUsdDenominatedInputAmount(makeCtx("ETH", "0.5"));
-    expect(usd.toString()).toBe("0.5");
+  it("fails closed for tokens without a fiat peg when no bridged amount is available (SPEC-002)", async () => {
+    const error = await getUsdDenominatedInputAmount(makeCtx("ETH", "0.5")).then(
+      () => {
+        throw new Error("getUsdDenominatedInputAmount did not reject");
+      },
+      e => e
+    );
+    expect((error as Error).message).toContain("Refusing to treat the raw input amount as USD");
   });
 });

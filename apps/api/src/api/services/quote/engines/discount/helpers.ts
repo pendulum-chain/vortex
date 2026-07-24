@@ -97,12 +97,14 @@ const FIAT_PEG_BY_STABLECOIN: Record<string, FiatToken> = {
  * Value the offramp request input in USD. The offramp expected-output math multiplies a
  * USD amount by the inverted FIAT-USD oracle rate, but request.inputAmount is denominated
  * in the input token: USD-like stables pass through unchanged, fiat-pegged stables
- * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate, and any other token falls
- * back to the bridged USDC amount when available.
+ * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate with the bridged USDC route
+ * amount as fallback, and any other token uses the bridged USDC amount directly.
  *
- * A rate-feed failure while valuing a fiat-pegged stable MUST NOT fail the quote: the
- * engine already holds the bridged USDC amount, a good USD-denominated proxy, so we fall
- * back to it (or the raw input as a last resort) rather than throwing from discount math.
+ * Fail-closed: a numeric amount must never cross currency units. When no USD valuation
+ * exists — the peg's oracle lookup failed and no bridged USDC amount is on the context —
+ * quote creation fails rather than treating the raw input amount as USD (the unit
+ * confusion behind the ~5x BRL over-subsidy incident; see discount-mechanism.md
+ * invariant 13).
  */
 export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<Big> {
   const { inputAmount, inputCurrency } = ctx.request;
@@ -112,29 +114,36 @@ export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<B
     return new Big(inputAmount);
   }
 
+  const bridgedUsdcAmount = ctx.evmToEvm?.outputAmountDecimal;
+
   const pegFiat = FIAT_PEG_BY_STABLECOIN[normalized];
   if (pegFiat) {
     try {
       const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(pegFiat);
       return new Big(inputAmount).mul(fiatToUsdRate);
     } catch (error) {
-      const fallback = usdFallbackFromContext(ctx);
-      logger.warn(
-        `getUsdDenominatedInputAmount: ${pegFiat}-USD rate lookup failed for ${inputCurrency} input, ` +
-          `falling back to ${fallback.toString()} USD. Error: ${error instanceof Error ? error.message : error}`
+      if (bridgedUsdcAmount) {
+        logger.warn(
+          `getUsdDenominatedInputAmount: ${pegFiat}-USD rate lookup failed for ${inputCurrency} input, ` +
+            `falling back to bridged USDC amount ${bridgedUsdcAmount.toString()} USD. Error: ${error instanceof Error ? error.message : error}`
+        );
+        return bridgedUsdcAmount;
+      }
+      throw new Error(
+        `getUsdDenominatedInputAmount: cannot value ${inputCurrency} input in USD — ${pegFiat}-USD rate lookup failed ` +
+          "and no bridged USDC amount is available. Refusing to treat the raw input amount as USD. " +
+          `Original error: ${error instanceof Error ? error.message : error}`
       );
-      return fallback;
     }
   }
 
-  return usdFallbackFromContext(ctx);
-}
-
-function usdFallbackFromContext(ctx: QuoteContext): Big {
-  if (ctx.evmToEvm?.outputAmountDecimal) {
-    return ctx.evmToEvm.outputAmountDecimal;
+  if (bridgedUsdcAmount) {
+    return bridgedUsdcAmount;
   }
-  return new Big(ctx.request.inputAmount);
+  throw new Error(
+    `getUsdDenominatedInputAmount: cannot value ${inputCurrency} input in USD — no oracle peg is configured ` +
+      "and no bridged USDC amount is available. Refusing to treat the raw input amount as USD."
+  );
 }
 
 /**
