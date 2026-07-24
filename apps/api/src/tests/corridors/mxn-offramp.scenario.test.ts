@@ -16,7 +16,7 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser } from "../../test-utils/factories";
+import { createTestAlfredpayCustomer, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -300,6 +300,38 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     },
     30000
   );
+
+  it("fee integrity: configured vortex/partner fees are forced to zero and never appear in the quote", async () => {
+    // A nonzero platform fee on the vortex SELL config. The Alfredpay routes build
+    // no distributeFees transaction, so the quote must zero the component instead
+    // of displaying a fee that is never collected on-chain.
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "relative",
+      markupValue: 0.01
+    });
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Polygon,
+        inputAmount: "100",
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: "spei"
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    expect(response.status).toBe(201);
+    const quote = (await response.json()) as { outputAmount: string; partnerFeeUsd: string; vortexFeeUsd: string };
+
+    expect(Number(quote.vortexFeeUsd)).toBe(0);
+    expect(Number(quote.partnerFeeUsd)).toBe(0);
+    // The user receives the full Alfredpay payout (100 USDT * 20): nothing withheld.
+    expect(Number(quote.outputAmount)).toBe(2000);
+  });
 
   it(
     "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",

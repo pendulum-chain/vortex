@@ -32,6 +32,10 @@ Two parallel implementations live in `apps/api/src/api/services/transactions/com
 
 The `distribute-fees-handler.ts` chooses the correct path at runtime based on the ephemeral network (Pendulum vs. Base). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
 
+### Alfredpay corridors (USD/MXN/COP/ARS): no fee distribution — components forced to zero
+
+The Alfredpay transaction routes (`transactions/onramp/routes/alfredpay-to-evm.ts`, `transactions/offramp/routes/evm-to-alfredpay.ts`) build **no `distributeFees` transaction** — neither distribution mechanism above runs on these Polygon-based flows. Vortex/partner-markup components could therefore never be collected on-chain: the onramp previously deducted them from the user's quoted output and stranded the difference on the ephemeral, while the offramp displayed them without charging anyone. Since 2026-07, the Alfredpay fee engines (`quote/engines/fee/onramp-alfredpay-to-evm.ts`, `quote/engines/fee/offramp-evm-to-alfredpay.ts`) force both components to zero via `forcedVortexFee`/`forcedPartnerMarkupFee`, so quoted fees equal charged fees and only the Alfredpay provider (anchor) fee applies. Re-introducing nonzero vortex/partner fees on these corridors requires adding a fee-distribution phase to both routes first.
+
 ### Ordering with Nabla swap (BRL flows on Base)
 
 - **Offramp (USDC → BRLA)**: `distributeFees` runs **before** `nablaSwap` so partner/vortex fees are taken in USDC (the universal stablecoin) before swapping the remainder to BRLA.
@@ -87,5 +91,6 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 - [x] EVM branch of `distributeFees` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
 - [x] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts`.
 - [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — verified in `evm-to-brl-base.ts`.
+- [x] **Alfredpay corridors charge only the provider fee** — the Alfredpay onramp/offramp routes build no `distributeFees` transaction, so displayed vortex/partner components were uncollectable (onramp: deducted from the user and stranded on the ephemeral; offramp: displayed but never charged). **PASS (FIXED 2026-07)** — the Alfredpay fee engines force vortex and partner-markup components to zero so displayed fees match charged fees; pinned by the "fee integrity" tests in `apps/api/src/tests/corridors/mxn-onramp.scenario.test.ts` and `mxn-offramp.scenario.test.ts`. Follow-up option: implement fee distribution for these routes and lift the zeroing.
 - [x] **Vortex `payout_address_evm` NULL fallback**: `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` / `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address.
 - [x] **Partner `payout_address_evm` NULL no longer drops markup silently**: BRL-on-Base quote creation rejects partner-markup routes when the partner lacks EVM payout config, and runtime fee distribution logs a warning if the condition slips through.

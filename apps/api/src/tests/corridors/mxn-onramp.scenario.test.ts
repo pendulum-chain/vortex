@@ -15,7 +15,7 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser } from "../../test-utils/factories";
+import { createTestAlfredpayCustomer, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -290,6 +290,38 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     },
     30000
   );
+
+  it("fee integrity: configured vortex/partner fees are forced to zero and never reduce the quoted output", async () => {
+    // A nonzero platform fee on the vortex BUY config. The Alfredpay routes build
+    // no distributeFees transaction, so the quote must zero the component instead
+    // of deducting a fee that would be stranded on the ephemeral.
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      markupCurrency: FiatToken.MXN,
+      markupType: "relative",
+      markupValue: 0.01
+    });
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: "spei",
+        inputAmount: "2000",
+        inputCurrency: FiatToken.MXN,
+        network: Networks.Polygon,
+        outputCurrency: EvmToken.USDT,
+        rampType: RampDirection.BUY,
+        to: Networks.Polygon
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST"
+    });
+    expect(response.status).toBe(201);
+    const quote = (await response.json()) as { outputAmount: string; partnerFeeUsd: string; vortexFeeUsd: string };
+
+    expect(Number(quote.vortexFeeUsd)).toBe(0);
+    expect(Number(quote.partnerFeeUsd)).toBe(0);
+    // The user receives the full Alfredpay mint (2000 MXN * 0.05): nothing withheld.
+    expect(Number(quote.outputAmount)).toBe(100);
+  });
 
   it(
     "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",
