@@ -5,9 +5,10 @@ import Partner from "../../models/partner.model";
 import ApiKey from "../../models/apiKey.model";
 import {
   AuthenticatedPartner,
+  digestApiKey,
   generateApiKey,
   getKeyPrefix,
-  hashApiKey,
+  getSecretKeyLookupPrefix,
   validateSecretApiKey
 } from "./apiKeyAuth.helpers";
 
@@ -125,11 +126,83 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
   });
 });
 
-describe("hashApiKey + getKeyPrefix consistency", () => {
-  it("produces a hash that validates against the original secret", async () => {
+describe("digestApiKey + prefix helpers", () => {
+  it("produces a stable SHA-256 hex digest and the documented prefixes", () => {
     const secret = generateApiKey("secret", "test");
-    const hash = await hashApiKey(secret);
-    expect(await bcrypt.compare(secret, hash)).toBe(true);
+    expect(digestApiKey(secret)).toMatch(/^[0-9a-f]{64}$/);
+    expect(digestApiKey(secret)).toBe(digestApiKey(secret));
     expect(getKeyPrefix(secret)).toBe(secret.substring(0, 8));
+    expect(getSecretKeyLookupPrefix(secret)).toBe(secret.substring(0, 16));
+  });
+});
+
+describe("validateSecretApiKey - O(1) lookup, digest verification, legacy upgrade (SPEC-018)", () => {
+  afterEach(() => {
+    ApiKey.findAll = originalApiKeyFindAll;
+    ApiKey.findOne = originalApiKeyFindOne;
+    Partner.findOne = originalPartnerFindOne;
+  });
+
+  function createDigestKeyRecord(): ApiKey & { raw: string } {
+    const secret = generateApiKey("secret", "test");
+    const record = Object.assign(new ApiKey(), {
+      id: crypto.randomUUID(),
+      isActive: true,
+      keyHash: digestApiKey(secret),
+      keyPrefix: getSecretKeyLookupPrefix(secret),
+      keyType: "secret" as const,
+      partnerId: null,
+      partnerName: null,
+      raw: secret,
+      userId: "user-1"
+    });
+    record.update = (async () => record) as typeof record.update;
+    return record;
+  }
+
+  it("finds a new-format key by its 16-char lookup prefix and verifies the SHA-256 digest", async () => {
+    const key = createDigestKeyRecord();
+    const findAllMock = mock(async () => [key as unknown as ApiKey]);
+    ApiKey.findAll = findAllMock as typeof ApiKey.findAll;
+
+    const result = await validateSecretApiKey(key.raw);
+
+    expect(result?.apiKeyId).toBe(key.id);
+    // Exactly one lookup, keyed by the 16-char prefix — never a broad prefix scan.
+    expect(findAllMock).toHaveBeenCalledTimes(1);
+    const where = (findAllMock.mock.calls[0] as unknown as [{ where: { keyPrefix: string } }])[0].where;
+    expect(where.keyPrefix).toBe(getSecretKeyLookupPrefix(key.raw));
+  });
+
+  it("rejects a wrong key against a digest record without falling through", async () => {
+    const key = createDigestKeyRecord();
+    const other = generateApiKey("secret", "test");
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    expect(await validateSecretApiKey(other)).toBeNull();
+  });
+
+  it("falls back to the legacy 8-char prefix for old rows and upgrades them in place", async () => {
+    const key = createSecretKeyRecord({ partnerId: null, userId: "user-legacy" });
+    // Legacy rows only exist under the 8-char prefix: the 16-char lookup finds nothing.
+    const findAllMock = mock(async ({ where }: { where: { keyPrefix: string } }) =>
+      where.keyPrefix === getKeyPrefix(key.raw) ? [key as unknown as ApiKey] : []
+    );
+    ApiKey.findAll = findAllMock as typeof ApiKey.findAll;
+    const updateMock = mock(async () => key);
+    key.update = updateMock as typeof key.update;
+
+    const result = await validateSecretApiKey(key.raw);
+
+    expect(result?.apiKeyUserId).toBe("user-legacy");
+    expect(findAllMock).toHaveBeenCalledTimes(2);
+    // The matched legacy row is upgraded to the O(1) format (digest + 16-char prefix).
+    const upgradeCall = (updateMock.mock.calls as unknown as [Record<string, string>][])
+      .map(call => call[0])
+      .find(args => args.keyHash !== undefined);
+    expect(upgradeCall).toEqual({
+      keyHash: digestApiKey(key.raw),
+      keyPrefix: getSecretKeyLookupPrefix(key.raw)
+    });
   });
 });

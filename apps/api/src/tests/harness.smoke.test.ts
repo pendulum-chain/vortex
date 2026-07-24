@@ -33,7 +33,8 @@ describe("test harness smoke test", () => {
     const ramp = await createTestRampState({ quoteId: quote.id, userId: user.id });
 
     expect(user.id).toBeTruthy();
-    expect(record.keyPrefix).toBe(plaintextKey.slice(0, 8));
+    // Secret keys store the 16-char lookup prefix (non-secret key identifier).
+    expect(record.keyPrefix).toBe(plaintextKey.slice(0, 16));
     expect(quote.status).toBe("pending");
     expect(ramp.currentPhase).toBe("initial");
   });

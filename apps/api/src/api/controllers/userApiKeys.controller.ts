@@ -4,7 +4,7 @@ import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import ApiKey from "../../models/apiKey.model";
-import { generateApiKey, getKeyPrefix, hashApiKey } from "../middlewares/apiKeyAuth.helpers";
+import { digestApiKey, generateApiKey, getKeyPrefix, getSecretKeyLookupPrefix } from "../middlewares/apiKeyAuth.helpers";
 
 interface CreateApiKeyBody {
   expiresAt?: string;
@@ -53,8 +53,8 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
     const publicKeyPrefix = getKeyPrefix(publicKey);
 
     const secretKey = generateApiKey("secret", environment);
-    const secretKeyHash = await hashApiKey(secretKey);
-    const secretKeyPrefix = getKeyPrefix(secretKey);
+    const secretKeyHash = digestApiKey(secretKey);
+    const secretKeyPrefix = getSecretKeyLookupPrefix(secretKey);
 
     const expirationDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Default to 1 year from now
 
