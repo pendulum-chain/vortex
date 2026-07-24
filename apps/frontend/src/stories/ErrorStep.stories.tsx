@@ -17,7 +17,7 @@ const createErrorSnapshot = (params: { apiKey?: string; errorMessage?: string })
     getMessageSignature: undefined,
     initializeFailedMessage: undefined,
     isQuoteExpired: false,
-    isSep24Redo: false,
+    isQuoteRedo: false,
     partnerId: undefined,
     paymentData: undefined,
     quote: undefined,

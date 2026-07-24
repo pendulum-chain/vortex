@@ -36,7 +36,7 @@ export interface RampContext {
   walletLocked?: string;
   callbackUrl?: string;
   externalSessionId?: string;
-  isSep24Redo?: boolean;
+  isQuoteRedo?: boolean;
   errorMessage?: string;
   kycFormData?: KYCFormData;
   enteredViaForm?: boolean; // True if user navigated from the Quote form, false if entered via direct URL

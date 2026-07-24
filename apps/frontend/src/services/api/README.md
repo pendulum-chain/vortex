@@ -16,7 +16,6 @@ corresponds to a specific domain of the API and provides methods for making requ
     - `ramp.service.ts`: Ramp-related endpoints
     - `rating.service.ts`: Rating storage endpoints
     - `siwe.service.ts`: Sign-In with Ethereum endpoints
-    - `stellar.service.ts`: Stellar-related endpoints
     - `storage.service.ts`: Storage-related endpoints
     - `subsidize.service.ts`: Subsidize-related endpoints
 

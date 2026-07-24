@@ -2,7 +2,6 @@
 
 const PENDULUM_FUNDING_AMOUNT_UNITS = "10"; // 10 PEN. Minimum balance of funding account
 const PENDULUM_GLMR_FUNDING_AMOUNT_UNITS = "10"; // 10 GLMR. Minimum balance of funding account
-const STELLAR_FUNDING_AMOUNT_UNITS = "10"; // 10 XLM.  Minimum balance of funding account
 const MOONBEAM_FUNDING_AMOUNT_UNITS = "10"; // 10 GLMR. Minimum balance of funding account
 const SUBSIDY_MINIMUM_RATIO_FUND_UNITS = "5"; // 5 Subsidies considering maximum subsidy amount use on each (worst case scenario)
 const MOONBEAM_RECEIVER_CONTRACT_ADDRESS = "0x2AB52086e8edaB28193172209407FF9df1103CDc";
@@ -17,8 +16,6 @@ const ASSETHUB_XCM_FEE_USDC_UNITS = 0.013124;
 const MAX_FINAL_SETTLEMENT_SUBSIDY_USD = "10"; // 10 USD
 
 const WEBHOOKS_CACHE_URL = "https://webhooks-cache.pendulumchain.tech"; // EXAMPLE URL
-
-const STELLAR_BASE_FEE = "1000000";
 
 const DEFAULT_LOGIN_EXPIRATION_TIME_HOURS = 7 * 24;
 
@@ -51,8 +48,6 @@ export {
   PENDULUM_GLMR_FUNDING_AMOUNT_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS,
   SEQUENCE_TIME_WINDOWS,
-  STELLAR_BASE_FEE,
-  STELLAR_FUNDING_AMOUNT_UNITS,
   SUBSIDY_MINIMUM_RATIO_FUND_UNITS,
   WEBHOOKS_CACHE_URL
 };
