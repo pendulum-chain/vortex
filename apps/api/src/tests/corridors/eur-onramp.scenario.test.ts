@@ -161,7 +161,7 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts([
       { address: ephemeral.address, type: EphemeralAccountType.EVM }
     ]);
-    await validateEphemeralAccountsFresh(ephemerals);
+    await validateEphemeralAccountsFresh(ephemerals, quote);
 
     // Mirrors prepareMykoboOnrampTransactions: derive the Mykobo identity from
     // the user's profile (KYC-gated), create the deposit intent, then build.

@@ -273,7 +273,7 @@ export class RampService extends BaseRampService {
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
 
-      await validateEphemeralAccountsFresh(ephemerals);
+      await validateEphemeralAccountsFresh(ephemerals, quote);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
