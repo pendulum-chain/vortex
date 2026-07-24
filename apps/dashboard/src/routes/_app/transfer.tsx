@@ -26,8 +26,9 @@ interface TransferSearch {
 export const Route = createFileRoute("/_app/transfer")({
   component: TransferPage,
   validateSearch: (search: Record<string, unknown>): TransferSearch => ({
-    // Onramp prefill, carried over from the quote page.
-    amount: typeof search.amount === "string" ? search.amount : undefined,
+    // Onramp prefill, carried over from the quote page. The search parser JSON-parses
+    // values, so the amount string arrives as a number.
+    amount: typeof search.amount === "string" || typeof search.amount === "number" ? String(search.amount) : undefined,
     // Parsed, not cast: a hand-edited corridor would otherwise reach CORRIDORS[...] unchecked.
     corridorId: corridorIdSchema.optional().catch(undefined).parse(search.corridorId),
     mode: search.mode === "onramp" || search.mode === "cross-border" || search.mode === "offramp" ? search.mode : "offramp",
