@@ -19,6 +19,9 @@ All keys are loaded from environment variables. There is no HSM, secrets manager
 5. **Key derivation MUST NOT be deterministic from public information** — Funding accounts, executor accounts, and webhook keys must be independently generated, not derived from the same master seed.
 6. **Missing mandatory keys MUST prevent server startup** — If `PENDULUM_FUNDING_SEED` or `MOONBEAM_EXECUTOR_PRIVATE_KEY` are absent, the server cannot perform its core function and should refuse to start.
 7. **The CryptoService singleton MUST initialize keys exactly once** — `initializeKeys()` should be called once at startup. Repeated calls should be idempotent or rejected.
+8. **Webhook signatures MUST bind the delivery timestamp** — `X-Vortex-Signature` is computed over `` `${timestamp}.${body}` `` where `timestamp` is the value of the `X-Vortex-Timestamp` header (unix seconds). Consumers verify against that exact string, reject timestamps outside a bounded window, and deduplicate on the payload's `eventId`, which is unique per event and stable across delivery retries. A signature over the body alone MUST NOT verify.
+9. **Every webhook row MUST have an owner principal** — the partner behind a partner-scoped secret key or the user behind a user-scoped key (`webhooks.partner_id` / `webhooks.user_id`). Registering a webhook for a quote requires that the owner principal owns the quote (`quote_tickets.partner_id` / `user_id` match); a foreign quote returns the same 404 as a nonexistent one. Deletion is owner-scoped with a uniform 404 for foreign IDs. Delivery matching filters webhooks by the quote's owner, so session-scoped subscriptions cannot receive another tenant's events. Rows created before ownership existed (both owner columns NULL) keep delivering but cannot be managed through the API.
+10. **Webhook callback URLs MUST NOT reach internal infrastructure (SSRF)** — registration accepts only HTTPS URLs without embedded credentials and rejects IP-literal hosts in loopback, private, link-local, CGNAT, multicast, or otherwise reserved ranges. Before every delivery the hostname is re-resolved and every resolved address must be public; redirects are rejected (`redirect: "error"`). Residual risk: a resolve-then-connect race remains because `fetch` resolves independently of the guard's lookup.
 
 ## Threat Vectors & Mitigations
 
@@ -27,6 +30,9 @@ All keys are loaded from environment variables. There is no HSM, secrets manager
 | **Server compromise → key extraction** | Attacker gains shell access, reads env vars | All keys in env vars are extractable; no HSM protection. Mitigation: key separation limits blast radius — each key controls a different chain/function |
 | **Executor key abuse** | Attacker with `MOONBEAM_EXECUTOR_PRIVATE_KEY` drains GLMR or executes arbitrary EVM transactions | Executor account should hold minimal GLMR (just enough for near-term operations); monitor balance and transaction patterns |
 | **Webhook signature forgery** | Attacker signs fake webhook payloads | RSA-2048 with PSS padding is computationally infeasible to forge without the private key; public key verification by consumers |
+| **Webhook replay** | Attacker re-sends a captured delivery later | Signature covers `timestamp.body`, so the timestamp header cannot be swapped; consumers reject stale timestamps and deduplicate `eventId` |
+| **Cross-tenant webhook subscription** | Authenticated but unrelated API key subscribes to another client's quote or session events | Ownership required at registration (quote owner must match key principal); delivery matching filtered by quote owner; owner-scoped deletion with uniform 404 |
+| **Webhook SSRF** | Callback URL points at internal services (cloud metadata, private ranges) directly, via DNS, or via redirect | HTTPS-only URLs, private/reserved IP literals rejected at registration, hostname re-resolved and checked before every delivery, redirects rejected |
 | **Non-persistent webhook key** | Server restarts without `WEBHOOK_PRIVATE_KEY`, generates new key; consumers can't verify old signatures | Set `WEBHOOK_PRIVATE_KEY` in production; warn at startup (current behavior: logs warning) |
 | **Pendulum seed phrase exposure** | Seed phrase logged or leaked | Seed phrases should not be logged; `PENDULUM_FUNDING_SEED` should be treated as a secret in all log redaction rules |
 | **Key reuse across environments** | Same keys used in staging and production | Use separate keys per environment; include environment checks at startup |
@@ -41,6 +47,11 @@ All keys are loaded from environment variables. There is no HSM, secrets manager
 - [x] If `WEBHOOK_PRIVATE_KEY` is not set, a warning is logged (verified in current code) — ✅ PASS
 - [x] RSA key generation uses 2048-bit modulus length minimum (verified: `modulusLength: 2048`) — ✅ PASS
 - [x] Signing uses `RSA_PKCS1_PSS_PADDING` with `RSA_PSS_SALTLEN_MAX_SIGN` (verified in current code) — ✅ PASS
+- [x] `X-Vortex-Signature` covers `timestamp.body`; body-only signatures do not verify (webhook-delivery.service) — ✅ PASS
+- [x] Webhook registration binds an owner principal and rejects quotes the principal does not own with a uniform 404 (webhook.service `registerWebhook`) — ✅ PASS
+- [x] Webhook deletion is owner-scoped; foreign webhook IDs return the same 404 as nonexistent ones — ✅ PASS
+- [x] Delivery matching filters by quote owner in addition to quote/session targeting (`findWebhooksForEvent`) — ✅ PASS
+- [x] Callback URLs: HTTPS only, no credentials, private/reserved IP literals rejected at registration; DNS re-resolved and checked before every delivery; `redirect: "error"` on delivery fetch — ✅ PASS
 - [x] No server key (funding, executor, webhook) is ever included in API responses, logs, or error messages — ✅ PASS
 - [x] Server startup fails if `PENDULUM_FUNDING_SEED` or `MOONBEAM_EXECUTOR_PRIVATE_KEY` is missing — ✅ PASS
 - [ ] Funding and executor accounts hold minimal balances — only what's needed for near-term operations — ❓ N/A (operational check)
