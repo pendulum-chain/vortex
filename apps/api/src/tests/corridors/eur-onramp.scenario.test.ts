@@ -158,7 +158,7 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts([
       { address: ephemeral.address, type: EphemeralAccountType.EVM }
     ]);
-    await validateEphemeralAccountsFresh(ephemerals);
+    await validateEphemeralAccountsFresh(ephemerals, quote);
 
     const metadata = getFlowMetadata(quote.metadata);
     const flow = resolveBlockFlow(metadata.globals.request);

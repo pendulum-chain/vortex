@@ -235,7 +235,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
     const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts([
       { address: ephemeral.address, type: EphemeralAccountType.EVM }
     ]);
-    await validateEphemeralAccountsFresh(ephemerals);
+    await validateEphemeralAccountsFresh(ephemerals, persistedQuote);
 
     const flow = resolveBlockFlow(metadata.globals.request);
     const quoteFields = persistedQuote.get({ plain: true });

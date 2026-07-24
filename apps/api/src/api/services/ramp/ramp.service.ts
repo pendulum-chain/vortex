@@ -277,7 +277,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      await validateEphemeralAccountsFresh(ephemerals);
+      await validateEphemeralAccountsFresh(ephemerals, quote);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
