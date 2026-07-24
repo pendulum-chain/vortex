@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { inviteUrl, recipientLabel } from "@/domain/recipient";
+import { dashboardInviteUrl, inviteUrl, recipientLabel } from "@/domain/recipient";
 import type { Recipient } from "@/domain/types";
 import { RECIPIENTS_QUERY_KEY } from "@/hooks/useRecipients";
 import { RecipientsService } from "@/services/api/recipients.service";
@@ -64,7 +64,15 @@ export function RecipientActionsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {canRecopy && <InviteLinkCopy url={inviteUrl(recipient.inviteCode, recipient.corridorId)} />}
+        {canRecopy && (
+          <InviteLinkCopy
+            url={
+              recipient.hasSeededDiscounts
+                ? dashboardInviteUrl(recipient.inviteCode)
+                : inviteUrl(recipient.inviteCode, recipient.corridorId)
+            }
+          />
+        )}
 
         <p className="text-muted-foreground text-xs">
           {recipient.kind === "invitation"

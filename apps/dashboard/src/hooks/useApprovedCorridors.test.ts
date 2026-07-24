@@ -28,6 +28,7 @@ describe("approvedCorridorsFrom", () => {
         { accounts: [account("MX", "approved")], id: "inactive-individual", status: "active", type: "individual" },
         { accounts: [account("CO", "pending")], id: "active-business", status: "active", type: "business" }
       ],
+      roles: [],
       selectionRequired: false
     };
 

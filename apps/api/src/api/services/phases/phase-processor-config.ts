@@ -14,3 +14,9 @@ export function getSquidRouterPayTimeoutMs(): number {
 export function getPhaseProcessorRetryDelayMs(): number {
   return positiveIntFromEnv(process.env.PHASE_PROCESSOR_RETRY_DELAY_MS, 30000);
 }
+
+// How long a ramp may sit in squidRouterPay (across retried executions) before the
+// handler classifies the GMP on axelarscan, attempts active recovery, and alerts.
+export function getSquidRouterPayStuckAlertMs(): number {
+  return positiveIntFromEnv(process.env.SQUID_ROUTER_PAY_STUCK_ALERT_MS, 20 * 60 * 1000);
+}

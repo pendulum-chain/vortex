@@ -5,6 +5,7 @@ import {
   createInvite,
   getRecipientEligibility,
   listRecipients,
+  previewInvite,
   updateRecipient
 } from "../../controllers/recipients.controller";
 import { requireAuth } from "../../middlewares/supabaseAuth";
@@ -18,6 +19,13 @@ router.use(requireAuth);
  * Create a recipient invite for the authenticated sender; returns the raw link token once.
  */
 router.post("/invite", createInvite as unknown as (req: Request, res: Response) => void);
+
+/**
+ * GET /v1/recipients/invite/:token
+ * Read-only preview (corridor + invitee type) for the confirm-before-accept screen;
+ * runs the acceptance gate checks but consumes nothing.
+ */
+router.get("/invite/:token", previewInvite as unknown as (req: Request<{ token: string }>, res: Response) => void);
 
 /**
  * POST /v1/recipients/invite/:token/accept

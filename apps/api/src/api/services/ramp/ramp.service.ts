@@ -50,6 +50,7 @@ import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
+import { getTargetFiatCurrency } from "../../services/quote/core/helpers";
 import {
   ActivePartner,
   handleQuoteConsumptionForDiscountState,
@@ -294,7 +295,11 @@ export class RampService extends BaseRampService {
       const pricingPartnerId = quote.pricingPartnerId ?? quote.partnerId;
       let partner: ActivePartner = null;
       if (pricingPartnerId) {
-        partner = await resolveActivePartnerById(pricingPartnerId, quote.rampType);
+        partner = await resolveActivePartnerById(
+          pricingPartnerId,
+          quote.rampType,
+          getTargetFiatCurrency(quote.rampType, quote.inputCurrency, quote.outputCurrency)
+        );
       }
 
       handleQuoteConsumptionForDiscountState(partner);
