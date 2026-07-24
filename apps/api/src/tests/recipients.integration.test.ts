@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import { findPartnerWithPricing } from "../api/services/partners/partner-pricing.service";
+import { config } from "../config/vars";
 import Notification from "../models/notification.model";
 import CustomerEntity from "../models/customerEntity.model";
 import Partner from "../models/partner.model";
@@ -924,7 +925,8 @@ describe("invite discounts (discount_manager)", () => {
     expect(buyPricing?.markupType).toBe("none");
     // Quote-time cap mirrors the runtime EVM discount-subsidy cap so a seeded discount can
     // never compute a subsidy the subsidize-post-swap handler would refuse to execute.
-    expect(Number(buyPricing?.maxSubsidy)).toBe(0.05);
+    // Asserted against the config (not the 0.05 default) — a local .env may override it.
+    expect(Number(buyPricing?.maxSubsidy)).toBe(config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction);
 
     const sellPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN);
     expect(Number(sellPricing?.targetDiscount)).toBe(0.0005);
