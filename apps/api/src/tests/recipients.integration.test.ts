@@ -925,8 +925,9 @@ describe("invite discounts (discount_manager)", () => {
     expect(buyPricing?.markupType).toBe("none");
     // Quote-time cap mirrors the runtime EVM discount-subsidy cap so a seeded discount can
     // never compute a subsidy the subsidize-post-swap handler would refuse to execute.
-    // Asserted against the config (not the 0.05 default) — a local .env may override it.
-    expect(Number(buyPricing?.maxSubsidy)).toBe(config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction);
+    // Asserted against the config (not the 0.05 default) — a local .env may override it —
+    // and only to the column's DECIMAL(10, 4) precision, which rounds the persisted cap.
+    expect(Number(buyPricing?.maxSubsidy)).toBeCloseTo(config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction, 3);
 
     const sellPricing = await findPartnerWithPricing({ id: partner?.id }, RampDirection.SELL, FiatToken.MXN);
     expect(Number(sellPricing?.targetDiscount)).toBe(0.0005);
