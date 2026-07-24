@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
+import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
 
@@ -17,8 +17,9 @@ export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
   validateSearch: z.object({
     // Corridor an accepted invite deep-linked in — pre-added so its card is ready to start.
-    invited: z.enum(["AR", "BR", "CO", "EU", "MX", "US"]).optional(),
-    onboarding: z.literal("EU").optional()
+    invited: corridorIdSchema.optional(),
+    // Any corridor, so the quote page can deep-link a sender straight into the onboarding they lack.
+    onboarding: corridorIdSchema.optional()
   })
 });
 

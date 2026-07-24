@@ -1,14 +1,15 @@
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { useDeferredValue, useState } from "react";
+import { TokenIcon } from "@/components/assets/AssetIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { filterOnrampTokenOptions, type OnrampTokenOption } from "@/domain/onramp";
+import { filterRampTokenOptions, type RampTokenOption } from "@/domain/onramp";
 import { cn } from "@/lib/cn";
 
 interface TokenComboboxProps extends Omit<React.ComponentProps<typeof Button>, "onChange" | "value"> {
-  onChange: (option: OnrampTokenOption) => void;
-  options: OnrampTokenOption[];
+  onChange: (option: RampTokenOption) => void;
+  options: RampTokenOption[];
   value: string;
 }
 
@@ -17,7 +18,7 @@ export function TokenCombobox({ onChange, options, value, className, ...triggerP
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const selected = options.find(option => option.currency === value);
-  const filtered = filterOnrampTokenOptions(options, deferredSearch);
+  const filtered = filterRampTokenOptions(options, deferredSearch);
 
   function changeOpen(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -37,11 +38,21 @@ export function TokenCombobox({ onChange, options, value, className, ...triggerP
           variant="outline"
           {...triggerProps}
         >
-          <span className="truncate">{selected?.label ?? "Select token"}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            {selected && (
+              <TokenIcon
+                fallbackLogoURI={selected.token.fallbackLogoURI}
+                logoURI={selected.token.logoURI}
+                network={selected.network}
+              />
+            )}
+            <span className="truncate">{selected?.label ?? "Select token"}</span>
+          </span>
           <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-(--radix-popover-trigger-width) p-0">
+      {/* Matches the trigger when it is a full-width form field, but never collapses to the width of a chip. */}
+      <PopoverContent align="end" className="w-(--radix-popover-trigger-width) min-w-72 p-0">
         <div className="relative border-b p-2">
           <Search className="-translate-y-1/2 absolute top-1/2 left-4 size-4 text-muted-foreground" />
           <Input
@@ -70,6 +81,11 @@ export function TokenCombobox({ onChange, options, value, className, ...triggerP
                 role="option"
                 type="button"
               >
+                <TokenIcon
+                  fallbackLogoURI={option.token.fallbackLogoURI}
+                  logoURI={option.token.logoURI}
+                  network={option.network}
+                />
                 <span className="grid min-w-0 flex-1">
                   <span className="truncate font-medium">{option.label}</span>
                   <span className="truncate text-muted-foreground text-xs">{option.networkLabel}</span>

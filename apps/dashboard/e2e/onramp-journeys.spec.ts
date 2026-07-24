@@ -53,6 +53,21 @@ test("Onramp prefills the connected wallet but keeps a manually edited destinati
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("A prefilled corridor outside the approved set reconciles once approvals load", async ({ page }) => {
+  // Only MX is approved; a hand-edited URL prefills COP, which must not survive to a quote the
+  // sender could try to register.
+  const backend = await mockBackend(page, { fiatAccounts: [] });
+  await seedSession(page);
+  await page.goto("/transfer?mode=onramp&corridorId=CO&amount=100");
+
+  await expect(page.getByLabel("You pay (MXN)")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Continue to payment" })).toBeEnabled({ timeout: 20_000 });
+  expect(backend.quoteRequests.at(-1)).toMatchObject({ inputCurrency: "MXN", rampType: "BUY" });
+
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 test("Expired onramp payment instructions are hidden and can be replaced with a new quote", async ({ page }) => {
   const backend = await mockBackend(page, {
     fiatAccounts: [],
