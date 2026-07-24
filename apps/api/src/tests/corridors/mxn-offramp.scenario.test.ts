@@ -382,18 +382,20 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     async () => {
       const setup = await setUpRegisteredRamp();
       world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
-      // Only 90% of the expected USDT arrived (exactly the minimum bridge
-      // delivery ratio, so the balance poll passes): the 10 USDT shortfall
-      // must be subsidized. The funding account holds no USDT, so the handler
-      // prices a native→USDT swap; at 0.5 USD/MATIC the required ~22 MATIC
-      // (incl. the 10% buffer) is worth $11 — above the $10 F-001 cap.
+      // Only 90% of the ramp input arrived (within the minimum bridge delivery
+      // ratio, so the balance poll passes). With the quote-time subsidy capped at
+      // maxSubsidy (SPEC-009), the expected Alfredpay deposit sits ~0.5 USDT above
+      // the delivered amount; that shortfall must be subsidized. The funding
+      // account holds no USDT, so the handler prices a native→USDT swap; at
+      // 0.025 USDT/MATIC the required ~22 MATIC (incl. the 10% buffer) is worth
+      // $11 — above the $10 F-001 cap.
       world.evm.setErc20Balance(
         Networks.Polygon,
         ALFREDPAY_ERC20_TOKEN,
         setup.ephemeral.address,
         (setup.inputAmountRaw * 9n) / 10n
       );
-      world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) / 2n / 10n ** 12n).toString();
+      world.squidRouter.computeToAmount = params => (BigInt(params.fromAmount) / 40n / 10n ** 12n).toString();
 
       await phaseProcessor.processRamp(setup.rampId);
 

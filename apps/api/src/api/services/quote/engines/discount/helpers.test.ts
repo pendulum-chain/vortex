@@ -6,18 +6,25 @@ import { calculateExpectedOutput, calculateSubsidyAmount, getUsdDenominatedInput
 
 describe("calculateSubsidyAmount", () => {
   it("returns 0 when actual output meets expected output", () => {
-    const result = calculateSubsidyAmount(new Big(100), new Big(100), 0);
+    const result = calculateSubsidyAmount(new Big(100), new Big(100), 0.1);
     expect(result.toString()).toBe("0");
   });
 
   it("returns 0 when actual output exceeds expected output", () => {
-    const result = calculateSubsidyAmount(new Big(100), new Big(110), 0);
+    const result = calculateSubsidyAmount(new Big(100), new Big(110), 0.1);
     expect(result.toString()).toBe("0");
   });
 
-  it("returns full shortfall when no maxSubsidy cap", () => {
+  it("regression: maxSubsidy 0 (the column default) disables the subsidy instead of uncapping it (SPEC-009)", () => {
+    // Before the fix a zero cap paid the full shortfall — a config with a
+    // targetDiscount but an untouched maxSubsidy had unlimited exposure.
     const result = calculateSubsidyAmount(new Big(100), new Big(90), 0);
-    expect(result.toString()).toBe("10");
+    expect(result.toString()).toBe("0");
+  });
+
+  it("treats a negative maxSubsidy as disabled as well", () => {
+    const result = calculateSubsidyAmount(new Big(100), new Big(90), -0.05);
+    expect(result.toString()).toBe("0");
   });
 
   it("caps subsidy at maxSubsidy fraction of expected output", () => {

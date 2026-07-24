@@ -135,8 +135,11 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         anchorFeeFiat: "0.1",
         anchorFeeUsd: "0.02",
         discountCurrency: "BRL",
-        discountFiat: "10.09",
-        discountUsd: "2.018000",
+        // Subsidy is capped at maxSubsidy (0.05) x expected output — 1 USDC on the
+        // ~20 USDC oracle expectation — instead of the full oracle shortfall
+        // (SPEC-009: maxSubsidy gates the subsidy; there is no uncapped mode).
+        discountFiat: "5.00",
+        discountUsd: "1.000000",
         feeCurrency: "BRL",
         from: "pix",
         inputAmount: "100.00",
@@ -144,7 +147,8 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        outputAmount: "20.00",
+        // Actual Nabla output (17.982 after fees) + the 1 USDC capped subsidy.
+        outputAmount: "18.982",
         outputCurrency: "USDC",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
@@ -180,10 +184,13 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        // 100 BRLA is worth ~100 BRL (1:1 peg), not 500: the discount engine now values the
+        // 100 BRLA is worth ~100 BRL (1:1 peg), not 500: the discount engine values the
         // BRLA input in USD (~20 USD at 5 BRL/USD) before applying the inverted oracle rate,
-        // instead of treating 100 BRLA as 100 USD → 500 BRL.
-        outputAmount: "100.00",
+        // instead of treating 100 BRLA as 100 USD → 500 BRL. The fake world yields zero
+        // actual output on this direct payout leg, so the quoted output is exactly the
+        // maxSubsidy (0.05) x 100 BRL capped subsidy — pinning that the cap is enforced
+        // (uncapped, this golden was 100.00, funded entirely by subsidy).
+        outputAmount: "5.00",
         outputCurrency: "BRL",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
@@ -219,7 +226,11 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        outputAmount: "500.00",
+        // Oracle expectation is 500 BRL (100 USD at 5 BRL/USD); the fake world yields
+        // zero actual output on the direct payout leg, so the quoted output is exactly
+        // the maxSubsidy (0.05) x 500 BRL capped subsidy (uncapped, this golden was
+        // 500.00 — the entire quote funded by subsidy).
+        outputAmount: "25.00",
         outputCurrency: "BRL",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",

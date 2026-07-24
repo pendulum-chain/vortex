@@ -55,8 +55,9 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 
-    const actualSubsidyDecimal =
-      targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
+    // The cap alone gates the subsidy — see OffRampAlfredpayDiscountEngine for why the
+    // old `targetDiscount !== 0` guard is gone.
+    const actualSubsidyDecimal = calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy);
 
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 

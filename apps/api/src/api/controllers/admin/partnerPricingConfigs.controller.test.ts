@@ -100,7 +100,7 @@ describe("partner pricing configs admin routes", () => {
     expect(withCurrency.status).toBe(201);
   });
 
-  it("rejects a negative maxSubsidy, which the discount engine would read as uncapped", async () => {
+  it("rejects a negative maxSubsidy rather than storing a confusing synonym for disabled", async () => {
     await createTestPartner({ name: "acme", rampType: RampDirection.BUY });
     const response = await post({ maxSubsidy: -0.01, partnerName: "acme", rampType: "SELL" });
     expect(response.status).toBe(400);

@@ -86,11 +86,16 @@ export class OffRampDiscountEngine extends BaseDiscountEngine {
       : adjustedExpectedOutputDecimal.minus(actualOutputAmountDecimal);
     const idealSubsidyAmountRaw = multiplyByPowerOfTen(idealSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
-    // Calculate actual subsidy (capped by maxSubsidy)
-    const actualSubsidyAmountDecimal =
-      targetDiscount !== 0
-        ? calculateSubsidyAmount(adjustedExpectedOutputDecimal, actualOutputAmountDecimal, maxSubsidy)
-        : Big(0);
+    // Calculate actual subsidy (capped by maxSubsidy). The cap alone gates it:
+    // maxSubsidy <= 0 disables the subsidy, and with targetDiscount = 0 it acts as
+    // bounded swap-discrepancy protection toward the oracle rate. (The old
+    // `targetDiscount !== 0` guard never fired — Sequelize returns DECIMAL columns
+    // as strings, so "0.0000" !== 0 was always true.)
+    const actualSubsidyAmountDecimal = calculateSubsidyAmount(
+      adjustedExpectedOutputDecimal,
+      actualOutputAmountDecimal,
+      maxSubsidy
+    );
     const actualSubsidyAmountRaw = multiplyByPowerOfTen(actualSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(actualSubsidyAmountDecimal);

@@ -160,7 +160,11 @@ export async function createTestQuote(overrides: Partial<QuoteTicketAttributes> 
  */
 export async function seedVortexPartners(): Promise<void> {
   for (const rampType of [RampDirection.BUY, RampDirection.SELL]) {
-    await createTestPartner({ displayName: "Vortex", name: "vortex", rampType });
+    // maxSubsidy mirrors the recommended production config: the cap gates the
+    // subsidy (maxSubsidy <= 0 disables it), and 0.05 matches the runtime
+    // MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION so quote-time promises fit
+    // under execution-time enforcement.
+    await createTestPartner({ displayName: "Vortex", maxSubsidy: 0.05, name: "vortex", rampType });
   }
 }
 

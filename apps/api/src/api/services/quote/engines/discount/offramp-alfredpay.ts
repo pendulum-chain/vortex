@@ -80,8 +80,11 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 
-    const actualSubsidyDecimal =
-      targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
+    // The cap alone gates the subsidy: maxSubsidy <= 0 disables it, and with
+    // targetDiscount = 0 it acts as bounded swap-discrepancy protection toward the
+    // oracle rate. (The old `targetDiscount !== 0` guard never fired — Sequelize
+    // returns DECIMAL columns as strings, so "0.0000" !== 0 was always true.)
+    const actualSubsidyDecimal = calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy);
 
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 

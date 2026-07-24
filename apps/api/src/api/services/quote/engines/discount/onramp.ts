@@ -223,11 +223,13 @@ export class OnRampDiscountEngine extends BaseDiscountEngine {
       : adjustedExpectedOutputDecimal.minus(actualOutputAmountDecimal);
     const idealSubsidyAmountRaw = multiplyByPowerOfTen(idealSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
-    // Calculate actual subsidy (capped by maxSubsidy)
-    const actualSubsidyAmountDecimal =
-      targetDiscount !== 0
-        ? calculateSubsidyAmount(adjustedExpectedOutputDecimal, actualOutputAmountDecimal, maxSubsidy)
-        : Big(0);
+    // Calculate actual subsidy (capped by maxSubsidy). The cap alone gates it — see
+    // OffRampDiscountEngine for why the old `targetDiscount !== 0` guard is gone.
+    const actualSubsidyAmountDecimal = calculateSubsidyAmount(
+      adjustedExpectedOutputDecimal,
+      actualOutputAmountDecimal,
+      maxSubsidy
+    );
     const actualSubsidyAmountRaw = multiplyByPowerOfTen(actualSubsidyAmountDecimal, nablaSwap.outputDecimals).toFixed(0, 0);
 
     const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(actualSubsidyAmountDecimal);

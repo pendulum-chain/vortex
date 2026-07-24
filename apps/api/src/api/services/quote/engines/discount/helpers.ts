@@ -234,20 +234,22 @@ export function handleQuoteConsumptionForDiscountState(partner?: ActivePartner):
 }
 
 export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, maxSubsidy: number): Big {
+  // maxSubsidy is a fraction of expected output. Zero — the partner_pricing_configs
+  // column default — means the subsidy is disabled, never "uncapped" (SPEC-009): a
+  // config with a targetDiscount but an untouched maxSubsidy must not pay out the
+  // full shortfall. There is no uncapped mode.
+  if (maxSubsidy <= 0) {
+    return new Big(0);
+  }
+
   // If actual output is already >= expected, no subsidy needed
   if (actualOutput.gte(expectedOutput)) {
     return new Big(0);
   }
 
   const shortfall = expectedOutput.minus(actualOutput);
-
-  // Cap at maxSubsidy if configured
-  const maxSubsidyBig = new Big(maxSubsidy);
-  if (maxSubsidy > 0) {
-    const maxAllowedSubsidy = expectedOutput.mul(maxSubsidyBig);
-    return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
-  }
-  return shortfall;
+  const maxAllowedSubsidy = expectedOutput.mul(new Big(maxSubsidy));
+  return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
 }
 
 export function buildDiscountSubsidy(computation: DiscountComputation): QuoteContext["subsidy"] {
