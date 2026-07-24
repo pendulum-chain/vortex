@@ -46,12 +46,16 @@ export interface WebhookPayloadBase {
 }
 
 export interface TransactionCreatedWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
   eventType: WebhookEventType.TRANSACTION_CREATED;
   timestamp: string;
   payload: WebhookPayloadBase;
 }
 
 export interface StatusChangeWebhookPayload {
+  /** Unique per event and stable across delivery retries — consumers deduplicate on it. */
+  eventId: string;
   eventType: WebhookEventType.STATUS_CHANGE;
   timestamp: string;
   payload: WebhookPayloadBase;

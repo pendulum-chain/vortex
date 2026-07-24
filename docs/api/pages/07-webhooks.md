@@ -11,10 +11,14 @@ You can subscribe to:
 
 Every webhook request includes:
 
-- `X-Vortex-Signature` — RSA-PSS signature of the raw request body, base64-encoded.
-- `X-Vortex-Timestamp` — Unix timestamp (seconds) of the request.
+- `X-Vortex-Signature` — base64-encoded RSA-PSS signature of the string `{timestamp}.{body}`, where `{timestamp}` is the value of `X-Vortex-Timestamp` and `{body}` is the raw request body. Because the timestamp is part of the signed string, a captured delivery cannot be replayed later with a fresh timestamp.
+- `X-Vortex-Timestamp` — Unix timestamp (seconds) of the delivery attempt.
 
-All webhook URLs **must use HTTPS**. Signatures are verified against the RSA-PSS 2048-bit public key returned by `GET /v1/public-key`.
+Every event payload also carries an `eventId` that is unique per event and stays the same across delivery retries. Deduplicate on it: if you have already processed an `eventId`, acknowledge the request with `2xx` and skip your handler.
+
+All webhook URLs **must use HTTPS**, must not embed credentials, and must resolve to a publicly routable address — URLs pointing at private or reserved IP ranges are rejected. Signatures are verified against the RSA-PSS 2048-bit public key returned by `GET /v1/public-key`.
+
+Webhooks are bound to the account behind your secret key: you can only subscribe to a `quoteId` created with your key (any other quote returns `404`), and you can only delete webhooks your account registered.
 
 ## Registering A Webhook
 
@@ -51,6 +55,7 @@ Fired immediately after the ramp state is created (`POST /v1/ramp/register`).
 
 ```json
 {
+  "eventId": "9f0c9a4e-4a3b-4a52-b0aa-1f6dc78c4a01",
   "eventType": "TRANSACTION_CREATED",
   "timestamp": "2025-01-15T10:30:00.000Z",
   "payload": {
@@ -65,6 +70,7 @@ Fired immediately after the ramp state is created (`POST /v1/ramp/register`).
 
 | Field | Description |
 |---|---|
+| `eventId` | Unique event identifier, stable across delivery retries — use for deduplication. |
 | `quoteId` | Unique identifier for the quote. |
 | `transactionId` | Unique identifier for the ramp (`rampId`). |
 | `sessionId` | Widget session identifier if registered against a session. |
@@ -77,6 +83,7 @@ Fired whenever the ramp's status changes during processing.
 
 ```json
 {
+  "eventId": "5b8a0f1d-2e64-49c7-9d3b-8f2a3f0e6c22",
   "eventType": "STATUS_CHANGE",
   "timestamp": "2025-01-15T10:35:00.000Z",
   "payload": {
@@ -114,7 +121,7 @@ Fetch the current public key:
 GET /v1/public-key
 ```
 
-Verify signatures using RSA-PSS with SHA-256. Reject requests that fail signature verification, are outside an acceptable timestamp window, contain malformed payloads, or do not match the expected event structure.
+Verify signatures using RSA-PSS with SHA-256 over the string `{timestamp}.{body}` — the `X-Vortex-Timestamp` header value, a literal dot, then the raw request body. Reject requests that fail signature verification, are outside an acceptable timestamp window, contain malformed payloads, or do not match the expected event structure, and deduplicate on `eventId`.
 
 ### Example: Bun + TypeScript Listener
 
@@ -188,7 +195,8 @@ serve({
     const bodyText = await req.text();
     if (!bodyText) return new Response("Empty body", { status: 400 });
 
-    if (!(await verifier.verifySignature(bodyText, signature))) {
+    // The signature covers the timestamp header and the raw body, joined by a dot.
+    if (!(await verifier.verifySignature(`${timestamp}.${bodyText}`, signature))) {
       return new Response("Invalid signature", { status: 401 });
     }
 
@@ -197,7 +205,8 @@ serve({
       return new Response(`Unsupported event type: ${event.eventType}`, { status: 400 });
     }
 
-    // TODO: route event to your handler (update DB, notify user, etc.).
+    // TODO: deduplicate on event.eventId (stable across retries), then route the
+    // event to your handler (update DB, notify user, etc.).
 
     return new Response("OK", { status: 200 });
   }
