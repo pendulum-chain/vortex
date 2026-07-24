@@ -11,7 +11,7 @@ import {
   RampDirection,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { generateApiKey, getKeyPrefix, hashApiKey } from "../api/middlewares/apiKeyAuth.helpers";
+import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../api/middlewares/apiKeyAuth.helpers";
 import { hashTaxReference } from "../api/services/avenia/avenia-customer.service";
 import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-entity.service";
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
@@ -103,8 +103,8 @@ export async function createTestApiKey(
   const record = await ApiKey.create({
     expiresAt: null,
     isActive: true,
-    keyHash: await hashApiKey(plaintextKey),
-    keyPrefix: getKeyPrefix(plaintextKey),
+    keyHash: digestApiKey(plaintextKey),
+    keyPrefix: getSecretKeyLookupPrefix(plaintextKey),
     keyType: "secret",
     keyValue: null,
     lastUsedAt: null,
