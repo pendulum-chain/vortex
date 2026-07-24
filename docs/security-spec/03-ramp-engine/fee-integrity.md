@@ -4,88 +4,84 @@
 
 Fee calculation determines how much the user pays for a ramp operation and how that payment is distributed. This is a **critical financial security concern** because incorrect fee handling directly impacts user funds and platform revenue.
 
-### ⚠️ KNOWN ISSUE: Dual Fee System Discrepancy
+There is a **single fee engine**: fees are computed once at quote time, snapshotted immutably on the quote, and every later consumer — the API response, the swap-input deduction, and on-chain distribution — reads that same snapshot. (A historical dual system — token-config fees deducted vs. database fees displayed, tracked as F-002 — was retired; the functions it named, `calculateTotalReceiveOnramp()`/`calculateTotalReceive()`, no longer exist. See `FINDINGS.md` for the history.)
 
-**Two parallel fee calculation systems exist, and they do NOT agree:**
+### Fee pipeline
 
-1. **Token-config-based fees (ACTUALLY USED)** — Defined in `shared/src/tokens/*/config.ts`. Parameters: `onrampFeesBasisPoints`, `onrampFeesFixedComponent`, `offrampFeesBasisPoints`, `offrampFeesFixedComponent`. Applied via `calculateTotalReceiveOnramp()` and `calculateTotalReceive()` helper functions. **These are the fees that actually reduce the user's output amount.**
+1. **Canonical inputs** (`quote/core/quote-fees.ts`):
+   - **Vortex fee and partner markup** come from the pricing row resolved by `findPartnerWithPricing` (`partner_pricing_configs`: `vortexFeeType`/`vortexFeeValue`, `markupType`/`markupValue`/`markupCurrency`). Without a quote partner, the `vortex` partner's own config applies; a missing vortex config fails quote creation.
+   - **Anchor (processing) fee** is the provider's real charge, taken from the provider quote in each corridor's fee engine: Avenia payout-quote delta (BRL off-ramp), Avenia mint+transfer fees (BRL on-ramp), Mykobo `/fees` (EUR), Alfredpay quote fee (USDT corridors). `calculateFeeComponents` also derives an anchor fee from the `anchors` DB table, but every live corridor overrides it with the provider value — the DB-derived anchor is currently dead weight.
+   - **Network fee** is the Squid bridge estimate in USD where a bridge leg exists, `0` on direct corridors, and a hardcoded `0.03` USD on the BRL→AssetHub on-ramp (`FIXME` in code).
+2. **Fee currency and conversion**: `feeCurrency` is the corridor's target fiat (input currency for BUY, output currency for SELL). All conversions go through `priceFeedService.convertCurrency` (CoinGecko for crypto, FastForex for fiat). `assignFeeSummary` (`engines/fee/index.ts`) is the **only** writer of `ctx.fees` and converts every component into both USD and display fiat in one pass: `ctx.fees = { usd, displayFiat, vortexFeePenPercentage }`.
+3. **Immutable snapshot**: the finalize engine persists the whole quote context as `quote_tickets.metadata` (JSONB); the fee snapshot lives at `metadata.fees`. No code path mutates it after creation — pinned by `fee-immutability.invariants.test.ts` (client fee fields ignored at creation, snapshot byte-identical across registration, status endpoint serves creation-time fees).
+4. **Deduction points** (per corridor family — there is deliberately no universal ordering):
+   - **Off-ramps (SELL)**: vortex + partner markup are subtracted from the Nabla swap input at quote time (`preNabla.deductibleFeeAmountInSwapCurrency`), and the `distributeFees` phase runs **before** the swap so fees are taken in USDC.
+   - **On-ramps (BUY)**: nothing is deducted before the swap (`getDeductibleFeeAmount` returns 0); `distributeFees` runs **after** the swap, again in USDC.
+   - **Anchor fees** are collected by the provider off-chain (netted out of mint/payout) and are never distributed on-chain by Vortex.
+   - **Alfredpay corridors (MXN/COP/ARS/USD)** have **no `distributeFees` phase**: only the provider fee is actually charged; displayed vortex/partner fees are not collected on-chain (see checklist).
+5. **Distribution** (`distribute-fees-handler.ts` + `transactions/common/feeDistribution.ts`): a presigned transaction built at registration transfers `network + vortex + partnerMarkup` (never anchor) from the ephemeral, in USDC, on Base (EVM, single `transfer` or Multicall3 `aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`) or Pendulum (`utility.batchAll` of `transferKeepAlive`, plus optional USDC→PEN buyback of a `vortexFeePenPercentage` slice via Zenlink). The handler pre-checks the ephemeral's token balance (60 s poll) and picks the chain from `metadata.nablaSwapEvm`. Distributed fees are final: there is **no refund or recovery path** if the ramp fails in a later phase.
+6. **Amounts vs. destinations**: distributed **amounts** come from the `metadata.fees.usd` snapshot; payout **addresses** are resolved by a fresh `findPartnerWithPricing` read at transaction-build time (vortex + network → vortex row's `payout_address_*`, with `config.defaults.vortexEvmPayoutAddress` fallback on EVM; markup → the pricing partner's address, `pricing_partner_id ?? partner_id`). A payout-address rotation therefore applies to already-created quotes; a pricing-value change does not.
 
-2. **Database-based fees (STORED/DISPLAYED ONLY)** — Calculated by `calculateFeeComponents()` using the `FeeConfiguration` and `Partner` database tables. Components: network fee, vortex fee, anchor fee, partner markup fee. These are stored in the database and returned in the API response, but **they do NOT determine the actual fee deduction**.
+**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes; `OnRampAveniaToEvmFeeEngine` now reports zero network fee there. Pinned by the quote pricing goldens.
 
-This means the fees shown to the user (from the database system) may differ from the fees actually applied (from the token config system). This is documented in `docs/architecture/current-fee-derivation.md` as a partially-implemented refactor.
+### Rounding
 
-**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. `OnRampAveniaToEvmFeeEngine` now reports zero network fee for these corridors (same `isFiatToOwnStablecoinBaseDirect` predicate as the squidrouter passthrough engines); output amounts were never affected. Pinned by the quote pricing goldens (`apps/api/src/tests/quote-pricing.golden.test.ts`).
+Big.js modes: `0` = round-down (truncate), `1` = round-half-up (also the default when the mode argument is omitted), `2` = round-half-even, `3` = round-up. Current usage:
 
-### Fee Application Points
-
-- **On-ramp:** Fees are deducted from the input amount BEFORE the swap. `inputAmountAfterFees = inputAmount - fees`.
-- **Off-ramp:** Fees are deducted from the swap output AFTER the swap. `outputAfterFees = swapOutput - fees`.
-- **Anchor fees** (Avenia/BRLA) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
-- **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` phase, which dispatches to a Substrate (Pendulum) or EVM (Base, Multicall3) implementation based on the ephemeral chain in use.
-
-### Distribution Mechanisms
-
-Two parallel implementations live in `apps/api/src/api/services/transactions/common/feeDistribution.ts`:
-
-1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `partner_pricing_configs.payout_address_substrate`.
-2. **EVM (Base)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `partner_pricing_configs.payout_address_evm`. The handler pre-checks the active `vortex` pricing config for the quote's ramp direction has a non-NULL `payout_address_evm` and aborts the phase otherwise; partner-markup recipients resolve through the quote's pricing partner (`pricing_partner_id ?? partner_id`) and fall through with a warning when that partner's `payout_address_evm` is NULL.
-
-The `distribute-fees-handler.ts` chooses the correct path at runtime based on the ephemeral network (Pendulum vs. Base). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
-
-### Ordering with Nabla swap (BRL flows on Base)
-
-- **Offramp (USDC → BRLA)**: `distributeFees` runs **before** `nablaSwap` so partner/vortex fees are taken in USDC (the universal stablecoin) before swapping the remainder to BRLA.
-- **Onramp (BRLA → USDC)**: `distributeFees` runs **after** `nablaSwap`, again ensuring fees are denominated in USDC.
+| Point | Call | Mode |
+|---|---|---|
+| Quote fee components (fiat, 2 dp) | `quote-fees.ts` `.toFixed(2)` | half-up |
+| `usd.total` (6 dp) / `displayFiat.total` (2 dp) | `fee/index.ts` `.toFixed(6)` / `.toFixed(2)` | half-up |
+| Swap input raw | `nabla-swap/index.ts` `.toFixed(0)` | half-up |
+| Substrate distribution raw | `feeDistribution.ts` `.toFixed(0, 0)` | round-down |
+| EVM distribution raw | `feeDistribution.ts` `.toFixed(0)` | half-up ⚠ inconsistent with substrate |
+| Provider-side swap outputs / Alfredpay raw | `.toFixed(2, 0)` / `.toFixed(0, 0)` | round-down |
 
 ## Security Invariants
 
-1. **The fees actually deducted MUST match the fees displayed to the user** — **CURRENTLY VIOLATED**. The token-config fees (actually deducted) and database fees (displayed) are calculated independently and may differ. This must be reconciled.
-2. **Fee parameters MUST NOT be client-controllable** — All fee rates (basis points, fixed components) must come from server-side configuration (token config or database), never from request parameters.
-3. **Fee calculations MUST use safe decimal arithmetic** — The code uses `Big.js` for fee calculations, avoiding floating-point precision errors. All monetary calculations MUST use arbitrary-precision arithmetic, never native JavaScript `number`.
-4. **Negative output amounts MUST be blocked** — If fees exceed the input/output amount, the result must be clamped to zero, never negative. Both helper functions check `totalReceiveRaw.gt(0)` and return `'0'` otherwise.
-5. **Fee deduction MUST happen at the correct point in the flow** — On-ramp fees deducted before swap; off-ramp fees deducted after swap. Applying fees at the wrong point changes the effective rate.
-6. **Anchor fees MUST be accounted for in the quoted amount** — When the BRLA anchor deducts its fee, the system's quoted output must have already factored this in. The user should receive exactly the quoted net amount.
-7. **Subsidization MUST NOT bypass fee collection** — When the platform subsidizes a shortfall (swap returned less than quoted), the subsidization covers the difference AFTER fees, not before. The platform should not subsidize to offset its own fees.
-8. **Fee distribution (`distributeFees` phase) MUST transfer exact calculated amounts** — The amounts sent to vortex, network, and partner fee accounts must match the fee breakdown calculated during quoting.
-9. **Partner markup distribution MUST use pricing attribution** — When `pricing_partner_id` is present, partner markup payout MUST use that partner row instead of relying only on the quote owner `partner_id`; `partner_id` is only the backward-compatible fallback.
-10. **Rounding MUST be consistent and favor the platform** — On-ramp fees are rounded to 6 decimal places (round half up). Off-ramp fees are rounded to 2 decimal places (round half down). Rounding mode should never create a scenario where the user receives more than entitled.
-11. **Fee configuration changes MUST NOT affect in-flight ramps** — Once a quote is created with specific fees, those fees are locked. Changing fee configuration should only apply to new quotes.
-12. **Displayed discount MUST NOT hide charged fee components** — If a quote includes a subsidized rate improvement, clients may display the user benefit as a separate discount line and may show an effective total fee equal to charged fees minus discount. The underlying charged fee fields (`processingFeeFiat`, `networkFeeFiat`, `partnerFeeFiat`, and API `totalFeeFiat`) MUST remain unchanged; only the UI's effective total may become lower or negative. The discount is a platform-funded benefit, not negative revenue.
+1. **Displayed and deducted fees MUST derive from one snapshot** — `assignFeeSummary` is the only writer of `ctx.fees`; the API response reads `metadata.fees.displayFiat`/`.usd` and distribution reads `metadata.fees.usd`. No component may recompute fees from configuration at execution time (payout *addresses* are the sole deliberate exception, see invariant 11).
+2. **Fee parameters MUST NOT be client-controllable** — all fee rates come from server-side configuration (pricing rows, provider quotes), never from request parameters. Client-supplied fee fields are ignored at quote creation.
+3. **Fee calculations MUST use safe decimal arithmetic** — `Big.js` throughout; never native JavaScript `number`.
+4. **Negative fee components MUST be clamped to zero** (F-067) — `calculateFeeComponent` floors negative results at 0.
+5. **Fee deduction and distribution order is defined per corridor, matching the currency fees were quoted in** — SELL: pre-swap in USDC; BUY: post-swap in USDC; anchor: provider-side. There is no universal "fees last" rule; each route's phase sequence is the authority (`ramp-phase-flows.md`).
+6. **Anchor fees MUST be pre-accounted in the quoted output** — the provider's cut is netted into the quote so the user receives the quoted amount; Vortex never moves the anchor fee on-chain.
+7. **Subsidization MUST NOT bypass fee collection** — subsidies cover post-fee shortfalls; the platform does not subsidize to offset its own fees.
+8. **Distribution MUST transfer exactly the snapshot amounts** — `network + vortex + partnerMarkup` from `metadata.fees.usd`, converted to USDC raw at the documented rounding mode. No recalculation.
+9. **Partner markup distribution MUST use pricing attribution** — payout resolves through `pricing_partner_id ?? partner_id` so profile-assigned quotes pay the partner whose rate was used.
+10. **Rounding MUST be consistent and favor the platform** — raw on-chain amounts should truncate (round-down). The EVM distribution path currently uses half-up (`toFixed(0)` default) and MUST be aligned with the substrate path's round-down (open item below).
+11. **Pricing changes MUST NOT affect in-flight quotes; address rotations DO** — fee amounts are locked in the snapshot at creation. Payout addresses are deliberately live-read at build time so an address rotation takes effect for existing quotes; a missing vortex row/address at build time fails the build rather than misrouting funds.
+12. **Displayed discount MUST NOT hide charged fee components** — if a quote includes a subsidized rate improvement, clients may display the benefit as a separate discount line and an effective total, but the underlying charged fee fields (`processingFeeFiat`, `networkFeeFiat`, `partnerFeeFiat`, API `totalFeeFiat`) MUST remain unchanged. The discount is a platform-funded benefit, not negative revenue.
+13. **Displayed totals and distributed totals differ by design** — the API `total` includes the anchor fee; on-chain distribution excludes it (the provider already took it). Reconciliation must compare `network + vortex + partnerMarkup` on-chain against the snapshot, and the anchor against provider statements.
 
 ## Threat Vectors & Mitigations
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
-| **Fee discrepancy exploitation** | User sees low fees in the API response (database fees) but is charged higher fees (token-config fees) — or vice versa | **MUST FIX**: Reconcile the two fee systems so displayed fees equal applied fees |
-| **Fee bypass via direct quote manipulation** | Attacker modifies fee fields in the quote response before registering a ramp | Fees are recalculated server-side; quote amounts are immutable once stored; the token-config fees are applied regardless of what's in the database |
-| **Rounding exploitation** | Attacker crafts amounts that exploit rounding to extract fractional value over many transactions | Rounding modes are specified (`Big.js` roundDown for off-ramp, roundUp for on-ramp); verify these favor the platform |
-| **Fee parameter injection** | Attacker passes custom fee rates in the API request | Fee rates come exclusively from `getAnyFiatTokenDetails()` (token config) or database; never from request body |
-| **Subsidization drain** | Attacker manipulates conditions so the platform always subsidizes the maximum amount | Slippage bounds limit subsidization; monitoring for excessive subsidization; circuit breaker on total subsidization per period |
-| **Partner markup theft** | Partner sets unreasonably high markup to extract value | Partner markup bounds should be enforced; review partner configuration for reasonable limits |
-| **Profile-priced markup not paid** | A profile-assigned quote is user-owned (`partner_id = NULL`) but has partner markup from custom pricing; fee distribution looks only at `partner_id` and drops the partner payout. | Fee distribution resolves the payout partner from `pricing_partner_id ?? partner_id`, so profile-assigned pricing still pays the partner whose rate was used. |
+| **Fee bypass via quote manipulation** | Attacker sends fee fields in the quote request or smuggles them into registration `additionalData` | Fees computed server-side only; snapshot immutable after creation; pinned by `fee-immutability.invariants.test.ts` |
+| **Rounding exploitation** | Attacker crafts amounts that exploit rounding to extract fractional value over many transactions | Raw distribution amounts truncate on substrate; EVM path to be aligned (invariant 10); per-unit exposure is ≤ 1 raw unit per transfer |
+| **Fee parameter injection** | Attacker passes custom fee rates in the API request | Fee rates come exclusively from pricing rows and provider quotes; never from the request body |
+| **Payout misdirection via config change** | Compromised admin rotates the vortex/partner payout address; existing quotes pay the new address | Addresses are live-read by design (invariant 11); admin routes are the control point (`admin-auth.md`); monitor payout-address changes |
+| **Partner markup theft** | Partner sets an unreasonably high markup | Markup bounds should be enforced at config creation; review partner configuration for limits |
+| **Profile-priced markup not paid** | A profile-assigned quote is user-owned (`partner_id = NULL`) but priced by a partner row | Fee distribution resolves the payout partner from `pricing_partner_id ?? partner_id` |
+| **Silent revenue loss** | Corridors or configs where computed fees are never collected | Alfredpay corridors have no `distributeFees` phase; EVM/substrate paths drop partner markup when the partner row lacks a payout address (logged). Both tracked in the checklist |
 
 ## Audit Checklist
 
-- [EXISTING FINDING] **CRITICAL FINDING F-002**: Verify the exact magnitude of discrepancy between token-config fees and database fees for each currency pair and ramp direction. Document which one the user actually experiences. **EXISTING FINDING** — documented as F-002 (dual fee system discrepancy).
-- [x] `calculateTotalReceiveOnramp()` and `calculateTotalReceive()` are the only functions that affect the actual amount the user receives — verify no other fee deduction exists. **PASS** — confirmed: these are the only fee-deducting functions in the output amount calculation.
-- [x] `calculateFeeComponents()` results are stored but NOT used for actual deductions — verify this hasn't changed. **PASS** — confirmed: database fee components are for display/logging only.
-- [x] All fee calculations use `Big.js` (or equivalent arbitrary-precision library), never native `number`. **PASS** — verified: `Big.js` used throughout fee calculations.
-- [N/A] Negative output protection: both fee functions return `'0'` when fees exceed the amount. **N/A** — requires business review to confirm the clamping behavior is intentional for all scenarios.
-- [x] On-ramp fee is applied BEFORE the swap (reducing `inputAmount`). **PASS** — verified in the on-ramp flow.
-- [Deferred] Off-ramp fee is applied AFTER the swap (reducing swap output). **Deferred to Module 05** — fee application point varies by integration; verified per-integration in Module 05 audits.
-- [x] No fee parameter is accepted from the client request body. **PASS** — confirmed: all fee rates come from server-side config.
-- [x] Fee configuration from token configs (`shared/src/tokens/*/config.ts`) matches what's intended for each currency. **PASS** — token configs reviewed; basis points and fixed components present for all supported tokens.
-- [x] Rounding modes: on-ramp uses `round(6, 0)` (round half up to 6 decimals), off-ramp uses `round(2, 1)` (round half down to 2 decimals). **PASS** — verified rounding modes in both helper functions.
-- [x] `distributeFees` phase distributes exactly the amounts from the fee breakdown — no recalculation. **PASS** — fee distribution uses stored breakdown values.
-- [x] Partner markup payout uses the pricing partner when present. **PASS** — fee distribution resolves payout from `pricing_partner_id ?? partner_id`, preserving profile-assigned quote payouts while keeping older partner-owned quotes compatible.
-- [x] Anchor fee deduction by external services (BRLA) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
+- [x] `assignFeeSummary` is the only writer of `ctx.fees`; API response and distribution both read the `metadata.fees` snapshot. **PASS** — verified in `engines/fee/index.ts`, `finalize/index.ts` (`buildQuoteResponse`), `feeDistribution.ts`.
+- [x] All fee calculations use `Big.js`, never native `number`. **PASS**.
+- [x] No fee parameter is accepted from the client request body; snapshot survives registration unchanged. **PASS** — `fee-immutability.invariants.test.ts`.
+- [x] Negative fee components clamped to zero (F-067). **PASS (FIXED)**.
+- [x] Off-ramp pre-Nabla deduction subtracts exactly vortex + partner markup in swap currency; on-ramp deducts nothing pre-swap. **PASS** — `nabla-swap/index.ts` `getDeductibleFeeAmount`.
+- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — `evm-to-brl-base.ts` presigned nonce order; on-ramps distribute after the swap (`nabla-swap-handler.ts`).
+- [x] Distribution transfers `network + vortex + partnerMarkup` from the snapshot; anchor never distributed. **PASS** — `feeDistribution.ts`, `computeRequiredFeeRaw`.
+- [x] EVM branch uses Multicall3 `aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`; ephemeral balance pre-checked via `checkEvmBalanceForToken` (60 s). **PASS**.
+- [x] Partner markup payout uses the pricing partner when present. **PASS** — `pricing_partner_id ?? partner_id`.
+- [x] **Vortex `payout_address_evm` NULL fallback**: `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address; a missing vortex pricing row fails the build. **PASS**.
+- [x] Partner `payout_address_evm` NULL no longer drops markup silently at quote time: BRL-on-Base quote creation rejects partner-markup routes without payout config; runtime logs a warning if the condition slips through. **PASS**.
+- [x] Fee/pricing changes don't retroactively change amounts for already-created quotes. **PASS** — amounts read from `metadata.fees.usd` snapshot.
+- [ ] **OPEN — Alfredpay fee collection gap**: MXN/COP/ARS/USD corridors display vortex/partner fees but have no `distributeFees` phase; the amounts are never collected on-chain. Decide: add distribution to these routes, or zero the uncollected components in their fee engines so display matches reality.
+- [ ] **OPEN — EVM raw rounding**: `feeDistribution.ts` EVM path uses `toFixed(0)` (half-up) where substrate truncates (`toFixed(0, 0)`). Align on round-down (invariant 10).
+- [ ] **OPEN — dead DB anchor fee**: `calculateFeeComponents` derives an anchor fee from the `anchors` table that every live corridor overrides with the provider value. Remove the dead computation or document which corridor is meant to use it.
 - [ ] Mykobo anchor fee in the quote MUST match the tier Mykobo actually charges. The fee tier is selected by `MYKOBO_CLIENT_DOMAIN`; an unset env var silently degrades to Mykobo's default tier (~5x worse), causing `defaultDepositFee` / `defaultWithdrawFee` and on-chain settlement to diverge. See `07-operations/secret-management.md` (invariant 9) and `05-integrations/mykobo.md` (invariant 20).
 - [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not a generic failure. The optional env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED` → flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE`) is **display-only** and MUST NOT price a ramp execution; a fallback-priced quote MUST re-validate the live Mykobo fee before a rail runs (EUR registration is currently disabled). See `05-integrations/mykobo.md` (invariant 26).
-- [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
-- [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
-- [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.
-- [x] EVM branch of `distributeFees` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
-- [x] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts`.
-- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — verified in `evm-to-brl-base.ts`.
-- [x] **Vortex `payout_address_evm` NULL fallback**: `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` / `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address.
-- [x] **Partner `payout_address_evm` NULL no longer drops markup silently**: BRL-on-Base quote creation rejects partner-markup routes when the partner lacks EVM payout config, and runtime fee distribution logs a warning if the condition slips through.
+- [x] **FINDING F-061 (MEDIUM)**: quote finalization enforces maximum amount limits. **PASS (FIXED)** — `validateAmountLimits(..., "max", ...)` in both finalize engines.

@@ -26,7 +26,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Server-Side Signing | `02-signing-keys/server-side-signing.md` | Funding keys, executor keys, webhook signing |
 | State Machine | `03-ramp-engine/state-machine.md` | Phase transitions, locking, idempotency, recovery |
 | Quote Lifecycle | `03-ramp-engine/quote-lifecycle.md` | Creation, expiry, binding to ramp |
-| Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee calculation, dual-system discrepancy |
+| Fee Integrity | `03-ramp-engine/fee-integrity.md` | Fee pipeline: quote-time snapshot, deduction, distribution, rounding |
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
 | Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
 | Recipient Transfers | `03-ramp-engine/recipient-transfers.md` | Invite token hashing/retention/expiry, token-bound redemption, invitation/relationship archiving, sender↔recipient authorization, transfer eligibility gate |
