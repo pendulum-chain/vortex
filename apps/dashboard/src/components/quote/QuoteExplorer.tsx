@@ -34,7 +34,9 @@ const AMOUNT_DEBOUNCE_MS = 400;
 const FIAT_DECIMALS = 2;
 const TOKEN_DECIMALS = 6;
 
-const OFFRAMP_CORRIDORS: CorridorId[] = CORRIDOR_LIST.map(corridor => corridor.id);
+// Every corridor is quotable in both directions — /quotes is anonymous and prices EUR BUYs to
+// EVM chains too. Whether the sender can act on the price is the CTA's concern, not the picker's.
+const QUOTE_CORRIDORS: CorridorId[] = CORRIDOR_LIST.map(corridor => corridor.id);
 const DEFAULT_CORRIDOR: CorridorId = "BR";
 
 const CHIP_CLASSES =
@@ -47,9 +49,9 @@ const TAB_CLASSES =
 
 export function QuoteExplorer() {
   const [direction, setDirection] = useState<RampDirection>(RampDirection.BUY);
-  // `requested*` is what the user last picked; the `active*` value below is what survives
-  // reconciliation and is the only one anything reads.
-  const [requestedCorridorId, setRequestedCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
+  // `requested*` is what the user last picked; for network and token the `active*` value below
+  // is what survives reconciliation and is the only one anything reads.
+  const [corridorId, setCorridorId] = useState<CorridorId>(DEFAULT_CORRIDOR);
   const [requestedNetwork, setRequestedNetwork] = useState<EvmNetworks>(Networks.Polygon);
   const [requestedToken, setRequestedToken] = useState<string>("");
   const [typedAmount, setTypedAmount] = useState("");
@@ -60,11 +62,9 @@ export function QuoteExplorer() {
 
   const isBuy = direction === RampDirection.BUY;
 
-  // Every selection is derived rather than synced: flipping direction can drop the requested
-  // corridor (EU has no onramp) and changing network can drop the requested token.
-  const corridors = isBuy ? ONRAMP_CORRIDORS : OFFRAMP_CORRIDORS;
-  const activeCorridor = corridors.includes(requestedCorridorId) ? requestedCorridorId : (corridors[0] ?? DEFAULT_CORRIDOR);
-  const corridor = CORRIDORS[activeCorridor];
+  // Network and token are derived rather than synced: changing network can drop the requested
+  // token. The corridor needs no reconciliation — every corridor quotes in both directions.
+  const corridor = CORRIDORS[corridorId];
 
   const networkOptions = getNetworkOptions(tokenOptions);
   // Before the token list loads there are no options, and the requested network still labels the chip.
@@ -73,16 +73,16 @@ export function QuoteExplorer() {
   const networkTokens = tokenOptions.filter(option => option.network === activeNetwork.id);
   const token = networkTokens.find(option => option.currency === requestedToken) ?? networkTokens[0];
 
-  const isApproved = approved.has(activeCorridor);
+  const isApproved = approved.has(corridorId);
 
   const fiatSelector = (
-    <Select onValueChange={value => setRequestedCorridorId(value as CorridorId)} value={activeCorridor}>
+    <Select onValueChange={value => setCorridorId(value as CorridorId)} value={corridorId}>
       <SelectTrigger aria-label="Fiat currency" className={CHIP_CLASSES} id="quote-corridor">
         <FiatIcon currency={corridor.currency} />
         <span>{corridor.currency}</span>
       </SelectTrigger>
       <SelectContent align="start" className="min-w-64">
-        {corridors.map(id => (
+        {QUOTE_CORRIDORS.map(id => (
           <SelectItem className="py-2" key={id} value={id}>
             <FiatIcon currency={CORRIDORS[id].currency} />
             <span className="font-medium">{CORRIDORS[id].currency}</span>
@@ -149,7 +149,7 @@ export function QuoteExplorer() {
   const quoteParams =
     amountReady && token
       ? {
-          corridorId: activeCorridor,
+          corridorId,
           direction,
           inputAmount: quotedAmount,
           network: activeNetwork.id,
@@ -210,7 +210,7 @@ export function QuoteExplorer() {
             <StaggerItem>
               <QuoteCta
                 amount={quotedAmount}
-                corridorId={activeCorridor}
+                corridorId={corridorId}
                 isApproved={isApproved}
                 isBuy={isBuy}
                 network={activeNetwork.id}
@@ -308,6 +308,16 @@ function QuoteCta({ amount, corridorId, isApproved, isBuy, network, token }: Quo
           <ArrowRight />
         </Link>
       </Button>
+    );
+  }
+
+  // EUR quotes on BUY but the transfer form has no EUR onramp yet, so the price ends here
+  // rather than prefilling a form that would reconcile the corridor away.
+  if (isBuy && !ONRAMP_CORRIDORS.includes(corridorId)) {
+    return (
+      <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">
+        Buying crypto with {CORRIDORS[corridorId].currency} isn’t available in transfers yet.
+      </p>
     );
   }
 

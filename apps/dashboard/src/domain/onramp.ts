@@ -10,6 +10,7 @@ import {
 } from "@vortexfi/shared";
 import type { CorridorId } from "./types";
 
+/** Corridors the onramp transfer form can execute — EUR quotes on BUY but has no transfer flow yet. */
 export const ONRAMP_CORRIDORS: CorridorId[] = ["BR", "MX", "CO", "US", "AR"];
 
 export interface RampTokenOption {
