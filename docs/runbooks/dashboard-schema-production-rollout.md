@@ -8,7 +8,7 @@ Verified on staging 2026-07-15: all migrations applied at boot, parity checks pa
 What the release contains: the unified customer schema (`customer_entities`,
 `provider_customers`, `kyc_cases`), the partner split + API-key partner FK,
 recipients/invitations, notifications, Monerium server-side OAuth, the dashboard app
-(own domain, `dashboard.vortexfinance.co`), the one-active-ramp-per-user lock, and the
+(own domain, `dashboard.vortexfinance.co`), the one-validated-active-ramp-per-user lock, and the
 widget KYB deep-link changes.
 
 ---

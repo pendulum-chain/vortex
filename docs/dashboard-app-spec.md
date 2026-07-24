@@ -172,15 +172,18 @@ provider-shaped rather than UI-shaped.
   still considers that ramp active; once expired, the dashboard hides the stale details and allows
   resetting for a new quote.
 
-- **Only one ramp may be active per user.** Registration takes a database row lock on the user and
-  rejects a second nonterminal ramp, including requests from another tab, client, or API instance.
-  Unstarted ramps stop blocking after the existing 15-minute start window — but only ramps still
-  in `initial` are released that way. A ramp wedged in a mid-flow phase (it may hold user funds)
-  blocks new registrations indefinitely; there is no self-service recovery, only operational
-  intervention that moves it to a terminal phase. The dashboard stores each ramp's EVM and
-  Substrate ephemeral secrets locally before registration (under a dashboard-namespaced
-  localStorage key, so the widget's own ephemeral-store pruning cannot evict them) and retains
-  earlier ramp entries independently of disposable transfer-machine state.
+- **Only one validated ramp may be active per user.** Registrations for distinct quotes are
+  provisional and may coexist while `presigned_txs` is null. The first non-empty `/ramp/update`
+  submission that passes presigned-transaction validation locks the user and reserves the active
+  slot; a concurrent update from another tab, client, or API instance receives `409`. A valid
+  partial presigned subset is sufficient to reserve the slot, while invalid data cannot. Unstarted
+  ramps stop blocking after the existing 15-minute start window — but only ramps still in
+  `initial` are released that way. A validated ramp wedged in a mid-flow phase (it may hold user
+  funds) blocks other ramps from accepting presigned updates indefinitely; there is no self-service
+  recovery, only operational intervention that moves it to a terminal phase. The dashboard stores
+  each ramp's EVM and Substrate ephemeral secrets locally before registration (under a
+  dashboard-namespaced localStorage key, so the widget's own ephemeral-store pruning cannot evict
+  them) and retains earlier ramp entries independently of disposable transfer-machine state.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is

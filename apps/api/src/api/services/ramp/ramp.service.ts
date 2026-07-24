@@ -225,7 +225,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      const user = await User.findByPk(effectiveUserId, { lock: Transaction.LOCK.UPDATE, transaction });
+      const user = await User.findByPk(effectiveUserId, { transaction });
       if (!user) {
         throw new APIError({
           message: "Authenticated user profile not found.",
@@ -245,21 +245,6 @@ export class RampService extends BaseRampService {
           }
         }
       );
-
-      const activeRamp = await RampState.findOne({
-        attributes: ["id"],
-        transaction,
-        where: {
-          currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] },
-          userId: effectiveUserId
-        }
-      });
-      if (activeRamp) {
-        throw new APIError({
-          message: `An active ramp already exists for this user: ${activeRamp.id}`,
-          status: httpStatus.CONFLICT
-        });
-      }
 
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
@@ -367,7 +352,7 @@ export class RampService extends BaseRampService {
     return this.withTransaction(async transaction => {
       const { rampId, presignedTxs, additionalData } = request;
 
-      const rampState = await RampState.findByPk(rampId, { transaction });
+      const rampState = await RampState.findByPk(rampId, { lock: Transaction.LOCK.UPDATE, transaction });
       if (!rampState) {
         throw new APIError({
           message: "Ramp not found",
@@ -404,6 +389,33 @@ export class RampService extends BaseRampService {
         // ephemeralPresignChecksPass against the full merged set, which gates payment-data
         // release in filterUnsignedTxsForResponse.
         await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs, { requireComplete: false });
+
+        if (rampState.userId) {
+          const user = await User.findByPk(rampState.userId, { lock: Transaction.LOCK.UPDATE, transaction });
+          if (!user) {
+            throw new APIError({
+              message: "Ramp owner profile not found.",
+              status: httpStatus.BAD_REQUEST
+            });
+          }
+
+          const activeRamp = await RampState.findOne({
+            attributes: ["id"],
+            transaction,
+            where: {
+              currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] },
+              id: { [Op.ne]: rampId },
+              presignedTxs: { [Op.not]: null },
+              userId: rampState.userId
+            }
+          });
+          if (activeRamp) {
+            throw new APIError({
+              message: `An active ramp already exists for this user: ${activeRamp.id}`,
+              status: httpStatus.CONFLICT
+            });
+          }
+        }
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
