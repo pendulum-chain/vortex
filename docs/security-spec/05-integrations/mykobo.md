@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Stellar, Pendulum, or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
+Mykobo is the EUR fiat anchor used by Vortex for EUR on/off-ramp operations on **Base (Ethereum L2)**. Mykobo settles SEPA bank transfers into / out of EURC (Circle's EUR stablecoin, ERC-20) on Base. There is no Pendulum or Moonbeam involvement for EUR liquidity: all EUR flow now happens on Base, mirroring the BRLA-on-Base architecture.
 
 EUR ramp registration is currently disabled at `RampService.registerRamp`: any quote whose input or output currency is `FiatToken.EURC` is rejected with `503 SERVICE_UNAVAILABLE` before Mykobo intents or phase transactions are prepared. The flow details below describe the intended Mykobo behavior for when the EUR rail is re-enabled.
 
@@ -10,7 +10,7 @@ Monerium now owns EU dashboard KYC/KYB and recipient onboarding eligibility; Myk
 
 Mykobo replaces two earlier EUR rails:
 
-- The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed for EUR. See `stellar-anchors.md` for the deprecation note.
+- The **Stellar SEP-24 EUR off-ramp** (Mykobo anchor reached via Spacewalk) — removed; Stellar/Spacewalk support was fully removed from the platform (migration 028).
 - The legacy **Monerium EUR on-ramp** (Monerium EURe minted on Moonbeam) — removed. The new Monerium OAuth onboarding flow is separate and does not restore that settlement path; see `monerium.md`.
 
 **Provider type:** Both (on-ramp and off-ramp)

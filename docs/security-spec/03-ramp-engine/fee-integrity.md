@@ -20,7 +20,7 @@ This means the fees shown to the user (from the database system) may differ from
 
 - **On-ramp:** Fees are deducted from the input amount BEFORE the swap. `inputAmountAfterFees = inputAmount - fees`.
 - **Off-ramp:** Fees are deducted from the swap output AFTER the swap. `outputAfterFees = swapOutput - fees`.
-- **Anchor fees** (Avenia/BRLA, Stellar) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
+- **Anchor fees** (Avenia/BRLA) are deducted by the external anchor during the anchor interaction phase — the system must account for this deduction.
 - **Platform fees** (vortex, network, partner markup) are distributed during the `distributeFees` phase, which dispatches to a Substrate (Pendulum) or EVM (Base, Multicall3) implementation based on the ephemeral chain in use.
 
 ### Distribution Mechanisms
@@ -44,7 +44,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 3. **Fee calculations MUST use safe decimal arithmetic** — The code uses `Big.js` for fee calculations, avoiding floating-point precision errors. All monetary calculations MUST use arbitrary-precision arithmetic, never native JavaScript `number`.
 4. **Negative output amounts MUST be blocked** — If fees exceed the input/output amount, the result must be clamped to zero, never negative. Both helper functions check `totalReceiveRaw.gt(0)` and return `'0'` otherwise.
 5. **Fee deduction MUST happen at the correct point in the flow** — On-ramp fees deducted before swap; off-ramp fees deducted after swap. Applying fees at the wrong point changes the effective rate.
-6. **Anchor fees MUST be accounted for in the quoted amount** — When BRLA or Stellar anchors deduct their fee, the system's quoted output must have already factored this in. The user should receive exactly the quoted net amount.
+6. **Anchor fees MUST be accounted for in the quoted amount** — When the BRLA anchor deducts its fee, the system's quoted output must have already factored this in. The user should receive exactly the quoted net amount.
 7. **Subsidization MUST NOT bypass fee collection** — When the platform subsidizes a shortfall (swap returned less than quoted), the subsidization covers the difference AFTER fees, not before. The platform should not subsidize to offset its own fees.
 8. **Fee distribution (`distributeFees` phase) MUST transfer exact calculated amounts** — The amounts sent to vortex, network, and partner fee accounts must match the fee breakdown calculated during quoting.
 9. **Partner markup distribution MUST use pricing attribution** — When `pricing_partner_id` is present, partner markup payout MUST use that partner row instead of relying only on the quote owner `partner_id`; `partner_id` is only the backward-compatible fallback.
@@ -78,7 +78,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 - [x] Rounding modes: on-ramp uses `round(6, 0)` (round half up to 6 decimals), off-ramp uses `round(2, 1)` (round half down to 2 decimals). **PASS** — verified rounding modes in both helper functions.
 - [x] `distributeFees` phase distributes exactly the amounts from the fee breakdown — no recalculation. **PASS** — fee distribution uses stored breakdown values.
 - [x] Partner markup payout uses the pricing partner when present. **PASS** — fee distribution resolves payout from `pricing_partner_id ?? partner_id`, preserving profile-assigned quote payouts while keeping older partner-owned quotes compatible.
-- [x] Anchor fee deduction by external services (BRLA, Stellar) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
+- [x] Anchor fee deduction by external services (BRLA) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
 - [ ] Mykobo anchor fee in the quote MUST match the tier Mykobo actually charges. The fee tier is selected by `MYKOBO_CLIENT_DOMAIN`; an unset env var silently degrades to Mykobo's default tier (~5x worse), causing `defaultDepositFee` / `defaultWithdrawFee` and on-chain settlement to diverge. See `07-operations/secret-management.md` (invariant 9) and `05-integrations/mykobo.md` (invariant 20).
 - [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not a generic failure. The optional env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED` → flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE`) is **display-only** and MUST NOT price a ramp execution; a fallback-priced quote MUST re-validate the live Mykobo fee before a rail runs (EUR registration is currently disabled). See `05-integrations/mykobo.md` (invariant 26).
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.

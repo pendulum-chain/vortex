@@ -17,7 +17,7 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `mykoboPayoutOnBase` → `complete`
 - The Squid bridge from the source EVM chain to Base is executed by the user's wallet (presigned `squidRouterApprove` + `squidRouterSwap` are submitted client-side). Skip-Squid case: source = Base USDC.
 - Note: `distributeFees` runs **before** `nablaSwap` on offramp because fees are denominated in USDC and must be deducted before swapping to EURC. Mirrors the BRL-on-Base off-ramp.
-- **Removed:** the previous Stellar-based EUR off-ramp (Pendulum → Spacewalk → Stellar anchor) is no longer active. See `stellar-anchors.md`.
+- **Removed:** the previous Stellar-based EUR off-ramp (Pendulum → Spacewalk → Stellar anchor) is no longer active — Stellar/Spacewalk support was fully removed (migration 028).
 
 **EUR On-ramp (Mykobo SEPA on Base):** SEPA payment → Mykobo settles EURC on the Base ephemeral → Nabla-on-Base swap (EURC→USDC) → optional Squid → user destination
 - Runtime backend phases: `initial` → `mykoboOnrampDeposit` (poll Base RPC, 24h outer / 5min inner) → `fundEphemeral` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `squidRouterSwap` → `destinationTransfer` → `complete`
@@ -51,7 +51,6 @@ There are 29+ phase handlers in `apps/api/src/api/services/phases/handlers/`. Th
 - **`fund-ephemeral-handler` direct-transfer skip excludes Alfredpay offramps:** The `nextPhaseSelector` in `fund-ephemeral-handler.ts` skips to `destinationTransfer` for any ramp with `isDirectTransfer === true` **except** `SELL && isAlfredpayToken(outputCurrency)`. This preserves the existing skip for all other corridors while ensuring Alfredpay offramps proceed through `finalSettlementSubsidy` → `alfredpayOfframpTransfer`.
 
 **Cross-chain delivery (post-swap):** After the Nabla swap, tokens are routed to their final destination:
-- ~~From Pendulum to Stellar (ARS-only since EUR was migrated to Mykobo): `spacewalkRedeem` → `stellarPayment`~~ — **REMOVED.** The Stellar/Spacewalk backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered in `register-handlers.ts`. See `stellar-anchors.md`.
 - From Pendulum to Moonbeam: `pendulumToMoonbeamXcm`
 - From Pendulum to AssetHub: `pendulumToAssethubXcm`
 - From Pendulum to Hydration: `pendulumToHydrationXcm` → `hydrationToAssethubXcm` (if needed)
@@ -155,7 +154,6 @@ graph TD
 ```
 
 > Notes:
-> - The ARS-via-Stellar off-ramp is **REMOVED.** Backend infrastructure was removed in commits `f89554d46` and `82761ba91`. `spacewalkRedeemHandler` and `stellarPaymentHandler` are no longer registered. See `stellar-anchors.md`.
 > - `BaseChainPostProcessHandler` sweeps **all four** Base tokens regardless of corridor (`base-chain-post-process-handler.ts:9`: `BASE_CLEANUP_PHASES = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"]`). Per-corridor route builders only presign the subset they need.
 > - `pendulumCleanup` and other chain-specific post-process handlers (`PolygonPostProcessHandler`, `HydrationPostProcessHandler`) execute after `complete` via the post-process subsystem, not as in-flow phases. See `ephemeral-accounts.md`.
 > - **Alfredpay offramp `finalSettlementSubsidy` is mandatory.** The direct-transfer short-circuit in `FinalSettlementSubsidyHandler` explicitly excludes Alfredpay SELL ramps, so the subsidy always runs regardless of `isDirectTransfer`.
@@ -169,8 +167,8 @@ graph TD
 | **Subsidization (EVM)** | `subsidize-pre-swap-handler` (EVM branch), `subsidize-post-swap-handler` (EVM branch) | EVM funding account (`EVM_FUNDING_PRIVATE_KEY`, resolved per-network via `getEvmFundingAccount(network)` — currently the same key on Moonbeam and **Base**) → EVM ephemeral |
 | **DEX Swap (Substrate)** | `nabla-approve-handler` (Substrate branch), `nabla-swap-handler` (Substrate branch), `hydration-swap-handler` | Ephemeral → DEX contract → ephemeral |
 | **DEX Swap (EVM)** | `nabla-approve-handler` (EVM branch), `nabla-swap-handler` (EVM branch) | Base ephemeral → Nabla-on-Base contract → Base ephemeral |
-| **Bridge / XCM** | `moonbeam-to-pendulum-handler`, `moonbeam-to-pendulum-xcm-handler`, `pendulum-to-moonbeam-xcm-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-to-assethub-xcm-phase-handler`, `spacewalk-redeem-handler` | Source chain ephemeral → destination chain ephemeral |
-| **Fiat provider** | `stellar-payment-handler`, `brla-payout-base-handler` (Base), `brla-onramp-mint-handler` (polls Base BRLA arrival), `mykobo-payout-handler` (Base EURC payout), `mykobo-onramp-deposit-handler` (polls Base EURC arrival), `alfredpay-offramp-transfer-handler`, `alfredpay-onramp-mint-handler` | Ephemeral ↔ provider |
+| **Bridge / XCM** | `moonbeam-to-pendulum-handler`, `moonbeam-to-pendulum-xcm-handler`, `pendulum-to-moonbeam-xcm-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-to-assethub-xcm-phase-handler` | Source chain ephemeral → destination chain ephemeral |
+| **Fiat provider** | `brla-payout-base-handler` (Base), `brla-onramp-mint-handler` (polls Base BRLA arrival), `mykobo-payout-handler` (Base EURC payout), `mykobo-onramp-deposit-handler` (polls Base EURC arrival), `alfredpay-offramp-transfer-handler`, `alfredpay-onramp-mint-handler` | Ephemeral ↔ provider |
 | **SquidRouter** | `squid-router-phase-handler`, `squid-router-pay-phase-handler`, `squidrouter-permit-execution-handler` (incl. no-permit fallback) | Ephemeral/executor → SquidRouter → destination |
 | **Fee distribution** | `distribute-fees-handler` (Substrate Pendulum + EVM Multicall3 on Base) | Ephemeral → platform fee collection address(es) |
 | **Lifecycle** | `initial-phase-handler`, `destination-transfer-handler` | Setup and final delivery |
@@ -196,7 +194,7 @@ graph TD
 |---|---|---|
 | **Phase skip / injection** | Attacker with DB access modifies `currentPhase` to skip subsidization or jump to `complete`. | Phase transitions are controlled by handler return values, not external input. DB access is a prerequisite (see `state-machine.md`, Threat: "Phase skip attack"). No DB-level constraints on valid transitions exist. |
 | **Subsidy drain** | A crafted ramp triggers multiple subsidization phases, each at the maximum allowed amount, draining the funding account. | Per-ramp subsidy caps (`MAX_FINAL_SETTLEMENT_SUBSIDY_USD`, balance pre-checks in pre/post-swap handlers). EVM pre/post-swap caps are env-configured quote-relative fractions, and EVM post-swap subsidy is split into discrepancy and discount components with independent caps. No aggregate cross-ramp cap exists — many concurrent ramps could still drain funds. |
-| **Double-execution on retry** | Phase processor retries after timeout. Handler re-executes a swap or transfer that already completed. Funds are consumed twice. | Nonce guards in Spacewalk and Hydration handlers detect prior execution. Other handlers rely on transaction nonce uniqueness at the chain level. Not all handlers have explicit re-execution guards. |
+| **Double-execution on retry** | Phase processor retries after timeout. Handler re-executes a swap or transfer that already completed. Funds are consumed twice. | Nonce guard in the Hydration handler detects prior execution. Other handlers rely on transaction nonce uniqueness at the chain level. Not all handlers have explicit re-execution guards. |
 | **Stale presigned transaction** | Client registers a ramp, waits for market movement, then starts the ramp with presigned transactions based on the old quote. | `RAMP_START_EXPIRATION_TIME_SECONDS` limits the window between registration and start. Quote expiry (10 minutes) limits how old the amounts can be. |
 | **Direct API ramp mutation during planned downtime** | A partner bypasses the UI maintenance state and calls register/update/start while operators expect Vortex services to be paused. | Ramp mutation routes run the backend maintenance guard and return `503` with `Retry-After`, `maintenance_start`, and `maintenance_end` before registration, presigned transaction updates, or phase processing begins. |
 | **Cross-chain race condition** | XCM transfer submitted but not finalized. Next phase on destination chain reads a zero balance. | Most XCM handlers use `waitForFinalization=true`. Exception: Hydration skips finalization (F-009, deferred). |
@@ -214,17 +212,16 @@ graph TD
 - [x] `final-settlement-subsidy` has `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` cap (after F-001 fix)
 - [x] `final-settlement-subsidy` validates SquidRouter swap output amount (after F-030 fix)
 - [x] `squidrouter-permit-execution-handler` validates `squidRouterPermitExecutionValue` cap (after F-027 fix)
-- [x] `spacewalk-redeem-handler` has nonce-based re-execution guard — skips to waiting path if nonce indicates prior execution
-- [x] Hydration XCM handler has nonce guard but only warns (F-028, fixed to skip like Spacewalk)
+- [x] Hydration XCM handler has nonce guard but only warns (F-028, fixed to skip)
 - [x] Moonbeam handler refreshes gas estimate per retry attempt (F-028, fixed)
 - [x] `post-swap-handler` has explicit default rejection for unrecognized routing combinations (F-031, fixed)
 - [x] `distributeFees` is a non-terminal phase — failure triggers retry, not silent skip
 - [x] `alfredpayOfframpTransfer`, `mykoboPayoutOnBase`, and `brlaPayoutOnBase` run `ensurePresignedTransferFunded` before the first broadcast of their presigned single-use transfer — sender recovered from the signature, token/amount decoded from calldata, balance polled with a 3-minute timeout, shortfall raised as a recoverable error. Decode failures warn and fall through (best-effort).
-- [EXISTING FINDING] **F-053**: Five phase handlers lack idempotency guards — `stellar-payment-handler`, `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-swap-handler`, `nabla-swap-handler` can double-execute on retry.
+- [EXISTING FINDING] **F-053**: Four phase handlers lack idempotency guards — `pendulum-to-assethub-phase-handler`, `pendulum-to-hydration-xcm-phase-handler`, `hydration-swap-handler`, `nabla-swap-handler` can double-execute on retry.
 - [EXISTING FINDING] **F-054**: Backup presigned transactions (`backupSquidRouterApprove`, `backupSquidRouterSwap`, `backupApprove`) have no registered phase handlers — dead code or missing implementation.
 - [ ] No aggregate cross-ramp subsidy rate limiting — many concurrent ramps could drain funding account
 - [x] Active BRL corridors are end-to-end on Base — no Moonbeam/Pendulum/XCM involvement. **PASS** — `register-handlers.ts` does not register any `brlaPayoutOnMoonbeam` phase; active BRL quotes are limited to the Base/EVM route builders (`evm-to-brl-base.ts` and `avenia-to-evm-base.ts`). BRL↔AssetHub is temporarily disabled at quote eligibility.
-- [x] Active EUR corridors are end-to-end on Base — no Pendulum/Spacewalk/Stellar involvement for EUR. **PASS** — `register-handlers.ts` registers `mykoboOnrampDeposit` and `mykoboPayoutOnBase`. EUR off-ramp uses `evm-to-mykobo.ts`; EUR on-ramp uses `mykobo-to-evm.ts`. Stellar-EUR off-ramp and Monerium-EUR on-ramp are removed. See `05-integrations/mykobo.md`.
+- [x] Active EUR corridors are end-to-end on Base — no Pendulum involvement for EUR. **PASS** — `register-handlers.ts` registers `mykoboOnrampDeposit` and `mykoboPayoutOnBase`. EUR off-ramp uses `evm-to-mykobo.ts`; EUR on-ramp uses `mykobo-to-evm.ts`. The Monerium-EUR on-ramp is removed. See `05-integrations/mykobo.md`.
 - [x] On the EUR/Base corridor, `distributeFees` is positioned **before** `nablaSwap` on offramp (USDC fees deducted pre-EUR-swap) and **after** `nablaSwap` on onramp (USDC fees deducted post-EUR→USDC swap). **PASS** — verified in `evm-to-mykobo.ts` and `mykobo-to-evm.ts`, mirroring the BRL/Base structure.
 - [x] On the BRL/Base corridor, `distributeFees` is positioned **before** `nablaSwap` on offramp (USDC fees deducted pre-BRL-swap) and **after** `nablaSwap` on onramp (USDC fees deducted post-BRL→USDC swap). **PASS** — verified in `evm-to-brl-base.ts` and `avenia-to-evm-base.ts`.
 - [x] EVM subsidy phases enforce USD-equivalent caps. **PASS** — `MAX_EVM_SWAP_SUBSIDY_QUOTE_FRACTION` defaults to `0.05` and clamps pre-swap subsidy plus the post-swap actual-vs-quoted swap-output discrepancy component. `MAX_EVM_POST_SWAP_DISCOUNT_SUBSIDY_QUOTE_FRACTION` defaults to `0.05` and separately clamps the post-swap discount-derived component. Both values are env-overridable. Over-cap cases are intentionally recoverable retries: no transfer is submitted, and the ramp waits for operator intervention instead of moving to `failed`.

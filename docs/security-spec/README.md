@@ -42,10 +42,8 @@ This directory contains the security specification for the Vortex cross-border p
 | Alfredpay | `05-integrations/alfredpay.md` | Alfredpay on/off-ramp |
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
-| Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
-| Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
 | Fund Routing | `06-cross-chain/fund-routing.md` | Subsidization, fee distribution, amount integrity |
 | Rebalancer | `07-operations/rebalancer.md` | Automated liquidity management — BRLA↔axlUSDC (legacy, Pendulum), cost/profit/opportunistic USDC→BRLA→USDC (Base), and cost/profit-aware BRLA→USDC correction (Base low-coverage) |
 | Secret Management | `07-operations/secret-management.md` | Env vars, rotation, blast radius |
@@ -68,9 +66,8 @@ Every spec file uses exactly four sections:
 |---|---|
 | **Ramp** | A conversion between fiat and crypto (on-ramp = fiat→crypto, off-ramp = crypto→fiat) |
 | **Ephemeral account** | A temporary blockchain account created per ramp, used for signing transactions, then discarded |
-| **Phase** | A discrete step in the ramp state machine (e.g., `nablaSwap`, `spacewalkRedeem`) |
+| **Phase** | A discrete step in the ramp state machine (e.g., `nablaSwap`, `distributeFees`) |
 | **Nabla** | DEX on Pendulum used for token swaps |
-| **Spacewalk** | Bridge between Pendulum and Stellar |
 | **XCM** | Cross-Consensus Messaging — the cross-chain transfer protocol between Polkadot parachains |
 | **BRLA** | Brazilian Real stablecoin anchor (BRL on/off-ramp) |
 | **Mykobo** | EUR fiat anchor for SEPA on/off-ramp on Base (settles EURC on Base; currently registration-gated) |

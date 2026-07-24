@@ -20,7 +20,7 @@ Describe:
 
 **Provider type:** {on-ramp | off-ramp | both}  
 **Fiat currencies:** {BRL, EUR, ARS, etc.}  
-**Chains involved:** {Moonbeam, Polygon, Stellar, etc.}  
+**Chains involved:** {Moonbeam, Polygon, Base, etc.}  
 **Phase handlers:** {list the phase handler files that interact with this provider}  
 **API auth method:** {API key, OAuth, HMAC signature, etc.}
 
