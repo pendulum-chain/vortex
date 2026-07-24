@@ -167,6 +167,19 @@ interface Config {
     clientId: string;
     redirectUri: string;
   };
+  // B2B whitelabel onramp integration (docs/prd/monerium-b2b-implementation-plan.md §3).
+  // Separate credential set from the legacy consumer OAuth integration above.
+  moneriumB2b: {
+    apiUrl: string;
+    attestorPrivateKey: string | undefined;
+    clientId: string;
+    clientSecret: string;
+    guardianPrivateKey: string | undefined;
+    keeperPrivateKey: string | undefined;
+    privateRpcUrl: string | undefined;
+    rpcUrl: string | undefined;
+    webhookSecret: string;
+  };
   subscanApiKey: string | undefined;
   vortexFeePenPercentage: number;
 
@@ -231,6 +244,23 @@ export const config: Config = {
       (process.env.SANDBOX_ENABLED === "true" ? "https://api.monerium.dev" : "https://api.monerium.app"),
     clientId: process.env.MONERIUM_CLIENT_ID || "",
     redirectUri: process.env.MONERIUM_REDIRECT_URI || "http://localhost:5174/monerium/callback"
+  },
+  moneriumB2b: {
+    // Sandbox by default: the B2B build is developed against api.monerium.dev until the
+    // MSA is signed (locked scope decision 2026-07-17).
+    apiUrl: process.env.MONERIUM_B2B_API_URL || "https://api.monerium.dev",
+    attestorPrivateKey: process.env.MONERIUM_B2B_ATTESTOR_PRIVATE_KEY,
+    clientId: process.env.MONERIUM_B2B_CLIENT_ID || "",
+    clientSecret: process.env.MONERIUM_B2B_CLIENT_SECRET || "",
+    // Dormancy-gate pause key (guardian on the factory/forwarders). Distinct from the
+    // keeper and attestor keys by design; unset = log-only mode for the dormancy gate.
+    guardianPrivateKey: process.env.MONERIUM_B2B_GUARDIAN_PRIVATE_KEY,
+    keeperPrivateKey: process.env.MONERIUM_B2B_KEEPER_PRIVATE_KEY,
+    // Private-orderflow submission endpoint (e.g. https://rpc.flashbots.net); when unset
+    // the keeper falls back to the public RPC and logs a warning (see chain.ts).
+    privateRpcUrl: process.env.MONERIUM_B2B_PRIVATE_RPC_URL,
+    rpcUrl: process.env.MONERIUM_B2B_RPC_URL,
+    webhookSecret: process.env.MONERIUM_B2B_WEBHOOK_SECRET || ""
   },
   mykobo: {
     feeFallback: readMykoboFeeFallback()

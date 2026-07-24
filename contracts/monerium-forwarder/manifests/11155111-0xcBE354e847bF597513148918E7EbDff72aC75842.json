@@ -1,0 +1,65 @@
+{
+  "chainId": 11155111,
+  "factory": {
+    "address": "0xcBE354e847bF597513148918E7EbDff72aC75842",
+    "immutables": {
+      "CAP_CEILING": "50000000000000000000000",
+      "implementation": "0x7e1c653CaAFCa44258d8680B09F42a33475504a9",
+      "MIN_SWAP_FLOOR": "1000000000000000000"
+    },
+    "operational": {
+      "globalPaused": false,
+      "guardian": "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1",
+      "minSwapAmount": "25000000000000000000",
+      "perSwapCap": "10000000000000000000000"
+    },
+    "runtimeBytecodeHash": "0x3a651b091d179f24618becebeba26698ac13e366899e08f5f03ba8cbac879e98"
+  },
+  "forwarders": [
+    {
+      "address": "0xD7444AB7270A142227Fe659D63873ABdc8AF9b72",
+      "clientMutable": {
+        "destination": "0x1111111111111111111111111111111111111111",
+        "fallbackAddress": "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1"
+      },
+      "deploy": {
+        "blockNumber": "11293035",
+        "salt": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "txHash": "0x90e67a4f9698c9d009687eaaedd2d8b89eebfa104a2edb4c7923fa7a033f2787"
+      },
+      "immutables": {
+        "feeBps": 0,
+        "isForwarder": true
+      },
+      "runtimeBytecodeHash": "0x215c88056e67f5925d5660d5eb02a45dca8e69b50db65bacb5ba9ed44d63f364"
+    }
+  ],
+  "generatedAt": "2026-07-17T17:11:57.612Z",
+  "implementation": {
+    "address": "0x7e1c653CaAFCa44258d8680B09F42a33475504a9",
+    "immutables": {
+      "ATTESTOR": "0x0d6455B4E46A4C9847f121Bd134B91B9666d6Df1",
+      "EURC": "0x539fA90D0a29eB2a513f6b88fEd30b529dF071ca",
+      "EURE": "0x67b34b93ac295c985e856E5B8A20D83026b580Eb",
+      "FACTORY": "0xcBE354e847bF597513148918E7EbDff72aC75842",
+      "FEE_RECIPIENT": "0x3333333333333333333333333333333333333333",
+      "LINK_HASH_191": "0xb77c35c892a1b24b10a2ce49b424e578472333ee8d2456234fff90626332c50f",
+      "LINK_MESSAGE": "I hereby declare that I am the address owner.",
+      "MAX_FEE_BPS": 100,
+      "MAX_ORACLE_AGE": "187200",
+      "ORACLE": "0x337dd479435aE2593c9B023B48617278c6AB34E3",
+      "ORACLE_DECIMALS": 8,
+      "POOL_FEE_EURC_USDC": 500,
+      "POOL_FEE_EURE_EURC": 500,
+      "RECOVERY_HASH": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "ROUTER": "0x2222222222222222222222222222222222222222",
+      "SLIPPAGE_BPS": 100,
+      "SWEEP_DELAY": "5184000",
+      "TRIGGER_DELAY": "86400",
+      "USDC": "0xEc262C76Ff70330BBa90e2c477B185d6665c4aA2"
+    },
+    "runtimeBytecodeHash": "0x0c362c605fc7a795c4cab02fca0751e27817caf84017296d8fa2325dde6f1d11"
+  },
+  "manifestVersion": 1,
+  "purpose": "Consistency evidence for a VortexForwarder deployment (Monerium B2B onramp). NOT a trust root (re-review R01): this file is produced by Vortex from the same chain state it attests to, so it proves only that the deployment has not silently changed since publication — not that it was honest. Verify contract behavior independently against the verified source on a block explorer."
+}

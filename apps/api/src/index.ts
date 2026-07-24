@@ -14,6 +14,7 @@ import registerPhaseHandlers from "./api/services/phases/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
+import MoneriumB2bWorker from "./api/workers/monerium-b2b.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
@@ -66,6 +67,7 @@ const initializeApp = async () => {
     new ApiClientEventsRetentionWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
+    new MoneriumB2bWorker().start();
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
