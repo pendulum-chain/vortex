@@ -70,6 +70,9 @@ router.post(
   rampController.updateRamp as unknown as RequestHandler
 );
 
+/** Cancel an owned ramp before phase processing starts. */
+router.post("/cancel", requirePartnerOrUserAuth(), rampController.cancelRamp as unknown as RequestHandler);
+
 /**
  * @api {post} v1/ramp/start Start ramping process
  * @apiDescription Start a new ramping process

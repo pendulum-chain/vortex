@@ -9,6 +9,7 @@ export type ApiClientOperation =
   | "ramp_register"
   | "ramp_update"
   | "ramp_start"
+  | "ramp_cancel"
   | "ramp_status"
   | "ramp_errors";
 

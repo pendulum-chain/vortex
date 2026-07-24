@@ -1,12 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { Check, Copy, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, Copy, TriangleAlert } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { resetTransferState, transferActor } from "@/machines/transferActor";
+import { RampService } from "@/services/api/ramp.service";
 
 function copy(value: string) {
   navigator.clipboard.writeText(value);
@@ -87,6 +88,8 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
   const starting = useSelector(transferActor, snapshot => snapshot.matches("Starting"));
   const startError = useSelector(transferActor, snapshot => snapshot.context.errorMessage);
   const [now, setNow] = useState(() => Date.now());
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const rows = instructionRows(ramp);
   const expiresAt = ramp.expiresAt ? new Date(ramp.expiresAt).getTime() : Number.NaN;
   const expired = Number.isFinite(expiresAt) && expiresAt <= now;
@@ -111,6 +114,20 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
     transferActor.send({ type: "PAYMENT_CONFIRMED" });
   }
 
+  async function cancelOnramp() {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await RampService.cancelRamp(ramp.id);
+      resetTransferState();
+      toast.success("Onramp cancelled");
+    } catch (error) {
+      setCancelError(error instanceof Error ? error.message : "Could not cancel the onramp.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   if (expired) {
     return (
       <div className="grid gap-5">
@@ -121,8 +138,9 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
             <p className="text-sm">Do not send money using these details. Get a new quote and fresh payment instructions.</p>
           </div>
         </div>
-        <Button onClick={resetTransferState} size="lg" type="button">
-          Get a new quote
+        {cancelError && <p className="text-destructive text-sm">{cancelError}</p>}
+        <Button disabled={cancelling} onClick={cancelOnramp} size="lg" type="button">
+          {cancelling ? "Cancelling…" : "Get a new quote"}
         </Button>
       </div>
     );
@@ -165,9 +183,15 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
         </div>
       )}
 
-      <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
+      {cancelError && <p className="text-destructive text-sm">{cancelError}</p>}
+
+      <Button disabled={starting || cancelling} onClick={confirmPayment} size="lg" type="button">
         <Check /> {starting ? "Starting transfer…" : startError ? "Try again" : "I have made the payment"}
       </Button>
+      <Button disabled={starting || cancelling} onClick={cancelOnramp} type="button" variant="ghost">
+        <ArrowLeft /> {cancelling ? "Cancelling…" : "Cancel and go back"}
+      </Button>
+      <p className="text-center text-muted-foreground text-xs">Only cancel if you have not sent the payment.</p>
     </div>
   );
 }

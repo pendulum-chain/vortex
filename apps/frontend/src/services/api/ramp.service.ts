@@ -19,6 +19,10 @@ import { apiRequest } from "./api-client";
 export class RampService {
   private static readonly BASE_PATH = "/ramp";
 
+  static async cancelRamp(rampId: string): Promise<void> {
+    return apiRequest<void>("post", `${this.BASE_PATH}/cancel`, { rampId });
+  }
+
   /**
    * Register a new ramping process
    * @param quoteId The quote ID

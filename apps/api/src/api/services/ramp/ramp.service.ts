@@ -488,6 +488,30 @@ export class RampService extends BaseRampService {
     });
   }
 
+  public async cancelRamp(id: string): Promise<RampState> {
+    return this.withTransaction(async transaction => {
+      const rampState = await RampState.findByPk(id, { lock: Transaction.LOCK.UPDATE, transaction });
+      if (!rampState) {
+        throw new APIError({ message: "Ramp not found", status: httpStatus.NOT_FOUND });
+      }
+
+      RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
+      if (rampState.currentPhase === "timedOut") {
+        return rampState;
+      }
+      if (rampState.currentPhase !== "initial") {
+        throw new APIError({
+          message: "Only an initial ramp can be cancelled",
+          status: httpStatus.CONFLICT
+        });
+      }
+
+      await this.markRampTimedOut(rampState, transaction);
+      return rampState;
+    });
+  }
+
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
@@ -1398,18 +1422,14 @@ export class RampService extends BaseRampService {
     return TransactionStatus.PENDING;
   }
 
-  private async cancelRamp(id: string): Promise<void> {
-    const rampState = await RampState.findByPk(id);
-
-    if (!rampState) {
-      throw new Error("Ramp not found.");
-    }
-
-    RampService.assertOwnedByThisFlow(rampState, "Ramp");
-
-    await this.updateRampState(id, {
-      currentPhase: "timedOut"
-    });
+  private async markRampTimedOut(rampState: RampState, transaction: Transaction): Promise<void> {
+    await rampState.update(
+      {
+        currentPhase: "timedOut",
+        phaseHistory: [...rampState.phaseHistory, { phase: "timedOut", timestamp: new Date() }]
+      },
+      { transaction }
+    );
   }
 
   private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {
