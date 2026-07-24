@@ -47,13 +47,14 @@ interface OnrampPrefill {
 
 export function OnrampForm({ account, prefill }: { account: SenderAccount; prefill?: OnrampPrefill }) {
   const { address } = useAccount();
-  const { approved } = useApprovedCorridors();
+  const { approved, isLoading: isLoadingApprovals } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getRampTokenOptions();
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
   const networkOptions = getNetworkOptions(tokenOptions);
-  // Prefilled values are trusted as-is: the token list and onboarding status may still be
-  // loading on first render, when the option lists they'd be validated against are empty.
+  // Prefilled values are trusted only while the token list and onboarding status are still
+  // loading, when the option lists they'd be validated against are empty; the reconciliation
+  // effects below snap them to a valid option once those lists resolve.
   const form = useForm<OnrampFormValues>({
     defaultValues: {
       amount: prefill?.amount ?? "",
@@ -79,10 +80,13 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   }, [address, form]);
 
   useEffect(() => {
-    if (!form.getValues("corridorId") && corridors[0]) {
+    if (isLoadingApprovals) {
+      return;
+    }
+    if (!corridors.includes(form.getValues("corridorId") as CorridorId) && corridors[0]) {
       form.setValue("corridorId", corridors[0]);
     }
-  }, [corridors, form]);
+  }, [corridors, form, isLoadingApprovals]);
 
   useEffect(() => {
     if (!networkTokens.some(option => option.currency === outputCurrency)) {
