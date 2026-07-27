@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock } from "bun:test";
 import httpStatus from "http-status";
 import type { Transaction } from "sequelize";
+import sequelize from "../../../config/database";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import User from "../../../models/user.model";
@@ -42,15 +43,20 @@ async function expectRegisterError(userId: string | undefined, expectedStatus: n
 describe("RampService.registerRamp user gating", () => {
   const originalFindByPk = QuoteTicket.findByPk;
   const originalUserFindByPk = User.findByPk;
+  const originalQuery = sequelize.query;
+  const queryMock = mock(async () => []);
 
   User.findByPk = mock(async () => ({ id: "user-a" })) as unknown as typeof User.findByPk;
+  sequelize.query = queryMock as unknown as typeof sequelize.query;
 
   afterEach(() => {
     QuoteTicket.findByPk = originalFindByPk;
+    queryMock.mockClear();
   });
 
   afterAll(() => {
     User.findByPk = originalUserFindByPk;
+    sequelize.query = originalQuery;
   });
 
   it("lets an authenticated caller claim an anonymous quote (passes the user-gating guards)", async () => {
