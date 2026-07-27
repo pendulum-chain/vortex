@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { QuoteError, RampDirection } from "@vortexfi/shared";
+import { QuoteError } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
@@ -18,7 +18,6 @@ import { transferActor } from "@/machines/transferActor";
 import { useOfframpQuote } from "@/services/api/hooks";
 import { FundingMethods, type FundingSubmit } from "./FundingMethods";
 import { QuoteSummary } from "./QuoteSummary";
-import { RefreshedQuoteReview } from "./RefreshedQuoteReview";
 
 interface TransferFormProps {
   account: SenderAccount;
@@ -79,7 +78,6 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     transferActor,
     snapshot =>
       snapshot.matches("CheckingQuote") ||
-      snapshot.matches("ReviewingQuote") ||
       snapshot.matches("Registering") ||
       snapshot.matches("SigningUserTxs") ||
       snapshot.matches("Starting")
@@ -139,20 +137,6 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
       quoteRequest: { kind: "offramp-payout", params: quoteParams },
       type: "START"
     });
-  }
-
-  const transferState = useSelector(transferActor, snapshot => snapshot);
-  if (
-    transferState.matches("ReviewingQuote") &&
-    transferState.context.meta?.accountId === account.id &&
-    transferState.context.quote?.rampType === RampDirection.SELL
-  ) {
-    return (
-      <RefreshedQuoteReview
-        onConfirm={() => transferActor.send({ type: "CONFIRM_REFRESHED_QUOTE" })}
-        quote={transferState.context.quote}
-      />
-    );
   }
 
   return (

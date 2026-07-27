@@ -163,8 +163,8 @@ provider-shaped rather than UI-shaped.
   runs quote freshness check → register → presign ephemeral → `AwaitingPayment` → explicit payment
   confirmation → start → poll. The dashboard schedules form quote refreshes from `createdAt` and
   `expiresAt` when 60% of validity remains. The machine repeats that check before registration; if
-  it obtains a replacement, the user must review it and confirmation rechecks freshness before any
-  ephemeral keys or ramp are created. BUY never invokes AppKit signing. Signing helpers come from
+  it obtains a replacement, registration continues with that fresh quote before any ephemeral keys
+  or ramp are created. BUY never invokes AppKit signing. Signing helpers come from
   `@vortexfi/shared`. `RampService` is loaded via a dynamic
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not

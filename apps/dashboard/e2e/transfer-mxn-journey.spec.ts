@@ -109,7 +109,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
-test("SELL refreshes a near-expiry quote and registers only after confirmation", async ({ page }) => {
+test("SELL refreshes a near-expiry quote before registration", async ({ page }) => {
   const backend = await mockBackend(page, {
     quoteOverrides: requestIndex => {
       if (requestIndex === 0) {
@@ -134,18 +134,12 @@ test("SELL refreshes a near-expiry quote and registers only after confirmation",
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await sendButton.click();
 
-  await expect(page.getByText("Your quote was refreshed", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText("1001.00 MXN", { exact: true })).toBeVisible();
+  await expect.poll(() => backend.registerRequests.length, { timeout: 20_000 }).toBe(1);
   expect(backend.quoteRequests).toHaveLength(2);
   expect(backend.quoteRequests).toEqual([
     expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" }),
     expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" })
   ]);
-  expect(backend.registerRequests).toHaveLength(0);
-
-  await page.getByRole("button", { exact: true, name: "Accept refreshed quote" }).click();
-
-  await expect.poll(() => backend.registerRequests.length, { timeout: 20_000 }).toBe(1);
   expect(backend.registerRequests[0]).toMatchObject({ quoteId: "quote-sell-refreshed" });
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

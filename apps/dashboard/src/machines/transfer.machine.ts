@@ -43,7 +43,6 @@ export type TransferEvent =
       additionalData: RegisterTransferInput["additionalData"];
       meta: TransferMeta;
     }
-  | { type: "CONFIRM_REFRESHED_QUOTE" }
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
   | { type: "PAYMENT_CONFIRMED" }
@@ -142,23 +141,13 @@ export const transferMachine = setup({
           }
           return { quote: context.quote, request: context.quoteRequest };
         },
-        onDone: [
-          {
-            actions: assign(({ context, event }) => ({
-              meta: metaForQuote(context.meta, event.output.quote),
-              quote: event.output.quote
-            })),
-            guard: ({ event }) => event.output.refreshed,
-            target: "ReviewingQuote"
-          },
-          {
-            actions: assign(({ context, event }) => ({
-              meta: metaForQuote(context.meta, event.output.quote),
-              quote: event.output.quote
-            })),
-            target: "Registering"
-          }
-        ],
+        onDone: {
+          actions: assign(({ context, event }) => ({
+            meta: metaForQuote(context.meta, event.output.quote),
+            quote: event.output.quote
+          })),
+          target: "Registering"
+        },
         onError: {
           actions: [
             assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
@@ -240,11 +229,6 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "registerTransfer"
-      }
-    },
-    ReviewingQuote: {
-      on: {
-        CONFIRM_REFRESHED_QUOTE: { target: "CheckingQuote" }
       }
     },
     SigningUserTxs: {

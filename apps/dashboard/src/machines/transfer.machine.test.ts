@@ -35,7 +35,7 @@ describe("transferMachine BUY flow", () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
       actors: {
-        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote, refreshed: false })),
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
         startRamp: fromPromise(async () => {
           startCalls += 1;
@@ -80,7 +80,7 @@ describe("transferMachine BUY flow", () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
       actors: {
-        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote, refreshed: false })),
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
         startRamp: fromPromise(async () => {
           startCalls += 1;
@@ -132,7 +132,7 @@ describe("transferMachine BUY flow", () => {
   it("returns to idle and clears an expired ramp while awaiting payment", async () => {
     const machine = transferMachine.provide({
       actors: {
-        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote, refreshed: false })),
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] }))
       }
     });
@@ -173,7 +173,7 @@ describe("transferMachine BUY flow", () => {
     actor.stop();
   });
 
-  it("requires confirmation of a refreshed quote before registration", async () => {
+  it("registers with a refreshed quote", async () => {
     const refreshedQuote = {
       ...quote,
       id: "quote-refreshed",
@@ -182,16 +182,10 @@ describe("transferMachine BUY flow", () => {
       outputAmount: "5.1",
       outputCurrency: "USDC"
     } as QuoteResponse;
-    let refreshCalls = 0;
     let registeredQuoteId: string | undefined;
     const machine = transferMachine.provide({
       actors: {
-        refreshTransferQuote: fromPromise(async ({ input }) => {
-          refreshCalls += 1;
-          return refreshCalls === 1
-            ? { quote: refreshedQuote, refreshed: true }
-            : { quote: input.quote, refreshed: false };
-        }),
+        refreshTransferQuote: fromPromise(async () => ({ quote: refreshedQuote })),
         registerTransfer: fromPromise(async ({ input }) => {
           registeredQuoteId = input.quote.id;
           return { ramp, userTxs: [] as UnsignedTx[] };
@@ -220,15 +214,10 @@ describe("transferMachine BUY flow", () => {
       type: "START"
     });
 
-    await waitFor(actor, snapshot => snapshot.matches("ReviewingQuote"));
-    assert.equal(registeredQuoteId, undefined);
+    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+    assert.equal(registeredQuoteId, "quote-refreshed");
     assert.equal(actor.getSnapshot().context.quote?.id, "quote-refreshed");
     assert.equal(actor.getSnapshot().context.meta?.summary, "5.1 USDC to your wallet");
-
-    actor.send({ type: "CONFIRM_REFRESHED_QUOTE" });
-    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
-    assert.equal(refreshCalls, 2);
-    assert.equal(registeredQuoteId, "quote-refreshed");
     actor.stop();
   });
 });

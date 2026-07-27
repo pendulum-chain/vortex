@@ -20,7 +20,6 @@ import { transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
 import { OnrampPaymentInstructions } from "./OnrampPaymentInstructions";
 import { QuoteSummary } from "./QuoteSummary";
-import { RefreshedQuoteReview } from "./RefreshedQuoteReview";
 import { TokenCombobox } from "./TokenCombobox";
 
 const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/;
@@ -112,7 +111,6 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   const belongsToActiveAccount = transferState.context.meta?.accountId === account.id;
   const activeTransfer =
     transferState.matches("CheckingQuote") ||
-    transferState.matches("ReviewingQuote") ||
     transferState.matches("Registering") ||
     transferState.matches("SigningUserTxs") ||
     transferState.matches("AwaitingPayment") ||
@@ -132,19 +130,6 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
           <p className="text-muted-foreground">Switch back to that account to resume it before starting a new onramp.</p>
         </div>
       </div>
-    );
-  }
-
-  if (
-    transferState.matches("ReviewingQuote") &&
-    belongsToActiveAccount &&
-    transferState.context.quote?.rampType === RampDirection.BUY
-  ) {
-    return (
-      <RefreshedQuoteReview
-        onConfirm={() => transferActor.send({ type: "CONFIRM_REFRESHED_QUOTE" })}
-        quote={transferState.context.quote}
-      />
     );
   }
 

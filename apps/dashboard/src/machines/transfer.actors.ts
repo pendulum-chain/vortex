@@ -36,19 +36,18 @@ export interface RefreshTransferQuoteInput {
 
 export interface RefreshTransferQuoteOutput {
   quote: QuoteResponse;
-  refreshed: boolean;
 }
 
 export async function refreshTransferQuote(input: RefreshTransferQuoteInput): Promise<RefreshTransferQuoteOutput> {
   if (!shouldRefreshQuote(input.quote)) {
-    return { quote: input.quote, refreshed: false };
+    return { quote: input.quote };
   }
 
   const quote =
     input.request.kind === "offramp-payout"
       ? await fetchOfframpQuote(input.request.params)
       : await fetchQuote(input.request.params);
-  return { quote, refreshed: true };
+  return { quote };
 }
 
 export interface RegisterTransferInput {
