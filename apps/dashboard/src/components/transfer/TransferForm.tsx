@@ -78,6 +78,12 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     transferActor,
     snapshot => snapshot.matches("Registering") || snapshot.matches("SigningUserTxs") || snapshot.matches("Starting")
   );
+  // The API permits parallel ramps, but this dashboard intentionally owns one local
+  // transfer actor. Only states whose machine handles START may begin another transfer.
+  const canStartTransfer = useSelector(
+    transferActor,
+    snapshot => snapshot.matches("Idle") || snapshot.matches("Done") || snapshot.matches("Failed")
+  );
   const signing = useSelector(transferActor, snapshot => snapshot.matches("SigningUserTxs"));
 
   const quoteParams =
@@ -85,7 +91,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
   function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isSendable || !quote || submitting || !pixReady) {
+    if (!selected || !isSendable || !quote || !canStartTransfer || !pixReady) {
       return;
     }
     const label = recipientLabel(selected);
@@ -214,7 +220,12 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             </Select>
           </div>
 
-          {error ? (
+          {!canStartTransfer && !submitting ? (
+            <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <Lock className="mt-px size-4 shrink-0 text-primary" />
+              <p>This dashboard handles one transfer at a time. Finish or resume it before starting another.</p>
+            </div>
+          ) : error ? (
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
               <TriangleAlert className="mt-px size-4 shrink-0 text-destructive" />
               <p className="text-destructive">{friendlyQuoteError(error.message)}</p>
@@ -230,7 +241,13 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
           ) : quote ? (
             <>
               <QuoteSummary isFetching={isFetching} quote={quote} />
-              <FundingMethods network={network} onSubmit={submitTransfer} quote={quote} submitting={submitting} />
+              <FundingMethods
+                disabled={!canStartTransfer}
+                network={network}
+                onSubmit={submitTransfer}
+                quote={quote}
+                submitting={submitting}
+              />
               {signing && (
                 <p className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-sm">
                   Confirm the signature request in your wallet to authorize the transfer…

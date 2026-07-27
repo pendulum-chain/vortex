@@ -152,21 +152,7 @@ UNION ALL
 --     revoked under the new validators; confirm nothing you rely on is in here.
 SELECT '2g. INFO api_keys orphaned (partner_name set, partner_id NULL, active)', count(*)
 FROM api_keys
-WHERE partner_name IS NOT NULL AND partner_id IS NULL AND is_active
-
-UNION ALL
-
--- 2h. Users currently blocked by the one-active-ramp lock (non-terminal ramp). Stale test
---     ramps in mid-flow phases lock their user out until moved to a terminal phase.
-SELECT '2h. INFO users with a non-terminal ramp (ramp-locked)', count(DISTINCT user_id)
-FROM ramp_states
-WHERE current_phase NOT IN ('complete', 'failed', 'timedOut') AND user_id IS NOT NULL
-
-UNION ALL
-
-SELECT '2i. INFO ... of which wedged past initial (need manual terminal-ization)', count(DISTINCT user_id)
-FROM ramp_states
-WHERE current_phase NOT IN ('complete', 'failed', 'timedOut', 'initial') AND user_id IS NOT NULL;
+WHERE partner_name IS NOT NULL AND partner_id IS NULL AND is_active;
 
 -- ---------------------------------------------------------------------------
 -- Section 3: STATUS DRIFT -- same account, different status between legacy and new.

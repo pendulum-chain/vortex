@@ -14,6 +14,7 @@ export interface FundingSubmit {
 }
 
 interface FundingMethodsProps {
+  disabled: boolean;
   quote: QuoteResponse;
   network: string;
   submitting: boolean;
@@ -24,7 +25,7 @@ interface FundingMethodsProps {
  * The ramp is signed by the connected wallet, which is the only funding path — self-custodial
  * crypto deposits are not supported.
  */
-export function FundingMethods({ quote, submitting, onSubmit }: FundingMethodsProps) {
+export function FundingMethods({ disabled, quote, submitting, onSubmit }: FundingMethodsProps) {
   const { address } = useAccount();
   const { isConnected } = useAppKitAccount();
   const { open } = useAppKit();
@@ -52,7 +53,7 @@ export function FundingMethods({ quote, submitting, onSubmit }: FundingMethodsPr
           <code className="ml-auto font-mono text-xs">{shortenAddress(address)}</code>
         </div>
         <Button
-          disabled={submitting}
+          disabled={disabled}
           onClick={() => onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" })}
           type="button"
         >
