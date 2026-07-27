@@ -1,10 +1,10 @@
-import * as Sentry from "@sentry/react";
-import { ASSETHUB_CHAIN_ID, isNetworkEVM, Networks } from "@vortexfi/shared";
+import { ASSETHUB_CHAIN_ID, getNetworkId, isNetworkEVM, Networks } from "@vortexfi/shared";
 import { useCallback, useEffect, useMemo } from "react";
-import { useAccount, useSignMessage } from "wagmi";
+import { useAccount } from "wagmi";
 import { useNetwork } from "../contexts/network";
 import { usePolkadotWalletState } from "../contexts/polkadotWallet";
 import { useRampActor } from "../contexts/rampState";
+import { useWidgetWallet } from "../wallets/WidgetWalletContext";
 
 // A helper hook to provide an abstraction over the account used.
 // The account could be an EVM account or a Polkadot account.
@@ -14,8 +14,9 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
 
   const rampActor = useRampActor();
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
-  const { chainId: evmChainId, address: evmAccountAddress } = useAccount();
-  const { signMessageAsync } = useSignMessage();
+  const { chainId: externalChainId } = useAccount();
+  const evmWallet = useWidgetWallet();
+  const evmAccountAddress = evmWallet.address;
 
   const address = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
@@ -24,17 +25,6 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
       return evmAccountAddress;
     }
   }, [evmAccountAddress, polkadotWalletAccount, selectedNetwork]);
-
-  useEffect(() => {
-    const user = Sentry.getCurrentScope().getUser();
-    // Set the wallet address in Sentry user context
-    if (address) {
-      Sentry.setUser({
-        ...user,
-        wallet: address
-      });
-    }
-  }, [address]);
 
   const isDisconnected = useMemo(() => {
     if (isNetworkEVM(selectedNetwork)) {
@@ -52,9 +42,9 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
     if (!isNetworkEVM(selectedNetwork)) {
       return ASSETHUB_CHAIN_ID;
     } else {
-      return evmChainId;
+      return evmWallet.mode === "privy_embedded" ? getNetworkId(selectedNetwork) : externalChainId;
     }
-  }, [selectedNetwork, evmChainId]);
+  }, [selectedNetwork, evmWallet.mode, externalChainId]);
 
   const type = useMemo(() => {
     if (!isNetworkEVM(selectedNetwork)) {
@@ -67,7 +57,7 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
   const getMessageSignature = useCallback(
     async (siweMessage: string) => {
       // For now, we only always need to sign with EVM accounts
-      const signature = await signMessageAsync({ message: siweMessage });
+      const signature = await evmWallet.signMessage(siweMessage);
 
       // if (isNetworkEVM(selectedNetwork)) {
       //   signature = await signMessageAsync({ message: siweMessage });
@@ -89,16 +79,18 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
 
       return signature;
     },
-    [signMessageAsync]
+    [evmWallet]
   );
 
   // update the ramp actor with the current context
   useEffect(() => {
-    if (rampActor && address) {
-      rampActor.send({
-        address,
-        type: "SET_ADDRESS"
-      });
+    rampActor?.send({
+      address,
+      type: "SET_ADDRESS"
+    });
+
+    if (isNetworkEVM(selectedNetwork)) {
+      evmWallet.activateSigner();
     }
 
     if (rampActor && !isNetworkEVM(selectedNetwork) && polkadotWalletAccount) {
@@ -112,7 +104,7 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
       getMessageSignature,
       type: "SET_GET_MESSAGE_SIGNATURE"
     });
-  }, [address, rampActor, getMessageSignature, polkadotWalletAccount, selectedNetwork]);
+  }, [address, rampActor, getMessageSignature, polkadotWalletAccount, selectedNetwork, evmWallet]);
 
   return {
     address, // currently selected address

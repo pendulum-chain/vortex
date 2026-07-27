@@ -1,9 +1,9 @@
-import { useAppKitAccount } from "@reown/appkit/react";
 import { isNetworkEVM } from "@vortexfi/shared";
 import { FC } from "react";
 import { useNetwork } from "../../../contexts/network";
 import { usePolkadotWalletState } from "../../../contexts/polkadotWallet";
 import { useMaintenanceAwareButton } from "../../../hooks/useMaintenanceAware";
+import { useVortexAccount } from "../../../hooks/useVortexAccount";
 import { Spinner } from "../../Spinner";
 import { ConnectWalletButton } from "../ConnectWalletButton";
 
@@ -17,7 +17,7 @@ export const SwapSubmitButton: FC<SwapSubmitButtonProps> = ({ text, disabled, pe
   const { buttonProps, isMaintenanceDisabled } = useMaintenanceAwareButton(disabled || pending);
 
   const { walletAccount } = usePolkadotWalletState();
-  const { isConnected } = useAppKitAccount();
+  const { isConnected } = useVortexAccount();
   const { selectedNetwork } = useNetwork();
 
   if (!isNetworkEVM(selectedNetwork) && !walletAccount) {

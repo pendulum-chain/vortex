@@ -99,7 +99,7 @@ const WidgetContent = () => {
     isInitialQuoteFailed: state.matches("InitialFetchFailed"),
     isKybComplete: state.matches("KybLinkComplete"),
     isKybLinkMode: !!state.context.kybLink,
-    isLoadingAuthEmail: state.matches("CheckAuth") || state.matches("RedeemingInvite"),
+    isLoadingAuthEmail: state.matches("CheckAuth") || state.matches("RedeemingInvite") || state.matches("EmbeddedWallet"),
     isRedirectCallback: state.matches("RedirectCallback"),
     isSelectRegion: state.matches("SelectRegion"),
     kybCustomerType: state.context.kybLink?.customerType,

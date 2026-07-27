@@ -88,7 +88,8 @@ const DOMAIN_BY_SEGMENT: Record<string, SentryDomain> = {
   ramp: SentryDomain.Ramp,
   recipients: SentryDomain.Ramp,
   siwe: SentryDomain.Auth,
-  subsidize: SentryDomain.Ramp
+  subsidize: SentryDomain.Ramp,
+  wallets: SentryDomain.Wallet
 };
 
 // Map an endpoint path to a business domain for Sentry tagging. Unmapped endpoints fall
@@ -186,6 +187,7 @@ export const apiClient = {
   delete: <T>(url: string, config?: { params?: Params }) => apiFetch<T>("DELETE", url, { params: config?.params }),
   get: <T>(url: string, config?: { params?: Params; signal?: AbortSignal }) =>
     apiFetch<T>("GET", url, { params: config?.params, signal: config?.signal }),
+  patch: <T>(url: string, data?: unknown) => apiFetch<T>("PATCH", url, { data }),
   post: <T>(url: string, data?: unknown, config?: { headers?: Record<string, string>; params?: Params }) =>
     apiFetch<T>("POST", url, { data, headers: config?.headers, params: config?.params }),
   put: <T>(url: string, data?: unknown) => apiFetch<T>("PUT", url, { data })

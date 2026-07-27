@@ -1,6 +1,5 @@
 import { OnChainTokenDetails } from "@vortexfi/shared";
 import Big from "big.js";
-import { useAccount } from "wagmi";
 
 import wallet from "../../assets/wallet-bifold-outline.svg";
 import { usePolkadotWalletState } from "../../contexts/polkadotWallet";
@@ -67,8 +66,7 @@ const FullBalance = ({ token, onClick }: { token: OnChainTokenDetails; onClick: 
 };
 
 export const UserBalance = ({ token, onClick, className }: UserBalanceProps) => {
-  const { isDisconnected } = useVortexAccount();
-  const { address: evmAddress } = useAccount();
+  const { evmAddress, isDisconnected } = useVortexAccount();
   const { walletAccount: polkadotWalletAccount } = usePolkadotWalletState();
   const hasNoWallets = !evmAddress && !polkadotWalletAccount;
 

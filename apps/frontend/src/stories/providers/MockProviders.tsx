@@ -8,6 +8,7 @@ import { PolkadotNodeProvider } from "../../contexts/polkadotNode";
 import { PolkadotWalletStateProvider } from "../../contexts/polkadotWallet";
 import { PersistentRampStateProvider } from "../../contexts/rampState";
 import { wagmiConfig } from "../../wagmiConfig";
+import { WidgetWalletProvider } from "../../wallets/WidgetWalletProvider";
 
 // RouterProvider renders the route tree and doesn't accept children directly.
 // We pass inner content through a module-level context so the root route component can render it.
@@ -54,13 +55,15 @@ export const MockProviders = ({ children }: PropsWithChildren) => {
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
         <PersistentRampStateProvider>
-          <NetworkProvider>
-            <PolkadotNodeProvider>
-              <PolkadotWalletStateProvider>
-                <EventsProvider>{children}</EventsProvider>
-              </PolkadotWalletStateProvider>
-            </PolkadotNodeProvider>
-          </NetworkProvider>
+          <WidgetWalletProvider>
+            <NetworkProvider>
+              <PolkadotNodeProvider>
+                <PolkadotWalletStateProvider>
+                  <EventsProvider>{children}</EventsProvider>
+                </PolkadotWalletStateProvider>
+              </PolkadotNodeProvider>
+            </NetworkProvider>
+          </WidgetWalletProvider>
         </PersistentRampStateProvider>
       </WagmiProvider>
     </QueryClientProvider>

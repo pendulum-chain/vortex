@@ -20,6 +20,7 @@ import { SENTRY_DENY_URLS, SENTRY_IGNORE_ERRORS, sentryBeforeSend } from "./help
 import { AuthService } from "./services/auth";
 import { initializeEvmTokens } from "./services/tokens";
 import { wagmiConfig } from "./wagmiConfig";
+import { WidgetWalletProvider } from "./wallets/WidgetWalletProvider";
 import "./helpers/googleTranslate";
 import { PersistentRampStateProvider } from "./contexts/rampState";
 import { routeTree } from "./routeTree.gen";
@@ -107,11 +108,13 @@ createRoot(root, {
     <ReactQueryDevtools initialIsOpen={false} />
     <WagmiProvider config={wagmiConfig}>
       <PersistentRampStateProvider>
-        <PolkadotNodeProvider>
-          <PolkadotWalletStateProvider>
-            <RouterProvider router={router} />
-          </PolkadotWalletStateProvider>
-        </PolkadotNodeProvider>
+        <WidgetWalletProvider>
+          <PolkadotNodeProvider>
+            <PolkadotWalletStateProvider>
+              <RouterProvider router={router} />
+            </PolkadotWalletStateProvider>
+          </PolkadotNodeProvider>
+        </WidgetWalletProvider>
       </PersistentRampStateProvider>
     </WagmiProvider>
   </QueryClientProvider>
