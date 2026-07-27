@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { Check, Copy, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, Copy, TriangleAlert } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -111,6 +111,12 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
     transferActor.send({ type: "PAYMENT_CONFIRMED" });
   }
 
+  function leavePaymentSetup() {
+    // Keep AwaitingPayment persisted so the customer can return to the same
+    // instructions while the backend continues to accept a delayed payment.
+    navigate({ to: "/transactions" });
+  }
+
   if (expired) {
     return (
       <div className="grid gap-5">
@@ -168,6 +174,10 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
       <Button disabled={starting} onClick={confirmPayment} size="lg" type="button">
         <Check /> {starting ? "Starting transfer…" : startError ? "Try again" : "I have made the payment"}
       </Button>
+      <Button disabled={starting} onClick={leavePaymentSetup} type="button" variant="ghost">
+        <ArrowLeft /> Back to transactions
+      </Button>
+      <p className="text-center text-muted-foreground text-xs">Your payment instructions remain available until they expire.</p>
     </div>
   );
 }

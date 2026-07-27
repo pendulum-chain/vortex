@@ -13,12 +13,64 @@ import { mapRampHistoryTransaction, mapTransactionStatus } from "./transaction.m
 
 describe("mapTransactionStatus", () => {
   it("maps failed ramps to failed", () => {
-    assert.equal(mapTransactionStatus({ currentPhase: "failed", status: WireTransactionStatus.FAILED }), "failed");
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "failed",
+        expiresAt: "2026-07-21T00:15:00.000Z",
+        status: WireTransactionStatus.FAILED,
+        type: RampDirection.BUY
+      }),
+      "failed"
+    );
   });
 
   it("maps timed-out ramps to cancelled", () => {
-    assert.equal(mapTransactionStatus({ currentPhase: "timedOut", status: WireTransactionStatus.FAILED }), "cancelled");
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "timedOut",
+        expiresAt: "2026-07-21T00:15:00.000Z",
+        status: WireTransactionStatus.FAILED,
+        type: RampDirection.BUY
+      }),
+      "cancelled"
+    );
     assert.equal(mapPhaseToStatus("timedOut"), "cancelled");
+  });
+
+  it("maps an unstarted onramp to awaiting payment", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.BUY
+      }),
+      "awaiting_payin"
+    );
+  });
+
+  it("maps an expired unstarted onramp to cancelled", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.BUY
+      }),
+      "cancelled"
+    );
+  });
+
+  it("keeps an unstarted offramp in processing", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.SELL
+      }),
+      "processing"
+    );
   });
 });
 
@@ -28,6 +80,7 @@ describe("mapRampHistoryTransaction", () => {
       {
         currentPhase: "initial",
         date: "2026-07-21T00:00:00.000Z",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         from: EPaymentMethod.PIX,
         fromAmount: "100.00",
         fromCurrency: FiatToken.BRL,
@@ -48,6 +101,7 @@ describe("mapRampHistoryTransaction", () => {
     assert.equal(transaction?.amountInToken, "BRL");
     assert.equal(transaction?.payoutCurrency, "USDC");
     assert.equal(transaction?.recipientEmail, "Your wallet");
+    assert.equal(transaction?.status, "awaiting_payin");
   });
 
   it("keeps a SELL source wallet separate from its payout destination label", () => {
@@ -55,6 +109,7 @@ describe("mapRampHistoryTransaction", () => {
       {
         currentPhase: "complete",
         date: "2026-07-21T00:00:00.000Z",
+        expiresAt: "2026-07-21T00:15:00.000Z",
         from: Networks.Polygon,
         fromAmount: "54.054054",
         fromCurrency: EvmToken.USDC,

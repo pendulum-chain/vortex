@@ -34,10 +34,11 @@ For quote metadata, Squid's `route.estimate.toAmount` is already denominated in 
 
 ### Off-ramp flow (user EVM source → Base USDC)
 
-1. User signs one of three paths (depending on source ERC-20 capabilities and direction):
+1. User signs one of four paths (depending on source-token capabilities and direction):
    - **Permit path**: EIP-2612 permit + payload typed data → `squidRouterPermitExecute` → source-chain `TokenRelayer.execute()` pulls funds, approves Squid, calls swap atomically. Gas is paid by the configured executor key through a wallet client for `fromNetwork`.
    - **No-permit fallback** (`isNoPermitFallback=true`): user's own wallet broadcasts `squidRouterNoPermitApprove` + `squidRouterNoPermitSwap` (or `squidRouterNoPermitTransferHash` for direct-transfer subcase). Frontend reports the resulting tx hashes back via `UpdateRampRequest.additionalData`. Backend awaits receipts via `waitForUserHash`. **No presigned-tx validation runs for these phases** — they are user-submitted (see `transaction-validation.md`).
    - **Direct transfer** (`isDirectTransfer=true`): same-chain same-token, user wallet submits a direct ERC-20 transfer to the Base ephemeral.
+   - **Native-token path**: user's wallet broadcasts only the Squid swap with the native amount in `msg.value`; no ERC-20 approval transaction exists, and the swap uses nonce zero.
 2. `squidRouterPay`: monitors Axelar GMP for arrival on Base.
 3. Continues with offramp Nabla swap on Base.
 
@@ -64,6 +65,7 @@ When the BRL on-ramp's destination is **Base + USDC**, the Nabla swap output is 
 13. **Squid output raw metadata MUST use destination-token raw units** — `route.estimate.toAmount` is the authoritative destination raw output; `evmToEvm.outputAmountRaw` MUST NOT be recomputed with the source token's decimals. For same-chain same-token passthrough, `inputAmountRaw` is also the destination raw amount and is safe to mirror. Routed Alfredpay onramps follow the same rule; only direct Polygon same-token passthrough keeps the minted source-token precision.
 14. **Permit execution MUST confirm the owner's token balance before spending the single-use permit** — An EIP-2612 permit is single-use: the token increments the owner's nonce on the first successful `permit()`, so executing against an unfunded owner burns the permit and strands the ramp. `assertOwnerHasBalance` in `squidrouter-permit-execution-handler.ts` reads `balanceOf(owner)` on both the direct-transfer and relayer paths and throws a **recoverable** error when the owner cannot cover `value`, giving the owner ~10 minutes (`getMaxRetries()=20` at the 30s cadence) to fund the wallet. On the direct-transfer path, retries additionally skip `permit()` when the standing allowance already covers `value`, so an already-consumed permit is never replayed.
 15. **The SDK pre-checks the source wallet balance before registering any offramp** — `assertSufficientOfframpBalance` (called from `VortexSdk.registerRamp` for every SELL corridor) reads the input token balance of `walletAddress` on the source EVM chain and rejects registration with `InsufficientBalanceError` when it does not cover `inputAmount`. This is client-side defense-in-depth against reverting user transactions / unexecutable permits: it is best-effort (RPC failure or unknown token skips the check, AssetHub sources are not checked) and MUST NOT be relied on in place of invariant 14 or backend-side validation.
+16. **Native-token offramps MUST NOT generate or await an ERC-20 approval** — Route construction emits only the Squid swap at nonce zero for native input. User-hash verification requires an approval only when an approval blueprint exists; the swap hash remains mandatory.
 
 ## Threat Vectors & Mitigations
 

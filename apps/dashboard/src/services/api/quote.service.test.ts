@@ -1,4 +1,4 @@
-import { EPaymentMethod, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CorridorId } from "@/domain/types";
@@ -20,7 +20,7 @@ describe("buildQuoteRequest", () => {
         direction: RampDirection.BUY,
         inputAmount: "125.5",
         network: Networks.Polygon,
-        token: "USDC" as never
+        token: EvmToken.USDC
       });
 
       assert.equal(request.rampType, RampDirection.BUY);
@@ -39,7 +39,7 @@ describe("buildQuoteRequest", () => {
         direction: RampDirection.SELL,
         inputAmount: "125.5",
         network: Networks.Polygon,
-        token: "USDC" as never
+        token: EvmToken.USDC
       });
 
       assert.equal(request.rampType, RampDirection.SELL);
@@ -59,9 +59,23 @@ describe("buildQuoteRequest", () => {
       direction: RampDirection.BUY,
       inputAmount: "1234.567890",
       network: Networks.Polygon,
-      token: "USDC" as never
+      token: EvmToken.USDC
     });
 
     assert.equal(request.inputAmount, "1234.567890");
+  });
+
+  it("builds a native POL SELL quote without changing its precision", () => {
+    const request = buildQuoteRequest({
+      corridorId: "MX",
+      direction: RampDirection.SELL,
+      inputAmount: "1.123456789012345678",
+      network: Networks.Polygon,
+      token: EvmToken.POL
+    });
+
+    assert.equal(request.inputCurrency, EvmToken.POL);
+    assert.equal(request.inputAmount, "1.123456789012345678");
+    assert.equal(request.from, Networks.Polygon);
   });
 });

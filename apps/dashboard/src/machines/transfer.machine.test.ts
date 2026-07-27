@@ -1,10 +1,28 @@
-import { type QuoteResponse, RampDirection, type RampProcess, type UnsignedTx } from "@vortexfi/shared";
+import {
+  EvmToken,
+  Networks,
+  type QuoteResponse,
+  RampDirection,
+  type RampProcess,
+  type UnsignedTx
+} from "@vortexfi/shared";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createActor, fromPromise, waitFor } from "xstate";
+import type { TransferQuoteRequest } from "./transfer.actors";
 import { transferMachine } from "./transfer.machine";
 
 const quote = { id: "quote-buy", rampType: RampDirection.BUY } as QuoteResponse;
+const quoteRequest: TransferQuoteRequest = {
+  kind: "input" as const,
+  params: {
+    corridorId: "MX" as const,
+    direction: RampDirection.BUY,
+    inputAmount: "100",
+    network: Networks.Polygon,
+    token: EvmToken.USDC
+  }
+};
 const ramp = {
   achPaymentData: { clabe: "646180157000000004" },
   id: "ramp-buy",
@@ -12,11 +30,12 @@ const ramp = {
   type: RampDirection.BUY
 } as RampProcess;
 
-describe("transferMachine BUY flow", () => {
+describe("transferMachine", () => {
   it("waits for payment confirmation before starting the ramp", async () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
       actors: {
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
         startRamp: fromPromise(async () => {
           startCalls += 1;
@@ -43,6 +62,7 @@ describe("transferMachine BUY flow", () => {
         summary: "5 USDC to your wallet"
       },
       quote,
+      quoteRequest,
       type: "START"
     });
 
@@ -60,6 +80,7 @@ describe("transferMachine BUY flow", () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
       actors: {
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] })),
         startRamp: fromPromise(async () => {
           startCalls += 1;
@@ -89,6 +110,7 @@ describe("transferMachine BUY flow", () => {
         summary: "5 USDC to your wallet"
       },
       quote,
+      quoteRequest,
       type: "START"
     });
     await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
@@ -110,6 +132,7 @@ describe("transferMachine BUY flow", () => {
   it("returns to idle and clears an expired ramp while awaiting payment", async () => {
     const machine = transferMachine.provide({
       actors: {
+        refreshTransferQuote: fromPromise(async ({ input }) => ({ quote: input.quote })),
         registerTransfer: fromPromise(async () => ({ ramp, userTxs: [] as UnsignedTx[] }))
       }
     });
@@ -131,6 +154,7 @@ describe("transferMachine BUY flow", () => {
         summary: "5 USDC to your wallet"
       },
       quote,
+      quoteRequest,
       type: "START"
     });
     await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
@@ -146,6 +170,115 @@ describe("transferMachine BUY flow", () => {
     assert.deepEqual(snapshot.context.userTxs, []);
     assert.equal(snapshot.context.lastStatus, null);
     assert.equal(snapshot.context.errorMessage, null);
+    actor.stop();
+  });
+
+  it("registers with a refreshed quote", async () => {
+    const refreshedQuote = {
+      ...quote,
+      id: "quote-refreshed",
+      inputAmount: "101",
+      inputCurrency: "MXN",
+      outputAmount: "5.1",
+      outputCurrency: "USDC"
+    } as QuoteResponse;
+    let registeredQuoteId: string | undefined;
+    const machine = transferMachine.provide({
+      actors: {
+        refreshTransferQuote: fromPromise(async () => ({ quote: refreshedQuote })),
+        registerTransfer: fromPromise(async ({ input }) => {
+          registeredQuoteId = input.quote.id;
+          return { ramp, userTxs: [] as UnsignedTx[] };
+        })
+      }
+    });
+    const actor = createActor(machine).start();
+
+    actor.send({
+      additionalData: { destinationAddress: "0x1111111111111111111111111111111111111111" },
+      meta: {
+        accountId: "account-1",
+        amountIn: "100",
+        amountInToken: "MXN",
+        corridorId: "MX",
+        direction: RampDirection.BUY,
+        fiatPayoutAmount: "5",
+        payinNetwork: "polygon",
+        payoutCurrency: "USDC",
+        recipientEmail: "Your wallet",
+        recipientId: "",
+        summary: "5 USDC to your wallet"
+      },
+      quote,
+      quoteRequest,
+      type: "START"
+    });
+
+    await waitFor(actor, snapshot => snapshot.matches("AwaitingPayment"));
+    assert.equal(registeredQuoteId, "quote-refreshed");
+    assert.equal(actor.getSnapshot().context.quote?.id, "quote-refreshed");
+    assert.equal(actor.getSnapshot().context.meta?.summary, "5.1 USDC to your wallet");
+    actor.stop();
+  });
+
+  it("does not register an offramp when the balance check fails", async () => {
+    const sellQuote = {
+      id: "quote-sell",
+      inputAmount: "54.054054",
+      inputCurrency: "USDC",
+      network: Networks.Polygon,
+      outputAmount: "1000",
+      outputCurrency: "MXN",
+      rampType: RampDirection.SELL
+    } as QuoteResponse;
+    const sellQuoteRequest: TransferQuoteRequest = {
+      kind: "input",
+      params: {
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        inputAmount: sellQuote.inputAmount,
+        network: Networks.Polygon,
+        token: EvmToken.USDC
+      }
+    };
+    let registerCalls = 0;
+    const machine = transferMachine.provide({
+      actors: {
+        checkTransferBalance: fromPromise(async (): Promise<void> => {
+          throw new Error("Insufficient USDC balance on Polygon");
+        }),
+        refreshTransferQuote: fromPromise(async () => ({ quote: sellQuote })),
+        registerTransfer: fromPromise(async () => {
+          registerCalls += 1;
+          return { ramp, userTxs: [] as UnsignedTx[] };
+        })
+      }
+    });
+    const actor = createActor(machine).start();
+
+    actor.send({
+      additionalData: { walletAddress: "0x1111111111111111111111111111111111111111" },
+      meta: {
+        accountId: "account-1",
+        amountIn: sellQuote.inputAmount,
+        amountInToken: "USDC",
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        fiatPayoutAmount: sellQuote.outputAmount,
+        payinNetwork: Networks.Polygon,
+        payoutCurrency: "MXN",
+        recipientEmail: "recipient@example.com",
+        recipientId: "recipient-1",
+        summary: "1000 MXN to recipient@example.com"
+      },
+      quote: sellQuote,
+      quoteRequest: sellQuoteRequest,
+      type: "START"
+    });
+
+    await waitFor(actor, snapshot => snapshot.matches("Failed"));
+    assert.equal(actor.getSnapshot().context.errorMessage, "Insufficient USDC balance on Polygon");
+    assert.equal(registerCalls, 0);
     actor.stop();
   });
 });

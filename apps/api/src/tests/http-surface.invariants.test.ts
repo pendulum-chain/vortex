@@ -191,18 +191,17 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
   describe("ramp history", () => {
     const WALLET = "0x2222222222222222222222222222222222222222";
 
-    it("serves only the caller's own non-initial ramps for the wallet", async () => {
+    it("serves only the caller's own ramps for the wallet, including resumable initial ramps", async () => {
       const owner = await createTestUser();
       const stranger = await createTestUser();
       const quote = await createTestQuote();
-      await createTestRampState({
+      const completeRamp = await createTestRampState({
         currentPhase: "complete",
         quoteId: quote.id,
         state: { destinationAddress: WALLET } as StateMetadata,
         userId: owner.id
       });
-      // An initial-phase ramp must not appear in history.
-      await createTestRampState({
+      const initialRamp = await createTestRampState({
         currentPhase: "initial",
         quoteId: (await createTestQuote()).id,
         state: { destinationAddress: WALLET } as StateMetadata,
@@ -213,9 +212,12 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
         headers: { Authorization: `Bearer ${testUserToken(owner.id)}` }
       });
       expect(ownHistory.status).toBe(200);
-      expect(ownHistory.body.totalCount).toBe(1);
-      const transactions = ownHistory.body.transactions as Array<{ id: string; status: string }>;
-      expect(transactions).toHaveLength(1);
+      expect(ownHistory.body.totalCount).toBe(2);
+      const transactions = ownHistory.body.transactions as Array<{ currentPhase: string; id: string; status: string }>;
+      expect(new Set(transactions.map(transaction => transaction.id))).toEqual(
+        new Set([completeRamp.id, initialRamp.id])
+      );
+      expect(new Set(transactions.map(transaction => transaction.currentPhase))).toEqual(new Set(["complete", "initial"]));
 
       // Another user sees nothing for the same wallet (F-068 class).
       const foreignHistory = await requestJson(`/v1/ramp/history/${WALLET}`, {
@@ -230,7 +232,7 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(response.status).toBe(401);
     });
 
-    it("serves all non-initial ramps owned by the authenticated user without a wallet filter", async () => {
+    it("serves all ramps owned by the authenticated user without a wallet filter", async () => {
       const owner = await createTestUser();
       const stranger = await createTestUser();
       const firstWallet = "0x3333333333333333333333333333333333333333";

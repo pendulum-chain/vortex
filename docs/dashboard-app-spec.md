@@ -159,28 +159,41 @@ provider-shaped rather than UI-shaped.
   shared machine receives only an authorization URL and normalized profile status.
 
 - **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
-  register → presign ephemeral → user wallet signature → start → poll; BUY runs register → presign
-  ephemeral → `AwaitingPayment` → explicit payment confirmation → start → poll. BUY never invokes
-  AppKit signing. Signing helpers come from `@vortexfi/shared`. `RampService` is loaded via a dynamic
+  quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet
+  signature → start → poll; BUY
+  runs quote freshness check → register → presign ephemeral → `AwaitingPayment` → explicit payment
+  confirmation → start → poll. The dashboard schedules form quote refreshes from `createdAt` and
+  `expiresAt` when 60% of validity remains. The machine repeats that check before registration; if
+  it obtains a replacement, registration continues with that fresh quote before any ephemeral keys
+  or ramp are created. SELL is input-driven like the widget: the sender selects an executable EVM
+  token/network and enters the token amount; the server quote supplies the fiat payout. The
+  dashboard loads the selected network's complete token portfolio through Alchemy and resolves the
+  exact selected contract address (or native-token sentinel), never the wallet's currently active
+  chain or another same-symbol asset. The funding UI blocks while that portfolio is loading,
+  unavailable, or below the quote input, and the machine checks it again after quote refresh so an
+  underfunded offramp never reaches registration. BUY never invokes AppKit signing. Signing helpers come from
+  `@vortexfi/shared`. `RampService` is loaded via a dynamic
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not
   currently avoid it. The machine snapshot is persisted under a dashboard-specific key — only in
   the recoverable `AwaitingPayment` state, never mid-request — so provider payment instructions
   survive navigation and reload. A failed BUY start returns to `AwaitingPayment` with the same
   ramp, so a user who already sent fiat keeps the instructions and can retry start. Registered
-  instructions cannot be discarded before their 15-minute start window closes because the server
-  still considers that ramp active; once expired, the dashboard hides the stale details and allows
-  resetting for a new quote.
+  instructions remain visible until their 15-minute start window closes; once expired, the
+  dashboard hides the stale details and allows resetting for a new quote.
 
-- **Only one ramp may be active per user.** Registration takes a database row lock on the user and
-  rejects a second nonterminal ramp, including requests from another tab, client, or API instance.
-  Unstarted ramps stop blocking after the existing 15-minute start window — but only ramps still
-  in `initial` are released that way. A ramp wedged in a mid-flow phase (it may hold user funds)
-  blocks new registrations indefinitely; there is no self-service recovery, only operational
-  intervention that moves it to a terminal phase. The dashboard stores each ramp's EVM and
-  Substrate ephemeral secrets locally before registration (under a dashboard-namespaced
-  localStorage key, so the widget's own ephemeral-store pruning cannot evict them) and retains
-  earlier ramp entries independently of disposable transfer-machine state.
+- **Preserve ramp recovery keys.** The dashboard stores each ramp's EVM and Substrate ephemeral
+  secrets locally before registration (under a
+  dashboard-namespaced localStorage key, so the widget's own ephemeral-store pruning cannot evict
+  them) and retains earlier ramp entries independently of disposable transfer-machine state.
+  From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
+  `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
+  transactions page labels the matching initial BUY ramp as **Awaiting payment** and offers
+  **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
+  to the account that created the ramp; switching accounts does not expose its payment details.
+  The customer can return to the same instructions while the payment window remains open. Once
+  the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
+  expired ramp remains rejected by the API.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is

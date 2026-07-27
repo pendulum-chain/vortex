@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSelector } from "@xstate/react";
 import { ArrowRight, Receipt } from "lucide-react";
 import { motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
@@ -9,6 +10,7 @@ import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { useTransactions } from "@/hooks/useTransactions";
 import { popIn } from "@/lib/motion";
+import { transferActor } from "@/machines/transferActor";
 
 export const Route = createFileRoute("/_app/transactions")({
   component: TransactionsPage
@@ -18,6 +20,9 @@ function TransactionsPage() {
   const account = useActiveAccount();
   const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
+  const resumableRamp = useSelector(transferActor, snapshot =>
+    snapshot.matches("AwaitingPayment") && snapshot.context.meta?.accountId === account?.id ? snapshot.context.ramp : null
+  );
 
   if (!account) {
     return null;
@@ -32,6 +37,27 @@ function TransactionsPage() {
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Transactions</h1>
         <p className="text-muted-foreground">Onramp and offramp history for {account.name}.</p>
       </StaggerItem>
+
+      {resumableRamp && (
+        <StaggerItem>
+          <Card className="border-warning/40 bg-warning/5">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4">
+              <div className="grid gap-1">
+                <p className="font-medium">Payment awaiting confirmation</p>
+                <p className="text-muted-foreground text-sm">
+                  Your payment instructions are saved until the payment window expires.
+                </p>
+              </div>
+              <Button asChild>
+                <Link search={{ mode: "onramp" }} to="/transfer">
+                  Resume payment
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      )}
 
       {accountTransactions.length === 0 ? (
         <StaggerItem>
@@ -80,7 +106,7 @@ function TransactionsPage() {
         <StaggerItem>
           <Card>
             <CardContent>
-              <TransactionsTable transactions={accountTransactions} />
+              <TransactionsTable resumableRampId={resumableRamp?.id} transactions={accountTransactions} />
             </CardContent>
           </Card>
         </StaggerItem>

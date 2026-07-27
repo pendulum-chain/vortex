@@ -676,7 +676,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 |---|---|
 | **Location** | Ramp creation flow (no per-user limit enforcement) |
 | **Spec** | `05-integrations/mykobo.md` (formerly `monerium.md`) |
-| **Status** | ✅ **FIXED** — superseded by a stricter one-active-ramp limit for every corridor |
+| **Status** | 🟡 **DEFERRED — STILL APPLIES** — per-user concurrent ramp limits are not enforced |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). With Mykobo's 24h outer timeout the exposure window per pending ramp is **larger** than under the previous 30-minute Monerium window. |
 
@@ -684,7 +684,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 **CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
-**Fix (2026-07-14):** `registerRamp` now locks the authenticated user's profile row and rejects registration when any nonterminal ramp already exists. This enforces a stricter limit of one active ramp across every corridor and serializes concurrent requests across API instances. Unstarted ramps older than the 15-minute start window are transitioned to `timedOut` before the check, preventing abandoned registrations from blocking the user indefinitely.
+**Current state:** Concurrent ramps are allowed for the same user. The proposed per-user limit for pending Mykobo SEPA ramps remains deferred.
 
 ---
 

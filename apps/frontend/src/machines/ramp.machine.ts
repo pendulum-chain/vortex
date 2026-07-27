@@ -835,15 +835,9 @@ export const rampMachine = setup({
       },
       on: {
         GO_BACK: {
-          actions: assign({
-            enteredViaForm: undefined,
-            errorMessage: undefined,
-            rampPaymentConfirmed: false,
-            rampSigningPhase: undefined,
-            rampSigningPhaseCurrent: undefined,
-            rampSigningPhaseMax: undefined
-          }),
-          target: "QuoteReady"
+          // Payment instructions may already have been exposed. Leave the local
+          // flow without terminally cancelling a ramp that can still receive funds.
+          target: "Resetting"
         },
         PAYMENT_CONFIRMED: {
           actions: assign({

@@ -71,6 +71,7 @@ transferActor.subscribe(snapshot => {
   try {
     if (snapshot.matches("AwaitingPayment")) {
       localStorage.setItem(TRANSFER_STATE_STORAGE_KEY, JSON.stringify(transferActor.getPersistedSnapshot()));
+      refreshTransactions();
     } else if (!snapshot.matches("Starting")) {
       // Keep the AwaitingPayment snapshot through Starting: the user may already have
       // paid, and a reload must bring the instructions back so start can be retried.

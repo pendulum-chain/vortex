@@ -1306,11 +1306,14 @@ export interface components {
             transactions: components["schemas"]["GetRampHistoryTransaction"];
         };
         GetRampHistoryTransaction: {
+            currentPhase: components["schemas"]["RampPhase"];
             date: string;
             /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxExplorerLink?: string;
             /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxHash?: string;
+            /** @description The deadline for starting an initial ramp. */
+            expiresAt: string;
             from: components["schemas"]["DestinationType"];
             fromAmount: string;
             fromCurrency: components["schemas"]["RampCurrency"];

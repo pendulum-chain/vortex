@@ -1,14 +1,5 @@
-import type { CorridorId, RecipientMethod } from "./types";
-
-/** Mock FX rate: units of the corridor's fiat currency per 1 USDC. */
-export const USDC_RATES: Record<CorridorId, number> = {
-  AR: 950,
-  BR: 5.47,
-  CO: 4000,
-  EU: 0.92,
-  MX: 18.5,
-  US: 1.0
-};
+import { Networks } from "@vortexfi/shared";
+import type { RecipientMethod } from "./types";
 
 /** Display label for the fiat rail each corridor settles on. */
 export const PAYMENT_METHOD_LABEL: Record<RecipientMethod, string> = {
@@ -24,10 +15,12 @@ export const PAYMENT_METHOD_LABEL: Record<RecipientMethod, string> = {
  * provide yet.
  */
 export const TRANSFER_NETWORKS = [
-  { id: "polygon", label: "Polygon" },
-  { id: "arbitrum", label: "Arbitrum" },
-  { id: "base", label: "Base" },
-  { id: "ethereum", label: "Ethereum" }
+  { id: Networks.Polygon, label: "Polygon" },
+  { id: Networks.Arbitrum, label: "Arbitrum" },
+  { id: Networks.Base, label: "Base" },
+  { id: Networks.Ethereum, label: "Ethereum" },
+  { id: Networks.Avalanche, label: "Avalanche" },
+  { id: Networks.BSC, label: "BNB Smart Chain" }
 ] as const;
 
 export function shortenAddress(address: string): string {

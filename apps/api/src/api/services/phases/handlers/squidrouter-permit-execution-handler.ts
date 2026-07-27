@@ -173,13 +173,16 @@ export class SquidrouterPermitExecuteHandler extends BasePhaseHandler {
         "squidRouterNoPermitTransfer"
       );
     } else {
-      await this.waitForUserHash(
-        state,
-        state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
-        fromNetwork,
-        "No-permit approve",
-        "squidRouterNoPermitApprove"
-      );
+      const hasApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitApprove");
+      if (hasApproveBlueprint) {
+        await this.waitForUserHash(
+          state,
+          state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
+          fromNetwork,
+          "No-permit approve",
+          "squidRouterNoPermitApprove"
+        );
+      }
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,

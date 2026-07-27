@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   type EvmNetworks,
   getEvmTokensLoadedSnapshot,
+  isEvmToken,
   Networks,
   RampDirection,
   subscribeEvmTokensLoaded
@@ -58,9 +59,9 @@ export function QuoteExplorer() {
 
   const { approved } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
-  const tokenOptions = getRampTokenOptions();
-
   const isBuy = direction === RampDirection.BUY;
+  const allTokenOptions = getRampTokenOptions(direction);
+  const tokenOptions = isBuy ? allTokenOptions : allTokenOptions.filter(option => isEvmToken(String(option.currency)));
 
   // Network and token are derived rather than synced: changing network can drop the requested
   // token. The corridor needs no reconciliation — every corridor quotes in both directions.
@@ -137,7 +138,7 @@ export function QuoteExplorer() {
   // The one inversion for the whole screen: on BUY the sender pays fiat and receives the token,
   // on SELL it is the other way round. Everything below reads the leg, never `isBuy`.
   const fiatLeg = { decimals: FIAT_DECIMALS, hint: railHint, selector: fiatSelector };
-  const tokenLeg = { decimals: TOKEN_DECIMALS, hint: networkHint, selector: tokenSelector };
+  const tokenLeg = { decimals: token?.token.decimals ?? TOKEN_DECIMALS, hint: networkHint, selector: tokenSelector };
   const [payLeg, receiveLeg] = isBuy ? [fiatLeg, tokenLeg] : [tokenLeg, fiatLeg];
 
   // Flipping direction swaps which leg the amount belongs to, so the extra digits are cut rather
@@ -321,9 +322,7 @@ function QuoteCta({ amount, corridorId, isApproved, isBuy, network, token }: Quo
     );
   }
 
-  // Only BUY carries over: the offramp form is payout-driven and USDC-only, so an
-  // input-driven sell quote has no matching fields to prefill.
-  const search = isBuy ? { amount, corridorId, mode: "onramp" as const, network, token } : { mode: "offramp" as const };
+  const search = { amount, corridorId, mode: isBuy ? ("onramp" as const) : ("offramp" as const), network, token };
 
   return (
     <Button asChild size="lg">

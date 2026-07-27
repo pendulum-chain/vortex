@@ -296,6 +296,7 @@ export interface GetRampHistoryTransaction {
   status: TransactionStatus;
   currentPhase: RampPhase;
   date: string;
+  expiresAt: string;
   externalTxHash?: string;
   externalTxExplorerLink?: string;
 }

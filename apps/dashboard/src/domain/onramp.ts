@@ -1,12 +1,14 @@
 import {
   doesNetworkSupportRamp,
   type EvmNetworks,
+  EvmToken,
   type EvmTokenDetails,
   getEvmTokenConfig,
   getNetworkDisplayName,
   isNetworkEVM,
   Networks,
-  type OnChainToken
+  type OnChainToken,
+  RampDirection
 } from "@vortexfi/shared";
 import type { CorridorId } from "./types";
 
@@ -56,8 +58,8 @@ export function filterRampTokenOptions(options: RampTokenOption[], search: strin
   );
 }
 
-/** Every EVM token the ramp supports, in both directions — bought on BUY, sold on SELL. */
-export function getRampTokenOptions(): RampTokenOption[] {
+/** Every EVM token the selected ramp direction supports. */
+export function getRampTokenOptions(direction: RampDirection): RampTokenOption[] {
   const config = getEvmTokenConfig();
   const options: RampTokenOption[] = [];
 
@@ -69,6 +71,9 @@ export function getRampTokenOptions(): RampTokenOption[] {
     const byToken = new Map<EvmTokenDetails, string>();
     for (const [key, token] of Object.entries(config[network] ?? {})) {
       if (!token) {
+        continue;
+      }
+      if (direction === RampDirection.BUY && key === EvmToken.POL) {
         continue;
       }
       const existingKey = byToken.get(token);

@@ -49,7 +49,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   const { address } = useAccount();
   const { approved, isLoading: isLoadingApprovals } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
-  const tokenOptions = getRampTokenOptions();
+  const tokenOptions = getRampTokenOptions(RampDirection.BUY);
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
   const networkOptions = getNetworkOptions(tokenOptions);
   // Prefilled values are trusted only while the token list and onboarding status are still
@@ -108,19 +108,34 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
       : null;
   const { data: quote, error, isFetching } = useQuote(quoteParams);
   const transferState = useSelector(transferActor, snapshot => snapshot);
+  const belongsToActiveAccount = transferState.context.meta?.accountId === account.id;
   const activeTransfer =
+    transferState.matches("CheckingQuote") ||
+    transferState.matches("CheckingBalance") ||
     transferState.matches("Registering") ||
     transferState.matches("SigningUserTxs") ||
     transferState.matches("AwaitingPayment") ||
     transferState.matches("Starting") ||
     transferState.matches("Tracking");
 
-  if (transferState.matches("AwaitingPayment") && transferState.context.ramp) {
+  if (transferState.matches("AwaitingPayment") && transferState.context.ramp && belongsToActiveAccount) {
     return <OnrampPaymentInstructions ramp={transferState.context.ramp} />;
   }
 
+  if (activeTransfer && !belongsToActiveAccount) {
+    return (
+      <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/5 p-4 text-sm">
+        <TriangleAlert className="mt-px size-4 shrink-0 text-warning" />
+        <div className="grid gap-1">
+          <p className="font-medium">Another account has an unfinished transfer</p>
+          <p className="text-muted-foreground">Switch back to that account to resume it before starting a new onramp.</p>
+        </div>
+      </div>
+    );
+  }
+
   function submit(values: OnrampFormValues) {
-    if (!quote || activeTransfer) {
+    if (!quote || !quoteParams || activeTransfer) {
       return;
     }
     transferActor.send({
@@ -139,6 +154,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         summary: `${quote.outputAmount} ${quote.outputCurrency} to your wallet`
       },
       quote,
+      quoteRequest: { kind: "input", params: quoteParams },
       type: "START"
     });
   }
