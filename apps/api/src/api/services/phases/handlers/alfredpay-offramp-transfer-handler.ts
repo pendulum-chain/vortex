@@ -133,7 +133,10 @@ export class AlfredpayOfframpTransferHandler extends BasePhaseHandler {
       );
     }
 
-    return this.transitionToNextPhase(state, "complete");
+    // Fee residual (vortex/partner) left on the Polygon ephemeral is paid out by the
+    // distributeFees phase; the phase only exists when fee transfers were prepared.
+    const hasFeeDistribution = state.unsignedTxs?.some(tx => tx.phase === "distributeFees" && tx.network === Networks.Polygon);
+    return this.transitionToNextPhase(state, hasFeeDistribution ? "distributeFees" : "complete");
   }
 
   private async recreateAlfredpayOfframp(

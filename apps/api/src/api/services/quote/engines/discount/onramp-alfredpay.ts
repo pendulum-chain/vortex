@@ -48,10 +48,15 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const finalOutput = ctx.evmToEvm?.outputAmountDecimal ?? alfredpayMint.outputAmountDecimal.minus(feesToDeduct);
 
     const {
-      expectedOutput: expectedOutputDecimal,
+      expectedOutput: grossExpectedOutput,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, effectiveRate, targetDiscount, this.config.isOfframp, partner);
+
+    // Subsidization must not bypass fee collection: the subsidy targets the discounted
+    // rate NET of the charged vortex/partner fees, so a subsidy can never refill a fee
+    // that was just deducted from the output.
+    const expectedOutputDecimal = grossExpectedOutput.minus(feesToDeduct);
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 

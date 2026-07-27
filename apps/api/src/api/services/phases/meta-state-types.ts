@@ -6,6 +6,8 @@ export interface StateMetadata {
   squidRouterReceiverId: string;
   squidRouterReceiverHash: string;
   distributeFeeHash: string;
+  // Alfredpay corridors broadcast one fee transfer per recipient; keyed by tx nonce.
+  distributeFeeHashes?: Record<string, string>;
   // Only used in onramp - brla
   aveniaTicketId: string;
   onHold?: boolean;

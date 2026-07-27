@@ -6,6 +6,8 @@ import {
   RampDirection
 } from "@vortexfi/shared";
 import Big from "big.js";
+import httpStatus from "http-status";
+import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
@@ -41,7 +43,20 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const maxSubsidy = partner?.maxSubsidy ?? 0;
 
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
-    const usdOnPolygon = ctx.evmToEvm!.outputAmountDecimal;
+    const usdBridged = ctx.evmToEvm!.outputAmountDecimal;
+
+    // Charge vortex + partner-markup fees on the USD leg before pricing the Alfredpay
+    // payout: the fee residual stays on the Polygon ephemeral and is collected by the
+    // distributeFees phase. deductibleFeeAmountInSwapCurrency is the same vortex+partner
+    // total the Fee stage later reports, valued in the (USD-pegged) swap currency.
+    const deductibleFee = ctx.preNabla?.deductibleFeeAmountInSwapCurrency ?? new Big(0);
+    const usdOnPolygon = usdBridged.minus(deductibleFee);
+    if (usdOnPolygon.lte(0)) {
+      throw new APIError({
+        message: "Input amount too low to cover calculated fees",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
 
     // Oracle rate FIAT -> USD (e.g., 1 ARS = 0.0002657 USD).
     // This block is required to avoid calling the Alfredpay API twice for a quote.
@@ -73,10 +88,15 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     }
 
     const {
-      expectedOutput: expectedOutputDecimal,
+      expectedOutput: grossExpectedOutput,
       adjustedDifference,
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmountUsd.toString(), effectiveRate, targetDiscount, this.config.isOfframp, partner);
+
+    // Subsidization must not bypass fee collection: the subsidy targets the discounted
+    // rate NET of the charged vortex/partner fees (valued in the fiat output), so a
+    // subsidy can never refill a fee that was just deducted from the USD leg.
+    const expectedOutputDecimal = grossExpectedOutput.minus(deductibleFee.mul(usdToFiatRate));
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 

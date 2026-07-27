@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
+  ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOfframpStatus,
   EvmToken,
@@ -51,6 +52,7 @@ interface CorridorSetup {
   ephemeral: PrivateKeyAccount;
   userWallet: PrivateKeyAccount;
   userTransferBlueprint: EvmTxBlueprint;
+  userId: string;
 }
 
 /**
@@ -85,6 +87,9 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.squidRouter.computeToAmount = params => params.fromAmount;
+    // The bridged token is Polygon USDT (6 decimals); the fake's 18-decimal default would
+    // shrink the bridged USD amount to ~0 and mask fee math behind subsidy padding.
+    world.squidRouter.toTokenDecimals = 6;
     world.alfredpay.offrampRate = ALFREDPAY_OFFRAMP_RATE;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
     // Fresh deposit address per test: the in-memory EVM ledger persists across
@@ -236,6 +241,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       quoteId: quote.id,
       rampId: ramp.id,
       signedOfframpTransfer,
+      userId: user.id,
       userTransferBlueprint,
       userWallet
     };
@@ -301,37 +307,100 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     30000
   );
 
-  it("fee integrity: configured vortex/partner fees are forced to zero and never appear in the quote", async () => {
-    // A nonzero platform fee on the vortex SELL config. The Alfredpay routes build
-    // no distributeFees transaction, so the quote must zero the component instead
-    // of displaying a fee that is never collected on-chain.
-    await updatePartnerPricing("vortex", RampDirection.SELL, {
-      markupCurrency: FiatToken.MXN,
-      markupType: "relative",
-      markupValue: 0.01
-    });
+  it(
+    "fee collection: charged vortex fee reduces the payout and is paid to the payout address on-chain",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      // 17 MXN flat fee = exactly 1 USD at the fake 17 MXN/USD rate: legible numbers throughout.
+      await updatePartnerPricing("vortex", RampDirection.SELL, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
 
-    const response = await app.request("/v1/quotes", {
-      body: JSON.stringify({
-        from: Networks.Polygon,
-        inputAmount: "100",
-        inputCurrency: EvmToken.USDT,
-        network: Networks.Polygon,
-        outputCurrency: FiatToken.MXN,
-        rampType: RampDirection.SELL,
-        to: "spei"
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST"
-    });
-    expect(response.status).toBe(201);
-    const quote = (await response.json()) as { outputAmount: string; partnerFeeUsd: string; vortexFeeUsd: string };
+      const setup = await setUpRegisteredRamp();
 
-    expect(Number(quote.vortexFeeUsd)).toBe(0);
-    expect(Number(quote.partnerFeeUsd)).toBe(0);
-    // The user receives the full Alfredpay payout (100 USDT * 20): nothing withheld.
-    expect(Number(quote.outputAmount)).toBe(2000);
-  });
+      // Quote: 100 USDT input − 1 USD fee → 99 USDT to Alfredpay → 1980 MXN at the 20 rate.
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(quote?.outputAmount)).toBe(1980);
+      expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
+      expect(setup.inputAmountRaw).toBe(parseUnits("99", ALFREDPAY_ERC20_DECIMALS));
+
+      // Registration prepared a Polygon distributeFees transfer paying the 1 USDT residual
+      // to the vortex payout address; sign exactly that blueprint (plus required backups).
+      const registered = await RampState.findByPk(setup.rampId);
+      const feeBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+      const feeTxData = feeBlueprint?.txData as unknown as EvmTxBlueprint;
+
+      async function signFeeTransfer(nonce: number): Promise<`0x${string}`> {
+        return setup.ephemeral.signTransaction({
+          chainId: 137,
+          data: feeTxData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: feeTxData.to,
+          type: "eip1559"
+        });
+      }
+      const feeNonce = feeBlueprint?.nonce ?? 1;
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: feeNonce + i, txData: await signFeeTransfer(feeNonce + i) };
+      }
+      const feeUpdateResponse = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          presignedTxs: [
+            {
+              meta: { additionalTxs: feeBackups },
+              network: Networks.Polygon,
+              nonce: feeNonce,
+              phase: "distributeFees",
+              signer: setup.ephemeral.address,
+              txData: await signFeeTransfer(feeNonce)
+            }
+          ],
+          rampId: setup.rampId
+        }),
+        headers: {
+          Authorization: `Bearer ${testUserToken(setup.userId)}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      expect(feeUpdateResponse.status).toBe(200);
+
+      scriptHappyWorld(setup);
+      // The ephemeral must hold deposit + fee (finalSettlementSubsidy's expected amount).
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        setup.ephemeral.address,
+        setup.inputAmountRaw + parseUnits("1", ALFREDPAY_ERC20_DECIMALS)
+      );
+      const depositAddress = world.alfredpay.offrampDepositAddress;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual([
+        ...HAPPY_PATH_PHASES.slice(0, -1),
+        "distributeFees",
+        "complete"
+      ]);
+
+      // Alfredpay received the fee-net 99 USDT deposit; the vortex payout address received 1 USDT.
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(setup.inputAmountRaw);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
+        parseUnits("1", ALFREDPAY_ERC20_DECIMALS)
+      );
+    },
+    30000
+  );
 
   it(
     "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",

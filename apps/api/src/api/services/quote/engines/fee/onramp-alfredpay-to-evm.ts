@@ -22,11 +22,6 @@ export class OnRampAlfredpayToEvmFeeEngine extends BaseFeeEngine {
 
     return {
       anchor: { amount: alfredpayFee, currency: alfredpayFeeCurrency },
-      // The Alfredpay routes build no distributeFees transaction, so vortex/partner
-      // components would be deducted from the user's output but never collected
-      // on-chain. Force them to zero so quoted fees match what is actually charged.
-      forcedPartnerMarkupFee: { amount: "0", currency: feeCurrency },
-      forcedVortexFee: { amount: "0", currency: feeCurrency },
       network: { amount: "0", currency: ALFREDPAY_EVM_TOKEN as RampCurrency }
     };
   }

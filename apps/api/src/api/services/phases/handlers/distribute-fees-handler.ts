@@ -3,6 +3,7 @@ import { SubmittableExtrinsic } from "@polkadot/api/promise/types";
 import { DispatchError, EventRecord } from "@polkadot/types/interfaces";
 import { ISubmittableResult } from "@polkadot/types/types";
 import {
+  ALFREDPAY_EVM_TOKEN,
   ApiManager,
   checkEvmBalanceForToken,
   decodeSubmittableExtrinsic,
@@ -12,6 +13,7 @@ import {
   EvmTokenDetails,
   evmTokenConfig,
   getNetworkFromDestination,
+  getOnChainTokenDetails,
   multiplyByPowerOfTen,
   Networks,
   PENDULUM_USDC_ASSETHUB,
@@ -70,6 +72,12 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     const quote = await QuoteTicket.findOne({ where: { id: state.quoteId } });
     if (!quote) {
       throw this.createUnrecoverableError(`Quote ticket not found for ID: ${state.quoteId}`);
+    }
+
+    // Alfredpay corridors distribute on Polygon (USDT) as the LAST phase before complete,
+    // after the user-facing legs succeeded — one plain transfer per fee recipient.
+    if (quote.metadata.alfredpayMint || quote.metadata.alfredpayOfframp) {
+      return this.executeAlfredpayPhase(state, quote);
     }
 
     // Determine next phase
@@ -169,6 +177,84 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       // Wrap as recoverable error
       const error = e instanceof Error ? e : new Error(String(e));
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
+    }
+  }
+
+  /**
+   * Alfredpay corridors: broadcast the presigned Polygon USDT fee transfers in nonce
+   * order, then complete the ramp. Each transfer's hash is persisted per-nonce so a
+   * retry never re-pays a recipient whose transfer already succeeded.
+   */
+  private async executeAlfredpayPhase(state: RampState, quote: QuoteTicket): Promise<RampState> {
+    const network = Networks.Polygon as EvmNetworks;
+    const nextPhase: RampPhase = "complete";
+
+    const feeTxs = (state.presignedTxs ?? []).filter(tx => tx.phase === "distributeFees").sort((a, b) => a.nonce - b.nonce);
+
+    if (feeTxs.length === 0) {
+      logger.info(`No Alfredpay fee distribution transactions found for ramp ${state.id}. Skipping fee distribution.`);
+      return this.transitionToNextPhase(state, nextPhase);
+    }
+
+    const usdtDetails = getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN) as EvmTokenDetails | undefined;
+    if (!usdtDetails) {
+      throw this.createUnrecoverableError("Polygon USDT configuration not found; cannot verify Alfredpay fee balance.");
+    }
+
+    try {
+      const requiredRaw = this.computeRequiredFeeRaw(quote, usdtDetails.decimals);
+      if (requiredRaw) {
+        try {
+          await checkEvmBalanceForToken({
+            amountDesiredRaw: requiredRaw.toFixed(0),
+            chain: network,
+            intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
+            ownerAddress: feeTxs[0].signer,
+            timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
+            tokenDetails: usdtDetails
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw this.createRecoverableError(
+            `Alfredpay fee distribution precondition failed: USDT balance not available on ${feeTxs[0].signer} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
+          );
+        }
+      }
+
+      const hashes: Record<string, string> = { ...(state.state.distributeFeeHashes ?? {}) };
+      let currentState = state;
+
+      for (const feeTx of feeTxs) {
+        const nonceKey = String(feeTx.nonce);
+        const existingHash = hashes[nonceKey];
+        if (existingHash) {
+          const status = await this.checkEvmTransactionStatus(existingHash, network);
+          if (status === ExtrinsicStatus.Success) {
+            logger.info(`Alfredpay fee transfer at nonce ${nonceKey} already succeeded for ramp ${state.id}, skipping.`);
+            continue;
+          }
+        }
+
+        logger.info(`Submitting Alfredpay fee distribution transfer (nonce ${nonceKey}) for ramp ${state.id}...`);
+        const txHash = await this.submitEvmRawTransaction(feeTx.txData as string, network);
+        hashes[nonceKey] = txHash;
+        currentState = await currentState.update({
+          state: { ...currentState.state, distributeFeeHashes: hashes }
+        });
+        await this.waitForEvmTransactionSuccess(txHash, network);
+        logger.info(`Alfredpay fee transfer confirmed for ramp ${state.id}: ${txHash}`);
+      }
+
+      return this.transitionToNextPhase(currentState, nextPhase);
+    } catch (e: unknown) {
+      logger.error(`Error distributing Alfredpay fees for ramp ${state.id}:`, e);
+
+      if (e instanceof PhaseError) {
+        throw e;
+      }
+
+      const error = e instanceof Error ? e : new Error(String(e));
+      throw this.createRecoverableError(`Failed to distribute Alfredpay fees: ${error.message || "Unknown error"}`);
     }
   }
 

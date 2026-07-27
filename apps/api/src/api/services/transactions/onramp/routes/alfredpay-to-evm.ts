@@ -17,10 +17,12 @@ import {
   Networks,
   UnsignedTx
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { isAddress } from "viem";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
+import { addAlfredpayFeeDistributionTransactions, getAlfredpayFeeTotalRaw } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
@@ -92,6 +94,11 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   let polygonAccountNonce = 0; // Starts fresh
   const fundingAccount = getEvmFundingAccount(Networks.Polygon);
 
+  // Vortex + partner fees are charged against the mint: the user-facing legs move
+  // mint − fees, and the fee residual left on the Polygon ephemeral is paid out by the
+  // distributeFees transactions (broadcast after the destination transfer succeeds).
+  const chargedFeesRaw = getAlfredpayFeeTotalRaw(quote);
+
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
@@ -108,6 +115,13 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
       signer: evmEphemeralEntry.address,
       txData: encodeEvmTransactionData(finalTransferTxData) as EvmTransactionData
     });
+
+    ({ nextNonce: polygonAccountNonce } = await addAlfredpayFeeDistributionTransactions(
+      quote,
+      evmEphemeralEntry.address,
+      unsignedTxs,
+      polygonAccountNonce
+    ));
 
     const polygonCleanupApproval = await preparePolygonCleanupApproval(
       ERC20_USDC_POLYGON,
@@ -126,12 +140,17 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     return { stateMeta, unsignedTxs };
   }
 
+  const swapInputRaw = new Big(quote.metadata.alfredpayMint.outputAmountRaw).minus(chargedFeesRaw);
+  if (swapInputRaw.lte(0)) {
+    throw new Error("Alfredpay mint amount does not cover the calculated fees");
+  }
+
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
     await createOnrampSquidrouterTransactionsFromPolygonToEvm({
       destinationAddress: evmEphemeralEntry.address,
       fromAddress: evmEphemeralEntry.address,
       fromToken: ALFREDPAY_ERC20_TOKEN,
-      rawAmount: quote.metadata.alfredpayMint.outputAmountRaw,
+      rawAmount: swapInputRaw.toFixed(0),
       toNetwork,
       toToken: (outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain
     });
@@ -173,6 +192,13 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
       txData: encodeEvmTransactionData(sameChainTransferTxData) as EvmTransactionData
     });
 
+    ({ nextNonce: polygonAccountNonce } = await addAlfredpayFeeDistributionTransactions(
+      quote,
+      evmEphemeralEntry.address,
+      unsignedTxs,
+      polygonAccountNonce
+    ));
+
     const sameChainCleanupApproval = await preparePolygonCleanupApproval(
       ERC20_USDC_POLYGON,
       fundingAccount.address,
@@ -196,6 +222,13 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
 
     return { stateMeta, unsignedTxs };
   }
+
+  ({ nextNonce: polygonAccountNonce } = await addAlfredpayFeeDistributionTransactions(
+    quote,
+    evmEphemeralEntry.address,
+    unsignedTxs,
+    polygonAccountNonce
+  ));
 
   const polygonCleanupApproval = await preparePolygonCleanupApproval(
     ERC20_USDC_POLYGON,

@@ -40,6 +40,7 @@ import { APIError } from "../../../../errors/api-error";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
+import { addAlfredpayFeeDistributionTransactions, getAlfredpayFeeTotalRaw } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
@@ -503,8 +504,12 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     txData: finalTransferTxData
   });
 
+  // The fallback refunds the deposit amount PLUS the charged vortex/partner fees: the user
+  // was charged those fees against the quoted payout, so a failed ramp must return the full
+  // value held on the ephemeral, not just the Alfredpay deposit leg.
+  const chargedFeesRaw = getAlfredpayFeeTotalRaw(quote);
   const fallbackTransferTxData = await addOnrampDestinationChainTransactions({
-    amountRaw: quote.metadata.alfredpayOfframp.inputAmountRaw,
+    amountRaw: new Big(quote.metadata.alfredpayOfframp.inputAmountRaw).plus(chargedFeesRaw).toFixed(0),
     destinationNetwork: Networks.Polygon as EvmNetworks,
     toAddress: userAddress,
     toToken: ALFREDPAY_ERC20_TOKEN
@@ -519,9 +524,20 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
     txData: fallbackTransferTxData
   });
 
+  // Fee residual (vortex + partner markup) left after the deposit transfer is paid out at
+  // the distributeFees phase, right after the Alfredpay deposit at nonce 0 succeeds.
+  let polygonNonce = 1;
+  ({ nextNonce: polygonNonce } = await addAlfredpayFeeDistributionTransactions(
+    quote,
+    evmEphemeralEntry.address,
+    unsignedTxs,
+    polygonNonce
+  ));
+
   // Squidrouter delivers axlUSDC (not USDT/ALFREDPAY_ERC20_TOKEN) to the Polygon ephemeral if its
   // destination swap exceeds slippage. This approval lets the funding account sweep that residual
-  // via post-process. Runs at nonce 1 (after whichever of the two nonce-0 transfers executes).
+  // via post-process. Runs after whichever of the two nonce-0 transfers executes and any fee
+  // distribution transfers.
   const polygonAxlUsdcAddress = evmTokenConfig[Networks.Polygon][EvmToken.AXLUSDC]?.erc20AddressSourceChain;
   if (!polygonAxlUsdcAddress) {
     throw new Error("Invalid AXLUSDC configuration for Polygon in evmTokenConfig");
@@ -535,7 +551,7 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
-    nonce: 1,
+    nonce: polygonNonce,
     phase: "polygonCleanupAxlUsdc",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(axlUsdcCleanupApproval) as EvmTransactionData

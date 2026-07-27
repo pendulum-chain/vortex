@@ -192,7 +192,10 @@ function getTransactionTypeForPhase(phase: RampPhase | CleanupPhase, network: Ne
     case "distributeFees":
     case "subsidizePreSwap":
     case "subsidizePostSwap":
-      return network === Networks.Base ? EphemeralAccountType.EVM : EphemeralAccountType.Substrate;
+      // distributeFees runs on Base (BRL/EUR corridors) or Polygon (Alfredpay corridors).
+      return network === Networks.Base || network === Networks.Polygon
+        ? EphemeralAccountType.EVM
+        : EphemeralAccountType.Substrate;
   }
 
   switch (phase) {

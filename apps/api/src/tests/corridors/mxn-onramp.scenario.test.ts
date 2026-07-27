@@ -46,6 +46,7 @@ interface CorridorSetup {
   signedTransfer: `0x${string}`;
   ephemeral: PrivateKeyAccount;
   destination: `0x${string}`;
+  userId: string;
 }
 
 /**
@@ -228,7 +229,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       });
     }
 
-    return { amountRaw, destination, ephemeral, mintAmountRaw, quoteId: quote.id, rampId: ramp.id, signedTransfer };
+    return { amountRaw, destination, ephemeral, mintAmountRaw, quoteId: quote.id, rampId: ramp.id, signedTransfer, userId: user.id };
   }
 
   /**
@@ -291,37 +292,75 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     30000
   );
 
-  it("fee integrity: configured vortex/partner fees are forced to zero and never reduce the quoted output", async () => {
-    // A nonzero platform fee on the vortex BUY config. The Alfredpay routes build
-    // no distributeFees transaction, so the quote must zero the component instead
-    // of deducting a fee that would be stranded on the ephemeral.
-    await updatePartnerPricing("vortex", RampDirection.BUY, {
-      markupCurrency: FiatToken.MXN,
-      markupType: "relative",
-      markupValue: 0.01
-    });
+  it(
+    "fee collection: charged vortex fee reduces the output and is paid to the payout address on-chain",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      // 17 MXN flat fee = exactly 1 USD at the fake 17 MXN/USD rate: legible numbers throughout.
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
 
-    const response = await app.request("/v1/quotes", {
-      body: JSON.stringify({
-        from: "spei",
-        inputAmount: "2000",
-        inputCurrency: FiatToken.MXN,
+      const setup = await setUpRegisteredRamp();
+
+      // Quote: 2000 MXN mints 100 USDT; the 1 USD vortex fee reduces the user output to 99.
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(quote?.outputAmount)).toBe(99);
+      expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
+
+      // Registration prepared a Polygon distributeFees transfer paying the 1 USDT residual
+      // to the vortex payout address; sign exactly that blueprint (plus required backups).
+      const rampState = await RampState.findByPk(setup.rampId);
+      const feeBlueprint = rampState?.unsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+      const feeTxData = feeBlueprint?.txData as unknown as { data: `0x${string}`; to: `0x${string}` };
+
+      async function signFeeTransfer(nonce: number): Promise<`0x${string}`> {
+        return setup.ephemeral.signTransaction({
+          chainId: 137,
+          data: feeTxData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: feeTxData.to,
+          type: "eip1559"
+        });
+      }
+      const feeNonce = feeBlueprint?.nonce ?? 1;
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: feeNonce + i, txData: await signFeeTransfer(feeNonce + i) };
+      }
+      await updateRampViaApi(setup.rampId, setup.userId, {
+        meta: { additionalTxs: feeBackups },
         network: Networks.Polygon,
-        outputCurrency: EvmToken.USDT,
-        rampType: RampDirection.BUY,
-        to: Networks.Polygon
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST"
-    });
-    expect(response.status).toBe(201);
-    const quote = (await response.json()) as { outputAmount: string; partnerFeeUsd: string; vortexFeeUsd: string };
+        nonce: feeNonce,
+        phase: "distributeFees",
+        signer: setup.ephemeral.address,
+        txData: await signFeeTransfer(feeNonce)
+      });
 
-    expect(Number(quote.vortexFeeUsd)).toBe(0);
-    expect(Number(quote.partnerFeeUsd)).toBe(0);
-    // The user receives the full Alfredpay mint (2000 MXN * 0.05): nothing withheld.
-    expect(Number(quote.outputAmount)).toBe(100);
-  });
+      scriptHappyWorld(setup);
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual([
+        ...HAPPY_PATH_PHASES.slice(0, -1),
+        "distributeFees",
+        "complete"
+      ]);
+
+      // Destination received the fee-net 99 USDT; the vortex payout address received 1 USDT.
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("99", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+    },
+    30000
+  );
 
   it(
     "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",

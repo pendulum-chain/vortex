@@ -5,6 +5,7 @@ import {
   EvmTokenDetails,
   getOnChainTokenDetails,
   multiplyByPowerOfTen,
+  Networks,
   RampPhase
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
@@ -82,6 +83,13 @@ export class DestinationTransferHandler extends BasePhaseHandler {
     const destinationNetwork = quote.network as EvmNetworks; // We can assert this type due to checks before
     const { destinationTransferTxHash, destinationAddress } = state.state as StateMetadata;
 
+    // Alfredpay onramps collect vortex/partner fees from the Polygon ephemeral after the
+    // user is paid. Polygon-only: Base corridors run their distributeFees phase BEFORE this
+    // one, so routing them back here would loop the state machine.
+    const nextPhase: RampPhase = state.unsignedTxs?.some(tx => tx.phase === "distributeFees" && tx.network === Networks.Polygon)
+      ? "distributeFees"
+      : "complete";
+
     if (destinationAddress) {
       validateDestinationTransferRecipient(destinationTransfer as `0x${string}`, destinationAddress);
     } else {
@@ -93,7 +101,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
         const receipt = await client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` });
 
         if (receipt.status === "success") {
-          return this.transitionToNextPhase(state, "complete");
+          return this.transitionToNextPhase(state, nextPhase);
         } else {
           throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
         }
@@ -167,7 +175,7 @@ export class DestinationTransferHandler extends BasePhaseHandler {
       });
       // (optional) wait for balance to be updated on user - destination
 
-      return this.transitionToNextPhase(state, "complete");
+      return this.transitionToNextPhase(state, nextPhase);
     } catch (error) {
       throw this.createRecoverableError(
         `DestinationTransferHandler: Error during phase execution - ${(error as Error).message}`

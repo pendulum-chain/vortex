@@ -30,6 +30,7 @@ import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import { priceFeedService } from "../../priceFeed.service";
 import { isFiatToOwnStablecoinBaseDirect } from "../../quote/utils";
+import { getAlfredpayFeeTotalRaw } from "../../transactions/common/feeDistribution";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { computeSubsidyRaw } from "./final-settlement-subsidy.helpers";
@@ -123,7 +124,9 @@ export class FinalSettlementSubsidyHandler extends BasePhaseHandler {
           if (!quote.metadata.alfredpayOfframp) {
             throw new Error("FinalSettlementSubsidyHandler: Missing Alfredpay offramp metadata");
           }
-          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw);
+          // The ephemeral must cover the Alfredpay deposit AND the vortex/partner fee
+          // residual that the distributeFees phase pays out after the deposit succeeds.
+          expectedAmountRaw = Big(quote.metadata.alfredpayOfframp.inputAmountRaw).plus(getAlfredpayFeeTotalRaw(quote));
           break;
         }
         break;

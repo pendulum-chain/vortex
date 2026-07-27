@@ -1,5 +1,7 @@
 import {
   AccountMeta,
+  ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ERC20_TOKEN,
   ApiManager,
   EvmClientManager,
   EvmToken,
@@ -24,6 +26,7 @@ import { findPartnerWithPricing } from "../../partners/partner-pricing.service";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { getTargetFiatCurrency } from "../../quote/core/helpers";
 import { getZenlinkIdForAsset } from "../../zenlink";
+import { addOnrampDestinationChainTransactions } from "../onramp/common/transactions";
 
 function getQuotePricingPartnerId(quote: QuoteTicketAttributes): string | null {
   return quote.pricingPartnerId ?? quote.partnerId ?? null;
@@ -203,26 +206,14 @@ export async function addFeeDistributionTransaction(
 }
 
 /**
- * Creates an EVM fee distribution transaction for Base network.
- * Splits fees: network + vortex fees go to vortex EVM payout address,
- * partner markup goes to partner EVM payout address (if available).
- * Uses Multicall3 to batch multiple ERC20 transfers when needed.
- *
- * @param quote The quote ticket
- * @returns The EVM transaction data or null if no fees to distribute
+ * Resolves the EVM payout addresses for a quote's fee distribution: the vortex payout
+ * address (with the DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS fallback) and the pricing
+ * partner's payout address when one is configured. Shared between the Base (USDC)
+ * and Alfredpay/Polygon (USDT) distribution builders.
  */
-export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<EvmTransactionData | null> {
-  const usdFeeStructure = quote.metadata.fees?.usd;
-  if (!usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transaction");
-    return null;
-  }
-
-  const networkFeeUSD = usdFeeStructure.network;
-  const vortexFeeUSD = usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
-
-  // Get vortex payout address (EVM)
+async function resolveEvmFeePayoutAddresses(
+  quote: QuoteTicketAttributes
+): Promise<{ vortexPayoutAddress: string; partnerPayoutAddressEvm: string | null }> {
   const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType, getQuoteFiatCurrency(quote));
   if (!vortexPartner) {
     logger.error(
@@ -262,9 +253,34 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
     }
   }
 
+  return { partnerPayoutAddressEvm, vortexPayoutAddress };
+}
+
+/**
+ * Creates an EVM fee distribution transaction for Base network.
+ * Splits fees: network + vortex fees go to vortex EVM payout address,
+ * partner markup goes to partner EVM payout address (if available).
+ * Uses Multicall3 to batch multiple ERC20 transfers when needed.
+ *
+ * @param quote The quote ticket
+ * @returns The EVM transaction data or null if no fees to distribute
+ */
+export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<EvmTransactionData | null> {
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
+    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transaction");
+    return null;
+  }
+
+  const networkFeeUSD = usdFeeStructure.network;
+  const vortexFeeUSD = usdFeeStructure.vortex;
+  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
+
+  const { vortexPayoutAddress, partnerPayoutAddressEvm } = await resolveEvmFeePayoutAddresses(quote);
+
   if (Big(partnerMarkupFeeUSD).gt(0) && partnerPayoutAddressEvm === null) {
     logger.warn(
-      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${pricingPartnerId ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
     );
   }
 
@@ -394,4 +410,93 @@ export async function addEvmFeeDistributionTransaction(
   }
 
   return nextNonce;
+}
+
+/**
+ * Computes the total vortex + network + partner-markup fee for a quote in raw
+ * Alfredpay USDT units (6 decimals). "0" when the quote carries no positive fees.
+ */
+export function getAlfredpayFeeTotalRaw(quote: QuoteTicketAttributes): string {
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
+    return "0";
+  }
+
+  const totalUsd = new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex).plus(usdFeeStructure.partnerMarkup);
+  if (totalUsd.lte(0)) {
+    return "0";
+  }
+
+  return multiplyByPowerOfTen(totalUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0);
+}
+
+/**
+ * Adds Polygon fee distribution transactions for the Alfredpay corridors: plain
+ * sequential USDT transfers signed by the EVM ephemeral — one for network+vortex fees,
+ * one for partner markup when a partner payout address is configured. Multicall3 is
+ * deliberately NOT used here: `aggregate3` executes calls with the Multicall3 contract
+ * as msg.sender, so a batched `transfer` would move the contract's (empty) balance,
+ * not the ephemeral's.
+ *
+ * Returns the next free nonce and the raw USDT total the pushed transfers move (the fee
+ * amount the ephemeral must retain after the user-facing legs).
+ */
+export async function addAlfredpayFeeDistributionTransactions(
+  quote: QuoteTicketAttributes,
+  signerAddress: string,
+  unsignedTxs: UnsignedTx[],
+  startingNonce: number
+): Promise<{ nextNonce: number; distributedFeeRaw: string }> {
+  const usdFeeStructure = quote.metadata.fees?.usd;
+  if (!usdFeeStructure) {
+    return { distributedFeeRaw: "0", nextNonce: startingNonce };
+  }
+
+  const vortexTotalRaw = multiplyByPowerOfTen(
+    new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex),
+    ALFREDPAY_ERC20_DECIMALS
+  ).toFixed(0, 0);
+  const partnerMarkupRaw = multiplyByPowerOfTen(usdFeeStructure.partnerMarkup, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0);
+
+  if (new Big(vortexTotalRaw).lte(0) && new Big(partnerMarkupRaw).lte(0)) {
+    return { distributedFeeRaw: "0", nextNonce: startingNonce };
+  }
+
+  const { vortexPayoutAddress, partnerPayoutAddressEvm } = await resolveEvmFeePayoutAddresses(quote);
+
+  const transfers: { amountRaw: string; toAddress: string }[] = [];
+  if (new Big(vortexTotalRaw).gt(0)) {
+    transfers.push({ amountRaw: vortexTotalRaw, toAddress: vortexPayoutAddress });
+  }
+  if (new Big(partnerMarkupRaw).gt(0)) {
+    if (partnerPayoutAddressEvm) {
+      transfers.push({ amountRaw: partnerMarkupRaw, toAddress: partnerPayoutAddressEvm });
+    } else {
+      logger.warn(
+        `ALFREDPAY FEE DISTRIBUTION: partner markup of ${usdFeeStructure.partnerMarkup} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+      );
+    }
+  }
+
+  let nonce = startingNonce;
+  let distributedFeeRaw = new Big(0);
+  for (const transfer of transfers) {
+    const txData = await addOnrampDestinationChainTransactions({
+      amountRaw: transfer.amountRaw,
+      destinationNetwork: Networks.Polygon,
+      toAddress: transfer.toAddress,
+      toToken: ALFREDPAY_ERC20_TOKEN
+    });
+    unsignedTxs.push({
+      meta: {},
+      network: Networks.Polygon,
+      nonce: nonce++,
+      phase: "distributeFees",
+      signer: signerAddress,
+      txData
+    });
+    distributedFeeRaw = distributedFeeRaw.plus(transfer.amountRaw);
+  }
+
+  return { distributedFeeRaw: distributedFeeRaw.toFixed(0), nextNonce: nonce };
 }
