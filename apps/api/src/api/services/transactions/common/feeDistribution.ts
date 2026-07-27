@@ -3,6 +3,7 @@ import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   ApiManager,
+  EvmClientManager,
   EvmNetworks,
   EvmToken,
   encodeSubmittableExtrinsic,
@@ -15,14 +16,15 @@ import {
   UnsignedTx
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { encodeFunctionData } from "viem/utils";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
+import erc20ABI from "../../../../contracts/ERC20";
 import { QuoteTicketAttributes } from "../../../../models/quoteTicket.model";
 import { findPartnerWithPricing } from "../../partners/partner-pricing.service";
 import { multiplyByPowerOfTen } from "../../pendulum/helpers";
 import { getTargetFiatCurrency } from "../../quote/core/helpers";
 import { getZenlinkIdForAsset } from "../../zenlink";
-import { addOnrampDestinationChainTransactions } from "../onramp/common/transactions";
 
 function getQuotePricingPartnerId(quote: QuoteTicketAttributes): string | null {
   return quote.pricingPartnerId ?? quote.partnerId ?? null;
@@ -258,16 +260,18 @@ interface EvmFeeTransferSpec {
 }
 
 /**
- * Computes the ERC-20 fee transfers a quote requires, in raw units of the fee token:
- * network + vortex fees to the vortex EVM payout address, partner markup to the pricing
- * partner's EVM payout address (dropped with a warning when unset). Empty when the quote
- * carries no positive fees; payout addresses are only resolved (and required) then.
+ * Canonical raw fee components for EVM distribution: network + vortex fees floored to
+ * raw units as one bucket, partner markup floored separately. Every consumer of the
+ * charged fee total (fee transfers, settlement target, fallback refund, swap sizing)
+ * MUST derive it from these components so the amounts reconcile exactly.
  */
-async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: number): Promise<EvmFeeTransferSpec[]> {
+export function computeFeeComponentRaws(
+  quote: QuoteTicketAttributes,
+  decimals: number
+): { vortexTotalRaw: string; partnerMarkupRaw: string; totalRaw: string } | null {
   const usdFeeStructure = quote.metadata.fees?.usd;
   if (!usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transactions");
-    return [];
+    return null;
   }
 
   // Vortex receives network + vortex fees
@@ -276,6 +280,27 @@ async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: nu
     0
   );
   const partnerMarkupRaw = multiplyByPowerOfTen(usdFeeStructure.partnerMarkup, decimals).toFixed(0, 0);
+
+  return {
+    partnerMarkupRaw,
+    totalRaw: new Big(vortexTotalRaw).plus(partnerMarkupRaw).toFixed(0),
+    vortexTotalRaw
+  };
+}
+
+/**
+ * Computes the ERC-20 fee transfers a quote requires, in raw units of the fee token:
+ * network + vortex fees to the vortex EVM payout address, partner markup to the pricing
+ * partner's EVM payout address. Empty when the quote carries no positive fees; payout
+ * addresses are only resolved (and required) then.
+ */
+async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: number): Promise<EvmFeeTransferSpec[]> {
+  const componentRaws = computeFeeComponentRaws(quote, decimals);
+  if (!componentRaws) {
+    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transactions");
+    return [];
+  }
+  const { vortexTotalRaw, partnerMarkupRaw } = componentRaws;
 
   if (new Big(vortexTotalRaw).lte(0) && new Big(partnerMarkupRaw).lte(0)) {
     return [];
@@ -294,7 +319,7 @@ async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: nu
       // creation already rejects these routes (requiresEvmPartnerPayout); this guard
       // covers partner config changes between quote and registration.
       throw new Error(
-        `EVM FEE DISTRIBUTION: partner markup of ${usdFeeStructure.partnerMarkup} USD has no recipient for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row. Refusing to build a fee distribution that would strand charged fees.`
+        `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupRaw} raw units has no recipient for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row. Refusing to build a fee distribution that would strand charged fees.`
       );
     }
     transfers.push({ amountRaw: partnerMarkupRaw, toAddress: partnerPayoutAddressEvm });
@@ -308,6 +333,9 @@ async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: nu
  * consecutive nonces. Plain sequential transfers are used deliberately: Multicall3's
  * `aggregate3` executes calls with the Multicall3 contract as msg.sender, so a batched
  * `transfer` would move the contract's (empty) balance, not the ephemeral's.
+ *
+ * Fee fields carry the UNBUFFERED estimate: the SDK applies the 3x safety multiplier
+ * when signing, so buffering here as well would compound to 9x.
  */
 async function pushFeeTransferTxs(
   transfers: EvmFeeTransferSpec[],
@@ -317,13 +345,19 @@ async function pushFeeTransferTxs(
   unsignedTxs: UnsignedTx[],
   startingNonce: number
 ): Promise<number> {
+  if (transfers.length === 0) {
+    return startingNonce;
+  }
+
+  const publicClient = EvmClientManager.getInstance().getClient(network);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+
   let nonce = startingNonce;
   for (const transfer of transfers) {
-    const txData = await addOnrampDestinationChainTransactions({
-      amountRaw: transfer.amountRaw,
-      destinationNetwork: network,
-      toAddress: transfer.toAddress,
-      toToken: tokenAddress
+    const transferCallData = encodeFunctionData({
+      abi: erc20ABI,
+      args: [transfer.toAddress, transfer.amountRaw],
+      functionName: "transfer"
     });
     unsignedTxs.push({
       meta: {},
@@ -331,7 +365,14 @@ async function pushFeeTransferTxs(
       nonce: nonce++,
       phase: "distributeFees",
       signer: signerAddress,
-      txData
+      txData: {
+        data: transferCallData as `0x${string}`,
+        gas: "100000",
+        maxFeePerGas: String(maxFeePerGas),
+        maxPriorityFeePerGas: String(maxPriorityFeePerGas),
+        to: tokenAddress,
+        value: "0"
+      }
     });
   }
   return nonce;
@@ -371,21 +412,17 @@ export async function addEvmFeeDistributionTransaction(
 }
 
 /**
- * Computes the total vortex + network + partner-markup fee for a quote in raw
- * Alfredpay USDT units (6 decimals). "0" when the quote carries no positive fees.
+ * Canonical total vortex + network + partner-markup fee for a quote in raw Alfredpay
+ * USDT units (6 decimals): the component-wise sum used by the distributeFees transfers,
+ * so settlement targets and fallback refunds reconcile with the transfers exactly.
+ * "0" when the quote carries no positive fees.
  */
 export function getAlfredpayFeeTotalRaw(quote: QuoteTicketAttributes): string {
-  const usdFeeStructure = quote.metadata.fees?.usd;
-  if (!usdFeeStructure) {
+  const componentRaws = computeFeeComponentRaws(quote, ALFREDPAY_ERC20_DECIMALS);
+  if (!componentRaws || new Big(componentRaws.totalRaw).lte(0)) {
     return "0";
   }
-
-  const totalUsd = new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex).plus(usdFeeStructure.partnerMarkup);
-  if (totalUsd.lte(0)) {
-    return "0";
-  }
-
-  return multiplyByPowerOfTen(totalUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0);
+  return componentRaws.totalRaw;
 }
 
 /**

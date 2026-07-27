@@ -15,6 +15,7 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
+import type Partner from "../../models/partner.model";
 import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
 import { createTestAlfredpayCustomer, createTestPartner, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
@@ -85,7 +86,13 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     world.alfredpay.onrampStatusMetadata = null;
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
+  async function createQuoteViaApi(options: { authUserId?: string } = {}): Promise<{ id: string; outputAmount: string }> {
+    // An authenticated quote picks up the user's profile-assigned pricing partner.
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.authUserId) {
+      headers.Authorization = `Bearer ${testUserToken(options.authUserId)}`;
+    }
+
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: "spei",
@@ -96,7 +103,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
         rampType: RampDirection.BUY,
         to: Networks.Polygon
       }),
-      headers: { "Content-Type": "application/json" },
+      headers,
       method: "POST"
     });
     expect(response.status).toBe(201);
@@ -152,13 +159,25 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
    * the presigned destinationTransfer. Pass a recipient to sign a transfer that
    * pays someone other than the registered destination.
    */
-  async function setUpRegisteredRamp(options: { recipient?: `0x${string}` } = {}): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(
+    options: { recipient?: `0x${string}`; pricingPartner?: Partner } = {}
+  ): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const destination = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
 
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id);
-    const quote = await createQuoteViaApi();
+    if (options.pricingPartner) {
+      // Profile-assigned pricing: the quote stays user-owned (partner_id NULL) but is
+      // priced by — and pays markup to — the assigned partner via pricing_partner_id.
+      await ProfilePartnerAssignment.create({
+        isActive: true,
+        partnerId: options.pricingPartner.id,
+        partnerName: options.pricingPartner.name,
+        userId: user.id
+      });
+    }
+    const quote = await createQuoteViaApi(options.pricingPartner ? { authUserId: user.id } : {});
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -359,6 +378,97 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       // Destination received the fee-net 99 USDT; the vortex payout address received 1 USDT.
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("99", 6));
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+    },
+    30000
+  );
+
+  it(
+    "fee collection: a retry after a partial fee distribution pays only the outstanding transfer",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      const partnerPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, { payoutAddressEvm: vortexPayout });
+      // 17 MXN flat each = exactly 1 USD: the quote carries a vortex fee AND a partner
+      // markup, so registration prepares two sequential fee transfers.
+      const partner = await createTestPartner({
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        name: "split-fee-partner",
+        payoutAddressEvm: partnerPayout,
+        rampType: RampDirection.BUY,
+        vortexFeeType: "absolute",
+        vortexFeeValue: 17
+      });
+
+      const setup = await setUpRegisteredRamp({ pricingPartner: partner });
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(quote?.outputAmount)).toBe(98);
+
+      const rampState = await RampState.findByPk(setup.rampId);
+      const feeBlueprints = (rampState?.unsignedTxs ?? [])
+        .filter(tx => tx.phase === "distributeFees")
+        .sort((a, b) => a.nonce - b.nonce);
+      expect(feeBlueprints).toHaveLength(2);
+      // Single gas buffer: the blueprint carries the UNBUFFERED estimate (the SDK
+      // applies the 3x multiplier at signing) — the fake EVM estimates 1 gwei.
+      expect((feeBlueprints[0].txData as unknown as { maxFeePerGas: string }).maxFeePerGas).toBe("1000000000");
+
+      const signedFeeTransfers: `0x${string}`[] = [];
+      for (const blueprint of feeBlueprints) {
+        const feeTxData = blueprint.txData as unknown as { data: `0x${string}`; to: `0x${string}` };
+        const sign = (nonce: number) =>
+          setup.ephemeral.signTransaction({
+            chainId: 137,
+            data: feeTxData.data,
+            gas: 100_000n,
+            maxFeePerGas: 5_000_000_000n,
+            maxPriorityFeePerGas: 5_000_000_000n,
+            nonce,
+            to: feeTxData.to,
+            type: "eip1559"
+          });
+        const backups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+        for (let i = 1; i <= 4; i++) {
+          backups[`backup${i}`] = { nonce: blueprint.nonce + i, txData: await sign(blueprint.nonce + i) };
+        }
+        const signedPrimary = await sign(blueprint.nonce);
+        signedFeeTransfers.push(signedPrimary);
+        await updateRampViaApi(setup.rampId, setup.userId, {
+          meta: { additionalTxs: backups },
+          network: Networks.Polygon,
+          nonce: blueprint.nonce,
+          phase: "distributeFees",
+          signer: setup.ephemeral.address,
+          txData: signedPrimary
+        });
+      }
+      // Both split-fee presigns must survive the update merge.
+      const merged = await RampState.findByPk(setup.rampId);
+      expect(merged?.presignedTxs?.filter(tx => tx.phase === "distributeFees")).toHaveLength(2);
+
+      scriptHappyWorld(setup);
+      // After the FIRST fee transfer lands: simulate the spend (only the 1 USDT partner
+      // fee remains on the ephemeral) and fail the next broadcast (the second transfer)
+      // once. The retry must skip the paid transfer and require only the unpaid amount.
+      const creditLedger = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        creditLedger?.(tx);
+        if (tx.serialized === signedFeeTransfers[0]) {
+          world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, parseUnits("1", 6));
+          world.evm.failNextSends = 1;
+        }
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+
+      // The paid transfer was broadcast exactly once; each recipient got its exact fee.
+      expect(submissionsOf(signedFeeTransfers[0])).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, partnerPayout)).toBe(parseUnits("1", 6));
     },
     30000
   );

@@ -403,6 +403,42 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     30000
   );
 
+  it("fee integrity: deposit plus distributed fee reconciles exactly with the bridged amount", async () => {
+    // Non-integer FX so the converted fee is a repeating decimal (10 MXN at 16.7 MXN/USD
+    // = 0.598802395... USDT): the deduction, the Alfredpay deposit, and the distributeFees
+    // transfer must all floor to the SAME raw amount, conserving every raw unit.
+    const originalMxnRate = world.prices.perUsd.mxn;
+    world.prices.perUsd.mxn = 16.7;
+    try {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.SELL, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 10,
+        payoutAddressEvm: vortexPayout
+      });
+
+      const setup = await setUpRegisteredRamp();
+
+      const registered = await RampState.findByPk(setup.rampId);
+      const feeBlueprint = registered?.unsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+      const decoded = decodeFunctionData({
+        abi: erc20Abi,
+        data: (feeBlueprint?.txData as unknown as { data: `0x${string}` }).data
+      });
+      const [, feeAmountRaw] = decoded.args as [`0x${string}`, bigint];
+      expect(feeAmountRaw).toBe(598802n);
+
+      // Exact raw-unit conservation: bridged amount = Alfredpay deposit + distributed fee.
+      const persisted = await QuoteTicket.findByPk(setup.quoteId);
+      const depositRaw = BigInt(persisted?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+      expect(depositRaw + feeAmountRaw).toBe(parseUnits("100", ALFREDPAY_ERC20_DECIMALS));
+    } finally {
+      world.prices.perUsd.mxn = originalMxnRate;
+    }
+  });
+
   it("fee integrity: a markup partner without an EVM payout address cannot be quoted", async () => {
     // The markup would be charged against the user's payout but could never be paid
     // out on Polygon — quote creation must fail closed instead of stranding the fee.

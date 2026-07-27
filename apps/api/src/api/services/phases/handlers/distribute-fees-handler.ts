@@ -24,6 +24,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
@@ -183,47 +184,59 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     try {
-      // The fee token may not yet be on the ephemeral when we reach this phase (e.g.
-      // squidrouter swap can be slow to credit). Poll for it before submitting; if it
-      // never arrives within the timeout, throw a recoverable error so we retry.
-      const requiredRaw = this.computeRequiredFeeRaw(quote, tokenDetails.decimals);
-      if (requiredRaw) {
-        try {
-          await checkEvmBalanceForToken({
-            amountDesiredRaw: requiredRaw.toFixed(0),
-            chain: network,
-            intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
-            ownerAddress: feeTxs[0].signer,
-            timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
-            tokenDetails
-          });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          throw this.createRecoverableError(
-            `Fee distribution precondition failed: ${tokenDetails.assetSymbol} balance not available on ${feeTxs[0].signer} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
-          );
-        }
-      }
-
       const hashes: Record<string, string> = { ...(state.state.distributeFeeHashes ?? {}) };
       // Legacy single-hash idempotency: in-flight ramps registered before the
       // multi-transfer change store one hash for their single fee transaction.
       if (state.state.distributeFeeHash && !hashes[String(feeTxs[0].nonce)]) {
         hashes[String(feeTxs[0].nonce)] = state.state.distributeFeeHash;
       }
-      let currentState = state;
 
+      // Reconcile persisted hashes BEFORE checking balances: a transfer that already
+      // succeeded has left the ephemeral, so requiring the full original fee total on a
+      // retry could never be satisfied and would wedge the phase forever.
+      const pendingTxs: typeof feeTxs = [];
       for (const feeTx of feeTxs) {
-        const nonceKey = String(feeTx.nonce);
-        const existingHash = hashes[nonceKey];
+        const existingHash = hashes[String(feeTx.nonce)];
         if (existingHash) {
           const status = await this.checkEvmTransactionStatus(existingHash, network);
           if (status === ExtrinsicStatus.Success) {
-            logger.info(`Fee distribution transfer at nonce ${nonceKey} already succeeded for ramp ${state.id}, skipping.`);
+            logger.info(`Fee distribution transfer at nonce ${feeTx.nonce} already succeeded for ramp ${state.id}, skipping.`);
             continue;
           }
         }
+        pendingTxs.push(feeTx);
+      }
 
+      if (pendingTxs.length === 0) {
+        return this.transitionToNextPhase(state, nextPhase);
+      }
+
+      // The fee token may not yet be on the ephemeral when we reach this phase (e.g.
+      // squidrouter swap can be slow to credit). Poll for the UNPAID amount only; if it
+      // never arrives within the timeout, throw a recoverable error so we retry. Legacy
+      // presigns that are not plain transfers fall back to the full quote fee total.
+      const requiredRaw = this.computePendingFeeRaw(pendingTxs) ?? this.computeRequiredFeeRaw(quote, tokenDetails.decimals);
+      if (requiredRaw?.gt(0)) {
+        try {
+          await checkEvmBalanceForToken({
+            amountDesiredRaw: requiredRaw.toFixed(0),
+            chain: network,
+            intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
+            ownerAddress: pendingTxs[0].signer,
+            timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
+            tokenDetails
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw this.createRecoverableError(
+            `Fee distribution precondition failed: ${tokenDetails.assetSymbol} balance not available on ${pendingTxs[0].signer} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
+          );
+        }
+      }
+
+      let currentState = state;
+      for (const feeTx of pendingTxs) {
+        const nonceKey = String(feeTx.nonce);
         logger.info(`Submitting fee distribution transfer (nonce ${nonceKey}) for ramp ${state.id}...`);
         const txHash = await this.submitEvmRawTransaction(feeTx.txData as string, network);
         hashes[nonceKey] = txHash;
@@ -245,6 +258,33 @@ export class DistributeFeesHandler extends BasePhaseHandler {
       const error = e instanceof Error ? e : new Error(String(e));
       throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
     }
+  }
+
+  /**
+   * Sums the ERC-20 transfer amounts of the given presigned fee transactions. Returns
+   * null when any transaction is not a plain `transfer` (e.g. a legacy Multicall3
+   * presign from before the sequential-transfer change), signalling the caller to fall
+   * back to the quote's full fee total.
+   */
+  private computePendingFeeRaw(pendingTxs: { txData: unknown }[]): Big | null {
+    let total = new Big(0);
+    for (const feeTx of pendingTxs) {
+      try {
+        const parsed = parseTransaction(feeTx.txData as `0x${string}`);
+        if (!parsed.data) {
+          return null;
+        }
+        const decoded = decodeFunctionData({ abi: erc20Abi, data: parsed.data });
+        if (decoded.functionName !== "transfer") {
+          return null;
+        }
+        const [, amount] = decoded.args as [string, bigint];
+        total = total.plus(amount.toString());
+      } catch {
+        return null;
+      }
+    }
+    return total;
   }
 
   private computeRequiredFeeRaw(quote: QuoteTicket, decimals: number): Big | null {

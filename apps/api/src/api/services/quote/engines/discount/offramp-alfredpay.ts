@@ -1,6 +1,7 @@
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ONCHAIN_CURRENCY,
+  EvmToken,
   multiplyByPowerOfTen,
   RampCurrency,
   RampDirection
@@ -45,19 +46,6 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
     const usdBridged = ctx.evmToEvm!.outputAmountDecimal;
 
-    // Charge vortex + partner-markup fees on the USD leg before pricing the Alfredpay
-    // payout: the fee residual stays on the Polygon ephemeral and is collected by the
-    // distributeFees phase. deductibleFeeAmountInSwapCurrency is the same vortex+partner
-    // total the Fee stage later reports, valued in the (USD-pegged) swap currency.
-    const deductibleFee = ctx.preNabla?.deductibleFeeAmountInSwapCurrency ?? new Big(0);
-    const usdOnPolygon = usdBridged.minus(deductibleFee);
-    if (usdOnPolygon.lte(0)) {
-      throw new APIError({
-        message: "Input amount too low to cover calculated fees",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
     // Oracle rate FIAT -> USD (e.g., 1 ARS = 0.0002657 USD).
     // This block is required to avoid calling the Alfredpay API twice for a quote.
     // Since setting the input amount for the Alfredpay operations comes after this, and uses the output of the
@@ -73,6 +61,29 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
       throw new Error(
         `OffRampAlfredpayDiscountEngine: oracle returned non-positive rate (${effectiveRateStr}) for ${outputCurrency} -> ${ALFREDPAY_ONCHAIN_CURRENCY}`
       );
+    }
+
+    // Charge vortex + partner-markup fees on the USD leg before pricing the Alfredpay
+    // payout: the fee residual stays on the Polygon ephemeral and is collected by the
+    // distributeFees phase. The fee is derived exactly like the persisted fee metadata
+    // (2 fiat decimals via calculateFeeComponents, converted with the same price-feed
+    // operation, then floored to USDT raw units), so the residual left after the
+    // deposit reconciles with the distributeFees transfers.
+    const feeFiatRounded = (ctx.preNabla?.deductibleFeeAmountInFeeCurrency ?? new Big(0)).round(2);
+    const feeUsd = await priceFeedService.convertCurrency(
+      feeFiatRounded.toString(),
+      ctx.preNabla?.feeCurrency ?? (outputCurrency as RampCurrency),
+      EvmToken.USDC as RampCurrency
+    );
+    const deductibleFee = new Big(multiplyByPowerOfTen(feeUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0)).div(
+      new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)
+    );
+    const usdOnPolygon = usdBridged.minus(deductibleFee);
+    if (usdOnPolygon.lte(0)) {
+      throw new APIError({
+        message: "Input amount too low to cover calculated fees",
+        status: httpStatus.BAD_REQUEST
+      });
     }
 
     // finalOutput uses the inverted rate (USD -> FIAT) for display/logging
