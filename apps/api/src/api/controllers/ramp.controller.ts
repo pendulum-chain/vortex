@@ -204,34 +204,6 @@ export const updateRamp = async (
   }
 };
 
-export const cancelRamp = async (
-  req: Request<unknown, unknown, { rampId?: string }>,
-  res: Response<void>,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const { rampId } = req.body;
-    if (!rampId) {
-      throw new APIError({ message: "Missing required fields", status: httpStatus.BAD_REQUEST });
-    }
-
-    await assertRampOwnership(req, rampId);
-    const ramp = await rampService.cancelRamp(rampId);
-
-    observeRampSuccess(req, "ramp_cancel", httpStatus.NO_CONTENT, {
-      paymentMethod: ramp.paymentMethod,
-      quoteId: ramp.quoteId,
-      rampId,
-      rampType: ramp.type
-    });
-    res.status(httpStatus.NO_CONTENT).send();
-  } catch (error) {
-    logger.error("Error cancelling ramp", { errorType: classifyApiClientError(error), requestId: req.requestId });
-    observeRampFailure(req, "ramp_cancel", error, { rampId: req.body?.rampId || null });
-    next(error);
-  }
-};
-
 /**
  * Start a new ramping process
  * @public
@@ -424,7 +396,7 @@ export const getAuthenticatedUserRampHistory = async (
 
 type RampObservedOperation = Extract<
   ApiClientOperation,
-  "ramp_register" | "ramp_update" | "ramp_start" | "ramp_cancel" | "ramp_status" | "ramp_errors"
+  "ramp_register" | "ramp_update" | "ramp_start" | "ramp_status" | "ramp_errors"
 >;
 
 interface RampObservationContext {
@@ -497,7 +469,7 @@ function buildRampRequestMetadata(req: ObservedRampRequest, operation: RampObser
     return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId", "presignedTxs", "additionalData"] });
   }
 
-  if (operation === "ramp_start" || operation === "ramp_cancel") {
+  if (operation === "ramp_start") {
     return buildApiClientRequestMetadata(req, { bodyKeys: ["rampId"] });
   }
 

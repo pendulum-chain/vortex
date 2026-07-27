@@ -75,7 +75,6 @@ import { getFinalTransactionHashForRampV2 } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
-const MAX_PROVISIONAL_RAMPS_PER_USER = 3;
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -226,44 +225,11 @@ export class RampService extends BaseRampService {
         });
       }
 
-      const startDeadline = new Date(Date.now() - RAMP_START_EXPIRATION_TIME_SECONDS * 1000);
-      await RampState.update(
-        { currentPhase: "timedOut" },
-        {
-          transaction,
-          where: {
-            createdAt: { [Op.lt]: startDeadline },
-            currentPhase: "initial",
-            userId: effectiveUserId
-          }
-        }
-      );
-
-      // Serialize provisional-ramp admission per user. A small number of parallel
-      // checkouts lets a customer recover from signing/browser failures without
-      // allowing unbounded transaction preparation and state creation. Keep this
-      // after the expiry sweep so it never waits on a row held by updateRamp while
-      // holding the profile row that updateRamp needs for its own reservation.
-      const user = await User.findByPk(effectiveUserId, { lock: Transaction.LOCK.UPDATE, transaction });
+      const user = await User.findByPk(effectiveUserId, { transaction });
       if (!user) {
         throw new APIError({
           message: "Authenticated user profile not found.",
           status: httpStatus.BAD_REQUEST
-        });
-      }
-
-      const provisionalRampCount = await RampState.count({
-        transaction,
-        where: {
-          currentPhase: "initial",
-          presignedTxs: { [Op.is]: null },
-          userId: effectiveUserId
-        }
-      });
-      if (provisionalRampCount >= MAX_PROVISIONAL_RAMPS_PER_USER) {
-        throw new APIError({
-          message: "Too many unfinished ramp registrations. Complete or wait for one of your existing ramps to expire.",
-          status: httpStatus.CONFLICT
         });
       }
 
@@ -410,33 +376,6 @@ export class RampService extends BaseRampService {
         // ephemeralPresignChecksPass against the full merged set, which gates payment-data
         // release in filterUnsignedTxsForResponse.
         await validatePresignedTxs(rampState.type, presignedTxs, ephemerals, rampState.unsignedTxs, { requireComplete: false });
-
-        if (rampState.userId) {
-          const user = await User.findByPk(rampState.userId, { lock: Transaction.LOCK.UPDATE, transaction });
-          if (!user) {
-            throw new APIError({
-              message: "Ramp owner profile not found.",
-              status: httpStatus.BAD_REQUEST
-            });
-          }
-
-          const activeRamp = await RampState.findOne({
-            attributes: ["id"],
-            transaction,
-            where: {
-              currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] },
-              id: { [Op.ne]: rampId },
-              presignedTxs: { [Op.not]: null },
-              userId: rampState.userId
-            }
-          });
-          if (activeRamp) {
-            throw new APIError({
-              message: `An active ramp already exists for this user: ${activeRamp.id}`,
-              status: httpStatus.CONFLICT
-            });
-          }
-        }
       }
 
       // Merge presigned transactions (replace existing ones with same phase/network/signer)
@@ -509,40 +448,6 @@ export class RampService extends BaseRampService {
     });
   }
 
-  public async cancelRamp(id: string): Promise<RampState> {
-    return this.withTransaction(async transaction => {
-      const rampState = await RampState.findByPk(id, { lock: Transaction.LOCK.UPDATE, transaction });
-      if (!rampState) {
-        throw new APIError({ message: "Ramp not found", status: httpStatus.NOT_FOUND });
-      }
-
-      RampService.assertOwnedByThisFlow(rampState, "Ramp");
-
-      if (rampState.currentPhase === "timedOut") {
-        return rampState;
-      }
-      if (rampState.currentPhase !== "initial") {
-        throw new APIError({
-          message: "Only an initial ramp can be cancelled",
-          status: httpStatus.CONFLICT
-        });
-      }
-
-      // Once signatures exist, payment instructions may have been shown. Do not
-      // turn that ramp terminal based only on a client-side "I have not paid" claim:
-      // a bank or PIX payment can still arrive after the user leaves the screen.
-      if (rampState.presignedTxs !== null) {
-        throw new APIError({
-          message: "A ramp with payment instructions cannot be cancelled. It remains available until it expires.",
-          status: httpStatus.CONFLICT
-        });
-      }
-
-      await this.markRampTimedOut(rampState, transaction);
-      return rampState;
-    });
-  }
-
   /**
    * Start a new ramping process. This will kick off the ramping process with the presigned transactions provided.
    */
@@ -582,9 +487,6 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        // Expiry is a server-enforced terminal transition. Unlike user cancellation,
-        // it must also release signed ramps whose payment window has elapsed.
-        await this.markRampTimedOut(rampState, transaction);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
@@ -1458,16 +1360,6 @@ export class RampService extends BaseRampService {
     if (phase === "complete") return TransactionStatus.COMPLETE;
     if (phase === "failed" || phase === "timedOut") return TransactionStatus.FAILED;
     return TransactionStatus.PENDING;
-  }
-
-  private async markRampTimedOut(rampState: RampState, transaction: Transaction): Promise<void> {
-    await rampState.update(
-      {
-        currentPhase: "timedOut",
-        phaseHistory: [...rampState.phaseHistory, { phase: "timedOut", timestamp: new Date() }]
-      },
-      { transaction }
-    );
   }
 
   private async notifyStatusChangeIfNeeded(rampState: RampState, oldPhase: RampPhase, newPhase: RampPhase): Promise<void> {

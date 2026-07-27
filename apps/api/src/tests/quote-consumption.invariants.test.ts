@@ -190,19 +190,7 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(await RampState.count({ where: { userId: user.id } })).toBe(2);
   });
 
-  it("limits a user to three provisional registrations", async () => {
-    const user = await createTestUser();
-    await createTestTaxId(user.id, { taxId: TAX_ID });
-    const accounts = Array.from({ length: 4 }, () => privateKeyToAccount(generatePrivateKey()));
-    const quotes = await Promise.all(accounts.map(() => createQuoteViaApi()));
-
-    const responses = await Promise.all(quotes.map((quote, index) => registerViaApi(quote.id, user.id, accounts[index].address)));
-
-    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 201, 409]);
-    expect(await RampState.count({ where: { userId: user.id } })).toBe(3);
-  });
-
-  it("lets the first valid presigned update win across parallel ramps", async () => {
+  it("allows valid presigned updates on parallel ramps", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const firstQuote = await createQuoteViaApi();
@@ -221,58 +209,33 @@ describe("quote consumption invariants (BRL onramp)", () => {
       updateViaApi(secondRamp.id, user.id, [await presignDestinationTransfer(secondEphemeral, secondRamp.id)])
     ]);
 
-    expect([firstUpdate.status, secondUpdate.status].sort()).toEqual([200, 409]);
+    expect([firstUpdate.status, secondUpdate.status].sort()).toEqual([200, 200]);
     const persisted = await RampState.findAll({ where: { userId: user.id } });
-    expect(persisted.filter(ramp => Boolean(ramp.presignedTxs?.length))).toHaveLength(1);
+    expect(persisted.filter(ramp => Boolean(ramp.presignedTxs?.length))).toHaveLength(2);
   });
 
-  it("does not let an invalid presigned update reserve the active-ramp slot", async () => {
+  it("rejects starting an expired ramp without cancelling it", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
-    const firstQuote = await createQuoteViaApi();
-    const secondQuote = await createQuoteViaApi();
-    const firstEphemeral = privateKeyToAccount(generatePrivateKey());
-    const secondEphemeral = privateKeyToAccount(generatePrivateKey());
-    const firstRegistration = await registerViaApi(firstQuote.id, user.id, firstEphemeral.address);
-    const secondRegistration = await registerViaApi(secondQuote.id, user.id, secondEphemeral.address);
-    const firstRamp = (await firstRegistration.json()) as { id: string };
-    const secondRamp = (await secondRegistration.json()) as { id: string };
-    const invalidPresign = await presignDestinationTransfer(firstEphemeral, firstRamp.id);
-    invalidPresign.signer = privateKeyToAccount(generatePrivateKey()).address;
+    const quote = await createQuoteViaApi();
+    const registerResponse = await registerViaApi(quote.id, user.id);
+    expect(registerResponse.status).toBe(201);
+    const ramp = (await registerResponse.json()) as { id: string };
 
-    const invalidUpdate = await updateViaApi(firstRamp.id, user.id, [invalidPresign]);
-    expect(invalidUpdate.status).toBe(400);
+    await RampState.update({ createdAt: new Date(Date.now() - 16 * 60 * 1000) }, { where: { id: ramp.id } });
 
-    const winningUpdate = await updateViaApi(secondRamp.id, user.id, [
-      await presignDestinationTransfer(secondEphemeral, secondRamp.id)
-    ]);
-    expect(winningUpdate.status).toBe(200);
+    const startResponse = await app.request("/v1/ramp/start", {
+      body: JSON.stringify({ rampId: ramp.id }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
 
-    const blockedUpdate = await updateViaApi(firstRamp.id, user.id, [
-      await presignDestinationTransfer(firstEphemeral, firstRamp.id)
-    ]);
-    expect(blockedUpdate.status).toBe(409);
-    expect(await blockedUpdate.text()).toContain(secondRamp.id);
-  });
-
-  it("releases an unstarted ramp after the start window expires", async () => {
-    const user = await createTestUser();
-    await createTestTaxId(user.id, { taxId: TAX_ID });
-    const firstQuote = await createQuoteViaApi();
-    const firstResponse = await registerViaApi(firstQuote.id, user.id);
-    expect(firstResponse.status).toBe(201);
-    const firstRamp = (await firstResponse.json()) as { id: string };
-
-    await RampState.update(
-      { createdAt: new Date(Date.now() - 16 * 60 * 1000) },
-      { where: { id: firstRamp.id } }
-    );
-
-    const secondQuote = await createQuoteViaApi();
-    const secondResponse = await registerViaApi(secondQuote.id, user.id);
-
-    expect(secondResponse.status).toBe(201);
-    expect((await RampState.findByPk(firstRamp.id))?.currentPhase).toBe("timedOut");
+    expect(startResponse.status).toBe(400);
+    expect(await startResponse.text()).toContain("Maximum time window to start process exceeded");
+    expect((await RampState.findByPk(ramp.id))?.currentPhase).toBe("initial");
   });
 
   // Pins the atomic-UPDATE backstop directly: even if the registration flow's

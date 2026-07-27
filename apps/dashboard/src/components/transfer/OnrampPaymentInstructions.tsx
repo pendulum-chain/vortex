@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { AlfredpayFiatPaymentInstructions, RampProcess } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
-import { ArrowLeft, Check, Copy, TriangleAlert } from "lucide-react";
+import { Check, Copy, TriangleAlert } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

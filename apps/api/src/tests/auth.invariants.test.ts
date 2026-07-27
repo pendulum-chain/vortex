@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { FiatToken, Networks, RampDirection, type PresignedTx } from "@vortexfi/shared";
+import { FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { setupTestDatabase, truncateAllTables } from "../test-utils/db";
@@ -22,13 +22,6 @@ describe("auth and ownership invariants", () => {
     app.request("/v1/ramp/register", {
       body: JSON.stringify(body),
       headers: { "Content-Type": "application/json", ...headers },
-      method: "POST"
-    });
-
-  const start = (rampId: string, userId: string) =>
-    app.request("/v1/ramp/start", {
-      body: JSON.stringify({ rampId }),
-      headers: { Authorization: `Bearer ${testUserToken(userId)}`, "Content-Type": "application/json" },
       method: "POST"
     });
 
@@ -153,83 +146,6 @@ describe("auth and ownership invariants", () => {
 
       const asOwner = await app.request(`/v1/ramp/${ramp.id}`, { headers: { "X-API-Key": owningKey } });
       expect(asOwner.status).toBe(200);
-    });
-  });
-
-  describe("POST /v1/ramp/cancel ownership and phase guards", () => {
-    const cancel = (rampId: string, userId?: string) =>
-      app.request("/v1/ramp/cancel", {
-        body: JSON.stringify({ rampId }),
-        headers: {
-          ...(userId ? { Authorization: `Bearer ${testUserToken(userId)}` } : {}),
-          "Content-Type": "application/json"
-        },
-        method: "POST"
-      });
-
-    it("lets the owner cancel an initial ramp and is idempotent after timeout", async () => {
-      const owner = await createTestUser();
-      const quote = await createTestQuote({ userId: owner.id });
-      const ramp = await createTestRampState({ quoteId: quote.id, userId: owner.id });
-
-      const first = await cancel(ramp.id, owner.id);
-      expect(first.status).toBe(204);
-      expect((await ramp.reload()).currentPhase).toBe("timedOut");
-      expect(ramp.phaseHistory.at(-1)?.phase).toBe("timedOut");
-
-      const retry = await cancel(ramp.id, owner.id);
-      expect(retry.status).toBe(204);
-    });
-
-    it("rejects anonymous and non-owner cancellation", async () => {
-      const owner = await createTestUser();
-      const stranger = await createTestUser();
-      const quote = await createTestQuote({ userId: owner.id });
-      const ramp = await createTestRampState({ quoteId: quote.id, userId: owner.id });
-
-      expect((await cancel(ramp.id)).status).toBe(401);
-      expect((await cancel(ramp.id, stranger.id)).status).toBe(403);
-      expect((await ramp.reload()).currentPhase).toBe("initial");
-    });
-
-    it("rejects cancellation after ramp processing has started", async () => {
-      const owner = await createTestUser();
-      const quote = await createTestQuote({ userId: owner.id });
-      const ramp = await createTestRampState({ currentPhase: "brlaOnrampMint", quoteId: quote.id, userId: owner.id });
-
-      const response = await cancel(ramp.id, owner.id);
-
-      expect(response.status).toBe(409);
-      expect((await ramp.reload()).currentPhase).toBe("brlaOnrampMint");
-    });
-
-    it("does not cancel a ramp after signing may have exposed payment instructions", async () => {
-      const owner = await createTestUser();
-      const quote = await createTestQuote({ userId: owner.id });
-      const presignedTx: PresignedTx = {
-        meta: {},
-        network: Networks.Base,
-        nonce: 0,
-        phase: "destinationTransfer",
-        signer: SIGNING_ACCOUNTS[0].address,
-        txData: "0x"
-      };
-      const ramp = await createTestRampState({ presignedTxs: [presignedTx], quoteId: quote.id, userId: owner.id });
-
-      const response = await cancel(ramp.id, owner.id);
-
-      expect(response.status).toBe(409);
-      expect((await ramp.reload()).currentPhase).toBe("initial");
-    });
-
-    it("does not start a cancelled ramp", async () => {
-      const owner = await createTestUser();
-      const quote = await createTestQuote({ userId: owner.id });
-      const ramp = await createTestRampState({ currentPhase: "timedOut", quoteId: quote.id, userId: owner.id });
-
-      const response = await start(ramp.id, owner.id);
-
-      expect(response.status).toBe(409);
     });
   });
 

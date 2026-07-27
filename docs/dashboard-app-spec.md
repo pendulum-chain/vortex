@@ -168,20 +168,11 @@ provider-shaped rather than UI-shaped.
   the recoverable `AwaitingPayment` state, never mid-request — so provider payment instructions
   survive navigation and reload. A failed BUY start returns to `AwaitingPayment` with the same
   ramp, so a user who already sent fiat keeps the instructions and can retry start. Registered
-  instructions cannot be discarded before their 15-minute start window closes because the server
-  still considers that ramp active; once expired, the dashboard hides the stale details and allows
-  resetting for a new quote.
+  instructions remain visible until their 15-minute start window closes; once expired, the
+  dashboard hides the stale details and allows resetting for a new quote.
 
-- **Only one validated ramp may be active per user.** Registrations for distinct quotes are
-  provisional and may coexist while `presigned_txs` is null. The first non-empty `/ramp/update`
-  submission that passes presigned-transaction validation locks the user and reserves the active
-  slot; a concurrent update from another tab, client, or API instance receives `409`. A valid
-  partial presigned subset is sufficient to reserve the slot, while invalid data cannot. Unstarted
-  ramps stop blocking after the existing 15-minute start window — but only ramps still in
-  `initial` are released that way. A validated ramp wedged in a mid-flow phase (it may hold user
-  funds) blocks other ramps from accepting presigned updates indefinitely; there is no self-service
-  recovery, only operational intervention that moves it to a terminal phase. The dashboard stores
-  each ramp's EVM and Substrate ephemeral secrets locally before registration (under a
+- **Preserve ramp recovery keys.** The dashboard stores each ramp's EVM and Substrate ephemeral
+  secrets locally before registration (under a
   dashboard-namespaced localStorage key, so the widget's own ephemeral-store pruning cannot evict
   them) and retains earlier ramp entries independently of disposable transfer-machine state.
   From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
@@ -190,8 +181,8 @@ provider-shaped rather than UI-shaped.
   **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
   to the account that created the ramp; switching accounts does not expose its payment details.
   The customer can return to the same instructions while the payment window remains open. Once
-  the instructions expire, **Get a new quote** clears only the local transfer state; server-side
-  expiry releases the old ramp before a later registration.
+  the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
+  expired ramp remains rejected by the API.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is
