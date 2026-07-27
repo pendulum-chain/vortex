@@ -186,9 +186,12 @@ provider-shaped rather than UI-shaped.
   them) and retains earlier ramp entries independently of disposable transfer-machine state.
   From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
   `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
-  customer can return to the same instructions while the payment window remains open. Once the
-  instructions expire, **Get a new quote** clears only the local transfer state; server-side expiry
-  releases the old ramp before a later registration.
+  transactions page labels the matching initial BUY ramp as **Awaiting payment** and offers
+  **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
+  to the account that created the ramp; switching accounts does not expose its payment details.
+  The customer can return to the same instructions while the payment window remains open. Once
+  the instructions expire, **Get a new quote** clears only the local transfer state; server-side
+  expiry releases the old ramp before a later registration.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is

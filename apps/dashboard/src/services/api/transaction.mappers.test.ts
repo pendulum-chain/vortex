@@ -13,12 +13,48 @@ import { mapRampHistoryTransaction, mapTransactionStatus } from "./transaction.m
 
 describe("mapTransactionStatus", () => {
   it("maps failed ramps to failed", () => {
-    assert.equal(mapTransactionStatus({ currentPhase: "failed", status: WireTransactionStatus.FAILED }), "failed");
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "failed",
+        status: WireTransactionStatus.FAILED,
+        type: RampDirection.BUY
+      }),
+      "failed"
+    );
   });
 
   it("maps timed-out ramps to cancelled", () => {
-    assert.equal(mapTransactionStatus({ currentPhase: "timedOut", status: WireTransactionStatus.FAILED }), "cancelled");
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "timedOut",
+        status: WireTransactionStatus.FAILED,
+        type: RampDirection.BUY
+      }),
+      "cancelled"
+    );
     assert.equal(mapPhaseToStatus("timedOut"), "cancelled");
+  });
+
+  it("maps an unstarted onramp to awaiting payment", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.BUY
+      }),
+      "awaiting_payin"
+    );
+  });
+
+  it("keeps an unstarted offramp in processing", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.SELL
+      }),
+      "processing"
+    );
   });
 });
 
@@ -48,6 +84,7 @@ describe("mapRampHistoryTransaction", () => {
     assert.equal(transaction?.amountInToken, "BRL");
     assert.equal(transaction?.payoutCurrency, "USDC");
     assert.equal(transaction?.recipientEmail, "Your wallet");
+    assert.equal(transaction?.status, "awaiting_payin");
   });
 
   it("keeps a SELL source wallet separate from its payout destination label", () => {

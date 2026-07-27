@@ -1,4 +1,5 @@
-import { LifeBuoy } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, LifeBuoy } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,13 @@ const LIVE_DOT: Partial<Record<Transaction["status"], string>> = {
   processing: "bg-info"
 };
 
-export function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
+export function TransactionsTable({
+  resumableRampId,
+  transactions
+}: {
+  resumableRampId?: string;
+  transactions: Transaction[];
+}) {
   return (
     <Table>
       <TableHeader>
@@ -98,7 +105,14 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
                 </span>
               </TableCell>
               <TableCell className="text-right">
-                {tx.status === "failed" ? (
+                {tx.id === resumableRampId && tx.direction === "BUY" && tx.status === "awaiting_payin" ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link search={{ mode: "onramp" }} to="/transfer">
+                      Resume payment
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                ) : tx.status === "failed" ? (
                   <FailedAction direction={tx.direction} reason={tx.failureReason} />
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>

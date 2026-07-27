@@ -7,7 +7,9 @@ import {
 import type { Transaction, TransactionStatus } from "@/domain/types";
 import { CORRIDOR_BY_FIAT } from "./mappers";
 
-export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "currentPhase" | "status">): TransactionStatus {
+export function mapTransactionStatus(
+  tx: Pick<GetRampHistoryTransaction, "currentPhase" | "status" | "type">
+): TransactionStatus {
   if (tx.currentPhase === "timedOut") {
     return "cancelled";
   }
@@ -16,6 +18,9 @@ export function mapTransactionStatus(tx: Pick<GetRampHistoryTransaction, "curren
   }
   if (tx.status === WireTransactionStatus.FAILED) {
     return "failed";
+  }
+  if (tx.type === RampDirection.BUY && tx.currentPhase === "initial") {
+    return "awaiting_payin";
   }
   return "processing";
 }
