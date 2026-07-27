@@ -96,6 +96,22 @@ const ALFREDPAY_ONRAMP = {
   rampType: RampDirection.BUY,
   to: Networks.Polygon
 };
+const ALFREDPAY_ONRAMP_TO_BASE = { ...ALFREDPAY_ONRAMP, to: Networks.Base };
+const EUR_OFFRAMP = {
+  from: Networks.Base,
+  inputCurrency: "USDC",
+  outputCurrency: FiatToken.EURC,
+  rampType: RampDirection.SELL,
+  to: "sepa"
+};
+const EUR_ONRAMP_BASE = {
+  from: "sepa",
+  inputCurrency: FiatToken.EURC,
+  outputCurrency: "USDC",
+  rampType: RampDirection.BUY,
+  to: Networks.Base
+};
+const EUR_ONRAMP_TO_ARBITRUM = { ...EUR_ONRAMP_BASE, to: Networks.Arbitrum };
 
 describe("quoteToSigningNetworks", () => {
   it("BRL off-ramp from an EVM chain signs on Base only", () => {
@@ -137,6 +153,56 @@ describe("quoteToSigningNetworks", () => {
 
   it("Alfredpay on-ramp signs on Polygon only (destination deduped)", () => {
     expect(quoteToSigningNetworks(ALFREDPAY_ONRAMP)).toEqual({ evm: [Networks.Polygon], substrate: [] });
+  });
+
+  it("Alfredpay on-ramp to a different EVM chain signs on Polygon plus the destination", () => {
+    expect(quoteToSigningNetworks(ALFREDPAY_ONRAMP_TO_BASE)).toEqual({
+      evm: [Networks.Polygon, Networks.Base],
+      substrate: []
+    });
+  });
+
+  it("EUR off-ramp signs on Base only", () => {
+    expect(quoteToSigningNetworks(EUR_OFFRAMP)).toEqual({ evm: [Networks.Base], substrate: [] });
+  });
+
+  it("EUR on-ramp to Base signs on Base only (destination deduped)", () => {
+    expect(quoteToSigningNetworks(EUR_ONRAMP_BASE)).toEqual({ evm: [Networks.Base], substrate: [] });
+  });
+
+  it("EUR on-ramp to a different EVM chain signs on Base plus the destination", () => {
+    expect(quoteToSigningNetworks(EUR_ONRAMP_TO_ARBITRUM)).toEqual({
+      evm: [Networks.Base, Networks.Arbitrum],
+      substrate: []
+    });
+  });
+
+  it("covers every branch of the mapping", () => {
+    // Guard against a corridor being added to quoteToSigningNetworks without a test:
+    // each case above must exercise a distinct branch, and together they must produce
+    // every network the mapping can emit.
+    const emitted = new Set(
+      [
+        BRL_OFFRAMP_EVM,
+        BRL_OFFRAMP_ASSETHUB,
+        ALFREDPAY_OFFRAMP,
+        EUR_OFFRAMP,
+        AVENIA_ONRAMP_BASE,
+        AVENIA_ONRAMP_TO_POLYGON,
+        AVENIA_ONRAMP_ASSETHUB_USDC,
+        AVENIA_ONRAMP_ASSETHUB_NON_USDC,
+        ALFREDPAY_ONRAMP,
+        ALFREDPAY_ONRAMP_TO_BASE,
+        EUR_ONRAMP_BASE,
+        EUR_ONRAMP_TO_ARBITRUM
+      ].flatMap(quote => {
+        const { evm, substrate } = quoteToSigningNetworks(quote);
+        return [...evm, ...substrate];
+      })
+    );
+    expect([...emitted].sort() as string[]).toEqual(
+      ([Networks.Arbitrum, Networks.Base, Networks.Moonbeam, Networks.Polygon, "hydration", "pendulum"] as string[]).sort()
+    );
   });
 
   it("does not depend on chains outside the route (no all-chain fan-out)", () => {
