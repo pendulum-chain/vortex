@@ -11,8 +11,8 @@ import { RampService } from "./ramp.service";
 // Locks in the user-gating guards at the top of RampService.registerRamp. See
 // docs/architecture/user-gated-ramp-registration.md. The guards run before any DB write or
 // signing-account validation, so overriding withTransaction (to skip the real DB) and mocking
-// QuoteTicket.findByPk (plus the User lookup and one-active-ramp lock queries that follow the
-// guards) is enough to drive them.
+// QuoteTicket.findByPk (plus the User lookup and ramp-admission queries that follow the guards)
+// is enough to drive them.
 class TestRampService extends RampService {
   protected async withTransaction<T>(callback: (transaction: Transaction) => Promise<T>): Promise<T> {
     return callback({} as Transaction);
@@ -44,10 +44,12 @@ async function expectRegisterError(userId: string | undefined, expectedStatus: n
 describe("RampService.registerRamp user gating", () => {
   const originalFindByPk = QuoteTicket.findByPk;
   const originalUserFindByPk = User.findByPk;
+  const originalRampStateCount = RampState.count;
   const originalRampStateUpdate = RampState.update;
   const originalRampStateFindOne = RampState.findOne;
 
   User.findByPk = mock(async () => ({ id: "user-a" })) as unknown as typeof User.findByPk;
+  RampState.count = mock(async () => 0) as unknown as typeof RampState.count;
   RampState.update = mock(async () => [0]) as unknown as typeof RampState.update;
   RampState.findOne = mock(async () => null) as unknown as typeof RampState.findOne;
 
@@ -57,6 +59,7 @@ describe("RampService.registerRamp user gating", () => {
 
   afterAll(() => {
     User.findByPk = originalUserFindByPk;
+    RampState.count = originalRampStateCount;
     RampState.update = originalRampStateUpdate;
     RampState.findOne = originalRampStateFindOne;
   });
