@@ -16,7 +16,7 @@ Every webhook request includes:
 
 Every event payload also carries an `eventId` that is unique per event and stays the same across delivery retries. Deduplicate on it: if you have already processed an `eventId`, acknowledge the request with `2xx` and skip your handler.
 
-All webhook URLs **must use HTTPS**, must not embed credentials, and must resolve to a publicly routable address — URLs pointing at private or reserved IP ranges are rejected. Signatures are verified against the RSA-PSS 2048-bit public key returned by `GET /v1/public-key`.
+All webhook URLs **must use HTTPS** and must not embed credentials. The hostname is checked at registration and again before every delivery: if it resolves to a private or otherwise non-public address the request is rejected. A hostname that does not resolve yet is accepted at registration (so you can register before DNS is live), but deliveries to it will fail until it resolves publicly. Signatures are verified against the RSA-PSS 2048-bit public key returned by `GET /v1/public-key`.
 
 Webhooks are bound to the account behind your secret key: you can only subscribe to a `quoteId` created with your key (any other quote returns `404`), and you can only delete webhooks your account registered.
 

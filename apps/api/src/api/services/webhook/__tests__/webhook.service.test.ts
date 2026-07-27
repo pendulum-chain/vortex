@@ -467,7 +467,7 @@ describe('WebhookService', () => {
       expect(result).toEqual(mockWebhooks);
     });
 
-    it('should scope matching webhooks to the quote owner (plus legacy ownerless rows)', async () => {
+    it('should scope matching webhooks strictly to the quote owner', async () => {
       quoteTicketFindByPkMock.mockResolvedValue(createMockQuote({ partnerId: 'partner-1', userId: 'user-1' }));
       findAllMock.mockResolvedValue([]);
 
@@ -480,22 +480,22 @@ describe('WebhookService', () => {
         { sessionId: 'session-456' },
         { quoteId: null, sessionId: null }
       ]);
+      // No ownerless clause: such a row would match every quote, which is exactly the
+      // cross-tenant hole a pre-ownership row could have been planted to exploit.
       expect(ownerOr[Op.or]).toEqual([
-        { partnerId: null, userId: null },
         { partnerId: 'partner-1' },
         { userId: 'user-1' }
       ]);
     });
 
-    it('should only match ownerless webhooks when the quote cannot be loaded', async () => {
+    it('should deliver to nobody when the quote owner cannot be resolved', async () => {
       quoteTicketFindByPkMock.mockResolvedValue(null);
       findAllMock.mockResolvedValue([]);
 
-      await webhookService.findWebhooksForEvent(WebhookEventType.STATUS_CHANGE, 'quote-123');
+      const result = await webhookService.findWebhooksForEvent(WebhookEventType.STATUS_CHANGE, 'quote-123');
 
-      const where = (findAllMock.mock.calls[0] as any)[0].where;
-      const [, ownerOr] = where[Op.and];
-      expect(ownerOr[Op.or]).toEqual([{ partnerId: null, userId: null }]);
+      expect(result).toEqual([]);
+      expect(findAllMock).not.toHaveBeenCalled();
     });
 
     it('should find webhooks for session and quote', async () => {
