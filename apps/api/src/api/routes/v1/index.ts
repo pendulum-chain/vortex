@@ -31,6 +31,7 @@ import recipientsRoutes from "./recipients.route";
 import sessionRoutes from "./session.route";
 import siweRoutes from "./siwe.route";
 import storageRoutes from "./storage.route";
+import walletsRoutes from "./wallets.route";
 import webhookRoutes from "./webhook.route";
 
 type ChainStatus = {
@@ -213,6 +214,14 @@ router.use("/onboarding", onboardingRoutes);
  * DELETE /v1/api-keys/:keyId
  */
 router.use("/api-keys", apiKeysRoutes);
+
+/**
+ * Optional user wallet preference and verified embedded-wallet metadata.
+ * GET /v1/wallets
+ * PATCH /v1/wallets/mode
+ * POST /v1/wallets/privy
+ */
+router.use("/wallets", walletsRoutes);
 
 /**
  * Admin routes for partner API key management

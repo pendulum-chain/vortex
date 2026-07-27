@@ -192,6 +192,11 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
+  privy: {
+    appId: string;
+    appSecret: string;
+    walletRegistrationEnabled: boolean;
+  };
 }
 
 export const config: Config = {
@@ -265,6 +270,11 @@ export const config: Config = {
       partnerApiKey: process.env.TRANSAK_API_KEY
     }
   },
+  privy: {
+    appId: process.env.PRIVY_APP_ID || "",
+    appSecret: process.env.PRIVY_APP_SECRET || "",
+    walletRegistrationEnabled: process.env.PRIVY_WALLET_REGISTRATION_ENABLED === "true"
+  },
   quote: {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
@@ -316,6 +326,10 @@ if (config.sandboxEnabled && config.deploymentEnv !== "sandbox") {
 
 if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
   throw new Error("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
+}
+
+if (config.privy.walletRegistrationEnabled && (!config.privy.appId || !config.privy.appSecret)) {
+  throw new Error("PRIVY_APP_ID and PRIVY_APP_SECRET are required when PRIVY_WALLET_REGISTRATION_ENABLED=true");
 }
 
 if (config.env === "production") {
