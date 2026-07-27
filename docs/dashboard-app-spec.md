@@ -184,10 +184,11 @@ provider-shaped rather than UI-shaped.
   each ramp's EVM and Substrate ephemeral secrets locally before registration (under a
   dashboard-namespaced localStorage key, so the widget's own ephemeral-store pruning cannot evict
   them) and retains earlier ramp entries independently of disposable transfer-machine state.
-  From the onramp payment-instructions screen, **Cancel and go back** first calls the authenticated
-  cancellation endpoint and clears local transfer state only after the API changes the `initial`
-  ramp to `timedOut`. The same server cancellation runs before replacing expired instructions.
-  Cancellation failures keep the instructions and ramp context visible for retry.
+  From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
+  `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
+  customer can return to the same instructions while the payment window remains open. Once the
+  instructions expire, **Get a new quote** clears only the local transfer state; server-side expiry
+  releases the old ramp before a later registration.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is

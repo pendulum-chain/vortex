@@ -27,10 +27,6 @@ export function mapPhaseToStatus(phase: string): DomainTransactionStatus {
 
 /** Ported from the widget's RampService — the real /v1/ramp/* endpoints. */
 export const RampService = {
-  cancelRamp(rampId: string): Promise<void> {
-    return apiClient.post<void>("/ramp/cancel", { rampId });
-  },
-
   getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     return apiClient.get<GetRampStatusResponse>(`/ramp/${rampId}`);
   },

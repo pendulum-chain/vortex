@@ -84,7 +84,6 @@ function buildImplementations(actors?: ProvideArg["actors"], actions?: ProvideAr
     },
     actors: {
       acceptRecipientInvite: fromPromise(async (): Promise<AcceptedRecipientInvite> => acceptedInvite),
-      cancelRamp: fromPromise(async (): Promise<void> => undefined),
       checkAndRefreshToken: fromPromise(async (): Promise<CheckTokenOutput> => ({ success: true, tokens: authedTokens })),
       checkEmail: fromPromise(async (): Promise<CheckEmailResponse> => ({ action: "signin", exists: true })),
       loadQuote: fromPromise(async (): Promise<LoadQuoteOutput> => ({ isExpired: false, quote })),
@@ -343,13 +342,8 @@ describe("rampMachine", () => {
       await waitFor(actor, s => s.matches("RampFollowUp"));
     });
 
-    it("cancels the registered ramp before going back from an awaiting-payment BUY ramp", async () => {
-      let cancelCalls = 0;
-      const actor = createRampActor({
-        cancelRamp: fromPromise(async () => {
-          cancelCalls += 1;
-        })
-      });
+    it("leaves an awaiting-payment BUY ramp without cancelling it", async () => {
+      const actor = createRampActor();
       actor.start();
       await goToQuoteReady(actor);
       await confirmRamp(actor, FiatToken.EURC, RampDirection.BUY);
@@ -359,7 +353,6 @@ describe("rampMachine", () => {
       actor.send({ type: "GO_BACK" });
 
       await waitFor(actor, s => s.matches("Idle"));
-      expect(cancelCalls).toBe(1);
       expect(actor.getSnapshot().context.rampState).toBeUndefined();
     });
 

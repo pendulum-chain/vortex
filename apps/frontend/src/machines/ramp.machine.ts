@@ -5,7 +5,6 @@ import { findKybRegionByCode } from "../constants/kybRegions";
 import { ToastMessage } from "../helpers/notifications";
 import { AuthService } from "../services/auth";
 import { checkEmailActor, requestOTPActor, verifyOTPActor } from "./actors/auth.actor";
-import { cancelRampActor } from "./actors/cancel.actor";
 import { registerRampActor } from "./actors/register.actor";
 import { SignRampError, SignRampErrorType, signTransactionsActor } from "./actors/sign.actor";
 import { startRampActor } from "./actors/start.actor";
@@ -104,7 +103,6 @@ export const rampMachine = setup({
     acceptRecipientInvite: fromPromise(acceptRecipientInviteActor),
     alfredpayKyc: alfredpayKycMachine,
     aveniaKyc: aveniaKycMachine,
-    cancelRamp: fromPromise(cancelRampActor),
     checkAndRefreshToken: fromPromise(checkAndRefreshTokenActor),
     checkEmail: fromPromise(checkEmailActor),
     loadQuote: fromPromise(loadQuoteActor),
@@ -214,19 +212,6 @@ export const rampMachine = setup({
     }
   },
   states: {
-    CancelRamp: {
-      invoke: {
-        input: ({ context }) => context,
-        onDone: {
-          target: "Resetting"
-        },
-        onError: {
-          actions: [{ type: "setErrorMessage" }],
-          target: "Error"
-        },
-        src: "cancelRamp"
-      }
-    },
     CheckAuth: {
       invoke: {
         onDone: [
@@ -850,7 +835,9 @@ export const rampMachine = setup({
       },
       on: {
         GO_BACK: {
-          target: "CancelRamp"
+          // Payment instructions may already have been exposed. Leave the local
+          // flow without terminally cancelling a ramp that can still receive funds.
+          target: "Resetting"
         },
         PAYMENT_CONFIRMED: {
           actions: assign({
