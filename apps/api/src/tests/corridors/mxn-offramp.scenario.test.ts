@@ -17,6 +17,7 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
+import type Partner from "../../models/partner.model";
 import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
 import { createTestAlfredpayCustomer, createTestPartner, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
@@ -111,7 +112,15 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
+  async function createQuoteViaApi(
+    options: { authUserId?: string } = {}
+  ): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
+    // An authenticated quote picks up the user's profile-assigned pricing partner.
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.authUserId) {
+      headers.Authorization = `Bearer ${testUserToken(options.authUserId)}`;
+    }
+
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Polygon,
@@ -122,7 +131,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         rampType: RampDirection.SELL,
         to: "spei"
       }),
-      headers: { "Content-Type": "application/json" },
+      headers,
       method: "POST"
     });
     expect(response.status).toBe(201);
@@ -157,13 +166,23 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     return blueprint?.txData as unknown as EvmTxBlueprint;
   }
 
-  async function setUpRegisteredRamp(): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { pricingPartner?: Partner } = {}): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
     await createTestAlfredpayCustomer(user.id);
-    const quote = await createQuoteViaApi();
+    if (options.pricingPartner) {
+      // Profile-assigned pricing: the quote stays user-owned (partner_id NULL) but is
+      // priced by — and pays markup to — the assigned partner via pricing_partner_id.
+      await ProfilePartnerAssignment.create({
+        isActive: true,
+        partnerId: options.pricingPartner.id,
+        partnerName: options.pricingPartner.name,
+        userId: user.id
+      });
+    }
+    const quote = await createQuoteViaApi(options.pricingPartner ? { authUserId: user.id } : {});
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -437,6 +456,51 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     } finally {
       world.prices.perUsd.mxn = originalMxnRate;
     }
+  });
+
+  it("fee integrity: split vortex/partner components round per component and still reconcile exactly", async () => {
+    // Two 0.005 MXN components: rounded per component (like calculateFeeComponents)
+    // each becomes 0.01 MXN, while the aggregate would round to 0.01 total — the
+    // deduction must follow the per-component convention or distribution would move
+    // twice what was deducted.
+    const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+    const partnerPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+    await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: vortexPayout });
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 0.005,
+      name: "split-dust-partner",
+      payoutAddressEvm: partnerPayout,
+      rampType: RampDirection.SELL,
+      vortexFeeType: "absolute",
+      vortexFeeValue: 0.005
+    });
+
+    const setup = await setUpRegisteredRamp({ pricingPartner: partner });
+
+    const registered = await RampState.findByPk(setup.rampId);
+    const feeBlueprints = (registered?.unsignedTxs ?? [])
+      .filter(tx => tx.phase === "distributeFees")
+      .sort((a, b) => a.nonce - b.nonce);
+    expect(feeBlueprints).toHaveLength(2);
+
+    // Each 0.01 MXN component floors to 588 raw USDT at the 17 MXN/USD rate.
+    let distributedRaw = 0n;
+    for (const blueprint of feeBlueprints) {
+      const decoded = decodeFunctionData({
+        abi: erc20Abi,
+        data: (blueprint.txData as unknown as { data: `0x${string}` }).data
+      });
+      const [, amountRaw] = decoded.args as [`0x${string}`, bigint];
+      expect(amountRaw).toBe(588n);
+      distributedRaw += amountRaw;
+    }
+
+    // Exact raw-unit conservation: bridged amount = Alfredpay deposit + distributed fees.
+    const persisted = await QuoteTicket.findByPk(setup.quoteId);
+    const depositRaw = BigInt(persisted?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    expect(depositRaw + distributedRaw).toBe(parseUnits("100", ALFREDPAY_ERC20_DECIMALS));
   });
 
   it("fee integrity: a markup partner without an EVM payout address cannot be quoted", async () => {

@@ -112,6 +112,10 @@ export interface QuoteContext {
     // Representative currency for swap input (e.g., axlUSDC for eth)
     deductibleFeeAmountInSwapCurrency?: Big;
     representativeInputCurrency?: RampCurrency;
+    // Off-ramp only: the unrounded components behind deductibleFeeAmountInFeeCurrency,
+    // for consumers that must round per component like calculateFeeComponents does.
+    vortexFeeInFeeCurrency?: Big;
+    partnerMarkupFeeInFeeCurrency?: Big;
   };
 
   nablaSwap?: {

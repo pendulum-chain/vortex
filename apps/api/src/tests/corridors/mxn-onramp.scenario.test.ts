@@ -473,6 +473,111 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     30000
   );
 
+  it("fee integrity: a zero-value markup config without a payout address is still quotable", async () => {
+    // markupType may legally be set with markupValue = 0 — no fee is charged, so no
+    // payout address is required and the quote must not be rejected.
+    const user = await createTestUser();
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 0,
+      name: "zero-markup-partner",
+      rampType: RampDirection.BUY
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: partner.id,
+      partnerName: partner.name,
+      userId: user.id
+    });
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: "spei",
+        inputAmount: "2000",
+        inputCurrency: FiatToken.MXN,
+        network: Networks.Polygon,
+        outputCurrency: EvmToken.USDT,
+        rampType: RampDirection.BUY,
+        to: Networks.Polygon
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+    expect(response.status).toBe(201);
+    const quote = (await response.json()) as { outputAmount: string; partnerFeeUsd: string };
+    expect(Number(quote.partnerFeeUsd)).toBe(0);
+    expect(Number(quote.outputAmount)).toBe(100);
+  });
+
+  it(
+    "fee collection: a mined-but-reverted fee transfer fails the ramp explicitly instead of retrying forever",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
+
+      const setup = await setUpRegisteredRamp();
+      const rampState = await RampState.findByPk(setup.rampId);
+      const feeBlueprint = rampState?.unsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+
+      // Sign and submit the fee transfer presign so the distribution phase engages.
+      const feeTxData = feeBlueprint?.txData as unknown as { data: `0x${string}`; to: `0x${string}` };
+      const signFee = (nonce: number) =>
+        setup.ephemeral.signTransaction({
+          chainId: 137,
+          data: feeTxData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: feeTxData.to,
+          type: "eip1559"
+        });
+      const feeNonce = feeBlueprint?.nonce ?? 1;
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: feeNonce + i, txData: await signFee(feeNonce + i) };
+      }
+      await updateRampViaApi(setup.rampId, setup.userId, {
+        meta: { additionalTxs: feeBackups },
+        network: Networks.Polygon,
+        nonce: feeNonce,
+        phase: "distributeFees",
+        signer: setup.ephemeral.address,
+        txData: await signFee(feeNonce)
+      });
+
+      // A previous attempt broadcast the fee transfer and it was mined but REVERTED:
+      // its nonce is consumed, so the phase must fail explicitly rather than loop.
+      const revertedHash = "0x00000000000000000000000000000000000000000000000000000000dead0001";
+      world.evm.revertedReceiptHashes.add(revertedHash);
+      await rampState?.update({
+        state: { ...rampState.state, distributeFeeHashes: { [String(feeBlueprint?.nonce)]: revertedHash } }
+      });
+
+      scriptHappyWorld(setup);
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.errorLogs.some(log => log.error.includes("REVERTED"))).toBe(true);
+      // Nothing was paid out and the primary was never rebroadcast.
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(0n);
+
+      world.evm.revertedReceiptHashes.delete(revertedHash);
+    },
+    30000
+  );
+
   it("fee integrity: a markup partner without an EVM payout address cannot be quoted", async () => {
     // The markup would be charged against the user's output but could never be paid
     // out on Polygon — quote creation must fail closed instead of stranding the fee.

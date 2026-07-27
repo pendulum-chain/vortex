@@ -170,7 +170,16 @@ export class QuoteService extends BaseRampService {
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
-    if (partner && partner.markupType !== "none" && partner.payoutAddressEvm === null && requiresEvmPartnerPayout(request)) {
+    // A payout address is only required when a markup is actually charged: markupType
+    // may legally be set with a zero markupValue (Sequelize returns DECIMALs as strings,
+    // so compare via Big).
+    if (
+      partner &&
+      partner.markupType !== "none" &&
+      new Big(partner.markupValue || 0).gt(0) &&
+      partner.payoutAddressEvm === null &&
+      requiresEvmPartnerPayout(request)
+    ) {
       logger.error(
         `Quote rejected: partner '${partner.name}' (id=${partner.id}) has markup configured but no payout_address_evm; route ${request.from} -> ${request.to} (${request.outputCurrency}) requires EVM partner payout.`
       );

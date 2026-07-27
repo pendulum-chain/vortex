@@ -203,6 +203,17 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             logger.info(`Fee distribution transfer at nonce ${feeTx.nonce} already succeeded for ramp ${state.id}, skipping.`);
             continue;
           }
+          if (status === ExtrinsicStatus.Fail) {
+            // A mined-but-reverted transfer has consumed its nonce: the primary presign
+            // can never execute again, so silently rebroadcasting it would retry forever.
+            // Fail explicitly for manual intervention (validated same-call backups exist
+            // at the following nonces).
+            throw this.createUnrecoverableError(
+              `Fee distribution transfer at nonce ${feeTx.nonce} was mined but REVERTED (hash ${existingHash}); its nonce is consumed and the primary presigned transaction cannot execute again. Manual intervention required.`
+            );
+          }
+          // Undefined: the hash is unknown (e.g. dropped from the mempool) — the same
+          // presign can safely be rebroadcast at its original nonce.
         }
         pendingTxs.push(feeTx);
       }

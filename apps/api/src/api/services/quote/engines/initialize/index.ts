@@ -42,7 +42,12 @@ export abstract class BaseInitializeEngine implements Stage {
 export async function assignPreNablaContext(ctx: QuoteContext): Promise<void> {
   const req = ctx.request;
 
-  const { preNablaDeductibleFeeAmount: deductibleFeeAmountInFeeCurrency, feeCurrency } = await calculatePreNablaDeductibleFees(
+  const {
+    preNablaDeductibleFeeAmount: deductibleFeeAmountInFeeCurrency,
+    feeCurrency,
+    partnerMarkupFee,
+    vortexFee
+  } = await calculatePreNablaDeductibleFees(
     req.inputAmount,
     req.inputCurrency,
     req.outputCurrency,
@@ -69,7 +74,9 @@ export async function assignPreNablaContext(ctx: QuoteContext): Promise<void> {
     deductibleFeeAmountInFeeCurrency,
     deductibleFeeAmountInSwapCurrency: new Big(deductibleFeeAmountInSwapCurrency),
     feeCurrency,
-    representativeInputCurrency: representativeCurrency
+    partnerMarkupFeeInFeeCurrency: partnerMarkupFee,
+    representativeInputCurrency: representativeCurrency,
+    vortexFeeInFeeCurrency: vortexFee
   };
 }
 

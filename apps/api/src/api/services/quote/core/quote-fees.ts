@@ -29,6 +29,10 @@ export interface FeeComponentsResult {
 export interface PreNablaDeductibleFeesResult {
   preNablaDeductibleFeeAmount: Big;
   feeCurrency: RampCurrency;
+  // Off-ramp only: the unrounded components behind preNablaDeductibleFeeAmount, for
+  // consumers that must round per component like calculateFeeComponents does.
+  vortexFee?: Big;
+  partnerMarkupFee?: Big;
 }
 
 /**
@@ -287,6 +291,13 @@ export async function calculatePreNablaDeductibleFees(
       );
 
       preNablaDeductibleFeeAmount = vortexFee.plus(partnerMarkupFee);
+
+      return {
+        feeCurrency,
+        partnerMarkupFee,
+        preNablaDeductibleFeeAmount,
+        vortexFee
+      };
     }
 
     return {

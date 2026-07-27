@@ -65,19 +65,23 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
 
     // Charge vortex + partner-markup fees on the USD leg before pricing the Alfredpay
     // payout: the fee residual stays on the Polygon ephemeral and is collected by the
-    // distributeFees phase. The fee is derived exactly like the persisted fee metadata
-    // (2 fiat decimals via calculateFeeComponents, converted with the same price-feed
-    // operation, then floored to USDT raw units), so the residual left after the
-    // deposit reconciles with the distributeFees transfers.
-    const feeFiatRounded = (ctx.preNabla?.deductibleFeeAmountInFeeCurrency ?? new Big(0)).round(2);
-    const feeUsd = await priceFeedService.convertCurrency(
-      feeFiatRounded.toString(),
-      ctx.preNabla?.feeCurrency ?? (outputCurrency as RampCurrency),
-      EvmToken.USDC as RampCurrency
-    );
-    const deductibleFee = new Big(multiplyByPowerOfTen(feeUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0)).div(
-      new Big(10).pow(ALFREDPAY_ERC20_DECIMALS)
-    );
+    // distributeFees phase. Each component is derived exactly like the persisted fee
+    // metadata (rounded to 2 fiat decimals via calculateFeeComponents, converted with
+    // the same price-feed operation, then floored to USDT raw units PER COMPONENT like
+    // computeFeeComponentRaws), so the residual left after the deposit reconciles with
+    // the distributeFees transfers.
+    const feeCurrency = ctx.preNabla?.feeCurrency ?? (outputCurrency as RampCurrency);
+    const componentToRaw = async (component: Big): Promise<Big> => {
+      const componentUsd = await priceFeedService.convertCurrency(
+        component.round(2).toString(),
+        feeCurrency,
+        EvmToken.USDC as RampCurrency
+      );
+      return new Big(multiplyByPowerOfTen(componentUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0));
+    };
+    const vortexFeeRaw = await componentToRaw(ctx.preNabla?.vortexFeeInFeeCurrency ?? new Big(0));
+    const partnerMarkupRaw = await componentToRaw(ctx.preNabla?.partnerMarkupFeeInFeeCurrency ?? new Big(0));
+    const deductibleFee = vortexFeeRaw.plus(partnerMarkupRaw).div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS));
     const usdOnPolygon = usdBridged.minus(deductibleFee);
     if (usdOnPolygon.lte(0)) {
       throw new APIError({
