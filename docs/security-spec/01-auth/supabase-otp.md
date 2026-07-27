@@ -12,6 +12,11 @@ The flow:
 5. API middleware (`supabaseAuth.ts`) verifies the JWT via `SupabaseAuthService.verifyToken()` and attaches `userId` to the request
 6. Access tokens are short-lived. The frontend refreshes them via `POST /v1/auth/refresh` (`SupabaseAuthService.refreshToken()` → Supabase `refreshSession`), scheduled just before expiry and also triggered on a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures (Supabase unreachable / 5xx) return `503` so the frontend keeps the session and retries.
 
+For users who explicitly choose an embedded EVM wallet, the client also supplies this same Supabase access token to
+Privy's JWT-based authentication integration. That creates a Privy session keyed by the token's `sub` claim; it does
+not replace the Supabase session, add a second Vortex login, or make Privy tokens valid on Vortex API routes. See
+[`privy-embedded-wallets.md`](./privy-embedded-wallets.md).
+
 Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
 - **`optionalAuth`** — Attaches `userId` if token is present and valid, but continues without auth if absent. Used on endpoints that behave differently for authenticated users.
@@ -27,6 +32,9 @@ Two middleware variants exist:
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
+10. **Privy synchronization MUST preserve Supabase authority** — Privy may consume the current Supabase JWT only after
+    the user chooses or restores an embedded wallet. Vortex API authorization continues to verify the Supabase bearer
+    token, and logout/token refresh events must be propagated to the Privy synchronization hook.
 
 ## Threat Vectors & Mitigations
 
@@ -38,6 +46,7 @@ Two middleware variants exist:
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |
 | **Token reuse after logout** | User "logs out" in frontend but JWT is still valid server-side | Supabase token invalidation on signout; short expiry window limits exposure |
 | **userId injection** | Attacker sends crafted request with `userId` in body/headers to bypass auth | `req.userId` is set exclusively by middleware; controllers read from `req.userId` not from request body |
+| **Stale secondary wallet session** | Supabase refresh/logout is not reflected in Privy | Auth service subscription notifies the Privy JWT synchronization hook on login, refresh, and logout |
 
 ## Audit Checklist
 
