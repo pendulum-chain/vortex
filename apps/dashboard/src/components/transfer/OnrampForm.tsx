@@ -49,7 +49,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   const { address } = useAccount();
   const { approved, isLoading: isLoadingApprovals } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
-  const tokenOptions = getRampTokenOptions();
+  const tokenOptions = getRampTokenOptions(RampDirection.BUY);
   const corridors = ONRAMP_CORRIDORS.filter(corridorId => approved.has(corridorId));
   const networkOptions = getNetworkOptions(tokenOptions);
   // Prefilled values are trusted only while the token list and onboarding status are still

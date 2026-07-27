@@ -16,6 +16,7 @@ describe("mapTransactionStatus", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "failed",
+        expiresAt: "2026-07-21T00:15:00.000Z",
         status: WireTransactionStatus.FAILED,
         type: RampDirection.BUY
       }),
@@ -27,6 +28,7 @@ describe("mapTransactionStatus", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "timedOut",
+        expiresAt: "2026-07-21T00:15:00.000Z",
         status: WireTransactionStatus.FAILED,
         type: RampDirection.BUY
       }),
@@ -39,6 +41,7 @@ describe("mapTransactionStatus", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "initial",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         status: WireTransactionStatus.PENDING,
         type: RampDirection.BUY
       }),
@@ -46,10 +49,23 @@ describe("mapTransactionStatus", () => {
     );
   });
 
+  it("maps an expired unstarted onramp to cancelled", () => {
+    assert.equal(
+      mapTransactionStatus({
+        currentPhase: "initial",
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+        status: WireTransactionStatus.PENDING,
+        type: RampDirection.BUY
+      }),
+      "cancelled"
+    );
+  });
+
   it("keeps an unstarted offramp in processing", () => {
     assert.equal(
       mapTransactionStatus({
         currentPhase: "initial",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         status: WireTransactionStatus.PENDING,
         type: RampDirection.SELL
       }),
@@ -64,6 +80,7 @@ describe("mapRampHistoryTransaction", () => {
       {
         currentPhase: "initial",
         date: "2026-07-21T00:00:00.000Z",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
         from: EPaymentMethod.PIX,
         fromAmount: "100.00",
         fromCurrency: FiatToken.BRL,
@@ -92,6 +109,7 @@ describe("mapRampHistoryTransaction", () => {
       {
         currentPhase: "complete",
         date: "2026-07-21T00:00:00.000Z",
+        expiresAt: "2026-07-21T00:15:00.000Z",
         from: Networks.Polygon,
         fromAmount: "54.054054",
         fromCurrency: EvmToken.USDC,

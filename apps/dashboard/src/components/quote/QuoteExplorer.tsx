@@ -60,7 +60,7 @@ export function QuoteExplorer() {
   const { approved } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const isBuy = direction === RampDirection.BUY;
-  const allTokenOptions = getRampTokenOptions();
+  const allTokenOptions = getRampTokenOptions(direction);
   const tokenOptions = isBuy ? allTokenOptions : allTokenOptions.filter(option => isEvmToken(String(option.currency)));
 
   // Network and token are derived rather than synced: changing network can drop the requested

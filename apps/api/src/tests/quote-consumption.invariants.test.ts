@@ -190,6 +190,36 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(await RampState.count({ where: { userId: user.id } })).toBe(2);
   });
 
+  it("allows only one concurrent active ramp to use an ephemeral account", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const secondQuote = await createQuoteViaApi();
+
+    const [first, second] = await Promise.all([
+      registerViaApi(firstQuote.id, user.id, EPHEMERAL),
+      registerViaApi(secondQuote.id, user.id, EPHEMERAL)
+    ]);
+
+    expect([first.status, second.status].sort()).toEqual([201, 409]);
+    expect(await RampState.count({ where: { userId: user.id } })).toBe(1);
+  });
+
+  it("allows an ephemeral account used only by a terminal ramp", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const firstQuote = await createQuoteViaApi();
+    const firstResponse = await registerViaApi(firstQuote.id, user.id, EPHEMERAL);
+    expect(firstResponse.status).toBe(201);
+    const firstRamp = (await firstResponse.json()) as { id: string };
+    await RampState.update({ currentPhase: "timedOut" }, { where: { id: firstRamp.id } });
+
+    const secondQuote = await createQuoteViaApi();
+    const secondResponse = await registerViaApi(secondQuote.id, user.id, EPHEMERAL);
+
+    expect(secondResponse.status).toBe(201);
+  });
+
   it("allows valid presigned updates on parallel ramps", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
@@ -236,6 +266,18 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(startResponse.status).toBe(400);
     expect(await startResponse.text()).toContain("Maximum time window to start process exceeded");
     expect((await RampState.findByPk(ramp.id))?.currentPhase).toBe("initial");
+
+    const historyResponse = await app.request("/v1/ramp/history", {
+      headers: { Authorization: `Bearer ${testUserToken(user.id)}` },
+      method: "GET"
+    });
+    expect(historyResponse.status).toBe(200);
+    const history = (await historyResponse.json()) as {
+      transactions: Array<{ currentPhase: string; expiresAt: string; id: string }>;
+    };
+    const historyRamp = history.transactions.find(transaction => transaction.id === ramp.id);
+    expect(historyRamp?.currentPhase).toBe("initial");
+    expect(new Date(historyRamp?.expiresAt ?? 0).getTime()).toBeLessThan(Date.now());
   });
 
   // Pins the atomic-UPDATE backstop directly: even if the registration flow's

@@ -81,7 +81,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
   const [pixKey, setPixKey] = useState("");
 
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
-  const tokenOptions = getRampTokenOptions().filter(option => isEvmToken(String(option.currency)));
+  const tokenOptions = getRampTokenOptions(RampDirection.SELL).filter(option => isEvmToken(String(option.currency)));
   const networkOptions = getNetworkOptions(tokenOptions);
   const activeNetwork = networkOptions.find(option => option.id === requestedNetwork) ?? networkOptions[0];
   const networkTokens = tokenOptions.filter(option => option.network === activeNetwork?.id);

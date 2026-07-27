@@ -372,7 +372,7 @@ export const getRampHistory = async (
   }
 };
 
-/** Get every non-initial ramp owned by the authenticated user, across wallet addresses. */
+/** Get every ramp owned by the authenticated user, across wallet addresses. */
 export const getAuthenticatedUserRampHistory = async (
   req: Request<Record<string, never>, unknown, unknown, { limit?: string; offset?: string }>,
   res: Response<GetRampHistoryResponse>,

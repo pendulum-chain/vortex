@@ -1,4 +1,4 @@
-import { decodeAddress } from "@polkadot/util-crypto";
+import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
   ALFREDPAY_ONCHAIN_CURRENCY,
@@ -42,8 +42,9 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
-import { Op, Transaction, WhereOptions } from "sequelize";
+import { Op, QueryTypes, Transaction, WhereOptions } from "sequelize";
 import { isAddress } from "viem";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import QuoteTicket from "../../../models/quoteTicket.model";
@@ -148,13 +149,14 @@ export function normalizeAndValidateSigningAccounts(accounts: AccountMeta[]) {
     }
 
     validateAddressFormat(account.address, type);
+    const address = type === EphemeralAccountType.Substrate ? encodeAddress(decodeAddress(account.address)) : account.address;
 
     normalizedSigningAccounts.push({
-      address: account.address,
+      address,
       type: type
     });
 
-    ephemerals[type] = account.address;
+    ephemerals[type] = address;
   });
 
   return { ephemerals, normalizedSigningAccounts };
@@ -244,6 +246,43 @@ export class RampService extends BaseRampService {
       }
 
       const { normalizedSigningAccounts, ephemerals } = normalizeAndValidateSigningAccounts(signingAccounts);
+
+      const ephemeralLockKeys = normalizedSigningAccounts
+        .map(
+          account =>
+            `${account.type}:${account.type === EphemeralAccountType.EVM ? account.address.toLowerCase() : account.address}`
+        )
+        .sort();
+      for (const key of ephemeralLockKeys) {
+        await sequelize.query("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))", {
+          replacements: { key },
+          transaction
+        });
+      }
+
+      const activeRampWithEphemeral = await sequelize.query<{ id: string }>(
+        `SELECT id FROM ramp_states
+         WHERE current_phase NOT IN ('complete', 'failed', 'timedOut')
+           AND (
+             (:evmAddress IS NOT NULL AND lower(state->>'evmEphemeralAddress') = :evmAddress)
+             OR (:substrateAddress IS NOT NULL AND state->>'substrateEphemeralAddress' = :substrateAddress)
+           )
+         LIMIT 1`,
+        {
+          replacements: {
+            evmAddress: ephemerals.EVM?.toLowerCase() ?? null,
+            substrateAddress: ephemerals.Substrate ?? null
+          },
+          transaction,
+          type: QueryTypes.SELECT
+        }
+      );
+      if (activeRampWithEphemeral.length > 0) {
+        throw new APIError({
+          message: `An active ramp already uses one of the supplied ephemeral accounts: ${activeRampWithEphemeral[0].id}`,
+          status: httpStatus.CONFLICT
+        });
+      }
 
       await validateEphemeralAccountsFresh(ephemerals);
 
@@ -705,9 +744,6 @@ export class RampService extends BaseRampService {
       ...(walletAddress
         ? { [Op.or]: [{ "state.walletAddress": walletAddress }, { "state.destinationAddress": walletAddress }] }
         : {}),
-      currentPhase: {
-        [Op.ne]: "initial"
-      },
       flowVariant: config.flowVariant
     };
 
@@ -777,6 +813,7 @@ export class RampService extends BaseRampService {
         return {
           currentPhase: ramp.currentPhase,
           date: ramp.createdAt.toISOString(),
+          expiresAt: new Date(ramp.createdAt.getTime() + RAMP_START_EXPIRATION_TIME_SECONDS * 1000).toISOString(),
           externalTxExplorerLink: transactionExplorerLink,
           externalTxHash: transactionHash,
           from: ramp.from,

@@ -437,7 +437,14 @@
       },
       "GetRampHistoryTransaction": {
         "properties": {
+          "currentPhase": {
+            "$ref": "#/components/schemas/RampPhase"
+          },
           "date": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "description": "The deadline for starting an initial ramp.",
             "type": "string"
           },
           "externalTxExplorerLink": {
@@ -480,7 +487,20 @@
             "type": "string"
           }
         },
-        "required": ["id", "type", "from", "to", "fromAmount", "toAmount", "fromCurrency", "toCurrency", "status", "date"],
+        "required": [
+          "id",
+          "type",
+          "from",
+          "to",
+          "fromAmount",
+          "toAmount",
+          "fromCurrency",
+          "toCurrency",
+          "status",
+          "currentPhase",
+          "date",
+          "expiresAt"
+        ],
         "type": "object"
       },
       "GetUserRemainingLimitResponse": {

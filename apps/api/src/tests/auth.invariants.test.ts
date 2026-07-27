@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { FiatToken, Networks, RampDirection } from "@vortexfi/shared";
+import { FiatToken, RampDirection } from "@vortexfi/shared";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { setupTestDatabase, truncateAllTables } from "../test-utils/db";
