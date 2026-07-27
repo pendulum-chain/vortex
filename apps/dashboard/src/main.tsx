@@ -7,6 +7,7 @@ import "@/App.css";
 import { queryClient } from "@/lib/queryClient";
 import { wagmiConfig } from "@/lib/wagmi";
 import { getRouter } from "@/router";
+import { WalletExperienceProvider } from "@/wallets/WalletExperienceProvider";
 
 const router = getRouter();
 
@@ -21,7 +22,9 @@ if (!root) {
 createRoot(root).render(
   <WagmiProvider config={wagmiConfig}>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <WalletExperienceProvider>
+        <RouterProvider router={router} />
+      </WalletExperienceProvider>
     </QueryClientProvider>
   </WagmiProvider>
 );

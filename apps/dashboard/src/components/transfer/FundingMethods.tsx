@@ -1,12 +1,11 @@
-import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import type { QuoteResponse } from "@vortexfi/shared";
-import { Check, Loader2, TriangleAlert, Wallet } from "lucide-react";
-import { useAccount } from "wagmi";
+import { Check, KeyRound, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RampTokenOption } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
 import { useTokenPortfolio } from "@/hooks/useTokenPortfolio";
 import { getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
+import { useWalletExperience } from "@/wallets/WalletExperienceContext";
 
 export type FundingSource = "wallet";
 
@@ -29,23 +28,41 @@ interface FundingMethodsProps {
  * crypto deposits are not supported.
  */
 export function FundingMethods({ disabled, quote, submitting, token, onSubmit }: FundingMethodsProps) {
-  const { address } = useAccount();
-  const { isConnected } = useAppKitAccount();
-  const { open } = useAppKit();
+  const wallet = useWalletExperience();
+  const address = wallet.address;
   const portfolioQuery = useTokenPortfolio(address, token.network);
   const balance = portfolioQuery.data ? getTokenBalance(portfolioQuery.data, token.token) : undefined;
   const hasEnoughBalance = balance ? hasSufficientTokenBalance(balance, quote.inputAmount) : false;
   const checkingBalance = portfolioQuery.isPending || portfolioQuery.isFetching;
 
-  if (!isConnected || !address) {
+  if (wallet.mode === "privy_embedded" && !wallet.canSignOfframp) {
+    return (
+      <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
+        <p className="text-muted-foreground text-sm">Embedded-wallet payouts are not enabled in this environment.</p>
+        <Button onClick={() => void wallet.switchToExternalWallet()} type="button" variant="outline">
+          <Wallet className="size-4" />
+          Use an existing wallet
+        </Button>
+      </div>
+    );
+  }
+
+  if (!wallet.connected || !address) {
     return (
       <div className="grid gap-3">
         <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
-          <p className="text-muted-foreground text-sm">Connect your wallet.</p>
-          <Button className="mx-auto" onClick={() => open({ view: "Connect" })} type="button">
+          <p className="text-muted-foreground text-sm">Choose a wallet to authorize this payout.</p>
+          <Button className="mx-auto" onClick={() => void wallet.connectExternalWallet()} type="button" variant="outline">
             <Wallet className="size-4" />
-            Connect wallet
+            Connect existing wallet
           </Button>
+          {wallet.canUseEmbeddedWallet && (
+            <Button className="mx-auto" onClick={() => void wallet.createEmbeddedWallet()} type="button">
+              <KeyRound className="size-4" />
+              Create embedded wallet
+            </Button>
+          )}
+          {wallet.error && <p className="text-destructive text-xs">{wallet.error}</p>}
         </div>
       </div>
     );
@@ -95,7 +112,12 @@ export function FundingMethods({ disabled, quote, submitting, token, onSubmit }:
           disabled={disabled || checkingBalance || !!portfolioQuery.error || !hasEnoughBalance}
           onClick={() => {
             if (hasEnoughBalance) {
-              onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" });
+              wallet.activateSigner();
+              onSubmit({
+                destAddress: address,
+                label: wallet.mode === "privy_embedded" ? "Embedded wallet" : "Connected wallet",
+                source: "wallet"
+              });
             }
           }}
           type="button"

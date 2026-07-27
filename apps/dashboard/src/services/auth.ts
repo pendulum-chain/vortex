@@ -16,6 +16,18 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_dashboard_refresh_token";
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
+  private static readonly listeners = new Set<() => void>();
+
+  private static notifyListeners(): void {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+
+  static subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   static storeTokens(tokens: AuthTokens): void {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.accessToken);
@@ -24,6 +36,7 @@ export class AuthService {
     if (tokens.userEmail) {
       localStorage.setItem(this.USER_EMAIL_KEY, tokens.userEmail);
     }
+    this.notifyListeners();
   }
 
   static getTokens(): AuthTokens | null {
@@ -43,6 +56,7 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_ID_KEY);
     localStorage.removeItem(this.USER_EMAIL_KEY);
+    this.notifyListeners();
   }
 
   static isAuthenticated(): boolean {
