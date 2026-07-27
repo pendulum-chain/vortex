@@ -207,7 +207,53 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
    * signs the ephemeral phase blueprints exactly as issued, and stores them as
    * presigned transactions the way /v1/ramp/update would.
    */
-  async function setUpRegisteredRamp(options: { pricingPartner?: Partner } = {}): Promise<CorridorSetup> {
+  /**
+   * Signs a blueprint plus the four required same-call backups at the following
+   * nonces, honoring the blueprint's fee/gas minimums, shaped for /v1/ramp/update.
+   */
+  async function signBlueprintWithBackups(ephemeral: PrivateKeyAccount, blueprint: UnsignedTx) {
+    const txData = blueprint.txData as unknown as {
+      to: `0x${string}`;
+      data: `0x${string}`;
+      value?: string;
+      gas?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+    };
+    const atLeast = (raw: string | undefined, floor: bigint) => {
+      const value = BigInt(raw ?? "0");
+      return value > floor ? value : floor;
+    };
+    const sign = (nonce: number) =>
+      ephemeral.signTransaction({
+        chainId: 8453,
+        data: txData.data,
+        gas: atLeast(txData.gas, 600_000n),
+        maxFeePerGas: atLeast(txData.maxFeePerGas, 5_000_000_000n),
+        maxPriorityFeePerGas: atLeast(txData.maxPriorityFeePerGas, 5_000_000_000n),
+        nonce,
+        to: txData.to,
+        type: "eip1559",
+        value: BigInt(txData.value ?? "0")
+      });
+
+    const additionalTxs: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+    for (let i = 1; i <= 4; i++) {
+      additionalTxs[`${blueprint.phase}${i}`] = { nonce: blueprint.nonce + i, txData: await sign(blueprint.nonce + i) };
+    }
+    return {
+      meta: { additionalTxs },
+      network: blueprint.network,
+      nonce: blueprint.nonce,
+      phase: blueprint.phase,
+      signer: ephemeral.address,
+      txData: await sign(blueprint.nonce)
+    };
+  }
+
+  async function setUpRegisteredRamp(
+    options: { pricingPartner?: Partner; submitViaApi?: boolean } = {}
+  ): Promise<CorridorSetup & { userId: string }> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
@@ -273,25 +319,54 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       value: 0n
     });
 
-    await rampState.update({
-      presignedTxs: [
-        ...presignedFeeTxs,
-        presign(nablaApproveBlueprint, signedNablaApprove),
-        presign(nablaSwapBlueprint, signedNablaSwap),
-        presign(payoutBlueprint, signedPayout)
-      ],
-      state: { ...rampState.state, squidRouterNoPermitTransferHash: userTxHash }
-    });
+    let effectiveSignedNablaSwap = signedNablaSwap;
+    let effectiveSignedPayout = signedPayout;
+    if (options.submitViaApi) {
+      // Full API flow: sign EVERY ephemeral blueprint (with the required backups) and
+      // submit through /v1/ramp/update, exercising the real presign merge path.
+      const ephemeralBlueprints = unsignedTxs.filter(tx => tx.signer.toLowerCase() === ephemeral.address.toLowerCase());
+      const apiPresignedTxs = [];
+      for (const blueprint of ephemeralBlueprints) {
+        apiPresignedTxs.push(await signBlueprintWithBackups(ephemeral, blueprint));
+      }
+      effectiveSignedNablaSwap = apiPresignedTxs.find(tx => tx.phase === "nablaSwap")?.txData as `0x${string}`;
+      effectiveSignedPayout = apiPresignedTxs.find(tx => tx.phase === "brlaPayoutOnBase")?.txData as `0x${string}`;
+
+      const updateResponse = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          additionalData: { squidRouterNoPermitTransferHash: userTxHash },
+          presignedTxs: apiPresignedTxs,
+          rampId: ramp.id
+        }),
+        headers: {
+          Authorization: `Bearer ${testUserToken(user.id)}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      expect(updateResponse.status).toBe(200);
+    } else {
+      await rampState.update({
+        presignedTxs: [
+          ...presignedFeeTxs,
+          presign(nablaApproveBlueprint, signedNablaApprove),
+          presign(nablaSwapBlueprint, signedNablaSwap),
+          presign(payoutBlueprint, signedPayout)
+        ],
+        state: { ...rampState.state, squidRouterNoPermitTransferHash: userTxHash }
+      });
+    }
 
     return {
       ephemeral,
       payoutBlueprint,
       quoteId: quote.id,
       rampId: ramp.id,
-      signedNablaSwap,
-      signedPayout,
+      signedNablaSwap: effectiveSignedNablaSwap,
+      signedPayout: effectiveSignedPayout,
       swapInputRaw,
-      swapOutputRaw
+      swapOutputRaw,
+      userId: user.id
     };
   }
 
@@ -396,11 +471,17 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         vortexFeeValue: 5
       });
 
-      const setup = await setUpRegisteredRamp({ pricingPartner: partner });
+      // Presigns go through the REAL /v1/ramp/update merge and /v1/ramp/start
+      // validation: a nonce-less merge key used to collapse the two distributeFees
+      // transfers into one, so /start rejected every split-fee ramp as incomplete.
+      const setup = await setUpRegisteredRamp({ pricingPartner: partner, submitViaApi: true });
 
       const quote = await QuoteTicket.findByPk(setup.quoteId);
       expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
       expect(Number(quote?.metadata.fees?.usd?.partnerMarkup)).toBe(1);
+
+      const registered = await RampState.findByPk(setup.rampId);
+      expect(registered?.presignedTxs?.filter(tx => tx.phase === "distributeFees")).toHaveLength(2);
 
       scriptHappyWorld(setup);
       // The ephemeral holds the swap input plus the 2 USDC fee residual.
@@ -411,9 +492,23 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         setup.swapInputRaw + parseUnits("2", 6)
       );
 
-      await phaseProcessor.processRamp(setup.rampId);
+      const startResponse = await app.request("/v1/ramp/start", {
+        body: JSON.stringify({ rampId: setup.rampId }),
+        headers: {
+          Authorization: `Bearer ${testUserToken(setup.userId)}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      expect(startResponse.status).toBe(200);
 
-      const final = await RampState.findByPk(setup.rampId);
+      // /start kicks processing asynchronously; wait for the ramp to settle.
+      let final = await RampState.findByPk(setup.rampId);
+      for (let i = 0; i < 100 && final?.currentPhase !== "complete" && final?.currentPhase !== "failed"; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        final = await RampState.findByPk(setup.rampId);
+      }
+
       expect(final?.currentPhase).toBe("complete");
       expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
 

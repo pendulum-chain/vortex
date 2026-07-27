@@ -288,13 +288,16 @@ async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: nu
     transfers.push({ amountRaw: vortexTotalRaw, toAddress: vortexPayoutAddress });
   }
   if (new Big(partnerMarkupRaw).gt(0)) {
-    if (partnerPayoutAddressEvm) {
-      transfers.push({ amountRaw: partnerMarkupRaw, toAddress: partnerPayoutAddressEvm });
-    } else {
-      logger.warn(
-        `EVM FEE DISTRIBUTION: partner markup of ${usdFeeStructure.partnerMarkup} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
+    if (!partnerPayoutAddressEvm) {
+      // Fail closed: the markup was charged against the user's output, so silently
+      // dropping the transfer would strand charged fees on the ephemeral. Quote
+      // creation already rejects these routes (requiresEvmPartnerPayout); this guard
+      // covers partner config changes between quote and registration.
+      throw new Error(
+        `EVM FEE DISTRIBUTION: partner markup of ${usdFeeStructure.partnerMarkup} USD has no recipient for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row. Refusing to build a fee distribution that would strand charged fees.`
       );
     }
+    transfers.push({ amountRaw: partnerMarkupRaw, toAddress: partnerPayoutAddressEvm });
   }
 
   return transfers;

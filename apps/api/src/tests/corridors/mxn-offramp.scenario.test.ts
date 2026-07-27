@@ -17,7 +17,8 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
+import { createTestAlfredpayCustomer, createTestPartner, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -401,6 +402,45 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     },
     30000
   );
+
+  it("fee integrity: a markup partner without an EVM payout address cannot be quoted", async () => {
+    // The markup would be charged against the user's payout but could never be paid
+    // out on Polygon — quote creation must fail closed instead of stranding the fee.
+    const user = await createTestUser();
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      name: "no-payout-partner",
+      rampType: RampDirection.SELL
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: partner.id,
+      partnerName: partner.name,
+      userId: user.id
+    });
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: Networks.Polygon,
+        inputAmount: "100",
+        inputCurrency: EvmToken.USDT,
+        network: Networks.Polygon,
+        outputCurrency: FiatToken.MXN,
+        rampType: RampDirection.SELL,
+        to: "spei"
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { message: string };
+    expect(body.message).toContain("EVM payout address");
+  });
 
   it(
     "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",

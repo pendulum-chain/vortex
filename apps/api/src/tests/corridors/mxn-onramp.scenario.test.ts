@@ -15,7 +15,8 @@ import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
+import { createTestAlfredpayCustomer, createTestPartner, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -361,6 +362,45 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     },
     30000
   );
+
+  it("fee integrity: a markup partner without an EVM payout address cannot be quoted", async () => {
+    // The markup would be charged against the user's output but could never be paid
+    // out on Polygon — quote creation must fail closed instead of stranding the fee.
+    const user = await createTestUser();
+    const partner = await createTestPartner({
+      markupCurrency: FiatToken.MXN,
+      markupType: "absolute",
+      markupValue: 17,
+      name: "no-payout-partner",
+      rampType: RampDirection.BUY
+    });
+    await ProfilePartnerAssignment.create({
+      isActive: true,
+      partnerId: partner.id,
+      partnerName: partner.name,
+      userId: user.id
+    });
+
+    const response = await app.request("/v1/quotes", {
+      body: JSON.stringify({
+        from: "spei",
+        inputAmount: "2000",
+        inputCurrency: FiatToken.MXN,
+        network: Networks.Polygon,
+        outputCurrency: EvmToken.USDT,
+        rampType: RampDirection.BUY,
+        to: Networks.Polygon
+      }),
+      headers: {
+        Authorization: `Bearer ${testUserToken(user.id)}`,
+        "Content-Type": "application/json"
+      },
+      method: "POST"
+    });
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { message: string };
+    expect(body.message).toContain("EVM payout address");
+  });
 
   it(
     "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",

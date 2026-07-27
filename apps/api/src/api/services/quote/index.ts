@@ -5,6 +5,7 @@ import {
   DestinationType,
   FiatToken,
   getNetworkFromDestination,
+  isAlfredpayToken,
   isNetworkEVM,
   Networks,
   QuoteError,
@@ -294,6 +295,15 @@ function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
   if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.BRL) {
     const toNetwork = getNetworkFromDestination(request.to);
     return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
+  }
+  // Alfredpay corridors (USD/MXN/COP/ARS) are EVM-only and charge partner markup
+  // against the user, collected on Polygon — a markup partner without an EVM payout
+  // address would leave charged fees with no recipient.
+  if (request.rampType === RampDirection.SELL && isAlfredpayToken(request.outputCurrency as FiatToken)) {
+    return true;
+  }
+  if (request.rampType === RampDirection.BUY && isAlfredpayToken(request.inputCurrency as FiatToken)) {
+    return true;
   }
   return false;
 }
