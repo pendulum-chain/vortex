@@ -3,10 +3,6 @@ import {
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
-  FiatToken,
-  getNetworkFromDestination,
-  isAlfredpayToken,
-  isNetworkEVM,
   Networks,
   QuoteError,
   QuoteResponse,
@@ -170,25 +166,6 @@ export class QuoteService extends BaseRampService {
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
-    // A payout address is only required when a markup is actually charged: markupType
-    // may legally be set with a zero markupValue (Sequelize returns DECIMALs as strings,
-    // so compare via Big).
-    if (
-      partner &&
-      partner.markupType !== "none" &&
-      new Big(partner.markupValue || 0).gt(0) &&
-      partner.payoutAddressEvm === null &&
-      requiresEvmPartnerPayout(request)
-    ) {
-      logger.error(
-        `Quote rejected: partner '${partner.name}' (id=${partner.id}) has markup configured but no payout_address_evm; route ${request.from} -> ${request.to} (${request.outputCurrency}) requires EVM partner payout.`
-      );
-      throw new APIError({
-        message: "Partner is missing EVM payout address required for this route",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     const ctx = createQuoteContext({
@@ -199,6 +176,7 @@ export class QuoteService extends BaseRampService {
             maxSubsidy: partner.maxSubsidy,
             minDynamicDifference: partner.minDynamicDifference,
             name: partner.name,
+            payoutAddressEvm: partner.payoutAddressEvm,
             targetDiscount: partner.targetDiscount
           }
         : { id: null },
@@ -294,27 +272,6 @@ function selectAlfredpayLimitPrefix(isAboveMax: boolean, isOnramp: boolean): Quo
   if (isAboveMax) return QuoteError.AboveUpperLimitSell;
   if (isOnramp) return QuoteError.BelowLowerLimitBuy;
   return QuoteError.BelowLowerLimitSell;
-}
-
-function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
-  if (request.rampType === RampDirection.SELL && request.outputCurrency === FiatToken.BRL) {
-    const fromNetwork = getNetworkFromDestination(request.from);
-    return fromNetwork !== undefined && isNetworkEVM(fromNetwork);
-  }
-  if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.BRL) {
-    const toNetwork = getNetworkFromDestination(request.to);
-    return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
-  }
-  // Alfredpay corridors (USD/MXN/COP/ARS) are EVM-only and charge partner markup
-  // against the user, collected on Polygon — a markup partner without an EVM payout
-  // address would leave charged fees with no recipient.
-  if (request.rampType === RampDirection.SELL && isAlfredpayToken(request.outputCurrency as FiatToken)) {
-    return true;
-  }
-  if (request.rampType === RampDirection.BUY && isAlfredpayToken(request.inputCurrency as FiatToken)) {
-    return true;
-  }
-  return false;
 }
 
 export default new QuoteService();

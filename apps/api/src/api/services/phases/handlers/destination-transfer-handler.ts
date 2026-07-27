@@ -102,14 +102,23 @@ export class DestinationTransferHandler extends BasePhaseHandler {
 
         if (receipt.status === "success") {
           return this.transitionToNextPhase(state, nextPhase);
-        } else {
-          throw new Error(`Transaction ${destinationTransferTxHash} failed on chain.`);
         }
+        throw this.createUnrecoverableError(
+          `DestinationTransferHandler: Transaction ${destinationTransferTxHash} failed on chain.`
+        );
       } catch (error) {
+        if (error instanceof UnrecoverablePhaseError) {
+          throw error;
+        }
         if (error instanceof Error && error.name !== "TransactionReceiptNotFoundError") {
           throw error;
         }
-        // If receipt not found, proceed to normal flow
+        // A stored hash means the transaction was already submitted. Missing/pending
+        // receipts are recoverable, but must never advance to fee collection or trigger
+        // a second broadcast of the same nonce.
+        throw this.createRecoverableError(
+          `DestinationTransferHandler: Receipt for transaction ${destinationTransferTxHash} is not available yet.`
+        );
       }
     }
 
@@ -173,10 +182,22 @@ export class DestinationTransferHandler extends BasePhaseHandler {
           destinationTransferTxHash: txHash
         }
       });
-      // (optional) wait for balance to be updated on user - destination
+
+      // Fee collection is only safe after the user's transfer is confirmed successful.
+      // Keeping the hash in state before waiting preserves idempotent recovery if the
+      // receipt is temporarily unavailable.
+      const receipt = await evmClientManager.getClient(destinationNetwork).waitForTransactionReceipt({
+        hash: txHash as `0x${string}`
+      });
+      if (!receipt || receipt.status !== "success") {
+        throw this.createUnrecoverableError(`DestinationTransferHandler: Transaction ${txHash} failed on chain.`);
+      }
 
       return this.transitionToNextPhase(state, nextPhase);
     } catch (error) {
+      if (error instanceof UnrecoverablePhaseError) {
+        throw error;
+      }
       throw this.createRecoverableError(
         `DestinationTransferHandler: Error during phase execution - ${(error as Error).message}`
       );

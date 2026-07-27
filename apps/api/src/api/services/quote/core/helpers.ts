@@ -1,4 +1,15 @@
-import { DestinationType, EPaymentMethod, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
+import {
+  CreateQuoteRequest,
+  DestinationType,
+  EPaymentMethod,
+  FiatToken,
+  getNetworkFromDestination,
+  isAlfredpayToken,
+  isNetworkEVM,
+  Networks,
+  RampCurrency,
+  RampDirection
+} from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../errors/api-error";
 
@@ -83,6 +94,21 @@ export function validateChainSupport(rampType: RampDirection, from: DestinationT
       status: httpStatus.BAD_REQUEST
     });
   }
+}
+
+export function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
+  if (request.rampType === RampDirection.SELL && request.outputCurrency === FiatToken.BRL) {
+    const fromNetwork = getNetworkFromDestination(request.from);
+    return fromNetwork !== undefined && isNetworkEVM(fromNetwork);
+  }
+  if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.BRL) {
+    const toNetwork = getNetworkFromDestination(request.to);
+    return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
+  }
+  if (request.rampType === RampDirection.SELL && isAlfredpayToken(request.outputCurrency as FiatToken)) {
+    return true;
+  }
+  return request.rampType === RampDirection.BUY && isAlfredpayToken(request.inputCurrency as FiatToken);
 }
 
 /**

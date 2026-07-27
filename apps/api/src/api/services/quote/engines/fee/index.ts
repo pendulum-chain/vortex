@@ -1,13 +1,19 @@
-import { EvmToken, RampCurrency, RampDirection } from "@vortexfi/shared";
+import { EvmToken, multiplyByPowerOfTen, RampCurrency, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import httpStatus from "http-status";
 import { config } from "../../../../../config/vars";
+import { APIError } from "../../../../errors/api-error";
 import { priceFeedService } from "../../../priceFeed.service";
-import { calculateFeeComponents } from "../../core/quote-fees";
+import { requiresEvmPartnerPayout } from "../../core/helpers";
+import { calculateFeeComponents, FeeComponentsResult } from "../../core/quote-fees";
 import { QuoteContext, Stage, StageKey } from "../../core/types";
 
 export interface FeeComponentInput {
   amount: string;
   currency: RampCurrency;
+  // Optional immutable USD valuation. Alfredpay off-ramps calculate this before
+  // Discount so deduction and later on-chain distribution use the same snapshot.
+  usdAmount?: string;
 }
 
 export interface FeeSummaryInput {
@@ -47,16 +53,7 @@ export abstract class BaseFeeEngine implements Stage {
 
     this.validate(ctx);
 
-    const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await calculateFeeComponents({
-      from: request.from,
-      inputAmount: request.inputAmount,
-      inputCurrency: request.inputCurrency,
-      outputAmountOfframp: ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0",
-      outputCurrency: request.outputCurrency,
-      partnerId: ctx.partner?.id || undefined,
-      rampType: request.rampType,
-      to: request.to
-    });
+    const { anchorFee, feeCurrency, partnerMarkupFee, vortexFee } = await this.getFeeComponents(ctx);
 
     const { anchor, network, forcedVortexFee, forcedPartnerMarkupFee } = await this.compute(ctx, anchorFee, feeCurrency);
 
@@ -65,6 +62,31 @@ export abstract class BaseFeeEngine implements Stage {
       network,
       partnerMarkup: forcedPartnerMarkupFee ? forcedPartnerMarkupFee : { amount: partnerMarkupFee, currency: feeCurrency },
       vortex: forcedVortexFee ? forcedVortexFee : { amount: vortexFee, currency: feeCurrency }
+    });
+
+    if (
+      requiresEvmPartnerPayout(request) &&
+      new Big(multiplyByPowerOfTen(ctx.fees?.usd?.partnerMarkup ?? "0", 6).toFixed(0, 0)).gt(0) &&
+      !ctx.partner?.payoutAddressEvm
+    ) {
+      throw new APIError({
+        message: "Partner is missing EVM payout address required for this route",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
+  protected async getFeeComponents(ctx: QuoteContext): Promise<FeeComponentsResult> {
+    const { request } = ctx;
+    return calculateFeeComponents({
+      from: request.from,
+      inputAmount: request.inputAmount,
+      inputCurrency: request.inputCurrency,
+      outputAmountOfframp: ctx.nablaSwap?.outputAmountDecimal?.toString() ?? "0",
+      outputCurrency: request.outputCurrency,
+      partnerId: ctx.partner?.id || undefined,
+      rampType: request.rampType,
+      to: request.to
     });
   }
 
@@ -87,12 +109,14 @@ export async function assignFeeSummary(ctx: QuoteContext, components: FeeSummary
   const networkComponent = components.network ?? { amount: "0", currency: USD_CURRENCY };
 
   const convert = (amount: string, from: RampCurrency, to: RampCurrency) => priceFeedService.convertCurrency(amount, from, to);
+  const convertToUsd = (component: FeeComponentInput) =>
+    component.usdAmount ?? convert(component.amount, component.currency, USD_CURRENCY);
 
   const [vortexUsd, anchorUsd, partnerUsd, networkUsd, vortexDisplay, anchorDisplay, partnerDisplay, networkDisplay] =
     await Promise.all([
-      convert(components.vortex.amount, components.vortex.currency, USD_CURRENCY),
+      convertToUsd(components.vortex),
       convert(components.anchor.amount, components.anchor.currency, USD_CURRENCY),
-      convert(components.partnerMarkup.amount, components.partnerMarkup.currency, USD_CURRENCY),
+      convertToUsd(components.partnerMarkup),
       convert(networkComponent.amount, networkComponent.currency, USD_CURRENCY),
       convert(components.vortex.amount, components.vortex.currency, ctx.targetFeeFiatCurrency),
       convert(components.anchor.amount, components.anchor.currency, ctx.targetFeeFiatCurrency),

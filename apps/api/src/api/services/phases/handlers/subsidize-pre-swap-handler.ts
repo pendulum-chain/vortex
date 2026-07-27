@@ -28,6 +28,7 @@ import { SubsidyToken } from "../../../../models/subsidy.model";
 import { getFundingAccount } from "../../../controllers/subsidize.controller";
 import { PhaseError } from "../../../errors/phase-error";
 import { priceFeedService } from "../../priceFeed.service";
+import { getAlfredpayFeeTotalRaw } from "../../transactions/common/feeDistribution";
 import { BasePhaseHandler } from "../base-phase-handler";
 import { getEvmFundingAccount } from "../evm-funding";
 import { StateMetadata } from "../meta-state-types";
@@ -74,7 +75,12 @@ export class SubsidizePreSwapPhaseHandler extends BasePhaseHandler {
       }
 
       return {
-        expectedInputAmountForSwapRaw: quote.metadata.evmToEvm.inputAmountRaw,
+        // Reserve the canonical user leg and the independently collectible platform
+        // fees. The subsidy may economically offset those fees in the promised rate,
+        // but fee transfers must still remain fully funded on Polygon.
+        expectedInputAmountForSwapRaw: new Big(quote.metadata.evmToEvm.inputAmountRaw)
+          .plus(getAlfredpayFeeTotalRaw(quote))
+          .toFixed(0),
         inputAmountDecimals: ALFREDPAY_ERC20_DECIMALS,
         inputToken: ALFREDPAY_EVM_TOKEN,
         inputTokenDetails,

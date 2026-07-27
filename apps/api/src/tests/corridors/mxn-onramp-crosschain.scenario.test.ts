@@ -18,7 +18,7 @@ import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy, { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestAlfredpayCustomer, createTestUser } from "../../test-utils/factories";
+import { createTestAlfredpayCustomer, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -63,6 +63,7 @@ interface CorridorSetup {
   signedSquidApprove: `0x${string}`;
   signedSquidSwap: `0x${string}`;
   signedTransfer: `0x${string}`;
+  signedFeeTransfers: `0x${string}`[];
   ephemeral: PrivateKeyAccount;
   destination: `0x${string}`;
 }
@@ -96,6 +97,13 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
 
   beforeEach(async () => {
     await resetTestDatabase();
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      markupType: "none",
+      markupValue: 0,
+      maxSubsidy: 0,
+      payoutAddressEvm: null,
+      targetDiscount: 0
+    });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.alfredpay.onrampRate = ALFREDPAY_RATE;
@@ -229,9 +237,15 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
     const approvePresign = await presignWithBackups(ephemeral, approveBlueprint);
     const swapPresign = await presignWithBackups(ephemeral, swapBlueprint);
     const transferPresign = await presignWithBackups(ephemeral, transferBlueprint);
+    const feePresigns = await Promise.all(
+      unsignedTxs.filter(tx => tx.phase === "distributeFees").map(blueprint => presignWithBackups(ephemeral, blueprint))
+    );
 
     const response = await app.request("/v1/ramp/update", {
-      body: JSON.stringify({ presignedTxs: [approvePresign, swapPresign, transferPresign], rampId: ramp.id }),
+      body: JSON.stringify({
+        presignedTxs: [approvePresign, swapPresign, transferPresign, ...feePresigns],
+        rampId: ramp.id
+      }),
       headers: {
         Authorization: `Bearer ${testUserToken(user.id)}`,
         "Content-Type": "application/json"
@@ -257,7 +271,8 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
       rampId: ramp.id,
       signedSquidApprove: approvePresign.txData,
       signedSquidSwap: swapPresign.txData,
-      signedTransfer: transferPresign.txData
+      signedTransfer: transferPresign.txData,
+      signedFeeTransfers: feePresigns.map(tx => tx.txData)
     };
   }
 
@@ -346,6 +361,65 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
       expect(submissionsOf(setup.signedSquidSwap)).toBe(1);
       expect(submissionsOf(setup.signedTransfer)).toBe(1);
       expect(world.evm.erc20Balance(Networks.Arbitrum, USDT_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
+    },
+    30000
+  );
+
+  it("recovery blueprints: the full-mint fallback is an alternative at the primary Squid swap nonce", async () => {
+    const setup = await setUpRegisteredRamp();
+    const rampState = await RampState.findByPk(setup.rampId);
+    const swap = rampState?.unsignedTxs.find(tx => tx.phase === "squidRouterSwap");
+    const fallback = rampState?.unsignedTxs.find(tx => tx.phase === "alfredOnrampMintFallback");
+    expect(swap).toBeDefined();
+    expect(fallback).toBeDefined();
+    expect(fallback?.network).toBe(Networks.Polygon);
+    expect(fallback?.nonce).toBe(swap?.nonce);
+
+    const decoded = decodeFunctionData({
+      abi: erc20Abi,
+      data: (fallback?.txData as unknown as { data: `0x${string}` }).data
+    });
+    const [, fallbackAmountRaw] = decoded.args as [`0x${string}`, bigint];
+    expect(fallbackAmountRaw).toBe(setup.mintAmountRaw);
+  });
+
+  it(
+    "fee + target discount: cross-chain subsidy funds the promised user leg and an independent fee reserve",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        maxSubsidy: 0.1,
+        payoutAddressEvm: vortexPayout,
+        targetDiscount: 0.01
+      });
+
+      const setup = await setUpRegisteredRamp();
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(quote?.outputAmount)).toBe(101);
+      expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
+      expect(Number(quote?.metadata.subsidy?.subsidyAmountInOutputTokenDecimal)).toBe(2);
+      expect(quote?.metadata.evmToEvm?.inputAmountRaw).toBe(parseUnits("101", 6).toString());
+      expect(setup.signedFeeTransfers).toHaveLength(1);
+
+      scriptHappyWorld(setup);
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual([
+        ...HAPPY_PATH_PHASES.slice(0, -1),
+        "distributeFees",
+        "complete"
+      ]);
+      expect(world.evm.erc20Balance(Networks.Arbitrum, USDT_ON_ARBITRUM, setup.destination)).toBe(parseUnits("101", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+
+      const preSwapSubsidies = await Subsidy.findAll({ where: { phase: "subsidizePreSwap", rampId: setup.rampId } });
+      expect(preSwapSubsidies).toHaveLength(1);
+      expect(preSwapSubsidies[0].amount).toBeCloseTo(2);
     },
     30000
   );

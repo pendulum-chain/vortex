@@ -78,6 +78,13 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
 
   beforeEach(async () => {
     await resetTestDatabase();
+    await updatePartnerPricing("vortex", RampDirection.BUY, {
+      markupType: "none",
+      markupValue: 0,
+      maxSubsidy: 0,
+      payoutAddressEvm: null,
+      targetDiscount: 0
+    });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.alfredpay.onrampRate = ALFREDPAY_RATE;
@@ -262,14 +269,11 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     world.evm.setNativeBalance(Networks.Polygon, setup.ephemeral.address, parseUnits("2", 18));
     world.evm.setErc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.ephemeral.address, setup.mintAmountRaw);
     world.evm.onTransaction = tx => {
-      if (!tx.serialized) {
-        return;
-      }
-      const parsed = parseTransaction(tx.serialized as `0x${string}`);
+      const parsed = tx.serialized ? parseTransaction(tx.serialized as `0x${string}`) : { data: tx.data, to: tx.to };
       if (!parsed.to || !parsed.data) {
         return;
       }
-      const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: parsed.data });
+      const { functionName, args } = decodeFunctionData({ abi: erc20Abi, data: parsed.data as `0x${string}` });
       if (functionName !== "transfer") {
         return;
       }
@@ -313,7 +317,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
   );
 
   it(
-    "fee collection: charged vortex fee reduces the output and is paid to the payout address on-chain",
+    "fee + target discount: subsidy preserves the promised net rate while the full fee is collected",
     async () => {
       const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
       // 17 MXN flat fee = exactly 1 USD at the fake 17 MXN/USD rate: legible numbers throughout.
@@ -321,15 +325,20 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
         markupCurrency: FiatToken.MXN,
         markupType: "absolute",
         markupValue: 17,
-        payoutAddressEvm: vortexPayout
+        maxSubsidy: 0.1,
+        payoutAddressEvm: vortexPayout,
+        targetDiscount: 0.01
       });
 
       const setup = await setUpRegisteredRamp();
 
-      // Quote: 2000 MXN mints 100 USDT; the 1 USD vortex fee reduces the user output to 99.
+      // Quote: 2000 MXN mints 100 USDT. A 1% target promises the user 101 USDT
+      // after fees, so Vortex contributes 2 USDT: 1 for the rate improvement and
+      // 1 that economically offsets the separately collected fee.
       const quote = await QuoteTicket.findByPk(setup.quoteId);
-      expect(Number(quote?.outputAmount)).toBe(99);
+      expect(Number(quote?.outputAmount)).toBe(101);
       expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
+      expect(Number(quote?.metadata.subsidy?.subsidyAmountInOutputTokenDecimal)).toBe(2);
 
       // Registration prepared a Polygon distributeFees transfer paying the 1 USDT residual
       // to the vortex payout address; sign exactly that blueprint (plus required backups).
@@ -375,8 +384,9 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
         "complete"
       ]);
 
-      // Destination received the fee-net 99 USDT; the vortex payout address received 1 USDT.
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("99", 6));
+      // Destination received the promised net 101 USDT; the fee metadata and
+      // on-chain collection remain the full 1 USDT.
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(parseUnits("101", 6));
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
     },
     30000
@@ -473,15 +483,15 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     30000
   );
 
-  it("fee integrity: a zero-value markup config without a payout address is still quotable", async () => {
-    // markupType may legally be set with markupValue = 0 — no fee is charged, so no
-    // payout address is required and the quote must not be rejected.
+  it("fee integrity: a positive markup that rounds to zero does not require a payout address", async () => {
+    // The configured value is positive, but the collectible component rounds to
+    // 0.00 MXN. The payout guard must use that computed raw fee, not configuration.
     const user = await createTestUser();
     const partner = await createTestPartner({
       markupCurrency: FiatToken.MXN,
       markupType: "absolute",
-      markupValue: 0,
-      name: "zero-markup-partner",
+      markupValue: 0.001,
+      name: "rounded-zero-markup-partner",
       rampType: RampDirection.BUY
     });
     await ProfilePartnerAssignment.create({
@@ -512,6 +522,69 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     expect(Number(quote.partnerFeeUsd)).toBe(0);
     expect(Number(quote.outputAmount)).toBe(100);
   });
+
+  it(
+    "fee ordering: a reverted destination transfer fails before any fee is collected",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
+
+      const setup = await setUpRegisteredRamp();
+      const rampState = await RampState.findByPk(setup.rampId);
+      const feeBlueprint = rampState?.unsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+      const feeTxData = feeBlueprint?.txData as unknown as { data: `0x${string}`; to: `0x${string}` };
+      const signFee = (nonce: number) =>
+        setup.ephemeral.signTransaction({
+          chainId: 137,
+          data: feeTxData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: feeTxData.to,
+          type: "eip1559"
+        });
+      const feeNonce = feeBlueprint?.nonce ?? 1;
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: feeNonce + i, txData: await signFee(feeNonce + i) };
+      }
+      const signedFee = await signFee(feeNonce);
+      await updateRampViaApi(setup.rampId, setup.userId, {
+        meta: { additionalTxs: feeBackups },
+        network: Networks.Polygon,
+        nonce: feeNonce,
+        phase: "distributeFees",
+        signer: setup.ephemeral.address,
+        txData: signedFee
+      });
+
+      scriptHappyWorld(setup);
+      const applyLedgerEffects = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        if (tx.serialized === setup.signedTransfer) {
+          world.evm.revertedReceiptHashes.add(tx.hash.toLowerCase());
+          return;
+        }
+        applyLedgerEffects?.(tx);
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("failed");
+      expect(final?.errorLogs.some(log => log.error.includes("failed on chain"))).toBe(true);
+      expect(submissionsOf(signedFee)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(0n);
+    },
+    30000
+  );
 
   it(
     "fee collection: a mined-but-reverted fee transfer fails the ramp explicitly instead of retrying forever",

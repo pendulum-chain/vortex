@@ -1,7 +1,6 @@
 import {
   ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ONCHAIN_CURRENCY,
-  EvmToken,
   multiplyByPowerOfTen,
   RampCurrency,
   RampDirection
@@ -29,6 +28,10 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
   protected validate(ctx: QuoteContext): void {
     if (!ctx.evmToEvm) {
       throw new Error("OffRampAlfredpayDiscountEngine requires evmToEvm to be defined");
+    }
+
+    if (!ctx.preNabla?.platformFeeSnapshot) {
+      throw new Error("OffRampAlfredpayDiscountEngine requires the frozen platform fee snapshot");
     }
 
     if (!ctx.request.inputAmount) {
@@ -64,23 +67,14 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     }
 
     // Charge vortex + partner-markup fees on the USD leg before pricing the Alfredpay
-    // payout: the fee residual stays on the Polygon ephemeral and is collected by the
-    // distributeFees phase. Each component is derived exactly like the persisted fee
-    // metadata (rounded to 2 fiat decimals via calculateFeeComponents, converted with
-    // the same price-feed operation, then floored to USDT raw units PER COMPONENT like
-    // computeFeeComponentRaws), so the residual left after the deposit reconciles with
-    // the distributeFees transfers.
-    const feeCurrency = ctx.preNabla?.feeCurrency ?? (outputCurrency as RampCurrency);
-    const componentToRaw = async (component: Big): Promise<Big> => {
-      const componentUsd = await priceFeedService.convertCurrency(
-        component.round(2).toString(),
-        feeCurrency,
-        EvmToken.USDC as RampCurrency
-      );
-      return new Big(multiplyByPowerOfTen(componentUsd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0));
-    };
-    const vortexFeeRaw = await componentToRaw(ctx.preNabla?.vortexFeeInFeeCurrency ?? new Big(0));
-    const partnerMarkupRaw = await componentToRaw(ctx.preNabla?.partnerMarkupFeeInFeeCurrency ?? new Big(0));
+    // payout. Use the immutable per-component USD valuations captured during Initialize;
+    // the Fee stage and on-chain distribution consume the same values.
+    // biome-ignore lint/style/noNonNullAssertion: Context is validated in validate
+    const feeSnapshot = ctx.preNabla!.platformFeeSnapshot!;
+    const vortexFeeRaw = new Big(multiplyByPowerOfTen(feeSnapshot.vortex.usd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0));
+    const partnerMarkupRaw = new Big(
+      multiplyByPowerOfTen(feeSnapshot.partnerMarkup.usd, ALFREDPAY_ERC20_DECIMALS).toFixed(0, 0)
+    );
     const deductibleFee = vortexFeeRaw.plus(partnerMarkupRaw).div(new Big(10).pow(ALFREDPAY_ERC20_DECIMALS));
     const usdOnPolygon = usdBridged.minus(deductibleFee);
     if (usdOnPolygon.lte(0)) {
@@ -108,15 +102,16 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmountUsd.toString(), effectiveRate, targetDiscount, this.config.isOfframp, partner);
 
-    // Subsidization must not bypass fee collection: the subsidy targets the discounted
-    // rate NET of the charged vortex/partner fees (valued in the fiat output), so a
-    // subsidy can never refill a fee that was just deducted from the USD leg.
-    const expectedOutputDecimal = grossExpectedOutput.minus(deductibleFee.mul(usdToFiatRate));
+    // The advertised target rate is the user's final, net-of-platform-fees rate.
+    // `finalOutput` already reflects the fee deduction, so the subsidy may economically
+    // offset those fees while the fee tokens themselves remain reserved and collected.
+    const expectedOutputDecimal = grossExpectedOutput;
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 
+    // Sequelize returns DECIMAL pricing fields as strings at runtime.
     const actualSubsidyDecimal =
-      targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
+      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
 
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 

@@ -13,6 +13,7 @@ import {
 import { BaseError, ContractFunctionExecutionError, decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
+import { getEvmFundingAccount } from "../../api/services/phases/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
@@ -86,8 +87,21 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
   beforeEach(async () => {
     await resetTestDatabase();
+    await updatePartnerPricing("vortex", RampDirection.SELL, {
+      markupType: "none",
+      markupValue: 0,
+      maxSubsidy: 0,
+      payoutAddressEvm: null,
+      targetDiscount: 0
+    });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
+    world.evm.setErc20Balance(
+      Networks.Polygon,
+      ALFREDPAY_ERC20_TOKEN,
+      getEvmFundingAccount(Networks.Polygon).address,
+      0n
+    );
     world.squidRouter.computeToAmount = params => params.fromAmount;
     // The bridged token is Polygon USDT (6 decimals); the fake's 18-decimal default would
     // shrink the bridged USD amount to ~0 and mask fee math behind subsidy padding.
@@ -328,7 +342,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "fee collection: charged vortex fee reduces the payout and is paid to the payout address on-chain",
+    "fee + target discount: subsidy preserves the promised net payout while the full fee is collected",
     async () => {
       const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
       // 17 MXN flat fee = exactly 1 USD at the fake 17 MXN/USD rate: legible numbers throughout.
@@ -336,16 +350,22 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         markupCurrency: FiatToken.MXN,
         markupType: "absolute",
         markupValue: 17,
-        payoutAddressEvm: vortexPayout
+        maxSubsidy: 0.1,
+        payoutAddressEvm: vortexPayout,
+        targetDiscount: 0.01
       });
 
       const setup = await setUpRegisteredRamp();
 
-      // Quote: 100 USDT input − 1 USD fee → 99 USDT to Alfredpay → 1980 MXN at the 20 rate.
+      // Discount math uses the 17 MXN/USD oracle: the 1% target closes a
+      // 34 MXN fee-plus-discount gap. Back-solving that target funds a 101 USDT
+      // Alfredpay deposit, which the fake provider converts to 2020 MXN.
       const quote = await QuoteTicket.findByPk(setup.quoteId);
-      expect(Number(quote?.outputAmount)).toBe(1980);
+      expect(Number(quote?.outputAmount)).toBe(2020);
       expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
-      expect(setup.inputAmountRaw).toBe(parseUnits("99", ALFREDPAY_ERC20_DECIMALS));
+      expect(Number(quote?.metadata.subsidy?.subsidyAmountInOutputTokenDecimal)).toBe(34);
+      expect(setup.inputAmountRaw).toBe(parseUnits("101", ALFREDPAY_ERC20_DECIMALS));
+      expect(quote?.metadata.preNabla?.platformFeeSnapshot?.vortex).toEqual({ amount: "17.00", usd: "1" });
 
       // Registration prepared a Polygon distributeFees transfer paying the 1 USDT residual
       // to the vortex payout address; sign exactly that blueprint (plus required backups).
@@ -394,13 +414,36 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       expect(feeUpdateResponse.status).toBe(200);
 
       scriptHappyWorld(setup);
-      // The ephemeral must hold deposit + fee (finalSettlementSubsidy's expected amount).
+      // The user's 100 USDT has arrived. Final settlement must contribute 2 USDT
+      // so the ephemeral can send the 101 USDT deposit and retain the 1 USDT fee.
       world.evm.setErc20Balance(
         Networks.Polygon,
         ALFREDPAY_ERC20_TOKEN,
         setup.ephemeral.address,
-        setup.inputAmountRaw + parseUnits("1", ALFREDPAY_ERC20_DECIMALS)
+        parseUnits("100", ALFREDPAY_ERC20_DECIMALS)
       );
+      const fundingAccount = getEvmFundingAccount(Networks.Polygon);
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        fundingAccount.address,
+        parseUnits("100", ALFREDPAY_ERC20_DECIMALS)
+      );
+      const applySerializedTransfers = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        if (!tx.serialized && tx.data && tx.to?.toLowerCase() === ALFREDPAY_ERC20_TOKEN.toLowerCase()) {
+          const decoded = decodeFunctionData({ abi: erc20Abi, data: tx.data as `0x${string}` });
+          const [recipient, amount] = decoded.args as [`0x${string}`, bigint];
+          world.evm.setErc20Balance(
+            Networks.Polygon,
+            ALFREDPAY_ERC20_TOKEN,
+            recipient,
+            world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, recipient) + amount
+          );
+          return;
+        }
+        applySerializedTransfers?.(tx);
+      };
       const depositAddress = world.alfredpay.offrampDepositAddress;
 
       await phaseProcessor.processRamp(setup.rampId);
@@ -413,7 +456,8 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
         "complete"
       ]);
 
-      // Alfredpay received the fee-net 99 USDT deposit; the vortex payout address received 1 USDT.
+      // Alfredpay received the 101 USDT deposit that yields the promised net
+      // 2020 MXN; the vortex payout address independently received 1 USDT.
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(setup.inputAmountRaw);
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(
         parseUnits("1", ALFREDPAY_ERC20_DECIMALS)

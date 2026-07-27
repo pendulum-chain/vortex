@@ -71,6 +71,7 @@ export interface PartnerInfo {
   name?: string | null;
   maxDynamicDifference?: number;
   minDynamicDifference?: number;
+  payoutAddressEvm?: string | null;
 }
 
 export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";
@@ -116,6 +117,14 @@ export interface QuoteContext {
     // for consumers that must round per component like calculateFeeComponents does.
     vortexFeeInFeeCurrency?: Big;
     partnerMarkupFeeInFeeCurrency?: Big;
+    // Alfredpay off-ramp platform fees are calculated before the Discount stage and
+    // persisted here once in both display-fiat and USD form. Discount, fee metadata,
+    // settlement sizing, and distribution must all consume this immutable snapshot.
+    platformFeeSnapshot?: {
+      feeCurrency: RampCurrency;
+      partnerMarkup: { amount: string; usd: string };
+      vortex: { amount: string; usd: string };
+    };
   };
 
   nablaSwap?: {

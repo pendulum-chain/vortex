@@ -22,7 +22,7 @@ import { isAddress } from "viem";
 import { getEvmFundingAccount } from "../../../phases/evm-funding";
 import { StateMetadata } from "../../../phases/meta-state-types";
 import { resolveAlfredpayCustomerId } from "../../../quote/alfredpay-customer";
-import { addAlfredpayFeeDistributionTransactions, getAlfredpayFeeTotalRaw } from "../../common/feeDistribution";
+import { addAlfredpayFeeDistributionTransactions } from "../../common/feeDistribution";
 import { encodeEvmTransactionData } from "../../index";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { addDestinationChainApprovalTransaction, addOnrampDestinationChainTransactions } from "../common/transactions";
@@ -94,11 +94,6 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
   let polygonAccountNonce = 0; // Starts fresh
   const fundingAccount = getEvmFundingAccount(Networks.Polygon);
 
-  // Vortex + partner fees are charged against the mint: the user-facing legs move
-  // mint − fees, and the fee residual left on the Polygon ephemeral is paid out by the
-  // distributeFees transactions (broadcast after the destination transfer succeeds).
-  const chargedFeesRaw = getAlfredpayFeeTotalRaw(quote);
-
   // Special case: onramping the AlfredPay token directly on Polygon. Skip SquidRouter and transfer directly.
   if ((outputTokenDetails as EvmTokenDetails).erc20AddressSourceChain === ALFREDPAY_ERC20_TOKEN) {
     const finalTransferTxData = await addOnrampDestinationChainTransactions({
@@ -140,9 +135,12 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     return { stateMeta, unsignedTxs };
   }
 
-  const swapInputRaw = new Big(quote.metadata.alfredpayMint.outputAmountRaw).minus(chargedFeesRaw);
+  // The quote's canonical bridge input is the promised user leg. Pre-swap subsidy
+  // separately tops Polygon up to this amount plus the fee reserve, so the user leg
+  // must never be recomputed from the (potentially smaller) provider mint.
+  const swapInputRaw = new Big(quote.metadata.evmToEvm.inputAmountRaw);
   if (swapInputRaw.lte(0)) {
-    throw new Error("Alfredpay mint amount does not cover the calculated fees");
+    throw new Error("Alfredpay quote has a non-positive EVM input amount");
   }
 
   const { approveData, swapData, squidRouterQuoteId, squidRouterReceiverId, squidRouterReceiverHash } =
@@ -164,6 +162,7 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     txData: encodeEvmTransactionData(approveData) as EvmTransactionData
   });
 
+  const squidRouterSwapNonce = polygonAccountNonce;
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
@@ -325,10 +324,14 @@ export async function prepareAlfredpayToEvmOnrampTransactions({
     toToken: ALFREDPAY_ERC20_TOKEN
   });
 
+  // This is an alternative to the primary Squid swap, not a transaction that follows
+  // fee distribution. The primary fallback handles a dropped/unbroadcast swap at the
+  // same nonce; its required same-call backups cover later nonces (including a mined
+  // revert) without placing every recovery option behind fee transfers.
   unsignedTxs.push({
     meta: {},
     network: Networks.Polygon,
-    nonce: polygonAccountNonce++,
+    nonce: squidRouterSwapNonce,
     phase: "alfredOnrampMintFallback",
     signer: evmEphemeralEntry.address,
     txData: encodeEvmTransactionData(alfredMintFallbackTransferTxData) as EvmTransactionData

@@ -53,15 +53,16 @@ export class OnRampAlfredpayDiscountEngine extends BaseDiscountEngine {
       adjustedTargetDiscount
     } = calculateExpectedOutput(inputAmount, effectiveRate, targetDiscount, this.config.isOfframp, partner);
 
-    // Subsidization must not bypass fee collection: the subsidy targets the discounted
-    // rate NET of the charged vortex/partner fees, so a subsidy can never refill a fee
-    // that was just deducted from the output.
-    const expectedOutputDecimal = grossExpectedOutput.minus(feesToDeduct);
+    // The advertised target rate is the user's final, net-of-platform-fees rate.
+    // `finalOutput` already reflects the fee deduction, so the subsidy may economically
+    // offset those fees while the fee tokens themselves remain reserved and collected.
+    const expectedOutputDecimal = grossExpectedOutput;
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 
+    // Sequelize returns DECIMAL pricing fields as strings at runtime.
     const actualSubsidyDecimal =
-      targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
+      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutputDecimal, finalOutput, maxSubsidy) : new Big(0);
 
     const targetOutputDecimal = finalOutput.plus(actualSubsidyDecimal);
 
