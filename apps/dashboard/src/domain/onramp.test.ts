@@ -1,7 +1,13 @@
-import { type EvmNetworks, Networks, TokenType, type EvmTokenDetails } from "@vortexfi/shared";
+import { type EvmNetworks, EvmToken, Networks, TokenType, type EvmTokenDetails } from "@vortexfi/shared";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { filterRampTokenOptions, getNetworkOptions, type RampTokenOption, sortRampTokenOptions } from "./onramp";
+import {
+  filterRampTokenOptions,
+  getNetworkOptions,
+  getRampTokenOptions,
+  type RampTokenOption,
+  sortRampTokenOptions
+} from "./onramp";
 
 function option(
   label: string,
@@ -40,6 +46,16 @@ describe("onramp token options", () => {
   it("searches token symbols, keys, and network names case-insensitively", () => {
     assert.deepEqual(filterRampTokenOptions(tokens, "usd").map(token => token.label), ["USDT", "USDC"]);
     assert.deepEqual(filterRampTokenOptions(tokens, "POLY").map(token => token.label), ["WETH", "USDT", "USDC"]);
+  });
+
+  it("includes native POL with its exact balance metadata", () => {
+    const pol = getRampTokenOptions().find(
+      option => option.network === Networks.Polygon && option.currency === EvmToken.POL
+    );
+
+    assert.equal(pol?.token.isNative, true);
+    assert.equal(pol?.token.decimals, 18);
+    assert.equal(pol?.token.erc20AddressSourceChain, "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee");
   });
 });
 

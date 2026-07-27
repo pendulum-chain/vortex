@@ -159,12 +159,19 @@ provider-shaped rather than UI-shaped.
   shared machine receives only an authorization URL and normalized profile status.
 
 - **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
-  quote freshness check → register → presign ephemeral → user wallet signature → start → poll; BUY
+  quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet
+  signature → start → poll; BUY
   runs quote freshness check → register → presign ephemeral → `AwaitingPayment` → explicit payment
   confirmation → start → poll. The dashboard schedules form quote refreshes from `createdAt` and
   `expiresAt` when 60% of validity remains. The machine repeats that check before registration; if
   it obtains a replacement, registration continues with that fresh quote before any ephemeral keys
-  or ramp are created. BUY never invokes AppKit signing. Signing helpers come from
+  or ramp are created. SELL is input-driven like the widget: the sender selects an executable EVM
+  token/network and enters the token amount; the server quote supplies the fiat payout. The
+  dashboard loads the selected network's complete token portfolio through Alchemy and resolves the
+  exact selected contract address (or native-token sentinel), never the wallet's currently active
+  chain or another same-symbol asset. The funding UI blocks while that portfolio is loading,
+  unavailable, or below the quote input, and the machine checks it again after quote refresh so an
+  underfunded offramp never reaches registration. BUY never invokes AppKit signing. Signing helpers come from
   `@vortexfi/shared`. `RampService` is loaded via a dynamic
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not

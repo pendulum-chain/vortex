@@ -59,7 +59,7 @@ function TransferPage() {
         <h1 className="text-balance font-semibold text-2xl tracking-tight">New transfer</h1>
         <p className="text-pretty text-muted-foreground">
           {mode === "offramp"
-            ? "Convert stablecoins into fiat through an approved payout account."
+            ? "Convert supported EVM tokens into fiat through an approved payout account."
             : mode === "onramp"
               ? "Pay with fiat and receive tokens in an EVM wallet."
               : "Send money directly across borders."}
@@ -121,6 +121,7 @@ function TransferPage() {
               <TransferForm
                 account={account}
                 key={recipient ?? "new"}
+                prefill={{ amount, corridorId, network, token }}
                 preselectRecipientId={recipient}
                 recipients={recipients}
               />

@@ -111,6 +111,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
   const belongsToActiveAccount = transferState.context.meta?.accountId === account.id;
   const activeTransfer =
     transferState.matches("CheckingQuote") ||
+    transferState.matches("CheckingBalance") ||
     transferState.matches("Registering") ||
     transferState.matches("SigningUserTxs") ||
     transferState.matches("AwaitingPayment") ||

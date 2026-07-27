@@ -43,3 +43,44 @@ test("An approved EUR BUY explains the missing transfer flow instead of linking 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
+
+test("SELL carries the token input, network, and corridor into the offramp", async ({ page }) => {
+  const backend = await mockBackend(page);
+  await seedSession(page);
+  await page.goto("/quote");
+
+  await page.getByRole("tab", { name: "Sell crypto" }).click();
+  await page.getByLabel("Fiat currency").click();
+  await page.getByRole("option", { name: /MXN/ }).click();
+  await page.getByRole("combobox").filter({ hasText: /^POL$/ }).click();
+  await page.getByRole("option", { exact: true, name: "USDC" }).click();
+  await page.getByLabel("You pay").fill("54.054054");
+
+  const continueLink = page.getByRole("link", { name: "Continue to transfer" });
+  await expect(continueLink).toBeVisible({ timeout: 20_000 });
+  await continueLink.click();
+
+  await expect(page).toHaveURL(/\/transfer/);
+  const search = new URL(page.url()).searchParams;
+  const decoded = (key: string) => {
+    const value = search.get(key);
+    return value?.startsWith('"') ? JSON.parse(value) : value;
+  };
+  expect(decoded("amount")).toBe("54.054054");
+  expect(decoded("corridorId")).toBe("MX");
+  expect(decoded("mode")).toBe("offramp");
+  expect(decoded("network")).toBe("polygon");
+  expect(decoded("token")).toBe("USDC");
+  await expect(page.locator("#token-amount")).toHaveValue("54.054054");
+  await expect(page.getByRole("combobox").filter({ hasText: "Polygon" })).toBeVisible();
+  await expect(page.getByRole("combobox").filter({ hasText: "USDC" })).toBeVisible();
+  expect(backend.quoteRequests.at(-1)).toMatchObject({
+    inputAmount: "54.054054",
+    inputCurrency: "USDC",
+    network: "polygon",
+    outputCurrency: "MXN",
+    rampType: "SELL"
+  });
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});

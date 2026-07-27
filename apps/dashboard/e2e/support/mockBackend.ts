@@ -7,12 +7,23 @@ export const E2E_RAMP_ID = "ramp-e2e-1";
 export const E2E_QUOTE_ID = "quote-e2e-1";
 export const E2E_FIAT_ACCOUNT_ID = "fiat-account-e2e-mx";
 export const E2E_FIAT_ACCOUNT_ID_2 = "fiat-account-e2e-mx-2";
-/** USDC_RATES.MX in src/domain/transfer.ts — the rate the form inverts to size the payin. */
 export const MX_USDC_RATE = 18.5;
 
 const POLYGON_USDT = "0xc2132d05d31c914a87c6611c10748aeb04b58e8f";
 
 type OnboardingState = "approved" | "in_review" | "pending" | "rejected" | "started";
+type BalanceNetwork = "arb-mainnet" | "avax-mainnet" | "base-mainnet" | "bsc-mainnet" | "eth-mainnet" | "polygon-mainnet";
+type TokenBalances = Record<string, bigint>;
+
+const USDC_ADDRESS: Record<BalanceNetwork, string> = {
+  "arb-mainnet": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+  "avax-mainnet": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+  "base-mainnet": "0x833589fcd6eb6e08f4c7c32d4f71b54bda02913",
+  "bsc-mainnet": "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+  "eth-mainnet": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  "polygon-mainnet": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359"
+};
+const NATIVE_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 /**
  * One MX/Alfredpay account under an individual entity, as served by GET /v1/onboarding/status
@@ -156,8 +167,7 @@ export function buildFiatAccounts() {
 
 /**
  * The SELL quote the dashboard's QuoteSummary and FundingMethods render. outputAmount is derived
- * from the requested inputAmount at the same rate the form used to size it, so fetchOfframpQuote's
- * refinement pass never fires and exactly one quote request is made.
+ * from the exact token input amount supplied by the form.
  */
 export function buildQuoteResponse(inputAmount: string, overrides: Record<string, unknown> = {}) {
   return {
@@ -278,6 +288,7 @@ interface MockBackendOptions {
   rampStartFailures?: number;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
   quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
+  tokenBalances?: TokenBalances | null | ((requestIndex: number, network: BalanceNetwork) => TokenBalances | null);
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -376,6 +387,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   const requestOtpRequests: Array<Record<string, unknown>> = [];
   const verifyOtpRequests: Array<Record<string, unknown>> = [];
   const quoteRequests: Array<Record<string, unknown>> = [];
+  const balanceRequests: Array<{ address: string; network: BalanceNetwork }> = [];
   const registerRequests: Array<Record<string, unknown>> = [];
   const updateRequests: Array<Record<string, unknown>> = [];
   const startRequests: Array<Record<string, unknown>> = [];
@@ -822,7 +834,15 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
               to: body.to,
               ...overrides
             })
-          : buildQuoteResponse(body.inputAmount as string, overrides)
+          : buildQuoteResponse(body.inputAmount as string, {
+              from: body.from,
+              inputCurrency: body.inputCurrency,
+              network: body.network,
+              outputCurrency: body.outputCurrency,
+              paymentMethod: body.paymentMethod,
+              to: body.to,
+              ...overrides
+            })
       );
       return;
     }
@@ -864,13 +884,13 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         buildRampProcess({
           ...paymentData,
           expiresAt: options.rampExpiresAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
-          inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
-          inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
-          outputAmount: isOnramp ? "18.20" : "1000.00",
-          outputCurrency: isOnramp ? quoteRequests.at(-1)?.outputCurrency : "MXN",
+          from: quoteRequests.at(-1)?.from,
+          inputAmount: quoteRequests.at(-1)?.inputAmount,
+          inputCurrency: quoteRequests.at(-1)?.inputCurrency,
+          outputAmount: isOnramp ? "18.20" : (Number(quoteRequests.at(-1)?.inputAmount) * MX_USDC_RATE).toFixed(2),
+          outputCurrency: quoteRequests.at(-1)?.outputCurrency,
           quoteId: body.quoteId,
-          to: isOnramp ? quoteRequests.at(-1)?.to : "spei",
+          to: quoteRequests.at(-1)?.to,
           type: isOnramp ? "BUY" : "SELL",
           unsignedTxs
         })
@@ -903,12 +923,12 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         buildRampProcess({
           ...paymentData,
           expiresAt: options.rampExpiresAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-          from: isOnramp ? quoteRequests.at(-1)?.from : "polygon",
-          inputAmount: isOnramp ? quoteRequests.at(-1)?.inputAmount : "54.054054",
-          inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
-          outputAmount: isOnramp ? "18.20" : "1000.00",
-          outputCurrency: isOnramp ? quoteRequests.at(-1)?.outputCurrency : "MXN",
-          to: isOnramp ? quoteRequests.at(-1)?.to : "spei",
+          from: quoteRequests.at(-1)?.from,
+          inputAmount: quoteRequests.at(-1)?.inputAmount,
+          inputCurrency: quoteRequests.at(-1)?.inputCurrency,
+          outputAmount: isOnramp ? "18.20" : (Number(quoteRequests.at(-1)?.inputAmount) * MX_USDC_RATE).toFixed(2),
+          outputCurrency: quoteRequests.at(-1)?.outputCurrency,
+          to: quoteRequests.at(-1)?.to,
           type: isOnramp ? "BUY" : "SELL",
           unsignedTxs
         })
@@ -987,6 +1007,46 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     });
   }
 
+  await page.route("https://api.g.alchemy.com/data/v1/**/assets/tokens/balances/by-address", async route => {
+    const body = route.request().postDataJSON() as {
+      addresses?: Array<{ address?: string; networks?: BalanceNetwork[] }>;
+    };
+    const address = body.addresses?.[0]?.address ?? "";
+    const network = body.addresses?.[0]?.networks?.[0] ?? "polygon-mainnet";
+    const requestIndex = balanceRequests.length;
+    balanceRequests.push({ address, network });
+    const defaultBalances: TokenBalances = {
+      [USDC_ADDRESS[network]]: network === "bsc-mainnet" ? 1_000n * 10n ** 18n : 1_000_000_000n
+    };
+    if (network === "polygon-mainnet") {
+      defaultBalances[POLYGON_USDT] = 1_000_000_000n;
+      defaultBalances[NATIVE_TOKEN_ADDRESS] = 1_000n * 10n ** 18n;
+    }
+    const configuredBalances =
+      typeof options.tokenBalances === "function"
+        ? options.tokenBalances(requestIndex, network)
+        : options.tokenBalances === undefined
+          ? defaultBalances
+          : options.tokenBalances;
+
+    if (configuredBalances === null) {
+      await route.fulfill({ json: { error: "balance unavailable" }, status: 503 });
+      return;
+    }
+
+    await route.fulfill({
+      json: {
+        data: {
+          tokens: Object.entries(configuredBalances).map(([tokenAddress, tokenBalance]) => ({
+            network,
+            tokenAddress: tokenAddress === NATIVE_TOKEN_ADDRESS ? null : tokenAddress,
+            tokenBalance: `0x${tokenBalance.toString(16)}`
+          }))
+        }
+      }
+    });
+  });
+
   await page.route("https://v2.api.squidrouter.com/v2/tokens", route => route.fulfill({ json: { tokens: [] } }));
 
   for (const pattern of THIRD_PARTY_BLOCKLIST) {
@@ -998,6 +1058,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     archiveInvitationRequests,
     auth,
     avenia,
+    balanceRequests,
     brlaCreateSubaccountRequests,
     fiatAccountDeleteRequests,
     fiatAccountRequests,

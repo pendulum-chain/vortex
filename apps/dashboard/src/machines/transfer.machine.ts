@@ -8,6 +8,8 @@ import {
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
 import {
+  type CheckTransferBalanceInput,
+  checkTransferBalance,
   pollRampUntilTerminal,
   type RefreshTransferQuoteInput,
   type RegisterTransferInput,
@@ -95,6 +97,7 @@ function metaForQuote(meta: TransferMeta | null, quote: QuoteResponse): Transfer
  */
 export const transferMachine = setup({
   actors: {
+    checkTransferBalance: fromPromise(({ input }: { input: CheckTransferBalanceInput }) => checkTransferBalance(input)),
     refreshTransferQuote: fromPromise(({ input }: { input: RefreshTransferQuoteInput }) => refreshTransferQuote(input)),
     registerTransfer: fromPromise(({ input }: { input: RegisterTransferInput }) => registerTransfer(input)),
     signUserTransactions: fromPromise(({ input }: { input: { ramp: RampProcess; userTxs: UnsignedTx[] } }) =>
@@ -133,6 +136,25 @@ export const transferMachine = setup({
         PAYMENT_CONFIRMED: { actions: assign(() => ({ errorMessage: null })), target: "Starting" }
       }
     },
+    CheckingBalance: {
+      invoke: {
+        input: ({ context }) => {
+          if (!context.quote) {
+            throw new Error("Balance check context is incomplete");
+          }
+          return { quote: context.quote, walletAddress: context.additionalData?.walletAddress };
+        },
+        onDone: { target: "Registering" },
+        onError: {
+          actions: [
+            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+          ],
+          target: "Failed"
+        },
+        src: "checkTransferBalance"
+      }
+    },
     CheckingQuote: {
       invoke: {
         input: ({ context }) => {
@@ -146,7 +168,7 @@ export const transferMachine = setup({
             meta: metaForQuote(context.meta, event.output.quote),
             quote: event.output.quote
           })),
-          target: "Registering"
+          target: "CheckingBalance"
         },
         onError: {
           actions: [

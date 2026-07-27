@@ -5,7 +5,11 @@ import {
   createPendulumEphemeral,
   EphemeralAccountType,
   type GetRampStatusResponse,
+  getNetworkDisplayName,
+  getOnChainTokenDetails,
+  isEvmTokenDetails,
   isEvmTransactionData,
+  isNetworkEVM,
   isSignedTypedData,
   isSignedTypedDataArray,
   Networks,
@@ -17,17 +21,16 @@ import {
   signUnsignedTransactions,
   type UnsignedTx
 } from "@vortexfi/shared";
-import { fetchOfframpQuote, fetchQuote, type OfframpQuoteParams, type QuoteParams } from "@/services/api/quote.service";
+import { fetchQuote, type QuoteParams } from "@/services/api/quote.service";
 import { shouldRefreshQuote } from "@/services/api/quote-expiry";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
+import { fetchTokenPortfolio, getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
 import { bindRampEphemerals, storePendingRampEphemerals } from "@/services/rampEphemerals";
 import { signAndSubmitEvmTransaction, signMultipleTypedData } from "@/services/transactions/userSigning";
 
 const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY;
 
-export type TransferQuoteRequest =
-  | { kind: "input"; params: QuoteParams }
-  | { kind: "offramp-payout"; params: OfframpQuoteParams };
+export type TransferQuoteRequest = { kind: "input"; params: QuoteParams };
 
 export interface RefreshTransferQuoteInput {
   quote: QuoteResponse;
@@ -43,11 +46,45 @@ export async function refreshTransferQuote(input: RefreshTransferQuoteInput): Pr
     return { quote: input.quote };
   }
 
-  const quote =
-    input.request.kind === "offramp-payout"
-      ? await fetchOfframpQuote(input.request.params)
-      : await fetchQuote(input.request.params);
+  const quote = await fetchQuote(input.request.params);
   return { quote };
+}
+
+export interface CheckTransferBalanceInput {
+  quote: QuoteResponse;
+  walletAddress: string | undefined;
+}
+
+export async function checkTransferBalance(input: CheckTransferBalanceInput): Promise<void> {
+  if (input.quote.rampType === RampDirection.BUY) {
+    return;
+  }
+  if (!input.walletAddress) {
+    throw new Error("A connected wallet is required for an offramp");
+  }
+
+  const network = input.quote.network;
+  if (!isNetworkEVM(network)) {
+    throw new Error(`Could not verify ${input.quote.inputCurrency} balance on unsupported network ${network}`);
+  }
+  const token = getOnChainTokenDetails(network, input.quote.inputCurrency);
+  if (!token || !isEvmTokenDetails(token)) {
+    throw new Error(`Could not resolve ${input.quote.inputCurrency} on ${network}`);
+  }
+
+  let portfolio;
+  try {
+    portfolio = await fetchTokenPortfolio(input.walletAddress, network);
+  } catch {
+    throw new Error(`Could not verify your ${token.assetSymbol} balance on ${getNetworkDisplayName(network)}.`);
+  }
+
+  const balance = getTokenBalance(portfolio, token);
+  if (!hasSufficientTokenBalance(balance, input.quote.inputAmount)) {
+    throw new Error(
+      `Insufficient ${token.assetSymbol} balance on ${getNetworkDisplayName(network)}. Available: ${balance.formatted} ${token.assetSymbol}; required: ${input.quote.inputAmount} ${token.assetSymbol}.`
+    );
+  }
 }
 
 export interface RegisterTransferInput {

@@ -13,7 +13,8 @@ export enum EvmToken {
   USDCE = "USDC.E",
   ETH = "ETH",
   BRLA = "BRLA",
-  EURC = "EURC"
+  EURC = "EURC",
+  POL = "POL"
 }
 
 export enum UsdLikeEvmToken {

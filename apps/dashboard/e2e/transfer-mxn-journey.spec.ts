@@ -3,9 +3,6 @@ import { E2E_FIAT_ACCOUNT_ID, E2E_FIAT_ACCOUNT_ID_2, E2E_QUOTE_ID, E2E_RAMP_ID, 
 import { injectMockWallet, MOCK_WALLET_ADDRESS, MOCK_WALLET_TX_HASH } from "./support/mockWallet";
 import { seedSession } from "./support/session";
 
-const PAYOUT_MXN = "1000";
-// The quote endpoint is input-driven, so the form inverts the payout at USDC_RATES.MX (18.5)
-// and quotes for that many USDC: (1000 / 18.5).toFixed(6).
 const EXPECTED_PAYIN_USDC = "54.054054";
 
 // The dashboard's money path: a SELL (offramp) transfer of USDC on Polygon to an MXN payout
@@ -33,10 +30,10 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
 
   // Stage 1: the only approved corridor is MX, and its single saved payout account becomes an
   // approved self-recipient that the form auto-selects — so the amount field is already live.
-  const amountInput = page.locator("#payout-amount");
+  const amountInput = page.locator("#token-amount");
   await expect(amountInput).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("SPEI · Vortex E2E CLABE · ••••0004")).toBeVisible();
-  await amountInput.fill(PAYOUT_MXN);
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   // Stage 2: a quote arrives and the funding panel shows the auto-connected wallet, so the
   // submit button carries the payin amount.
@@ -54,7 +51,7 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/transactions/);
 
-  // The quote was requested once, for the inverted payin amount on the SELL rail.
+  // The quote was requested once for the exact token input on the SELL rail.
   expect(backend.quoteRequests).toHaveLength(1);
   expect(backend.quoteRequests[0]).toMatchObject({
     countryCode: "MX",
@@ -127,9 +124,9 @@ test("SELL refreshes a near-expiry quote before registration", async ({ page }) 
   await seedSession(page);
   await page.goto("/transfer");
 
-  const amountInput = page.locator("#payout-amount");
+  const amountInput = page.locator("#token-amount");
   await expect(amountInput).toBeVisible({ timeout: 20_000 });
-  await amountInput.fill(PAYOUT_MXN);
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await sendButton.click();
@@ -159,8 +156,8 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   const recipientSelect = page.getByRole("combobox").filter({ hasText: "Vortex E2E CLABE" });
   await expect(recipientSelect).toBeVisible({ timeout: 20_000 });
 
-  const amountInput = page.locator("#payout-amount");
-  await amountInput.fill(PAYOUT_MXN);
+  const amountInput = page.locator("#token-amount");
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   await recipientSelect.click();
   await page.getByRole("option", { name: /Vortex E2E Savings/ }).click();
@@ -169,7 +166,7 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   // so it has to be entered again before a quote is requested.
   await expect(page.getByText("SPEI · Vortex E2E Savings · ••••0099")).toBeVisible();
   await expect(amountInput).toHaveValue("");
-  await amountInput.fill(PAYOUT_MXN);
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });

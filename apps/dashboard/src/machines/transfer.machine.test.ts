@@ -30,7 +30,7 @@ const ramp = {
   type: RampDirection.BUY
 } as RampProcess;
 
-describe("transferMachine BUY flow", () => {
+describe("transferMachine", () => {
   it("waits for payment confirmation before starting the ramp", async () => {
     let startCalls = 0;
     const machine = transferMachine.provide({
@@ -218,6 +218,67 @@ describe("transferMachine BUY flow", () => {
     assert.equal(registeredQuoteId, "quote-refreshed");
     assert.equal(actor.getSnapshot().context.quote?.id, "quote-refreshed");
     assert.equal(actor.getSnapshot().context.meta?.summary, "5.1 USDC to your wallet");
+    actor.stop();
+  });
+
+  it("does not register an offramp when the balance check fails", async () => {
+    const sellQuote = {
+      id: "quote-sell",
+      inputAmount: "54.054054",
+      inputCurrency: "USDC",
+      network: Networks.Polygon,
+      outputAmount: "1000",
+      outputCurrency: "MXN",
+      rampType: RampDirection.SELL
+    } as QuoteResponse;
+    const sellQuoteRequest: TransferQuoteRequest = {
+      kind: "input",
+      params: {
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        inputAmount: sellQuote.inputAmount,
+        network: Networks.Polygon,
+        token: EvmToken.USDC
+      }
+    };
+    let registerCalls = 0;
+    const machine = transferMachine.provide({
+      actors: {
+        checkTransferBalance: fromPromise(async (): Promise<void> => {
+          throw new Error("Insufficient USDC balance on Polygon");
+        }),
+        refreshTransferQuote: fromPromise(async () => ({ quote: sellQuote })),
+        registerTransfer: fromPromise(async () => {
+          registerCalls += 1;
+          return { ramp, userTxs: [] as UnsignedTx[] };
+        })
+      }
+    });
+    const actor = createActor(machine).start();
+
+    actor.send({
+      additionalData: { walletAddress: "0x1111111111111111111111111111111111111111" },
+      meta: {
+        accountId: "account-1",
+        amountIn: sellQuote.inputAmount,
+        amountInToken: "USDC",
+        corridorId: "MX",
+        direction: RampDirection.SELL,
+        fiatPayoutAmount: sellQuote.outputAmount,
+        payinNetwork: Networks.Polygon,
+        payoutCurrency: "MXN",
+        recipientEmail: "recipient@example.com",
+        recipientId: "recipient-1",
+        summary: "1000 MXN to recipient@example.com"
+      },
+      quote: sellQuote,
+      quoteRequest: sellQuoteRequest,
+      type: "START"
+    });
+
+    await waitFor(actor, snapshot => snapshot.matches("Failed"));
+    assert.equal(actor.getSnapshot().context.errorMessage, "Insufficient USDC balance on Polygon");
+    assert.equal(registerCalls, 0);
     actor.stop();
   });
 });
