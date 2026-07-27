@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { FiatToken, RampDirection } from "@vortexfi/shared";
+import { FiatToken, Networks, RampDirection, type PresignedTx } from "@vortexfi/shared";
 import { installFakeWorld, type FakeWorld } from "../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { setupTestDatabase, truncateAllTables } from "../test-utils/db";
@@ -22,6 +22,13 @@ describe("auth and ownership invariants", () => {
     app.request("/v1/ramp/register", {
       body: JSON.stringify(body),
       headers: { "Content-Type": "application/json", ...headers },
+      method: "POST"
+    });
+
+  const start = (rampId: string, userId: string) =>
+    app.request("/v1/ramp/start", {
+      body: JSON.stringify({ rampId }),
+      headers: { Authorization: `Bearer ${testUserToken(userId)}`, "Content-Type": "application/json" },
       method: "POST"
     });
 
@@ -194,6 +201,35 @@ describe("auth and ownership invariants", () => {
 
       expect(response.status).toBe(409);
       expect((await ramp.reload()).currentPhase).toBe("brlaOnrampMint");
+    });
+
+    it("does not cancel a ramp after signing may have exposed payment instructions", async () => {
+      const owner = await createTestUser();
+      const quote = await createTestQuote({ userId: owner.id });
+      const presignedTx: PresignedTx = {
+        meta: {},
+        network: Networks.Base,
+        nonce: 0,
+        phase: "destinationTransfer",
+        signer: SIGNING_ACCOUNTS[0].address,
+        txData: "0x"
+      };
+      const ramp = await createTestRampState({ presignedTxs: [presignedTx], quoteId: quote.id, userId: owner.id });
+
+      const response = await cancel(ramp.id, owner.id);
+
+      expect(response.status).toBe(409);
+      expect((await ramp.reload()).currentPhase).toBe("initial");
+    });
+
+    it("does not start a cancelled ramp", async () => {
+      const owner = await createTestUser();
+      const quote = await createTestQuote({ userId: owner.id });
+      const ramp = await createTestRampState({ currentPhase: "timedOut", quoteId: quote.id, userId: owner.id });
+
+      const response = await start(ramp.id, owner.id);
+
+      expect(response.status).toBe(409);
     });
   });
 

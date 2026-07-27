@@ -70,7 +70,7 @@ router.post(
   rampController.updateRamp as unknown as RequestHandler
 );
 
-/** Cancel an owned ramp before phase processing starts. */
+/** Cancel an owned ramp before any signatures or payment instructions are issued. */
 router.post("/cancel", requirePartnerOrUserAuth(), rampController.cancelRamp as unknown as RequestHandler);
 
 /**

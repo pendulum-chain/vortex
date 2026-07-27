@@ -190,6 +190,18 @@ describe("quote consumption invariants (BRL onramp)", () => {
     expect(await RampState.count({ where: { userId: user.id } })).toBe(2);
   });
 
+  it("limits a user to three provisional registrations", async () => {
+    const user = await createTestUser();
+    await createTestTaxId(user.id, { taxId: TAX_ID });
+    const accounts = Array.from({ length: 4 }, () => privateKeyToAccount(generatePrivateKey()));
+    const quotes = await Promise.all(accounts.map(() => createQuoteViaApi()));
+
+    const responses = await Promise.all(quotes.map((quote, index) => registerViaApi(quote.id, user.id, accounts[index].address)));
+
+    expect(responses.map(response => response.status).sort()).toEqual([201, 201, 201, 409]);
+    expect(await RampState.count({ where: { userId: user.id } })).toBe(3);
+  });
+
   it("lets the first valid presigned update win across parallel ramps", async () => {
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });

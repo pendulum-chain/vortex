@@ -676,7 +676,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 |---|---|
 | **Location** | Ramp creation flow (no per-user limit enforcement) |
 | **Spec** | `05-integrations/mykobo.md` (formerly `monerium.md`) |
-| **Status** | ✅ **FIXED** — one validated active ramp per user across every corridor |
+| **Status** | ✅ **FIXED** — one validated active ramp and at most three provisional ramps per user across every corridor |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). With Mykobo's 24h outer timeout the exposure window per pending ramp is **larger** than under the previous 30-minute Monerium window. |
 
@@ -684,7 +684,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 **CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
-**Fix (2026-07-14; checkpoint revised 2026-07-24):** Distinct quotes may create provisional ramps with `presigned_txs = NULL`, but only one validated ramp may become active across every corridor. The first non-empty `/ramp/update` submission that passes presigned-transaction validation locks the authenticated user's profile row, checks for another nonterminal ramp with persisted presigned transactions, and stores the winning submission in the same transaction. This serializes concurrent updates across API instances without allowing an orphaned registration that never reached `/ramp/update` to block the user. Invalid presigned data cannot reserve the slot. Unstarted ramps older than the 15-minute start window are still transitioned to `timedOut` during registration.
+**Fix (2026-07-14; checkpoint revised 2026-07-27):** Distinct quotes may create up to three provisional ramps with `presigned_txs = NULL`; registration locks the authenticated user's profile row, expires old initial rows, and enforces that cap before transaction preparation. Only one validated ramp may become active across every corridor. The first non-empty `/ramp/update` submission that passes presigned-transaction validation locks the authenticated user's profile row, checks for another nonterminal ramp with persisted presigned transactions, and stores the winning submission in the same transaction. This serializes concurrent updates across API instances without allowing an orphaned registration that never reached `/ramp/update` to block the user. Invalid presigned data cannot reserve the slot. Unstarted ramps older than the 15-minute start window are transitioned to `timedOut` during registration.
 
 ---
 

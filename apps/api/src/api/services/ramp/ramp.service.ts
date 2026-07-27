@@ -75,6 +75,7 @@ import { getFinalTransactionHashForRampV2 } from "./helpers";
 import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
+const MAX_PROVISIONAL_RAMPS_PER_USER = 3;
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -225,14 +226,6 @@ export class RampService extends BaseRampService {
         });
       }
 
-      const user = await User.findByPk(effectiveUserId, { transaction });
-      if (!user) {
-        throw new APIError({
-          message: "Authenticated user profile not found.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-
       const startDeadline = new Date(Date.now() - RAMP_START_EXPIRATION_TIME_SECONDS * 1000);
       await RampState.update(
         { currentPhase: "timedOut" },
@@ -245,6 +238,34 @@ export class RampService extends BaseRampService {
           }
         }
       );
+
+      // Serialize provisional-ramp admission per user. A small number of parallel
+      // checkouts lets a customer recover from signing/browser failures without
+      // allowing unbounded transaction preparation and state creation. Keep this
+      // after the expiry sweep so it never waits on a row held by updateRamp while
+      // holding the profile row that updateRamp needs for its own reservation.
+      const user = await User.findByPk(effectiveUserId, { lock: Transaction.LOCK.UPDATE, transaction });
+      if (!user) {
+        throw new APIError({
+          message: "Authenticated user profile not found.",
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const provisionalRampCount = await RampState.count({
+        transaction,
+        where: {
+          currentPhase: "initial",
+          presignedTxs: { [Op.is]: null },
+          userId: effectiveUserId
+        }
+      });
+      if (provisionalRampCount >= MAX_PROVISIONAL_RAMPS_PER_USER) {
+        throw new APIError({
+          message: "Too many unfinished ramp registrations. Complete or wait for one of your existing ramps to expire.",
+          status: httpStatus.CONFLICT
+        });
+      }
 
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
@@ -507,6 +528,16 @@ export class RampService extends BaseRampService {
         });
       }
 
+      // Once signatures exist, payment instructions may have been shown. Do not
+      // turn that ramp terminal based only on a client-side "I have not paid" claim:
+      // a bank or PIX payment can still arrive after the user leaves the screen.
+      if (rampState.presignedTxs !== null) {
+        throw new APIError({
+          message: "A ramp with payment instructions cannot be cancelled. It remains available until it expires.",
+          status: httpStatus.CONFLICT
+        });
+      }
+
       await this.markRampTimedOut(rampState, transaction);
       return rampState;
     });
@@ -517,9 +548,7 @@ export class RampService extends BaseRampService {
    */
   public async startRamp(request: StartRampRequest): Promise<StartRampResponse> {
     return this.withTransaction(async transaction => {
-      const rampState = await RampState.findByPk(request.rampId, {
-        transaction
-      });
+      const rampState = await RampState.findByPk(request.rampId, { lock: Transaction.LOCK.UPDATE, transaction });
 
       if (!rampState) {
         throw new APIError({
@@ -529,6 +558,13 @@ export class RampService extends BaseRampService {
       }
 
       RampService.assertOwnedByThisFlow(rampState, "Ramp");
+
+      if (rampState.currentPhase !== "initial") {
+        throw new APIError({
+          message: "Ramp is not in a state that allows starting",
+          status: httpStatus.CONFLICT
+        });
+      }
 
       const quote = await QuoteTicket.findByPk(rampState.quoteId, { transaction });
 
@@ -546,7 +582,9 @@ export class RampService extends BaseRampService {
       const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
 
       if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        await this.cancelRamp(rampState.id);
+        // Expiry is a server-enforced terminal transition. Unlike user cancellation,
+        // it must also release signed ramps whose payment window has elapsed.
+        await this.markRampTimedOut(rampState, transaction);
         throw new APIError({
           message: "Maximum time window to start process exceeded. Ramp invalidated.",
           status: httpStatus.BAD_REQUEST
