@@ -5,7 +5,7 @@ describe("isPublicIpAddress", () => {
   it.each([
     "8.8.8.8",
     "93.184.216.34",
-    "203.0.113.10",
+    "1.1.1.1",
     "2600:1f18::1"
   ])("accepts public address %s", address => {
     expect(isPublicIpAddress(address)).toBe(true);
@@ -33,7 +33,17 @@ describe("isPublicIpAddress", () => {
     "ff02::1",
     "2001:db8::1",
     "::ffff:10.0.0.1",
-    "::ffff:127.0.0.1"
+    "::ffff:127.0.0.1",
+    // IANA special-purpose ranges that are not publicly routable: a webhook pointing
+    // at one either reaches internal infrastructure or can never deliver.
+    "192.0.2.10", // TEST-NET-1
+    "198.51.100.10", // TEST-NET-2
+    "203.0.113.10", // TEST-NET-3
+    "192.88.99.1", // 6to4 relay anycast (deprecated)
+    "fec0::1", // site-local (deprecated, still routed in some networks)
+    "2002::1", // 6to4
+    "2001:2::1", // benchmarking
+    "64:ff9b::1" // NAT64 well-known prefix
   ])("rejects private/reserved address %s", address => {
     expect(isPublicIpAddress(address)).toBe(false);
   });

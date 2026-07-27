@@ -19,11 +19,11 @@ const findWebhooksForEventMock = mock(async (): Promise<unknown[]> => []);
 const deactivateWebhookMock = mock(async (): Promise<boolean> => true);
 
 // IP-literal URLs keep the tests hermetic: the pre-delivery SSRF guard validates
-// IP literals without a DNS lookup. TEST-NET-3 (203.0.113/24) passes the guard's
-// private/reserved checks but is guaranteed non-routable if a fetch stub is missed.
+// IP literals without a DNS lookup. 93.184.216.34 (example.com, a real public
+// address) passes the guard; fetch is always stubbed, so nothing leaves the box.
 const fakeWebhook = (overrides: Record<string, unknown> = {}) => ({
   id: "webhook-1",
-  url: "https://203.0.113.10/hook",
+  url: "https://93.184.216.34/hook",
   ...overrides
 });
 
@@ -79,8 +79,8 @@ describe("WebhookDeliveryService", () => {
   describe("triggerTransactionCreated", () => {
     it("delivers the signed payload to every matching webhook", async () => {
       findWebhooksForEventMock.mockResolvedValue([
-        fakeWebhook({ id: "webhook-1", url: "https://203.0.113.10/hook1" }),
-        fakeWebhook({ id: "webhook-2", url: "https://203.0.113.10/hook2" })
+        fakeWebhook({ id: "webhook-1", url: "https://93.184.216.34/hook1" }),
+        fakeWebhook({ id: "webhook-2", url: "https://93.184.216.34/hook2" })
       ]);
       stubFetch(async () => new Response(null, { status: 200 }));
 
@@ -88,8 +88,8 @@ describe("WebhookDeliveryService", () => {
 
       expect(findWebhooksForEventMock).toHaveBeenCalledWith(WebhookEventType.TRANSACTION_CREATED, "quote-123", "session-456");
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(fetchCall(0).url).toBe("https://203.0.113.10/hook1");
-      expect(fetchCall(1).url).toBe("https://203.0.113.10/hook2");
+      expect(fetchCall(0).url).toBe("https://93.184.216.34/hook1");
+      expect(fetchCall(1).url).toBe("https://93.184.216.34/hook2");
 
       const payload = JSON.parse(fetchCall(0).body);
       expect(payload).toEqual({

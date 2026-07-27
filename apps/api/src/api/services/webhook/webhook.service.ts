@@ -5,7 +5,7 @@ import logger from "../../../config/logger";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
-import { getWebhookUrlViolation } from "./webhook-url";
+import { getResolvedUrlViolation, getWebhookUrlViolation } from "./webhook-url";
 
 /**
  * Principal that owns a webhook: the partner behind a partner-scoped secret key,
@@ -40,6 +40,18 @@ export class WebhookService {
       if (urlViolation) {
         throw new APIError({
           message: urlViolation,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      // Resolve at registration so a hostname pointing at internal infrastructure fails
+      // fast with a clear error instead of being stored and only rejected at delivery.
+      // A host that does not resolve yet is allowed; delivery re-resolves regardless,
+      // since DNS can change (or be re-pointed) after registration.
+      const resolvedViolation = await getResolvedUrlViolation(url);
+      if (resolvedViolation) {
+        throw new APIError({
+          message: resolvedViolation,
           status: httpStatus.BAD_REQUEST
         });
       }
@@ -158,7 +170,10 @@ export class WebhookService {
    * Target matching (quote/session/global) is combined with an owner filter: a webhook
    * only receives the event if its owner principal owns the quote the event belongs to.
    * This keeps session IDs (free-form strings) from leaking events across tenants.
-   * Legacy rows without an owner keep receiving events.
+   *
+   * Every row has an owner (enforced by a CHECK constraint), so there is deliberately no
+   * ownerless escape hatch here — one would match every quote and reopen the cross-tenant
+   * hole for exactly the rows an attacker could have planted before ownership existed.
    */
   public async findWebhooksForEvent(
     eventType: WebhookEventType,
@@ -185,12 +200,17 @@ export class WebhookService {
       });
 
       const quote = quoteId ? await QuoteTicket.findByPk(quoteId, { attributes: ["partnerId", "userId"] }) : null;
-      const ownerConditions: WhereOptions[] = [{ partnerId: null, userId: null }];
+      const ownerConditions: WhereOptions[] = [];
       if (quote?.partnerId) {
         ownerConditions.push({ partnerId: quote.partnerId });
       }
       if (quote?.userId) {
         ownerConditions.push({ userId: quote.userId });
+      }
+
+      // No resolvable quote owner means no webhook may claim the event.
+      if (ownerConditions.length === 0) {
+        return [];
       }
 
       const webhooks = await Webhook.findAll({
