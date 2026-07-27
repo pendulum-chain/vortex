@@ -17,11 +17,39 @@ import {
   signUnsignedTransactions,
   type UnsignedTx
 } from "@vortexfi/shared";
+import { fetchOfframpQuote, fetchQuote, type OfframpQuoteParams, type QuoteParams } from "@/services/api/quote.service";
+import { shouldRefreshQuote } from "@/services/api/quote-expiry";
 import { isTerminalPhase, RampService } from "@/services/api/ramp.service";
 import { bindRampEphemerals, storePendingRampEphemerals } from "@/services/rampEphemerals";
 import { signAndSubmitEvmTransaction, signMultipleTypedData } from "@/services/transactions/userSigning";
 
 const ALCHEMY_API_KEY: string | undefined = import.meta.env.VITE_ALCHEMY_API_KEY;
+
+export type TransferQuoteRequest =
+  | { kind: "input"; params: QuoteParams }
+  | { kind: "offramp-payout"; params: OfframpQuoteParams };
+
+export interface RefreshTransferQuoteInput {
+  quote: QuoteResponse;
+  request: TransferQuoteRequest;
+}
+
+export interface RefreshTransferQuoteOutput {
+  quote: QuoteResponse;
+  refreshed: boolean;
+}
+
+export async function refreshTransferQuote(input: RefreshTransferQuoteInput): Promise<RefreshTransferQuoteOutput> {
+  if (!shouldRefreshQuote(input.quote)) {
+    return { quote: input.quote, refreshed: false };
+  }
+
+  const quote =
+    input.request.kind === "offramp-payout"
+      ? await fetchOfframpQuote(input.request.params)
+      : await fetchQuote(input.request.params);
+  return { quote, refreshed: true };
+}
 
 export interface RegisterTransferInput {
   quote: QuoteResponse;

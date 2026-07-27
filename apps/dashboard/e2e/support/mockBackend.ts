@@ -277,6 +277,7 @@ interface MockBackendOptions {
   // Fail this many POST /v1/ramp/start calls with a 500 before succeeding.
   rampStartFailures?: number;
   onrampCurrency?: "ARS" | "BRL" | "COP" | "MXN" | "USD";
+  quoteOverrides?: (requestIndex: number, requestBody: Record<string, unknown>) => Record<string, unknown>;
 }
 
 // AlfredPayStatus values the machine branches on (packages/shared AlfredPayStatus).
@@ -806,6 +807,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     if (path === "/v1/quotes" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
       quoteRequests.push(body);
+      const overrides = options.quoteOverrides?.(quoteRequests.length - 1, body) ?? {};
       await fulfillJson(
         body.rampType === "BUY"
           ? buildQuoteResponse(body.inputAmount as string, {
@@ -817,9 +819,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
               outputCurrency: body.outputCurrency,
               paymentMethod: body.paymentMethod,
               rampType: "BUY",
-              to: body.to
+              to: body.to,
+              ...overrides
             })
-          : buildQuoteResponse(body.inputAmount as string)
+          : buildQuoteResponse(body.inputAmount as string, overrides)
       );
       return;
     }
@@ -866,6 +869,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
           inputCurrency: isOnramp ? quoteRequests.at(-1)?.inputCurrency : "USDC",
           outputAmount: isOnramp ? "18.20" : "1000.00",
           outputCurrency: isOnramp ? quoteRequests.at(-1)?.outputCurrency : "MXN",
+          quoteId: body.quoteId,
           to: isOnramp ? quoteRequests.at(-1)?.to : "spei",
           type: isOnramp ? "BUY" : "SELL",
           unsignedTxs

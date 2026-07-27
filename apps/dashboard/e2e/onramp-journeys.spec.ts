@@ -99,6 +99,51 @@ test("Expired onramp payment instructions are hidden and can be replaced with a 
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("BUY refreshes a near-expiry quote and registers only after confirmation", async ({ page }) => {
+  const backend = await mockBackend(page, {
+    fiatAccounts: [],
+    onrampCurrency: "MXN",
+    quoteOverrides: requestIndex => {
+      if (requestIndex === 0) {
+        const now = Date.now();
+        return {
+          createdAt: new Date(now - 10_000).toISOString(),
+          expiresAt: new Date(now + 10_000).toISOString(),
+          id: "quote-buy-expiring"
+        };
+      }
+      return { id: "quote-buy-refreshed", outputAmount: "19.20" };
+    }
+  });
+  await seedSession(page);
+  await page.goto("/transfer?mode=onramp");
+
+  await page.getByLabel("Destination wallet address").fill(DESTINATION);
+  await page.getByLabel("Network").click();
+  await page.getByRole("option", { exact: true, name: "Polygon" }).click();
+  await page.getByLabel("Token").click();
+  await page.getByPlaceholder("Search token or network").fill("usdc");
+  await page.getByRole("option", { exact: true, name: "USDC" }).click();
+  await page.getByLabel("You pay (MXN)").fill("100");
+  const continueButton = page.getByRole("button", { name: "Continue to payment" });
+  await expect(continueButton).toBeEnabled({ timeout: 20_000 });
+  await continueButton.click();
+
+  await expect(page.getByText("Your quote was refreshed", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("19.20 USDC", { exact: true })).toBeVisible();
+  expect(backend.quoteRequests).toHaveLength(2);
+  expect(backend.registerRequests).toHaveLength(0);
+
+  await page.getByRole("button", { exact: true, name: "Accept refreshed quote" }).click();
+
+  await expect.poll(() => backend.registerRequests.length, { timeout: 20_000 }).toBe(1);
+  expect(backend.registerRequests[0]).toMatchObject({ quoteId: "quote-buy-refreshed" });
+  await expect(page.getByText("CLABE", { exact: true })).toBeVisible({ timeout: 20_000 });
+  expect(backend.startRequests).toHaveLength(0);
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 test("Onramp registration errors are shown on the form", async ({ page }) => {
   const backend = await mockBackend(page, {
     fiatAccounts: [],

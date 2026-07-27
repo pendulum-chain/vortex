@@ -9,9 +9,12 @@ import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
 import {
   pollRampUntilTerminal,
+  type RefreshTransferQuoteInput,
   type RegisterTransferInput,
+  refreshTransferQuote,
   registerTransfer,
   signUserTransactions,
+  type TransferQuoteRequest,
   UserRejectedError
 } from "./transfer.actors";
 
@@ -23,6 +26,7 @@ export type TransferMeta = Omit<Transaction, "id" | "createdAt" | "payinWallet" 
 
 export interface TransferContext {
   quote: QuoteResponse | null;
+  quoteRequest: TransferQuoteRequest | null;
   additionalData: RegisterTransferInput["additionalData"] | null;
   meta: TransferMeta | null;
   ramp: RampProcess | null;
@@ -32,7 +36,14 @@ export interface TransferContext {
 }
 
 export type TransferEvent =
-  | { type: "START"; quote: QuoteResponse; additionalData: RegisterTransferInput["additionalData"]; meta: TransferMeta }
+  | {
+      type: "START";
+      quote: QuoteResponse;
+      quoteRequest: TransferQuoteRequest;
+      additionalData: RegisterTransferInput["additionalData"];
+      meta: TransferMeta;
+    }
+  | { type: "CONFIRM_REFRESHED_QUOTE" }
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
   | { type: "PAYMENT_CONFIRMED" }
@@ -49,6 +60,7 @@ const initialContext: TransferContext = {
   lastStatus: null,
   meta: null,
   quote: null,
+  quoteRequest: null,
   ramp: null,
   userTxs: []
 };
@@ -60,6 +72,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong while starting the transfer.";
 }
 
+function metaForQuote(meta: TransferMeta | null, quote: QuoteResponse): TransferMeta | null {
+  if (!meta) {
+    return null;
+  }
+
+  const destination = quote.rampType === RampDirection.BUY ? "your wallet" : meta.recipientEmail;
+  return {
+    ...meta,
+    amountIn: quote.inputAmount,
+    amountInToken: String(quote.inputCurrency),
+    direction: quote.rampType,
+    fiatPayoutAmount: quote.outputAmount,
+    payoutCurrency: String(quote.outputCurrency),
+    summary: `${quote.outputAmount} ${quote.outputCurrency} to ${destination}`
+  };
+}
+
 /**
  * The money-movement core ported from the widget's ramp machine
  * (RegisterRamp → UpdateRamp/sign → StartRamp → RampFollowUp), reduced to the
@@ -67,6 +96,7 @@ function errorMessage(error: unknown): string {
  */
 export const transferMachine = setup({
   actors: {
+    refreshTransferQuote: fromPromise(({ input }: { input: RefreshTransferQuoteInput }) => refreshTransferQuote(input)),
     registerTransfer: fromPromise(({ input }: { input: RegisterTransferInput }) => registerTransfer(input)),
     signUserTransactions: fromPromise(({ input }: { input: { ramp: RampProcess; userTxs: UnsignedTx[] } }) =>
       signUserTransactions(input)
@@ -104,6 +134,41 @@ export const transferMachine = setup({
         PAYMENT_CONFIRMED: { actions: assign(() => ({ errorMessage: null })), target: "Starting" }
       }
     },
+    CheckingQuote: {
+      invoke: {
+        input: ({ context }) => {
+          if (!context.quote || !context.quoteRequest) {
+            throw new Error("Quote refresh context is incomplete");
+          }
+          return { quote: context.quote, request: context.quoteRequest };
+        },
+        onDone: [
+          {
+            actions: assign(({ context, event }) => ({
+              meta: metaForQuote(context.meta, event.output.quote),
+              quote: event.output.quote
+            })),
+            guard: ({ event }) => event.output.refreshed,
+            target: "ReviewingQuote"
+          },
+          {
+            actions: assign(({ context, event }) => ({
+              meta: metaForQuote(context.meta, event.output.quote),
+              quote: event.output.quote
+            })),
+            target: "Registering"
+          }
+        ],
+        onError: {
+          actions: [
+            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+          ],
+          target: "Failed"
+        },
+        src: "refreshTransferQuote"
+      }
+    },
     Done: {
       on: {
         RESET: { actions: assign(() => initialContext), target: "Idle" },
@@ -112,9 +177,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -126,9 +192,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -139,9 +206,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -172,6 +240,11 @@ export const transferMachine = setup({
           target: "Failed"
         },
         src: "registerTransfer"
+      }
+    },
+    ReviewingQuote: {
+      on: {
+        CONFIRM_REFRESHED_QUOTE: { target: "CheckingQuote" }
       }
     },
     SigningUserTxs: {

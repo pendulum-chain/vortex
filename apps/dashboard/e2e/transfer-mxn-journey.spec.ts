@@ -109,6 +109,48 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("SELL refreshes a near-expiry quote and registers only after confirmation", async ({ page }) => {
+  const backend = await mockBackend(page, {
+    quoteOverrides: requestIndex => {
+      if (requestIndex === 0) {
+        const now = Date.now();
+        return {
+          createdAt: new Date(now - 10_000).toISOString(),
+          expiresAt: new Date(now + 10_000).toISOString(),
+          id: "quote-sell-expiring"
+        };
+      }
+      return { id: "quote-sell-refreshed", outputAmount: "1001.00" };
+    }
+  });
+  await injectMockWallet(page, { chainIdHex: "0x89" });
+  await seedSession(page);
+  await page.goto("/transfer");
+
+  const amountInput = page.locator("#payout-amount");
+  await expect(amountInput).toBeVisible({ timeout: 20_000 });
+  await amountInput.fill(PAYOUT_MXN);
+  const sendButton = page.getByRole("button", { name: /Send/ });
+  await expect(sendButton).toBeEnabled({ timeout: 20_000 });
+  await sendButton.click();
+
+  await expect(page.getByText("Your quote was refreshed", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("1001.00 MXN", { exact: true })).toBeVisible();
+  expect(backend.quoteRequests).toHaveLength(2);
+  expect(backend.quoteRequests).toEqual([
+    expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" }),
+    expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" })
+  ]);
+  expect(backend.registerRequests).toHaveLength(0);
+
+  await page.getByRole("button", { exact: true, name: "Accept refreshed quote" }).click();
+
+  await expect.poll(() => backend.registerRequests.length, { timeout: 20_000 }).toBe(1);
+  expect(backend.registerRequests[0]).toMatchObject({ quoteId: "quote-sell-refreshed" });
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 // Each saved payout account is its own self-recipient, and the offramp registers against the
 // selected one's fiatAccountId. Picking the second account must send the money there — the first
 // account is auto-selected, so a broken selector would silently pay out to the wrong account.

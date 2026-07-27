@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { QuoteError } from "@vortexfi/shared";
+import { QuoteError, RampDirection } from "@vortexfi/shared";
 import { useSelector } from "@xstate/react";
 import { Lock, TriangleAlert } from "lucide-react";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import { transferActor } from "@/machines/transferActor";
 import { useOfframpQuote } from "@/services/api/hooks";
 import { FundingMethods, type FundingSubmit } from "./FundingMethods";
 import { QuoteSummary } from "./QuoteSummary";
+import { RefreshedQuoteReview } from "./RefreshedQuoteReview";
 
 interface TransferFormProps {
   account: SenderAccount;
@@ -76,7 +77,12 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   // The transfer machine (ported widget ramp core) owns register → sign → start → track.
   const submitting = useSelector(
     transferActor,
-    snapshot => snapshot.matches("Registering") || snapshot.matches("SigningUserTxs") || snapshot.matches("Starting")
+    snapshot =>
+      snapshot.matches("CheckingQuote") ||
+      snapshot.matches("ReviewingQuote") ||
+      snapshot.matches("Registering") ||
+      snapshot.matches("SigningUserTxs") ||
+      snapshot.matches("Starting")
   );
   // The API permits parallel ramps, but this dashboard intentionally owns one local
   // transfer actor. Only states whose machine handles START may begin another transfer.
@@ -91,7 +97,7 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
   const { data: quote, isFetching, error } = useOfframpQuote(quoteParams);
 
   function submitTransfer(submit: FundingSubmit) {
-    if (!selected || !isSendable || !quote || !canStartTransfer || !pixReady) {
+    if (!selected || !isSendable || !quote || !quoteParams || !canStartTransfer || !pixReady) {
       return;
     }
     const label = recipientLabel(selected);
@@ -102,8 +108,10 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
     const subscription = transferActor.subscribe(snapshot => {
       if (snapshot.matches("Tracking")) {
         subscription.unsubscribe();
+        const currentMeta = snapshot.context.meta;
+        const currentQuote = snapshot.context.quote;
         toast.success("Transfer initiated", {
-          description: `Funding via ${submit.label} — we'll pay out ${summary} once your ${quote.inputAmount} USDC lands.`
+          description: `Funding via ${submit.label} — we'll pay out ${currentMeta?.summary ?? summary} once your ${currentQuote?.inputAmount ?? quote.inputAmount} USDC lands.`
         });
         navigate({ to: "/transactions" });
       } else if (snapshot.matches("Failed")) {
@@ -128,8 +136,23 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
         summary
       },
       quote,
+      quoteRequest: { kind: "offramp-payout", params: quoteParams },
       type: "START"
     });
+  }
+
+  const transferState = useSelector(transferActor, snapshot => snapshot);
+  if (
+    transferState.matches("ReviewingQuote") &&
+    transferState.context.meta?.accountId === account.id &&
+    transferState.context.quote?.rampType === RampDirection.SELL
+  ) {
+    return (
+      <RefreshedQuoteReview
+        onConfirm={() => transferActor.send({ type: "CONFIRM_REFRESHED_QUOTE" })}
+        quote={transferState.context.quote}
+      />
+    );
   }
 
   return (
@@ -242,11 +265,11 @@ export function TransferForm({ account, recipients, preselectRecipientId }: Tran
             <>
               <QuoteSummary isFetching={isFetching} quote={quote} />
               <FundingMethods
-                disabled={!canStartTransfer}
+                disabled={!canStartTransfer || isFetching}
                 network={network}
                 onSubmit={submitTransfer}
                 quote={quote}
-                submitting={submitting}
+                submitting={submitting || isFetching}
               />
               {signing && (
                 <p className="rounded-lg border border-dashed p-3 text-center text-muted-foreground text-sm">
