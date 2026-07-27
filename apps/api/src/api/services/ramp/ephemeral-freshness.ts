@@ -42,7 +42,8 @@ interface SigningNetworks {
  * route never touches cannot block an unrelated registration (SPEC-015). Under-reporting
  * a chain here is a security hole — an unfresh chain would skip validation — so the set
  * mirrors the route topology in `transactions/{onramp,offramp}/` exactly; keep it in sync
- * when a route's chains change. `ephemeral-freshness.test.ts` pins every corridor's set.
+ * when a route's chains change. `ephemeral-freshness.test.ts` pins the expected set for
+ * every branch below, including the cross-chain destination and Hydration cases.
  *
  * Both ephemerals are a single address reused across every chain of their type, so the
  * EVM/Substrate split here maps directly onto the two provided ephemeral addresses.
