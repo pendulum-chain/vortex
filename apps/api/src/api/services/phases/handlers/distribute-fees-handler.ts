@@ -77,44 +77,42 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     // Alfredpay corridors distribute on Polygon (USDT) as the LAST phase before complete,
     // after the user-facing legs succeeded — one plain transfer per fee recipient.
     if (quote.metadata.alfredpayMint || quote.metadata.alfredpayOfframp) {
-      return this.executeAlfredpayPhase(state, quote);
+      const usdtDetails = getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN) as EvmTokenDetails | undefined;
+      if (!usdtDetails) {
+        throw this.createUnrecoverableError("Polygon USDT configuration not found; cannot verify Alfredpay fee balance.");
+      }
+      return this.executeEvmFeeDistribution(state, quote, Networks.Polygon as EvmNetworks, usdtDetails, "complete");
     }
 
     // Determine next phase
     const nextPhase = state.type === RampDirection.BUY ? "subsidizePostSwap" : "subsidizePreSwap";
 
+    // EVM-ephemeral flows (BRL, Mykobo EUR, ...) distribute on Base in USDC — also one
+    // plain transfer per fee recipient.
+    if (quote.metadata.nablaSwapEvm) {
+      const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC] as EvmTokenDetails | undefined;
+      if (!baseUsdcConfig) {
+        throw this.createUnrecoverableError("Base USDC configuration not found; cannot verify fee balance.");
+      }
+      return this.executeEvmFeeDistribution(state, quote, Networks.Base as EvmNetworks, baseUsdcConfig, nextPhase);
+    }
+
+    // --- Substrate (Pendulum) path: a single presigned batch extrinsic ---
+
     // Check if we already have a hash stored
     const existingHash = state.state.distributeFeeHash || null;
-
-    // For EVM-ephemeral flows (BRL, Mykobo EUR, ...), distribution happens on EVM (Base).
-    const isEvmTransaction = !!quote.metadata.nablaSwapEvm;
-    const evmNetwork = isEvmTransaction ? (Networks.Base as EvmNetworks) : undefined;
-
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
-      if (isEvmTransaction && evmNetwork) {
-        const status = await this.checkEvmTransactionStatus(existingHash, evmNetwork).catch((_: unknown) => {
-          throw this.createRecoverableError("Failed to check EVM transaction status from existing hash.");
-        });
+      const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
+        throw this.createRecoverableError("Failed to check extrinsic status from existing hash.");
+      });
 
-        if (status === ExtrinsicStatus.Success) {
-          logger.info(`Existing distribute fee EVM transaction was successful for ramp ${state.id}`);
-          return this.transitionToNextPhase(state, nextPhase);
-        } else {
-          logger.info(`Existing distribute fee EVM transaction was not successful (status: ${status}), will retry`);
-        }
+      if (status === ExtrinsicStatus.Success) {
+        logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
+        return this.transitionToNextPhase(state, nextPhase);
       } else {
-        const status = await this.checkExtrinsicStatus(existingHash).catch((_: unknown) => {
-          throw this.createRecoverableError("Failed to check extrinsic status from existing hash.");
-        });
-
-        if (status === ExtrinsicStatus.Success) {
-          logger.info(`Existing distribute fee transaction was successful for ramp ${state.id}`);
-          return this.transitionToNextPhase(state, nextPhase);
-        } else {
-          logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
-        }
+        logger.info(`Existing distribute fee transaction was not successful (status: ${status}), will retry`);
       }
     }
 
@@ -126,26 +124,16 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         return this.transitionToNextPhase(state, nextPhase);
       }
 
-      // The funding token (USDC) may not yet be on the ephemeral when we reach this phase
-      // (e.g. squidrouter swap can be slow to credit). Poll for it before submitting; if it
-      // never arrives within the timeout, throw a recoverable error so we retry the phase.
-      await this.ensureFeeTokenBalance(state, quote, distributeFeeTransaction.signer, isEvmTransaction);
+      // The fee token may not yet be on the ephemeral when we reach this phase. Poll for
+      // it before submitting; if it never arrives within the timeout, throw a recoverable
+      // error so we retry the phase.
+      await this.ensureSubstrateFeeTokenBalance(state, quote);
 
-      let actualTxHash: string;
+      const { api } = await this.apiManager.getApi("pendulum");
+      const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
 
-      if (isEvmTransaction) {
-        logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
-        actualTxHash = await this.submitEvmRawTransaction(
-          distributeFeeTransaction.txData as string,
-          distributeFeeTransaction.network as EvmNetworks
-        );
-      } else {
-        const { api } = await this.apiManager.getApi("pendulum");
-        const decodedTx = decodeSubmittableExtrinsic(distributeFeeTransaction.txData as string, api);
-
-        logger.info(`Submitting substrate fee distribution transaction for ramp ${state.id}...`);
-        actualTxHash = await this.submitTransaction(decodedTx, api);
-      }
+      logger.info(`Submitting substrate fee distribution transaction for ramp ${state.id}...`);
+      const actualTxHash = await this.submitTransaction(decodedTx, api);
 
       logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
 
@@ -157,12 +145,7 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         }
       });
 
-      // Wait for transaction success
-      if (isEvmTransaction) {
-        await this.waitForEvmTransactionSuccess(actualTxHash, distributeFeeTransaction.network as EvmNetworks);
-      } else {
-        await this.waitForExtrinsicSuccess(actualTxHash);
-      }
+      await this.waitForExtrinsicSuccess(actualTxHash);
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
       return this.transitionToNextPhase(updatedState, nextPhase);
@@ -181,28 +164,29 @@ export class DistributeFeesHandler extends BasePhaseHandler {
   }
 
   /**
-   * Alfredpay corridors: broadcast the presigned Polygon USDT fee transfers in nonce
-   * order, then complete the ramp. Each transfer's hash is persisted per-nonce so a
-   * retry never re-pays a recipient whose transfer already succeeded.
+   * EVM corridors (Base USDC, Alfredpay Polygon USDT): broadcast the presigned fee
+   * transfers in nonce order, then transition. Each transfer's hash is persisted
+   * per-nonce so a retry never re-pays a recipient whose transfer already succeeded.
    */
-  private async executeAlfredpayPhase(state: RampState, quote: QuoteTicket): Promise<RampState> {
-    const network = Networks.Polygon as EvmNetworks;
-    const nextPhase: RampPhase = "complete";
-
+  private async executeEvmFeeDistribution(
+    state: RampState,
+    quote: QuoteTicket,
+    network: EvmNetworks,
+    tokenDetails: EvmTokenDetails,
+    nextPhase: RampPhase
+  ): Promise<RampState> {
     const feeTxs = (state.presignedTxs ?? []).filter(tx => tx.phase === "distributeFees").sort((a, b) => a.nonce - b.nonce);
 
     if (feeTxs.length === 0) {
-      logger.info(`No Alfredpay fee distribution transactions found for ramp ${state.id}. Skipping fee distribution.`);
+      logger.info(`No fee distribution transactions found for ramp ${state.id}. Skipping fee distribution.`);
       return this.transitionToNextPhase(state, nextPhase);
     }
 
-    const usdtDetails = getOnChainTokenDetails(Networks.Polygon, ALFREDPAY_EVM_TOKEN) as EvmTokenDetails | undefined;
-    if (!usdtDetails) {
-      throw this.createUnrecoverableError("Polygon USDT configuration not found; cannot verify Alfredpay fee balance.");
-    }
-
     try {
-      const requiredRaw = this.computeRequiredFeeRaw(quote, usdtDetails.decimals);
+      // The fee token may not yet be on the ephemeral when we reach this phase (e.g.
+      // squidrouter swap can be slow to credit). Poll for it before submitting; if it
+      // never arrives within the timeout, throw a recoverable error so we retry.
+      const requiredRaw = this.computeRequiredFeeRaw(quote, tokenDetails.decimals);
       if (requiredRaw) {
         try {
           await checkEvmBalanceForToken({
@@ -211,17 +195,22 @@ export class DistributeFeesHandler extends BasePhaseHandler {
             intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
             ownerAddress: feeTxs[0].signer,
             timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
-            tokenDetails: usdtDetails
+            tokenDetails
           });
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw this.createRecoverableError(
-            `Alfredpay fee distribution precondition failed: USDT balance not available on ${feeTxs[0].signer} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
+            `Fee distribution precondition failed: ${tokenDetails.assetSymbol} balance not available on ${feeTxs[0].signer} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
           );
         }
       }
 
       const hashes: Record<string, string> = { ...(state.state.distributeFeeHashes ?? {}) };
+      // Legacy single-hash idempotency: in-flight ramps registered before the
+      // multi-transfer change store one hash for their single fee transaction.
+      if (state.state.distributeFeeHash && !hashes[String(feeTxs[0].nonce)]) {
+        hashes[String(feeTxs[0].nonce)] = state.state.distributeFeeHash;
+      }
       let currentState = state;
 
       for (const feeTx of feeTxs) {
@@ -230,31 +219,31 @@ export class DistributeFeesHandler extends BasePhaseHandler {
         if (existingHash) {
           const status = await this.checkEvmTransactionStatus(existingHash, network);
           if (status === ExtrinsicStatus.Success) {
-            logger.info(`Alfredpay fee transfer at nonce ${nonceKey} already succeeded for ramp ${state.id}, skipping.`);
+            logger.info(`Fee distribution transfer at nonce ${nonceKey} already succeeded for ramp ${state.id}, skipping.`);
             continue;
           }
         }
 
-        logger.info(`Submitting Alfredpay fee distribution transfer (nonce ${nonceKey}) for ramp ${state.id}...`);
+        logger.info(`Submitting fee distribution transfer (nonce ${nonceKey}) for ramp ${state.id}...`);
         const txHash = await this.submitEvmRawTransaction(feeTx.txData as string, network);
         hashes[nonceKey] = txHash;
         currentState = await currentState.update({
           state: { ...currentState.state, distributeFeeHashes: hashes }
         });
         await this.waitForEvmTransactionSuccess(txHash, network);
-        logger.info(`Alfredpay fee transfer confirmed for ramp ${state.id}: ${txHash}`);
+        logger.info(`Fee distribution transfer confirmed for ramp ${state.id}: ${txHash}`);
       }
 
       return this.transitionToNextPhase(currentState, nextPhase);
     } catch (e: unknown) {
-      logger.error(`Error distributing Alfredpay fees for ramp ${state.id}:`, e);
+      logger.error(`Error distributing fees for ramp ${state.id}:`, e);
 
       if (e instanceof PhaseError) {
         throw e;
       }
 
       const error = e instanceof Error ? e : new Error(String(e));
-      throw this.createRecoverableError(`Failed to distribute Alfredpay fees: ${error.message || "Unknown error"}`);
+      throw this.createRecoverableError(`Failed to distribute fees: ${error.message || "Unknown error"}`);
     }
   }
 
@@ -270,53 +259,6 @@ export class DistributeFeesHandler extends BasePhaseHandler {
     }
 
     return multiplyByPowerOfTen(totalUsd, decimals);
-  }
-
-  private async ensureFeeTokenBalance(
-    state: RampState,
-    quote: QuoteTicket,
-    signerAddress: string,
-    isEvmTransaction: boolean
-  ): Promise<void> {
-    if (isEvmTransaction) {
-      await this.ensureEvmFeeTokenBalance(quote, signerAddress);
-    } else {
-      await this.ensureSubstrateFeeTokenBalance(state, quote);
-    }
-  }
-
-  private async ensureEvmFeeTokenBalance(quote: QuoteTicket, signerAddress: string): Promise<void> {
-    const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC] as EvmTokenDetails | undefined;
-    if (!baseUsdcConfig) {
-      throw this.createUnrecoverableError("Base USDC configuration not found; cannot verify fee balance.");
-    }
-
-    const requiredRaw = this.computeRequiredFeeRaw(quote, baseUsdcConfig.decimals);
-    if (!requiredRaw) {
-      logger.info("No positive USD fees configured; skipping fee balance precondition check.");
-      return;
-    }
-
-    logger.info(
-      `Checking EVM fee balance: signer=${signerAddress} requires >= ${requiredRaw.toFixed(0)} USDC raw on Base before submitting fee distribution.`
-    );
-
-    try {
-      const balance = await checkEvmBalanceForToken({
-        amountDesiredRaw: requiredRaw.toFixed(0),
-        chain: Networks.Base as EvmNetworks,
-        intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
-        ownerAddress: signerAddress,
-        timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
-        tokenDetails: baseUsdcConfig
-      });
-      logger.info(`EVM fee balance precondition met: balance=${balance.toFixed(0)} >= required=${requiredRaw.toFixed(0)}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      throw this.createRecoverableError(
-        `Fee distribution precondition failed: USDC balance not available on ${signerAddress} within ${FEE_BALANCE_POLL_TIMEOUT_MS}ms. ${message}`
-      );
-    }
   }
 
   private async ensureSubstrateFeeTokenBalance(state: RampState, quote: QuoteTicket): Promise<void> {

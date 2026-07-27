@@ -17,7 +17,9 @@ import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
 import type { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
-import { createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
+import type Partner from "../../models/partner.model";
+import ProfilePartnerAssignment from "../../models/profilePartnerAssignment.model";
+import { createTestPartner, createTestTaxId, createTestUser, updatePartnerPricing } from "../../test-utils/factories";
 import { type FakeWorld, installFakeWorld } from "../../test-utils/fake-world";
 import { installFakeSupabaseAuth, testUserToken } from "../../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../../test-utils/test-app";
@@ -92,8 +94,8 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
 
   beforeEach(async () => {
     await resetTestDatabase();
-    // The EVM fee distribution transaction builder requires the vortex
-    // partner's EVM payout address even when the resulting fees are zero.
+    // The EVM fee distribution builder requires the vortex partner's EVM payout
+    // address whenever a quote carries nonzero fees.
     await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: "0x000000000000000000000000000000000000fee5" });
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
@@ -118,7 +120,13 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
     };
   });
 
-  async function createQuoteViaApi(): Promise<{ id: string; outputAmount: string }> {
+  async function createQuoteViaApi(options: { authUserId?: string } = {}): Promise<{ id: string; outputAmount: string }> {
+    // An authenticated quote picks up the user's profile-assigned pricing partner.
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (options.authUserId) {
+      headers.Authorization = `Bearer ${testUserToken(options.authUserId)}`;
+    }
+
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Base,
@@ -129,7 +137,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
         rampType: RampDirection.SELL,
         to: "pix"
       }),
-      headers: { "Content-Type": "application/json" },
+      headers,
       method: "POST"
     });
     expect(response.status).toBe(201);
@@ -199,13 +207,23 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
    * signs the ephemeral phase blueprints exactly as issued, and stores them as
    * presigned transactions the way /v1/ramp/update would.
    */
-  async function setUpRegisteredRamp(): Promise<CorridorSetup> {
+  async function setUpRegisteredRamp(options: { pricingPartner?: Partner } = {}): Promise<CorridorSetup> {
     const ephemeral = privateKeyToAccount(generatePrivateKey());
     const userWallet = privateKeyToAccount(generatePrivateKey());
 
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
-    const quote = await createQuoteViaApi();
+    if (options.pricingPartner) {
+      // Profile-assigned pricing: the quote stays user-owned (partner_id NULL) but is
+      // priced by — and pays markup to — the assigned partner via pricing_partner_id.
+      await ProfilePartnerAssignment.create({
+        isActive: true,
+        partnerId: options.pricingPartner.id,
+        partnerName: options.pricingPartner.name,
+        userId: user.id
+      });
+    }
+    const quote = await createQuoteViaApi(options.pricingPartner ? { authUserId: user.id } : {});
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -237,6 +255,14 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       txData
     });
 
+    // Fee-charging quotes carry one distributeFees transfer per fee recipient; sign
+    // whatever the route prepared (none for zero-fee quotes).
+    const feeBlueprints = unsignedTxs.filter(tx => tx.phase === "distributeFees");
+    const presignedFeeTxs = [];
+    for (const blueprint of feeBlueprints) {
+      presignedFeeTxs.push(presign(blueprint, await signBlueprint(ephemeral, blueprint)));
+    }
+
     // The user broadcasts the source-of-funds USDC transfer from their own
     // wallet; fundEphemeral verifies the reported hash against the blueprint.
     const userBlueprint = blueprintOf(unsignedTxs, "squidRouterNoPermitTransfer");
@@ -249,6 +275,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
 
     await rampState.update({
       presignedTxs: [
+        ...presignedFeeTxs,
         presign(nablaApproveBlueprint, signedNablaApprove),
         presign(nablaSwapBlueprint, signedNablaSwap),
         presign(payoutBlueprint, signedPayout)
@@ -345,6 +372,54 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       expect(submissionsOf(setup.signedPayout)).toBe(1);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
       expect(world.brla.pixOutputTickets.length).toBe(pixOutBefore + 1);
+    },
+    30000
+  );
+
+  it(
+    "fee collection: vortex fee and partner markup are each paid to their payout address on-chain",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      const partnerPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.SELL, { payoutAddressEvm: vortexPayout });
+      // 5 BRL flat each = exactly 1 USD at the fake 5 BRL/USD rate: the partner-split
+      // path previously batched both transfers through Multicall3.aggregate3, which
+      // executes with the contract as msg.sender and cannot move the ephemeral's USDC.
+      const partner = await createTestPartner({
+        markupCurrency: FiatToken.BRL,
+        markupType: "absolute",
+        markupValue: 5,
+        name: "markup-partner",
+        payoutAddressEvm: partnerPayout,
+        rampType: RampDirection.SELL,
+        vortexFeeType: "absolute",
+        vortexFeeValue: 5
+      });
+
+      const setup = await setUpRegisteredRamp({ pricingPartner: partner });
+
+      const quote = await QuoteTicket.findByPk(setup.quoteId);
+      expect(Number(quote?.metadata.fees?.usd?.vortex)).toBe(1);
+      expect(Number(quote?.metadata.fees?.usd?.partnerMarkup)).toBe(1);
+
+      scriptHappyWorld(setup);
+      // The ephemeral holds the swap input plus the 2 USDC fee residual.
+      world.evm.setErc20Balance(
+        Networks.Base,
+        USDC_ON_BASE,
+        setup.ephemeral.address,
+        setup.swapInputRaw + parseUnits("2", 6)
+      );
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+
+      // Each recipient received its exact fee on the fake ledger.
+      expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(world.evm.erc20Balance(Networks.Base, USDC_ON_BASE, partnerPayout)).toBe(parseUnits("1", 6));
     },
     30000
   );
