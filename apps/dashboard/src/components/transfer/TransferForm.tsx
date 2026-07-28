@@ -251,7 +251,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label>Payin network</Label>
+              <Label>Network</Label>
               <Select onValueChange={setRequestedNetwork} value={activeNetwork?.id}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
