@@ -32,7 +32,7 @@ Two middleware variants exist:
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
-| **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Short token expiry (Supabase default: 1 hour); TLS enforcement; HttpOnly cookies if applicable |
+| **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Configured token expiry (1 week); TLS enforcement; HttpOnly cookies if applicable |
 | **Supabase service key leak** | Attacker obtains `SUPABASE_SERVICE_KEY` and forges arbitrary JWTs | Key stored only in env vars; never exposed in responses or logs; rotation procedure in place |
 | **Supabase outage** | Supabase is unreachable — verification calls fail | `requireAuth` fails closed (returns 401); no fallback to unverified access |
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |
