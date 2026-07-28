@@ -33,7 +33,7 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - During an active window, mutable quote/ramp operations return HTTP `503 Service Unavailable` before controller/service work starts.
 - Rejections include `Retry-After`, `Cache-Control: no-store`, and downtime metadata (`maintenance_start`, `maintenance_end`, affected operations) in the error payload so direct API clients can pause and retry after the window.
 
-**Route structure:** 27 TypeScript route files under `api/routes/v1/` including `index.ts`, each mounting controllers with appropriate auth middleware.
+**Route structure:** 36 TypeScript route files under `api/routes/v1/` including `index.ts`, each mounting controllers with appropriate auth middleware.
 
 ## Security Invariants
 
@@ -82,14 +82,14 @@ This spec covers the external-facing attack surface of the Vortex API (`apps/api
 - [N/A] Verify `NODE_ENV` is set to `"production"` in production — stack traces are only stripped when not in development mode. **N/A** — requires deployment configuration inspection.
 - [x] Verify error responses do not include internal error types, database error codes, or SQL fragments. **PASS** — error handler wraps errors in generic `APIError` format.
 - [x] Verify the `errors` array in `APIError` contains only user-facing messages, not internal field names or database column names. **PASS** — error messages are user-facing validation messages.
-- [x] Map all 34 TypeScript route files and verify each has appropriate auth middleware (Supabase, API key, admin, metrics dashboard, or public). **PASS** — F-013 resolved (legacy `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*` endpoints removed); `/v1/ramp/*` and `/v1/ramp/quotes(/best)` use `requirePartnerOrUserAuth()` with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) use `requireAuth` (F-068 resolved); `/v1/maintenance/*`, `/v1/admin/partners/:partnerName/api-keys`, `/v1/admin/profile-partner-assignments`, `/v1/admin/partner-pricing-configs`, and `/v1/admin/profile-roles` use `adminAuth`; `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` uses `apiKeyAuth`.
+- [x] Map all 36 TypeScript route files and verify each has appropriate auth middleware (Supabase, API key, admin, metrics dashboard, or public). **PASS** — F-013 resolved (legacy `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/*` endpoints removed); `/v1/ramp/*` and `/v1/ramp/quotes(/best)` use `requirePartnerOrUserAuth()` with ownership guards; `/v1/brla/*`, `/v1/mykobo/profiles` (GET + POST), and `/v1/wallets/*` use `requireAuth` (`/v1/wallets/*` also scopes every lookup and mutation to the authenticated profile); F-068 is resolved; `/v1/maintenance/*`, `/v1/admin/partners/:partnerName/api-keys`, `/v1/admin/profile-partner-assignments`, `/v1/admin/partner-pricing-configs`, and `/v1/admin/profile-roles` use `adminAuth`; `/v1/admin/api-client-events` uses `metricsDashboardAuth`; `/v1/webhook/*` uses `apiKeyAuth`.
 - [x] Active customer-entity selection is Supabase-authenticated, serialized on the profile row, owner-scoped, idempotent for an identical retry, and rejects mutation or ambiguity.
 - [x] Verify no route accidentally uses `publicKeyAuth` (public key only, no secret key) for operations that should require `apiKeyAuth` (secret key). **PASS** — auth middleware usage reviewed per route.
 - [N/A] Verify controllers do not pass raw `req.body` to database operations — check for Sequelize `.create(req.body)` or `.update(req.body)` patterns. **N/A** — deferred; requires comprehensive Sequelize usage audit.
 - [x] Verify no endpoint returns `process.env`, server config, or internal paths in responses. **PASS** — no endpoint exposes internal configuration.
 - [PARTIAL] Check whether Supabase auth cookies use `SameSite=Strict` or `SameSite=Lax` — and whether CSRF tokens are required for state-changing operations. **PARTIAL** — cookie parser enabled but cookie attributes not explicitly configured for `SameSite`.
 - [x] Verify the 404 handler does not reveal Express version or framework information. **PASS** — custom 404 handler returns generic JSON error.
-- [x] Check all 27 route files for endpoints that accept file uploads — verify file size limits and type validation if present. **PASS** — no file upload endpoints found.
+- [x] Check all 36 route files for endpoints that accept file uploads — verify file size limits and type validation if present. **PASS** — no file upload endpoints found.
 - [ ] Verify request ID middleware runs before routes and returns `X-Request-ID` without using request IDs for authorization.
 - [ ] Verify partner-facing API observability writes are best-effort and cannot alter response status, response body, or quote/ramp state.
 - [x] Verify active maintenance windows are enforced by the backend on quote creation and ramp register/update/start, not only by frontend UI state.

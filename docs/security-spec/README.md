@@ -20,6 +20,7 @@ This directory contains the security specification for the Vortex cross-border p
 |---|---|---|
 | System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
+| Privy Embedded Wallets | `01-auth/privy-embedded-wallets.md` | Profile-scoped wallet ownership, mode selection, signer binding |
 | API Key Auth | `01-auth/api-keys.md` | Dual-key system (pk\_/sk\_), validation, partner matching |
 | Admin Auth | `01-auth/admin-auth.md` | Admin bearer token, endpoint protection |
 | Ephemeral Accounts | `02-signing-keys/ephemeral-accounts.md` | Client-side key generation, multi-chain, storage |
