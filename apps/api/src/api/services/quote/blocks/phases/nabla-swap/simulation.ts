@@ -73,6 +73,9 @@ export async function simulateNablaSwap<Chain extends ChainBrand, InToken extend
       outputDecimals: outputTokenDetails.decimals,
       outputToken: outputTokenDetails.erc20AddressSourceChain
     },
-    output: evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw)
+    output: {
+      ...evmIO(outToken, chain, result.nablaOutputAmountDecimal, result.nablaOutputAmountRaw),
+      requestInputAmountUsd: input.requestInputAmountUsd
+    }
   };
 }

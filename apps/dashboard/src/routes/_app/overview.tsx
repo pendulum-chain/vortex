@@ -9,13 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CORRIDORS, isCorridorAvailableForAccountType } from "@/domain/corridors";
-import type { CorridorId } from "@/domain/types";
+import { type CorridorId, corridorIdSchema } from "@/domain/types";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { spring } from "@/lib/motion";
 
 export const Route = createFileRoute("/_app/overview")({
   component: OverviewPage,
-  validateSearch: z.object({ onboarding: z.literal("EU").optional() })
+  validateSearch: z.object({
+    // Corridor an accepted invite deep-linked in — pre-added so its card is ready to start.
+    invited: corridorIdSchema.optional(),
+    // Any corridor, so the quote page can deep-link a sender straight into the onboarding they lack.
+    onboarding: corridorIdSchema.optional()
+  })
 });
 
 function OverviewPage() {
@@ -23,7 +28,7 @@ function OverviewPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [activeCorridor, setActiveCorridor] = useState<CorridorId | null>(null);
-  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>([]);
+  const [addedCorridors, setAddedCorridors] = useState<CorridorId[]>(search.invited ? [search.invited] : []);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedToAdd, setSelectedToAdd] = useState<CorridorId | "">("");
 

@@ -86,7 +86,7 @@ test("Alfredpay MX KYC: continuing in the background, the card reacts to approva
 
   backend.kyc.approved = true;
   // No interaction, no reload — the 15s onboarding-status refetch flips the card to approved.
-  await expect(page.getByRole("button", { name: "Verification complete" })).toBeVisible({ timeout: 25_000 });
+  await expect(page.getByRole("button", { name: "View payout accounts" })).toBeVisible({ timeout: 25_000 });
 });
 
 test("Alfredpay MX KYC: closing on the details form and reloading keeps the card resumable", async ({ page }) => {

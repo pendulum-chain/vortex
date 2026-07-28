@@ -18,6 +18,7 @@ import {
   type KybBusinessFiles,
   type KybFormData,
   type KybPersonFiles,
+  type KybQuestionnaireData,
   type MxnKycFiles
 } from "./types";
 
@@ -29,13 +30,19 @@ function extractSubmissionId(payload: SubmitKybInformationResponse | SubmitKycIn
 
 /**
  * Extracts relate-person ids from Alfredpay GET …/customers/{customerId}/kyb/details.
- * Response shape: `[{ relatedPersons: [{ idRelatedPerson: "..." }] }]`.
+ * Response shape: `[{ submissionId: "...", relatedPersons: [{ idRelatedPerson: "..." }] }]`.
+ *
+ * The endpoint returns every business the customer has, and a customer that retried after a failed
+ * attempt carries more than one. Only the business matching the submission we are filing owns the
+ * related persons our document uploads may target — ids from any other business are stale and
+ * Alfredpay rejects uploads keyed to them.
  */
-function extractKybRelatedPersonIds(payload: unknown): string[] {
+function extractKybRelatedPersonIds(payload: unknown, submissionId: string): string[] {
   if (!Array.isArray(payload)) return [];
   const ids: string[] = [];
   for (const business of payload) {
     if (business === null || typeof business !== "object") continue;
+    if ((business as Record<string, unknown>).submissionId !== submissionId) continue;
     const relatedPersons = (business as Record<string, unknown>).relatedPersons;
     if (!Array.isArray(relatedPersons)) continue;
     for (const person of relatedPersons) {
@@ -188,12 +195,26 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
           files.articlesIncorporation
         );
         await api.submitKybFile(country, submissionId, AlfredpayKybFileType.PROOF_ADDRESS, files.proofAddress);
+        await api.submitKybFile(country, submissionId, AlfredpayKybFileType.SHAREHOLDER_REGISTRY, files.shareholderRegistry);
+        // Alfredpay demands these two only for a regulated business. Checked here rather than trusted
+        // from the upload screen: skipping them silently would surface as a 110002 at finalize, long
+        // after the files are gone.
+        if (input.kybQuestionnaireData?.isRegulatedBusiness) {
+          if (!files.businessLicense || !files.uploadAmlPolicy) {
+            throw new Error("A regulated business must supply both the business licence and the AML policy");
+          }
+          await api.submitKybFile(country, submissionId, AlfredpayKybFileType.BUSINESS_LICENSE, files.businessLicense);
+          await api.submitKybFile(country, submissionId, AlfredpayKybFileType.AML_POLICY, files.uploadAmlPolicy);
+        }
       }),
 
       submitKybInfo: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
         const country = input.country || "MX";
         if (!input.kybFormData) throw new Error("KYB form data missing");
-        return api.submitKybInformation(country, input.kybFormData);
+        if (!input.kybQuestionnaireData) throw new Error("KYB questionnaire data missing");
+        // Alfredpay takes the questionnaire flat alongside the company fields and nests it under
+        // `questionnaire` itself; the two screens are merged here rather than on the wire.
+        return api.submitKybInformation(country, { ...input.kybFormData, ...input.kybQuestionnaireData });
       }),
 
       submitKybPersonFiles: fromPromise(async ({ input }: { input: AlfredpayKycContext }) => {
@@ -295,6 +316,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         | { type: "SUBMIT_FORM"; data: AlfredpayKycFormData }
         | { type: "SUBMIT_FILES"; files: MxnKycFiles }
         | { type: "SUBMIT_KYB_FORM"; data: KybFormData }
+        | { type: "SUBMIT_KYB_QUESTIONNAIRE"; data: KybQuestionnaireData }
         | { type: "SUBMIT_KYB_BUSINESS_FILES"; files: KybBusinessFiles }
         | { type: "SUBMIT_KYB_PERSON_FILES"; files: KybPersonFiles },
       input: {} as AlfredpayKycContext,
@@ -445,6 +467,17 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
         on: {
           SUBMIT_KYB_FORM: {
             actions: assign({ kybFormData: ({ event }) => event.data }),
+            target: "FillingKybQuestionnaire"
+          }
+        }
+      },
+      FillingKybQuestionnaire: {
+        on: {
+          GO_BACK: {
+            target: "FillingKybForm"
+          },
+          SUBMIT_KYB_QUESTIONNAIRE: {
+            actions: assign({ kybQuestionnaireData: ({ event }) => event.data }),
             target: "SubmittingKybInfo"
           }
         }
@@ -494,16 +527,18 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
               actions: assign({
                 error: () =>
                   new AlfredpayKycMachineError(
-                    "Alfredpay GET …/customers/{customerId}/kyb/details did not return relatedPersons[].idRelatedPerson.",
+                    "Alfredpay GET …/customers/{customerId}/kyb/details returned no relatedPersons[].idRelatedPerson for the submission being filed.",
                     AlfredpayKycMachineErrorType.UnknownError
                   )
               }),
-              guard: ({ event }) => extractKybRelatedPersonIds(event.output).length === 0,
+              guard: ({ context, event }) =>
+                !context.submissionId || extractKybRelatedPersonIds(event.output, context.submissionId).length === 0,
               target: "Failure"
             },
             {
               actions: assign({
-                kybRelatedPersonIds: ({ event }) => extractKybRelatedPersonIds(event.output)
+                kybRelatedPersonIds: ({ context, event }) =>
+                  extractKybRelatedPersonIds(event.output, context.submissionId as string)
               }),
               target: "SubmittingKybRelatedPersonBundle"
             }
@@ -842,7 +877,7 @@ export function createAlfredpayKycMachine({ api, openVerificationUrl }: Alfredpa
 
       UploadingKybBusinessDocs: {
         on: {
-          GO_BACK: { target: "FillingKybForm" },
+          GO_BACK: { target: "FillingKybQuestionnaire" },
           SUBMIT_KYB_BUSINESS_FILES: {
             actions: assign({ kybBusinessFiles: ({ event }) => event.files }),
             target: "SubmittingKybBusinessFiles"

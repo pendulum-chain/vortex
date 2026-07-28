@@ -1,7 +1,12 @@
 import { getOnChainTokenDetails, multiplyByPowerOfTen, Networks, OnChainToken } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "../../../engines/discount/helpers";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getUsdDenominatedInputAmount,
+  resolveDiscountPartner
+} from "../../../engines/discount/helpers";
 import { defineContext } from "../../core/metadata";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 import { buildFullSubsidy, computeExpectedOutput, type SubsidyMetadata } from "../subsidize-pre/simulation";
@@ -46,8 +51,20 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
   }
   const partner = await resolveDiscountPartner(ctx as never, ctx.request.rampType);
   const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(ctx.request.outputCurrency);
+  const inputAmountUsd = await getUsdDenominatedInputAmount(
+    Object.assign(
+      {},
+      ctx,
+      input.requestInputAmountUsd ? { evmToEvm: { outputAmountDecimal: input.requestInputAmountUsd } } : {}
+    ) as never
+  );
+  if (!inputAmountUsd.eq(ctx.request.inputAmount)) {
+    ctx.addNote(
+      `OfframpSubsidizePost: valued input ${ctx.request.inputAmount} ${ctx.request.inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
+    );
+  }
   const { expectedOutput, adjustedDifference, adjustedTargetDiscount } = calculateExpectedOutput(
-    ctx.request.inputAmount,
+    inputAmountUsd.toString(),
     oraclePrice,
     partner?.targetDiscount ?? 0,
     true,

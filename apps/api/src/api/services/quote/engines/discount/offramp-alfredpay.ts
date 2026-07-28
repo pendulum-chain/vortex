@@ -9,7 +9,12 @@ import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { QuoteContext } from "../../core/types";
 import { BaseDiscountEngine, DiscountComputation } from ".";
-import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "./helpers";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getUsdDenominatedInputAmount,
+  resolveDiscountPartner
+} from "./helpers";
 
 export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
   readonly config = {
@@ -59,11 +64,19 @@ export class OffRampAlfredpayDiscountEngine extends BaseDiscountEngine {
     const usdToFiatRate = new Big(1).div(effectiveRate);
     const finalOutput = usdOnPolygon.mul(usdToFiatRate);
 
+    // The inverted rate converts USD -> fiat, so a non-USD input (e.g. BRLA) must be valued in USD first.
+    const inputAmountUsd = await getUsdDenominatedInputAmount(ctx);
+    if (!inputAmountUsd.eq(inputAmount)) {
+      ctx.addNote?.(
+        `OffRampAlfredpayDiscountEngine: valued input ${inputAmount} ${ctx.request.inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
+      );
+    }
+
     const {
       expectedOutput: expectedOutputDecimal,
       adjustedDifference,
       adjustedTargetDiscount
-    } = calculateExpectedOutput(inputAmount, effectiveRate, targetDiscount, this.config.isOfframp, partner);
+    } = calculateExpectedOutput(inputAmountUsd.toString(), effectiveRate, targetDiscount, this.config.isOfframp, partner);
 
     const idealSubsidyDecimal = expectedOutputDecimal.gt(finalOutput) ? expectedOutputDecimal.minus(finalOutput) : new Big(0);
 

@@ -58,7 +58,7 @@ export async function simulateEvmOfframpSource<FromToken extends OnChainToken, F
         toNetwork: Networks.Base,
         toToken: tokenDetails.erc20AddressSourceChain
       },
-      output: evmIO(EvmToken.USDC, Networks.Base, input.amount, input.amountRaw)
+      output: { ...evmIO(EvmToken.USDC, Networks.Base, input.amount, input.amountRaw), requestInputAmountUsd: input.amount }
     };
   }
 
@@ -116,6 +116,9 @@ export async function simulateEvmOfframpSource<FromToken extends OnChainToken, F
       toNetwork: Networks.Base,
       toToken: bridgeQuote.toToken
     },
-    output: evmIO(EvmToken.USDC, Networks.Base, bridgeQuote.outputAmountDecimal, bridgeQuote.outputAmountRaw)
+    output: {
+      ...evmIO(EvmToken.USDC, Networks.Base, bridgeQuote.outputAmountDecimal, bridgeQuote.outputAmountRaw),
+      requestInputAmountUsd: bridgeQuote.outputAmountDecimal
+    }
   };
 }

@@ -160,13 +160,21 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       });
       return;
     }
-    await verifyUserSubmittedTxByHash({
-      fromNetwork: metadata.fromNetwork,
-      hash: state.state.squidRouterApproveHash as `0x${string}` | undefined,
-      label: "User squidRouter approve",
-      presignedPhase: "squidRouterApprove",
-      state
-    });
+    const hasUserSquidSwapBlueprint = state.unsignedTxs.some(
+      tx => tx.phase === "squidRouterSwap" && tx.signer.toLowerCase() !== (state.state.evmEphemeralAddress ?? "").toLowerCase()
+    );
+    if (!hasUserSquidSwapBlueprint) return;
+
+    const approveHash = state.state.squidRouterApproveHash as `0x${string}` | undefined;
+    if (approveHash) {
+      await verifyUserSubmittedTxByHash({
+        fromNetwork: metadata.fromNetwork,
+        hash: approveHash,
+        label: "User squidRouter approve",
+        presignedPhase: "squidRouterApprove",
+        state
+      });
+    }
     await verifyUserSubmittedTxByHash({
       fromNetwork: metadata.fromNetwork,
       hash: state.state.squidRouterSwapHash as `0x${string}` | undefined,

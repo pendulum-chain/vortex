@@ -2,6 +2,7 @@ import { getOnChainTokenDetails, multiplyByPowerOfTen, Networks, OnChainToken, R
 import { Big } from "big.js";
 import { findPartnerWithPricing } from "../../../../partners/partner-pricing.service";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { getTargetFiatCurrency } from "../../../core/helpers";
 import {
   calculateExpectedOutput,
   calculateSubsidyAmount,
@@ -149,9 +150,10 @@ export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Ch
   if (!tokenDetails) {
     throw new Error(`AlfredpaySubsidizePre: Missing token details for ${input.token} on ${input.chain}`);
   }
+  const fiatCurrency = getTargetFiatCurrency(ctx.request.rampType, ctx.request.inputCurrency, ctx.request.outputCurrency);
   const activePartner = ctx.partner?.id
-    ? await resolveActivePartnerById(ctx.partner.id, ctx.request.rampType)
-    : await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, ctx.request.rampType).then(partner =>
+    ? await resolveActivePartnerById(ctx.partner.id, ctx.request.rampType, fiatCurrency)
+    : await findPartnerWithPricing({ name: DEFAULT_PARTNER_NAME }, ctx.request.rampType, fiatCurrency).then(partner =>
         partner ? toActivePartner(partner) : null
       );
   const targetDiscount = activePartner?.targetDiscount ?? 0;

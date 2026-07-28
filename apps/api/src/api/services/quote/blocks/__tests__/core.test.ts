@@ -19,6 +19,10 @@ import type { Phase, PhaseCtx, PhaseIO, TxIntent } from "../core/types";
 function phaseCtx(inputCurrency: FiatToken | EvmToken | AssetHubToken, network: Networks, inputAmount = "1.25"): PhaseCtx {
   return {
     addNote: () => undefined,
+    fees: {
+      displayFiat: { anchor: "0", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0", vortex: "0" },
+      usd: { anchor: "0", network: "0", partnerMarkup: "0", total: "0", vortex: "0" }
+    },
     notes: [],
     now: new Date("2026-07-22T12:00:00.000Z"),
     partner: null,

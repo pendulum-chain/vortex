@@ -21,11 +21,12 @@ account-first payments product:
 persistent identity, saved recipients, history, notifications — and money that moves between
 two people.
 
-**Iteration 1 scope.** The first iteration ships the unified schema (customer entities,
-provider customers, KYC cases, recipients, notifications) and sender/recipient KYC/KYB
-onboarding. On/offramping from the dashboard and cross-border transfers — including recipient
-payability and payout-instrument registration — are explicitly out of scope for this iteration;
-the sections below that describe them are target-state, not current behavior.
+**Current scope.** The dashboard ships the unified schema (customer entities, provider customers,
+ KYC cases, recipients, notifications), sender/recipient KYC/KYB onboarding, wallet-funded
+ self-offramps, and fiat-funded self-onramps for BRL, MXN, COP, USD, and ARS. Cross-border
+ fiat-to-fiat transfers, recipient payability, and invited-recipient payout-instrument registration
+ remain target-state rather than current behavior. EUR onramps remain unavailable while dashboard
+ onboarding uses Monerium but active EUR ramps resolve Mykobo.
 
 
 ## User stories
@@ -69,6 +70,10 @@ the sections below that describe them are target-state, not current behavior.
   a mocked approval would be contradicted by the backend at transfer registration.
 - As a sender, everything downstream (recipients, transfers) stays locked until at least one
   corridor is approved.
+- As an approved AlfredPay sender, I list and add my provider-side payout accounts from the
+  Onboarding corridor card. An approved corridor with no account stays at blue 90% until one is
+  added; these accounts enable reception through self-offramps and are not required for onramps or
+  third-party payments. Raw bank details are sent directly to AlfredPay and are not stored locally.
 
 ### Recipients & invitations `#review`
 - As a sender, once **any** corridor of mine is approved I invite a recipient for **any live
@@ -120,11 +125,12 @@ the sections below that describe them are target-state, not current behavior.
 
 **Paying myself.** Widget parity.
 - As a user, I send crypto from my wallet and receive fiat in my own bank account (implemented).
-- As a user, I pay fiat from my bank account and receive crypto at my own wallet (`#review` — not
-  implemented; the dashboard quotes SELL only).
+- As a user, I pay BRL, MXN, COP, USD, or ARS from my bank account and receive a selected token at
+  an editable EVM destination address. A connected AppKit wallet prefills that address but is not
+  required and never signs a BUY transaction (implemented).
 
 ### Transactions
-- As a sender, I see my transfer history — recipient, corridor, amounts in and out, status
+- As a sender, I see my onramp and offramp history — destination, corridor, amounts in and out, status
   (`awaiting_payin · processing · completed · failed`), and the reason a payout failed.
 
 ### Notifications & settings
@@ -139,6 +145,9 @@ provider-shaped rather than UI-shaped.
 
 - **Same stack as `apps/frontend`.** React 19 + Vite, TanStack Router (file routes) + TanStack
   Query, Zustand for client state, React Hook Form + Zod, Tailwind, wagmi/AppKit for EVM wallets.
+  The dashboard uses the frontend's `WagmiAdapter`/`createAppKit` configuration, supported network
+  list, featured wallets, project id, restricted feature set, and explicit `Connect`/`Account`
+  modal views rather than maintaining a separate wallet-modal implementation.
 
 - **XState v5 for every multi-step flow**, `setup().createMachine()`, machines under
   `src/machines/`. Three flows are machines: onboarding (headless / external), the provider KYC
@@ -149,23 +158,42 @@ provider-shaped rather than UI-shaped.
   side effects. Monerium OAuth state, PKCE, code exchange, and tokens stay in the backend; the
   shared machine receives only an authorization URL and normalized profile status.
 
-- **Reuse the ramp core.** `transfer.machine.ts` is the widget's ramp machine reduced to the
-  dashboard's flow: register → presign ephemeral → user wallet signature → start → poll to
-  terminal. Signing helpers come from `@vortexfi/shared`. `RampService` is loaded via a dynamic
+- **Reuse the ramp core.** `transfer.machine.ts` carries two direction-specific paths: SELL runs
+  quote freshness check → source-wallet balance check → register → presign ephemeral → user wallet
+  signature → start → poll; BUY
+  runs quote freshness check → register → presign ephemeral → `AwaitingPayment` → explicit payment
+  confirmation → start → poll. The dashboard schedules form quote refreshes from `createdAt` and
+  `expiresAt` when 60% of validity remains. The machine repeats that check before registration; if
+  it obtains a replacement, registration continues with that fresh quote before any ephemeral keys
+  or ramp are created. SELL is input-driven like the widget: the sender selects an executable EVM
+  token/network and enters the token amount; the server quote supplies the fiat payout. The
+  dashboard loads the selected network's complete token portfolio through Alchemy and resolves the
+  exact selected contract address (or native-token sentinel), never the wallet's currently active
+  chain or another same-symbol asset. The funding UI blocks while that portfolio is loading,
+  unavailable, or below the quote input, and the machine checks it again after quote refresh so an
+  underfunded offramp never reaches registration. BUY never invokes AppKit signing. Signing helpers come from
+  `@vortexfi/shared`. `RampService` is loaded via a dynamic
   import inside the transfer machine, but there is no route-level code splitting yet — the
   Polkadot/EVM graph is statically reachable from the entry chunk, so non-transfer pages do not
-  currently avoid it. The fiat-funded shapes drop the signature step entirely, so the machine
-  needs a payin-wait state, not a wallet.
+  currently avoid it. The machine snapshot is persisted under a dashboard-specific key — only in
+  the recoverable `AwaitingPayment` state, never mid-request — so provider payment instructions
+  survive navigation and reload. A failed BUY start returns to `AwaitingPayment` with the same
+  ramp, so a user who already sent fiat keeps the instructions and can retry start. Registered
+  instructions remain visible until their 15-minute start window closes; once expired, the
+  dashboard hides the stale details and allows resetting for a new quote.
 
-- **Only one ramp may be active per user.** Registration takes a database row lock on the user and
-  rejects a second nonterminal ramp, including requests from another tab, client, or API instance.
-  Unstarted ramps stop blocking after the existing 15-minute start window — but only ramps still
-  in `initial` are released that way. A ramp wedged in a mid-flow phase (it may hold user funds)
-  blocks new registrations indefinitely; there is no self-service recovery, only operational
-  intervention that moves it to a terminal phase. The dashboard stores each ramp's EVM and
-  Substrate ephemeral secrets locally before registration (under a dashboard-namespaced
-  localStorage key, so the widget's own ephemeral-store pruning cannot evict them) and retains
-  earlier ramp entries independently of disposable transfer-machine state.
+- **Preserve ramp recovery keys.** The dashboard stores each ramp's EVM and Substrate ephemeral
+  secrets locally before registration (under a
+  dashboard-namespaced localStorage key, so the widget's own ephemeral-store pruning cannot evict
+  them) and retains earlier ramp entries independently of disposable transfer-machine state.
+  From the onramp payment-instructions screen, **Back to transactions** preserves the persisted
+  `AwaitingPayment` state and navigates away without terminally cancelling the backend ramp. The
+  transactions page labels the matching initial BUY ramp as **Awaiting payment** and offers
+  **Resume payment** both prominently and on that transaction row. Resume affordances are scoped
+  to the account that created the ramp; switching accounts does not expose its payment details.
+  The customer can return to the same instructions while the payment window remains open. Once
+  the instructions expire, **Get a new quote** clears only the local transfer state. Starting an
+  expired ramp remains rejected by the API.
 
 - **Crypto-funded reuses the ramp; fiat-funded does not exist yet.** `RampDirection` is
   `BUY | SELL` — one fiat side, one crypto side. A fiat-funded payment has two fiat sides, so it is
@@ -226,8 +254,8 @@ provider-shaped rather than UI-shaped.
 
 ## Acknowledged gaps
 
-- Only self-offramp is fully functional. Third-party recipient payments and fiat-funded
-  fiat-to-fiat payments remain future work (out of scope for iteration 1).
+- Self-onramps and self-offramps are functional. Third-party recipient payments and fiat-funded
+  fiat-to-fiat payments remain future work; the Cross-border mode renders a complete coming-soon state.
 - **No recipient can currently become payable.** The payable gate requires a *verified payout
   reference*, and nothing in the API creates `RecipientPayoutReference` rows — payout-instrument
   registration is not implemented. Invitations and recipient KYC work end-to-end, but capability
@@ -240,11 +268,6 @@ provider-shaped rather than UI-shaped.
 
 ## Next steps
 
-- Add self payout-account (AlfredPay fiat-account) management to the Onboarding corridor cards,
-  per `docs/plans/dashboard-followup-plan.md` §2 (reworked 2026-07-15: Onboarding placement
-  instead of Recipients/Transfer CTAs, ~90% blue progress bar for approved corridors without an
-  account, offramp-only messaging, list + add without delete in v1). The backend
-  `/v1/alfredpay/fiatAccounts` routes already exist.
 - Display relationship status and authoritative transfer eligibility, including the reason a
   recipient is not payable, instead of deriving availability from onboarding status alone.
 - Connect the dashboard notification feed and its three preference controls to the backend.

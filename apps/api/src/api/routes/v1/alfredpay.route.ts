@@ -4,7 +4,7 @@ import { AlfredpayController } from "../../controllers/alfredpay.controller";
 import { validateResultCountry } from "../../middlewares/alfredpay.middleware";
 import { requirePartnerOrUserAuth } from "../../middlewares/dualAuth";
 import { requireAuth } from "../../middlewares/supabaseAuth";
-import { validateKycSubmission } from "../../middlewares/validators";
+import { validateKybSubmission, validateKycSubmission } from "../../middlewares/validators";
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 }, storage: multer.memoryStorage() });
@@ -31,7 +31,13 @@ router.post("/submitKycFile", requireAuth, upload.single("file"), validateResult
 router.post("/sendKycSubmission", requireAuth, validateResultCountry, AlfredpayController.sendKycSubmission);
 
 // Business API-based KYB
-router.post("/submitKybInformation", requireAuth, validateResultCountry, AlfredpayController.submitKybInformation);
+router.post(
+  "/submitKybInformation",
+  requireAuth,
+  validateResultCountry,
+  validateKybSubmission,
+  AlfredpayController.submitKybInformation
+);
 router.post("/submitKybFile", requireAuth, upload.single("file"), validateResultCountry, AlfredpayController.submitKybFile);
 router.get("/findKybCustomerAndBusiness", requireAuth, validateResultCountry, AlfredpayController.findKybCustomerAndBusiness);
 router.post(

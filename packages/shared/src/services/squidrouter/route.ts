@@ -279,7 +279,8 @@ export async function getStatus(
   transactionId: string | undefined,
   fromChainId?: string,
   toChainId?: string,
-  quoteId?: string
+  quoteId?: string,
+  signal?: AbortSignal
 ): Promise<SquidRouterPayResponse> {
   const { integratorId } = squidRouterConfigBase;
   if (!transactionId) {
@@ -298,7 +299,8 @@ export async function getStatus(
 
   try {
     const { data } = await squidFetch<SquidRouterPayResponse>(url.toString(), {
-      headers: { "x-integrator-id": integratorId }
+      headers: { "x-integrator-id": integratorId },
+      signal
     });
     return data;
   } catch (error) {

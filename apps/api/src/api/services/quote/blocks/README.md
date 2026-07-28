@@ -151,6 +151,7 @@ export type ChainBrand = string;
 export interface PhaseIO<Token extends TokenBrand = TokenBrand, Chain extends ChainBrand = ChainBrand> {
   amount: Big;                       // human-readable decimal
   amountRaw: string;                 // integer-string raw at token's decimals
+  requestInputAmountUsd?: Big;       // source valuation carried across offramp phases
   token: Token;
   chain: Chain;
 }
@@ -501,6 +502,9 @@ blocks never declare dependencies on other block identities. Persisted
 decimal metadata uses JSON-safe scalar unions, so consumers explicitly
 construct `Big` values after loading JSONB. Fees, request data, and partner
 data are explicit globals rather than metadata installed by the first block.
+Offramp source phases carry the request's bridged USD valuation through the
+typed `PhaseIO` boundary so downstream subsidy math does not read another
+phase's metadata.
 
 The three subsidy phases independently call `computeExpectedOutput(ctx)`
 and persist distinct contexts. Their values no longer overwrite one shared

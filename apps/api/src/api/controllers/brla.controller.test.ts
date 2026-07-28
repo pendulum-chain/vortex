@@ -293,6 +293,76 @@ describe("fetchSubaccountKycStatus", () => {
     expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Pending, statusExternal: null });
     expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Pending }));
   });
+
+  function mockOwnedRecordWithAttempt(status: VerificationStatus, attempt: unknown) {
+    mockEntityPerProfile();
+    const update = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status,
+      statusExternal: null,
+      update
+    })) as unknown as typeof ProviderCustomer.findOne;
+    const kycUpdate = mock(async () => undefined);
+    KycCase.findOne = mock(async () => ({ update: kycUpdate })) as unknown as typeof KycCase.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({ attempts: [attempt] }))
+        }) as unknown as BrlaApiService
+    );
+    return { kycUpdate, update };
+  }
+
+  // Regression: a rejected account whose retried attempt is approved used to stay `rejected`
+  // forever (the outcome update only matched `in_review`), so ramp registration failed with
+  // "No completed Avenia profile found" despite a successful KYC.
+  it("flips a rejected account to approved when a retried attempt is approved", async () => {
+    const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.Rejected, {
+      levelName: "KYC_1",
+      result: KycAttemptResult.APPROVED,
+      status: KycAttemptStatus.COMPLETED
+    });
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect((res.body as { result: string }).result).toBe(KycAttemptResult.APPROVED);
+    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.Approved, statusExternal: KycAttemptStatus.COMPLETED });
+    expect(kycUpdate).toHaveBeenCalledWith(expect.objectContaining({ status: VerificationStatus.Approved }));
+  });
+
+  it("returns a rejected account to in_review while a retried attempt is processing", async () => {
+    const { update } = mockOwnedRecordWithAttempt(VerificationStatus.Rejected, {
+      levelName: "KYC_1",
+      result: "",
+      status: KycAttemptStatus.PROCESSING
+    });
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(update).toHaveBeenCalledWith({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
+  });
+
+  it("never downgrades an approved account on a stale rejected attempt read", async () => {
+    const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.Approved, {
+      levelName: "KYC_1",
+      result: KycAttemptResult.REJECTED,
+      status: KycAttemptStatus.COMPLETED
+    });
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(update).not.toHaveBeenCalled();
+    expect(kycUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe("Avenia company KYB", () => {

@@ -37,7 +37,10 @@ export async function simulateDistributeFees<Token extends TokenBrand, Chain ext
         totalFeesUsd: totalFeesUsd.toString(),
         vortexFeeUsd: ctx.fees.usd.vortex
       },
-      output: evmIO(input.token, input.chain, new Big(0), "0") as PhaseIO<Token, Chain>
+      output: {
+        ...evmIO(input.token, input.chain, new Big(0), "0"),
+        requestInputAmountUsd: input.requestInputAmountUsd
+      } as PhaseIO<Token, Chain>
     };
   }
   const newAmountRaw = newAmount.times(new Big(10).pow(SIMPLIFIED_TOKEN_DECIMALS)).toFixed(0, 0);
@@ -52,6 +55,9 @@ export async function simulateDistributeFees<Token extends TokenBrand, Chain ext
       totalFeesUsd: totalFeesUsd.toString(),
       vortexFeeUsd: ctx.fees.usd.vortex
     },
-    output: evmIO(input.token, input.chain, newAmount, newAmountRaw) as PhaseIO<Token, Chain>
+    output: {
+      ...evmIO(input.token, input.chain, newAmount, newAmountRaw),
+      requestInputAmountUsd: input.requestInputAmountUsd
+    } as PhaseIO<Token, Chain>
   };
 }

@@ -1,8 +1,16 @@
+import type { FiatToken, RampDirection } from "@vortexfi/shared";
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
 export type RecipientInvitationStatus = "pending" | "accepted" | "expired" | "revoked";
 export type RecipientInviteeType = "individual" | "business";
+
+/** A pricing discount to materialize for the accepting profile (bps of the corridor rate). */
+export interface SeededDiscount {
+  rampType: RampDirection;
+  fiatCurrency: FiatToken;
+  bps: number;
+}
 
 // Link-based recipient invite (plan D1): token_hash is the redemption key. The raw token is
 // retained while the invite is pending so the sender can re-copy the link, and cleared on
@@ -18,6 +26,7 @@ export interface RecipientInvitationAttributes {
   rail: string;
   payoutCurrency: string;
   alias: string | null;
+  seededDiscounts: SeededDiscount[] | null;
   status: RecipientInvitationStatus;
   tokenHash: string;
   token: string | null;
@@ -38,6 +47,7 @@ type RecipientInvitationCreationAttributes = Optional<
   | "inviteeEmailCanonical"
   | "inviteeType"
   | "alias"
+  | "seededDiscounts"
   | "token"
   | "archivedAt"
   | "status"
@@ -63,6 +73,7 @@ class RecipientInvitation
   declare rail: string;
   declare payoutCurrency: string;
   declare alias: string | null;
+  declare seededDiscounts: SeededDiscount[] | null;
   declare status: RecipientInvitationStatus;
   declare tokenHash: string;
   declare token: string | null;
@@ -162,6 +173,11 @@ RecipientInvitation.init(
       allowNull: true,
       field: "revoked_at",
       type: DataTypes.DATE
+    },
+    seededDiscounts: {
+      allowNull: true,
+      field: "seeded_discounts",
+      type: DataTypes.JSONB
     },
     senderCustomerEntityId: {
       allowNull: false,

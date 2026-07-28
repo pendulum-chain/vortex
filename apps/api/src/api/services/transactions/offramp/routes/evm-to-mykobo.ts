@@ -27,6 +27,7 @@ import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateOfframpQuote } from "../common/validation";
+import { buildUserSquidTransactions } from "./user-squid-transactions";
 
 export async function prepareEvmToMykoboOfframpTransactions({
   quote,
@@ -160,23 +161,17 @@ export async function prepareEvmToMykoboOfframpTransactions({
       toToken: baseUsdcAddress
     });
 
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 0,
-      phase: "squidRouterApprove",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 1,
-      phase: "squidRouterSwap",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-    });
+    unsignedTxs.push(
+      ...buildUserSquidTransactions({
+        approveData: encodeEvmTransactionData(approveData) as EvmTransactionData,
+        approvePhase: "squidRouterApprove",
+        isNative: inputTokenDetails.isNative,
+        network: fromNetwork,
+        signer: userAddress,
+        swapData: encodeEvmTransactionData(swapData) as EvmTransactionData,
+        swapPhase: "squidRouterSwap"
+      })
+    );
   }
 
   let baseNonce = await addEvmFeeDistributionTransaction(quote, evmEphemeralEntry, unsignedTxs, 0);

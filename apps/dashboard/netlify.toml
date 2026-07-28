@@ -14,7 +14,8 @@
 #   VITE_ALCHEMY_API_KEY          – optional, for ephemeral EVM presigning
 #
 # The API's CORS whitelist must include this site's origin (DASHBOARD_ORIGINS env var on
-# the backend), and the Monerium application must have
+# the backend; for deploy previews set DASHBOARD_PREVIEW_SITE to this site's Netlify slug
+# on the non-production backend), and the Monerium application must have
 # https://<this-site>/monerium/callback registered as a redirect URI (matching the
 # backend's MONERIUM_REDIRECT_URI).
 

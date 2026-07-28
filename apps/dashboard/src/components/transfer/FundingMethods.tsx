@@ -1,13 +1,14 @@
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import type { QuoteResponse } from "@vortexfi/shared";
-import { ConnectKitButton } from "connectkit";
-import { ArrowDownToLine, Check, Copy, Loader2, TriangleAlert, Wallet } from "lucide-react";
-import { toast } from "sonner";
+import { Check, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { RampTokenOption } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
+import { useTokenPortfolio } from "@/hooks/useTokenPortfolio";
+import { getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
 
-export type FundingSource = "wallet" | "crypto";
+export type FundingSource = "wallet";
 
 export interface FundingSubmit {
   source: FundingSource;
@@ -16,173 +17,93 @@ export interface FundingSubmit {
 }
 
 interface FundingMethodsProps {
+  disabled: boolean;
   quote: QuoteResponse;
-  network: string;
-  networkLabel: string;
+  token: RampTokenOption;
   submitting: boolean;
   onSubmit: (submit: FundingSubmit) => void;
 }
 
 /**
- * The ramp is signed by the connected wallet, so both funding paths resolve to that
- * address — "Connect wallet" signs in-app; "Send crypto" deposits to it manually.
+ * The ramp is signed by the connected wallet, which is the only funding path — self-custodial
+ * crypto deposits are not supported.
  */
-export function FundingMethods({ quote, networkLabel, submitting, onSubmit }: FundingMethodsProps) {
-  const { address, isConnected } = useAccount();
-  const usdcAmount = quote.inputAmount;
+export function FundingMethods({ disabled, quote, submitting, token, onSubmit }: FundingMethodsProps) {
+  const { address } = useAccount();
+  const { isConnected } = useAppKitAccount();
+  const { open } = useAppKit();
+  const portfolioQuery = useTokenPortfolio(address, token.network);
+  const balance = portfolioQuery.data ? getTokenBalance(portfolioQuery.data, token.token) : undefined;
+  const hasEnoughBalance = balance ? hasSufficientTokenBalance(balance, quote.inputAmount) : false;
+  const checkingBalance = portfolioQuery.isPending || portfolioQuery.isFetching;
+
+  if (!isConnected || !address) {
+    return (
+      <div className="grid gap-3">
+        <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
+          <p className="text-muted-foreground text-sm">Connect your wallet.</p>
+          <Button className="mx-auto" onClick={() => open({ view: "Connect" })} type="button">
+            <Wallet className="size-4" />
+            Connect wallet
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-3">
-      <span className="font-medium text-sm">How you'll fund this</span>
-      <Tabs defaultValue="wallet">
-        <TabsList className="w-full">
-          <TabsTrigger className="flex-1" value="wallet">
-            <Wallet className="size-4" />
-            Connect wallet
-          </TabsTrigger>
-          <TabsTrigger className="flex-1" value="crypto">
-            <ArrowDownToLine className="size-4" />
-            Send crypto
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="wallet">
-          <ConnectTab
-            address={address}
-            isConnected={isConnected}
-            onSend={() => address && onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" })}
-            submitting={submitting}
-            usdcAmount={usdcAmount}
-          />
-        </TabsContent>
-
-        <TabsContent value="crypto">
-          <CryptoTab
-            address={address}
-            isConnected={isConnected}
-            networkLabel={networkLabel}
-            onConfirm={() => address && onSubmit({ destAddress: address, label: "Self-custodial deposit", source: "crypto" })}
-            submitting={submitting}
-            usdcAmount={usdcAmount}
-          />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
-function ConnectTab({
-  address,
-  isConnected,
-  usdcAmount,
-  submitting,
-  onSend
-}: {
-  address?: string;
-  isConnected: boolean;
-  usdcAmount: string;
-  submitting: boolean;
-  onSend: () => void;
-}) {
-  if (!isConnected || !address) {
-    return (
-      <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
-        <p className="text-muted-foreground text-sm">Connect your wallet to send the payin directly.</p>
-        <ConnectKitButton.Custom>
-          {({ show }) => (
-            <Button className="mx-auto" onClick={show} type="button">
-              <Wallet className="size-4" />
-              Connect wallet
-            </Button>
-          )}
-        </ConnectKitButton.Custom>
-      </div>
-    );
-  }
-  return (
-    <div className="surface-raised grid gap-3 rounded-lg p-4">
-      <div className="flex items-center gap-2 text-sm">
-        <Check className="size-4 text-success" />
-        <span className="text-muted-foreground">Connected</span>
-        <code className="ml-auto font-mono text-xs">{shortenAddress(address)}</code>
-      </div>
-      <Button disabled={submitting} onClick={onSend} type="button">
-        {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-        Send ≈ <span className="tabular-nums">{usdcAmount}</span> USDC
-      </Button>
-    </div>
-  );
-}
-
-function AddressCard({ address, label, onCopy }: { address: string; label: string; onCopy: () => void }) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-muted-foreground text-xs">{label}</span>
-      <div className="flex items-center gap-2 rounded-md border bg-background p-2">
-        <code className="flex-1 truncate font-mono text-xs">{address}</code>
-        <Button onClick={onCopy} size="sm" type="button" variant="ghost">
-          <Copy />
-          Copy
+      <div className="surface-raised grid gap-3 rounded-lg p-4">
+        <div className="flex items-center gap-2 text-sm">
+          <Check className="size-4 text-success" />
+          <span className="text-muted-foreground">Connected</span>
+          <code className="ml-auto font-mono text-xs">{shortenAddress(address)}</code>
+        </div>
+        {checkingBalance ? (
+          <p className="text-muted-foreground text-sm">
+            Checking {token.label} balance on {token.networkLabel}…
+          </p>
+        ) : portfolioQuery.error ? (
+          <div className="flex items-start gap-2 text-destructive text-sm" role="alert">
+            <TriangleAlert className="mt-px size-4 shrink-0" />
+            <div className="grid gap-2">
+              <p>
+                Could not verify your {token.label} balance on {token.networkLabel}.
+              </p>
+              <Button className="w-fit" onClick={() => portfolioQuery.refetch()} size="sm" type="button" variant="outline">
+                Retry balance check
+              </Button>
+            </div>
+          </div>
+        ) : balance ? (
+          <div className="grid gap-1 text-sm">
+            <p className="text-muted-foreground">
+              Available:{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {balance.formatted} {token.label}
+              </span>{" "}
+              on {token.networkLabel}
+            </p>
+            {!hasEnoughBalance && (
+              <p className="text-destructive" role="alert">
+                Insufficient {token.label} balance. You need {quote.inputAmount} {token.label} on {token.networkLabel}.
+              </p>
+            )}
+          </div>
+        ) : null}
+        <Button
+          disabled={disabled || checkingBalance || !!portfolioQuery.error || !hasEnoughBalance}
+          onClick={() => {
+            if (hasEnoughBalance) {
+              onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" });
+            }
+          }}
+          type="button"
+        >
+          {submitting || checkingBalance ? <Loader2 className="size-4 animate-spin" /> : null}
+          Send ≈ <span className="tabular-nums">{quote.inputAmount}</span> {token.label}
         </Button>
       </div>
-    </div>
-  );
-}
-
-function CryptoTab({
-  address,
-  isConnected,
-  networkLabel,
-  usdcAmount,
-  submitting,
-  onConfirm
-}: {
-  address?: string;
-  isConnected: boolean;
-  networkLabel: string;
-  usdcAmount: string;
-  submitting: boolean;
-  onConfirm: () => void;
-}) {
-  if (!isConnected || !address) {
-    return (
-      <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
-        <p className="text-muted-foreground text-sm">Connect your wallet to use it as the deposit destination.</p>
-        <ConnectKitButton.Custom>
-          {({ show }) => (
-            <Button className="mx-auto" onClick={show} type="button" variant="outline">
-              <Wallet className="size-4" />
-              Connect wallet
-            </Button>
-          )}
-        </ConnectKitButton.Custom>
-      </div>
-    );
-  }
-  return (
-    <div className="surface-raised grid gap-3 rounded-lg p-4">
-      <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
-        <p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">What to do</p>
-        <p className="mt-1 text-pretty font-semibold text-lg leading-snug">
-          Send ≈ <span className="tabular-nums">{usdcAmount}</span> USDC on {networkLabel} to your wallet.
-        </p>
-      </div>
-      <AddressCard
-        address={address}
-        label={`Send on ${networkLabel} to`}
-        onCopy={() => {
-          navigator.clipboard?.writeText(address);
-          toast.success("Address copied");
-        }}
-      />
-      <p className="flex items-start gap-2 text-pretty text-muted-foreground text-xs">
-        <TriangleAlert className="mt-px size-3.5 shrink-0 text-warning-foreground" />
-        Crypto transfers are irreversible. Confirm the network and address before sending.
-      </p>
-      <Button disabled={submitting} onClick={onConfirm} type="button">
-        {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-        Confirm — I've sent it
-      </Button>
     </div>
   );
 }

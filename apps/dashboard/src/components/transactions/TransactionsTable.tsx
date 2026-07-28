@@ -1,4 +1,5 @@
-import { LifeBuoy } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight, LifeBuoy } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -32,16 +33,22 @@ const LIVE_DOT: Partial<Record<Transaction["status"], string>> = {
   processing: "bg-info"
 };
 
-export function TransactionsTable({ transactions }: { transactions: Transaction[] }) {
+export function TransactionsTable({
+  resumableRampId,
+  transactions
+}: {
+  resumableRampId?: string;
+  transactions: Transaction[];
+}) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Created at</TableHead>
-          <TableHead>Recipient</TableHead>
-          <TableHead>Payin wallet</TableHead>
-          <TableHead>Amount in</TableHead>
-          <TableHead>Fiat payout</TableHead>
+          <TableHead>Direction</TableHead>
+          <TableHead>Destination</TableHead>
+          <TableHead>Amount sent</TableHead>
+          <TableHead>Amount received</TableHead>
           <TableHead>Country / currency</TableHead>
           <TableHead>Status</TableHead>
           <TableHead className="text-right">Action</TableHead>
@@ -67,11 +74,15 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
                   month: "short"
                 })}
               </TableCell>
-              <TableCell className="font-medium">{tx.recipientEmail}</TableCell>
+              <TableCell className="font-medium">{tx.direction === "BUY" ? "Onramp" : "Offramp"}</TableCell>
               <TableCell>
                 <div className="grid gap-0.5">
-                  <code className="font-mono text-xs">{shortenAddress(tx.payinWallet)}</code>
-                  <span className="text-muted-foreground text-xs">{networkLabel(tx.payinNetwork)}</span>
+                  <code className="font-mono text-xs">
+                    {tx.direction === "BUY" && tx.payinWallet ? shortenAddress(tx.payinWallet) : tx.recipientEmail}
+                  </code>
+                  {tx.direction === "BUY" && (
+                    <span className="text-muted-foreground text-xs">{networkLabel(tx.payinNetwork)}</span>
+                  )}
                 </div>
               </TableCell>
               <TableCell>
@@ -94,8 +105,15 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
                 </span>
               </TableCell>
               <TableCell className="text-right">
-                {tx.status === "failed" ? (
-                  <FailedAction reason={tx.failureReason} recipientEmail={tx.recipientEmail} />
+                {tx.id === resumableRampId && tx.direction === "BUY" && tx.status === "awaiting_payin" ? (
+                  <Button asChild size="sm" variant="outline">
+                    <Link search={{ mode: "onramp" }} to="/transfer">
+                      Resume payment
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                ) : tx.status === "failed" ? (
+                  <FailedAction direction={tx.direction} reason={tx.failureReason} />
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>
                 )}
@@ -108,13 +126,14 @@ export function TransactionsTable({ transactions }: { transactions: Transaction[
   );
 }
 
-function FailedAction({ reason, recipientEmail }: { reason?: string; recipientEmail: string }) {
+function FailedAction({ direction, reason }: { direction: Transaction["direction"]; reason?: string }) {
+  const transferLabel = direction === "BUY" ? "onramp" : "payout";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           onClick={() =>
-            toast.success("Support request opened", { description: `We'll email you about the ${recipientEmail} payout.` })
+            toast.success("Support request opened", { description: `We'll email you about this failed ${transferLabel}.` })
           }
           size="sm"
           variant="outline"
@@ -123,7 +142,7 @@ function FailedAction({ reason, recipientEmail }: { reason?: string; recipientEm
           Get help
         </Button>
       </TooltipTrigger>
-      <TooltipContent>{reason ?? "This payout failed. Contact support to resolve it."}</TooltipContent>
+      <TooltipContent>{reason ?? `This ${transferLabel} failed. Contact support to resolve it.`}</TooltipContent>
     </Tooltip>
   );
 }

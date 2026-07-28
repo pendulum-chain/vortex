@@ -83,6 +83,15 @@ export const evmTokenConfig: Record<EvmNetworks, Partial<Record<EvmToken, EvmTok
       network: Networks.Polygon,
       pendulumRepresentative: PENDULUM_USDC_AXL,
       type: TokenType.Evm
+    },
+    [EvmToken.POL]: {
+      assetSymbol: "POL",
+      decimals: 18,
+      erc20AddressSourceChain: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      isNative: true,
+      network: Networks.Polygon,
+      pendulumRepresentative: PENDULUM_USDC_AXL,
+      type: TokenType.Evm
     }
   },
   [Networks.PolygonAmoy]: {

@@ -11,3 +11,11 @@ export function recipientLabel(recipient: Recipient): string {
 export function inviteUrl(inviteToken: string, corridorId: CorridorId): string {
   return onboardingUrl(corridorId, inviteToken);
 }
+
+/**
+ * Discount-carrying invites onboard the recipient as a dashboard user (their discount
+ * applies to their own ramps), so the link points at the dashboard itself, not the widget.
+ */
+export function dashboardInviteUrl(inviteToken: string): string {
+  return `${window.location.origin}/invite/${inviteToken}`;
+}

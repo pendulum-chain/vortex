@@ -23,6 +23,7 @@ export type ChainBrand = string;
 export interface PhaseIO<Token extends TokenBrand = TokenBrand, Chain extends ChainBrand = ChainBrand> {
   amount: Big;
   amountRaw: string;
+  requestInputAmountUsd?: Big;
   token: Token;
   chain: Chain;
 }

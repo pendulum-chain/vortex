@@ -16,6 +16,7 @@ const REQUIRED_PATHS = [
   "/v1/quotes",
   "/v1/quotes/best",
   "/v1/quotes/{id}",
+  "/v1/ramp/history",
   "/v1/ramp/history/{walletAddress}",
   "/v1/ramp/register",
   "/v1/ramp/start",

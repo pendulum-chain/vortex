@@ -3,9 +3,6 @@ import { E2E_FIAT_ACCOUNT_ID, E2E_FIAT_ACCOUNT_ID_2, E2E_QUOTE_ID, E2E_RAMP_ID, 
 import { injectMockWallet, MOCK_WALLET_ADDRESS, MOCK_WALLET_TX_HASH } from "./support/mockWallet";
 import { seedSession } from "./support/session";
 
-const PAYOUT_MXN = "1000";
-// The quote endpoint is input-driven, so the form inverts the payout at USDC_RATES.MX (18.5)
-// and quotes for that many USDC: (1000 / 18.5).toFixed(6).
 const EXPECTED_PAYIN_USDC = "54.054054";
 
 // The dashboard's money path: a SELL (offramp) transfer of USDC on Polygon to an MXN payout
@@ -33,24 +30,28 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
 
   // Stage 1: the only approved corridor is MX, and its single saved payout account becomes an
   // approved self-recipient that the form auto-selects — so the amount field is already live.
-  const amountInput = page.locator("#payout-amount");
+  const amountInput = page.locator("#token-amount");
   await expect(amountInput).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("SPEI · Vortex E2E CLABE · ••••0004")).toBeVisible();
-  await amountInput.fill(PAYOUT_MXN);
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   // Stage 2: a quote arrives and the funding panel shows the auto-connected wallet, so the
   // submit button carries the payin amount.
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await expect(sendButton).toContainText(EXPECTED_PAYIN_USDC);
+  await expect(page.getByText("1 USDC = 18.69 MXN", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Fee details" }).click();
+  await expect(page.getByText("1 USDC = 18.50 MXN", { exact: true })).toBeVisible();
 
   // Stage 3: submitting runs register -> presign -> user signing -> start. The form toasts and
   // navigates once the machine reaches Tracking.
   await sendButton.click();
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
   await expect(page).toHaveURL(/\/transactions/);
 
-  // The quote was requested once, for the inverted payin amount on the SELL rail.
+  // The quote was requested once for the exact token input on the SELL rail.
   expect(backend.quoteRequests).toHaveLength(1);
   expect(backend.quoteRequests[0]).toMatchObject({
     countryCode: "MX",
@@ -105,6 +106,42 @@ test("SELL MXN transfer: quote, register, ephemeral presigning, wallet broadcast
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("SELL refreshes a near-expiry quote before registration", async ({ page }) => {
+  const backend = await mockBackend(page, {
+    quoteOverrides: requestIndex => {
+      if (requestIndex === 0) {
+        const now = Date.now();
+        return {
+          createdAt: new Date(now - 10_000).toISOString(),
+          expiresAt: new Date(now + 10_000).toISOString(),
+          id: "quote-sell-expiring"
+        };
+      }
+      return { id: "quote-sell-refreshed", outputAmount: "1001.00" };
+    }
+  });
+  await injectMockWallet(page, { chainIdHex: "0x89" });
+  await seedSession(page);
+  await page.goto("/transfer");
+
+  const amountInput = page.locator("#token-amount");
+  await expect(amountInput).toBeVisible({ timeout: 20_000 });
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
+  const sendButton = page.getByRole("button", { name: /Send/ });
+  await expect(sendButton).toBeEnabled({ timeout: 20_000 });
+  await sendButton.click();
+
+  await expect.poll(() => backend.registerRequests.length, { timeout: 20_000 }).toBe(1);
+  expect(backend.quoteRequests).toHaveLength(2);
+  expect(backend.quoteRequests).toEqual([
+    expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" }),
+    expect.objectContaining({ inputAmount: EXPECTED_PAYIN_USDC, rampType: "SELL" })
+  ]);
+  expect(backend.registerRequests[0]).toMatchObject({ quoteId: "quote-sell-refreshed" });
+  expect(backend.unmatchedRequests).toEqual([]);
+  expect(backend.unexpectedExternalRequests).toEqual([]);
+});
+
 // Each saved payout account is its own self-recipient, and the offramp registers against the
 // selected one's fiatAccountId. Picking the second account must send the money there — the first
 // account is auto-selected, so a broken selector would silently pay out to the wrong account.
@@ -119,8 +156,8 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   const recipientSelect = page.getByRole("combobox").filter({ hasText: "Vortex E2E CLABE" });
   await expect(recipientSelect).toBeVisible({ timeout: 20_000 });
 
-  const amountInput = page.locator("#payout-amount");
-  await amountInput.fill(PAYOUT_MXN);
+  const amountInput = page.locator("#token-amount");
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   await recipientSelect.click();
   await page.getByRole("option", { name: /Vortex E2E Savings/ }).click();
@@ -129,12 +166,13 @@ test("SELL MXN transfer: choosing a different payout account registers against t
   // so it has to be entered again before a quote is requested.
   await expect(page.getByText("SPEI · Vortex E2E Savings · ••••0099")).toBeVisible();
   await expect(amountInput).toHaveValue("");
-  await amountInput.fill(PAYOUT_MXN);
+  await amountInput.fill(EXPECTED_PAYIN_USDC);
 
   const sendButton = page.getByRole("button", { name: /Send/ });
   await expect(sendButton).toBeEnabled({ timeout: 20_000 });
   await sendButton.click();
 
+  await expect.poll(() => backend.updateRequests.length, { timeout: 20_000 }).toBe(2);
   await expect(page.getByText("Transfer initiated")).toBeVisible({ timeout: 30_000 });
 
   expect(backend.registerRequests).toHaveLength(1);

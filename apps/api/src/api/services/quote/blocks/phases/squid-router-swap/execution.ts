@@ -1,12 +1,15 @@
 import {
   AxelarScanStatusFees,
+  AxelarScanStatusResponse,
   BalanceCheckError,
   BalanceCheckErrorType,
   checkEvmBalanceForToken,
+  classifyGmpStatus,
   EvmClientManager,
   EvmNetworks,
   EvmTokenDetails,
   evmTokenConfig,
+  GmpClassification,
   getEvmBalance,
   getNetworkFromDestination,
   getNetworkId,
@@ -19,9 +22,12 @@ import {
   nativeToDecimal,
   OnChainToken,
   RampPhase,
-  SquidRouterPayResponse
+  recoverAxelarStuckConfirm,
+  SquidRouterPayResponse,
+  sleep
 } from "@vortexfi/shared";
 import { Big } from "big.js";
+import { QueryTypes } from "sequelize";
 import { encodeFunctionData, Hash } from "viem";
 import logger from "../../../../../../config/logger";
 import { axelarGasServiceAbi } from "../../../../../../contracts/AxelarGasService";
@@ -30,6 +36,9 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getEvmFundingAccount } from "../../../../phases/evm-funding";
+import { StateMetadata } from "../../../../phases/meta-state-types";
+import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
+import { SlackNotifier } from "../../../../slack.service";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { settlementBalanceKey } from "../../core/settlement";
 import { SquidRouterSwapContext } from "./simulation";
@@ -38,10 +47,11 @@ const AXELAR_POLLING_INTERVAL_MS = 10000; // 10 seconds
 const SQUIDROUTER_INITIAL_DELAY_MS = 60000; // 60 seconds
 const AXL_GAS_SERVICE_EVM = "0x2d5d7d31F671F86C782533cc367F14109a082712";
 const BALANCE_POLLING_TIME_MS = 10000;
-// Intentionally longer (15 minutes) than the balance checks in other executors: cross-chain
-// settlement and destination gas payment can legitimately take longer under congestion.
-const EVM_BALANCE_CHECK_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SQUIDROUTER_GAS_ESTIMATE = "1600000";
+const AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS = 10 * 60 * 1000;
+const STUCK_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
+const EXTRA_GAS_PENDING_MARKER = "pending";
+const STATUS_REQUEST_TIMEOUT_MS = 30000;
 
 // Port of the production SquidRouterPhaseHandler for block-owned bridge and passthrough routes.
 export class SquidRouterSwapExecutor extends BasePhaseHandler {
@@ -277,11 +287,17 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
 // Port of the production SquidRouterPayPhaseHandler with a single network-generic Axelar gas
 // funding method instead of one per chain. Clients are created lazily (no work at import time).
 export class SquidRouterPayExecutor extends BasePhaseHandler {
+  // Instance fields allow focused tests to avoid production polling delays.
+  private initialDelayMs = SQUIDROUTER_INITIAL_DELAY_MS;
+  private pollIntervalMs = AXELAR_POLLING_INTERVAL_MS;
+  private stuckAlertThresholdMs?: number;
+  private slackNotifier?: SlackNotifier | null;
+
   public getPhaseName(): RampPhase {
     return "squidRouterPay";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
@@ -295,7 +311,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         throw new Error("SquidRouterPayExecutor: Missing bridge hash in state for squidRouterPay phase. State corrupted.");
       }
 
-      await this.checkStatus(state, bridgeCallHash, quote);
+      await this.checkStatus(state, bridgeCallHash, quote, signal);
 
       return state;
     } catch (error: unknown) {
@@ -306,14 +322,15 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
   // Checks the Axelar bridge status and the destination balance in parallel; either one
   // succeeding is a success. Only if both fail (timeout) we throw.
-  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+  private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket, signal?: AbortSignal): Promise<void> {
     const toChain = this.resolveBridgeToChain(quote);
+    const pollingTimeoutMs = getSquidRouterPayTimeoutMs();
 
     if (!toChain || !isNetworkEVM(toChain)) {
       logger.info("SquidRouterPayExecutor: Destination network is non-EVM; skipping EVM balance check optimization.", {
         toNetwork: quote.to
       });
-      await this.checkBridgeStatus(state, swapHash, quote);
+      await this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, signal);
       return;
     }
 
@@ -329,7 +346,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
           chain: toChain,
           intervalMs: BALANCE_POLLING_TIME_MS,
           ownerAddress: ephemeralAddress,
-          timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
+          signal,
+          timeoutMs: pollingTimeoutMs,
           tokenDetails: outTokenDetails
         });
       } else {
@@ -343,7 +361,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       balanceCheckPromise = Promise.reject(err);
     }
 
-    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote).catch(err => {
+    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, signal).catch(err => {
       throw err;
     });
 
@@ -362,7 +380,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
         if (balanceError instanceof BalanceCheckError) {
           if (balanceError.type === BalanceCheckErrorType.Timeout) {
-            errorMessage += ` Balance check timed out after ${EVM_BALANCE_CHECK_TIMEOUT_MS}ms.`;
+            errorMessage += ` Balance check timed out after ${pollingTimeoutMs}ms.`;
           } else if (balanceError.type === BalanceCheckErrorType.ReadFailure) {
             errorMessage += ` Balance check read failure (unexpected infrastructure issue): ${balanceError.message}.`;
           }
@@ -372,21 +390,36 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
           errorMessage += ` Bridge check error: ${bridgeError instanceof Error ? bridgeError.message : String(bridgeError)}.`;
         }
 
-        throw new Error(errorMessage);
+        throw this.createRecoverableError(errorMessage);
       }
       throw error;
     }
   }
 
-  private async checkBridgeStatus(state: RampState, swapHash: string, quote: QuoteTicket): Promise<void> {
+  private async checkBridgeStatus(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    timeoutMs = getSquidRouterPayTimeoutMs(),
+    signal?: AbortSignal
+  ): Promise<void> {
     let isExecuted = false;
     let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
+    const timeoutAt = Date.now() + timeoutMs;
 
-    await new Promise(resolve => setTimeout(resolve, SQUIDROUTER_INITIAL_DELAY_MS));
+    await sleep(Math.min(this.initialDelayMs, timeoutMs), signal);
 
     while (!isExecuted) {
+      if (Date.now() >= timeoutAt) {
+        throw this.createRecoverableError(`SquidRouterPayExecutor: Bridge status check timed out after ${timeoutMs}ms`);
+      }
+
+      let fundedThisIteration = false;
+      let lastAxelarScanStatus: AxelarScanStatusResponse | undefined;
+      let recoveryOutcome: string | undefined;
+
       try {
-        const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote);
+        const squidRouterStatus = await this.getSquidrouterStatus(swapHash, state, quote, signal);
 
         if (!squidRouterStatus) {
           logger.warn(`SquidRouterPayExecutor: No squidRouter status found for swap hash ${swapHash}.`);
@@ -399,7 +432,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
 
         if (isGmp) {
-          const axelarScanStatus = await getStatusAxelarScan(swapHash);
+          const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
+          lastAxelarScanStatus = axelarScanStatus ?? undefined;
 
           if (!axelarScanStatus) {
             logger.info(`SquidRouterPayExecutor: Axelar status not found yet for hash ${swapHash}.`);
@@ -409,6 +443,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             break;
           } else if (!payTxHash) {
             logger.info("SquidRouterPayExecutor: Bridge transaction detected on Axelar. Proceeding to fund gas.");
+            fundedThisIteration = true;
 
             const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
             const logIndex = Number(axelarScanStatus.id.split("_")[2]);
@@ -423,21 +458,286 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
             await this.createSubsidy(state, subsidyAmount, subsidyToken, payerAccount, payTxHash);
 
-            await state.update({
-              state: { ...state.state, squidRouterPayTxHash: payTxHash }
-            });
+            await this.patchStateKey(state, "squidRouterPayTxHash", payTxHash);
+          } else if (axelarScanStatus.status === "called" && axelarScanStatus.confirm_failed) {
+            recoveryOutcome = await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus.call?.chain, signal);
+          }
+
+          if (!fundedThisIteration) {
+            await this.monitorStuckGmp(state, swapHash, quote, axelarScanStatus ?? undefined, signal, { recoveryOutcome });
           }
         } else {
           logger.info("SquidRouterPayExecutor: Same-chain transaction detected. Skipping Axelar check.");
         }
       } catch (error) {
+        await this.monitorStuckGmp(state, swapHash, quote, lastAxelarScanStatus, signal, { lastError: error, recoveryOutcome });
         throw this.createRecoverableError(
           `SquidRouterPayExecutor: Failed to check bridge status for ${swapHash}, error: ${error instanceof Error ? error.message : String(error)}`
         );
       }
 
-      await new Promise(resolve => setTimeout(resolve, AXELAR_POLLING_INTERVAL_MS));
+      await sleep(this.pollIntervalMs, signal);
     }
+  }
+
+  private statusRequestSignal(signal?: AbortSignal): AbortSignal {
+    const timeoutSignal = AbortSignal.timeout(STATUS_REQUEST_TIMEOUT_MS);
+    return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
+  }
+
+  private async patchStateKey(
+    state: RampState,
+    key: keyof StateMetadata & string,
+    value: string,
+    guardSql = "TRUE",
+    guardReplacements: Record<string, unknown> = {}
+  ): Promise<number> {
+    const sequelizeInstance = RampState.sequelize;
+    if (!sequelizeInstance) {
+      throw new Error("SquidRouterPayExecutor: RampState model is not attached to a sequelize instance");
+    }
+    const [, affectedRows] = await sequelizeInstance.query(
+      `UPDATE ramp_states SET state = jsonb_set(state, '{${key}}', :patchValue::jsonb), updated_at = NOW() WHERE id = :rampId AND (${guardSql})`,
+      {
+        replacements: { patchValue: JSON.stringify(value), rampId: state.id, ...guardReplacements },
+        type: QueryTypes.UPDATE
+      }
+    );
+    const updatedRows = typeof affectedRows === "number" ? affectedRows : 0;
+    if (updatedRows > 0) {
+      state.state = { ...state.state, [key]: value };
+    }
+    return updatedRows;
+  }
+
+  private async maybeRecoverStuckConfirm(
+    state: RampState,
+    swapHash: string,
+    sourceChain: string | undefined,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const parsedLastAttempt = state.state.axelarConfirmRecoveryAt ? new Date(state.state.axelarConfirmRecoveryAt).getTime() : 0;
+    const lastAttempt = Number.isFinite(parsedLastAttempt) ? parsedLastAttempt : 0;
+    if (Date.now() - lastAttempt < AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS) {
+      return `confirm recovery on cooldown (last attempt ${new Date(lastAttempt).toISOString()})`;
+    }
+
+    if (!sourceChain) {
+      logger.warn(
+        `SquidRouterPayExecutor: Confirm poll failed for ${swapHash} but Axelar status has no source chain; cannot attempt recovery.`
+      );
+      return "confirm recovery unavailable: Axelar status has no source chain";
+    }
+
+    await this.patchStateKey(state, "axelarConfirmRecoveryAt", new Date().toISOString());
+
+    try {
+      const axelarTxHash = await recoverAxelarStuckConfirm(swapHash, sourceChain, signal);
+      logger.info(
+        `SquidRouterPayExecutor: Confirm poll failed for ${swapHash}; broadcast recovery ConfirmGatewayTx ${axelarTxHash} on Axelar.`
+      );
+      return `broadcast recovery ConfirmGatewayTx ${axelarTxHash} on Axelar`;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn(`SquidRouterPayExecutor: Axelar stuck-confirm recovery attempt failed for ${swapHash}: ${message}`);
+      return `confirm recovery attempt failed: ${message}`;
+    }
+  }
+
+  private getElapsedInPhaseMs(state: RampState): number {
+    const entry = [...(state.phaseHistory ?? [])].reverse().find(e => e.phase === "squidRouterPay");
+    const startIso = entry?.timestamp ?? state.createdAt;
+    const start = startIso ? new Date(startIso).getTime() : Number.NaN;
+    return Number.isFinite(start) ? Date.now() - start : 0;
+  }
+
+  private async monitorStuckGmp(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    signal?: AbortSignal,
+    context: { lastError?: unknown; recoveryOutcome?: string } = {}
+  ): Promise<void> {
+    try {
+      if (signal?.aborted) {
+        return;
+      }
+
+      const elapsedMs = this.getElapsedInPhaseMs(state);
+      if (elapsedMs < (this.stuckAlertThresholdMs ?? getSquidRouterPayStuckAlertMs())) {
+        return;
+      }
+
+      const classification = classifyGmpStatus(axelarScanStatus);
+      if (classification === "executed") {
+        return;
+      }
+
+      let actionTaken = "none";
+      if (classification === "insufficient_gas") {
+        actionTaken = await this.maybeTopUpGas(state, swapHash, quote, axelarScanStatus, signal);
+      } else if (classification === "waiting_source_confirmation" || classification === "source_confirmation_stuck") {
+        actionTaken =
+          context.recoveryOutcome ??
+          (await this.maybeRecoverStuckConfirm(state, swapHash, axelarScanStatus?.call?.chain, signal));
+      }
+
+      await this.alertStuckGmp(
+        state,
+        swapHash,
+        quote,
+        classification,
+        axelarScanStatus,
+        elapsedMs,
+        actionTaken,
+        context.lastError
+      );
+    } catch (error) {
+      logger.warn(
+        `SquidRouterPayExecutor: Stuck-GMP monitor failed for ramp ${state.id}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async maybeTopUpGas(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    signal?: AbortSignal
+  ): Promise<string> {
+    if (!state.state.squidRouterPayTxHash) {
+      return "initial gas payment still pending; regular funding flow will pay";
+    }
+    if (state.state.squidRouterExtraGasTxHash === EXTRA_GAS_PENDING_MARKER) {
+      return "gas top-up previously attempted with unknown outcome; not retrying; check the funding wallet's transactions manually";
+    }
+    if (state.state.squidRouterExtraGasTxHash) {
+      return `gas top-up already sent (${state.state.squidRouterExtraGasTxHash}); not topping up again`;
+    }
+    if (!axelarScanStatus?.fees) {
+      return "cannot top up gas: Axelar status has no fee data";
+    }
+    const logIndex = Number(axelarScanStatus.id?.split("_")[2]);
+    if (!Number.isFinite(logIndex)) {
+      return `cannot top up gas: malformed Axelar status id "${axelarScanStatus.id}"`;
+    }
+    if (signal?.aborted) {
+      return "execution aborted before gas top-up; not sending";
+    }
+
+    const nativeToFundRaw = this.calculateGasFeeInUnits(axelarScanStatus.fees, DEFAULT_SQUIDROUTER_GAS_ESTIMATE);
+    const claimedRows = await this.patchStateKey(
+      state,
+      "squidRouterExtraGasTxHash",
+      EXTRA_GAS_PENDING_MARKER,
+      `state->>'squidRouterExtraGasTxHash' IS NULL`
+    );
+    if (claimedRows === 0) {
+      return "gas top-up already claimed by a concurrent execution; not sending";
+    }
+
+    const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork as EvmNetworks;
+    const extraGasTxHash = await this.executeFundTransaction(fromChain, nativeToFundRaw, swapHash as `0x${string}`, logIndex);
+    await this.patchStateKey(state, "squidRouterExtraGasTxHash", extraGasTxHash);
+
+    logger.warn(
+      `SQUIDROUTER_EXTRA_GAS_PAID: supplemental Axelar gas top-up sent. ramp=${state.id} amountRaw=${nativeToFundRaw} tx=${extraGasTxHash}`
+    );
+    return `sent one-time gas top-up ${extraGasTxHash} (${nativeToDecimal(nativeToFundRaw, 18).toNumber()} native units)`;
+  }
+
+  private async alertStuckGmp(
+    state: RampState,
+    swapHash: string,
+    quote: QuoteTicket,
+    classification: GmpClassification,
+    axelarScanStatus: AxelarScanStatusResponse | undefined,
+    elapsedMs: number,
+    actionTaken: string,
+    lastError?: unknown
+  ): Promise<void> {
+    const previousAlertAt = state.state.squidRouterStuckAlertedAt;
+    const parsedLastAlert = previousAlertAt ? new Date(previousAlertAt).getTime() : 0;
+    const lastAlert = Number.isFinite(parsedLastAlert) ? parsedLastAlert : 0;
+    if (Date.now() - lastAlert < STUCK_ALERT_REPEAT_MS) {
+      return;
+    }
+
+    const claimedRows = previousAlertAt
+      ? await this.patchStateKey(
+          state,
+          "squidRouterStuckAlertedAt",
+          new Date().toISOString(),
+          `state->>'squidRouterStuckAlertedAt' = :previousAlertAt`,
+          { previousAlertAt }
+        )
+      : await this.patchStateKey(
+          state,
+          "squidRouterStuckAlertedAt",
+          new Date().toISOString(),
+          `state->>'squidRouterStuckAlertedAt' IS NULL`
+        );
+    if (claimedRows === 0) {
+      return;
+    }
+
+    const guidanceByClassification: Record<GmpClassification, string> = {
+      executed: "",
+      execution_failed: "destination execution failed; external; retry the execution manually from the Axelarscan page",
+      insufficient_gas: "Vortex-actionable: Axelar reports the paid gas as insufficient",
+      relayer_pending:
+        "gas paid and call approved; likely external Axelar/Squid relayer latency; manual execute possible on Axelarscan",
+      source_confirmation_stuck: "validator confirm poll failed; auto-recovery attempted; external if it persists",
+      unknown: "status unavailable or not indexed; possible Squid/Axelarscan API outage; check the Axelarscan link manually",
+      waiting_source_confirmation: "waiting for Axelar source confirmation; auto-recovery attempted; external if it persists"
+    };
+
+    const lastErrorLog = state.errorLogs?.[state.errorLogs.length - 1];
+    const lastErrorText =
+      lastError instanceof Error ? lastError.message : lastError ? String(lastError) : (lastErrorLog?.error ?? "none");
+    const squidRouterQuoteId = getBlockState<{ quoteId: string }>(state.state, SquidRouterSwapContext).quoteId;
+
+    const text = [
+      `squidRouterPay stuck for ${Math.round(elapsedMs / 60000)} minutes`,
+      `- ramp: ${state.id}`,
+      `- classification: ${classification} (${guidanceByClassification[classification]})`,
+      `- axelar status: ${axelarScanStatus?.status ?? "unavailable"} (confirm_failed=${axelarScanStatus?.confirm_failed ?? "n/a"}, is_insufficient_fee=${axelarScanStatus?.is_insufficient_fee ?? "n/a"}, gas_status=${axelarScanStatus?.gas_status ?? "n/a"})`,
+      `- source tx: ${swapHash}`,
+      `- squid quote id: ${squidRouterQuoteId}`,
+      `- axelarscan: https://axelarscan.io/gmp/${swapHash}`,
+      `- gas payment tx: ${state.state.squidRouterPayTxHash ?? "none"}`,
+      `- action taken: ${actionTaken}`,
+      `- last error: ${lastErrorText}`
+    ].join("\n");
+
+    logger.warn(`SQUIDROUTER_PAY_STUCK: ${text}`);
+
+    const notifier = this.getSlackNotifier();
+    if (notifier) {
+      try {
+        await notifier.sendMessage({ text });
+      } catch (error) {
+        logger.warn(
+          `SquidRouterPayExecutor: Failed to send stuck-GMP Slack alert for ramp ${state.id}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+  }
+
+  private getSlackNotifier(): SlackNotifier | null {
+    if (this.slackNotifier === undefined) {
+      try {
+        this.slackNotifier = new SlackNotifier();
+      } catch {
+        logger.warn(
+          "SquidRouterPayExecutor: Slack notifier unavailable (SLACK_WEB_HOOK_TOKEN not set); stuck-GMP alerts will only be logged."
+        );
+        this.slackNotifier = null;
+      }
+    }
+    return this.slackNotifier;
   }
 
   private async executeFundTransaction(
@@ -483,7 +783,12 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
   }
 
-  private async getSquidrouterStatus(swapHash: string, state: RampState, quote: QuoteTicket): Promise<SquidRouterPayResponse> {
+  private async getSquidrouterStatus(
+    swapHash: string,
+    state: RampState,
+    quote: QuoteTicket,
+    signal?: AbortSignal
+  ): Promise<SquidRouterPayResponse> {
     try {
       const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork;
       const fromChainId = getNetworkId(fromChain)?.toString();
@@ -498,7 +803,13 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       }
 
       const squidRouterQuoteId = getBlockState<{ quoteId: string }>(state.state, SquidRouterSwapContext).quoteId;
-      const squidRouterStatus = await getStatus(swapHash, fromChainId, toChainId, squidRouterQuoteId);
+      const squidRouterStatus = await getStatus(
+        swapHash,
+        fromChainId,
+        toChainId,
+        squidRouterQuoteId,
+        this.statusRequestSignal(signal)
+      );
       return squidRouterStatus;
     } catch (squidRouterError) {
       logger.warn(
@@ -506,7 +817,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       );
 
       try {
-        const axelarScanStatus = await getStatusAxelarScan(swapHash);
+        const axelarScanStatus = await getStatusAxelarScan(swapHash, this.statusRequestSignal(signal));
 
         if (!axelarScanStatus) {
           throw new Error(

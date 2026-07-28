@@ -85,6 +85,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 21. **Avenia company KYB completion MUST be provider-confirmed and ownership-bound** — `POST /v1/brla/kyb/new-level-1/web-sdk` stores the returned Avenia `attemptId` as the owned business `kyc_cases.provider_case_id`. `GET /v1/brla/kyb/attempt-status` accepts only a case owned by the effective user, queries that exact attempt, persists normalized status on both the case and provider customer, and returns only `status`, optional `result`, and optional normalized `failureReason`. Client-side events cannot assert completion: only provider `COMPLETED` plus `APPROVED` may complete onboarding; `REJECTED`, `EXPIRED`, `PENDING`, and `PROCESSING` must not pass the parent verification gate.
 22. **A KYB attempt Avenia has not started processing MUST stay canonical `pending`, never `in_review`** — Company subaccount creation and KYB link initiation record `pending` (the attempt is `PENDING` at Avenia until the user completes the hosted steps); `in_review` is set only once Avenia reports `PROCESSING`. While the bound attempt's stored external status is still `PENDING`, re-initiation by the owner is allowed and rebinds the case to the fresh `attemptId` (the hosted URLs are never stored, so this is the only resume path); the `409` conflict applies once the attempt is `PROCESSING` or decided. Because the stored status can lag, re-initiation additionally probes the live attempt and refuses (`409`) when Avenia reports it processing or approved — a rejected decision stays re-initiable, and a failing probe falls back to allowing the resume. This cannot be used to bypass verification: a fresh attempt restarts at `PENDING` and invariant 21's completion gate is unchanged. To support form-less resume, `GET /v1/onboarding/status` exposes `taxReference` (the CNPJ) for **business** rows only — the response is already scoped to the caller's own entities, and individual CPFs remain unexposed.
 23. **BRL Base destination variants MUST use token-specific static topology** — Base USDC MUST omit Squid entirely. Other configured non-BRLA Base outputs MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; transaction preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` at the nonce immediately after the Squid swap. BRLA remains the direct bypass in invariant 14.
+24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 
 ## Threat Vectors & Mitigations
 
@@ -121,6 +122,7 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] `RecoverablePhaseError` used for transient Avenia API failures. **PASS** — `createRecoverableError` wraps `sendBrlaPayoutTransaction` failures and ticket-status timeouts.
 - [x] HTTPS enforced for all Avenia API calls. **PASS** — base URL uses `https://`.
 - [PARTIAL] No Avenia API credentials or user tax IDs appear in logs. **PARTIAL** — `payOutTicketId` is debug-logged with the literal CPF subaccount; review log redaction.
+- [x] Dashboard BRL onramps render only the server-issued PIX QR/copy payload, use ephemeral-only signing, and do not call `/ramp/start` before explicit payment confirmation; Avenia/Base balance verification remains authoritative. **PASS**.
 - [FAIL] **F-014**: Timeout configured for Avenia HTTP client. **FAIL** — relies on default system/library timeouts; no explicit `AbortController` on `BrlaApiService` calls.
 - [x] PIX deposit details (QR code) generated server-side. **PASS** — comes from Avenia API response.
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
@@ -165,5 +167,9 @@ Key properties:
   `getKybAttemptStatus` resolves that binding and verifies entity ownership before querying Avenia.
   The browser receives only normalized status/result fields, never provider submission data.
 - KYC/KYB state transitions update canonical status and provider status on both
-  `provider_customers` and the account's `kyc_cases` row in the same code path
-  (`updateAveniaKycOutcome` preserves the idempotent `in_review` transition guard).
+  `provider_customers` and the account's `kyc_cases` row in the same code path.
+  `updateAveniaKycOutcome` treats `approved` as terminal (a stale attempt read never
+  downgrades an approved account) but otherwise follows the latest provider attempt:
+  in particular, a `rejected` account whose retried attempt succeeds becomes `approved`
+  (the former `in_review`-only guard left it stuck in `rejected`, so a successfully
+  retried KYC never became ramp-ready). Repeated polls of an unchanged outcome no-op.

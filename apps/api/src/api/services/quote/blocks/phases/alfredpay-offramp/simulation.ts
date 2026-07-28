@@ -20,7 +20,12 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { resolveAlfredpayQuoteCustomerId } from "../../../alfredpay-customer";
 import { calculatePreNablaDeductibleFees } from "../../../core/quote-fees";
 import { getEvmBridgeQuote } from "../../../core/squidrouter";
-import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "../../../engines/discount/helpers";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getUsdDenominatedInputAmount,
+  resolveDiscountPartner
+} from "../../../engines/discount/helpers";
 import { calculateFees } from "../../core/fees";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
@@ -95,8 +100,16 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     const targetDiscount = partner?.targetDiscount ?? 0;
     const maxSubsidy = partner?.maxSubsidy ?? 0;
     const actualFiat = bridge.outputAmountDecimal.mul(oneUnitInFiat);
+    const inputAmountUsd = await getUsdDenominatedInputAmount(
+      Object.assign({}, ctx, { evmToEvm: { outputAmountDecimal: bridge.outputAmountDecimal } }) as never
+    );
+    if (!inputAmountUsd.eq(ctx.request.inputAmount)) {
+      ctx.addNote(
+        `AlfredpayOfframp: valued input ${ctx.request.inputAmount} ${ctx.request.inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
+      );
+    }
     const { expectedOutput, adjustedDifference, adjustedTargetDiscount } = calculateExpectedOutput(
-      ctx.request.inputAmount,
+      inputAmountUsd.toString(),
       fiatToUsd,
       targetDiscount,
       true,

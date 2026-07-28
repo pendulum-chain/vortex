@@ -17,6 +17,7 @@ import {
   PriceProvider,
   QuoteError,
   RampDirection,
+  SubmitKybInformationRequest,
   SubmitKycInformationRequest,
   TokenConfig,
   VALID_CRYPTO_CURRENCIES,
@@ -535,6 +536,58 @@ const countryValidators: Record<string, (body: SubmitKycInformationRequest) => s
     if (typeof pep !== "boolean") return "PEP declaration is required for Argentina";
     return null;
   }
+};
+
+/**
+ * Alfredpay refuses to finalize a KYB submission missing any of these (`110002 "Invalid field(s)"`),
+ * and it only says so at `sendKybSubmission` — after the documents have been uploaded. Rejecting the
+ * incomplete payload here keeps that failure at the point of entry, and keeps the contract enforced
+ * for callers that are not our own KYB wizard. Mirrors GET …/penny/kybRequirements?country=,
+ * including its two `requiredIf` branches.
+ */
+const validateKybQuestionnaire = (body: SubmitKybInformationRequest): string | null => {
+  const requiredText: Array<keyof SubmitKybInformationRequest> = [
+    "walletAddresses",
+    "sourceOfFunds",
+    "businessActivities",
+    "accountPurpose"
+  ];
+  for (const field of requiredText) {
+    const value = body[field];
+    if (typeof value !== "string" || !value.trim()) return `${field} is required`;
+  }
+
+  const requiredBooleans: Array<keyof SubmitKybInformationRequest> = [
+    "transmitsCustomerFunds",
+    "operatesInSanctionedCountries",
+    "isRegulatedBusiness"
+  ];
+  for (const field of requiredBooleans) {
+    if (typeof body[field] !== "boolean") return `${field} is required`;
+  }
+
+  for (const field of ["expectedMonthlyVolumeUsd", "expectedMonthlyTransactions"] as const) {
+    const value = body[field];
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return `${field} must be a non-negative number`;
+  }
+  if (!Number.isInteger(body.expectedMonthlyTransactions)) return "expectedMonthlyTransactions must be a whole number";
+
+  if (body.transmitsCustomerFunds && typeof body.conductsComplianceScreening !== "boolean") {
+    return "conductsComplianceScreening is required when transmitting customer funds";
+  }
+  if (body.conductsComplianceScreening && !body.complianceScreeningDescription?.trim()) {
+    return "complianceScreeningDescription is required when conducting compliance screening";
+  }
+  return null;
+};
+
+export const validateKybSubmission: RequestHandler = (req, res, next) => {
+  const error = validateKybQuestionnaire(req.body as SubmitKybInformationRequest);
+  if (error) {
+    next(new APIError({ errors: [{ message: error }], message: error, status: httpStatus.BAD_REQUEST }));
+    return;
+  }
+  next();
 };
 
 export const validateKycSubmission: RequestHandler = (req, res, next) => {

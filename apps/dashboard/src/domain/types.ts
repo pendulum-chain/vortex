@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Mocked onboarding domain for the Vortex dashboard.
  *
@@ -10,7 +12,10 @@
 
 export type OnboardingStatus = "not_started" | "pending" | "started" | "in_review" | "approved" | "rejected";
 
-export type CorridorId = "BR" | "EU" | "MX" | "CO" | "US" | "AR";
+/** The one corridor list. Routes validate their search params against this rather than re-listing it. */
+export const corridorIdSchema = z.enum(["BR", "EU", "MX", "CO", "US", "AR"]);
+
+export type CorridorId = z.infer<typeof corridorIdSchema>;
 
 export type OnboardingKind = "kyb" | "kyc";
 
@@ -63,23 +68,24 @@ export interface SenderAccount {
   onboardings: Partial<Record<CorridorId, Onboarding>>;
 }
 
-/** Wallet-to-fiat payout lifecycle: fund the payin wallet, then settle to the recipient bank. */
+/** Transfer lifecycle: fund the payin side, then settle to the destination. */
 export type TransactionStatus = "awaiting_payin" | "processing" | "completed" | "failed" | "cancelled";
 
 export interface Transaction {
   id: string;
+  direction: "BUY" | "SELL";
   accountId: string;
   recipientId: string;
-  /** Denormalized for display so the table doesn't have to resolve recipients. */
+  /** Denormalized display label; for ramp-history rows a destination label ("Payout account", "Your wallet"). */
   recipientEmail: string;
   corridorId: CorridorId;
-  /** Vortex-created (Privy) deposit address the sender pays into. */
+  /** SELL: the sender's funding wallet. BUY: the wallet tokens are delivered to. */
   payinWallet: string;
   payinNetwork: string;
-  /** Crypto / stablecoin amount expected into the payin wallet. */
+  /** Amount the user pays in: stablecoin for SELL, fiat for BUY. */
   amountIn: string;
   amountInToken: string;
-  /** Fiat amount paid out to the recipient bank account. */
+  /** Amount received at the destination: fiat to the payout account for SELL, crypto to the wallet for BUY. */
   fiatPayoutAmount: string;
   payoutCurrency: string;
   status: TransactionStatus;
@@ -112,6 +118,8 @@ export interface Recipient {
   status: RecipientStatus;
   /** Raw invite token for re-copying the link — empty once accepted or for legacy invites. */
   inviteCode: string;
+  /** Discount-carrying invitations deep-link to the dashboard; re-copy rebuilds that URL. */
+  hasSeededDiscounts?: boolean;
   /** How many times the invite link was copied — tracked per product request. */
   copyCount: number;
   /** The account holder's own "send to myself" recipient, derived from fetched payout accounts. */

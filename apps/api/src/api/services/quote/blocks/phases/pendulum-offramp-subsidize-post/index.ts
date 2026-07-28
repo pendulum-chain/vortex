@@ -1,7 +1,12 @@
 import { FiatToken, getPendulumDetails, multiplyByPowerOfTen, Networks } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../../priceFeed.service";
-import { calculateExpectedOutput, calculateSubsidyAmount, resolveDiscountPartner } from "../../../engines/discount/helpers";
+import {
+  calculateExpectedOutput,
+  calculateSubsidyAmount,
+  getUsdDenominatedInputAmount,
+  resolveDiscountPartner
+} from "../../../engines/discount/helpers";
 import type { Phase, PhaseIO } from "../../core/types";
 import { SubsidizePostSwapExecutor } from "../subsidize-post/execution";
 import { SubsidizePostContext } from "../subsidize-post/simulation";
@@ -19,7 +24,19 @@ export const PendulumOfframpSubsidizePost: Phase<
     const details = getPendulumDetails(FiatToken.BRL);
     const partner = await resolveDiscountPartner(ctx as never, ctx.request.rampType);
     const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(FiatToken.BRL);
-    const expected = calculateExpectedOutput(ctx.request.inputAmount, oraclePrice, partner?.targetDiscount ?? 0, true, partner);
+    const inputAmountUsd = await getUsdDenominatedInputAmount(ctx as never);
+    if (!inputAmountUsd.eq(ctx.request.inputAmount)) {
+      ctx.addNote(
+        `PendulumOfframpSubsidizePost: valued input ${ctx.request.inputAmount} ${ctx.request.inputCurrency} at ${inputAmountUsd.toFixed(6)} USD for discount calculation`
+      );
+    }
+    const expected = calculateExpectedOutput(
+      inputAmountUsd.toString(),
+      oraclePrice,
+      partner?.targetDiscount ?? 0,
+      true,
+      partner
+    );
     const expectedWithAnchor = expected.expectedOutput.plus(ctx.fees?.displayFiat?.anchor ?? 0);
     const subsidyUnrounded =
       (partner?.targetDiscount ?? 0) !== 0

@@ -70,9 +70,12 @@ export async function upsertAveniaKycCase(
 }
 
 /**
- * Poll-driven KYC outcome transition: flips a `Requested` account to Accepted/Rejected
- * (the only mechanism that makes a subaccount ramp-ready). Idempotent — mirrors the legacy
- * `UPDATE ... WHERE internal_status = 'Requested'` guard.
+ * Poll-driven KYC outcome transition: flips an account to Approved/Rejected based on the
+ * latest provider attempt (the only mechanism that makes a subaccount ramp-ready). Approval
+ * is terminal — an Approved account is never downgraded by a stale attempt read — but a
+ * `rejected` account follows a successful retried attempt to Approved (the legacy
+ * `WHERE internal_status = 'Requested'` guard left it stuck in `Rejected`, so the user's
+ * approved KYC never became ramp-ready). Repeated polls of an unchanged outcome no-op.
  */
 export async function updateAveniaKycOutcome(
   taxId: string,
@@ -80,7 +83,10 @@ export async function updateAveniaKycOutcome(
   statusExternal: string
 ): Promise<void> {
   const record = await findAveniaCustomerByTaxId(taxId);
-  if (!record || record.status !== VerificationStatus.InReview) {
+  if (!record || record.status === VerificationStatus.Approved) {
+    return;
+  }
+  if (record.status === outcome && record.statusExternal === statusExternal) {
     return;
   }
   await record.update({ status: outcome, statusExternal });
