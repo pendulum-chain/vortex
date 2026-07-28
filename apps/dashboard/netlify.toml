@@ -23,6 +23,9 @@
   command = "cd ../.. && bun install --frozen-lockfile && bun run build:shared && bun run build:dashboard"
   publish = "dist"
 
+[build.environment]
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
