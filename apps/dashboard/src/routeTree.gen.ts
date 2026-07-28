@@ -13,10 +13,12 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MoneriumCallbackRouteImport } from './routes/monerium.callback'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AppTransferRouteImport } from './routes/_app/transfer'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
+import { Route as AppQuoteRouteImport } from './routes/_app/quote'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
 
 const LoginRoute = LoginRouteImport.update({
@@ -36,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
 const MoneriumCallbackRoute = MoneriumCallbackRouteImport.update({
   id: '/monerium/callback',
   path: '/monerium/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTransferRoute = AppTransferRouteImport.update({
@@ -58,6 +65,11 @@ const AppRecipientsRoute = AppRecipientsRouteImport.update({
   path: '/recipients',
   getParentRoute: () => AppRoute,
 } as any)
+const AppQuoteRoute = AppQuoteRouteImport.update({
+  id: '/quote',
+  path: '/quote',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppOverviewRoute = AppOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
@@ -68,20 +80,24 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/overview': typeof AppOverviewRoute
+  '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/overview': typeof AppOverviewRoute
+  '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/transfer': typeof AppTransferRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRoutesById {
@@ -90,10 +106,12 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/overview': typeof AppOverviewRoute
+  '/_app/quote': typeof AppQuoteRoute
   '/_app/recipients': typeof AppRecipientsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/_app/transfer': typeof AppTransferRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/monerium/callback': typeof MoneriumCallbackRoute
 }
 export interface FileRouteTypes {
@@ -102,20 +120,24 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/overview'
+    | '/quote'
     | '/recipients'
     | '/settings'
     | '/transactions'
     | '/transfer'
+    | '/invite/$token'
     | '/monerium/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/overview'
+    | '/quote'
     | '/recipients'
     | '/settings'
     | '/transactions'
     | '/transfer'
+    | '/invite/$token'
     | '/monerium/callback'
   id:
     | '__root__'
@@ -123,10 +145,12 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/overview'
+    | '/_app/quote'
     | '/_app/recipients'
     | '/_app/settings'
     | '/_app/transactions'
     | '/_app/transfer'
+    | '/invite/$token'
     | '/monerium/callback'
   fileRoutesById: FileRoutesById
 }
@@ -134,6 +158,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   MoneriumCallbackRoute: typeof MoneriumCallbackRoute
 }
 
@@ -167,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MoneriumCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/transfer': {
       id: '/_app/transfer'
       path: '/transfer'
@@ -195,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRecipientsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/quote': {
+      id: '/_app/quote'
+      path: '/quote'
+      fullPath: '/quote'
+      preLoaderRoute: typeof AppQuoteRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/overview': {
       id: '/_app/overview'
       path: '/overview'
@@ -207,6 +246,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppOverviewRoute: typeof AppOverviewRoute
+  AppQuoteRoute: typeof AppQuoteRoute
   AppRecipientsRoute: typeof AppRecipientsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
@@ -215,6 +255,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppOverviewRoute: AppOverviewRoute,
+  AppQuoteRoute: AppQuoteRoute,
   AppRecipientsRoute: AppRecipientsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTransactionsRoute: AppTransactionsRoute,
@@ -227,6 +268,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  InviteTokenRoute: InviteTokenRoute,
   MoneriumCallbackRoute: MoneriumCallbackRoute,
 }
 export const routeTree = rootRouteImport

@@ -286,6 +286,7 @@ export interface GetRampHistoryRequest {
 export interface GetRampHistoryTransaction {
   id: string;
   type: RampDirection;
+  walletAddress?: string;
   from: Networks | PaymentMethod;
   to: Networks | PaymentMethod;
   fromAmount: string;
@@ -295,6 +296,7 @@ export interface GetRampHistoryTransaction {
   status: TransactionStatus;
   currentPhase: RampPhase;
   date: string;
+  expiresAt: string;
   externalTxHash?: string;
   externalTxExplorerLink?: string;
 }

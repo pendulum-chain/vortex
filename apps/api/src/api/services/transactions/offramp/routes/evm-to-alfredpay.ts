@@ -44,6 +44,7 @@ import { encodeEvmTransactionData } from "../../index";
 import { addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { preparePolygonCleanupApproval } from "../../polygon/cleanup";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
+import { buildUserSquidTransactions } from "./user-squid-transactions";
 
 // TokenRelayer deployments. Address may differ per chain
 export const RELAYER_ADDRESSES: Partial<Record<EvmNetworks, `0x${string}`>> = {
@@ -457,23 +458,17 @@ export async function prepareEvmToAlfredpayOfframpTransactions({
       toToken: ALFREDPAY_ERC20_TOKEN
     });
 
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 0,
-      phase: "squidRouterNoPermitApprove",
-      signer: userAddress,
-      txData: bridgeResult.approveData
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 1,
-      phase: "squidRouterNoPermitSwap",
-      signer: userAddress,
-      txData: bridgeResult.swapData
-    });
+    unsignedTxs.push(
+      ...buildUserSquidTransactions({
+        approveData: bridgeResult.approveData,
+        approvePhase: "squidRouterNoPermitApprove",
+        isNative: inputTokenDetails.isNative,
+        network: fromNetwork,
+        signer: userAddress,
+        swapData: bridgeResult.swapData,
+        swapPhase: "squidRouterNoPermitSwap"
+      })
+    );
 
     stateMeta = {
       ...stateMeta,

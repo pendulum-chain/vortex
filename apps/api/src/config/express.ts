@@ -12,6 +12,7 @@ import { converter, handler, notFound } from "../api/middlewares/error";
 import { requestContext } from "../api/observability/requestContext";
 import routes from "../api/routes/v1";
 
+import { buildDashboardPreviewOriginRegex, parseDashboardOrigins } from "./corsOrigins";
 import { config } from "./vars";
 
 const { logs, rateLimitMaxRequests, rateLimitNumberOfProxies, rateLimitWindowMinutes } = config;
@@ -23,13 +24,10 @@ const REQUEST_BODY_LIMIT = "20mb";
  */
 const app = express();
 
-// Extra fixed origins for non-production dashboard deployments (comma-separated env
-// var, e.g. a staging or preview URL). Resolved once at boot — this stays an explicit
-// whitelist per the security spec; wildcards are dropped, never honored.
-const dashboardOrigins = (process.env.DASHBOARD_ORIGINS ?? "")
-  .split(",")
-  .map(origin => origin.trim())
-  .filter(origin => origin.length > 0 && !origin.includes("*"));
+// See corsOrigins.ts: DASHBOARD_ORIGINS is an explicit whitelist (wildcards dropped);
+// DASHBOARD_PREVIEW_SITE enables Netlify deploy-preview origins outside production.
+const dashboardOrigins = parseDashboardOrigins(process.env.DASHBOARD_ORIGINS);
+const dashboardPreviewOriginRegex = buildDashboardPreviewOriginRegex(process.env.DASHBOARD_PREVIEW_SITE, config.deploymentEnv);
 
 // enable CORS - Cross Origin Resource Sharing
 app.use(
@@ -44,14 +42,15 @@ app.use(
       "https://dashboard.vortexfinance.co",
       "https://metrics.vortexfinance.co",
       ...dashboardOrigins,
-      config.env !== "production" ? "https://staging--vortexfi.netlify.app" : null,
+      dashboardPreviewOriginRegex,
+      config.deploymentEnv !== "production" ? "https://staging--vortexfi.netlify.app" : null,
       config.env === "development" ? "http://localhost:5173" : null,
       config.env === "development" ? "http://127.0.0.1:5173" : null,
       // Dashboard dev server (deployed origins come from DASHBOARD_ORIGINS)
       config.env === "development" ? "http://localhost:5174" : null,
       config.env === "development" ? "http://127.0.0.1:5174" : null,
       config.env === "development" ? "http://localhost:6006" : null
-    ].filter(Boolean) as string[]
+    ].filter(Boolean) as (string | RegExp)[]
   })
 );
 

@@ -2,7 +2,7 @@
 
 ## What This Does
 
-FastForex is a fiat exchange-rate provider used by `PriceFeedService` for USD-to-fiat conversion in quote, fee, and subsidy math. It is the primary source for fiat currencies without a liquid Binance USDT market, and the secondary source (after Binance) for currencies that have one — currently BRL (see `05-integrations/binance.md`). Vortex calls FastForex for a single forex pair at a time and validates the returned rate before it can affect a quote or conversion.
+FastForex is a fiat exchange-rate provider used by `PriceFeedService` for USD-to-fiat conversion in quote, fee, and subsidy math. It is the primary source for fiat currencies without a liquid Binance USDT market, and the secondary source (after Binance) for currencies that have one — currently BRL and COP (see `05-integrations/binance.md`). Vortex calls FastForex for a single forex pair at a time and validates the returned rate before it can affect a quote or conversion.
 
 **Provider type:** Price provider  
 **Fiat currencies:** ARS, BRL, COP, EUR, MXN, USD  
@@ -10,7 +10,7 @@ FastForex is a fiat exchange-rate provider used by `PriceFeedService` for USD-to
 **Phase handlers:** No phase handler calls FastForex directly; handlers call `PriceFeedService.convertCurrency()` when they need USD-denominated caps or conversions.  
 **API auth method:** `X-API-Key` header from `FASTFOREX_API_KEY`.
 
-The full provider priority for `getUsdToFiatExchangeRate()` is Binance USDT spot (for currencies with a mapped symbol, currently BRL) → FastForex → CoinGecko. The API request shape is `GET {FASTFOREX_API_URL}/fetch-one?from=USD&to=<FIAT>`. The response is accepted only when `result[<FIAT>]` exists and is a positive finite rate. FastForex rates are sanity-checked against CoinGecko's USDC-to-fiat price when that reference is available. If FastForex is unavailable, missing, invalid, or outside the configured per-currency sanity band, Vortex falls back to CoinGecko. If FastForex returns a valid rate but CoinGecko is unavailable or invalid, Vortex logs the missing sanity check and accepts FastForex rather than making the fallback provider a hard dependency. If no valid provider remains, the conversion fails closed.
+The full provider priority for `getUsdToFiatExchangeRate()` is Binance USDT spot (for currencies with a mapped symbol, currently BRL and COP) → FastForex → CoinGecko. For COP the CoinGecko reference/fallback is pro-API-only since ~July 2026 (the public API dropped COP), so a keyless configuration leaves COP with Binance and FastForex only. The API request shape is `GET {FASTFOREX_API_URL}/fetch-one?from=USD&to=<FIAT>`. The response is accepted only when `result[<FIAT>]` exists and is a positive finite rate. FastForex rates are sanity-checked against CoinGecko's USDC-to-fiat price when that reference is available. If FastForex is unavailable, missing, invalid, or outside the configured per-currency sanity band, Vortex falls back to CoinGecko. If FastForex returns a valid rate but CoinGecko is unavailable or invalid, Vortex logs the missing sanity check and accepts FastForex rather than making the fallback provider a hard dependency. If no valid provider remains, the conversion fails closed.
 
 ## Security Invariants
 

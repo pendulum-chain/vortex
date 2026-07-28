@@ -1,9 +1,12 @@
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import type { QuoteResponse } from "@vortexfi/shared";
-import { ConnectKitButton } from "connectkit";
-import { Check, Wallet } from "lucide-react";
+import { Check, Loader2, TriangleAlert, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
 import { Button } from "@/components/ui/button";
+import type { RampTokenOption } from "@/domain/onramp";
 import { shortenAddress } from "@/domain/transfer";
+import { useTokenPortfolio } from "@/hooks/useTokenPortfolio";
+import { getTokenBalance, hasSufficientTokenBalance } from "@/services/balance.service";
 
 export type FundingSource = "wallet";
 
@@ -14,8 +17,9 @@ export interface FundingSubmit {
 }
 
 interface FundingMethodsProps {
+  disabled: boolean;
   quote: QuoteResponse;
-  network: string;
+  token: RampTokenOption;
   submitting: boolean;
   onSubmit: (submit: FundingSubmit) => void;
 }
@@ -23,28 +27,25 @@ interface FundingMethodsProps {
 /**
  * The ramp is signed by the connected wallet, which is the only funding path — self-custodial
  * crypto deposits are not supported.
- *
- * Submitting is gated off for now: the button below is commented out and accounts are enabled
- * on request. `quote`, `submitting` and `onSubmit` stay on the props so restoring it is an
- * uncomment plus `const { quote, submitting, onSubmit } = _props`.
  */
-export function FundingMethods(_props: FundingMethodsProps) {
-  const { address, isConnected } = useAccount();
+export function FundingMethods({ disabled, quote, submitting, token, onSubmit }: FundingMethodsProps) {
+  const { address } = useAccount();
+  const { isConnected } = useAppKitAccount();
+  const { open } = useAppKit();
+  const portfolioQuery = useTokenPortfolio(address, token.network);
+  const balance = portfolioQuery.data ? getTokenBalance(portfolioQuery.data, token.token) : undefined;
+  const hasEnoughBalance = balance ? hasSufficientTokenBalance(balance, quote.inputAmount) : false;
+  const checkingBalance = portfolioQuery.isPending || portfolioQuery.isFetching;
 
   if (!isConnected || !address) {
     return (
       <div className="grid gap-3">
-        <span className="font-medium text-sm">How you'll fund this</span>
         <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
-          <p className="text-muted-foreground text-sm">Connect your wallet to send the payin directly.</p>
-          <ConnectKitButton.Custom>
-            {({ show }) => (
-              <Button className="mx-auto" onClick={show} type="button">
-                <Wallet className="size-4" />
-                Connect wallet
-              </Button>
-            )}
-          </ConnectKitButton.Custom>
+          <p className="text-muted-foreground text-sm">Connect your wallet.</p>
+          <Button className="mx-auto" onClick={() => open({ view: "Connect" })} type="button">
+            <Wallet className="size-4" />
+            Connect wallet
+          </Button>
         </div>
       </div>
     );
@@ -52,25 +53,56 @@ export function FundingMethods(_props: FundingMethodsProps) {
 
   return (
     <div className="grid gap-3">
-      <span className="font-medium text-sm">How you'll fund this</span>
       <div className="surface-raised grid gap-3 rounded-lg p-4">
         <div className="flex items-center gap-2 text-sm">
           <Check className="size-4 text-success" />
           <span className="text-muted-foreground">Connected</span>
           <code className="ml-auto font-mono text-xs">{shortenAddress(address)}</code>
         </div>
-        {/*
-        <Button disabled={submitting} onClick={() => onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" })} type="button">
-          {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
-          Send ≈ <span className="tabular-nums">{quote.inputAmount}</span> USDC
+        {checkingBalance ? (
+          <p className="text-muted-foreground text-sm">
+            Checking {token.label} balance on {token.networkLabel}…
+          </p>
+        ) : portfolioQuery.error ? (
+          <div className="flex items-start gap-2 text-destructive text-sm" role="alert">
+            <TriangleAlert className="mt-px size-4 shrink-0" />
+            <div className="grid gap-2">
+              <p>
+                Could not verify your {token.label} balance on {token.networkLabel}.
+              </p>
+              <Button className="w-fit" onClick={() => portfolioQuery.refetch()} size="sm" type="button" variant="outline">
+                Retry balance check
+              </Button>
+            </div>
+          </div>
+        ) : balance ? (
+          <div className="grid gap-1 text-sm">
+            <p className="text-muted-foreground">
+              Available:{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {balance.formatted} {token.label}
+              </span>{" "}
+              on {token.networkLabel}
+            </p>
+            {!hasEnoughBalance && (
+              <p className="text-destructive" role="alert">
+                Insufficient {token.label} balance. You need {quote.inputAmount} {token.label} on {token.networkLabel}.
+              </p>
+            )}
+          </div>
+        ) : null}
+        <Button
+          disabled={disabled || checkingBalance || !!portfolioQuery.error || !hasEnoughBalance}
+          onClick={() => {
+            if (hasEnoughBalance) {
+              onSubmit({ destAddress: address, label: "Connected wallet", source: "wallet" });
+            }
+          }}
+          type="button"
+        >
+          {submitting || checkingBalance ? <Loader2 className="size-4 animate-spin" /> : null}
+          Send ≈ <span className="tabular-nums">{quote.inputAmount}</span> {token.label}
         </Button>
-        */}
-        <p className="text-pretty text-center text-muted-foreground text-sm">
-          To enable this feature on your account, please reach out to{" "}
-          <a className="underline" href="mailto:support@vortexfinance.co">
-            support@vortexfinance.co
-          </a>
-        </p>
       </div>
     </div>
   );

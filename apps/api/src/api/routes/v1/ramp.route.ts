@@ -122,6 +122,8 @@ router.post(
  *
  * @apiError (Not Found 404) NotFound Ramp does not exist
  */
+router.get("/history", requirePartnerOrUserAuth(), rampController.getAuthenticatedUserRampHistory as unknown as RequestHandler);
+
 router.get("/:id", optionalPartnerOrUserAuth(), rampController.getRampStatus as unknown as RequestHandler);
 
 /**

@@ -64,6 +64,32 @@ over inheritance; create ADRs in `/docs/adr` for major architectural changes.
 Frontend-specific and XState conventions live in
 [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md).
 
+## Commit Messages & PR Titles
+
+Every commit message and PR title follows [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<scope>): <summary>
+```
+
+- **type** — `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `chore`, `ci`, or
+  `revert`.
+- **scope** — the workspace touched: `api`, `frontend`, `dashboard`, `rebalancer`,
+  `shared`, or `sdk`. Use `repo` for cross-cutting changes (root config, CI, monorepo
+  tooling). One workspace dominates a mixed change? Use that. Truly global? `repo`.
+- **summary** — imperative mood ("add", not "added"/"adds"), lowercase after the colon,
+  no trailing period, ≤ 72 characters.
+- Append `!` after the scope for breaking changes (e.g. `feat(sdk)!: …`).
+- Body is optional; when present, explain **why**, not what — the diff shows what.
+- **PR titles** are plain, human-friendly text instead — sentence case, describing the
+  change for a reviewer (e.g. "Add searchable token selection to the dashboard"). The
+  conventional format applies to commits only; PRs are merged with merge commits, so
+  every individual commit lands in history — format each one.
+
+Commit examples from history: `fix(api): keep active phase retries below lock expiry`,
+`feat(dashboard): add searchable token selection`, `docs(dashboard): sync implemented
+feature specs`.
+
 ## No Over-Engineering
 
 - Don't add features, refactors, or "improvements" beyond what was asked.

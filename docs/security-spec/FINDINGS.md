@@ -78,7 +78,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 **Resolution:**
 
 1. **Legacy endpoints removed:** `/pendulum/fundEphemeral`, `/moonbeam/execute-xcm`, `/subsidize/preswap`, `/subsidize/postswap` were deleted; the server now drives ramp progression internally.
-2. **Strict dual-track auth on all `/v1/ramp/*` endpoints** (`/register`, `/update`, `/start`, `/:id`, `/:id/errors`, `/history/:walletAddress`) and on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. The `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`) accepts **either**:
+2. **Strict dual-track auth on all `/v1/ramp/*` endpoints** (`/register`, `/update`, `/start`, `/:id`, `/:id/errors`, `/history`, `/history/:walletAddress`) and on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`. The `requirePartnerOrUserAuth()` middleware (`apps/api/src/api/middlewares/dualAuth.ts`) accepts **either**:
    - `X-API-Key: sk_*` — partner API key (used by the SDK), or
    - `Authorization: Bearer <jwt>` — Supabase access token (used by the first-party frontend).
 
@@ -86,7 +86,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 
 3. **Ownership enforcement:** every authenticated principal can only access its own resources.
    - **Partner principal:** ownership is the chain `RampState.quoteId → QuoteTicket.partnerId === authenticatedPartner.id`. `getRampHistory` joins through `QuoteTicket` to filter by `partnerId`.
-   - **Supabase user principal:** ownership is `RampState.userId === req.userId` (and the analogous check on `QuoteTicket.userId` for `/ramp/register`).
+   - **Supabase user principal:** ownership is `RampState.userId === req.userId` (and the analogous check on `QuoteTicket.userId` for `/ramp/register`). Account-wide `GET /v1/ramp/history` requires this effective user identity and never falls back to partner-wide access.
    - Cross-principal access is rejected with HTTP 403.
 
 4. **Other routes:** `requireAuth` was added to `/stellar/create` and the `/brla/*` user data endpoints; `adminAuth` was added to `/maintenance/*`; `apiKeyAuth` was added to `/webhook` POST/DELETE.
@@ -676,7 +676,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 |---|---|
 | **Location** | Ramp creation flow (no per-user limit enforcement) |
 | **Spec** | `05-integrations/mykobo.md` (formerly `monerium.md`) |
-| **Status** | ✅ **FIXED** — superseded by a stricter one-active-ramp limit for every corridor |
+| **Status** | 🟡 **DEFERRED — STILL APPLIES** — per-user concurrent ramp limits are not enforced |
 | **Found** | Code audit, iteration 2, Module 05 |
 | **Impact** | Resource exhaustion — an attacker could create many SEPA-based ramps without paying, tying up system resources (polling, state tracking, phase processing). With Mykobo's 24h outer timeout the exposure window per pending ramp is **larger** than under the previous 30-minute Monerium window. |
 
@@ -684,7 +684,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 **CTO Clarification (2026-04-02):** Yes, add a per-user limit on concurrent pending SEPA ramps. Suggested max: 3.
 
-**Fix (2026-07-14):** `registerRamp` now locks the authenticated user's profile row and rejects registration when any nonterminal ramp already exists. This enforces a stricter limit of one active ramp across every corridor and serializes concurrent requests across API instances. Unstarted ramps older than the 15-minute start window are transitioned to `timedOut` before the check, preventing abandoned registrations from blocking the user indefinitely.
+**Current state:** Concurrent ramps are allowed for the same user. The proposed per-user limit for pending Mykobo SEPA ramps remains deferred.
 
 ---
 

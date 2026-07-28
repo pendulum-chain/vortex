@@ -19,6 +19,7 @@ import { addEvmFeeDistributionTransaction } from "../../common/feeDistribution";
 import { addNablaSwapTransactionsOnBase, addOnrampDestinationChainTransactions } from "../../onramp/common/transactions";
 import { OfframpTransactionParams, OfframpTransactionsWithMeta } from "../common/types";
 import { validateBRLOfframp, validateOfframpQuote } from "../common/validation";
+import { buildUserSquidTransactions } from "./user-squid-transactions";
 
 /**
  * Prepares all transactions for an EVM to BRL offramp.
@@ -107,23 +108,17 @@ export async function prepareEvmToBRLOfframpBaseTransactions({
       toToken: baseUsdcAddress
     });
 
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 0,
-      phase: "squidRouterApprove",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(approveData) as EvmTransactionData
-    });
-
-    unsignedTxs.push({
-      meta: {},
-      network: fromNetwork,
-      nonce: 1,
-      phase: "squidRouterSwap",
-      signer: userAddress,
-      txData: encodeEvmTransactionData(swapData) as EvmTransactionData
-    });
+    unsignedTxs.push(
+      ...buildUserSquidTransactions({
+        approveData: encodeEvmTransactionData(approveData) as EvmTransactionData,
+        approvePhase: "squidRouterApprove",
+        isNative: inputTokenDetails.isNative,
+        network: fromNetwork,
+        signer: userAddress,
+        swapData: encodeEvmTransactionData(swapData) as EvmTransactionData,
+        swapPhase: "squidRouterSwap"
+      })
+    );
   }
 
   let baseNonce = 0;

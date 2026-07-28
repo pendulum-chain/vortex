@@ -1,11 +1,22 @@
-import type { GetRampStatusResponse, QuoteResponse, RampProcess, UnsignedTx } from "@vortexfi/shared";
+import {
+  type GetRampStatusResponse,
+  type QuoteResponse,
+  RampDirection,
+  type RampProcess,
+  type UnsignedTx
+} from "@vortexfi/shared";
 import { assign, emit, fromCallback, fromPromise, setup } from "xstate";
 import type { Transaction } from "@/domain/types";
 import {
+  type CheckTransferBalanceInput,
+  checkTransferBalance,
   pollRampUntilTerminal,
+  type RefreshTransferQuoteInput,
   type RegisterTransferInput,
+  refreshTransferQuote,
   registerTransfer,
   signUserTransactions,
+  type TransferQuoteRequest,
   UserRejectedError
 } from "./transfer.actors";
 
@@ -17,6 +28,7 @@ export type TransferMeta = Omit<Transaction, "id" | "createdAt" | "payinWallet" 
 
 export interface TransferContext {
   quote: QuoteResponse | null;
+  quoteRequest: TransferQuoteRequest | null;
   additionalData: RegisterTransferInput["additionalData"] | null;
   meta: TransferMeta | null;
   ramp: RampProcess | null;
@@ -26,9 +38,16 @@ export interface TransferContext {
 }
 
 export type TransferEvent =
-  | { type: "START"; quote: QuoteResponse; additionalData: RegisterTransferInput["additionalData"]; meta: TransferMeta }
+  | {
+      type: "START";
+      quote: QuoteResponse;
+      quoteRequest: TransferQuoteRequest;
+      additionalData: RegisterTransferInput["additionalData"];
+      meta: TransferMeta;
+    }
   | { type: "STATUS_UPDATE"; status: GetRampStatusResponse }
   | { type: "TERMINAL"; status: GetRampStatusResponse }
+  | { type: "PAYMENT_CONFIRMED" }
   | { type: "RESET" };
 
 export type TransferEmitted =
@@ -42,6 +61,7 @@ const initialContext: TransferContext = {
   lastStatus: null,
   meta: null,
   quote: null,
+  quoteRequest: null,
   ramp: null,
   userTxs: []
 };
@@ -53,6 +73,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Something went wrong while starting the transfer.";
 }
 
+function metaForQuote(meta: TransferMeta | null, quote: QuoteResponse): TransferMeta | null {
+  if (!meta) {
+    return null;
+  }
+
+  const destination = quote.rampType === RampDirection.BUY ? "your wallet" : meta.recipientEmail;
+  return {
+    ...meta,
+    amountIn: quote.inputAmount,
+    amountInToken: String(quote.inputCurrency),
+    direction: quote.rampType,
+    fiatPayoutAmount: quote.outputAmount,
+    payoutCurrency: String(quote.outputCurrency),
+    summary: `${quote.outputAmount} ${quote.outputCurrency} to ${destination}`
+  };
+}
+
 /**
  * The money-movement core ported from the widget's ramp machine
  * (RegisterRamp → UpdateRamp/sign → StartRamp → RampFollowUp), reduced to the
@@ -60,6 +97,8 @@ function errorMessage(error: unknown): string {
  */
 export const transferMachine = setup({
   actors: {
+    checkTransferBalance: fromPromise(({ input }: { input: CheckTransferBalanceInput }) => checkTransferBalance(input)),
+    refreshTransferQuote: fromPromise(({ input }: { input: RefreshTransferQuoteInput }) => refreshTransferQuote(input)),
     registerTransfer: fromPromise(({ input }: { input: RegisterTransferInput }) => registerTransfer(input)),
     signUserTransactions: fromPromise(({ input }: { input: { ramp: RampProcess; userTxs: UnsignedTx[] } }) =>
       signUserTransactions(input)
@@ -76,6 +115,9 @@ export const transferMachine = setup({
       )
     )
   },
+  guards: {
+    isOnramp: ({ context }) => context.quote?.rampType === RampDirection.BUY
+  },
   types: {
     context: {} as TransferContext,
     emitted: {} as TransferEmitted,
@@ -89,6 +131,55 @@ export const transferMachine = setup({
     RESET: { actions: assign(() => initialContext), target: ".Idle" }
   },
   states: {
+    AwaitingPayment: {
+      on: {
+        PAYMENT_CONFIRMED: { actions: assign(() => ({ errorMessage: null })), target: "Starting" }
+      }
+    },
+    CheckingBalance: {
+      invoke: {
+        input: ({ context }) => {
+          if (!context.quote) {
+            throw new Error("Balance check context is incomplete");
+          }
+          return { quote: context.quote, walletAddress: context.additionalData?.walletAddress };
+        },
+        onDone: { target: "Registering" },
+        onError: {
+          actions: [
+            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+          ],
+          target: "Failed"
+        },
+        src: "checkTransferBalance"
+      }
+    },
+    CheckingQuote: {
+      invoke: {
+        input: ({ context }) => {
+          if (!context.quote || !context.quoteRequest) {
+            throw new Error("Quote refresh context is incomplete");
+          }
+          return { quote: context.quote, request: context.quoteRequest };
+        },
+        onDone: {
+          actions: assign(({ context, event }) => ({
+            meta: metaForQuote(context.meta, event.output.quote),
+            quote: event.output.quote
+          })),
+          target: "CheckingBalance"
+        },
+        onError: {
+          actions: [
+            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+          ],
+          target: "Failed"
+        },
+        src: "refreshTransferQuote"
+      }
+    },
     Done: {
       on: {
         RESET: { actions: assign(() => initialContext), target: "Idle" },
@@ -97,9 +188,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -111,9 +203,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -124,9 +217,10 @@ export const transferMachine = setup({
             ...initialContext,
             additionalData: event.additionalData,
             meta: event.meta,
-            quote: event.quote
+            quote: event.quote,
+            quoteRequest: event.quoteRequest
           })),
-          target: "Registering"
+          target: "CheckingQuote"
         }
       }
     },
@@ -138,10 +232,17 @@ export const transferMachine = setup({
           }
           return { additionalData: context.additionalData, quote: context.quote };
         },
-        onDone: {
-          actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
-          target: "SigningUserTxs"
-        },
+        onDone: [
+          {
+            actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: assign(({ event }) => ({ ramp: event.output.ramp, userTxs: event.output.userTxs })),
+            target: "SigningUserTxs"
+          }
+        ],
         onError: {
           actions: [
             assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
@@ -183,16 +284,35 @@ export const transferMachine = setup({
           return { rampId: context.ramp.id };
         },
         onDone: {
-          actions: assign(({ event }) => ({ ramp: event.output })),
+          actions: assign(({ context, event }) => ({
+            ramp: {
+              ...event.output,
+              achPaymentData: event.output.achPaymentData ?? context.ramp?.achPaymentData,
+              depositQrCode: event.output.depositQrCode ?? context.ramp?.depositQrCode,
+              ibanPaymentData: event.output.ibanPaymentData ?? context.ramp?.ibanPaymentData
+            }
+          })),
           target: "Tracking"
         },
-        onError: {
-          actions: [
-            assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
-            emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
-          ],
-          target: "Failed"
-        },
+        // A BUY user may already have paid, so the ramp and its instructions must survive a
+        // failed start: back to AwaitingPayment, where PAYMENT_CONFIRMED retries the same ramp.
+        onError: [
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            guard: "isOnramp",
+            target: "AwaitingPayment"
+          },
+          {
+            actions: [
+              assign(({ event }) => ({ errorMessage: errorMessage(event.error) })),
+              emit(({ event }) => ({ message: errorMessage(event.error), type: "TRANSFER_FAILED" as const }))
+            ],
+            target: "Failed"
+          }
+        ],
         src: "startRamp"
       }
     },

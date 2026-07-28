@@ -9,8 +9,11 @@ import {
   PROVIDER_LABEL,
   routeFor
 } from "@/domain/corridors";
+import type { AlfredpayCorridorId } from "@/domain/fiatAccounts";
 import { STATUS_META } from "@/domain/status";
 import type { Corridor, OnboardingRoute, OnboardingStatus, SenderAccount } from "@/domain/types";
+import { useFiatAccounts } from "@/hooks/useFiatAccounts";
+import { PayoutAccountsSection } from "./PayoutAccountsSection";
 import { StatusBadge } from "./StatusBadge";
 
 interface CorridorCardProps {
@@ -51,9 +54,12 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
   const disabled = isCorridorOnboardingDisabled(corridor) && actionable;
   const meta = onboarding ? STATUS_META[onboarding.status] : null;
   const hint = ROUTE_HINT[routeFor(corridor.id, kind)];
+  const managesPayoutAccounts = corridor.provider === "alfredpay" && onboarding?.status === "approved";
+  const fiatAccounts = useFiatAccounts(corridor.id, managesPayoutAccounts);
+  const payoutAccountMissing = managesPayoutAccounts && fiatAccounts.data?.length === 0;
 
   return (
-    <Card>
+    <Card className="h-full" data-testid={`corridor-card-${corridor.id}`}>
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -70,7 +76,11 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
       </CardHeader>
 
       <CardContent className="grid gap-2">
-        <Progress indicatorClassName={BAR_TONE[onboarding?.status ?? "not_started"]} value={meta?.progress ?? 0} />
+        <Progress
+          aria-label={`${corridor.name} onboarding progress`}
+          indicatorClassName={payoutAccountMissing ? "bg-primary" : BAR_TONE[onboarding?.status ?? "not_started"]}
+          value={payoutAccountMissing ? 90 : (meta?.progress ?? 0)}
+        />
         {onboarding?.status === "rejected" ? (
           <p className="text-destructive text-xs">Verification was rejected — retry below or contact support.</p>
         ) : hint ? (
@@ -91,8 +101,20 @@ export function CorridorCard({ account, corridor, onStart }: CorridorCardProps) 
         )}
       </CardContent>
 
-      <CardFooter>
-        {disabled ? (
+      {/* Reserve the height of the tallest footer variant (payout hint + button) so cards
+          don't resize when the payout section replaces a plain action button. */}
+      <CardFooter className="mt-auto min-h-20">
+        {managesPayoutAccounts ? (
+          <PayoutAccountsSection
+            accounts={fiatAccounts.data}
+            corridorId={corridor.id as AlfredpayCorridorId}
+            error={fiatAccounts.error}
+            isLoading={fiatAccounts.isLoading}
+            refetch={() => {
+              fiatAccounts.refetch();
+            }}
+          />
+        ) : disabled ? (
           <Button className="w-full" disabled variant="outline">
             {kind.toUpperCase()} is temporarily unavailable
           </Button>
@@ -171,9 +193,6 @@ function CorridorAction({
       </Button>
     );
   }
-  return (
-    <Button className="w-full text-success hover:text-success" disabled variant="ghost">
-      Verification complete
-    </Button>
-  );
+  // Approved: the status badge already says it — no footer action needed.
+  return null;
 }

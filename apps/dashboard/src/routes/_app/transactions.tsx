@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useSelector } from "@xstate/react";
 import { ArrowRight, Receipt } from "lucide-react";
 import { motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/Stagger";
@@ -9,6 +10,7 @@ import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useRecipients } from "@/hooks/useRecipients";
 import { useTransactions } from "@/hooks/useTransactions";
 import { popIn } from "@/lib/motion";
+import { transferActor } from "@/machines/transferActor";
 
 export const Route = createFileRoute("/_app/transactions")({
   component: TransactionsPage
@@ -16,8 +18,11 @@ export const Route = createFileRoute("/_app/transactions")({
 
 function TransactionsPage() {
   const account = useActiveAccount();
-  const { transactions, walletConnected } = useTransactions(account);
+  const { transactions } = useTransactions(account);
   const { recipients } = useRecipients(account);
+  const resumableRamp = useSelector(transferActor, snapshot =>
+    snapshot.matches("AwaitingPayment") && snapshot.context.meta?.accountId === account?.id ? snapshot.context.ramp : null
+  );
 
   if (!account) {
     return null;
@@ -30,8 +35,29 @@ function TransactionsPage() {
     <Stagger className="mx-auto grid max-w-5xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Transactions</h1>
-        <p className="text-muted-foreground">Wallet-to-fiat payout history for {account.name}.</p>
+        <p className="text-muted-foreground">Onramp and offramp history for {account.name}.</p>
       </StaggerItem>
+
+      {resumableRamp && (
+        <StaggerItem>
+          <Card className="border-warning/40 bg-warning/5">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4">
+              <div className="grid gap-1">
+                <p className="font-medium">Payment awaiting confirmation</p>
+                <p className="text-muted-foreground text-sm">
+                  Your payment instructions are saved until the payment window expires.
+                </p>
+              </div>
+              <Button asChild>
+                <Link search={{ mode: "onramp" }} to="/transfer">
+                  Resume payment
+                  <ArrowRight />
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </StaggerItem>
+      )}
 
       {accountTransactions.length === 0 ? (
         <StaggerItem>
@@ -48,19 +74,31 @@ function TransactionsPage() {
               <div className="grid gap-1">
                 <p className="font-medium">No transactions yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
-                  {!walletConnected
-                    ? "Connect your wallet to see your payout history."
-                    : hasApprovedRecipient
-                      ? "Pay an approved recipient and the payout will appear here."
-                      : "Approve a recipient first, then your payouts will appear here."}
+                  {hasApprovedRecipient
+                    ? "Start an onramp or pay an approved payout account and it will appear here."
+                    : "Start an onramp or approve a payout account to create your first transaction."}
                 </p>
               </div>
-              <Button asChild>
-                <Link to={hasApprovedRecipient ? "/transfer" : "/recipients"}>
-                  {hasApprovedRecipient ? "Start a transfer" : "Go to Recipients"}
-                  <ArrowRight />
-                </Link>
-              </Button>
+              {hasApprovedRecipient ? (
+                <Button asChild>
+                  <Link to="/transfer">
+                    Start a transfer
+                    <ArrowRight />
+                  </Link>
+                </Button>
+              ) : (
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button asChild>
+                    <Link search={{ mode: "onramp" }} to="/transfer">
+                      Start an onramp
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link to="/overview">Set up a payout account</Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </StaggerItem>
@@ -68,7 +106,7 @@ function TransactionsPage() {
         <StaggerItem>
           <Card>
             <CardContent>
-              <TransactionsTable transactions={accountTransactions} />
+              <TransactionsTable resumableRampId={resumableRamp?.id} transactions={accountTransactions} />
             </CardContent>
           </Card>
         </StaggerItem>

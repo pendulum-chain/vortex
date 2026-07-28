@@ -527,6 +527,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ramp/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get authenticated user ramp history
+         * @description Fetches all non-initial ramps owned by the authenticated user across wallet addresses. Requires a Supabase session or user-scoped secret API key. Partner-only credentials are not sufficient.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description The maximum count of transaction items returned in this query. The maximum value is `100`. */
+                    limit?: number;
+                    /** @description The offset for querying older transactions. */
+                    offset?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Authenticated user's ramp history. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GetRampHistoryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ramp/history/{walletAddress}": {
         parameters: {
             query?: never;
@@ -1262,11 +1306,14 @@ export interface components {
             transactions: components["schemas"]["GetRampHistoryTransaction"];
         };
         GetRampHistoryTransaction: {
+            currentPhase: components["schemas"]["RampPhase"];
             date: string;
             /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxExplorerLink?: string;
             /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxHash?: string;
+            /** @description The deadline for starting an initial ramp. */
+            expiresAt: string;
             from: components["schemas"]["DestinationType"];
             fromAmount: string;
             fromCurrency: components["schemas"]["RampCurrency"];
@@ -1276,6 +1323,8 @@ export interface components {
             toAmount: string;
             toCurrency: components["schemas"]["RampCurrency"];
             type: components["schemas"]["RampDirection"];
+            /** @description Destination address for a BUY ramp when available. */
+            walletAddress?: string;
         };
         GetUserRemainingLimitResponse: {
             /**
