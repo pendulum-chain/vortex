@@ -8,23 +8,23 @@ test("an approved AlfredPay corridor adds a self payout account", async ({ page 
   await page.goto("/overview");
 
   const card = page.getByTestId("corridor-card-MX");
-  await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible({ timeout: 20_000 });
-  await expect(card.getByText(/to enable reception of money through offramps/)).toBeVisible();
+  await expect(card.getByRole("button", { name: "Add pay-out account" })).toBeVisible({ timeout: 20_000 });
+  await expect(card.getByText(/to enable reception of money through pay-outs/)).toBeVisible();
 
   const progress = card.getByRole("progressbar", { name: "Mexico onboarding progress" });
   await expect(progress).toHaveAttribute("aria-valuenow", "90");
   await expect(progress.locator('[data-slot="progress-indicator"]')).toHaveClass(/bg-primary/);
 
-  await card.getByRole("button", { name: "Add payout account" }).click();
+  await card.getByRole("button", { name: "Add pay-out account" }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/enables reception of money through offramps/)).toBeVisible();
+  await expect(dialog.getByText(/enables reception of money through pay-outs/)).toBeVisible();
   await dialog.getByLabel("CLABE").fill("646180157000000004");
   await dialog.getByLabel("Account holder name").fill("Vortex E2E CLABE");
-  await dialog.getByRole("button", { name: "Save payout account" }).click();
+  await dialog.getByRole("button", { name: "Save pay-out account" }).click();
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(card.getByRole("button", { name: "View payout accounts" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "View pay-out accounts" })).toBeVisible();
   await expect(progress).toHaveAttribute("aria-valuenow", "100");
   await expect(progress.locator('[data-slot="progress-indicator"]')).toHaveClass(/bg-success/);
   expect(backend.fiatAccountRequests).toEqual([
@@ -55,21 +55,21 @@ test("a provider-rejected payout account surfaces field and form errors instead 
   await page.goto("/overview");
 
   const card = page.getByTestId("corridor-card-MX");
-  await card.getByRole("button", { name: "Add payout account" }).click();
+  await card.getByRole("button", { name: "Add pay-out account" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("CLABE").fill("646180157000000004");
   await dialog.getByLabel("Account holder name").fill("Vortex E2E CLABE");
-  await dialog.getByRole("button", { name: "Save payout account" }).click();
+  await dialog.getByRole("button", { name: "Save pay-out account" }).click();
 
   await expect(dialog.getByText("This account number was rejected by the payout provider.")).toBeVisible();
   await expect(
     dialog.getByText("The payout provider rejected this account number. Double-check it and try again.")
   ).toBeVisible();
   // The form stays open for correction and nothing was added.
-  await expect(dialog.getByRole("button", { name: "Save payout account" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Save pay-out account" })).toBeEnabled();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Add pay-out account" })).toBeVisible();
   expect(backend.fiatAccountRequests).toHaveLength(1);
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
@@ -91,7 +91,7 @@ test("an approved AlfredPay corridor removes a payout account after confirmation
   await page.goto("/overview");
 
   const card = page.getByTestId("corridor-card-MX");
-  await card.getByRole("button", { name: "View payout accounts" }).click();
+  await card.getByRole("button", { name: "View pay-out accounts" }).click();
   const dialog = page.getByRole("dialog");
   const remove = dialog.getByRole("button", { name: "Remove account ending in 0004" });
   await remove.click();
@@ -104,7 +104,7 @@ test("an approved AlfredPay corridor removes a payout account after confirmation
   await expect(dialog.getByText("Vortex E2E CLABE", { exact: false })).toBeHidden();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(card.getByRole("button", { name: "Add payout account" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Add pay-out account" })).toBeVisible();
   expect(backend.fiatAccountDeleteRequests).toEqual([{ country: "MX", fiatAccountId: "fiat-account-to-delete" }]);
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

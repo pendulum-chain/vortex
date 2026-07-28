@@ -57,7 +57,7 @@ function MoneriumCallbackPage() {
   useEffect(() => {
     if (DASHBOARD_STATES.has(value)) {
       queryClient.invalidateQueries({ queryKey: ONBOARDING_STATUS_QUERY_KEY });
-      restoreSession();
+      void restoreSession();
       navigate({ replace: true, search: { onboarding: "EU" }, to: "/overview" });
     }
   }, [navigate, restoreSession, value]);

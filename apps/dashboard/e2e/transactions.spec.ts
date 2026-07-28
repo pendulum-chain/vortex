@@ -38,16 +38,16 @@ test("transaction destinations and failure help are direction-aware", async ({ p
   await seedSession(page);
   await page.goto("/transactions");
 
-  const onrampRow = page.getByRole("row").filter({ hasText: "Onramp" });
+  const onrampRow = page.getByRole("row").filter({ hasText: "Pay-in" });
   await expect(onrampRow).toContainText("0x1111…1111");
   await onrampRow.getByRole("button", { name: "Get help" }).click();
-  await expect(page.getByText("We'll email you about this failed onramp.", { exact: true })).toBeVisible();
+  await expect(page.getByText("We'll email you about this failed pay-in.", { exact: true })).toBeVisible();
 
-  const offrampRow = page.getByRole("row").filter({ hasText: "Offramp" });
-  await expect(offrampRow).toContainText("Payout account");
+  const offrampRow = page.getByRole("row").filter({ hasText: "Pay-out" });
+  await expect(offrampRow).toContainText("Pay-out account");
   await expect(offrampRow).not.toContainText("0x2222…2222");
   await offrampRow.getByRole("button", { name: "Get help" }).click();
-  await expect(page.getByText("We'll email you about this failed payout.", { exact: true })).toBeVisible();
+  await expect(page.getByText("We'll email you about this failed pay-out.", { exact: true })).toBeVisible();
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

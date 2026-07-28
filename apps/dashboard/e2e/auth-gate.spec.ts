@@ -37,6 +37,18 @@ test("a seeded session renders the app shell instead of redirecting", async ({ p
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
 
+test("an expired access token refreshes before the dashboard renders", async ({ page }) => {
+  const backend = await mockBackend(page, { verifyTokenValid: false });
+  const expiredToken = `header.${Buffer.from(JSON.stringify({ exp: 1 })).toString("base64url")}.signature`;
+  await seedSession(page, expiredToken);
+
+  await page.goto("/overview");
+
+  await expect(page.getByRole("heading", { name: "Onboarding" })).toBeVisible({ timeout: 20_000 });
+  await expect(page).toHaveURL(/\/overview/);
+  expect(backend.auth.refreshes).toBe(1);
+});
+
 test("a started onboarding account renders without crashing the overview", async ({ page }) => {
   await mockBackend(page, { onboardingState: "started" });
   await seedSession(page);

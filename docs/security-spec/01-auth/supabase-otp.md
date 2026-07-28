@@ -10,7 +10,7 @@ The flow:
 3. Supabase verifies OTP and issues a JWT access token
 4. Frontend includes JWT in `Authorization: Bearer <token>` header on API requests
 5. API middleware (`supabaseAuth.ts`) verifies the JWT via `SupabaseAuthService.verifyToken()` and attaches `userId` to the request
-6. Access tokens are short-lived. The frontend refreshes them via `POST /v1/auth/refresh` (`SupabaseAuthService.refreshToken()` → Supabase `refreshSession`), scheduled just before expiry and also triggered on a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures (Supabase unreachable / 5xx) return `503` so the frontend keeps the session and retries.
+6. Access tokens are short-lived. The widget and dashboard verify stored access tokens on startup and fall back to `POST /v1/auth/refresh` when verification fails. They also refresh through that endpoint just before expiry and after a `401` (single-flight refresh + one retry). The frontend never calls Supabase `refreshSession` directly with the anon key. The endpoint returns `401` **only** when the refresh token is confirmed invalid/revoked; transient upstream failures (Supabase unreachable / 5xx) return `503` so the frontend keeps the session and retries.
 
 Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
@@ -32,7 +32,7 @@ Two middleware variants exist:
 
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
-| **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Short token expiry (Supabase default: 1 hour); TLS enforcement; HttpOnly cookies if applicable |
+| **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Configured token expiry (1 week); TLS enforcement; HttpOnly cookies if applicable |
 | **Supabase service key leak** | Attacker obtains `SUPABASE_SERVICE_KEY` and forges arbitrary JWTs | Key stored only in env vars; never exposed in responses or logs; rotation procedure in place |
 | **Supabase outage** | Supabase is unreachable — verification calls fail | `requireAuth` fails closed (returns 401); no fallback to unverified access |
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |

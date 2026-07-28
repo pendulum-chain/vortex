@@ -54,6 +54,11 @@ export class AuthService {
     return expiryMs === null || expiryMs > Date.now();
   }
 
+  static getAccessTokenExpiryMs(): number | null {
+    const tokens = this.getTokens();
+    return tokens ? this.decodeJwtExpiryMs(tokens.accessToken) : null;
+  }
+
   private static decodeJwtExpiryMs(token: string): number | null {
     try {
       const payload = token.split(".")[1];

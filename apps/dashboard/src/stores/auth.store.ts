@@ -4,7 +4,8 @@ import { queryClient } from "@/lib/queryClient";
 import { wagmiConfig } from "@/lib/wagmi";
 import { resetTransferState } from "@/machines/transferActor";
 import { AuthAPI } from "@/services/api/auth.api";
-import { AuthService } from "@/services/auth";
+import { AuthService, type AuthTokens } from "@/services/auth";
+import { restoreAuthSession } from "@/services/sessionRestore";
 import { useNotificationsStore } from "@/stores/notifications.store";
 
 interface AuthUser {
@@ -16,7 +17,7 @@ interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   requestOtp: (email: string) => Promise<void>;
-  restoreSession: () => void;
+  restoreSession: () => Promise<void>;
   verifyOtp: (email: string, code: string) => Promise<void>;
   logout: () => void;
 }
@@ -36,6 +37,10 @@ function userFromSession(): AuthUser | null {
   if (!tokens || !AuthService.isAuthenticated()) {
     return null;
   }
+  return userFromTokens(tokens);
+}
+
+function userFromTokens(tokens: AuthTokens): AuthUser {
   const email = tokens.userEmail ?? "";
   return { email, name: displayNameFromEmail(email), userId: tokens.userId };
 }
@@ -57,7 +62,14 @@ export const useAuthStore = create<AuthState>()(set => ({
   requestOtp: async email => {
     await AuthAPI.requestOTP(email);
   },
-  restoreSession: () => set({ user: userFromSession() }),
+  restoreSession: async () => {
+    const tokens = await restoreAuthSession({
+      refresh: () => AuthService.refreshAccessToken(),
+      tokens: AuthService.getTokens(),
+      verify: accessToken => AuthAPI.verifyToken(accessToken)
+    });
+    set({ user: tokens ? userFromTokens(tokens) : null });
+  },
   user: userFromSession(),
   verifyOtp: async (email, code) => {
     const result = await AuthAPI.verifyOTP(email, code);
