@@ -84,10 +84,12 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
 
   // update the ramp actor with the current context
   useEffect(() => {
-    rampActor?.send({
-      address,
-      type: "SET_ADDRESS"
-    });
+    if (rampActor && address) {
+      rampActor.send({
+        address,
+        type: "SET_ADDRESS"
+      });
+    }
 
     if (isNetworkEVM(selectedNetwork)) {
       evmWallet.activateSigner();

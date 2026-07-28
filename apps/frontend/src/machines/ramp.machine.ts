@@ -162,7 +162,7 @@ export const rampMachine = setup({
     },
     SET_ADDRESS: {
       actions: assign({
-        connectedWalletAddress: ({ event }) => event.address
+        connectedWalletAddress: ({ context, event }) => event.address ?? context.connectedWalletAddress
       })
     },
     SET_EXTERNAL_ID: {

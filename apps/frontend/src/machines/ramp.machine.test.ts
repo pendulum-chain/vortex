@@ -792,6 +792,16 @@ describe("rampMachine", () => {
       expect(actor.getSnapshot().context.connectedWalletAddress).toBe("0x3333333333333333333333333333333333333333");
     });
 
+    it("preserves the connected wallet address when an update is transiently undefined", () => {
+      const actor = createRampActor();
+      actor.start();
+      actor.send({ address: "0x3333333333333333333333333333333333333333", type: "SET_ADDRESS" });
+
+      actor.send({ address: undefined, type: "SET_ADDRESS" });
+
+      expect(actor.getSnapshot().context.connectedWalletAddress).toBe("0x3333333333333333333333333333333333333333");
+    });
+
     it("EXPIRE_QUOTE marks the quote expired unless the quote is locked", async () => {
       const actor = createRampActor();
       actor.start();
