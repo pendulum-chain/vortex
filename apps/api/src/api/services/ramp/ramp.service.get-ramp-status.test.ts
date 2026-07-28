@@ -39,7 +39,12 @@ QuoteTicket.findByPk = mock(async () => ({
         }
       },
       partner: null,
-      request: {}
+      request: {},
+      subsidyDisplay: {
+        currency: FiatToken.BRL,
+        fiat: "12.34",
+        usd: "2.47"
+      }
     }
   },
   network: Networks.Base,
@@ -149,6 +154,18 @@ function makeExtrinsicOptions() {
 }
 
 describe("RampService.getRampStatus", () => {
+  it("returns discount display fields from block quote metadata", async () => {
+    const service = new TestRampService(makeRampState(false));
+
+    const status = await service.getRampStatus("ramp-1");
+
+    expect(status).toMatchObject({
+      discountCurrency: FiatToken.BRL,
+      discountFiat: "12.34",
+      discountUsd: "2.47"
+    });
+  });
+
   it("returns onHoldForComplianceCheck when ramp state is marked as on hold", async () => {
     const service = new TestRampService(makeRampState(true));
 

@@ -20,6 +20,10 @@ mock.module("../../core/squidrouter", () => ({
     networkFeeUSD: "0.1",
     outputTokenDecimals: 6
   }),
+  getEvmBridgeQuote: async ({ amountDecimal }: { amountDecimal: string }) => ({
+    networkFeeUSD: "0.1",
+    outputAmountDecimal: new Big(amountDecimal)
+  }),
   getBridgeTargetTokenDetails: () => ({
     erc20AddressSourceChain: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
   })
@@ -32,6 +36,12 @@ mock.module("../../../priceFeed.service", () => ({
   }
 }));
 
+mock.module("../../../partners/partner-pricing.service", () => ({
+  findPartnerWithPricing: async () => null
+}));
+
+mock.module("../../../ramp/ramp.service", () => ({ default: {} }));
+
 import { BRL_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";
 import { evmRequestIO, fiatRequestIO } from "../core/io";
@@ -42,6 +52,7 @@ import { AveniaMint } from "../phases/avenia-mint";
 import { AveniaMintContext } from "../phases/avenia-mint/simulation";
 import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 import { DistributeFees } from "../phases/distribute-fees";
+import { DistributeFeesContext } from "../phases/distribute-fees/simulation";
 import { FinalSettlementSubsidyContext } from "../phases/final-settlement-subsidy/simulation";
 import { FundEphemeral } from "../phases/fund-ephemeral";
 import { NablaSwap } from "../phases/nabla-swap";
@@ -141,8 +152,8 @@ function buildCtx(): PhaseCtx {
       notes.push(note);
     },
     fees: {
-      displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0.1", partnerMarkup: "0", total: "0.3", vortex: "0.1" },
-      usd: { anchor: "0.1", network: "0.1", partnerMarkup: "0", total: "0.3", vortex: "0.1" }
+      displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" },
+      usd: { anchor: "0.1", network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" }
     },
     notes,
     now: new Date(),
@@ -227,13 +238,19 @@ describe("BRL_ONRAMP_BASE_CROSS_CHAIN block flow — metadata ownership", () => 
     expect(evmToEvm.outputAmountRaw).toBe("17500000");
     expect(evmToEvm.networkFeeUSD).toBe("0.1");
 
+    const distributeFees = getBlockMetadata(metadata, DistributeFeesContext);
+    expect(distributeFees.networkFeeUsd).toBe("0.1");
+    expect(distributeFees.totalFeesUsd).toBe("0.2");
+
     const subsidy = getBlockMetadata(metadata, FinalSettlementSubsidyContext);
     expect(subsidy).toBeDefined();
     expect(subsidy.applied).toBe(false);
     expect(Big(subsidy.actualOutputAmountDecimal).gt(0)).toBe(true);
     expect(subsidy.partnerId).toBeNull();
     expect(getBlockMetadata(metadata, SubsidizePreContext).inputCurrency).toBe(EvmToken.BRLA);
-    expect(getBlockMetadata(metadata, SubsidizePostContext).outputCurrency).toBe(EvmToken.USDC);
+    const subsidizePost = getBlockMetadata(metadata, SubsidizePostContext);
+    expect(subsidizePost.outputCurrency).toBe(EvmToken.USDC);
+    expect(Big(subsidizePost.actualOutputAmountDecimal).toFixed()).toBe("17.8");
     expect(getBlockMetadata(metadata, DestinationTransferContext).amountRaw).toBe("17500000");
   });
 });

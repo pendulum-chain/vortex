@@ -622,7 +622,7 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const fees = getFlowMetadata(quote.metadata).globals.fees;
+    const { fees, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
     const usdFees = fees.usd;
     const fiatFees = fees.displayFiat;
     if (!usdFees || !fiatFees) {
@@ -698,11 +698,11 @@ export class RampService extends BaseRampService {
       quoteId: rampState.quoteId,
       sessionId: rampState.state.sessionId,
       status: this.mapPhaseToStatus(rampState.currentPhase),
-      ...(quote.metadata.subsidyDisplay
+      ...(subsidyDisplay
         ? {
-            discountCurrency: quote.metadata.subsidyDisplay.currency,
-            discountFiat: quote.metadata.subsidyDisplay.fiat,
-            discountUsd: quote.metadata.subsidyDisplay.usd
+            discountCurrency: subsidyDisplay.currency,
+            discountFiat: subsidyDisplay.fiat,
+            discountUsd: subsidyDisplay.usd
           }
         : {}),
       to: rampState.to,

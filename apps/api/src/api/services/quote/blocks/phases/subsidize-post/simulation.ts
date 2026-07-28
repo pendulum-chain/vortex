@@ -1,6 +1,14 @@
-import { getOnChainTokenDetails, multiplyByPowerOfTen, Networks, OnChainToken } from "@vortexfi/shared";
+import {
+  EvmToken,
+  getNetworkFromDestination,
+  getOnChainTokenDetails,
+  multiplyByPowerOfTen,
+  Networks,
+  OnChainToken
+} from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { getEvmBridgeQuote } from "../../../core/squidrouter";
 import {
   calculateExpectedOutput,
   calculateSubsidyAmount,
@@ -24,14 +32,65 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
   input: PhaseIO<Token, Chain>,
   ctx: PhaseCtx
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, SubsidizePostMetadata>> {
-  const expected = await computeExpectedOutput(ctx);
   const tokenDetails = getOnChainTokenDetails(input.chain as Networks, input.token as OnChainToken);
   if (!tokenDetails) {
     throw new Error(`SubsidizePost: Missing token details for ${input.token} on ${input.chain}`);
   }
-  const subsidy = buildFullSubsidy(input.amount, input.amountRaw, expected.decimal, expected.raw, ctx);
-  const newAmount = input.amount.plus(subsidy.subsidyAmountInOutputTokenDecimal);
-  const newAmountRaw = new Big(input.amountRaw).plus(subsidy.subsidyAmountInOutputTokenRaw).toFixed(0, 0);
+  const partner = await resolveDiscountPartner(ctx, ctx.request.rampType);
+  const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(ctx.request.inputCurrency);
+  const { expectedOutput, adjustedDifference, adjustedTargetDiscount } = calculateExpectedOutput(
+    ctx.request.inputAmount,
+    oraclePrice,
+    partner?.targetDiscount ?? 0,
+    false,
+    partner
+  );
+  let adjustedExpectedOutput = expectedOutput;
+  const toNetwork = getNetworkFromDestination(ctx.request.to);
+  if (toNetwork && !(toNetwork === Networks.Base && ctx.request.outputCurrency === EvmToken.USDC)) {
+    try {
+      const bridge = await getEvmBridgeQuote({
+        amountDecimal: expectedOutput.toString(),
+        fromNetwork: Networks.Base,
+        inputCurrency: EvmToken.USDC,
+        outputCurrency: ctx.request.outputCurrency as OnChainToken,
+        rampType: ctx.request.rampType,
+        toNetwork
+      });
+      if (expectedOutput.gt(0) && bridge.outputAmountDecimal.gt(0)) {
+        const conversionRate = bridge.outputAmountDecimal.div(expectedOutput);
+        adjustedExpectedOutput = expectedOutput.div(conversionRate);
+      }
+    } catch (error) {
+      ctx.addNote(`SubsidizePost: Squid conversion unavailable, using 1:1. Error: ${error}`);
+    }
+  }
+  const expectedRaw = multiplyByPowerOfTen(adjustedExpectedOutput, tokenDetails.decimals).toFixed(0, 0);
+  const idealSubsidy = input.amount.gte(adjustedExpectedOutput) ? new Big(0) : adjustedExpectedOutput.minus(input.amount);
+  const subsidyAmount =
+    (partner?.targetDiscount ?? 0) !== 0
+      ? calculateSubsidyAmount(adjustedExpectedOutput, input.amount, partner?.maxSubsidy ?? 0)
+      : new Big(0);
+  const subsidyRaw = multiplyByPowerOfTen(subsidyAmount, tokenDetails.decimals).toFixed(0, 0);
+  const newAmount = input.amount.plus(subsidyAmount);
+  const newAmountRaw = new Big(input.amountRaw).plus(subsidyRaw).toFixed(0, 0);
+  const subsidy: SubsidyMetadata = {
+    actualOutputAmountDecimal: input.amount,
+    actualOutputAmountRaw: input.amountRaw,
+    adjustedDifference,
+    adjustedTargetDiscount,
+    applied: subsidyAmount.gt(0),
+    expectedOutputAmountDecimal: adjustedExpectedOutput,
+    expectedOutputAmountRaw: expectedRaw,
+    idealSubsidyAmountInOutputTokenDecimal: idealSubsidy,
+    idealSubsidyAmountInOutputTokenRaw: multiplyByPowerOfTen(idealSubsidy, tokenDetails.decimals).toFixed(0, 0),
+    partnerId: partner?.id ?? null,
+    subsidyAmountInOutputTokenDecimal: subsidyAmount,
+    subsidyAmountInOutputTokenRaw: subsidyRaw,
+    subsidyRate: adjustedExpectedOutput.gt(0) ? subsidyAmount.div(adjustedExpectedOutput) : new Big(0),
+    targetOutputAmountDecimal: newAmount,
+    targetOutputAmountRaw: newAmountRaw
+  };
   ctx.addNote(
     `SubsidizePost: applied=${subsidy.applied}, subsidy=${Big(subsidy.subsidyAmountInOutputTokenDecimal).toFixed()}, newAmount=${newAmount.toFixed()}`
   );
@@ -49,7 +108,7 @@ export async function simulateOfframpSubsidizePost<Token extends TokenBrand, Cha
   if (!tokenDetails) {
     throw new Error(`OfframpSubsidizePost: Missing token details for ${input.token} on ${input.chain}`);
   }
-  const partner = await resolveDiscountPartner(ctx as never, ctx.request.rampType);
+  const partner = await resolveDiscountPartner(ctx, ctx.request.rampType);
   const oraclePrice = await priceFeedService.getFiatToUsdExchangeRate(ctx.request.outputCurrency);
   const inputAmountUsd = await getUsdDenominatedInputAmount(
     Object.assign(

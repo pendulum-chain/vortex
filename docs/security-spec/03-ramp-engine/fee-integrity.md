@@ -6,7 +6,7 @@ Fee calculation determines how much the user pays for a ramp operation and how t
 
 ### Block-Flow Fee Source
 
-Mapped block flows compute the persisted fee snapshot through `blocks/core/fees.ts`. Provider-backed phases may replace components before downstream phases run. `MykoboMint` installs the live deposit fee for onramps. On EUR offramps, `EvmOfframpSource` installs the simulated Squid network fee before `DistributeFees`, then `MykoboOfframpFee` replaces only the anchor component with the live withdrawal fee while preserving network, Vortex, and partner components. `DistributeFees` excludes the anchor fee already charged by the provider. The prior strategy engine remains only for historical comparison.
+Mapped block flows compute the persisted fee snapshot through `blocks/core/fees.ts`. Provider-backed phases may replace components before downstream phases run. `MykoboMint` installs the live deposit fee for onramps. Routed BRL onramps install the Squid quote's network fee during `AveniaMint`, before `DistributeFees` and post-swap discount calculation; direct/no-Squid BRL routes preserve zero. On EUR offramps, `EvmOfframpSource` installs the simulated Squid network fee before `DistributeFees`, then `MykoboOfframpFee` replaces only the anchor component with the live withdrawal fee while preserving network, Vortex, and partner components. `DistributeFees` excludes the anchor fee already charged by the provider. The prior strategy engine remains only for historical comparison.
 
 ### Historical Dual Fee System Discrepancy
 

@@ -582,7 +582,7 @@ the helpers it delegates to (`transactions/onramp/common/transactions.ts`,
 |-------|---------------------|-------------------------|
 | `AveniaMint` | `engines/initialize/onramp-avenia.ts` | `handlers/brla-onramp-mint-handler.ts` |
 | `FundEphemeral` | (passthrough) | `handlers/fund-ephemeral-handler.ts` |
-| `SubsidizePre` / `SubsidizePost` / `FinalSettlementSubsidy` | `engines/discount/onramp.ts` (simplified) | `handlers/subsidize-pre-swap-handler.ts`, `handlers/subsidize-post-swap-handler.ts`, `handlers/final-settlement-subsidy.ts` |
+| `SubsidizePre` / `SubsidizePost` / `FinalSettlementSubsidy` | `engines/discount/onramp.ts` | `handlers/subsidize-pre-swap-handler.ts`, `handlers/subsidize-post-swap-handler.ts`, `handlers/final-settlement-subsidy.ts` |
 | `NablaSwap` | `engines/nabla-swap/base-evm.ts`, `core/nabla.ts` | `handlers/nabla-approve-handler.ts`, `handlers/nabla-swap-handler.ts` |
 | `DistributeFees` | (deducts `ctx.fees.usd`) | `handlers/distribute-fees-handler.ts` |
 | `SquidRouterSwap` | `engines/squidrouter/onramp-base-to-evm.ts`, `core/squidrouter.ts` | `handlers/squid-router-phase-handler.ts`, `handlers/squid-router-pay-phase-handler.ts` |
@@ -595,16 +595,15 @@ All handler paths relative to `apps/api/src/api/services/phases/`.
 
 Unmapped cases fail at quote resolution rather than falling back to the old engine:
 
-1. **Subsidy simplified.** The subsidy phases compute metadata from
-   `ctx.partner.targetDiscount` / `maxSubsidy` + a single oracle price
-   lookup. They do NOT port: the DB partner lookup
-   (`resolveDiscountPartner`), the per-engine SquidRouter conversion-rate
-   adjustment, or post-swap fee deduction from the "actual" amount.
-2. **`computeFees` network fee = `"0"`, anchor fee from DB.** The
-   production Avenia fee engine sets the anchor fee from the live Avenia
-   mint/transfer fees and the network fee from a Squid quote; the blocks
-   adapter reuses `calculateFeeComponents` only. Simulated amounts
-   therefore drift from the old engine until fee parity (roadmap) is done.
+1. **Generic BRL/EUR onramp discount parity.** `SubsidizePost` resolves the active
+   corridor pricing config, applies the dynamic partner difference, and converts the
+   oracle target into pre-bridge Base USDC using SquidRouter. Its typed input follows
+   `DistributeFees`, so the actual amount already has network, vortex, and partner
+   markup fees deducted without reading another block's metadata. AlfredPay retains
+   its specialized pre-bridge subsidy path.
+2. **BRL onramp fee parity.** `AveniaMint` replaces the anchor fee with the
+   live mint/transfer fees and installs the Squid network fee before
+   `DistributeFees`; direct BRLA and Base USDC routes keep a zero network fee.
 3. **Executors are corridor slices.** EVM ephemeral, Base/Polygon source, BUY
    direction. Substrate (Pendulum) and SELL branches
    of the production handlers are not ported — they belong to the
@@ -618,8 +617,7 @@ Unmapped cases fail at quote resolution rather than falling back to the old engi
 6. **`PartnerInfo` import source.** Not exported from `@vortexfi/shared`;
    `core/types.ts` imports it from `../../core/types` (read-only).
 7. **Smoke test mock leakage.** `mock.module("../../../priceFeed.service", ...)`
-   does not fully intercept the real module. Harmless: oracle calls are
-   wrapped in `try/catch` inside the phases, so the flow completes.
+   does not fully intercept the real module in every broad parity suite.
 8. **BRL Base variants are statically selected.** Base USDC omits Squid and
    uses `BRL_ONRAMP_BASE_SAME_CHAIN`; other configured Base outputs use the
    one-phase `SameChainSquidRouterSwap` block and

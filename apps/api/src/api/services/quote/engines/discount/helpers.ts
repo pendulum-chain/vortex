@@ -65,7 +65,10 @@ export async function resolveActivePartnerById(
   return pricing ? toActivePartner(pricing) : null;
 }
 
-export async function resolveDiscountPartner(ctx: QuoteContext, rampType: RampDirection): Promise<ActivePartner> {
+export async function resolveDiscountPartner(
+  ctx: Pick<QuoteContext, "partner" | "request">,
+  rampType: RampDirection
+): Promise<ActivePartner> {
   const partnerId = ctx.partner?.id;
   const fiatCurrency = getTargetFiatCurrency(rampType, ctx.request.inputCurrency, ctx.request.outputCurrency);
 

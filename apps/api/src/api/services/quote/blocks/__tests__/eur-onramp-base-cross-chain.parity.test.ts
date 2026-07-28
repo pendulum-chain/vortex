@@ -11,11 +11,13 @@ import {
 import Big from "big.js";
 import * as nablaNamespace from "../../core/nabla";
 import * as squidrouterNamespace from "../../core/squidrouter";
+import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import * as priceFeedNamespace from "../../../priceFeed.service";
 import * as feesNamespace from "../core/fees";
 
 const feesReal = { ...feesNamespace };
 const nablaReal = { ...nablaNamespace };
+const partnerPricingReal = { ...partnerPricingNamespace };
 const priceFeedReal = { ...priceFeedNamespace };
 const squidrouterReal = { ...squidrouterNamespace };
 
@@ -59,10 +61,15 @@ mock.module("../../../priceFeed.service", () => ({
   priceFeedService: { getFiatToUsdExchangeRate: async () => new Big("1.08") }
 }));
 
+mock.module("../../../partners/partner-pricing.service", () => ({
+  findPartnerWithPricing: async () => null
+}));
+
 afterAll(() => {
   mock.module("../core/fees", () => ({ ...feesReal }));
   mock.module("../../core/nabla", () => ({ ...nablaReal }));
   mock.module("../../core/squidrouter", () => ({ ...squidrouterReal }));
+  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
   mock.module("../../../priceFeed.service", () => ({ ...priceFeedReal }));
 });
 
