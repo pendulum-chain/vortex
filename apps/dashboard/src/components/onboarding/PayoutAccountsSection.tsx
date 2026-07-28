@@ -23,19 +23,19 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
   }
 
   if (isLoading) {
-    return <p className="w-full text-center text-muted-foreground text-sm">Loading payout accounts…</p>;
+    return <p className="w-full text-center text-muted-foreground text-sm">Loading pay-out accounts…</p>;
   }
   if (isApiError(error) && error.status === 404) {
     return (
       <p className="w-full text-center text-muted-foreground text-sm">
-        Payout setup not available yet — finish verification first.
+        Pay-out setup not available yet — finish verification first.
       </p>
     );
   }
   if (error) {
     return (
       <div className="grid w-full gap-2 text-center">
-        <p className="text-muted-foreground text-sm">Couldn't load payout accounts.</p>
+        <p className="text-muted-foreground text-sm">Couldn't load pay-out accounts.</p>
         <Button onClick={refetch} size="sm" type="button" variant="outline">
           Retry
         </Button>
@@ -49,16 +49,16 @@ export function PayoutAccountsSection({ accounts, corridorId, error, isLoading, 
       {savedAccounts.length === 0 ? (
         <>
           <p className="text-muted-foreground text-xs">
-            Add a payout account to enable reception of money through pay-outs. Pay-ins and third-party payments work without
+            Add a pay-out account to enable reception of money through pay-outs. Pay-ins and third-party payments work without
             one.
           </p>
           <Button onClick={() => show("form")} type="button">
-            Add payout account
+            Add pay-out account
           </Button>
         </>
       ) : (
         <Button onClick={() => show("list")} type="button" variant="outline">
-          View payout accounts
+          View pay-out accounts
         </Button>
       )}
       <FiatAccountDialog

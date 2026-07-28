@@ -27,7 +27,7 @@ export function RecipientsTable({ recipients }: { recipients: Recipient[] }) {
           <TableRow>
             <TableHead>Recipient</TableHead>
             <TableHead>Country</TableHead>
-            <TableHead>Payout</TableHead>
+            <TableHead>Pay-out</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Action</TableHead>
           </TableRow>

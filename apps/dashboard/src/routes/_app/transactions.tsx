@@ -75,8 +75,8 @@ function TransactionsPage() {
                 <p className="font-medium">No transactions yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
                   {hasApprovedRecipient
-                    ? "Start a pay-in or pay an approved payout account and it will appear here."
-                    : "Start a pay-in or approve a payout account to create your first transaction."}
+                    ? "Start a pay-in or pay an approved pay-out account and it will appear here."
+                    : "Start a pay-in or approve a pay-out account to create your first transaction."}
                 </p>
               </div>
               {hasApprovedRecipient ? (
@@ -95,7 +95,7 @@ function TransactionsPage() {
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/overview">Set up a payout account</Link>
+                    <Link to="/overview">Set up a pay-out account</Link>
                   </Button>
                 </div>
               )}

@@ -44,7 +44,7 @@ test("transaction destinations and failure help are direction-aware", async ({ p
   await expect(page.getByText("We'll email you about this failed pay-in.", { exact: true })).toBeVisible();
 
   const offrampRow = page.getByRole("row").filter({ hasText: "Pay-out" });
-  await expect(offrampRow).toContainText("Payout account");
+  await expect(offrampRow).toContainText("Pay-out account");
   await expect(offrampRow).not.toContainText("0x2222…2222");
   await offrampRow.getByRole("button", { name: "Get help" }).click();
   await expect(page.getByText("We'll email you about this failed pay-out.", { exact: true })).toBeVisible();

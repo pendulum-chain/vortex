@@ -155,7 +155,7 @@ export function RecipientDialog({
               <DialogTitle>Add a recipient</DialogTitle>
               <DialogDescription>
                 Choose who you're paying and name the link. We'll generate an invite link you send them yourself — they complete
-                KYC/KYB and add their payout details to receive transfers.
+                KYC/KYB and add their pay-out details to receive transfers.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -289,7 +289,7 @@ function InviteShare({ created, onDone }: { created: CreatedInvite; onDone: () =
       <DialogHeader>
         <DialogTitle>Invite link ready</DialogTitle>
         <DialogDescription>
-          Send this {created.corridorName} link to your recipient. They'll complete KYC/KYB and add their payout details — then
+          Send this {created.corridorName} link to your recipient. They'll complete KYC/KYB and add their pay-out details — then
           you can pay them.
         </DialogDescription>
       </DialogHeader>

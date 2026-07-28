@@ -196,7 +196,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
             })}
           </SelectContent>
         </Select>
-        <p className="text-muted-foreground text-xs">Choose one of your approved payout accounts.</p>
+        <p className="text-muted-foreground text-xs">Choose one of your approved pay-out accounts.</p>
       </div>
 
       {selected && !isSendable && (
@@ -229,7 +229,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
             <Row label="Country">
               {corridor.flag} {corridor.name}
             </Row>
-            <Row label="Payout method">
+            <Row label="Pay-out method">
               {PAYMENT_METHOD_LABEL[selected.bankDetails.method]} · {selected.bankDetails.value}
             </Row>
           </div>

@@ -24,7 +24,7 @@ const NOTIFICATION_PREFS = [
   },
   {
     defaultChecked: true,
-    description: "When a wallet-to-fiat payout settles or fails.",
+    description: "When a wallet-to-fiat pay-out settles or fails.",
     id: "transfers",
     label: "Transfer status"
   }
