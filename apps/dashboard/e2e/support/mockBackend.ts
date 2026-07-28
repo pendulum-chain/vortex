@@ -256,6 +256,7 @@ interface MockBackendOptions {
   selectionRequired?: boolean;
   // Full response for POST /v1/auth/verify-otp. Default: a successful session.
   verifyOtp?: (requestBody: Record<string, unknown>) => { status: number; body: unknown };
+  verifyTokenValid?: boolean;
   // How many GET /v1/ramp/:id polls report an in-progress ramp before flipping to COMPLETE.
   pendingStatusPolls?: number;
   // Drives the Alfredpay MX KYC endpoints and, unless reflectOnboarding is false, makes
@@ -473,6 +474,10 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         status: 200
       };
       await fulfillJson(result.body, result.status);
+      return;
+    }
+    if (path === "/v1/auth/verify" && method === "POST") {
+      await fulfillJson({ user_id: E2E_USER_ID, valid: options.verifyTokenValid !== false });
       return;
     }
     if (path === "/v1/auth/refresh" && method === "POST") {

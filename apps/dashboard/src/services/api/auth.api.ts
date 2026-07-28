@@ -24,4 +24,11 @@ export class AuthAPI {
       userId: data.user_id
     };
   }
+
+  static async verifyToken(accessToken: string): Promise<{ valid: boolean; userId?: string }> {
+    const data = await apiClient.post<{ valid: boolean; user_id?: string }>("/auth/verify", {
+      access_token: accessToken
+    });
+    return { userId: data.user_id, valid: data.valid };
+  }
 }

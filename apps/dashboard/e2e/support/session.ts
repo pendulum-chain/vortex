@@ -14,18 +14,17 @@ export const SESSION_KEYS = {
 } as const;
 
 /**
- * Boots the app already authenticated: useAuthStore reads the session from localStorage at
- * module init, so it has to be there before any app script runs. The access token is not a
- * JWT on purpose — AuthService.isAuthenticated() treats an undecodable expiry as valid.
+ * Boots the app with a stored session before any app script runs. The default access token is
+ * not a JWT on purpose so tests can opt into specific expiry behavior when needed.
  */
-export async function seedSession(page: Page) {
+export async function seedSession(page: Page, accessToken = "e2e-access-token") {
   await page.addInitScript(
-    ({ email, keys, userId }) => {
-      localStorage.setItem(keys.accessToken, "e2e-access-token");
+    ({ accessToken: token, email, keys, userId }) => {
+      localStorage.setItem(keys.accessToken, token);
       localStorage.setItem(keys.refreshToken, "e2e-refresh-token");
       localStorage.setItem(keys.userId, userId);
       localStorage.setItem(keys.userEmail, email);
     },
-    { email: E2E_USER_EMAIL, keys: SESSION_KEYS, userId: E2E_USER_ID }
+    { accessToken, email: E2E_USER_EMAIL, keys: SESSION_KEYS, userId: E2E_USER_ID }
   );
 }
