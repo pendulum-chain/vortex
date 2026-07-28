@@ -1,8 +1,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { Transaction } from "sequelize";
 import { config } from "../config/vars";
+import { sequelize } from "../models";
 import ProfileWallet from "../models/profileWallet.model";
+import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestRampState, createTestUser } from "../test-utils/factories";
+import { createTestQuote, createTestRampState, createTestUser } from "../test-utils/factories";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -120,6 +123,41 @@ describe("wallet API", () => {
     });
     expect(conflict.status).toBe(409);
     expect(((await conflict.json()) as { error: { code: string } }).error.code).toBe("ACTIVE_RAMP");
+  });
+
+  it("rechecks active ramps after waiting for a concurrent ramp registration", async () => {
+    const user = await createTestUser({ email: "wallet-mode-race@example.com" });
+    const quote = await createTestQuote({ userId: user.id });
+    const rampTransaction = await sequelize.transaction();
+    let transactionFinished = false;
+
+    try {
+      await User.findByPk(user.id, {
+        lock: Transaction.LOCK.UPDATE,
+        transaction: rampTransaction
+      });
+      await createTestRampState({ quoteId: quote.id, userId: user.id }, rampTransaction);
+
+      const modeRequest = api.request("/v1/wallets/mode", {
+        body: JSON.stringify({ mode: "external" }),
+        headers: headers(testUserToken(user.id, user.email)),
+        method: "PATCH"
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await rampTransaction.commit();
+      transactionFinished = true;
+
+      const response = await modeRequest;
+      expect(response.status).toBe(409);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe("ACTIVE_RAMP");
+      await user.reload();
+      expect(user.walletMode).toBeNull();
+    } finally {
+      if (!transactionFinished) {
+        await rampTransaction.rollback();
+      }
+    }
   });
 
   it("verifies and idempotently registers a Privy wallet", async () => {

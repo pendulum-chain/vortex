@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { UniqueConstraintError } from "sequelize";
 import logger from "../../config/logger";
-import { sequelize } from "../../models";
 import { PrivyWalletVerificationError } from "../services/wallets/privyWallet.service";
 import {
   listProfileWallets,
@@ -92,11 +91,7 @@ export async function createPrivyWallet(req: Request, res: Response): Promise<vo
   }
 
   try {
-    const wallet = await sequelize.transaction(async transaction => {
-      const registered = await registerPrivyWallet(profileId, { address, providerWalletId }, transaction);
-      await setWalletMode(profileId, "privy_embedded", transaction);
-      return registered;
-    });
+    const wallet = await registerPrivyWallet(profileId, { address, providerWalletId });
     res.status(httpStatus.OK).json({ mode: "privy_embedded", wallet: serializeWallet(wallet) });
   } catch (error) {
     if (error instanceof WalletModeConflictError) {
