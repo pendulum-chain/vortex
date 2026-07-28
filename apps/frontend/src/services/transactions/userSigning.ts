@@ -17,8 +17,14 @@ import { PolkadotNodeName, polkadotApiService } from "../api/polkadot.service";
 /**
  * Signs multiple typed data objects and returns signature objects
  */
-export async function signMultipleTypedData(typedDataArray: SignedTypedData[]): Promise<SignedTypedData[]> {
+export async function signMultipleTypedData(
+  typedDataArray: SignedTypedData[],
+  expectedSigner: string
+): Promise<SignedTypedData[]> {
   const adapter = getActiveEvmWalletSigningAdapter();
+  if (getAddress(adapter.address) !== getAddress(expectedSigner)) {
+    throw new Error("The selected wallet does not match the server-issued typed-data signer");
+  }
   const signedTypedDataArray: SignedTypedData[] = [];
 
   for (const typedData of typedDataArray) {

@@ -61,7 +61,7 @@ describe("widget wallet signer contract", () => {
       const fake = fakeAdapter(kind);
       setActiveEvmWalletSigningAdapter(fake.adapter);
 
-      const [signed] = await signMultipleTypedData([typedData]);
+      const [signed] = await signMultipleTypedData([typedData], address);
       const hash = await signAndSubmitEvmTransaction(unsignedTx);
 
       expect(signed?.signature).toEqual({
@@ -94,6 +94,16 @@ describe("widget wallet signer contract", () => {
         signer: "0x2222222222222222222222222222222222222222"
       })
     ).rejects.toThrow("does not match the server-issued transaction signer");
+    expect(fake.calls).toHaveLength(0);
+  });
+
+  it("rejects typed data for a different signer before requesting a signature", async () => {
+    const fake = fakeAdapter("privy_embedded");
+    setActiveEvmWalletSigningAdapter(fake.adapter);
+
+    await expect(
+      signMultipleTypedData([typedData], "0x2222222222222222222222222222222222222222")
+    ).rejects.toThrow("does not match the server-issued typed-data signer");
     expect(fake.calls).toHaveLength(0);
   });
 });

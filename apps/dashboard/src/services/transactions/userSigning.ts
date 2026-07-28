@@ -6,8 +6,14 @@ import { getActiveWalletSigningAdapter } from "@/wallets/signingAdapter";
  * Signs multiple typed data objects with the connected wallet and returns signature
  * objects. Ported from the widget's userSigning service.
  */
-export async function signMultipleTypedData(typedDataArray: SignedTypedData[]): Promise<SignedTypedData[]> {
+export async function signMultipleTypedData(
+  typedDataArray: SignedTypedData[],
+  expectedSigner: string
+): Promise<SignedTypedData[]> {
   const adapter = getActiveWalletSigningAdapter();
+  if (getAddress(adapter.address) !== getAddress(expectedSigner)) {
+    throw new Error("The selected wallet does not match the server-issued typed-data signer");
+  }
   const signedTypedDataArray: SignedTypedData[] = [];
 
   for (const typedData of typedDataArray) {

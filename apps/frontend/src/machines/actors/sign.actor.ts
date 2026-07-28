@@ -91,10 +91,10 @@ export const signTransactionsActor = async ({
       if (isSignedTypedData(tx.txData) || isSignedTypedDataArray(tx.txData)) {
         input.parent.send({ current, max: total, phase: "started", type: "SIGNING_UPDATE" });
         if (isSignedTypedData(tx.txData)) {
-          const signedArray = await signMultipleTypedData([tx.txData]);
+          const signedArray = await signMultipleTypedData([tx.txData], tx.signer);
           tx.txData = signedArray[0];
         } else {
-          tx.txData = await signMultipleTypedData(tx.txData);
+          tx.txData = await signMultipleTypedData(tx.txData, tx.signer);
         }
 
         signedTxs.push(tx);
