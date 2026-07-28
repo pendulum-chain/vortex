@@ -93,7 +93,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
             <DialogHeader>
               <DialogTitle>Payout accounts</DialogTitle>
               <DialogDescription>
-                Accounts available for receiving money through {config.methodLabel}. Payout accounts are not needed for onramps
+                Accounts available for receiving money through {config.methodLabel}. Payout accounts are not needed for pay-ins
                 or payments to third-party recipients.
               </DialogDescription>
             </DialogHeader>
@@ -140,7 +140,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
             <DialogHeader>
               <DialogTitle>Add payout account</DialogTitle>
               <DialogDescription>
-                This account enables reception of money through offramps. Onramps and payments to third-party recipients work
+                This account enables reception of money through pay-outs. Pay-ins and payments to third-party recipients work
                 without one.
               </DialogDescription>
             </DialogHeader>
