@@ -1,6 +1,6 @@
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { lazy, Suspense, useCallback, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { type WalletMode, WalletsAPI, type WalletsResponse } from "@/services/api/wallets.api";
 import { useAuthStore } from "@/stores/auth.store";
@@ -15,7 +15,15 @@ const LazyPrivyWalletRuntime = lazy(async () => {
 });
 
 export function WalletExperienceProvider({ children }: { children: React.ReactNode }) {
-  const user = useAuthStore(state => state.user);
+  const userId = useAuthStore(state => state.user?.userId);
+  return (
+    <WalletExperienceSession key={userId ?? "anonymous"} userId={userId}>
+      {children}
+    </WalletExperienceSession>
+  );
+}
+
+function WalletExperienceSession({ children, userId }: { children: React.ReactNode; userId?: string }) {
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const { isConnected } = useAppKitAccount();
@@ -24,37 +32,42 @@ export function WalletExperienceProvider({ children }: { children: React.ReactNo
   const [autoCreateEmbedded, setAutoCreateEmbedded] = useState(false);
 
   const walletsQuery = useQuery({
-    enabled: Boolean(user),
+    enabled: Boolean(userId),
     queryFn: ({ signal }) => WalletsAPI.getWallets(signal),
-    queryKey: ["wallets", user?.userId],
+    queryKey: ["wallets", userId],
     staleTime: 30_000
   });
+
+  useEffect(() => () => setActiveWalletSigningAdapter(null), []);
 
   const storedMode = pendingMode ?? walletsQuery.data?.mode ?? null;
   const mode = storedMode === "privy_embedded" && !privyWalletConfig.enabled ? "external" : storedMode;
   const embeddedActive = privyWalletConfig.enabled && storedMode === "privy_embedded";
+  const registeredWallet = walletsQuery.data?.wallets.find(
+    wallet => wallet.provider === "privy" && wallet.chainType === "ethereum" && wallet.status === "active"
+  );
 
   const connectExternalWallet = useCallback(async () => {
     if (storedMode === "privy_embedded") {
       const response = await WalletsAPI.setMode("external");
       setPendingMode(response.mode);
-      queryClient.setQueryData<WalletsResponse>(["wallets", user?.userId], current => ({
+      queryClient.setQueryData<WalletsResponse>(["wallets", userId], current => ({
         mode: response.mode,
         wallets: current?.wallets ?? []
       }));
     }
     await open({ view: "Connect" });
-  }, [open, queryClient, storedMode, user?.userId]);
+  }, [open, queryClient, storedMode, userId]);
 
   const onModeChange = useCallback(
     (nextMode: WalletMode) => {
       setPendingMode(nextMode);
-      queryClient.setQueryData<WalletsResponse>(["wallets", user?.userId], current => ({
+      queryClient.setQueryData<WalletsResponse>(["wallets", userId], current => ({
         mode: nextMode,
         wallets: current?.wallets ?? []
       }));
     },
-    [queryClient, user?.userId]
+    [queryClient, userId]
   );
 
   const externalAdapter = useMemo(() => (address ? createExternalSigningAdapter(address) : null), [address]);
@@ -95,6 +108,7 @@ export function WalletExperienceProvider({ children }: { children: React.ReactNo
           connectExternalWallet={connectExternalWallet}
           onAutoCreateHandled={() => setAutoCreateEmbedded(false)}
           onModeChange={onModeChange}
+          registeredWallet={registeredWallet}
         >
           {children}
         </LazyPrivyWalletRuntime>

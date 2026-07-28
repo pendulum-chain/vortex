@@ -2,6 +2,7 @@ import type { SignedTypedData } from "@vortexfi/shared";
 import { getAccount, sendTransaction, signTypedData, switchChain, waitForTransactionReceipt } from "wagmi/actions";
 import { wagmiConfig } from "@/lib/wagmi";
 import type { WalletSigningAdapter, WalletTransactionRequest } from "./signingAdapter";
+import { assertExpectedWalletAccount } from "./walletAccount";
 
 export function createExternalSigningAdapter(address: `0x${string}`): WalletSigningAdapter {
   const originalChainByHash = new Map<`0x${string}`, number>();
@@ -10,6 +11,7 @@ export function createExternalSigningAdapter(address: `0x${string}`): WalletSign
     kind: "external",
     sendTransaction: async (transaction: WalletTransactionRequest) => {
       const account = getAccount(wagmiConfig);
+      assertExpectedWalletAccount(address, account.address);
       if (!account.chainId) {
         throw new Error("No wallet connected or unable to determine current chain ID.");
       }
@@ -23,7 +25,9 @@ export function createExternalSigningAdapter(address: `0x${string}`): WalletSign
         }
       }
       try {
+        assertExpectedWalletAccount(address, getAccount(wagmiConfig).address);
         const hash = await sendTransaction(wagmiConfig, {
+          account: address,
           data: transaction.data,
           ...(transaction.gas && transaction.gas > 0n ? { gas: transaction.gas } : {}),
           to: transaction.to,
@@ -38,13 +42,16 @@ export function createExternalSigningAdapter(address: `0x${string}`): WalletSign
         throw error;
       }
     },
-    signTypedData: (typedData: SignedTypedData) =>
-      signTypedData(wagmiConfig, {
+    signTypedData: (typedData: SignedTypedData) => {
+      assertExpectedWalletAccount(address, getAccount(wagmiConfig).address);
+      return signTypedData(wagmiConfig, {
+        account: address,
         domain: typedData.domain,
         message: typedData.message,
         primaryType: typedData.primaryType,
         types: typedData.types
-      }),
+      });
+    },
     waitForTransaction: async (hash, chainId) => {
       try {
         const receipt = await waitForTransactionReceipt(wagmiConfig, { chainId, hash });

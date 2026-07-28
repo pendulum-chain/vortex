@@ -14,10 +14,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hexToBytes } from "viem";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { wagmiConfig } from "@/lib/wagmi";
-import { type WalletMode, WalletsAPI, type WalletsResponse } from "@/services/api/wallets.api";
+import { type ProfileWallet, type WalletMode, WalletsAPI, type WalletsResponse } from "@/services/api/wallets.api";
 import { AuthService } from "@/services/auth";
 import { useAuthStore } from "@/stores/auth.store";
 import { privyWalletConfig } from "./config";
+import { selectPrivyEmbeddedWallet } from "./privyWalletSelection";
 import { setActiveWalletSigningAdapter, type WalletSigningAdapter } from "./signingAdapter";
 import { type WalletExperience, WalletExperienceContext } from "./WalletExperienceContext";
 
@@ -27,6 +28,7 @@ interface PrivyWalletRuntimeProps {
   connectExternalWallet: () => Promise<void>;
   onAutoCreateHandled: () => void;
   onModeChange: (mode: WalletMode) => void;
+  registeredWallet?: Pick<ProfileWallet, "address" | "providerWalletId">;
 }
 
 interface PrivyWalletProviderRuntimeProps extends PrivyWalletRuntimeProps {
@@ -34,16 +36,13 @@ interface PrivyWalletProviderRuntimeProps extends PrivyWalletRuntimeProps {
   clientId?: string;
 }
 
-function isPrivyEmbeddedWallet(wallet: { type: string; walletClientType?: string }): boolean {
-  return wallet.type === "ethereum" && (wallet.walletClientType === "privy" || wallet.walletClientType === "privy-v2");
-}
-
 export function PrivyWalletRuntime({
   autoCreate,
   children,
   connectExternalWallet,
   onAutoCreateHandled,
-  onModeChange
+  onModeChange,
+  registeredWallet
 }: PrivyWalletRuntimeProps) {
   const user = useAuthStore(state => state.user);
   const queryClient = useQueryClient();
@@ -65,15 +64,19 @@ export function PrivyWalletRuntime({
     subscribe: subscribeToAuth
   });
 
-  const embeddedWallet = wallets.find(isPrivyEmbeddedWallet);
-  const address = embeddedWallet?.address as `0x${string}` | undefined;
+  const embeddedWallet = selectPrivyEmbeddedWallet(wallets, registeredWallet);
+  const walletAddress = embeddedWallet?.address as `0x${string}` | undefined;
   const linkedEmbeddedWallet = privyUser?.linkedAccounts.find(
     (account): account is Extract<LinkedAccountWithMetadata, { type: "wallet" }> =>
       account.type === "wallet" &&
       account.chainType === "ethereum" &&
       (account.walletClientType === "privy" || account.walletClientType === "privy-v2") &&
-      account.address.toLowerCase() === address?.toLowerCase()
+      account.address.toLowerCase() === walletAddress?.toLowerCase() &&
+      (!registeredWallet || account.id === registeredWallet.providerWalletId)
   );
+  const registeredWalletUnavailable =
+    walletsReady && authState.status === "done" && Boolean(registeredWallet) && (!embeddedWallet || !linkedEmbeddedWallet);
+  const address = registeredWalletUnavailable ? undefined : walletAddress;
 
   const signingAdapter = useMemo<WalletSigningAdapter | null>(() => {
     if (!address) return null;
@@ -143,6 +146,9 @@ export function PrivyWalletRuntime({
     setCreating(true);
     setError(undefined);
     try {
+      if (registeredWalletUnavailable) {
+        throw new Error("The registered embedded wallet is not available in the current Privy session");
+      }
       if (embeddedWallet && linkedEmbeddedWallet) {
         await register(linkedEmbeddedWallet);
       } else {
@@ -154,7 +160,7 @@ export function PrivyWalletRuntime({
     } finally {
       setCreating(false);
     }
-  }, [createWallet, embeddedWallet, linkedEmbeddedWallet, register]);
+  }, [createWallet, embeddedWallet, linkedEmbeddedWallet, register, registeredWalletUnavailable]);
 
   const autoCreateStarted = useRef(false);
   useEffect(() => {
@@ -188,7 +194,11 @@ export function PrivyWalletRuntime({
       connected: Boolean(address),
       createEmbeddedWallet,
       creatingEmbeddedWallet: creating,
-      error,
+      error:
+        error ??
+        (registeredWalletUnavailable
+          ? "The registered embedded wallet is not available in the current Privy session"
+          : undefined),
       exportEmbeddedWallet: async () => {
         if (!address) throw new Error("No embedded wallet is available to export");
         await exportWallet({ address });
@@ -204,6 +214,7 @@ export function PrivyWalletRuntime({
       creating,
       error,
       exportWallet,
+      registeredWalletUnavailable,
       signingAdapter,
       switchToExternalWallet,
       walletsReady

@@ -1,7 +1,7 @@
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "@xstate/react";
-import { lazy, Suspense, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { useRampActor } from "../contexts/rampState";
 import { WalletMode, WalletsResponse, WalletsService } from "../services/api/wallets.service";
@@ -25,11 +25,29 @@ function subscribeToAuth(listener: () => void): () => void {
 }
 
 export function WidgetWalletProvider({ children }: { children: React.ReactNode }) {
-  const rampActor = useRampActor();
-  const walletSetupRequested = useSelector(rampActor, state => state.matches("EmbeddedWallet"));
   const accessToken = useSyncExternalStore(subscribeToAuth, accessTokenSnapshot, () => "");
   const userId = AuthService.getUserId();
   const authenticated = accessToken.length > 0 && Boolean(userId);
+  const sessionKey = authenticated && userId ? userId : "anonymous";
+
+  return (
+    <WidgetWalletSession authenticated={authenticated} key={sessionKey} userId={userId}>
+      {children}
+    </WidgetWalletSession>
+  );
+}
+
+function WidgetWalletSession({
+  authenticated,
+  children,
+  userId
+}: {
+  authenticated: boolean;
+  children: React.ReactNode;
+  userId: string | null;
+}) {
+  const rampActor = useRampActor();
+  const walletSetupRequested = useSelector(rampActor, state => state.matches("EmbeddedWallet"));
   const queryClient = useQueryClient();
   const { address } = useAccount();
   const evmAddress = address as `0x${string}` | undefined;
@@ -45,10 +63,15 @@ export function WidgetWalletProvider({ children }: { children: React.ReactNode }
     staleTime: 30_000
   });
 
+  useEffect(() => () => setActiveEvmWalletSigningAdapter(null), []);
+
   const storedMode = pendingMode ?? walletsQuery.data?.mode ?? null;
   const mode = storedMode === "privy_embedded" && !isPrivyEnabledForCurrentFrame ? "external" : storedMode;
   const embeddedActive =
     isPrivyEnabledForCurrentFrame && authenticated && (storedMode === "privy_embedded" || walletSetupRequested);
+  const registeredWallet = walletsQuery.data?.wallets.find(
+    wallet => wallet.provider === "privy" && wallet.chainType === "ethereum" && wallet.status === "active"
+  );
 
   const connectExternalWallet = useCallback(async () => {
     if (storedMode === "privy_embedded") {
@@ -117,6 +140,7 @@ export function WidgetWalletProvider({ children }: { children: React.ReactNode }
           connectExternalWallet={connectExternalWallet}
           mode="privy_embedded"
           onModeChange={onModeChange}
+          registeredWallet={registeredWallet}
         >
           {children}
         </LazyPrivyWidgetWalletRuntime>

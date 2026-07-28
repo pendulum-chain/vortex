@@ -19,6 +19,7 @@ import { waitForTransactionConfirmation } from "../helpers/safe-wallet/waitForTr
 import { ProfileWallet, WalletMode, WalletsResponse, WalletsService } from "../services/api/wallets.service";
 import { AuthService } from "../services/auth";
 import { privyWidgetConfig } from "./config";
+import { selectPrivyEmbeddedWallet } from "./privyWalletSelection";
 import { EvmWalletSigningAdapter, setActiveEvmWalletSigningAdapter } from "./signingAdapter";
 import { WidgetEvmWallet, WidgetWalletContext } from "./WidgetWalletContext";
 
@@ -27,6 +28,7 @@ interface PrivyWidgetWalletRuntimeProps {
   connectExternalWallet: () => Promise<void>;
   mode: WalletMode;
   onModeChange: (mode: WalletMode, wallet?: ProfileWallet) => void;
+  registeredWallet?: Pick<ProfileWallet, "address" | "providerWalletId">;
 }
 
 interface PrivyWidgetWalletProviderRuntimeProps extends PrivyWidgetWalletRuntimeProps {
@@ -34,15 +36,12 @@ interface PrivyWidgetWalletProviderRuntimeProps extends PrivyWidgetWalletRuntime
   clientId?: string;
 }
 
-function isPrivyEmbeddedWallet(wallet: { type: string; walletClientType?: string }): boolean {
-  return wallet.type === "ethereum" && (wallet.walletClientType === "privy" || wallet.walletClientType === "privy-v2");
-}
-
 export function PrivyWidgetWalletRuntime({
   children,
   connectExternalWallet,
   mode,
-  onModeChange
+  onModeChange,
+  registeredWallet
 }: PrivyWidgetWalletRuntimeProps) {
   const rampActor = useRampActor();
   const walletSetupRequested = useSelector(rampActor, state => state.matches("EmbeddedWallet"));
@@ -64,15 +63,19 @@ export function PrivyWidgetWalletRuntime({
     subscribe: subscribeToAuth
   });
 
-  const embeddedWallet = wallets.find(isPrivyEmbeddedWallet);
-  const address = embeddedWallet?.address as `0x${string}` | undefined;
+  const embeddedWallet = selectPrivyEmbeddedWallet(wallets, registeredWallet);
+  const walletAddress = embeddedWallet?.address as `0x${string}` | undefined;
   const linkedEmbeddedWallet = privyUser?.linkedAccounts.find(
     (account): account is Extract<LinkedAccountWithMetadata, { type: "wallet" }> =>
       account.type === "wallet" &&
       account.chainType === "ethereum" &&
       (account.walletClientType === "privy" || account.walletClientType === "privy-v2") &&
-      account.address.toLowerCase() === address?.toLowerCase()
+      account.address.toLowerCase() === walletAddress?.toLowerCase() &&
+      (!registeredWallet || account.id === registeredWallet.providerWalletId)
   );
+  const registeredWalletUnavailable =
+    walletsReady && authState.status === "done" && Boolean(registeredWallet) && (!embeddedWallet || !linkedEmbeddedWallet);
+  const address = registeredWalletUnavailable ? undefined : walletAddress;
 
   const signingAdapter = useMemo<EvmWalletSigningAdapter | null>(() => {
     if (!address) return null;
@@ -137,6 +140,9 @@ export function PrivyWidgetWalletRuntime({
   const createEmbeddedWallet = useCallback(async () => {
     setCreating(true);
     try {
+      if (registeredWalletUnavailable) {
+        throw new Error("The registered embedded wallet is not available in the current Privy session");
+      }
       if (embeddedWallet && linkedEmbeddedWallet) {
         await register(linkedEmbeddedWallet);
       } else {
@@ -150,7 +156,7 @@ export function PrivyWidgetWalletRuntime({
     } finally {
       setCreating(false);
     }
-  }, [createWallet, embeddedWallet, linkedEmbeddedWallet, rampActor, register]);
+  }, [createWallet, embeddedWallet, linkedEmbeddedWallet, rampActor, register, registeredWalletUnavailable]);
 
   const autoCreateStarted = useRef(false);
   useEffect(() => {
@@ -182,6 +188,9 @@ export function PrivyWidgetWalletRuntime({
       connected: Boolean(address),
       createEmbeddedWallet: () => rampActor.send({ type: "REQUEST_EMBEDDED_WALLET" }),
       creatingEmbeddedWallet: creating,
+      embeddedUnavailableReason: registeredWalletUnavailable
+        ? "The registered embedded wallet is not available in the current Privy session."
+        : undefined,
       exportEmbeddedWallet: async () => {
         if (!address) throw new Error("No embedded wallet is available to export");
         await exportWallet({ address });
@@ -202,6 +211,7 @@ export function PrivyWidgetWalletRuntime({
       exportWallet,
       mode,
       rampActor,
+      registeredWalletUnavailable,
       signMessage,
       signingAdapter,
       switchToExternalWallet,
