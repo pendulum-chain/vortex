@@ -52,7 +52,7 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
           MINT_TIMEOUT_MS,
           Networks.Polygon
         ),
-        this.pollStatus(alfredpayTransactionId, state, abortController.signal)
+        this.pollStatus(alfredpayTransactionId, state, POLL_INTERVAL_MS, abortController.signal)
       ]);
     } catch (error) {
       if (isAlfredpayFailedStatusError(error)) {
@@ -71,7 +71,7 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
     return state;
   }
 
-  private pollStatus(transactionId: string, state: RampState, signal: AbortSignal): Promise<never> {
+  private pollStatus(transactionId: string, state: RampState, intervalMs: number, signal: AbortSignal): Promise<never> {
     return new Promise<never>((_, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
       signal.addEventListener("abort", () => timeoutId && clearTimeout(timeoutId), { once: true });
@@ -83,16 +83,21 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
             reject({ failureReason: metadata?.failureReason, kind: "failed" as const });
             return;
           }
-          if (status === AlfredpayOnrampStatus.ON_CHAIN_COMPLETED && metadata?.txHash) {
+          if (status === AlfredpayOnrampStatus.ON_CHAIN_COMPLETED) {
             const currentState = state.state as StateMetadata;
-            if (!currentState.alfredpayOnrampMintTxHash) {
+            if (metadata?.txHash && !currentState.alfredpayOnrampMintTxHash) {
               await state.update({ state: { ...currentState, alfredpayOnrampMintTxHash: metadata.txHash } });
             }
+            return;
           }
         } catch (error) {
+          if (isAlfredpayFailedStatusError(error)) {
+            reject(error);
+            return;
+          }
           logger.warn(`AlfredpayOnrampMintExecutor: Error polling Alfredpay status: ${error}`);
         }
-        timeoutId = setTimeout(poll, POLL_INTERVAL_MS);
+        timeoutId = setTimeout(poll, intervalMs);
       };
       void poll();
     });

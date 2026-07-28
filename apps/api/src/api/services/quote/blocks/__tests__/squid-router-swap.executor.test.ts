@@ -10,11 +10,13 @@ const sharedReal = { ...sharedNamespace };
 const quoteTicketReal = { ...quoteTicketNamespace };
 const sendRawTransactionMock = mock(async () => "0xunexpected");
 const waitForTransactionReceiptMock = mock(async () => ({ status: "success" as const }));
+const getEvmBalanceMock = mock(async () => new Big("999"));
 const findQuoteMock = mock(async () => undefined as unknown);
 
 mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
   checkEvmBalanceForToken: mock(async () => new Big("1000000")),
+  getEvmBalance: getEvmBalanceMock,
   EvmClientManager: {
     getInstance: () => ({
       getClient: () => ({
@@ -29,7 +31,6 @@ mock.module("../../../../../models/quoteTicket.model", () => ({
   ...quoteTicketReal,
   default: { findByPk: findQuoteMock }
 }));
-
 const { SquidRouterSwapExecutor } = await import("../phases/squid-router-swap/execution");
 
 afterAll(() => {
@@ -41,6 +42,7 @@ beforeEach(() => {
   sendRawTransactionMock.mockClear();
   waitForTransactionReceiptMock.mockClear();
   findQuoteMock.mockClear();
+  getEvmBalanceMock.mockClear();
 });
 
 describe("SquidRouterSwapExecutor", () => {
@@ -96,5 +98,6 @@ describe("SquidRouterSwapExecutor", () => {
     expect(waitForTransactionReceiptMock).toHaveBeenCalledTimes(2);
     expect(waitForTransactionReceiptMock).toHaveBeenNthCalledWith(1, { hash: approveHash });
     expect(waitForTransactionReceiptMock).toHaveBeenNthCalledWith(2, { hash: swapHash });
+    expect(getEvmBalanceMock).not.toHaveBeenCalled();
   });
 });

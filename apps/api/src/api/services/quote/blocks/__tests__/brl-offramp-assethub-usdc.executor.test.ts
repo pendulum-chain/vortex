@@ -17,7 +17,6 @@ mock.module("../../../avenia/avenia-customer.service", () => ({
   ...customerReal,
   findAveniaCustomerByTaxId: async () => ({ providerSubaccountId: "subaccount-1" })
 }));
-
 const { AveniaOfframpPayoutExecutor } = await import("../phases/avenia-offramp-payout/execution");
 const originalFindByPk = QuoteTicket.findByPk;
 
@@ -63,5 +62,12 @@ describe("AssetHub BRL payout recovery", () => {
     };
     expect(await executor.executePhase(state)).toBe(state);
     expect(getTicket).toHaveBeenCalledWith("ticket-1", "subaccount-1");
+  });
+
+  it("classifies a missing presigned Base payout as recoverable", async () => {
+    const executor = Object.create(AveniaOfframpPayoutExecutor.prototype) as any;
+    const state = { presignedTxs: [], state: {} } as unknown as RampState;
+
+    await expect(executor.sendPayoutTransfer(state)).rejects.toMatchObject({ isRecoverable: true });
   });
 });

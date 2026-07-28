@@ -9,14 +9,13 @@ mock.module("../../../phases/helpers/user-tx-verifier", () => ({
   ...userTxVerifier,
   verifyUserSubmittedTxByHash
 }));
-
 const { FundEphemeralExecutor } = await import("../phases/fund-ephemeral/execution");
 
 afterAll(() => {
   mock.module("../../../phases/helpers/user-tx-verifier", () => ({ ...userTxVerifier }));
 });
 
-function makeQuote() {
+function makeQuote(outputCurrency: FiatToken = FiatToken.BRL) {
   return {
     metadata: {
       blocks: {
@@ -34,7 +33,7 @@ function makeQuote() {
         request: {}
       }
     },
-    outputCurrency: FiatToken.BRL
+    outputCurrency
   } as unknown as QuoteTicket;
 }
 
@@ -74,6 +73,33 @@ describe("FundEphemeralExecutor user hash verification", () => {
     const state = makeState("0x00000000000000000000000000000000000000ee");
 
     await handler.verifyUserSubmittedSourceTransactions(state, makeQuote());
+
+    expect(verifyUserSubmittedTxByHash).not.toHaveBeenCalled();
+  });
+
+  it("verifies Mykobo EUR SELL source transactions", async () => {
+    verifyUserSubmittedTxByHash.mockClear();
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+
+    await handler.verifyUserSubmittedSourceTransactions(
+      makeState("0x00000000000000000000000000000000000000aa"),
+      makeQuote(FiatToken.EURC)
+    );
+
+    expect(verifyUserSubmittedTxByHash).toHaveBeenCalledWith(
+      expect.objectContaining({ hash: "0xswap", presignedPhase: "squidRouterSwap" })
+    );
+  });
+
+  it("preserves AlfredPay and AssetHub exclusions", async () => {
+    verifyUserSubmittedTxByHash.mockClear();
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+    const alfredpayState = makeState("0x00000000000000000000000000000000000000aa");
+    const assethubState = makeState("0x00000000000000000000000000000000000000aa");
+    assethubState.from = Networks.AssetHub;
+
+    await handler.verifyUserSubmittedSourceTransactions(alfredpayState, makeQuote(FiatToken.MXN));
+    await handler.verifyUserSubmittedSourceTransactions(assethubState, makeQuote());
 
     expect(verifyUserSubmittedTxByHash).not.toHaveBeenCalled();
   });

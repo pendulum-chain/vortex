@@ -15,9 +15,11 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../../../config/logger";
+import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
+import { fetchWithTimeout } from "../../../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getBlockMetadata } from "../../core/metadata";
 import { DistributeFeesContext, type DistributeFeesMetadata } from "./simulation";
@@ -42,24 +44,31 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     const existingHash = state.state.distributeFeeHash || null;
     const metadata = getBlockMetadata(quote.metadata, DistributeFeesContext);
     if (metadata.network === Networks.Pendulum) {
-      if (existingHash) return state;
-      const transaction = this.getPresignedTransaction(state, "distributeFees");
-      if (!transaction) return state;
-      const substrateAddress = state.state.substrateEphemeralAddress;
-      if (!substrateAddress || !metadata.outputCurrencyId || metadata.outputDecimals === undefined) {
-        throw new Error("DistributeFeesExecutor: missing Pendulum state");
+      try {
+        if (existingHash && (await this.isPendulumExtrinsicSuccessful(existingHash))) return state;
+        const transaction = this.getPresignedTransaction(state, "distributeFees");
+        if (!transaction) return state;
+        const substrateAddress = state.state.substrateEphemeralAddress;
+        if (!substrateAddress || !metadata.outputCurrencyId || metadata.outputDecimals === undefined) {
+          throw new Error("DistributeFeesExecutor: missing Pendulum state");
+        }
+        const manager = ApiManager.getInstance();
+        const pendulum = await manager.getApi("pendulum");
+        const required = multiplyByPowerOfTen(metadata.totalFeesUsd, metadata.outputDecimals);
+        const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.outputCurrencyId);
+        const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+        if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
+        const result = await submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api));
+        if (result.status.type === "error") throw this.createRecoverableError("Pendulum fee distribution failed");
+        state.state = { ...state.state, distributeFeeHash: result.txHash.toString() };
+        await state.update({ state: state.state });
+        return state;
+      } catch (e) {
+        logger.error(`Error distributing Pendulum fees for ramp ${state.id}:`, e);
+        if (e instanceof PhaseError) throw e;
+        const error = e instanceof Error ? e : new Error(String(e));
+        throw this.createRecoverableError(`Failed to distribute Pendulum fees: ${error.message}`);
       }
-      const manager = ApiManager.getInstance();
-      const pendulum = await manager.getApi("pendulum");
-      const required = multiplyByPowerOfTen(metadata.totalFeesUsd, metadata.outputDecimals);
-      const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.outputCurrencyId);
-      const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
-      if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
-      const result = await submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api));
-      if (result.status.type === "error") throw this.createRecoverableError("Pendulum fee distribution failed");
-      state.state = { ...state.state, distributeFeeHash: result.txHash.toString() };
-      await state.update({ state: state.state });
-      return state;
     }
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
@@ -180,5 +189,20 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       2000, // check every 2 seconds
       180000 // timeout after 3 minutes
     );
+  }
+
+  private async isPendulumExtrinsicSuccessful(extrinsicHash: string): Promise<boolean> {
+    const response = await fetchWithTimeout("https://pendulum.api.subscan.io/api/scan/extrinsic", {
+      body: JSON.stringify({ events_limit: 10, hash: extrinsicHash, hide_events: false }),
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": config.subscanApiKey || ""
+      },
+      method: "POST"
+    });
+    if (!response.ok) throw new Error(`Subscan API response error: ${response.status} ${response.statusText}`);
+    const data = await response.json();
+    if (data.code !== 0) throw new Error(`Subscan API error code: ${data.code}, message: ${data.message}`);
+    return data.data?.success === true;
   }
 }

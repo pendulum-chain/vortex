@@ -9,8 +9,8 @@ import {
   Networks,
   nativeToDecimal,
   RampCurrency,
-  RampDirection,
-  RampPhase
+  RampPhase,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
@@ -52,35 +52,47 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
     const metadata = getBlockMetadata(quote.metadata, SubsidizePostContext);
 
     if (metadata.network === Networks.Pendulum) {
-      const substrateAddress = state.state.substrateEphemeralAddress;
-      if (!substrateAddress || !metadata.outputCurrencyId) {
-        throw new Error("SubsidizePostSwapExecutor: missing Pendulum state");
+      try {
+        const substrateAddress = state.state.substrateEphemeralAddress;
+        if (!substrateAddress || !metadata.outputCurrencyId) {
+          throw new Error("SubsidizePostSwapExecutor: missing Pendulum state");
+        }
+        const manager = ApiManager.getInstance();
+        const pendulum = await manager.getApi("pendulum");
+        const getBalance = async (address: string) => {
+          const balance = await pendulum.api.query.tokens.accounts(address, metadata.outputCurrencyId);
+          return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+        };
+        const current = await getBalance(substrateAddress);
+        if (current.eq(0)) throw this.createRecoverableError("Swap output did not arrive on Pendulum");
+        const required = new Big(metadata.targetOutputAmountRaw).minus(current);
+        if (required.gt(0)) {
+          const funding = getFundingAccount();
+          const available = await getBalance(funding.address);
+          if (available.lt(required)) throw this.createUnrecoverableError("Pendulum post-swap funding balance too low");
+          const result = await manager.executeApiCall(
+            api => api.tx.tokens.transfer(substrateAddress, metadata.outputCurrencyId, required.toFixed(0, 0)),
+            funding,
+            "pendulum"
+          );
+          await this.createSubsidy(
+            state,
+            nativeToDecimal(required, metadata.outputDecimals).toNumber(),
+            metadata.outputCurrency as SubsidyToken,
+            funding.address,
+            result.hash
+          );
+          await waitUntilTrueWithTimeout(
+            async () => (await getBalance(substrateAddress)).gte(metadata.targetOutputAmountRaw),
+            2000
+          );
+        }
+        return state;
+      } catch (e) {
+        logger.error("Error in subsidizePostSwap (Pendulum):", e);
+        if (e instanceof PhaseError) throw e;
+        throw this.createRecoverableError("SubsidizePostSwapExecutor: Failed to subsidize post swap on Pendulum.");
       }
-      const manager = ApiManager.getInstance();
-      const pendulum = await manager.getApi("pendulum");
-      const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.outputCurrencyId);
-      const current = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
-      if (current.eq(0)) throw this.createRecoverableError("Swap output did not arrive on Pendulum");
-      const required = new Big(metadata.targetOutputAmountRaw).minus(current);
-      if (required.gt(0)) {
-        const funding = getFundingAccount();
-        const fundingBalance = await pendulum.api.query.tokens.accounts(funding.address, metadata.outputCurrencyId);
-        const available = new Big((fundingBalance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
-        if (available.lt(required)) throw this.createUnrecoverableError("Pendulum post-swap funding balance too low");
-        const result = await manager.executeApiCall(
-          api => api.tx.tokens.transfer(substrateAddress, metadata.outputCurrencyId, required.toFixed(0, 0)),
-          funding,
-          "pendulum"
-        );
-        await this.createSubsidy(
-          state,
-          nativeToDecimal(required, metadata.outputDecimals).toNumber(),
-          metadata.outputCurrency as SubsidyToken,
-          funding.address,
-          result.hash
-        );
-      }
-      return state;
     }
 
     const { evmEphemeralAddress } = state.state as StateMetadata;
@@ -118,16 +130,13 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
       // simulated Nabla output.
       const expectedSwapOutputAmountRaw = Big(metadata.targetOutputAmountRaw);
 
-      const subsidyComponents =
-        state.type === RampDirection.SELL
-          ? calculatePostSwapSubsidyComponents({
-              currentBalanceRaw: currentBalance,
-              discountSubsidyAmountRaw: String(metadata.subsidyAmountInOutputTokenRaw),
-              expectedOutputAmountRaw: expectedSwapOutputAmountRaw,
-              quotedActualOutputAmountRaw: String(metadata.actualOutputAmountRaw)
-            })
-          : undefined;
-      const requiredAmount = subsidyComponents?.requiredAmountRaw ?? Big(expectedSwapOutputAmountRaw).sub(currentBalance);
+      const subsidyComponents = calculatePostSwapSubsidyComponents({
+        currentBalanceRaw: currentBalance,
+        discountSubsidyAmountRaw: String(metadata.subsidyAmountInOutputTokenRaw),
+        expectedOutputAmountRaw: expectedSwapOutputAmountRaw,
+        quotedActualOutputAmountRaw: String(metadata.actualOutputAmountRaw)
+      });
+      const requiredAmount = subsidyComponents.requiredAmountRaw;
       logger.debug(`SubsidizePostSwapExecutor: requiredAmount ${requiredAmount.toString()}`);
 
       if (requiredAmount.gt(Big(0))) {
@@ -136,20 +145,22 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           quote.outputCurrency as RampCurrency,
           EvmToken.USDC as RampCurrency
         );
-        const discrepancyRaw = subsidyComponents?.discrepancyAmountRaw ?? requiredAmount;
-        const discountRaw = subsidyComponents?.discountAmountRaw ?? Big(0);
-        const [discrepancyUsd, discountUsd] = await Promise.all([
-          priceFeedService.convertCurrency(
-            nativeToDecimal(discrepancyRaw, metadata.outputDecimals).toString(),
-            outputToken as RampCurrency,
-            EvmToken.USDC as RampCurrency
-          ),
-          priceFeedService.convertCurrency(
-            nativeToDecimal(discountRaw, metadata.outputDecimals).toString(),
-            outputToken as RampCurrency,
-            EvmToken.USDC as RampCurrency
-          )
-        ]);
+        const discrepancyRaw = subsidyComponents.discrepancyAmountRaw;
+        const discountRaw = subsidyComponents.discountAmountRaw;
+        const discrepancyUsd = discrepancyRaw.gt(0)
+          ? await priceFeedService.convertCurrency(
+              nativeToDecimal(discrepancyRaw, metadata.outputDecimals).toString(),
+              outputToken as RampCurrency,
+              EvmToken.USDC as RampCurrency
+            )
+          : "0";
+        const discountUsd = discountRaw.gt(0)
+          ? await priceFeedService.convertCurrency(
+              nativeToDecimal(discountRaw, metadata.outputDecimals).toString(),
+              outputToken as RampCurrency,
+              EvmToken.USDC as RampCurrency
+            )
+          : "0";
         const discrepancyCapFraction = config.subsidy.evmSwapSubsidyQuoteFraction;
         const discrepancyPercentageCap = Big(quoteOutputUsd).mul(discrepancyCapFraction);
         const discrepancyCapUsd = discrepancyPercentageCap.gt("1") ? discrepancyPercentageCap : Big("1");

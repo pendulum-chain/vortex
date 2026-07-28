@@ -4,6 +4,7 @@ import {
   EvmNetworks,
   FiatToken,
   getNetworkFromDestination,
+  isAlfredpayToken,
   isNetworkEVM,
   multiplyByPowerOfTen,
   Networks,
@@ -145,7 +146,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
   }
 
   private async verifyUserSubmittedSourceTransactions(state: RampState, quote: QuoteTicket): Promise<void> {
-    if (state.type !== RampDirection.SELL || quote.outputCurrency !== FiatToken.BRL) return;
+    if (state.type !== RampDirection.SELL) return;
+    if (state.from === Networks.AssetHub) return;
+    if (isAlfredpayToken(quote.outputCurrency as FiatToken)) return;
     const metadata = getFlowMetadata(quote.metadata).blocks[EvmOfframpSourceContext.key] as
       | EvmOfframpSourceMetadata
       | undefined;

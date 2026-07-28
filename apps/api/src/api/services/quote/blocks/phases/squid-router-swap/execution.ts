@@ -147,7 +147,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         evmEphemeralAddress,
         destinationTokenDetails.erc20AddressSourceChain
       );
-      if (!state.state.transactionPlan?.settlementBaselines?.[baselineKey]) {
+      if (state.state.transactionPlan?.settlementBaselines?.[baselineKey] === undefined) {
         const baseline = await getEvmBalance({
           chain: destinationNetwork,
           ownerAddress: evmEphemeralAddress as `0x${string}`,
@@ -769,8 +769,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         account: walletClientAccount,
         chain: publicClient.chain,
         data: transactionData,
-        maxFeePerGas: maxFeePerGas * 2n,
-        maxPriorityFeePerGas: maxPriorityFeePerGas * 2n,
+        maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
+        maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
         to: AXL_GAS_SERVICE_EVM as `0x${string}`,
         value: BigInt(tokenValueRaw)
       });

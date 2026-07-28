@@ -1,4 +1,5 @@
 import {
+  ALFREDPAY_EVM_TOKEN,
   checkEvmBalanceForToken,
   EvmClientManager,
   EvmNetworks,
@@ -70,7 +71,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       .blocks?.alfredpayOfframp;
     const isAlfredpayOfframp = state.type === RampDirection.SELL && alfredpayMetadata !== undefined;
     const outputNetwork = isAlfredpayOfframp ? Networks.Polygon : quote.network;
-    const outputCurrency = isAlfredpayOfframp ? "USDT" : quote.outputCurrency;
+    const outputCurrency = isAlfredpayOfframp ? ALFREDPAY_EVM_TOKEN : quote.outputCurrency;
     const outTokenDetailsRaw = getOnChainTokenDetails(outputNetwork, outputCurrency);
     if (!outTokenDetailsRaw || outTokenDetailsRaw.type === TokenType.AssetHub) {
       throw new Error("FinalSettlementSubsidyExecutor: Output currency is not an EVM token");
@@ -322,7 +323,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       await this.createSubsidy(
         state,
         subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals)).toNumber(),
-        quote.outputCurrency as unknown as SubsidyToken,
+        outTokenDetails.assetSymbol as SubsidyToken,
         fundingAccount.address,
         txHash
       );

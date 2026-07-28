@@ -5,7 +5,9 @@ import {
   getAddressForFormat,
   getAnyFiatTokenDetailsMoonbeam,
   getEvmTokenBalance,
+  MOONBEAM_XCM_FEE_GLMR,
   Networks,
+  nativeToDecimal,
   RampPhase,
   submitXTokens
 } from "@vortexfi/shared";
@@ -13,6 +15,7 @@ import Big from "big.js";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
+import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import type { AveniaOfframpPayoutRegistrationFacts } from "../avenia-offramp-payout/registration";
@@ -49,16 +52,29 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
       );
     };
     try {
+      let submittedHash: string | undefined;
       if (!state.state.pendulumToMoonbeamXcmHash && !(await leftPendulum())) {
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, pendulum.api);
         const { hash } = await submitXTokens(getAddressForFormat(substrateAddress, pendulum.ss58Format), extrinsic);
+        submittedHash = hash;
         state.state = { ...state.state, pendulumToMoonbeamXcmHash: hash };
         await state.update({ state: state.state });
       }
       const started = Date.now();
       while (Date.now() - started < POLL_TIMEOUT_MS) {
-        if (await arrived()) return state;
+        if (await arrived()) {
+          if (submittedHash !== undefined) {
+            await this.createSubsidy(
+              state,
+              nativeToDecimal(MOONBEAM_XCM_FEE_GLMR, 18).toNumber(),
+              SubsidyToken.GLMR,
+              substrateAddress,
+              submittedHash || "0x"
+            );
+          }
+          return state;
+        }
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
       }
       throw this.createRecoverableError("PendulumToAveniaXcmExecutor: timed out waiting for Moonbeam arrival");

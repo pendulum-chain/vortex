@@ -43,12 +43,18 @@ export class NablaApproveExecutor extends BasePhaseHandler {
       const pendulum = await manager.getApi("pendulum");
       const substrateAddress = state.state.substrateEphemeralAddress;
       if (!substrateAddress || !metadata.inputCurrencyId) throw new Error("NablaApproveExecutor: missing Pendulum data");
-      const approval = await pendulum.api.query.tokenAllowance.approvals(
-        metadata.inputCurrencyId,
-        substrateAddress,
-        NABLA_ROUTER
-      );
-      if (new Big(approval.toString() || "0").gte(metadata.inputAmountForSwapRaw)) return state;
+      try {
+        const approval = await pendulum.api.query.tokenAllowance.approvals(
+          metadata.inputCurrencyId,
+          substrateAddress,
+          NABLA_ROUTER
+        );
+        if (new Big(approval.toString() || "0").gte(metadata.inputAmountForSwapRaw)) return state;
+      } catch (e) {
+        throw this.createRecoverableError(
+          `NablaApproveExecutor: Could not check if the approve has already been performed. ${(e as Error).message}`
+        );
+      }
       const preparation = getBlockState<{
         approveExtrinsicOptions: Parameters<typeof createExecuteMessageExtrinsic>[0];
       }>(state.state, NablaSwapContext);

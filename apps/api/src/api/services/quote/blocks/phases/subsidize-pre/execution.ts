@@ -11,7 +11,8 @@ import {
   nativeToDecimal,
   RampCurrency,
   RampDirection,
-  RampPhase
+  RampPhase,
+  waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import { encodeFunctionData, erc20Abi } from "viem";
@@ -49,34 +50,46 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
     const metadata = getBlockMetadata(quote.metadata, SubsidizePreContext);
 
     if (metadata.network === Networks.Pendulum) {
-      const substrateAddress = state.state.substrateEphemeralAddress;
-      if (!substrateAddress) throw new Error("SubsidizePreSwapExecutor: missing Substrate ephemeral");
-      const manager = ApiManager.getInstance();
-      const pendulum = await manager.getApi("pendulum");
-      const currencyId = metadata.inputCurrencyId ?? getPendulumDetails(metadata.inputCurrency as RampCurrency).currencyId;
-      const balance = await pendulum.api.query.tokens.accounts(substrateAddress, currencyId);
-      const current = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
-      if (current.eq(0)) throw this.createRecoverableError("Input token did not arrive on Pendulum");
-      const required = new Big(metadata.targetInputAmountRaw).minus(current);
-      if (required.gt(0)) {
-        const funding = getFundingAccount();
-        const fundingBalance = await pendulum.api.query.tokens.accounts(funding.address, currencyId);
-        const available = new Big((fundingBalance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
-        if (available.lt(required)) throw this.createUnrecoverableError("Pendulum pre-swap funding balance too low");
-        const result = await manager.executeApiCall(
-          api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
-          funding,
-          "pendulum"
-        );
-        await this.createSubsidy(
-          state,
-          nativeToDecimal(required, metadata.inputDecimals).toNumber(),
-          metadata.inputCurrency as SubsidyToken,
-          funding.address,
-          result.hash
-        );
+      try {
+        const substrateAddress = state.state.substrateEphemeralAddress;
+        if (!substrateAddress) throw new Error("SubsidizePreSwapExecutor: missing Substrate ephemeral");
+        const manager = ApiManager.getInstance();
+        const pendulum = await manager.getApi("pendulum");
+        const currencyId = metadata.inputCurrencyId ?? getPendulumDetails(metadata.inputCurrency as RampCurrency).currencyId;
+        const getBalance = async (address: string) => {
+          const balance = await pendulum.api.query.tokens.accounts(address, currencyId);
+          return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
+        };
+        const current = await getBalance(substrateAddress);
+        if (current.eq(0)) throw this.createRecoverableError("Input token did not arrive on Pendulum");
+        const required = new Big(metadata.targetInputAmountRaw).minus(current);
+        if (required.gt(0)) {
+          const funding = getFundingAccount();
+          const available = await getBalance(funding.address);
+          if (available.lt(required)) throw this.createUnrecoverableError("Pendulum pre-swap funding balance too low");
+          const result = await manager.executeApiCall(
+            api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
+            funding,
+            "pendulum"
+          );
+          await this.createSubsidy(
+            state,
+            nativeToDecimal(required, metadata.inputDecimals).toNumber(),
+            metadata.inputCurrency as SubsidyToken,
+            funding.address,
+            result.hash
+          );
+          await waitUntilTrueWithTimeout(
+            async () => (await getBalance(substrateAddress)).gte(metadata.targetInputAmountRaw),
+            5000
+          );
+        }
+        return state;
+      } catch (e) {
+        logger.error("Error in subsidizePreSwap (Pendulum):", e);
+        if (e instanceof PhaseError) throw e;
+        throw this.createRecoverableError("SubsidizePreSwapExecutor: Failed to subsidize pre swap on Pendulum.");
       }
-      return state;
     }
 
     const { evmEphemeralAddress } = state.state as StateMetadata;

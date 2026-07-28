@@ -74,13 +74,13 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
   }
 
   private async sendPayoutTransfer(state: RampState): Promise<void> {
-    const client = EvmClientManager.getInstance();
-    const base = client.getClient(Networks.Base);
-    const transaction = this.getPresignedTransaction(state, "brlaPayoutOnBase");
-    if (!transaction || typeof transaction.txData !== "string") {
-      throw new Error("AveniaOfframpPayoutExecutor: Missing presigned payout transaction");
-    }
     try {
+      const client = EvmClientManager.getInstance();
+      const base = client.getClient(Networks.Base);
+      const transaction = this.getPresignedTransaction(state, "brlaPayoutOnBase");
+      if (!transaction || typeof transaction.txData !== "string") {
+        throw new Error("AveniaOfframpPayoutExecutor: Missing presigned payout transaction");
+      }
       if (state.state.brlaPayoutTxHash) {
         const receipt = await base.waitForTransactionReceipt({ hash: state.state.brlaPayoutTxHash });
         if (receipt.status === "success") return;

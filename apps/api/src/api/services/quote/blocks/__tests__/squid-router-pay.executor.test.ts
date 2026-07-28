@@ -15,9 +15,18 @@ const getStatus = mock(async (..._args: unknown[]) => ({
 }));
 const getStatusAxelarScan = mock(async (..._args: unknown[]) => undefined as unknown);
 const recoverAxelarStuckConfirm = mock(async (..._args: unknown[]) => "AXELAR_RECOVERY_HASH");
+const estimateFeesPerGas = mock(async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n }));
+const sendTransaction = mock(async (_transaction: Record<string, unknown>) => "0xgasfunding" as `0x${string}`);
+const fundingAccount = { address: "0x1111111111111111111111111111111111111111" as `0x${string}` };
 
 mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
+  EvmClientManager: {
+    getInstance: () => ({
+      getClient: () => ({ chain: {}, estimateFeesPerGas }),
+      getWalletClient: () => ({ account: fundingAccount, sendTransaction })
+    })
+  },
   getStatus,
   getStatusAxelarScan,
   recoverAxelarStuckConfirm
@@ -39,6 +48,8 @@ beforeEach(() => {
   getStatus.mockClear();
   getStatusAxelarScan.mockClear();
   recoverAxelarStuckConfirm.mockClear();
+  estimateFeesPerGas.mockClear();
+  sendTransaction.mockClear();
   getStatus.mockImplementation(async () => ({
     id: "",
     isGMPTransaction: true,
@@ -201,5 +212,15 @@ describe("SquidRouterPayExecutor reliability", () => {
 
     await expect(execution).rejects.toThrow();
     expect(getStatus).not.toHaveBeenCalled();
+  });
+
+  it("uses legacy EIP-1559 multipliers for Polygon and Base gas payments", async () => {
+    const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
+
+    await handler.executeFundTransaction(Networks.Polygon, "1", SWAP_HASH, 1);
+    expect(sendTransaction.mock.calls[0]?.[0]).toMatchObject({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n });
+
+    await handler.executeFundTransaction(Networks.Base, "1", SWAP_HASH, 1);
+    expect(sendTransaction.mock.calls[1]?.[0]).toMatchObject({ maxFeePerGas: 20n, maxPriorityFeePerGas: 6n });
   });
 });
