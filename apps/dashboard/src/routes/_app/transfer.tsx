@@ -76,8 +76,8 @@ function TransferPage() {
           value={mode}
         >
           <TabsList className="grid h-11 w-full grid-cols-3">
-            <TabsTrigger value="onramp">BUY</TabsTrigger>
-            <TabsTrigger value="offramp">SELL</TabsTrigger>
+            <TabsTrigger value="onramp">Pay-in</TabsTrigger>
+            <TabsTrigger value="offramp">Pay-out</TabsTrigger>
             <TabsTrigger value="cross-border">Fiat to Fiat</TabsTrigger>
           </TabsList>
         </Tabs>
