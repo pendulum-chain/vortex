@@ -6,6 +6,7 @@ import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import { enqueueRampCompletedEmail } from "../email/ramp-completion";
 import { StateMetadata } from "./meta-state-types";
 import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
@@ -288,6 +289,12 @@ export class PhaseProcessor {
       } else if (updatedState.currentPhase === "complete") {
         logger.info(`Ramp ${state.id} completed successfully`);
         this.retriesMap.delete(state.id);
+
+        // Enqueue only; the dispatch worker owns delivery, so a failure here must not
+        // fail the ramp that already succeeded.
+        enqueueRampCompletedEmail(updatedState).catch(error => {
+          logger.error(`Error enqueuing completion email for ${state.id}: ${error}`);
+        });
       } else if (updatedState.currentPhase === "failed") {
         logger.error(`Ramp ${state.id} failed unrecoverably, giving up.`);
         this.retriesMap.delete(state.id);
