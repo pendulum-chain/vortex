@@ -1,6 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import Big from "big.js";
 import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection, RampPhase } from "@vortexfi/shared";
+import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
+
+const partnerPricingReal = { ...partnerPricingNamespace };
 
 mock.module("../../core/nabla", () => ({
   calculateNablaSwapOutput: async () => {
@@ -41,6 +44,10 @@ mock.module("../../../partners/partner-pricing.service", () => ({
 }));
 
 mock.module("../../../ramp/ramp.service", () => ({ default: {} }));
+
+afterAll(() => {
+  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
+});
 
 import { BRL_ONRAMP_BASE_CROSS_CHAIN } from "../../../phases/ramp-flow-definitions";
 import { FlowBuilder } from "../core/flow";

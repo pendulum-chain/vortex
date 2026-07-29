@@ -1,12 +1,19 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import { AlfredpayApiService, type EvmNetworks, EvmToken, FiatToken, Networks } from "@vortexfi/shared";
+import * as alfredpayCustomerNamespace from "../../alfredpay-customer";
 import { registerAlfredpayOfframp } from "../phases/alfredpay-offramp/registration";
 import type { AlfredpayOfframpMetadata } from "../phases/alfredpay-offramp/simulation";
+
+const alfredpayCustomerReal = { ...alfredpayCustomerNamespace };
 
 mock.module("../../alfredpay-customer", () => ({
   resolveAlfredpayCustomerId: async () => "customer-1",
   resolveAlfredpayQuoteCustomerId: async () => "anonymous"
 }));
+
+afterAll(() => {
+  mock.module("../../alfredpay-customer", () => ({ ...alfredpayCustomerReal }));
+});
 
 const metadata: AlfredpayOfframpMetadata = {
   adjustedDifference: "0",

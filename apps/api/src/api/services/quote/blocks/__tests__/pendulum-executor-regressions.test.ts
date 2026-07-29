@@ -29,6 +29,7 @@ const pendulum = {
   ss58Format: 57
 };
 const getApi = mock(async () => pendulum);
+const ownedSpies: Array<{ mockRestore(): void }> = [];
 
 let SubsidizePreSwapExecutor: typeof import("../phases/subsidize-pre/execution").SubsidizePreSwapExecutor;
 let SubsidizePostSwapExecutor: typeof import("../phases/subsidize-post/execution").SubsidizePostSwapExecutor;
@@ -41,14 +42,16 @@ const originalFetch = globalThis.fetch;
 
 beforeAll(async () => {
   const funding = await import("../../../../controllers/subsidize.controller");
-  spyOn(sharedNamespace.ApiManager, "getInstance").mockReturnValue({ executeApiCall, getApi } as never);
-  spyOn(sharedNamespace, "decodeSubmittableExtrinsic").mockImplementation(decodeSubmittableExtrinsic as never);
-  spyOn(sharedNamespace, "getAddressForFormat").mockImplementation((address: string) => address);
-  spyOn(sharedNamespace, "getEvmTokenBalance").mockImplementation(getEvmTokenBalance as never);
-  spyOn(sharedNamespace, "submitXTokens").mockImplementation(submitXTokens as never);
-  spyOn(sharedNamespace, "waitUntilTrueWithTimeout").mockImplementation(waitUntilTrueWithTimeout as never);
-  spyOn(solangNamespace, "submitExtrinsic").mockImplementation(submitExtrinsic as never);
-  spyOn(funding, "getFundingAccount").mockReturnValue(fundingAccount as never);
+  ownedSpies.push(
+    spyOn(sharedNamespace.ApiManager, "getInstance").mockReturnValue({ executeApiCall, getApi } as never),
+    spyOn(sharedNamespace, "decodeSubmittableExtrinsic").mockImplementation(decodeSubmittableExtrinsic as never),
+    spyOn(sharedNamespace, "getAddressForFormat").mockImplementation((address: string) => address),
+    spyOn(sharedNamespace, "getEvmTokenBalance").mockImplementation(getEvmTokenBalance as never),
+    spyOn(sharedNamespace, "submitXTokens").mockImplementation(submitXTokens as never),
+    spyOn(sharedNamespace, "waitUntilTrueWithTimeout").mockImplementation(waitUntilTrueWithTimeout as never),
+    spyOn(solangNamespace, "submitExtrinsic").mockImplementation(submitExtrinsic as never),
+    spyOn(funding, "getFundingAccount").mockReturnValue(fundingAccount as never)
+  );
   ({ SubsidizePreSwapExecutor } = await import("../phases/subsidize-pre/execution"));
   ({ SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution"));
   ({ DistributeFeesExecutor } = await import("../phases/distribute-fees/execution"));
@@ -77,7 +80,7 @@ afterAll(() => {
   QuoteTicket.findByPk = originalFindByPk;
   QuoteTicket.findOne = originalFindOne;
   globalThis.fetch = originalFetch;
-  mock.restore();
+  for (const spy of ownedSpies) spy.mockRestore();
 });
 
 function state(overrides: Record<string, unknown> = {}): RampState {
