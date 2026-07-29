@@ -43,6 +43,7 @@ This directory contains the security specification for the Vortex cross-border p
 | Binance | `05-integrations/binance.md` | Binance USDT spot price used as the primary USD<>BRL rate source |
 | FastForex | `05-integrations/fastforex.md` | Fiat forex price provider used by quote/conversion math |
 | Stellar Anchors | `05-integrations/stellar-anchors.md` | SEP-24, Spacewalk, Stellar payment (fully deprecated; EUR migrated to Mykobo, ARS removed) |
+| Resend | `05-integrations/resend.md` | Outbound email — auth mail relay and transactional notifications |
 | Squid Router | `05-integrations/squid-router.md` | Cross-chain EVM routing |
 | XCM Transfers | `06-cross-chain/xcm-transfers.md` | Pendulum↔Moonbeam↔AssetHub↔Hydration |
 | Bridge Security | `06-cross-chain/bridge-security.md` | Spacewalk bridge trust model |
