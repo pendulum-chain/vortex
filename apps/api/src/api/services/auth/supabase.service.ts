@@ -66,6 +66,23 @@ export class SupabaseAuthService {
   }
 
   /**
+   * Reads the user's preferred email locale from Supabase Auth metadata.
+   * Falls back to the default locale when unset or unreadable.
+   */
+  static async getUserLocale(userId: string): Promise<string> {
+    try {
+      const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+      if (error) {
+        throw error;
+      }
+      return resolveLocale(data.user?.user_metadata?.locale as string | undefined).resolved;
+    } catch (error) {
+      logger.warn(`Could not read locale for user ${userId}, falling back to ${DEFAULT_LOCALE}: ${error}`);
+      return DEFAULT_LOCALE;
+    }
+  }
+
+  /**
    * Send OTP to email
    */
   static async sendOTP(email: string, locale?: string): Promise<void> {
