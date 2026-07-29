@@ -10,7 +10,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     name: "profiles_wallet_mode_check",
     type: "check",
     where: {
-      wallet_mode: { [Op.in]: ["external", "privy_embedded"] }
+      wallet_mode: { [Op.in]: ["external", "cdp_embedded"] }
     }
   });
 }

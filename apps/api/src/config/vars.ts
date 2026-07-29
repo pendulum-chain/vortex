@@ -192,9 +192,8 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
-  privy: {
-    appId: string;
-    appSecret: string;
+  cdp: {
+    projectId: string;
     walletRegistrationEnabled: boolean;
   };
 }
@@ -203,6 +202,10 @@ export const config: Config = {
   adminSecret: process.env.ADMIN_SECRET || "",
   amplitudeWss: process.env.AMPLITUDE_WSS || "wss://rpc-amplitude.pendulumchain.tech",
   backendTestStarterAccount: process.env.BACKEND_TEST_STARTER_ACCOUNT,
+  cdp: {
+    projectId: process.env.CDP_PROJECT_ID || "",
+    walletRegistrationEnabled: process.env.CDP_WALLET_REGISTRATION_ENABLED === "true"
+  },
   database: {
     database: process.env.DB_NAME || "vortex",
     dialect: "postgres",
@@ -270,11 +273,6 @@ export const config: Config = {
       partnerApiKey: process.env.TRANSAK_API_KEY
     }
   },
-  privy: {
-    appId: process.env.PRIVY_APP_ID || "",
-    appSecret: process.env.PRIVY_APP_SECRET || "",
-    walletRegistrationEnabled: process.env.PRIVY_WALLET_REGISTRATION_ENABLED === "true"
-  },
   quote: {
     deltaDBasisPoints: parseFloat(process.env.DELTA_D_BASIS_POINTS || "0.3"),
     discountStateTimeoutMinutes: parseInt(process.env.DISCOUNT_STATE_TIMEOUT_MINUTES || "10", 10)
@@ -328,8 +326,8 @@ if (config.deploymentEnv === "sandbox" && !config.sandboxEnabled) {
   throw new Error("DEPLOYMENT_ENV=sandbox requires SANDBOX_ENABLED=true");
 }
 
-if (config.privy.walletRegistrationEnabled && (!config.privy.appId || !config.privy.appSecret)) {
-  throw new Error("PRIVY_APP_ID and PRIVY_APP_SECRET are required when PRIVY_WALLET_REGISTRATION_ENABLED=true");
+if (config.cdp.walletRegistrationEnabled && !config.cdp.projectId) {
+  throw new Error("CDP_PROJECT_ID is required when CDP_WALLET_REGISTRATION_ENABLED=true");
 }
 
 if (config.env === "production") {

@@ -109,22 +109,21 @@ describe("vars deployment environment validation", () => {
     expect(result.stderr).toContain("MONERIUM_CLIENT_ID");
   });
 
-  it("requires both Privy server credentials when wallet registration is enabled", async () => {
+  it("requires the CDP project ID when wallet registration is enabled", async () => {
     const result = await importVarsWithEnv({
+      CDP_WALLET_REGISTRATION_ENABLED: "true",
       NODE_ENV: "test",
-      PRIVY_WALLET_REGISTRATION_ENABLED: "true"
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("PRIVY_APP_ID and PRIVY_APP_SECRET");
+    expect(result.stderr).toContain("CDP_PROJECT_ID");
   });
 
-  it("allows Privy wallet registration when both server credentials are present", async () => {
+  it("allows CDP wallet registration when the project ID is present", async () => {
     const result = await importVarsWithEnv({
+      CDP_PROJECT_ID: "test-cdp-project",
+      CDP_WALLET_REGISTRATION_ENABLED: "true",
       NODE_ENV: "test",
-      PRIVY_APP_ID: "test-privy-app",
-      PRIVY_APP_SECRET: "test-privy-secret",
-      PRIVY_WALLET_REGISTRATION_ENABLED: "true"
     });
 
     expect(result).toEqual({ exitCode: 0, stderr: "", stdout: "ok\n" });

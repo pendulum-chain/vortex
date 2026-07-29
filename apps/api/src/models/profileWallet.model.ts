@@ -1,7 +1,7 @@
 import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 
-export type ProfileWalletProvider = "privy";
+export type ProfileWalletProvider = "cdp";
 export type ProfileWalletChainType = "ethereum";
 export type ProfileWalletStatus = "active" | "archived";
 
@@ -79,7 +79,7 @@ ProfileWallet.init(
     },
     provider: {
       allowNull: false,
-      defaultValue: "privy",
+      defaultValue: "cdp",
       type: DataTypes.STRING(32)
     },
     providerWalletId: {

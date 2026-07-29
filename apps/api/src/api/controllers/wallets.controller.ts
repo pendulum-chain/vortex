@@ -2,10 +2,10 @@ import { Request, Response } from "express";
 import httpStatus from "http-status";
 import { UniqueConstraintError } from "sequelize";
 import logger from "../../config/logger";
-import { PrivyWalletVerificationError } from "../services/wallets/privyWallet.service";
+import { CdpWalletVerificationError } from "../services/wallets/cdpWallet.service";
 import {
   listProfileWallets,
-  registerPrivyWallet,
+  registerCdpWallet,
   setWalletMode,
   type WalletMode,
   WalletModeConflictError,
@@ -28,7 +28,7 @@ function sendWalletModeConflict(res: Response, error: WalletModeConflictError): 
   sendError(res, httpStatus.CONFLICT, error.kind === "active_ramp" ? "ACTIVE_RAMP" : "WALLET_NOT_REGISTERED", error.message);
 }
 
-function serializeWallet(wallet: Awaited<ReturnType<typeof registerPrivyWallet>>) {
+function serializeWallet(wallet: Awaited<ReturnType<typeof registerCdpWallet>>) {
   return {
     address: wallet.address,
     chainType: wallet.chainType,
@@ -62,8 +62,8 @@ export async function updateWalletMode(req: Request, res: Response): Promise<voi
   if (!profileId) return;
 
   const { mode } = (req.body ?? {}) as { mode?: unknown };
-  if (mode !== null && mode !== "external" && mode !== "privy_embedded") {
-    sendError(res, httpStatus.BAD_REQUEST, "INVALID_WALLET_MODE", "mode must be external, privy_embedded, or null");
+  if (mode !== null && mode !== "external" && mode !== "cdp_embedded") {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_WALLET_MODE", "mode must be external, cdp_embedded, or null");
     return;
   }
 
@@ -80,19 +80,20 @@ export async function updateWalletMode(req: Request, res: Response): Promise<voi
   }
 }
 
-export async function createPrivyWallet(req: Request, res: Response): Promise<void> {
+export async function createCdpWallet(req: Request, res: Response): Promise<void> {
   const profileId = requireUserId(req, res);
   if (!profileId) return;
 
-  const { address, providerWalletId } = (req.body ?? {}) as { address?: unknown; providerWalletId?: unknown };
-  if (typeof address !== "string" || typeof providerWalletId !== "string") {
-    sendError(res, httpStatus.BAD_REQUEST, "INVALID_WALLET", "address and providerWalletId are required");
+  const accessToken = req.headers.authorization?.slice("Bearer ".length);
+  const { address, cdpUserId } = (req.body ?? {}) as { address?: unknown; cdpUserId?: unknown };
+  if (!accessToken || typeof address !== "string" || typeof cdpUserId !== "string") {
+    sendError(res, httpStatus.BAD_REQUEST, "INVALID_WALLET", "address and cdpUserId are required");
     return;
   }
 
   try {
-    const wallet = await registerPrivyWallet(profileId, { address, providerWalletId });
-    res.status(httpStatus.OK).json({ mode: "privy_embedded", wallet: serializeWallet(wallet) });
+    const wallet = await registerCdpWallet(profileId, { accessToken, address, cdpUserId });
+    res.status(httpStatus.OK).json({ mode: "cdp_embedded", wallet: serializeWallet(wallet) });
   } catch (error) {
     if (error instanceof WalletModeConflictError) {
       sendWalletModeConflict(res, error);
@@ -102,13 +103,13 @@ export async function createPrivyWallet(req: Request, res: Response): Promise<vo
       sendError(res, httpStatus.CONFLICT, "WALLET_CONFLICT", error.message);
       return;
     }
-    if (error instanceof PrivyWalletVerificationError) {
+    if (error instanceof CdpWalletVerificationError) {
       const status =
         error.kind === "disabled" || error.kind === "unavailable" ? httpStatus.SERVICE_UNAVAILABLE : httpStatus.FORBIDDEN;
-      sendError(res, status, "PRIVY_WALLET_NOT_VERIFIED", error.message);
+      sendError(res, status, "CDP_WALLET_NOT_VERIFIED", error.message);
       return;
     }
-    logger.error("Failed to register Privy wallet", error);
+    logger.error("Failed to register CDP wallet", error);
     sendError(res, httpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "Failed to register embedded wallet");
   }
 }

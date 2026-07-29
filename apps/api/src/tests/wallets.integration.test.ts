@@ -10,33 +10,30 @@ import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from ".
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
 const WALLET_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-const WALLET_ID = "wallet_privy_test_1";
+const CDP_USER_ID = "cdp-user-test-1";
 
 let api: TestApp;
 let fakeAuth: FakeSupabaseAuth;
 const guardedFetch = globalThis.fetch;
-const originalPrivyConfig = { ...config.privy };
+const originalCdpConfig = { ...config.cdp };
+const cdpRequests: Array<{ authorization: string | null; url: string }> = [];
 
 function headers(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 }
 
-function installPrivyResponse(address = WALLET_ADDRESS, walletId = WALLET_ID): void {
+function installCdpResponse(profileId: string, address = WALLET_ADDRESS, cdpUserId = CDP_USER_ID): void {
   globalThis.fetch = (async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
-    if (url === "https://api.privy.io/v1/users/custom_auth/id") {
-      const body = JSON.parse(String(init?.body)) as { custom_user_id: string };
+    if (url.startsWith("https://api.cdp.coinbase.com/platform/v2/embedded-wallet-api/end-users/")) {
+      cdpRequests.push({
+        authorization: new Headers(init?.headers).get("Authorization"),
+        url
+      });
       return Response.json({
-        id: `privy-user-${body.custom_user_id}`,
-        linked_accounts: [
-          {
-            address,
-            chain_type: "ethereum",
-            id: walletId,
-            type: "wallet",
-            wallet_client_type: "privy"
-          }
-        ]
+        authenticationMethods: [{ sub: profileId, type: "jwt" }],
+        evmAccountObjects: [{ address }],
+        userId: cdpUserId
       });
     }
     return guardedFetch(input, init);
@@ -51,19 +48,18 @@ beforeAll(async () => {
 
 afterAll(async () => {
   globalThis.fetch = guardedFetch;
-  Object.assign(config.privy, originalPrivyConfig);
+  Object.assign(config.cdp, originalCdpConfig);
   if (api) await api.close();
   if (fakeAuth) fakeAuth.restore();
 });
 
 beforeEach(async () => {
   await resetTestDatabase();
-  Object.assign(config.privy, {
-    appId: "test-privy-app",
-    appSecret: "test-privy-secret",
+  cdpRequests.length = 0;
+  Object.assign(config.cdp, {
+    projectId: "test-cdp-project",
     walletRegistrationEnabled: true
   });
-  installPrivyResponse();
 });
 
 describe("wallet API", () => {
@@ -78,12 +74,12 @@ describe("wallet API", () => {
     await ProfileWallet.create({
       address: WALLET_ADDRESS,
       profileId: first.id,
-      providerWalletId: WALLET_ID
+      providerWalletId: CDP_USER_ID
     });
     await ProfileWallet.create({
       address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
       profileId: second.id,
-      providerWalletId: "wallet_privy_test_2"
+      providerWalletId: "cdp-user-test-2"
     });
 
     const response = await api.request("/v1/wallets", {
@@ -92,7 +88,7 @@ describe("wallet API", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { mode: null; wallets: Array<{ providerWalletId: string }> };
     expect(body.mode).toBeNull();
-    expect(body.wallets.map(wallet => wallet.providerWalletId)).toEqual([WALLET_ID]);
+    expect(body.wallets.map(wallet => wallet.providerWalletId)).toEqual([CDP_USER_ID]);
   });
 
   it("rejects invalid modes and mode changes during a nonterminal ramp", async () => {
@@ -106,7 +102,7 @@ describe("wallet API", () => {
     expect(invalid.status).toBe(400);
 
     const unverifiedEmbedded = await api.request("/v1/wallets/mode", {
-      body: JSON.stringify({ mode: "privy_embedded" }),
+      body: JSON.stringify({ mode: "cdp_embedded" }),
       headers: headers(token),
       method: "PATCH"
     });
@@ -160,12 +156,13 @@ describe("wallet API", () => {
     }
   });
 
-  it("verifies and idempotently registers a Privy wallet", async () => {
+  it("verifies and idempotently registers a CDP wallet", async () => {
     const user = await createTestUser({ email: "wallet-register@example.com" });
     const token = testUserToken(user.id, user.email);
+    installCdpResponse(user.id);
     const request = () =>
-      api.request("/v1/wallets/privy", {
-        body: JSON.stringify({ address: WALLET_ADDRESS, providerWalletId: WALLET_ID }),
+      api.request("/v1/wallets/cdp", {
+        body: JSON.stringify({ address: WALLET_ADDRESS, cdpUserId: CDP_USER_ID }),
         headers: headers(token),
         method: "POST"
       });
@@ -174,20 +171,32 @@ describe("wallet API", () => {
     const second = await request();
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
+    expect(cdpRequests).toEqual([
+      {
+        authorization: `Bearer ${token}`,
+        url: `https://api.cdp.coinbase.com/platform/v2/embedded-wallet-api/end-users/${CDP_USER_ID}?projectID=test-cdp-project`
+      },
+      {
+        authorization: `Bearer ${token}`,
+        url: `https://api.cdp.coinbase.com/platform/v2/embedded-wallet-api/end-users/${CDP_USER_ID}?projectID=test-cdp-project`
+      }
+    ]);
     expect(await ProfileWallet.count({ where: { profileId: user.id } })).toBe(1);
     await user.reload();
-    expect(user.walletMode).toBe("privy_embedded");
+    expect(user.walletMode).toBe("cdp_embedded");
   });
 
   it("rejects a wallet already registered to another profile", async () => {
     const first = await createTestUser({ email: "wallet-owner@example.com" });
     const second = await createTestUser({ email: "wallet-stranger@example.com" });
-    const register = (user: typeof first) =>
-      api.request("/v1/wallets/privy", {
-        body: JSON.stringify({ address: WALLET_ADDRESS, providerWalletId: WALLET_ID }),
+    const register = (user: typeof first) => {
+      installCdpResponse(user.id);
+      return api.request("/v1/wallets/cdp", {
+        body: JSON.stringify({ address: WALLET_ADDRESS, cdpUserId: CDP_USER_ID }),
         headers: headers(testUserToken(user.id, user.email)),
         method: "POST"
       });
+    };
 
     expect((await register(first)).status).toBe(200);
     const conflict = await register(second);
@@ -195,19 +204,19 @@ describe("wallet API", () => {
     expect(((await conflict.json()) as { error: { code: string } }).error.code).toBe("WALLET_CONFLICT");
   });
 
-  it("rejects mismatched Privy ownership without persisting metadata", async () => {
+  it("rejects mismatched CDP ownership without persisting metadata", async () => {
     const user = await createTestUser({ email: "wallet-mismatch@example.com" });
-    installPrivyResponse("0x70997970C51812dc3A010C7d01b50e0d17dc79C8", "a-different-wallet");
+    installCdpResponse(user.id, "0x70997970C51812dc3A010C7d01b50e0d17dc79C8");
 
-    const response = await api.request("/v1/wallets/privy", {
-      body: JSON.stringify({ address: WALLET_ADDRESS, providerWalletId: WALLET_ID }),
+    const response = await api.request("/v1/wallets/cdp", {
+      body: JSON.stringify({ address: WALLET_ADDRESS, cdpUserId: CDP_USER_ID }),
       headers: headers(testUserToken(user.id, user.email)),
       method: "POST"
     });
 
     expect(response.status).toBe(403);
     expect(((await response.json()) as { error: { code: string } }).error.code).toBe(
-      "PRIVY_WALLET_NOT_VERIFIED"
+      "CDP_WALLET_NOT_VERIFIED"
     );
     expect(await ProfileWallet.count()).toBe(0);
   });
@@ -215,9 +224,10 @@ describe("wallet API", () => {
   it("atomically rolls back registration when a ramp is active", async () => {
     const user = await createTestUser({ email: "wallet-active-ramp@example.com" });
     await createTestRampState({ userId: user.id });
+    installCdpResponse(user.id);
 
-    const response = await api.request("/v1/wallets/privy", {
-      body: JSON.stringify({ address: WALLET_ADDRESS, providerWalletId: WALLET_ID }),
+    const response = await api.request("/v1/wallets/cdp", {
+      body: JSON.stringify({ address: WALLET_ADDRESS, cdpUserId: CDP_USER_ID }),
       headers: headers(testUserToken(user.id, user.email)),
       method: "POST"
     });
@@ -229,11 +239,11 @@ describe("wallet API", () => {
     expect(user.walletMode).toBeNull();
   });
 
-  it("fails closed when server-side Privy ownership verification is disabled", async () => {
+  it("fails closed when server-side CDP ownership verification is disabled", async () => {
     const user = await createTestUser({ email: "wallet-disabled@example.com" });
-    config.privy.walletRegistrationEnabled = false;
-    const response = await api.request("/v1/wallets/privy", {
-      body: JSON.stringify({ address: WALLET_ADDRESS, providerWalletId: WALLET_ID }),
+    config.cdp.walletRegistrationEnabled = false;
+    const response = await api.request("/v1/wallets/cdp", {
+      body: JSON.stringify({ address: WALLET_ADDRESS, cdpUserId: CDP_USER_ID }),
       headers: headers(testUserToken(user.id, user.email)),
       method: "POST"
     });

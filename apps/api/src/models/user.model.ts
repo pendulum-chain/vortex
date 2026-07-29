@@ -5,7 +5,7 @@ export interface UserAttributes {
   id: string; // UUID from Supabase Auth
   email: string;
   activeCustomerEntityId: string | null;
-  walletMode: "external" | "privy_embedded" | null;
+  walletMode: "external" | "cdp_embedded" | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -16,7 +16,7 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
   declare id: string;
   declare email: string;
   declare activeCustomerEntityId: string | null;
-  declare walletMode: "external" | "privy_embedded" | null;
+  declare walletMode: "external" | "cdp_embedded" | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }

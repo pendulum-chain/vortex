@@ -39,7 +39,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     },
     provider: {
       allowNull: false,
-      defaultValue: "privy",
+      defaultValue: "cdp",
       type: DataTypes.STRING(32)
     },
     provider_wallet_id: {
@@ -62,7 +62,7 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
     fields: ["provider"],
     name: "profile_wallets_provider_check",
     type: "check",
-    where: { provider: { [Op.in]: ["privy"] } }
+    where: { provider: { [Op.in]: ["cdp"] } }
   });
   await queryInterface.addConstraint("profile_wallets", {
     fields: ["chain_type"],

@@ -4,9 +4,9 @@ import { sequelize } from "../../../models";
 import ProfileWallet from "../../../models/profileWallet.model";
 import RampState from "../../../models/rampState.model";
 import User from "../../../models/user.model";
-import { verifyPrivyWalletOwnership } from "./privyWallet.service";
+import { verifyCdpWalletOwnership } from "./cdpWallet.service";
 
-export type WalletMode = "external" | "privy_embedded" | null;
+export type WalletMode = "external" | "cdp_embedded" | null;
 
 const TERMINAL_RAMP_PHASES = ["complete", "failed", "timedOut"];
 
@@ -65,19 +65,19 @@ export async function setWalletMode(profileId: string, mode: WalletMode): Promis
     const profile = await getLockedProfile(profileId, transaction);
     await assertNoActiveRamp(profileId, transaction);
 
-    if (mode === "privy_embedded") {
+    if (mode === "cdp_embedded") {
       const embeddedWallet = await ProfileWallet.findOne({
         attributes: ["id"],
         transaction,
         where: {
           chainType: "ethereum",
           profileId,
-          provider: "privy",
+          provider: "cdp",
           status: "active"
         }
       });
       if (!embeddedWallet) {
-        throw new WalletModeConflictError("An active verified Privy wallet is required for embedded mode", "missing_wallet");
+        throw new WalletModeConflictError("An active verified CDP wallet is required for embedded mode", "missing_wallet");
       }
     }
 
@@ -86,18 +86,19 @@ export async function setWalletMode(profileId: string, mode: WalletMode): Promis
   });
 }
 
-export async function registerPrivyWallet(
+export async function registerCdpWallet(
   profileId: string,
-  input: { providerWalletId: string; address: string }
+  input: { accessToken: string; cdpUserId: string; address: string }
 ): Promise<ProfileWallet> {
-  if (!input.providerWalletId.trim() || !isAddress(input.address)) {
-    throw new WalletRegistrationConflictError("A valid Privy wallet ID and EVM address are required");
+  if (!input.cdpUserId.trim() || !isAddress(input.address)) {
+    throw new WalletRegistrationConflictError("A valid CDP user ID and EVM address are required");
   }
 
-  const verified = await verifyPrivyWalletOwnership({
+  const verified = await verifyCdpWalletOwnership({
+    accessToken: input.accessToken,
     address: input.address,
-    profileId,
-    providerWalletId: input.providerWalletId
+    cdpUserId: input.cdpUserId,
+    profileId
   });
 
   return sequelize.transaction(async transaction => {
@@ -108,7 +109,7 @@ export async function registerPrivyWallet(
       transaction,
       where: {
         [Op.or]: [
-          { provider: "privy", providerWalletId: input.providerWalletId },
+          { provider: "cdp", providerWalletId: input.cdpUserId },
           { address: getAddress(verified.address), chainType: "ethereum" }
         ]
       }
@@ -119,15 +120,15 @@ export async function registerPrivyWallet(
 
     const existingForProfile = await ProfileWallet.findOne({
       transaction,
-      where: { chainType: "ethereum", profileId, provider: "privy", status: "active" }
+      where: { chainType: "ethereum", profileId, provider: "cdp", status: "active" }
     });
     let wallet: ProfileWallet;
     if (existingForProfile) {
       if (
-        existingForProfile.providerWalletId !== input.providerWalletId ||
+        existingForProfile.providerWalletId !== input.cdpUserId ||
         getAddress(existingForProfile.address) !== verified.address
       ) {
-        throw new WalletRegistrationConflictError("This profile already has a different active Privy wallet");
+        throw new WalletRegistrationConflictError("This profile already has a different active CDP wallet");
       }
       await existingForProfile.update({ lastUsedAt: new Date() }, { transaction });
       wallet = existingForProfile;
@@ -138,15 +139,15 @@ export async function registerPrivyWallet(
           chainType: "ethereum",
           lastUsedAt: new Date(),
           profileId,
-          provider: "privy",
-          providerWalletId: input.providerWalletId,
+          provider: "cdp",
+          providerWalletId: verified.cdpUserId,
           status: "active"
         },
         { transaction }
       );
     }
 
-    await profile.update({ walletMode: "privy_embedded" }, { transaction });
+    await profile.update({ walletMode: "cdp_embedded" }, { transaction });
     return wallet;
   });
 }

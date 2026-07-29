@@ -219,7 +219,7 @@ router.use("/api-keys", apiKeysRoutes);
  * Optional user wallet preference and verified embedded-wallet metadata.
  * GET /v1/wallets
  * PATCH /v1/wallets/mode
- * POST /v1/wallets/privy
+ * POST /v1/wallets/cdp
  */
 router.use("/wallets", walletsRoutes);
 
