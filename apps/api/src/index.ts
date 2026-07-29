@@ -10,7 +10,7 @@ import { config } from "./config/vars";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
-import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import { registerBlockFlowHandlers } from "./api/services/phases/blocks/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
@@ -62,7 +62,7 @@ const initializeApp = async () => {
     const _evmClientManager = EvmClientManager.getInstance();
 
     // Recovery must not run before the flow-derived executor registry exists.
-    registerPhaseHandlers();
+    registerBlockFlowHandlers();
 
     // Start background workers
     new CleanupWorker().start();

@@ -18,14 +18,14 @@ import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
+import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "../phases/blocks/core/helpers";
+import { MykoboFeeUnavailableError } from "../phases/blocks/core/mykobo-fee";
+import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
+import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import { BaseRampService } from "../ramp/base.service";
-import { runBlockQuoteFlow } from "./blocks/core/quote";
-import { buildBlockQuoteResponse } from "./blocks/core/quote-response";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./core/errors";
-import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
 import { resolveQuotePartner } from "./core/partner-resolution";
 import { createQuoteContext } from "./core/quote-context";
-import { MykoboFeeUnavailableError } from "./engines/mykobo-fee";
 
 type BestQuoteFailure = {
   error: unknown;

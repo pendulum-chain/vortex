@@ -304,21 +304,8 @@ export class PhaseProcessor {
 
       if (isRecoverable) {
         const currentRetries = this.retriesMap.get(state.id) || 0;
-
-        // Add error to the state
-        const errorLogs = [
-          ...state.errorLogs,
-          {
-            details: error.stack || "",
-            error: error.message || "Unknown error",
-            isPhaseError,
-            phase: state.currentPhase,
-            recoverable: isRecoverable,
-            timestamp: new Date().toISOString()
-          }
-        ];
-
-        const errorUpdatedState = await state.update({ errorLogs });
+        // BasePhaseHandler already persisted this execution error before rethrowing it.
+        const errorUpdatedState = state;
 
         const phaseHandler = phaseRegistry.getHandler(state.currentPhase);
         const maxRetries = phaseHandler?.getMaxRetries?.() ?? this.MAX_RETRIES;

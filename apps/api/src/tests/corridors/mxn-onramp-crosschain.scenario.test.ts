@@ -12,11 +12,11 @@ import {
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { getEvmFundingAccount } from "../../api/services/phases/evm-funding";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { getBlockMetadata } from "../../api/services/quote/blocks/core/metadata";
-import { AlfredpayMintContext } from "../../api/services/quote/blocks/phases/alfredpay-mint/simulation";
-import { SquidRouterSwapContext } from "../../api/services/quote/blocks/phases/squid-router-swap/simulation";
+import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { AlfredpayMintContext } from "../../api/services/phases/blocks/phases/alfredpay-mint/simulation";
+import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy, { SubsidyToken } from "../../models/subsidy.model";

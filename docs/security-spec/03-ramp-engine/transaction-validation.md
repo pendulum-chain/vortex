@@ -8,7 +8,7 @@ Validation occurs at two points:
 1. **`updateRamp`** — When the client submits signed transactions, `validatePresignedTxs(..., { requireComplete: false })` validates every submitted non-skipped transaction against the server-generated unsigned transaction set before the signed subset is merged into ramp state.
 2. **`startRamp`** — Before execution begins, `validatePresignedTxs()` runs again with complete-set validation enabled, plus `validateAllPresignedTransactionsSigned()` confirms all expected transactions are signed.
 
-The validation logic lives in `apps/api/src/api/services/transactions/validation.ts` and is chain-specific: separate paths for EVM (Ethereum-compatible), Substrate (Polkadot-compatible), and Stellar transactions. Additional quote-level and integration-level validation lives in `transactions/onramp/common/validation.ts` and `transactions/offramp/common/validation.ts`.
+The signed-transaction validation logic lives in `apps/api/src/api/services/transactions/validation.ts` and is chain-specific: separate paths for EVM (Ethereum-compatible), Substrate (Polkadot-compatible), and Stellar transactions. Quote/account validation needed during flow registration is owned by the corresponding block, including EVM offramp source validation in `phases/blocks/core/offramp-validation.ts`.
 
 ### Presigned-Tx Partitioning, Filtering, and Deposit-QR Gating
 
@@ -33,8 +33,8 @@ User-wallet phases:
 
 **Layer 2 — Phase handlers verify the user-reported tx hash by reading the on-chain receipt and transaction**, then comparing against the server-issued unsigned payload (`txData.to`, `txData.data`, `txData.value`, and `signer`) plus receipt status. The shared helper is `verifyUserSubmittedTxByHash` in `apps/api/src/api/services/phases/helpers/user-tx-verifier.ts`. It is invoked from:
 
-- `squidrouter-permit-execution-handler.ts` → `waitForUserHash` — covers `squidRouterNoPermit{Approve,Swap,Transfer}` during the permit-execution phase.
-- `fund-ephemeral-handler.ts` → `verifyUserSubmittedSquidHashes` for legacy ramps, and the catalog `FundEphemeralExecutor` → `verifyUserSubmittedSourceTransactions` for block ramps. Both cover SELL EVM `squidRouterApprove` + `squidRouterSwap` and the Base-USDC `squidRouterNoPermitTransfer` before platform funding. This closes the historical F-041 gap (SELL source runtime validation). `squidRouterSwapHash` is mandatory. `squidRouterApproveHash` is optional when an existing allowance lets the user skip approval; when reported, it is verified against the blueprint with the same rigor. Skipping a required approval is safe because the swap reverts and fails receipt verification.
+- `phases/blocks/phases/alfredpay-offramp/execution.ts` → `AlfredpayOfframpExecutor.waitForUserHash` covers `squidRouterNoPermit{Approve,Swap,Transfer}` during the permit-execution phase.
+- `phases/blocks/phases/fund-ephemeral/execution.ts` → `FundEphemeralExecutor.verifyUserSubmittedSourceTransactions` covers SELL EVM `squidRouterApprove` + `squidRouterSwap` and the Base-USDC `squidRouterNoPermitTransfer` before platform funding. This closes the historical F-041 gap (SELL source runtime validation). `squidRouterSwapHash` is mandatory. `squidRouterApproveHash` is optional when an existing allowance lets the user skip approval; when reported, it is verified against the blueprint with the same rigor. Skipping a required approval is safe because the swap reverts and fails receipt verification.
 
 The two layers together guarantee that the client cannot (a) sneak a malicious presigned tx through validation by labeling it with a user-wallet phase, nor (b) point the backend at an arbitrary on-chain tx hash that does not match the server-issued payload.
 

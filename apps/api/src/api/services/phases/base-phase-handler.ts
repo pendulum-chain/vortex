@@ -6,7 +6,6 @@ import RampState from "../../../models/rampState.model";
 import Subsidy from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
 import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
-import rampService from "../ramp/ramp.service";
 import { StateMetadata } from "./meta-state-types";
 
 /**
@@ -208,6 +207,6 @@ export abstract class BasePhaseHandler implements PhaseHandler {
       timestamp: new Date().toISOString()
     };
 
-    await rampService.appendErrorLog(state.id, errorLog);
+    await state.update({ errorLogs: [...(state.errorLogs || []), errorLog].slice(-100) });
   }
 }

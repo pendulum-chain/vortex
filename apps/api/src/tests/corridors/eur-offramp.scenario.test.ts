@@ -16,11 +16,11 @@ import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from 
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
-import { accountCapabilities } from "../../api/services/quote/blocks/core/accounts";
-import { getBlockMetadata, getFlowMetadata } from "../../api/services/quote/blocks/core/metadata";
-import { resolveBlockFlow } from "../../api/services/quote/blocks/flows/catalog";
-import { MykoboOfframpPayoutContext } from "../../api/services/quote/blocks/phases/mykobo-offramp-payout/simulation";
-import { NablaSwapContext } from "../../api/services/quote/blocks/phases/nabla-swap/simulation";
+import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
+import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
+import { MykoboOfframpPayoutContext } from "../../api/services/phases/blocks/phases/mykobo-offramp-payout/simulation";
+import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";

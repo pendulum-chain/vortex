@@ -22,18 +22,18 @@ Alfredpay is a fiat-to-crypto (onramp) and crypto-to-fiat (offramp) payment prov
 ```
 Frontend KYC (XState machine)
         ↓  KYC status = Success
-Quote & Transaction Building
+Block flow simulation & transaction preparation
         ↓  user confirms ramp + signs all presigned txs
-processAlfredpayOnrampStart  (ramp.service.ts)
+AlfredpayMint.start  (phases/blocks/phases/alfredpay-mint/lifecycle.ts)
   POST /penny/onramp { depositAddress: evmEphemeralAddress, quoteId, ... }
   ← fiatPaymentInstructions (bank account / CLABE shown to user)
         ↓  user does manual bank transfer to those instructions
-        ↓  Alfredpay receives fiat, mints USDC, sends on-chain to depositAddress
+        ↓  Alfredpay receives fiat, mints USDT, sends on-chain to depositAddress
 alfredpayOnrampMint phase (backend polls ephemeral balance)
-        ↓  USDC lands on ephemeral Polygon address
+        ↓  USDT lands on ephemeral Polygon address
 fundEphemeral (gas top-up)
         ↓
-squidRouterApprove + squidRouterSwap  (or direct destinationTransfer if output = Polygon USDC)
+squidRouterSwap  (or explicit passthrough if output = Polygon USDT)
         ↓
 finalSettlementSubsidy / moonbeamToPend (destination-dependent)
 ```
@@ -52,10 +52,11 @@ finalSettlementSubsidy / moonbeamToPend (destination-dependent)
 | Backend controller | `apps/api/src/api/controllers/alfredpay.controller.ts` |
 | Alfredpay HTTP client | `packages/shared/src/services/alfredpay/alfredpayApiService.ts` |
 | Shared types | `packages/shared/src/services/alfredpay/types.ts` |
-| Onramp phase handler | `apps/api/src/api/services/phases/handlers/alfredpay-onramp-mint-handler.ts` |
-| Onramp tx builder | `apps/api/src/api/services/transactions/onramp/routes/alfredpay-to-evm.ts` |
-| Onramp quote strategy | `apps/api/src/api/services/quote/routes/strategies/onramp-alfredpay-to-evm.strategy.ts` |
-| DB model | `apps/api/src/models/alfredPayCustomer.model.ts` |
+| Onramp block flow | `apps/api/src/api/services/phases/blocks/flows/alfredpay-onramp-direct.ts`, `alfredpay-onramp-cross-chain.ts` |
+| Onramp provider phase | `apps/api/src/api/services/phases/blocks/phases/alfredpay-mint/` |
+| Routing phase | `apps/api/src/api/services/phases/blocks/phases/squid-router-swap/` |
+| Flow catalog | `apps/api/src/api/services/phases/blocks/flows/catalog.ts` |
+| DB model | `apps/api/src/models/providerCustomer.model.ts` |
 
 ---
 
@@ -123,32 +124,38 @@ Same `CustomerDefinition` + `CreatingCustomer`, then routes to `GettingKycLink` 
 
 ---
 
-## Phase 1 — Quote & Transaction Building
+## Phase 1 — Flow Simulation & Transaction Preparation
 
-### Quote strategy: `OnrampAlfredpayToEvmStrategy`
+### Catalog flows
 
-Engines run in order:
+`flows/catalog.ts` selects `AlfredpayOnrampDirect` for Polygon destinations and
+`AlfredpayOnrampCrossChain` for other supported EVM destinations. The composed
+phases run in order:
 
-1. **Initialize** — Calls Alfredpay `POST /penny/quotes` with `chain=MATIC`, `toCurrency=USDC`, `paymentMethodType=BANK`. Stores quote in `ctx.alfredpayMint` (amounts, fees, quoteId, expiration).
-2. **Fee** — Returns Alfredpay fee in fiat currency; network fee = 0.
-3. **SquidRouter** — Bridge quote: Polygon USDC → destination EVM. Skipped entirely if destination is Polygon USDC.
-4. **Finalize** — Seals the quote ticket.
+1. **AlfredpayMint** — Calls Alfredpay `POST /penny/quotes` with `chain=MATIC`, the configured Alfredpay on-chain token, and `paymentMethodType=BANK`; stores quote facts under `metadata.blocks.alfredpayMint`.
+2. **FundEphemeral** — Models Polygon gas funding.
+3. **AlfredpaySubsidizePre** — Computes the bounded pre-route subsidy.
+4. **SquidRouterPassthrough / SameChainSquidRouterSwap / SquidRouterSwap** — Selected statically from the destination token and network.
+5. **FinalSettlementSubsidy + DestinationTransfer** — Ensures and delivers the quoted destination amount.
 
-### Transaction building: `prepareAlfredpayToEvmOnrampTransactions`
+### Transaction preparation
 
-Pre-condition: customer DB record must have `AlfredPayStatus.Success` — hard failure otherwise.
+`Flow.register` requires a KYC-approved Alfredpay customer. Each phase's
+`prepareTxs` hook emits its own nonce-free transaction intents, and
+`Flow.prepareTxs` allocates Polygon/destination nonce lanes.
 
 Built transactions:
-- **Polygon USDC destination (direct):** single `destinationTransfer` tx only.
-- **All other EVM destinations:** `squidRouterApprove` + `squidRouterSwap` + `destinationTransfer` + fallback swap.
+- **Polygon USDT destination (passthrough):** `destinationTransfer` plus cleanup/fallback intents owned by their phases.
+- **Other Polygon tokens:** same-chain Squid swap followed by `destinationTransfer`.
+- **Other EVM destinations:** Squid approve/swap, destination backup, and `destinationTransfer` intents.
 
 State metadata written: `alfredpayUserId`, `evmEphemeralAddress`, `squidRouterQuoteId`, `squidRouterReceiverId`, `squidRouterReceiverHash`.
 
 ---
 
-## Phase 1b — Onramp Order Creation (`processAlfredpayOnrampStart`)
+## Phase 1b — Onramp Order Creation (`AlfredpayMint.start`)
 
-**File:** `apps/api/src/api/services/ramp/ramp.service.ts:1116`
+**File:** `apps/api/src/api/services/phases/blocks/phases/alfredpay-mint/lifecycle.ts`
 
 Triggered once all presigned transactions are signed. Runs before the first phase handler.
 
@@ -163,14 +170,14 @@ This is the only step that communicates the ephemeral address to Alfredpay and c
 
 ---
 
-## Phase 2 — `alfredpayOnrampMint` (Backend Phase Handler)
+## Phase 2 — `alfredpayOnrampMint` (Block Executor)
 
-**File:** `apps/api/src/api/services/phases/handlers/alfredpay-onramp-mint-handler.ts`
+**File:** `apps/api/src/api/services/phases/blocks/phases/alfredpay-mint/execution.ts`
 
 - **Timeout:** 5 minutes
 - **Poll interval:** 5 seconds
 - Runs two concurrent promises via `Promise.race()`:
-  1. `checkEvmBalancePeriodically` — polls USDC balance at ephemeral Polygon address; resolves when balance reaches expected `outputAmountRaw`.
+  1. `checkEvmBalancePeriodically` — polls the configured Alfredpay token balance at the ephemeral Polygon address; resolves when balance reaches expected `outputAmountRaw`.
   2. `pollAlfredpayOnrampStatus` — polls Alfredpay `GET /penny/onramp/:transactionId`; only rejects (never resolves) on `FAILED` status; records `alfredpayOnrampMintTxHash` on `ON_CHAIN_COMPLETED`.
 
 **Ground truth is the on-chain balance, not Alfredpay's status.** This prevents race conditions where Alfredpay reports completion before the USDC is confirmably settled.
@@ -191,9 +198,9 @@ The ephemeral Polygon account is topped up with native MATIC for gas. Pendulum e
 
 | Output destination | Phases |
 |---|---|
-| Polygon USDC | `destinationTransfer` only |
-| Other EVM chain | `squidRouterApprove` → `squidRouterSwap` → `destinationTransfer` |
-| AssetHub (Polkadot) | `squidRouterApprove` → `squidRouterSwap` → `moonbeamToPend` |
+| Polygon USDT | `squidRouterSwap` passthrough → `finalSettlementSubsidy` → `destinationTransfer` |
+| Other Polygon token | same-chain `squidRouterSwap` → `finalSettlementSubsidy` → `destinationTransfer` |
+| Other supported EVM chain | `squidRouterSwap` → `squidRouterPay` → `finalSettlementSubsidy` → `destinationTransfer` |
 
 ---
 
@@ -269,20 +276,20 @@ All routes mounted under `/alfredpay/`, protected by `requireAuth` + `validateRe
 
 ---
 
-## Database: `alfredpay_customers`
+## Database: `provider_customers`
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID PK | |
-| `user_id` | FK → profiles | |
-| `alfred_pay_id` | UUID unique | Alfredpay's own customer ID |
-| `country` | ENUM | US / MX / CO |
-| `status` | ENUM | CONSULTED / LINK_OPENED / USER_COMPLETED / VERIFYING / FAILED / SUCCESS / UPDATE_REQUIRED |
-| `type` | ENUM | INDIVIDUAL / BUSINESS |
-| `last_failure_reasons` | string[] | |
-| `status_external` | string | Raw status string from Alfredpay |
+| `customer_entity_id` | FK → customer_entities | Canonical owner |
+| `provider` | string | `alfredpay` |
+| `provider_customer_id` | string | Alfredpay's durable customer ID |
+| `country` | string | US / MX / CO / AR |
+| `status` | shared verification enum | Canonical KYC/KYB status |
+| `type` | string | individual / business |
+| `status_external` | string | Normalized provider status |
 
-Customer must have `status = SUCCESS` before any transaction can be prepared.
+Customer must have canonical approved status before ramp registration succeeds.
 
 ---
 

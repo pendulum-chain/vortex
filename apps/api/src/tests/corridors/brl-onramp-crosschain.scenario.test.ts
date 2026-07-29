@@ -11,9 +11,9 @@ import {
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { getBlockMetadata } from "../../api/services/quote/blocks/core/metadata";
-import { NablaSwapContext } from "../../api/services/quote/blocks/phases/nabla-swap/simulation";
-import { SquidRouterSwapContext } from "../../api/services/quote/blocks/phases/squid-router-swap/simulation";
+import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
+import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";

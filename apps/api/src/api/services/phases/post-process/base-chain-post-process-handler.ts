@@ -3,7 +3,7 @@ import { Transaction as EvmTransaction } from "ethers";
 import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
 import RampState from "../../../../models/rampState.model";
-import { getEvmFundingAccount } from "../evm-funding";
+import { getEvmFundingAccount } from "../blocks/core/evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const BASE_CLEANUP_PHASES: CleanupPhase[] = ["baseCleanupBrla", "baseCleanupUsdc", "baseCleanupEurc", "baseCleanupAxlUsdc"];

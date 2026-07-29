@@ -161,13 +161,15 @@ verified against the code:
 - **Mykobo/EUR** (`MykoboOfframpPayout.register`): the withdraw intent is created for the sender's own
   anchor profile (email derived from the effective user); the payout IBAN lives anchor-side.
   Third-party payout impossible.
-- **Alfredpay** (`evm-to-alfredpay.ts`): `customerId` is server-derived from the effective user;
+- **Alfredpay** (`AlfredpayOfframp.register`): `customerId` is server-derived from the effective user;
   the client-supplied `fiatAccountId` is provider-scoped to that customer. Third-party payout
   impossible.
-- **BRL/avenia** (`ramp.service.ts` `prepareOfframpBrlTransactions`): sender identity is
+- **BRL/avenia** (`AveniaOfframpPayout.register`): sender identity is
   server-derived, but `pixDestination` + `receiverTaxId` are client-supplied; `receiverTaxId`
   defaults to the sender's own tax id and is only consistency-checked against the pix key's
-  owner (`validateBrlaOfframpRequest`). **Third-party payout is possible here by design** — the
+  owner (block-owned `validateAveniaOfframpRecipient`, including masked tax-ID comparison).
+  The Avenia wallet and QR/code facts are read from the provider subaccount and are never accepted
+  from registration input. **Third-party payout is possible here by design** — the
   one corridor where it is.
 
 Consequently, sender→recipient transfers cannot be expressed through the current registration

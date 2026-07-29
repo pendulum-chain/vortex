@@ -12,7 +12,7 @@ import {
 import { parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { getFlowMetadata } from "../../api/services/quote/blocks/core/metadata";
+import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";

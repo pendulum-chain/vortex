@@ -16,16 +16,16 @@ Mykobo replaces two earlier EUR rails:
 **Provider type:** Both (on-ramp and off-ramp)
 **Fiat currency:** EUR (Euro, SEPA)
 **Chain involved:** Base (EURC is an ERC-20 on Base; USDC on Base is the Nabla swap counter-asset)
-**Phase handlers:**
-- `mykobo-onramp-deposit-handler.ts` — On-ramp: After the user's SEPA transfer is received, Mykobo settles EURC on Base to the user's Base ephemeral; the handler polls the Base RPC until the expected balance arrives.
-- `mykobo-payout-handler.ts` — Off-ramp: Sends a presigned ERC-20 EURC transfer from the Base ephemeral to the Mykobo-controlled `receivables` address, then polls Mykobo's transaction status until `COMPLETED`.
+**Block phases:**
+- `phases/blocks/phases/mykobo-mint/` — SEPA deposit intent registration, transaction preparation, and Base EURC settlement polling.
+- `phases/blocks/phases/mykobo-offramp-payout/` — Withdrawal intent registration, presigned EURC payout, and provider status polling.
 
 **API surface:** Mykobo HTTP API client `MykoboApiService` (`packages/shared/src/services/mykobo/mykoboApiService.ts`). Singleton.
 **API auth method:** Access key + secret key exchanged for a short-lived bearer token via `POST /auth/token`; refresh token via `POST /auth/refresh`. Cached in-process; re-acquired on `401`. Credentials sourced from `MYKOBO_ACCESS_KEY`, `MYKOBO_SECRET_KEY`, `MYKOBO_BASE_URL`, `MYKOBO_CLIENT_DOMAIN` env vars.
 
 **`MYKOBO_CLIENT_DOMAIN` operational note:** The client domain is sent as `client_domain` on every Mykobo API call (`MykoboApiService`). It identifies the Vortex deployment to Mykobo and determines the **fee tier** applied to that deployment's intents. When unset, Mykobo falls back to its default tier (observed: ~0.31 EUR fixed deposit fee vs. ~0.06 EUR for the negotiated Vortex tier on `satoshipay.io`). Because the constant is loaded via `getEnvVar` with no default, a missing value silently degrades fees rather than failing fast — operators MUST verify it is set at deploy time.
 
-**Fee lookup and quote-time display fallback:** EUR quote creation looks up the Mykobo fee live via `GET /fees` — onramps through `MykoboMint.simulate` and offramps through `MykoboOfframpFee`. Both use `quote/engines/mykobo-fee.ts`. On offramp, `EvmOfframpSource` first installs the simulated Squid network fee and the Mykobo fee phase replaces only the anchor component, preserving network/Vortex/partner fees. If lookup fails, `MykoboFeeUnavailableError` maps to `QuoteError.AnchorTemporarilyUnavailable` (`503`). The optional env-gated fallback remains display-only; EUR registration is still disabled before provider side effects.
+**Fee lookup and quote-time display fallback:** EUR quote creation looks up the Mykobo fee live via `GET /fees` — onramps through `MykoboMint.simulate` and offramps through `MykoboOfframpFee`. Both use `phases/blocks/core/mykobo-fee.ts`. On offramp, `EvmOfframpSource` first installs the simulated Squid network fee and the Mykobo fee phase replaces only the anchor component, preserving network/Vortex/partner fees. If lookup fails, `MykoboFeeUnavailableError` maps to `QuoteError.AnchorTemporarilyUnavailable` (`503`). The optional env-gated fallback remains display-only; EUR registration is still disabled before provider side effects.
 
 ### On-ramp flow (EUR SEPA → Base EURC → Nabla swap → user EVM destination)
 
@@ -158,4 +158,4 @@ Unlike Monerium (`moneriumOnrampMint` + `moneriumOnrampSelfTransfer`), Vortex do
 - [ ] `finalSettlementSubsidy` honors `isDirectTransfer` / `isEurToEurcBaseDirect` and short-circuits to `destinationTransfer` if ever reached on a direct route
 - [ ] While EUR ramps are disabled, `registerRamp` rejects EURC input/output quotes with `503 SERVICE_UNAVAILABLE` before any Mykobo or ramp-state side effects
 - [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not generic `FailedToCalculateQuote`; the env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED`) is display-only and never prices a ramp execution
-- [x] EUR Base output topology is token-specific. **PASS** — catalog predicates map EURC only to the direct flow, USDC to the no-Squid flow, and USDT/ETH/AXLUSDC/BRLA to the one-phase same-chain Squid flow; parity tests enforce Base construction and contiguous nonce ordering.
+- [x] EUR Base output topology is token-specific. **PASS** — catalog predicates map EURC only to the direct flow, USDC to the no-Squid flow, and USDT/ETH/AXLUSDC/BRLA to the one-phase same-chain Squid flow; flow and transaction tests enforce Base construction and contiguous nonce ordering.

@@ -10,7 +10,7 @@ import { mnemonicGenerate } from "@polkadot/util-crypto";
 // Mock the EVM Nabla swap quote function before importing QuoteService so the
 // quote engine does not hit Base RPC for the (currently illiquid) USDC<->EURC pool.
 if (process.env.RUN_LIVE_TESTS)
-mock.module("../quote/core/nabla", () => {
+mock.module("./blocks/core/nabla", () => {
   return {
     calculateNablaSwapOutputEvm: async (request: {
       inputAmountForSwap: string;
@@ -68,7 +68,7 @@ import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../
 import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
 import { QuoteService } from "../quote";
 import { RampService } from "../ramp/ramp.service";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 import { StateMetadata } from "./meta-state-types";
 
 const EVM_TESTING_ADDRESS = "0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3";
@@ -294,7 +294,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (
     const rampService = new RampService();
     const quoteService = new QuoteService();
 
-    registerPhaseHandlers();
+    registerBlockFlowHandlers();
 
     const quote = await quoteService.createQuote({
       from: Networks.Base as DestinationType,

@@ -1,8 +1,7 @@
-# Mykobo EUR Offramp Integration Plan
+# Mykobo EUR Offramp Integration
 
-**Status**: In progress — backend ramping flow
-**Owner**: this session
-**Stellar EUR offramp**: untouched for now; removed in a later session after Mykobo is verified
+**Status**: Implemented in the block flow catalog
+**Stellar EUR offramp**: removed
 
 ---
 
@@ -67,13 +66,13 @@ Bearer token. Acquire via `POST /v1/auth/token` with `{access_key, secret_key}` 
 | Source chains | All EVM chains with `supportsRamp: true` | Matches AlfredPay model |
 | USDC → EURC swap venue | Nabla EURC pool on Base (`NABLA_ROUTER_BASE_EURC` / `NABLA_QUOTER_BASE_EURC`, selected via `getNablaBasePool()`) | Dedicated EURC<>USDC pool, separate from the BRLA<>USDC pool used by BRL flows |
 | `wallet_address` on Mykobo intent | Ephemeral 0x | Mykobo auto-binds email→ephemeral; identity is email-based |
-| When to create intent | At ramp **registration** (`prepareEvmToMykoboOfframpTransactions`) | Lets us presign the final EURC transfer to Mykobo's receivables address (BRL-EVM style) |
+| When to create intent | At ramp **registration** (`MykoboOfframpPayout.register`) | Lets the phase prepare the final EURC transfer to Mykobo's receivables address |
 | Email source | Frontend reads the Supabase-authenticated user's email and passes it as the `email` query param to `GET /v1/mykobo/profiles`; backend cross-checks the param against `req.userEmail` and queries Mykobo by email via `MykoboApiService.getProfileByEmail` | Aligns with Supabase-auth profile model; avoids leaking wallet→profile linkage |
 | Identity persistence | JSONB only on `RampState.state` (no new `MykoboCustomer` table yet) | "No over-engineering" rule; KYC session can normalize later |
 | Mykobo client style | Singleton class mirroring `BrlaApiService` | Repo convention; easy mocking |
 | Token strategy | Single shared bearer with all 3 scopes, lazy init, 401→refresh→re-acquire | Simplest robust model; matches docs |
 | Fee currency | Returned as EURC directly from Mykobo (no conversion) | Confirmed by user with live API output |
-| Anchor record | New migration file `0XX-mykobo-anchor.ts` inserting `mykobo_eurc` | Migrations are append-only |
+| Fee lookup | Live Mykobo `/fees` through `phases/blocks/core/mykobo-fee.ts` | Keeps provider pricing phase-owned |
 | Permit pattern (cross-chain) | Reuse AlfredPay's `squidRouterPermitExecute` phase + `TokenRelayer.execute()` | TokenRelayer at `0xC9ECD03c89349B3EAe4613c7091c6c3029413785` (Polygon); for EUR offramp, Squidrouter brings funds onto **Base** ephemeral. If source chain doesn't support permit, fall back to `squidRouterApprove + squidRouterSwap` (same as AlfredPay no-permit fallback) |
 | Stellar code | **Do not touch** in this session | Remove after Mykobo flow verified end-to-end |
 
@@ -111,64 +110,52 @@ Mirror of BRL-EVM (`evm-to-brl-base.ts`) with USDC→EURC and Mykobo payout.
 
 ---
 
-## Quote Engine Pipeline
+## Block Flow
 
-New strategy `offrampToSepaEvmStrategy`, mirrors `offrampToPixEvmStrategy`:
+`apps/api/src/api/services/phases/blocks/flows/eur-offramp-base.ts` composes the
+EUR offramp. `flows/catalog.ts` selects it for supported EVM sources:
 
 ```
-[StageKey.Initialize]    OffRampFromEvmInitializeEngine(Networks.Base)    [squid quote → Base USDC]
-[StageKey.NablaSwap]     OffRampSwapEngineEvm(EvmToken.EURC)              [USDC → EURC on Base Nabla]
-[StageKey.Fee]           OffRampFeeMykoboEngine [NEW]                     [GET /v1/fees → EURC fee]
-[StageKey.Discount]      OffRampDiscountEngine
-[StageKey.MergeSubsidy]  OffRampMergeSubsidyEvmEngine
-[StageKey.Finalize]      OffRampFinalizeEngine
+EvmOfframpSource          source transfer/Squid plan → Base USDC
+DistributeFees            deduct USDC fees
+SubsidizePre              top up before Nabla
+NablaSwap                 USDC → EURC on Base
+MykoboOfframpFee          GET /v1/fees and payout amount
+SubsidizePost             bounded final top-up
+MykoboOfframpPayout       registration, payout tx, execution, and polling
 ```
-
-Route resolver dispatch (in `route-resolver.ts`):
-
-```ts
-case "sepa":
-  return ctx.from !== Networks.AssetHub
-    ? offrampToSepaEvmStrategy   // EVM source → Mykobo
-    : offrampToStellarStrategy;  // substrate source → Stellar (unchanged)
-```
-
-This preserves the Stellar EUR path for AssetHub sources (we'll remove it in a later session).
 
 ---
 
 ## File Inventory
 
-### New files (8)
+### Provider and block implementation
 
 1. `packages/shared/src/services/mykobo/types.ts` — request/response types
 2. `packages/shared/src/services/mykobo/mykoboApiService.ts` — singleton HTTP client
 3. `packages/shared/src/services/mykobo/index.ts` — re-exports
-4. `apps/api/src/api/services/transactions/offramp/routes/evm-to-mykobo.ts` — presigned tx builder
-5. `apps/api/src/api/services/phases/handlers/mykobo-payout-handler.ts` — payout handler
-6. `apps/api/src/api/services/quote/engines/fee/offramp-mykobo.ts` — fee engine
-7. `apps/api/src/api/services/quote/routes/strategies/offramp-to-sepa-evm.strategy.ts` — strategy
-8. `apps/api/src/database/migrations/0XX-mykobo-anchor.ts` — anchor seed migration
+4. `apps/api/src/api/services/phases/blocks/flows/eur-offramp-base.ts` — typed corridor composition
+5. `apps/api/src/api/services/phases/blocks/phases/evm-offramp-source/` — source simulation, registration, and user transaction plan
+6. `apps/api/src/api/services/phases/blocks/phases/mykobo-offramp-fee/` — Mykobo fee simulation
+7. `apps/api/src/api/services/phases/blocks/phases/mykobo-offramp-payout/` — intent registration, payout transaction, executor, and polling
 
-### Modified files (~12)
+### Other integration points
 
 1. `packages/shared/src/tokens/types/evm.ts` — add `EURC = "EURC"` to `EvmToken`
 2. `packages/shared/src/tokens/evm/config.ts` — EURC entry for `Networks.Base` (`0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42`, 6 decimals); optionally `BaseSepolia`
 3. `packages/shared/src/constants/constants.ts` or `apps/api/src/constants/vars.ts` — add `MYKOBO_BASE_URL`, `MYKOBO_ACCESS_KEY`, `MYKOBO_SECRET_KEY`, `MYKOBO_CLIENT_DOMAIN` env vars
 4. `apps/api/src/api/services/phases/meta-state-types.ts` — add `mykoboEmail`, `mykoboTransactionId`, `mykoboReceivablesAddress`, `mykoboPayoutTxHash`, `mykoboTransactionReference`
-5. `apps/api/src/api/controllers/ramp.controller.ts` + `apps/api/src/api/services/ramp/ramp.service.ts` — accept optional `email` on `POST /v1/ramp/register`; thread to `prepareOfframpTransactions`
-6. `apps/api/src/api/services/transactions/offramp/index.ts` — add dispatch branch for EUR EVM
-7. `apps/api/src/api/services/ramp/ramp-transaction-preparation.ts` — add `OfframpMykobo` discriminator (next to `OfframpBrl`)
-8. `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts` — extend `getRequiresBaseEphemeralAddress()` for EUR offramp
-9. `apps/api/src/api/services/phases/register-handlers.ts` — register `MykoboPayoutOnBasePhaseHandler`
+5. `apps/api/src/api/controllers/ramp.controller.ts` + `apps/api/src/api/services/ramp/ramp.service.ts` — accept Mykobo registration input and invoke the persisted flow
+6. `apps/api/src/api/services/phases/blocks/flows/catalog.ts` — select `EurOfframpBase`
+7. `apps/api/src/api/services/phases/blocks/core/flow.ts` — run phase-owned registration and preparation hooks
+8. `apps/api/src/api/services/phases/blocks/phases/fund-ephemeral/` — Base funding and source-hash verification
+9. `apps/api/src/api/services/phases/blocks/register-handlers.ts` — register catalog-derived executors
 10. `apps/api/src/database/seeders/phase-metadata.seeder.ts` (or equivalent) — register `mykoboPayoutOnBase` and `baseCleanupEurc` phases + valid transitions
-11. `apps/api/src/api/services/quote/routes/route-resolver.ts` — add EVM-source branch for `sepa` case
-12. `apps/api/src/api/services/quote/core/quote-fees.ts` — use `mykobo_eurc` anchor identifier when `to=sepa` and source is EVM
+11. `apps/api/src/api/services/phases/blocks/phases/mykobo-offramp-fee/simulation.ts` — resolve the live Mykobo withdrawal fee
 13. `apps/api/src/api/services/phases/post-process/base-chain-post-process-handler.ts` — add `baseCleanupEurc` to cleanup sweep
 
-### Touch validation
-- `apps/api/src/api/services/transactions/onramp/common/validation.ts:122` — currently enforces `inputCurrency === FiatToken.EURC` for onramp. **Onramp path is unaffected**; we're only adding offramp. Do not touch.
-- `apps/api/src/api/services/transactions/offramp/index.ts:33` — currently `outputCurrency === FiatToken.EURC && moneriumAuthToken` routes to Monerium. Our new branch is `outputCurrency === FiatToken.EURC && isEvmSource && !moneriumAuthToken → Mykobo`. Monerium path stays as fallback for clients that still pass `moneriumAuthToken`.
+There is no route resolver, quote-engine pipeline, or corridor transaction
+dispatcher. The catalog rejects unsupported/non-EVM EUR offramp sources.
 
 ---
 
@@ -181,22 +168,6 @@ mykoboTransactionReference?: string;   // human reference from intent response
 mykoboReceivablesAddress?: `0x${string}`; // instructions.address from intent (the destination of mykoboPayoutOnBase)
 mykoboPayoutTxHash?: `0x${string}`;    // on-chain hash of the EURC transfer (recovery support)
 ```
-
----
-
-## Anchor record
-
-Insert into `Anchor` table:
-
-```ts
-{
-  identifier: "mykobo_eurc",
-  name: "Mykobo (EUR via Base)",
-  // ... whatever other fields the model requires (TBD by reading model)
-}
-```
-
-`OffRampFeeMykoboEngine` will look it up via the same path as `offramp-avenia` does for `avenia` anchor.
 
 ---
 
@@ -216,14 +187,13 @@ Insert into `Anchor` table:
 - ✅ `Networks.Base` configured with `supportsRamp: true`
 - ✅ `NABLA_ROUTER_BASE_EURC` + `NABLA_QUOTER_BASE_EURC` constants (EURC pool) and `getNablaBasePool()` selector
 - ✅ `calculateNablaSwapOutputEvm()` quote-time helper
-- ✅ `addNablaSwapTransactionsOnBase()` tx builder
+- `phases/blocks/phases/nabla-swap/` owns Nabla simulation, transactions, and executors
 - ✅ `getEvmFundingAccount(Networks.Base)` for ephemeral derivation
-- ✅ `FundEphemeralPhaseHandler.fundEvmEphemeralAccount(state, Networks.Base)` (needs `getRequiresBaseEphemeralAddress` extension)
+- `phases/blocks/phases/fund-ephemeral/` owns Base ephemeral funding
 - ✅ `BaseChainPostProcessHandler` cleanup sweep
-- ✅ `createOfframpSquidrouterTransactionsToEvm()` for cross-chain bridge
-- ✅ `SquidrouterPermitExecuteHandler` for permit + TokenRelayer
-- ✅ `prepareBaseCleanupApproval()` for cleanup approvals
-- ✅ `addEvmFeeDistributionTransaction()` for distributing protocol fees
+- `phases/blocks/phases/evm-offramp-source/` owns source transfers and Squid transaction plans
+- `phases/blocks/phases/mykobo-offramp-payout/` owns payout and cleanup intents
+- `phases/blocks/phases/distribute-fees/` owns protocol fee transactions
 
 ---
 
@@ -232,8 +202,7 @@ Insert into `Anchor` table:
 - KYC / profile creation (`POST /v1/profiles`) — separate session
 - Frontend changes
 - SDK changes
-- Removing Stellar EUR code — explicitly deferred to avoid merge conflicts during build-out
-- ARS offramp (still goes through Stellar; Mykobo doesn't replace it)
+- Non-EVM EUR offramp sources
 
 ---
 
@@ -242,6 +211,6 @@ Insert into `Anchor` table:
 1. `bun build:shared`
 2. `bun typecheck` clean
 3. `bun lint:fix` clean
-4. Manual: can a quote request with `from=Base, inputCurrency=USDC, to=sepa, outputCurrency=EUR` produce a quote routed through `offrampToSepaEvmStrategy`?
+4. Manual: can a quote request with `from=Base, inputCurrency=USDC, to=sepa, outputCurrency=EUR` resolve `EurOfframpBase`?
 5. Manual: does `POST /v1/ramp/register` accept `email` and call Mykobo intent API?
 6. Integration test with Mykobo dev credentials (deferred to a follow-up — needs credential setup).
