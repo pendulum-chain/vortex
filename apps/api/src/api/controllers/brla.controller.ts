@@ -836,6 +836,10 @@ export const initiateKybLevel1 = async (
     await record.update({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING });
     await upsertAveniaKycCase(record, VerificationStatus.Pending, KycAttemptStatus.PENDING, response.attemptId);
 
+    // The KYB status worker polls this attempt directly; without it the outcome
+    // is never observed and no verification email is sent.
+    await taxIdRecord.update({ kycAttempt: response.attemptId });
+
     res.status(httpStatus.OK).json(response);
   } catch (error) {
     handleApiError(error, res, "initiateKybLevel1");

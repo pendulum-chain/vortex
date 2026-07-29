@@ -14,6 +14,8 @@ import { registerBlockFlowHandlers } from "./api/services/phases/blocks/register
 import { priceFeedService } from "./api/services/priceFeed.service";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
+import KybStatusWorker from "./api/workers/kyb-status.worker";
+import NotificationDispatchWorker from "./api/workers/notification-dispatch.worker";
 import RampRecoveryWorker from "./api/workers/ramp-recovery.worker";
 import UnhandledPaymentWorker from "./api/workers/unhandled-payment.worker";
 
@@ -69,6 +71,8 @@ const initializeApp = async () => {
     new ApiClientEventsRetentionWorker().start();
     new RampRecoveryWorker().start();
     new UnhandledPaymentWorker().start();
+    new NotificationDispatchWorker().start();
+    new KybStatusWorker().start();
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
