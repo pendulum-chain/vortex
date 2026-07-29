@@ -1,6 +1,6 @@
-import { BrlaApiService, EvmToken, FiatToken, RampCurrency } from "@vortexfi/shared";
+import { BrlaApiService, FiatToken, RampCurrency } from "@vortexfi/shared";
 import Big from "big.js";
-import { calculateFees } from "../../core/fees";
+import { overrideFees } from "../../core/fees";
 import { defineContext } from "../../core/metadata";
 import type { ChainBrand, PhaseCtx, PhaseIO, PhaseResult, TokenBrand } from "../../core/types";
 
@@ -21,9 +21,8 @@ export async function simulateAveniaOfframpFee<Token extends TokenBrand, Chain e
     { useCache: true }
   );
   const anchorFeeBrl = new Big(quote.inputAmount).minus(quote.outputAmount).toString();
-  const fees = await calculateFees(ctx, {
-    anchor: { amount: anchorFeeBrl, currency: FiatToken.BRL as RampCurrency },
-    network: { amount: "0", currency: EvmToken.USDC as RampCurrency }
+  const fees = await overrideFees(ctx, {
+    anchor: { amount: anchorFeeBrl, currency: FiatToken.BRL as RampCurrency }
   });
   return {
     fees,
