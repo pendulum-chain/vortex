@@ -23,7 +23,7 @@ import RampState from "../../../models/rampState.model";
 import {QuoteService} from "../quote";
 import {RampService} from "../ramp/ramp.service";
 import {PhaseProcessor} from "./phase-processor";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 
 const TAX_ID = process.env.TAX_ID;
 
@@ -167,7 +167,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Onramp PhaseProcessor Integration 
       const rampService = new RampService();
       const quoteService = new QuoteService();
 
-      registerPhaseHandlers();
+      registerBlockFlowHandlers();
 
       const additionalData = {
         destinationAddress: EVM_DESTINATION_ADDRESS,

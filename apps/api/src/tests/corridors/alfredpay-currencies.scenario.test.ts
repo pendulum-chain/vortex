@@ -353,7 +353,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
 
@@ -433,7 +436,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -529,8 +535,16 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayMint?: { outputAmountRaw?: string };
+            squidRouterSwap?: { outputAmountRaw?: string };
+          };
+        }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
+    const bridgedAmountRaw = BigInt(metadata?.blocks.squidRouterSwap?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);
 
@@ -620,7 +634,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);

@@ -10,7 +10,7 @@ import { config } from "./config/vars";
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
-import registerPhaseHandlers from "./api/services/phases/register-handlers";
+import { registerBlockFlowHandlers } from "./api/services/phases/blocks/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
@@ -61,6 +61,9 @@ const initializeApp = async () => {
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();
 
+    // Recovery must not run before the flow-derived executor registry exists.
+    registerBlockFlowHandlers();
+
     // Start background workers
     new CleanupWorker().start();
     new ApiClientEventsRetentionWorker().start();
@@ -69,9 +72,6 @@ const initializeApp = async () => {
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
-
-    // Register phase handlers
-    registerPhaseHandlers();
 
     // Probe the Binance price feed so a geo-block (HTTP 451) or outage surfaces
     // loudly in the logs instead of silently degrading to the fiat fallback.

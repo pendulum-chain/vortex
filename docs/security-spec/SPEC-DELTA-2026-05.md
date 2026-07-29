@@ -21,8 +21,8 @@
 Trivial passthrough: if destination is **Base + USDC**, Squid is skipped entirely (commit `4b0017adb`).
 
 Code references:
-- Route builder: `apps/api/src/api/services/transactions/onramp/routes/avenia-to-evm-base.ts`
-- Mint handler: `apps/api/src/api/services/phases/handlers/brla-onramp-mint-handler.ts`
+- Flow transaction builders: `apps/api/src/api/services/phases/blocks/flows/brl-onramp-base-*.ts` and their phase `transactions.ts` modules
+- Mint executor: `apps/api/src/api/services/phases/blocks/phases/avenia-mint/execution.ts`
 - Onramp Nabla wrapper: `addNablaSwapTransactionsOnBase` → `createNablaTransactionsForOnrampOnEVM` (`@vortexfi/shared`)
 
 ### 1.2 BRL off-ramp (user EVM → Base → Avenia PIX)
@@ -32,10 +32,10 @@ Code references:
 **New flow:** User EVM (any supported) → Squid bridge to **Base USDC** → `distributeFees` (USDC fees first) → Nabla-on-EVM swap (USDC → BRLA) on Base → `brla-payout-base-handler` triggers Avenia PIX payout.
 
 Code references:
-- Route builder: `apps/api/src/api/services/transactions/offramp/routes/evm-to-brl-base.ts`
-- Payout handler: `apps/api/src/api/services/phases/handlers/brla-payout-base-handler.ts`
+- Flow transaction builders: `apps/api/src/api/services/phases/blocks/flows/brl-offramp-base.ts` and its phase `transactions.ts` modules
+- Payout executor: `apps/api/src/api/services/phases/blocks/phases/avenia-offramp-payout/execution.ts`
 
-**Removed:** `apps/api/src/api/services/phases/handlers/brla-payout-moonbeam-handler.ts` (no longer registered; phase `brlaPayoutOnMoonbeam` deleted).
+**Removed:** the legacy Moonbeam BRLA payout handler (no longer registered; phase `brlaPayoutOnMoonbeam` deleted).
 
 ### 1.3 Phase additions
 
@@ -89,7 +89,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-01 — Hardcoded BRL offramp validation amount (HIGH, confirmed bug)
 
-**Location:** `apps/api/src/api/services/transactions/offramp/validation.ts` → `validateBRLOfframp`.
+**Location:** `apps/api/src/api/services/phases/blocks/phases/avenia-offramp-payout/registration.ts`.
 
 **Issue:** Hardcoded `offrampAmountBeforeAnchorFeesRaw: "200"` with a TODO comment, never validated against `quote.outputAmount`.
 
@@ -103,7 +103,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-02 — EVM subsidy handlers lack USD cap (MEDIUM, confirmed bug)
 
-**Location:** `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts` and `subsidize-post-swap-handler.ts` (EVM branches).
+**Location:** `apps/api/src/api/services/phases/blocks/phases/subsidize-pre/execution.ts` and `subsidize-post/execution.ts` (EVM branches).
 
 **Issue:** Unlike `final-settlement-subsidy.ts` (which enforces `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` after the F-001 fix), the EVM branches of the subsidize-pre/post handlers had **no USD cap**. They trusted `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` / `outputAmountRaw` directly.
 
@@ -117,7 +117,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-03 — `backupApprove` uses `maxUint256` allowance (LOW, design-debt)
 
-**Location:** `apps/api/src/api/services/transactions/onramp/routes/avenia-to-evm-base.ts:213-232`.
+**Location:** `apps/api/src/api/services/phases/blocks/phases/squid-router-swap/transactions.ts`.
 
 **Issue:** The destination-chain backup approve presigned transaction grants `maxUint256` allowance to the funding-account-derived spender (same risk class as F-055).
 
@@ -131,7 +131,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-04 — No-permit fallback receipt validation is shallow (MEDIUM, needs hardening)
 
-**Location:** `apps/api/src/api/services/phases/handlers/squidrouter-permit-execution-handler.ts` → `waitForUserHash`.
+**Location:** `apps/api/src/api/services/phases/blocks/phases/alfredpay-offramp/execution.ts` → `waitForUserHash`.
 
 **Issue:** `waitForUserHash` only verifies `receipt.status === "success"`. It does NOT verify:
 - `receipt.from === expected user address`
@@ -155,7 +155,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-05 — Base ephemeral cleanup (RESOLVED)
 
-**Location:** `apps/api/src/api/services/phases/post-process/base-chain-post-process-handler.ts`; presigned approvals in `apps/api/src/api/services/transactions/base/cleanup.ts`.
+**Location:** `apps/api/src/api/services/phases/post-process/base-chain-post-process-handler.ts`; presigned approvals in `apps/api/src/api/services/phases/blocks/core/evm-transactions.ts`.
 
 **Issue (original):** Base ephemerals could accumulate residual BRLA/USDC after BRL ramps. Other EVM ephemerals were treated similarly: no cleanup.
 
@@ -165,7 +165,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-12 — BRL on-ramp skipped EVM pre-swap subsidization (RESOLVED)
 
-**Location:** `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts:220-222`.
+**Location:** `apps/api/src/api/services/phases/blocks/phases/fund-ephemeral/execution.ts`.
 
 **Issue:** The BRL on-ramp runtime phase chain transitioned `fundEphemeral → nablaApprove` directly, skipping `subsidizePreSwap`. The handler was registered and wired downstream (`subsidizePreSwap → nablaApprove`), but no upstream handler returned `"subsidizePreSwap"` as its next phase for BRL onramps. The symmetric `subsidizePostSwap` phase was reached normally via `nablaSwap`'s nextPhase logic, producing an asymmetric flow where pre-swap subsidization was unreachable.
 
@@ -177,7 +177,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 ### F-NEW-06a — `Partner.payout_address_evm` NULL on vortex row throws (LOW, operational)
 
-**Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:232-241`.
+**Location:** `apps/api/src/api/services/phases/blocks/core/fee-distribution.ts`.
 
 **Issue:** When the active `vortex` partner row has `payout_address_evm = NULL`, the EVM branch of `distributeFees` throws `Error("Vortex partner is missing payout_address_evm...")` and the phase fails. There is no env-var fallback (e.g., `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`) despite team intent to fall back to a default Vortex address.
 
@@ -185,14 +185,14 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 **Suggested fix:**
 1. Define `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` env var.
-2. In `feeDistribution.ts`, coalesce `vortexPartner.payoutAddressEvm ?? DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`.
+2. In `fee-distribution.ts`, coalesce `vortexPartner.payoutAddressEvm ?? DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS`.
 3. Log a warning when the fallback is used so reconciliation can flag the misconfigured row.
 
 ---
 
 ### F-NEW-06b — Partner `payout_address_evm` NULL silently drops markup fees (MEDIUM)
 
-**Location:** `apps/api/src/api/services/transactions/common/feeDistribution.ts:245-253, 273`.
+**Location:** `apps/api/src/api/services/phases/blocks/core/fee-distribution.ts`.
 
 **Issue:** When the quote's partner has `payout_address_evm = NULL`, the code falls through silently: `partnerPayoutAddressEvm` stays `null`, `hasPartnerFees` becomes `false`, and the partner markup fee is never distributed. Vortex still gets paid; the partner does not. No error is surfaced to the partner or in logs at WARN/ERROR level.
 
@@ -200,7 +200,7 @@ These are findings **the user has confirmed direction on** during the spec rewri
 
 **Suggested fix:**
 1. At minimum: emit a WARN log when `partnerMarkupFeeUSD > 0` but `partnerPayoutAddressEvm === null`, identifying the partner ID.
-2. Preferred: fail quote creation in `quote/engines/squidrouter/index.ts` (or upstream) if the requested ramp is BRL-on-Base and the partner has `payout_address_evm = NULL`.
+2. Preferred: fail quote creation in `quote/index.ts` before block simulation if the requested ramp is BRL-on-Base and the partner has `payout_address_evm = NULL`.
 3. Add a unit test for partner with NULL `payout_address_evm` exercising both the WARN path and the quote-time failure.
 
 ---
@@ -272,7 +272,7 @@ Priority order for the next audit/dev cycle, based on severity × likelihood. Re
 | 4 | **F-NEW-04** (MEDIUM) — Harden no-permit fallback receipt validation. | RESOLVED — `waitForUserHash` now verifies receipt `to` and tx `input` against the presigned `EvmTransactionData`. |
 | 5 | **F-NEW-11** (MEDIUM) — Re-evaluate F-029 severity with Base in scope. | RESOLVED — `fund-routing.md` and `secret-management.md` updated to reflect Base blast radius (BRLA payouts, EVM fee distribution, ephemeral subsidization across all EVM chains). |
 | 6 | **F-NEW-06a** (LOW) — Add `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` env-var fallback. | RESOLVED — `config.defaults.vortexEvmPayoutAddress` falls back when `vortexPartner.payoutAddressEvm` is NULL. |
-| 7 | **F-NEW-07** (LOW, mostly hygiene) — Rename `MOONBEAM_FUNDING_PRIVATE_KEY` → `EVM_FUNDING_PRIVATE_KEY` with proper getter abstraction. | RESOLVED — new `EVM_FUNDING_PRIVATE_KEY` env (back-compat fallback to `MOONBEAM_EXECUTOR_PRIVATE_KEY`); all 13 call sites migrated to `getEvmFundingAccount(network)` helper at `apps/api/src/api/services/phases/evm-funding.ts`. |
+| 7 | **F-NEW-07** (LOW, mostly hygiene) — Rename `MOONBEAM_FUNDING_PRIVATE_KEY` → `EVM_FUNDING_PRIVATE_KEY` with proper getter abstraction. | RESOLVED — new `EVM_FUNDING_PRIVATE_KEY` env (back-compat fallback to `MOONBEAM_EXECUTOR_PRIVATE_KEY`); block flows use `getEvmFundingAccount(network)` at `apps/api/src/api/services/phases/blocks/core/evm-funding.ts`. |
 | 8 | **F-NEW-03** (LOW) — Tighten `backupApprove` allowance from `maxUint256` to a calculated bound. | RESOLVED — `avenia-to-evm-base.ts` `backupApprove` now uses `inputAmountRawFinalBridge × 1.05`. |
 | 9 | **F-NEW-08** — Investigate skip-Squid passthrough divergence. | NO BUG — same-chain same-token passthrough has no Squid fee; `networkFeeUSD="0"` and 1:1 rate are correct. |
 | 10 | **F-NEW-09** — Investigate BRLA payout recovery branches. | NO BUG — once `payOutTicketId` exists, BRLA acknowledged the EVM payout; on-chain receipt is no longer authoritative. |

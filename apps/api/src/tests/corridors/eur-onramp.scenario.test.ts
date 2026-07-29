@@ -4,9 +4,6 @@ import {
   EvmToken,
   evmTokenConfig,
   FiatToken,
-  type IbanPaymentData,
-  MykoboApiService,
-  MykoboCurrency,
   MykoboCustomerStatus,
   MykoboTransactionType,
   Networks,
@@ -14,14 +11,14 @@ import {
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
-import Big from "big.js";
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { resolveMykoboCustomerForUser } from "../../api/services/mykobo/mykobo-customer.service";
+import { accountCapabilities } from "../../api/services/phases/blocks/core/accounts";
+import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
 import { normalizeAndValidateSigningAccounts } from "../../api/services/ramp/ramp.service";
 import { validateEphemeralAccountsFresh } from "../../api/services/ramp/ephemeral-freshness";
-import { prepareMykoboToEvmOnrampTransactions } from "../../api/services/transactions/onramp/routes/mykobo-to-evm";
 import CustomerEntity from "../../models/customerEntity.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
 import QuoteTicket from "../../models/quoteTicket.model";
@@ -145,8 +142,8 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
    * kill-switch were lifted, by running the same sequence of service calls the
    * method performs below the switch (ramp.service.ts): signing-account
    * normalization, ephemeral freshness validation, the Mykobo customer/KYC
-   * resolution + deposit intent (mirroring prepareMykoboOnrampTransactions),
-   * the REAL transaction builder, quote consumption, and a RampState row with
+   * resolution + deposit intent through flow registration, flow-owned
+   * transaction preparation, quote consumption, and a RampState row with
    * the identical shape. No registration logic is re-implemented — only the
    * thin glue is mirrored.
    */
@@ -163,38 +160,35 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     ]);
     await validateEphemeralAccountsFresh(ephemerals);
 
-    // Mirrors prepareMykoboOnrampTransactions: derive the Mykobo identity from
-    // the user's profile (KYC-gated), create the deposit intent, then build.
-    const { email } = await resolveMykoboCustomerForUser(userId);
-    const intent = await MykoboApiService.getInstance().createTransactionIntent({
-      currency: MykoboCurrency.EURC,
-      email_address: email,
-      ip_address: additionalData.ipAddress,
-      transaction_type: MykoboTransactionType.DEPOSIT,
-      value: new Big(quote.inputAmount).toFixed(2, 0),
-      wallet_address: ephemeral.address
-    });
-    if (!intent.instructions || !("iban" in intent.instructions)) {
-      throw new Error("FakeMykobo deposit intent did not return IBAN instructions");
-    }
-
-    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
+    const metadata = getFlowMetadata(quote.metadata);
+    const flow = resolveBlockFlow(metadata.globals.request);
+    const quoteFields = quote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: userId },
+      input: additionalData,
       ipAddress: additionalData.ipAddress,
-      mykoboEmail: email,
-      mykoboTransactionId: intent.transaction.id,
-      mykoboTransactionReference: intent.transaction.reference,
-      quote,
+      metadata,
+      quote: quoteFields,
       signingAccounts: normalizedSigningAccounts
     });
-
-    const ibanPaymentData: IbanPaymentData = {
-      bic: "",
-      iban: intent.instructions.iban,
-      receiverName: intent.instructions.bank_account_name,
-      reference: intent.transaction.reference
+    const { unsignedTxs, stateMeta } = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      destinationAddress: additionalData.destinationAddress,
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
+      userId
+    });
+    const compatibilityState = Object.assign(
+      {},
+      ...Object.values(registered.registrationFacts),
+      ...Object.values(stateMeta.blockState ?? {})
+    );
+    const responseArtifacts = Object.assign({}, ...Object.values(registered.responseArtifacts)) as {
+      ibanPaymentData: RampState["state"]["ibanPaymentData"];
     };
 
+    await quote.update({ metadata: registered.metadata as unknown as QuoteTicket["metadata"] });
     const [consumed] = await QuoteTicket.update({ status: "consumed" }, { where: { id: quote.id, status: "pending" } });
     expect(consumed).toBe(1);
 
@@ -206,10 +200,11 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
       quoteId: quote.id,
       state: {
         evmEphemeralAddress: ephemerals.EVM,
-        ibanPaymentData,
+        ibanPaymentData: responseArtifacts.ibanPaymentData,
         substrateEphemeralAddress: ephemerals.Substrate,
         ...additionalData,
-        ...stateMeta
+        ...stateMeta,
+        ...compatibilityState
       } as unknown as RampState["state"],
       to: quote.to,
       type: quote.rampType,
@@ -235,7 +230,10 @@ describe("EUR onramp direct corridor (SEPA → EURC on Base via Mykobo)", () => 
     if (!persistedQuote) {
       throw new Error("Quote not persisted");
     }
-    const mykoboMintRaw = BigInt(persistedQuote.metadata.mykoboMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote.metadata as unknown as {
+      blocks: { mykoboMint?: { mint: { outputAmountRaw?: string } } };
+    };
+    const mykoboMintRaw = BigInt(metadata.blocks.mykoboMint?.mint.outputAmountRaw ?? "0");
     expect(mykoboMintRaw).toBeGreaterThan(0n);
 
     const rampState = await registerEurOnrampBelowKillSwitch(persistedQuote, user.id, ephemeral, destination);

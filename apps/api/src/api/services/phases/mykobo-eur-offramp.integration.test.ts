@@ -10,7 +10,7 @@ import { mnemonicGenerate } from "@polkadot/util-crypto";
 // Mock the EVM Nabla swap quote function before importing QuoteService so the
 // quote engine does not hit Base RPC for the (currently illiquid) USDC<->EURC pool.
 if (process.env.RUN_LIVE_TESTS)
-mock.module("../quote/core/nabla", () => {
+mock.module("./blocks/core/nabla", () => {
   return {
     calculateNablaSwapOutputEvm: async (request: {
       inputAmountForSwap: string;
@@ -68,7 +68,7 @@ import RampState, { RampStateAttributes, RampStateCreationAttributes } from "../
 import RampRecoveryWorker from "../../workers/ramp-recovery.worker";
 import { QuoteService } from "../quote";
 import { RampService } from "../ramp/ramp.service";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 import { StateMetadata } from "./meta-state-types";
 
 const EVM_TESTING_ADDRESS = "0x30a300612ab372CC73e53ffE87fB73d62Ed68Da3";
@@ -253,7 +253,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (
     expect(Object.values(MykoboTransactionStatus)).toContain(fetched.transaction.status as MykoboTransactionStatus);
   });
 
-  it("creates a EUR offramp quote on Base via QuoteService and populates nablaSwapEvm metadata", async () => {
+  it("creates a EUR offramp quote on Base via QuoteService and populates the nablaSwap block", async () => {
     const quoteService = new QuoteService();
 
     const quote = await quoteService.createQuote({
@@ -272,16 +272,19 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (
       outputAmount: quote.outputAmount,
       totalFeeFiat: quote.totalFeeFiat
     });
-    console.log("nablaSwapEvm metadata:", quoteTicket.metadata.nablaSwapEvm);
+    const metadata = quoteTicket.metadata as unknown as {
+      blocks: { nablaSwap?: { outputAmountDecimal?: string; outputAmountRaw?: string } };
+    };
+    console.log("nablaSwap metadata:", metadata.blocks.nablaSwap);
 
     expect(quote.inputCurrency).toBe(EvmToken.USDC);
     expect(quote.outputCurrency).toBe(FiatToken.EURC);
     expect(Number(quote.outputAmount)).toBeGreaterThan(0);
     expect(Number(quote.totalFeeFiat)).toBeGreaterThan(0);
-    expect(quoteTicket.metadata.nablaSwapEvm).toBeDefined();
-    expect(quoteTicket.metadata.nablaSwapEvm?.outputAmountDecimal).toBeDefined();
-    expect(quoteTicket.metadata.nablaSwapEvm?.outputAmountRaw).toBeDefined();
-    expect(Number(quoteTicket.metadata.nablaSwapEvm?.outputAmountDecimal)).toBeGreaterThan(0);
+    expect(metadata.blocks.nablaSwap).toBeDefined();
+    expect(metadata.blocks.nablaSwap?.outputAmountDecimal).toBeDefined();
+    expect(metadata.blocks.nablaSwap?.outputAmountRaw).toBeDefined();
+    expect(Number(metadata.blocks.nablaSwap?.outputAmountDecimal)).toBeGreaterThan(0);
   });
 
   // SKIPPED: registerRamp unconditionally rejects EURC quotes with 503 "EUR ramps are
@@ -291,7 +294,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (
     const rampService = new RampService();
     const quoteService = new QuoteService();
 
-    registerPhaseHandlers();
+    registerBlockFlowHandlers();
 
     const quote = await quoteService.createQuote({
       from: Networks.Base as DestinationType,

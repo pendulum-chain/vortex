@@ -17,7 +17,7 @@ const DEFAULT_NETWORKS: NetworkConfig[] = [
   },
   {
     name: "hydration",
-    wsUrl: "wss://hydration.ibp.network"
+    wsUrl: "wss://hydration.dotters.network"
   }
 ];
 

@@ -12,7 +12,7 @@ The phase processor is the core orchestration engine for ramp operations. It exe
 6. Retries recoverable errors up to 8 times with configurable delay (default 30 seconds)
 7. Transitions to `failed` on unrecoverable errors
 
-There are 28+ phase handlers covering the full ramp lifecycle across all integration paths.
+Handlers are derived from the block-flow catalog and registered before recovery workers start. The registry rejects conflicting executor classes for the same phase during assembly; only catalog-mapped corridors can create new ramps.
 
 ### Locking Mechanism
 

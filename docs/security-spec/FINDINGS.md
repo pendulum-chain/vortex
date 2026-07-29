@@ -24,7 +24,7 @@ This file consolidates all security findings from the Vortex platform audit. Fin
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/final-settlement-subsidy.ts`, lines 211-213 |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/final-settlement-subsidy/execution.ts` |
 | **Spec** | `06-cross-chain/fund-routing.md` |
 | **Status** | ✅ **FIXED** |
 | **Impact** | A single ramp could drain the funding account's entire native token balance via an unbounded SquidRouter swap. |
@@ -453,7 +453,7 @@ All additional operations would execute atomically with the legitimate payment s
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/stellar-payment-handler.ts`, `pendulum-to-assethub-phase-handler.ts`, `pendulum-to-hydration-xcm-phase-handler.ts`, `hydration-swap-handler.ts`, `nabla-swap-handler.ts` |
+| **Location** | Active implementations: `apps/api/src/api/services/phases/blocks/phases/pendulum-to-assethub-xcm/execution.ts` and `nabla-swap/execution.ts`; Stellar and Hydration handlers were removed with the legacy flows. |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Phase flow audit (checklist walkthrough), 2026-04-07 |
@@ -480,7 +480,7 @@ By contrast, handlers like `spacewalk-redeem-handler` (nonce guard), `moonbeam-t
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts`, `alfredpay-to-evm.ts`, `avenia-to-evm.ts`; `apps/api/src/api/services/phases/register-handlers.ts` |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/squid-router-swap/transactions.ts`; `apps/api/src/api/services/phases/blocks/register-handlers.ts` |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md` |
 | **Status** | 🟠 **ACCEPTED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
@@ -546,7 +546,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/hydration-to-assethub-xcm-phase-handler.ts` |
+| **Location** | Removed legacy Hydration flow (no active block executor) |
 | **Spec** | `06-cross-chain/xcm-transfers.md` |
 | **Status** | 🟡 **DEFERRED** — requires investigation into Hydration finalization |
 | **Impact** | A Hydration chain reorganization could revert the XCM transfer after the ramp has already transitioned to `complete`. |
@@ -595,7 +595,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/quote/engines/discount/helpers.ts` |
+| **Location** | `apps/api/src/api/services/phases/blocks/core/discount.ts` |
 | **Spec** | `03-ramp-engine/quote-lifecycle.md` |
 | **Status** | ⚪ **ACCEPTED** — no code change needed |
 | **Impact** | Server restart resets all partner discount states. Partners lose accumulated rate adjustments, causing abrupt rate changes. |
@@ -658,7 +658,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/monerium-onramp-mint-handler.ts` (legacy) |
+| **Location** | Removed legacy Monerium onramp mint handler |
 | **Spec** | `05-integrations/monerium.md` (deprecated) → see `05-integrations/mykobo.md` |
 | **Status** | ⚪ **SUPERSEDED** — Monerium is removed; EUR on-ramp now uses Mykobo on Base with a 24h outer payment timeout |
 | **Found** | Code audit, iteration 2, Module 05 |
@@ -692,7 +692,7 @@ The backup nonce is set to `0` (or `polygonAccountNonce` for Polygon), meaning t
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/squidrouter-permit-execution-handler.ts`, lines 123, 132 |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/alfredpay-offramp/execution.ts` (`waitForUserHash`) |
 | **Spec** | `05-integrations/squid-router.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
@@ -713,7 +713,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/hydration-to-assethub-xcm-phase-handler.ts`, lines 28-32; `moonbeam-to-pendulum-handler.ts`, line 105 |
+| **Location** | Active implementation: `apps/api/src/api/services/phases/blocks/phases/moonbeam-to-pendulum-xcm/execution.ts`; Hydration flow removed. |
 | **Spec** | `06-cross-chain/xcm-transfers.md`, Invariant 7 |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
@@ -733,7 +733,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/final-settlement-subsidy.ts`, lines 216-264 (swap), lines 276-309 (transfer retry) |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/final-settlement-subsidy/execution.ts` |
 | **Spec** | `06-cross-chain/fund-routing.md`, Threat Vector: "SquidRouter swap manipulation" |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
@@ -749,7 +749,7 @@ This value is used as `msg.value` in the `TokenRelayer.execute()` call, meaning 
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts`, lines 68-79; `subsidize-post-swap-handler.ts`, lines 100-110 |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/subsidize-pre/execution.ts`; `subsidize-post/execution.ts` |
 | **Spec** | `06-cross-chain/fund-routing.md`, Invariant 8 |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
@@ -981,7 +981,7 @@ None of these are ideal for an operations team responding to a stuck-funds incid
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/transactions/onramp/routes/monerium-to-evm.ts:183-203`, `alfredpay-to-evm.ts:190-209`, `avenia-to-evm.ts:235-254` |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/squid-router-swap/transactions.ts` |
 | **Spec** | `03-ramp-engine/transaction-validation.md` |
 | **Status** | 🟡 **ACCEPTED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
@@ -1014,7 +1014,7 @@ Additionally, the `backupApprove` nonce is set to `0` (or `polygonAccountNonce` 
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/initial-phase-handler.ts:32-35`; `apps/api/src/api/services/transactions/validation.ts:145` |
+| **Location** | `apps/api/src/api/services/phases/blocks/core/initial-executor.ts`; `apps/api/src/api/services/transactions/validation.ts:145` |
 | **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/state-machine.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (code review), 2026-04-07 |
@@ -1045,7 +1045,7 @@ There is no runtime guard to ensure `sandboxEnabled` cannot be `true` when `NODE
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/destination-transfer-handler.ts:40,74-76` |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/destination-transfer/execution.ts` |
 | **Spec** | `03-ramp-engine/transaction-validation.md`, `03-ramp-engine/ephemeral-accounts.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Transaction validation audit (agent investigation), 2026-04-07 |
@@ -1159,7 +1159,7 @@ The handler does check the expected amount via `checkEvmBalanceForToken` (ensuri
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/helpers/stellar-payment-verifier.ts` line 4 vs `apps/api/src/api/services/phases/handlers/helpers.ts` line 5 |
+| **Location** | Removed legacy Stellar payment verifier vs `apps/api/src/api/services/phases/blocks/core/destination-funding.ts` |
 | **Spec** | `05-integrations/stellar-anchors.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
@@ -1175,7 +1175,7 @@ The handler does check the expected amount via `checkEvmBalanceForToken` (ensuri
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/spacewalk-redeem-handler.ts`, lines 72-73 |
+| **Location** | Removed legacy Spacewalk redeem handler |
 | **Spec** | `05-integrations/stellar-anchors.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 05 |
@@ -1191,7 +1191,7 @@ The handler does check the expected amount via `checkEvmBalanceForToken` (ensuri
 
 | Field | Value |
 |---|---|
-| **Location** | `apps/api/src/api/services/phases/handlers/subsidize-post-swap-handler.ts`, lines 128-148 |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/subsidize-post/execution.ts` |
 | **Spec** | `06-cross-chain/fund-routing.md`, Invariant 7 |
 | **Status** | ✅ **FIXED** |
 | **Found** | Code audit, iteration 2, Module 06 |
@@ -1284,7 +1284,7 @@ All 12 TokenRelayer findings from two prior security reviews have been **verifie
 | Field | Value |
 |---|---|
 | **Severity** | 🟡 **Medium** |
-| **Location** | `apps/api/src/api/controllers/subsidize.controller.ts` (lines 28-32), `apps/api/src/api/services/phases/handlers/subsidize-pre-swap-handler.ts`, `subsidize-post-swap-handler.ts` |
+| **Location** | `apps/api/src/api/controllers/subsidize.controller.ts` (lines 28-32), `apps/api/src/api/services/phases/blocks/phases/subsidize-pre/execution.ts`, `subsidize-post/execution.ts` |
 | **Spec** | `06-cross-chain/fund-routing.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Fresh audit pass, amount handling investigation |
@@ -1306,7 +1306,7 @@ The REST endpoints (`/v1/subsidize/preswap`, `/v1/subsidize/postswap`) are **not
 | Field | Value |
 |---|---|
 | **Severity** | 🟡 **Medium** |
-| **Location** | `apps/api/src/api/services/quote/engines/finalize/onramp.ts` (line 83), `apps/api/src/api/services/quote/engines/finalize/offramp.ts` (line 48), `apps/api/src/api/services/quote/core/validation-helpers.ts` |
+| **Location** | `apps/api/src/api/services/phases/blocks/core/quote.ts`, `apps/api/src/api/services/phases/blocks/core/validation.ts` |
 | **Spec** | `03-ramp-engine/quote-lifecycle.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Fresh audit pass, amount handling investigation |
@@ -1437,7 +1437,7 @@ These files contain the full `{ address, rampId, secret, type }` for each epheme
 | Field | Value |
 |---|---|
 | **Severity** | 🟡 **Medium** |
-| **Location** | `apps/api/src/api/services/quote/core/quote-fees.ts` (lines 43-61, 96-139) |
+| **Location** | `apps/api/src/api/services/phases/blocks/core/quote-fees.ts` |
 | **Spec** | `03-ramp-engine/fee-integrity.md` |
 | **Status** | ✅ **FIXED** |
 | **Found** | Fresh audit pass, amount handling investigation |
@@ -1500,7 +1500,7 @@ After adding auth, also verify that the `email` query parameter on GET matches t
 | Field | Value |
 |---|---|
 | **Severity** | 🟠 **High** |
-| **Location** | `apps/api/src/api/services/phases/handlers/fund-ephemeral-handler.ts` (`nextPhaseSelector`, lines 230-250) |
+| **Location** | `apps/api/src/api/services/phases/blocks/phases/fund-ephemeral/execution.ts`; phase ordering is flow-owned. |
 | **Spec** | `03-ramp-engine/ramp-phase-flows.md`, `05-integrations/mykobo.md` |
 | **Status** | ✅ **FIXED** (2026-05-22) |
 | **Found** | Mykobo integration audit, 2026-05-22 |

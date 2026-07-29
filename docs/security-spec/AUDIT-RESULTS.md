@@ -663,8 +663,8 @@ Mykobo replaces Monerium for EUR on-ramp and Stellar/EURC for EUR off-ramp. EUR 
 | 3 | On-ramp `mykoboOnrampDeposit` polls Base RPC for EURC arrival | ✅ PASS — `checkEvmBalancePeriodically` against `evmEphemeralAddress` until `mykoboMint.outputAmountRaw` arrives |
 | 4 | 24h outer payment timeout; on expiry → `failed` | ✅ PASS — `PAYMENT_TIMEOUT_MS = 24h`, transition to `failed` enforced in handler |
 | 5 | 5% recovery tolerance scoped to pre-funded shortcut only | ✅ PASS — `EPHEMERAL_FUNDED_TOLERANCE_FACTOR=0.95` applies only to `ephemeralAlreadyFunded` pre-check; live polling uses full `expectedAmountRaw` |
-| 6 | On-ramp intent `wallet_address` = Base ephemeral (not user destination) | ✅ PASS — `prepareMykoboOnrampTransactions` passes `evmEphemeralEntry.address` |
-| 7 | Off-ramp intent `wallet_address` = Base ephemeral | ✅ PASS — `prepareEvmToMykoboOfframpTransactions` passes `evmEphemeralEntry.address` |
+| 6 | On-ramp intent `wallet_address` = Base ephemeral (not user destination) | ✅ PASS — `MykoboMint.register` requires the flow's EVM signing account |
+| 7 | Off-ramp intent `wallet_address` = Base ephemeral | ✅ PASS — `MykoboOfframpPayout.register` requires the flow's EVM signing account |
 | 8 | Off-ramp `receivables` address sourced server-side from intent response | ✅ PASS — `mykoboReceivablesAddress = intent.instructions.address` |
 | 9 | Off-ramp EURC transfer amount equals `nablaSwapEvm.outputAmountRaw` | ✅ PASS — encoded into the `mykoboPayoutOnBase` presigned tx at registration time |
 | 10 | `mykoboPayoutOnBase` advances to `complete` only after on-chain + Mykobo `COMPLETED` | ✅ PASS — `sendMykoboPayoutTransaction` waits for receipt; `pollMykoboUntilCompleted` blocks on `COMPLETED` |

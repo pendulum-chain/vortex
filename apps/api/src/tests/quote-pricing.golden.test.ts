@@ -24,12 +24,12 @@ describe("quote pricing goldens (fixed input matrix)", () => {
     await resetTestDatabase();
     app = await startTestApp();
 
-    // Deterministic Nabla swap quote: 18-decimal BRLA in → 6-decimal USDC out
-    // at a flat 0.18 USDC per BRLA.
+    // Deterministic Nabla quotes: 0.18 USDC per BRLA on BUY and the pinned
+    // oracle rate of 5 BRLA per USDC on SELL.
     world.evm.onReadContract = (_network, params) => {
       if (params.functionName === "quoteSwapExactTokensForTokens") {
         const amountIn = params.args?.[0] as bigint;
-        return (amountIn * 18n) / 100n / 10n ** 12n;
+        return amountIn >= 10n ** 18n ? (amountIn * 18n) / 100n / 10n ** 12n : amountIn * 5n * 10n ** 12n;
       }
       return undefined;
     };
@@ -134,9 +134,6 @@ describe("quote pricing goldens (fixed input matrix)", () => {
       expected: {
         anchorFeeFiat: "0.1",
         anchorFeeUsd: "0.02",
-        discountCurrency: "BRL",
-        discountFiat: "10.09",
-        discountUsd: "2.018000",
         feeCurrency: "BRL",
         from: "pix",
         inputAmount: "100.00",
@@ -144,7 +141,7 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         network: "base",
         networkFeeFiat: "0",
         networkFeeUsd: "0",
-        outputAmount: "20.00",
+        outputAmount: "17.982",
         outputCurrency: "USDC",
         partnerFeeFiat: "0",
         partnerFeeUsd: "0",
@@ -158,7 +155,7 @@ describe("quote pricing goldens (fixed input matrix)", () => {
         vortexFeeFiat: "0",
         vortexFeeUsd: "0"
       },
-      name: "BUY 100 BRL → USDC on Base (Nabla swap at 0.18, subsidy applied)",
+      name: "BUY 100 BRL → USDC on Base (Nabla swap at 0.18, zero-discount partner)",
       request: {
         from: "pix",
         inputAmount: "100",

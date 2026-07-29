@@ -3,7 +3,7 @@ import { EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
 import { resetTestDatabase, setupTestDatabase } from "../../../test-utils/db";
 import { createTestPartner, updatePartnerPricing } from "../../../test-utils/factories";
 import { QuoteContext } from "../quote/core/types";
-import { resolveDiscountPartner } from "../quote/engines/discount/helpers";
+import { resolveDiscountPartner } from "../phases/blocks/core/discount";
 import { findPartnerWithPricing } from "./partner-pricing.service";
 
 describe("findPartnerWithPricing fiat-currency scoping", () => {

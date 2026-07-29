@@ -49,17 +49,20 @@ export class FakePrices {
   }
 }
 
-type PatchedMethods = "getCryptoPrice" | "getUsdToFiatExchangeRate" | "convertCurrency";
+type PatchedMethods = "getCryptoPrice" | "getFiatToUsdExchangeRate" | "getUsdToFiatExchangeRate" | "convertCurrency";
 
 export function installFakePrices(): { fakePrices: FakePrices; restore: () => void } {
   const fakePrices = new FakePrices();
   const originals: Partial<Record<PatchedMethods, unknown>> = {
     convertCurrency: priceFeedService.convertCurrency,
     getCryptoPrice: priceFeedService.getCryptoPrice,
+    getFiatToUsdExchangeRate: priceFeedService.getFiatToUsdExchangeRate,
     getUsdToFiatExchangeRate: priceFeedService.getUsdToFiatExchangeRate
   };
 
   priceFeedService.getCryptoPrice = async (tokenId: string) => fakePrices.getCryptoUsd(tokenId);
+  priceFeedService.getFiatToUsdExchangeRate = async (fromCurrency: RampCurrency) =>
+    new Big(1).div(fakePrices.getPerUsd(fromCurrency as string));
   priceFeedService.getUsdToFiatExchangeRate = async (toCurrency: RampCurrency) => fakePrices.getPerUsd(toCurrency as string);
   priceFeedService.convertCurrency = async (
     amount: string,

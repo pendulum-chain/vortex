@@ -1,4 +1,5 @@
 import {
+  ALFREDPAY_EVM_TOKEN,
   AlfredPayCountry,
   AlfredpayCustomerType,
   AlfredpayStablecoinKey,
@@ -67,7 +68,6 @@ export interface ResolvedAlfredpayLimits extends AmountLimits {
 
 /**
  * Resolves AlfredPay limits for a quote request, returning null when the quote isn't an AlfredPay quote.
- * Throws when the on-chain side isn't a recognized AlfredPay stablecoin.
  *
  * Returned limits are in human units of `inputCurrency` (the side the validator checks).
  */
@@ -80,12 +80,12 @@ export async function resolveAlfredpayQuoteLimits(args: {
   const { rampType, inputCurrency, outputCurrency, userId } = args;
   const isOnramp = rampType === RampDirection.BUY;
   const fiatCandidate = isOnramp ? inputCurrency : outputCurrency;
-  const onchainCurrency = isOnramp ? outputCurrency : inputCurrency;
   if (!isAlfredpayToken(fiatCandidate)) return null;
 
-  const stablecoin = stablecoinFromCurrency(onchainCurrency);
+  // Routed quotes may end in another asset; AlfredPay always settles the anchor leg in this token.
+  const stablecoin = stablecoinFromCurrency(ALFREDPAY_EVM_TOKEN);
   if (!stablecoin) {
-    throw new Error(`Unsupported AlfredPay stablecoin: ${onchainCurrency}`);
+    throw new Error(`Unsupported AlfredPay stablecoin: ${ALFREDPAY_EVM_TOKEN}`);
   }
 
   const customer = await lookupAlfredpayCustomerType(userId, fiatCandidate);

@@ -4,7 +4,11 @@
 
 Fee calculation determines how much the user pays for a ramp operation and how that payment is distributed. This is a **critical financial security concern** because incorrect fee handling directly impacts user funds and platform revenue.
 
-### ⚠️ KNOWN ISSUE: Dual Fee System Discrepancy
+### Block-Flow Fee Source
+
+Mapped block flows compute the persisted fee snapshot through `phases/blocks/core/fees.ts`, backed by `phases/blocks/core/quote-fees.ts`. Provider-backed phases may replace components before downstream phases run. `MykoboMint` installs the live deposit fee for onramps. Routed BRL onramps install the Squid quote's network fee during `AveniaMint`, before `DistributeFees` and post-swap discount calculation; direct/no-Squid BRL routes preserve zero. On EVM offramps, `EvmOfframpSource` installs the simulated Squid network fee before `DistributeFees`; the later Avenia or Mykobo fee block replaces only the anchor component with the live withdrawal fee while preserving network, Vortex, and partner components. `DistributeFees` excludes the anchor fee already charged by the provider. The block catalog is the sole quote pipeline.
+
+### Historical Dual Fee System Discrepancy
 
 **Two parallel fee calculation systems exist, and they do NOT agree:**
 
@@ -14,7 +18,7 @@ Fee calculation determines how much the user pays for a ramp operation and how t
 
 This means the fees shown to the user (from the database system) may differ from the fees actually applied (from the token config system). This is documented in `docs/architecture/current-fee-derivation.md` as a partially-implemented refactor.
 
-**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. `OnRampAveniaToEvmFeeEngine` now reports zero network fee for these corridors (same `isFiatToOwnStablecoinBaseDirect` predicate as the squidrouter passthrough engines); output amounts were never affected. Pinned by the quote pricing goldens (`apps/api/src/tests/quote-pricing.golden.test.ts`).
+**FIXED (2026-07-05)**: on the direct fiat → own-stablecoin corridors (BRL→BRLA and EUR→EURC on Base), the displayed network fee previously priced a USDC→output-token Squid bridge that the direct route never executes, charges, or distributes — inflating `networkFeeFiat`/`totalFeeFiat` for a leg that does not exist. The catalog-mapped direct mint blocks report zero network fee for these corridors; output amounts were never affected. Pinned by the quote pricing goldens and block-flow tests.
 
 ### Fee Application Points
 
@@ -25,12 +29,12 @@ This means the fees shown to the user (from the database system) may differ from
 
 ### Distribution Mechanisms
 
-Two parallel implementations live in `apps/api/src/api/services/transactions/common/feeDistribution.ts`:
+Two parallel builders live in `apps/api/src/api/services/phases/blocks/core/fee-distribution.ts`:
 
 1. **Substrate (Pendulum)** — Single batch extrinsic that transfers each fee component to the corresponding partner address read from `partner_pricing_configs.payout_address_substrate`.
 2. **EVM (Base)** — `Multicall3.aggregate3` batch (`MULTICALL3_ADDRESS = 0xcA11bde05977b3631167028862bE2a173976CA11`) executes one ERC-20 transfer per fee recipient atomically. Recipient addresses come from `partner_pricing_configs.payout_address_evm`. The handler pre-checks the active `vortex` pricing config for the quote's ramp direction has a non-NULL `payout_address_evm` and aborts the phase otherwise; partner-markup recipients resolve through the quote's pricing partner (`pricing_partner_id ?? partner_id`) and fall through with a warning when that partner's `payout_address_evm` is NULL.
 
-The `distribute-fees-handler.ts` chooses the correct path at runtime based on the ephemeral network (Pendulum vs. Base). For EVM, the handler pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
+The owning `DistributeFees` or `PendulumDistributeFees` block chooses the builder while preparing the flow transaction plan. At execution, the block executor pre-checks that the ephemeral has sufficient ERC-20 balance via `checkEvmBalanceForToken` with a 60-second poll timeout (`FEE_BALANCE_POLL_TIMEOUT_MS`).
 
 ### Ordering with Nabla swap (BRL flows on Base)
 
@@ -39,7 +43,7 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 
 ## Security Invariants
 
-1. **The fees actually deducted MUST match the fees displayed to the user** — **CURRENTLY VIOLATED**. The token-config fees (actually deducted) and database fees (displayed) are calculated independently and may differ. This must be reconciled.
+1. **The fees actually deducted MUST match the fees displayed to the user** — A mapped flow MUST use its immutable `globals.fees` snapshot for both response construction and `DistributeFees` transaction preparation.
 2. **Fee parameters MUST NOT be client-controllable** — All fee rates (basis points, fixed components) must come from server-side configuration (token config or database), never from request parameters.
 3. **Fee calculations MUST use safe decimal arithmetic** — The code uses `Big.js` for fee calculations, avoiding floating-point precision errors. All monetary calculations MUST use arbitrary-precision arithmetic, never native JavaScript `number`.
 4. **Negative output amounts MUST be blocked** — If fees exceed the input/output amount, the result must be clamped to zero, never negative. Both helper functions check `totalReceiveRaw.gt(0)` and return `'0'` otherwise.
@@ -80,12 +84,13 @@ The `distribute-fees-handler.ts` chooses the correct path at runtime based on th
 - [x] Partner markup payout uses the pricing partner when present. **PASS** — fee distribution resolves payout from `pricing_partner_id ?? partner_id`, preserving profile-assigned quote payouts while keeping older partner-owned quotes compatible.
 - [x] Anchor fee deduction by external services (BRLA, Stellar) is pre-accounted in the quoted amount. **PASS** — anchor fees factored into quote calculation.
 - [ ] Mykobo anchor fee in the quote MUST match the tier Mykobo actually charges. The fee tier is selected by `MYKOBO_CLIENT_DOMAIN`; an unset env var silently degrades to Mykobo's default tier (~5x worse), causing `defaultDepositFee` / `defaultWithdrawFee` and on-chain settlement to diverge. See `07-operations/secret-management.md` (invariant 9) and `05-integrations/mykobo.md` (invariant 20).
+- [x] Direct EUR→EURC-on-Base quotes preserve the live Mykobo deposit fee and set network fee to zero without requesting a bridge quote. **PASS** — `EurOnrampBaseDirect` uses `MykoboMint.simulate`, whose same-token Base branch supplies the provider fee override and skips `calculateEvmBridgeAndNetworkFee`.
 - [ ] Mykobo `/fees` outage during quote creation surfaces as `QuoteError.AnchorTemporarilyUnavailable` (`503`), not a generic failure. The optional env-gated display fallback (`MYKOBO_FEE_FALLBACK_ENABLED` → flat `MYKOBO_FALLBACK_DEPOSIT_FEE` / `MYKOBO_FALLBACK_WITHDRAW_FEE`) is **display-only** and MUST NOT price a ramp execution; a fallback-priced quote MUST re-validate the live Mykobo fee before a rail runs (EUR registration is currently disabled). See `05-integrations/mykobo.md` (invariant 26).
 - [x] Fee changes in token config or database don't retroactively affect already-created quotes. **PASS** — quotes store immutable fee snapshots at creation time.
-- [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — added `validateAmountLimits(..., "max", ...)` calls in both `OnRampFinalizeEngine.validate()` and `OffRampFinalizeEngine.validate()`.
+- [x] **FINDING F-061 (MEDIUM)**: Verify quote finalization enforces maximum amount limits. **PASS (FIXED)** — `phases/blocks/core/quote.ts` applies both minimum and maximum validation through `phases/blocks/core/validation.ts`.
 - [x] **FINDING F-067 (MEDIUM)**: Verify `calculateFeeComponent()` cannot produce negative fee values. **PASS (FIXED)** — added `if (feeComponent.lt(0)) { feeComponent = new Big(0); }` floor check to clamp negative results to zero.
 - [x] EVM branch of `distributeFees` uses `Multicall3.aggregate3` at `0xcA11bde05977b3631167028862bE2a173976CA11`. **PASS** — address constant matches canonical Multicall3 deployment.
-- [x] EVM fee handler pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `distribute-fees-handler.ts`.
-- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — verified in `evm-to-brl-base.ts`.
+- [x] The EVM fee executor pre-checks ephemeral ERC-20 balance via `checkEvmBalanceForToken` with `FEE_BALANCE_POLL_TIMEOUT_MS=60s`. **PASS** — verified in `phases/blocks/phases/distribute-fees/execution.ts`.
+- [x] BRL offramp ordering: `distributeFees` BEFORE `nablaSwap`. **PASS** — derived by `BrlOfframpBase`; the live Avenia payout fee is then installed before discount subsidy and net PIX finalization.
 - [x] **Vortex `payout_address_evm` NULL fallback**: `DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS` / `config.defaults.vortexEvmPayoutAddress` is used when the active `vortex` row lacks an EVM payout address.
 - [x] **Partner `payout_address_evm` NULL no longer drops markup silently**: BRL-on-Base quote creation rejects partner-markup routes when the partner lacks EVM payout config, and runtime fee distribution logs a warning if the condition slips through.

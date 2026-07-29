@@ -3,7 +3,7 @@ import { Op } from "sequelize";
 import logger from "../../../../config/logger";
 import ProfilePartnerAssignment from "../../../../models/profilePartnerAssignment.model";
 import { findPartnerWithPricing, PartnerWithPricing } from "../../partners/partner-pricing.service";
-import { getTargetFiatCurrency } from "./helpers";
+import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import type { PartnerPricingSource } from "./types";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {

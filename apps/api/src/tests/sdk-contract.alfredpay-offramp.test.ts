@@ -245,7 +245,10 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     const quote = await QuoteTicket.findByPk(quoteId);
     const ephemeralAddress = state?.state.evmEphemeralAddress as `0x${string}`;
     expect(ephemeralAddress).toBeTruthy();
-    const inputAmountRaw = BigInt(quote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = quote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     world.evm.setNativeBalance(Networks.Polygon, ephemeralAddress, parseUnits("2", 18));

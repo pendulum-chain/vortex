@@ -349,4 +349,10 @@ cd apps/api && RUN_LIVE_TESTS=1 bun test src/api/services/phases/
 cd apps/api && RUN_LIVE_TESTS=1 bun test src/tests/contracts/
 ```
 
+For local manual BRLA and AlfredPay flow tests, set `MOCK_ANCHOR_OPERATIONS=true` on the API. Onramp mint executors
+wait only for the quoted anchor token amount on the EVM ephemeral: BRLA on Base for Avenia and the AlfredPay token on
+Polygon. The API log prints the exact raw amount and address. Offramps pause recoverably at `brlaPayoutOnBase` or
+`alfredpayOfframpTransfer`, before any anchor-bound transfer or partner API call, so the SDK-stored ephemeral key can
+be used to recover the funds. The switch is active only when `NODE_ENV=development`.
+
 (Scripts are defined in the root `package.json`; see there for the authoritative list.)

@@ -4,7 +4,7 @@ import path from "node:path";
 
 import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
 import {PhaseProcessor} from "./phase-processor";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 
 const fixturePath = path.join(__dirname, "failedRampStateRecovery.json");
 
@@ -110,7 +110,7 @@ describe.skipIf(!process.env.RUN_LIVE_TESTS)("Restart PhaseProcessor Integration
       const processor = new PhaseProcessor();
 
       // wait for handlers to be registered
-      registerPhaseHandlers();
+      registerBlockFlowHandlers();
       await new Promise(resolve => setTimeout(resolve, 1000));
       await processor.processRamp(rampState.id);
 

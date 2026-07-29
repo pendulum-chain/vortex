@@ -4,7 +4,7 @@ import { erc20Abi } from "viem";
 import logger from "../../../../config/logger";
 import { config } from "../../../../config/vars";
 import RampState from "../../../../models/rampState.model";
-import { getEvmFundingAccount } from "../evm-funding";
+import { getEvmFundingAccount } from "../blocks/core/evm-funding";
 import { BasePostProcessHandler } from "./base-post-process-handler";
 
 const POLYGON_BUY_CLEANUP_PHASES: CleanupPhase[] = ["polygonCleanup"];

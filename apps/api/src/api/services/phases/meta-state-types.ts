@@ -1,6 +1,19 @@
-import { AlfredpayFiatPaymentInstructions, ExtrinsicOptions, IbanPaymentData } from "@vortexfi/shared";
+import {
+  AlfredpayFiatPaymentInstructions,
+  EphemeralAccountType,
+  ExtrinsicOptions,
+  IbanPaymentData,
+  Networks,
+  RampPhase
+} from "@vortexfi/shared";
 
 export interface StateMetadata {
+  accountAddresses?: Partial<Record<EphemeralAccountType, string>>;
+  blockState?: Record<string, unknown>;
+  transactionPlan?: {
+    nativePrefunding?: Record<string, string>;
+    settlementBaselines?: Record<string, string>;
+  };
   nablaSoftMinimumOutputRaw: string;
   // Only used in offramp
   squidRouterReceiverId: string;
@@ -76,7 +89,7 @@ export interface StateMetadata {
   squidRouterPermitExecutionValue?: string;
   nablaSwapTxHash?: string;
   isDirectTransfer?: boolean;
-  // Snapshot of destination-token raw balance on the ephemeral, recorded immediately before squidRouterPay so finalSettlementSubsidy can compute actual bridge delivery rather than total balance (which may include leftover dust from prior phases).
+  // Legacy settlement snapshot. Block flows use transactionPlan.settlementBaselines.
   preSettlementBalance?: string;
   // Fallback path used when input ERC20 does not support EIP-2612 permit.
   // The user submits the substituting transaction(s) from their own wallet and
@@ -91,4 +104,7 @@ export interface StateMetadata {
   mykoboReceivablesAddress?: string;
   mykoboPayoutTxHash?: `0x${string}`;
   mykoboTransactionReference?: string;
+  // Explicit phase flow for this ramp (set at registration by route builder).
+  // When present, the PhaseProcessor follows this sequence instead of handler-driven routing.
+  phaseFlow?: RampPhase[];
 }
