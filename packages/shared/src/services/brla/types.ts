@@ -354,6 +354,24 @@ export interface KybLevel1Response {
   basicCompanyDataUrl: string;
 }
 
+/**
+ * Avenia models individual and company verification as the same "attempt" resource
+ * (both are fetched from /v2/kyc/attempts), so the polled response and the webhook
+ * payload carry this identical shape. result and resultMessage are absent until an
+ * attempt settles.
+ */
+export interface AveniaVerificationAttempt {
+  id: string;
+  levelName: string;
+  submissionData: Record<string, unknown>;
+  status: KycAttemptStatus;
+  result?: KycAttemptResult;
+  resultMessage?: string;
+  retryable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface KybAttemptStatusResponse {
   failureReason?: string;
   result?: KycAttemptResult;
@@ -361,17 +379,7 @@ export interface KybAttemptStatusResponse {
 }
 
 export interface AveniaKybAttemptStatusResponse {
-  attempt: {
-    id: string;
-    levelName: string;
-    submissionData: Record<string, unknown>;
-    status: KycAttemptStatus;
-    result?: KycAttemptResult;
-    resultMessage: string;
-    retryable: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
+  attempt: AveniaVerificationAttempt;
 }
 
 export enum AveniaDocumentType {
@@ -456,4 +464,37 @@ export interface AveniaAccountBalanceResponse {
     USDM: string;
     USDT: string;
   };
+}
+
+/**
+ * Avenia documents no KYB-specific subscription. Company attempts are expected to
+ * arrive under KYC because both verification kinds share the attempts resource, but
+ * that is unconfirmed — subscribing with All is what makes the assumption safe.
+ */
+export enum AveniaWebhookSubscription {
+  All = "*",
+  Kyc = "KYC",
+  LimitUpdate = "LIMIT-UPDATE",
+  Ticket = "TICKET"
+}
+
+export interface AveniaWebhookEvent {
+  subAccountId: string;
+  subscription: string;
+  data: Record<string, unknown>;
+  cursor?: string;
+}
+
+export interface AveniaWebhookRegistration {
+  id: string;
+  webhookUrl: string;
+  subscriptions: string[];
+}
+
+export interface AveniaWebhooksListResponse {
+  webhooks: AveniaWebhookRegistration[];
+}
+
+export interface AveniaPublicKeyResponse {
+  publicKey: string;
 }

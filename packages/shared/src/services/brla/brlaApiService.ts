@@ -14,8 +14,11 @@ import {
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
+  AveniaPublicKeyResponse,
   AveniaQuoteResponse,
   AveniaSwapTicket,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
@@ -120,8 +123,10 @@ export class BrlaApiService {
     const body = payload ? JSON.stringify(payload) : "";
     let requestUri = endpoint as string;
 
+    // Endpoints that carry a {placeholder} interpolate it; the rest append the segment.
+    // Appending to a templated path would sign and request a literal "{attemptId}".
     if (pathParam) {
-      requestUri += `/${pathParam}`;
+      requestUri = requestUri.includes("{") ? requestUri.replace(/\{[^}]+\}/, pathParam) : `${requestUri}/${pathParam}`;
     }
     if (queryParams) {
       requestUri += `?${queryParams}`;
@@ -398,6 +403,38 @@ export class BrlaApiService {
    */
   public async getKybAttemptStatus(attemptId: string): Promise<AveniaKybAttemptStatusResponse> {
     return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
+  }
+
+  public async listWebhooks(): Promise<AveniaWebhooksListResponse> {
+    return await this.sendRequest(Endpoint.Webhooks, "GET");
+  }
+
+  public async createWebhook(webhookUrl: string, subscriptions: string[]): Promise<AveniaWebhookRegistration> {
+    return await this.sendRequest(Endpoint.Webhooks, "POST", undefined, { subscriptions, webhookUrl });
+  }
+
+  public async updateWebhook(webhookId: string, webhookUrl: string, subscriptions: string[]): Promise<void> {
+    await this.sendRequest(Endpoint.Webhooks, "PATCH", undefined, { subscriptions, webhookId, webhookUrl });
+  }
+
+  /**
+   * Avenia's webhook-signing public key. Unauthenticated, and Avenia's guide warns it
+   * rotates, so it is fetched rather than pinned in config.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  public async getAveniaPublicKey(): Promise<string> {
+    const response = await fetch(`${BRLA_BASE_URL}/v2/public-key`, { headers: { Accept: "application/json" } });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch Avenia public key: status '${response.status}'`);
+    }
+
+    const { publicKey } = (await response.json()) as AveniaPublicKeyResponse;
+    if (!publicKey) {
+      throw new Error("Avenia public key response contained no key");
+    }
+
+    return publicKey;
   }
 
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {

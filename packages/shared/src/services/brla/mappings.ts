@@ -10,6 +10,8 @@ import {
   AveniaQuoteResponse,
   AveniaSubaccount,
   AveniaSwapTicket,
+  AveniaWebhookRegistration,
+  AveniaWebhooksListResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -36,7 +38,8 @@ export enum Endpoint {
   Documents = "/v2/documents",
   GetKycAttempt = "/v2/kyc/attempts",
   GetKybAttempt = "/v2/kyc/attempts/{attemptId}",
-  Balances = "/v2/account/balances"
+  Balances = "/v2/account/balances",
+  Webhooks = "/v2/notifications/webhooks"
 }
 
 export interface EndpointMapping {
@@ -207,6 +210,20 @@ export interface EndpointMapping {
     };
     PATCH: {
       body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Webhooks]: {
+    POST: {
+      body: { webhookUrl: string; subscriptions: string[] };
+      response: AveniaWebhookRegistration;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaWebhooksListResponse;
+    };
+    PATCH: {
+      body: { webhookId: string; webhookUrl?: string; subscriptions?: string[] };
       response: undefined;
     };
   };
