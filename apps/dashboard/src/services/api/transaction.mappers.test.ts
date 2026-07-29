@@ -126,6 +126,6 @@ describe("mapRampHistoryTransaction", () => {
 
     assert.equal(transaction?.direction, RampDirection.SELL);
     assert.equal(transaction?.payinWallet, "0x2222222222222222222222222222222222222222");
-    assert.equal(transaction?.recipientEmail, "Payout account");
+    assert.equal(transaction?.recipientEmail, "Pay-out account");
   });
 });

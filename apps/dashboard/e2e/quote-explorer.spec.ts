@@ -14,9 +14,13 @@ test("EUR is quotable on BUY and an unapproved corridor routes to onboarding", a
   await expect.poll(() => backend.quoteRequests.length, { timeout: 20_000 }).toBeGreaterThan(0);
   expect(backend.quoteRequests.at(-1)).toMatchObject({ inputCurrency: "EUR", paymentMethod: "sepa", rampType: "BUY" });
 
-  const onboardingCta = page.getByRole("link", { name: "Get approved for Europe" });
+  const onboardingCta = page.getByRole("link", { name: "Start onboarding for Europe" });
   await expect(onboardingCta).toBeVisible({ timeout: 20_000 });
   await expect(onboardingCta).toHaveAttribute("href", "/overview?onboarding=EU");
+  await onboardingCta.click();
+
+  await expect(page).toHaveURL(/\/overview\?onboarding=EU$/);
+  await expect(page.getByRole("dialog").getByText("KYC is currently disabled in Europe.")).toBeVisible();
 
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);

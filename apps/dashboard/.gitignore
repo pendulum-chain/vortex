@@ -5,4 +5,4 @@ dist
 .tanstack
 dev-boot.log
 *.log
-*.env
+**/.env

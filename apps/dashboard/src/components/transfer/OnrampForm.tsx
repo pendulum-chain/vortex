@@ -129,7 +129,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         <TriangleAlert className="mt-px size-4 shrink-0 text-warning" />
         <div className="grid gap-1">
           <p className="font-medium">Another account has an unfinished transfer</p>
-          <p className="text-muted-foreground">Switch back to that account to resume it before starting a new onramp.</p>
+          <p className="text-muted-foreground">Switch back to that account to resume it before starting a new pay-in.</p>
         </div>
       </div>
     );
@@ -164,7 +164,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
     return (
       <div className="flex items-start gap-3 rounded-lg border border-dashed p-4 text-sm">
         <Lock className="mt-px size-4 shrink-0 text-muted-foreground" />
-        <p className="text-muted-foreground">Complete onboarding for a supported corridor before starting an onramp.</p>
+        <p className="text-muted-foreground">Complete onboarding for a supported corridor before starting a pay-in.</p>
       </div>
     );
   }
@@ -284,7 +284,7 @@ export function OnrampForm({ account, prefill }: { account: SenderAccount; prefi
         {error ? (
           <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-destructive text-sm">
             <TriangleAlert className="mt-px size-4 shrink-0" />
-            <p>We couldn’t fetch an onramp quote right now. Try another amount or token.</p>
+            <p>We couldn’t fetch a pay-in quote right now. Try another amount or token.</p>
           </div>
         ) : Number(amount) <= 0 ? (
           <p className="rounded-lg border border-dashed p-4 text-center text-muted-foreground text-sm">

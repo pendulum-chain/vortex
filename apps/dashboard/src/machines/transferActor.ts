@@ -62,7 +62,7 @@ transferActor.on("STATUS_CHANGED", event => {
   if (event.status.currentPhase === "complete" && !notifiedRampIds.has(event.ramp.id)) {
     notifiedRampIds.add(event.ramp.id);
     const meta = transferActor.getSnapshot().context.meta;
-    const label = meta?.direction === RampDirection.BUY ? "Onramp" : "Payout";
+    const label = meta?.direction === RampDirection.BUY ? "Pay-in" : "Pay-out";
     notifyTransferCompleted(meta ? `${label} of ${meta.summary}` : "Transfer completed");
   }
 });

@@ -100,12 +100,12 @@ export function OnrampPaymentInstructions({ ramp }: { ramp: RampProcess }) {
     const subscription = transferActor.subscribe(snapshot => {
       if (snapshot.matches("Tracking")) {
         subscription.unsubscribe();
-        toast.success("Onramp initiated", { description: "We’ll update your transaction as the payment settles." });
+        toast.success("Pay-in initiated", { description: "We’ll update your transaction as the payment settles." });
         navigate({ to: "/transactions" });
       } else if (snapshot.matches("AwaitingPayment") || snapshot.matches("Failed")) {
         // A failed start returns to AwaitingPayment so the ramp and instructions survive.
         subscription.unsubscribe();
-        toast.error("Could not start onramp", { description: snapshot.context.errorMessage ?? undefined });
+        toast.error("Could not start pay-in", { description: snapshot.context.errorMessage ?? undefined });
       }
     });
     transferActor.send({ type: "PAYMENT_CONFIRMED" });

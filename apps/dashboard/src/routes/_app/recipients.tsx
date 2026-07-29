@@ -82,7 +82,7 @@ function RecipientsPage() {
               <div className="grid gap-1">
                 <p className="font-medium">No recipients yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
-                  Add a recipient and share their invite link — they complete KYC/KYB and add payout details to receive
+                  Add a recipient and share their invite link — they complete KYC/KYB and add pay-out details to receive
                   transfers.
                 </p>
               </div>

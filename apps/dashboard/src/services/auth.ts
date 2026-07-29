@@ -80,6 +80,11 @@ export class AuthService {
     return (await this.refreshAccessToken())?.accessToken;
   }
 
+  static getAccessTokenExpiryMs(): number | null {
+    const tokens = this.getTokens();
+    return tokens ? this.decodeJwtExpiryMs(tokens.accessToken) : null;
+  }
+
   private static decodeJwtExpiryMs(token: string): number | null {
     try {
       const payload = token.split(".")[1];

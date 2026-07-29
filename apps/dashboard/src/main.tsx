@@ -7,6 +7,7 @@ import "@/App.css";
 import { queryClient } from "@/lib/queryClient";
 import { wagmiConfig } from "@/lib/wagmi";
 import { getRouter } from "@/router";
+import { useAuthStore } from "@/stores/auth.store";
 import { WalletExperienceProvider } from "@/wallets/WalletExperienceProvider";
 
 const router = getRouter();
@@ -19,12 +20,18 @@ if (!root) {
   throw new Error("Root element not found");
 }
 
-createRoot(root).render(
-  <WagmiProvider config={wagmiConfig}>
-    <QueryClientProvider client={queryClient}>
-      <WalletExperienceProvider>
-        <RouterProvider router={router} />
-      </WalletExperienceProvider>
-    </QueryClientProvider>
-  </WagmiProvider>
-);
+async function renderApp(container: HTMLElement) {
+  await useAuthStore.getState().restoreSession();
+
+  createRoot(container).render(
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <WalletExperienceProvider>
+          <RouterProvider router={router} />
+        </WalletExperienceProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+
+void renderApp(root);
