@@ -15,6 +15,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { getBlockMetadata } from "../../core/metadata";
+import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { AlfredpayMintContext } from "./simulation";
 
 const MINT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -41,6 +42,28 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
       throw new Error("AlfredpayOnrampMintExecutor: Quote not found");
     }
     const metadata = getBlockMetadata(quote.metadata, AlfredpayMintContext);
+    if (isAnchorMockingEnabled()) {
+      logger.warn(
+        `AlfredpayOnrampMintExecutor: Mocking AlfredPay mint; send ${metadata.outputAmountRaw} raw tokens on ${Networks.Polygon} to ${evmEphemeralAddress}`
+      );
+      try {
+        await checkEvmBalancePeriodically(
+          ALFREDPAY_ERC20_TOKEN,
+          evmEphemeralAddress,
+          metadata.outputAmountRaw,
+          POLL_INTERVAL_MS,
+          MINT_TIMEOUT_MS,
+          Networks.Polygon
+        );
+      } catch (error) {
+        if (error instanceof BalanceCheckError && error.type === BalanceCheckErrorType.Timeout) {
+          throw this.createRecoverableError(`AlfredpayOnrampMintExecutor: Mock mint balance check timed out: ${error}`);
+        }
+        throw error;
+      }
+      return state;
+    }
+
     const abortController = new AbortController();
     try {
       await Promise.race([

@@ -27,6 +27,7 @@ import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.se
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
+import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { syncAveniaOnHoldState } from "./on-hold";
 import { AveniaMintContext } from "./simulation";
 import type { AveniaMintPreparation } from "./transactions";
@@ -60,19 +61,6 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
 
     const metadata = getBlockMetadata(quote.metadata, AveniaMintContext);
 
-    const preparation = getBlockState<AveniaMintPreparation>(state.state, AveniaMintContext);
-    if (!preparation.taxId) {
-      throw new Error("BrlaOnrampMintExecutor: Missing Avenia tax ID in block state");
-    }
-    const aveniaCustomer = await findAveniaCustomerByTaxId(preparation.taxId);
-    if (!aveniaCustomer) {
-      throw new APIError({
-        message: "Subaccount not found",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
-
     const isMoonbeam = metadata.network === Networks.Moonbeam;
     const baseToken = evmTokenConfig[Networks.Base][EvmToken.BRLA];
     const moonbeamToken = getAnyFiatTokenDetailsMoonbeam(FiatToken.BRL);
@@ -90,6 +78,42 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
     const paymentMethod = isMoonbeam ? AveniaPaymentMethod.MOONBEAM : AveniaPaymentMethod.BASE;
 
     const preComputedExpectedAmountRaw = metadata.transfer.outputAmountRaw;
+
+    if (isAnchorMockingEnabled()) {
+      logger.warn(
+        `BrlaOnrampMintExecutor: Mocking Avenia mint; send ${preComputedExpectedAmountRaw} raw BRLA on ${network} to ${evmEphemeralAddress}`
+      );
+      try {
+        await checkEvmBalancePeriodically(
+          tokenAddress,
+          evmEphemeralAddress,
+          preComputedExpectedAmountRaw,
+          1000,
+          EVM_BALANCE_CHECK_TIMEOUT_MS,
+          network,
+          signal
+        );
+      } catch (error) {
+        if (error instanceof BalanceCheckError && error.type === BalanceCheckErrorType.Timeout) {
+          throw this.createRecoverableError(`BrlaOnrampMintExecutor: Mock mint balance check timed out: ${error}`);
+        }
+        throw error;
+      }
+      return state;
+    }
+
+    const preparation = getBlockState<AveniaMintPreparation>(state.state, AveniaMintContext);
+    if (!preparation.taxId) {
+      throw new Error("BrlaOnrampMintExecutor: Missing Avenia tax ID in block state");
+    }
+    const aveniaCustomer = await findAveniaCustomerByTaxId(preparation.taxId);
+    if (!aveniaCustomer) {
+      throw new APIError({
+        message: "Subaccount not found",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
 
     // Recovery shortcut: a previous run may have already minted on Avenia and transferred to the
     // ephemeral. Accept a balance of at least 95% of the pre-computed expected amount.

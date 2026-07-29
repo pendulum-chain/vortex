@@ -15,6 +15,7 @@ import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.se
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
+import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { AveniaPendulumOfframpContext } from "../avenia-pendulum-offramp/simulation";
 import type { AveniaOfframpPayoutRegistrationFacts } from "./registration";
 import { AveniaOfframpPayoutContext } from "./simulation";
@@ -27,7 +28,16 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     return "brlaPayoutOnBase";
   }
 
+  public getMaxRetries(): number {
+    return getAnchorPayoutMaxRetries();
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
+    if (isAnchorMockingEnabled()) {
+      logger.warn(`AveniaOfframpPayoutExecutor: Pausing test ramp ${state.id} before the anchor payout`);
+      throw this.createRecoverableError("Avenia payout paused by MOCK_ANCHOR_OPERATIONS");
+    }
+
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) throw new Error("AveniaOfframpPayoutExecutor: Quote not found");
     const isPendulumPayout = Boolean(getFlowMetadata(quote.metadata).blocks[AveniaPendulumOfframpContext.key]);

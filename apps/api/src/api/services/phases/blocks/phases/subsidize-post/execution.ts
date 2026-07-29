@@ -172,7 +172,7 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
         }
         const discountCapFraction = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
         const discountCapUsd = Big(quoteOutputUsd).mul(discountCapFraction);
-        if (Big(discountUsd).gt(discountCapUsd)) {
+        if (Big(discountUsd).gte(1) && Big(discountUsd).gt(discountCapUsd)) {
           throw this.createRecoverableError(
             `SubsidizePostSwapExecutor: Required discount subsidy $${discountUsd} exceeds cap $${discountCapUsd.toFixed(2)} (${discountCapFraction} of quote output $${quoteOutputUsd}).`
           );

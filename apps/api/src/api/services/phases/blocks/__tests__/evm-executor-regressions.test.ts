@@ -103,6 +103,85 @@ describe("EVM block executor regressions", () => {
     expect(sendTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it("allows a sub-$1 discount subsidy above the runtime percentage cap", async () => {
+    checkBalance.mockResolvedValue(new Big("563600"));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          subsidizePostSwap: {
+            actualOutputAmountRaw: "563612",
+            outputCurrency: EvmToken.USDC,
+            outputDecimals: 6,
+            subsidyAmountInOutputTokenRaw: "39319",
+            targetOutputAmountRaw: "602931"
+          }
+        }
+      },
+      outputAmount: "0.602893",
+      outputCurrency: EvmToken.USDC
+    });
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+    const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+
+    try {
+      await executor.executePhase({
+        quoteId: "quote-1",
+        state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
+        type: RampDirection.BUY
+      } as RampState);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+    expect(executor.createSubsidy).toHaveBeenCalledWith(
+      expect.anything(),
+      0.039331,
+      EvmToken.USDC,
+      fundingAccount.address,
+      expect.any(String)
+    );
+  });
+
+  it("retains the runtime percentage cap for discount subsidies of at least $1", async () => {
+    checkBalance.mockResolvedValue(new Big("10000000"));
+    findQuote.mockResolvedValue({
+      metadata: {
+        blocks: {
+          subsidizePostSwap: {
+            actualOutputAmountRaw: "10000000",
+            outputCurrency: EvmToken.USDC,
+            outputDecimals: 6,
+            subsidyAmountInOutputTokenRaw: "1000000",
+            targetOutputAmountRaw: "11000000"
+          }
+        }
+      },
+      outputAmount: "10",
+      outputCurrency: EvmToken.USDC
+    });
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
+    const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
+    executor.createSubsidy = mock(async () => undefined);
+
+    try {
+      await expect(
+        executor.executePhase({
+          quoteId: "quote-1",
+          state: { evmEphemeralAddress: "0x2222222222222222222222222222222222222222" },
+          type: RampDirection.BUY
+        } as RampState)
+      ).rejects.toMatchObject({ isRecoverable: true });
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
+
+    expect(sendTransaction).not.toHaveBeenCalled();
+  });
+
   it("records AlfredPay SELL settlement subsidy as Polygon USDT", async () => {
     checkBalance.mockResolvedValue(new Big("900000"));
     findQuote.mockResolvedValue({

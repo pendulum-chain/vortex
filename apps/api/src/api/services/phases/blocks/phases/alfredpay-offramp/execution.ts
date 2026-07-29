@@ -25,6 +25,7 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
+import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { FinalSettlementSubsidyExecutor } from "../final-settlement-subsidy/execution";
 import { FundEphemeralExecutor } from "../fund-ephemeral/execution";
 import { getAlfredpayRelayerAddress } from "./permit";
@@ -353,7 +354,15 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
     return "alfredpayOfframpTransfer";
   }
 
+  public getMaxRetries(): number {
+    return getAnchorPayoutMaxRetries();
+  }
+
   protected async executePhase(state: RampState): Promise<RampState> {
+    if (isAnchorMockingEnabled()) {
+      throw this.createRecoverableError("AlfredPay payout paused by MOCK_ANCHOR_OPERATIONS");
+    }
+
     const { alfredpayTransactionId, alfredpayOfframpTransferTxHash } = state.state as StateMetadata;
     if (!alfredpayTransactionId) throw new Error("AlfredpayOfframpTransferExecutor: Missing alfredpayTransactionId in state.");
 
