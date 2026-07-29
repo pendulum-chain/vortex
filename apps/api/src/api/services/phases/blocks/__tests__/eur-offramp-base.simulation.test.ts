@@ -3,10 +3,7 @@ import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@v
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
 import { simulateMykoboOfframpPayout } from "../phases/mykobo-offramp-payout/simulation";
-
-const resolveMykoboWithdrawFee = mock(async () => "0.35");
-mock.module("../core/mykobo-fee", () => ({ resolveMykoboWithdrawFee }));
-const { simulateMykoboOfframpFee } = await import("../phases/mykobo-offramp-fee/simulation");
+import { simulateMykoboOfframpFee } from "../phases/mykobo-offramp-fee/simulation";
 
 function phaseContext() {
   return {
@@ -38,7 +35,8 @@ describe("EUR offramp fee and payout simulation", () => {
     try {
       const result = await simulateMykoboOfframpFee(
         { amount: new Big("98.987"), amountRaw: "98987000", chain: Networks.Base, token: EvmToken.EURC },
-        phaseContext()
+        phaseContext(),
+        { resolveWithdrawFee: async () => "0.35" }
       );
       expect(result.metadata).toEqual({ anchorFeeEur: "0.35", grossAmountEur: "98.98" });
       expect(result.fees?.usd).toMatchObject({ anchor: "0.35", network: "1.25", total: "1.900000" });

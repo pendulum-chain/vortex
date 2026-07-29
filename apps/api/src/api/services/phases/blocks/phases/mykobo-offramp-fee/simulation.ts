@@ -14,13 +14,14 @@ export const MykoboOfframpFeeContext = defineContext<MykoboOfframpFeeMetadata>()
 
 export async function simulateMykoboOfframpFee<Token extends TokenBrand, Chain extends ChainBrand>(
   input: PhaseIO<Token, Chain>,
-  ctx: PhaseCtx
+  ctx: PhaseCtx,
+  dependencies: { resolveWithdrawFee?: typeof resolveMykoboWithdrawFee } = {}
 ): Promise<PhaseResult<PhaseIO<Token, Chain>, MykoboOfframpFeeMetadata>> {
   if (!ctx.fees?.usd || !ctx.fees.displayFiat) {
     throw new Error("MykoboOfframpFee: Missing fee snapshot");
   }
   const grossAmountEur = input.amount.toFixed(2, 0);
-  const anchorFeeEur = await resolveMykoboWithdrawFee(grossAmountEur);
+  const anchorFeeEur = await (dependencies.resolveWithdrawFee ?? resolveMykoboWithdrawFee)(grossAmountEur);
   const displayCurrency = ctx.fees.displayFiat.currency;
   const [anchorUsd, anchorDisplay] = await Promise.all([
     priceFeedService.convertCurrency(anchorFeeEur, FiatToken.EURC as RampCurrency, EvmToken.USDC as RampCurrency),
