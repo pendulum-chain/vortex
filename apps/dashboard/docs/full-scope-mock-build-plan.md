@@ -77,7 +77,7 @@ Tailwind v4, react-hook-form + zod, sonner.
 4. `RecipientsTable` — columns: Recipient (email), Type, Country, Amount,
    Payout currency, Status, Added. Compliance status only (no payment status).
 
-## Workstream 4 — New transfer (Privy payin)
+## Workstream 4 — New transfer (CDP payin)
 
 `routes/_app/transfer.tsx`; `components/transfer/TransferForm.tsx`
 
@@ -85,9 +85,9 @@ Tailwind v4, react-hook-form + zod, sonner.
    selectable — blocking rule §7; others shown disabled with reason).
 2. Show read-only **amount + bank payout details** captured at recipient
    creation (no amount input here).
-3. **Privy wallet payin mock.** "Create / use Vortex wallet" → show a
+3. **CDP wallet payin mock.** "Create / use Vortex wallet" → show a
    generated deposit **address** + network + payin instructions (static mock
-   address; no real Privy).
+   address; no real CDP).
 4. "I've sent the payin" → create transaction `awaiting_payin` →
    (timer) `processing` → `completed`; navigate to Transactions.
 
@@ -137,7 +137,7 @@ Tailwind v4, react-hook-form + zod, sonner.
 1. WS1 domain types + seed scaffolding (unblocks everything).
 2. WS2 onboarding (account type + routing matrix + generic machines).
 3. WS3 recipients (rich form + statuses + sim).
-4. WS4 transfer (Privy payin).
+4. WS4 transfer (CDP payin).
 5. WS5 transactions.
 6. WS6 nav/settings polish.
 7. Lint, typecheck, visual pass per `figma-design-system.md`.

@@ -115,7 +115,7 @@ flowchart TD
 |---|---|
 | `Error` | `ErrorStep` |
 | `RedirectCallback` | `RampFollowUpRedirectStep` |
-| `EmbeddedWallet` | Loading card while the authenticated Privy wallet is created and server-verified |
+| `EmbeddedWallet` | Loading card while the authenticated CDP wallet is created and server-verified |
 | `CheckAuth`, `EnterEmail`, `CheckingEmail`, `RequestingOTP` | `AuthEmailStep` |
 | `EnterOTP`, `VerifyingOTP` | `AuthOTPStep` |
 | Monerium child actor state `Redirect` | `MoneriumRedirectStep` |
@@ -137,8 +137,8 @@ flowchart TD
 - `AuthEmailStep` -> `ENTER_EMAIL`
 - `AuthOTPStep` -> `VERIFY_OTP`
 - `EVMWalletButton` embedded option -> `REQUEST_EMBEDDED_WALLET`
-- Privy wallet registration success -> `EMBEDDED_WALLET_READY`
-- Privy authentication, creation, or registration failure -> `EMBEDDED_WALLET_FAILED`
+- CDP wallet registration success -> `EMBEDDED_WALLET_READY`
+- CDP authentication, creation, or registration failure -> `EMBEDDED_WALLET_FAILED`
 - Error/initial-failure/retry actions -> `RESET_RAMP`
 - Back button (`StepBackButton`) primarily sends `GO_BACK` (with Avenia-specific child events in document/liveness/KYB sub-steps)
 
@@ -164,12 +164,12 @@ This is why many sessions start in `LoadingQuote`/`QuoteReady` rather than plain
 
 ## Optional wallet selection
 
-- External Reown/Wagmi remains available and does not initialize Privy.
+- External Reown/Wagmi remains available and does not initialize CDP.
 - The embedded option is shown only when both the base and provisioning flags are enabled.
 - `EmbeddedWallet` is entered only after the user explicitly chooses that option.
 - Successful creation is not enough: the API verifies ownership and persists the wallet before
   `EMBEDDED_WALLET_READY`.
-- Privy supports only the EVM branch. AssetHub and other Polkadot paths keep their existing connection/signing logic.
+- CDP supports only the EVM branch. AssetHub and other Polkadot paths keep their existing connection/signing logic.
 - In an iframe, the embedded option is available only for an exact allowed parent origin. Unknown ancestry fails
   closed and leaves the existing-wallet flow available.
 
