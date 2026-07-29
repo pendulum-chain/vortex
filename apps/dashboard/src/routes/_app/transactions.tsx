@@ -35,7 +35,7 @@ function TransactionsPage() {
     <Stagger className="mx-auto grid max-w-5xl gap-6">
       <StaggerItem>
         <h1 className="text-balance font-semibold text-2xl tracking-tight">Transactions</h1>
-        <p className="text-muted-foreground">Onramp and offramp history for {account.name}.</p>
+        <p className="text-muted-foreground">Pay-in and pay-out history for {account.name}.</p>
       </StaggerItem>
 
       {resumableRamp && (
@@ -75,8 +75,8 @@ function TransactionsPage() {
                 <p className="font-medium">No transactions yet</p>
                 <p className="text-pretty text-muted-foreground text-sm">
                   {hasApprovedRecipient
-                    ? "Start an onramp or pay an approved payout account and it will appear here."
-                    : "Start an onramp or approve a payout account to create your first transaction."}
+                    ? "Start a pay-in or pay an approved pay-out account and it will appear here."
+                    : "Start a pay-in or approve a pay-out account to create your first transaction."}
                 </p>
               </div>
               {hasApprovedRecipient ? (
@@ -90,12 +90,12 @@ function TransactionsPage() {
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button asChild>
                     <Link search={{ mode: "onramp" }} to="/transfer">
-                      Start an onramp
+                      Start a pay-in
                       <ArrowRight />
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/overview">Set up a payout account</Link>
+                    <Link to="/overview">Set up a pay-out account</Link>
                   </Button>
                 </div>
               )}

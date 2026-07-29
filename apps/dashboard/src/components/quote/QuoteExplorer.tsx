@@ -305,7 +305,7 @@ function QuoteCta({ amount, corridorId, isApproved, isBuy, network, token }: Quo
       <Button asChild size="lg">
         <Link search={{ onboarding: corridorId }} to="/overview">
           <ShieldCheck />
-          Get approved for {CORRIDORS[corridorId].name}
+          Start onboarding for {CORRIDORS[corridorId].name}
           <ArrowRight />
         </Link>
       </Button>

@@ -13,17 +13,17 @@ const CASES = [
   { currency: "ARS", expected: "CVU" }
 ] as const;
 
-test("transfer modes are route-backed and Cross-border is complete", async ({ page }) => {
+test("transfer modes are route-backed and Fiat-to-Fiat is complete", async ({ page }) => {
   const backend = await mockBackend(page);
   await seedSession(page);
   await page.goto("/transfer");
 
-  await page.getByRole("tab", { name: "Cross-border" }).click();
+  await page.getByRole("tab", { name: "Fiat-to-Fiat" }).click();
   await expect(page).toHaveURL(/mode=cross-border/);
-  await expect(page.getByText("Cross-border transfers are coming soon")).toBeVisible();
+  await expect(page.getByText("Fiat-to-Fiat transfers are coming soon")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("tab", { name: "Cross-border" })).toHaveAttribute("data-state", "active");
+  await expect(page.getByRole("tab", { name: "Fiat-to-Fiat" })).toHaveAttribute("data-state", "active");
   expect(backend.unmatchedRequests).toEqual([]);
   expect(backend.unexpectedExternalRequests).toEqual([]);
 });
@@ -231,7 +231,7 @@ for (const journey of CASES) {
     await page.getByRole("button", { name: "I have made the payment" }).click();
     await expect.poll(() => backend.startRequests.length).toBe(1);
     await expect(page).toHaveURL(/\/transactions/);
-    await expect(page.getByText("Onramp", { exact: true })).toBeVisible();
+    await expect(page.getByText("Pay-in", { exact: true })).toBeVisible();
     expect(backend.unmatchedRequests).toEqual([]);
     expect(backend.unexpectedExternalRequests).toEqual([]);
   });

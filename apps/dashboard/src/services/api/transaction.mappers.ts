@@ -46,7 +46,7 @@ export function mapRampHistoryTransaction(tx: GetRampHistoryTransaction, account
     payinNetwork: String(isOnramp ? tx.to : tx.from),
     payinWallet: tx.walletAddress ?? "",
     payoutCurrency: String(tx.toCurrency),
-    recipientEmail: isOnramp ? "Your wallet" : "Payout account",
+    recipientEmail: isOnramp ? "Your wallet" : "Pay-out account",
     recipientId: "",
     status: mapTransactionStatus(tx)
   };

@@ -59,10 +59,10 @@ function TransferPage() {
         <h1 className="text-balance font-semibold text-2xl tracking-tight">New transfer</h1>
         <p className="text-pretty text-muted-foreground">
           {mode === "offramp"
-            ? "Convert supported EVM tokens into fiat through an approved payout account."
+            ? "Convert supported EVM tokens into fiat through an approved pay-out account."
             : mode === "onramp"
               ? "Pay with fiat and receive tokens in an EVM wallet."
-              : "Send money directly across borders."}
+              : "Send fiat directly from one currency to another."}
         </p>
       </StaggerItem>
 
@@ -76,9 +76,9 @@ function TransferPage() {
           value={mode}
         >
           <TabsList className="grid h-11 w-full grid-cols-3">
-            <TabsTrigger value="offramp">Offramp</TabsTrigger>
-            <TabsTrigger value="onramp">Onramp</TabsTrigger>
-            <TabsTrigger value="cross-border">Cross-border</TabsTrigger>
+            <TabsTrigger value="onramp">Pay-in</TabsTrigger>
+            <TabsTrigger value="offramp">Pay-out</TabsTrigger>
+            <TabsTrigger value="cross-border">Fiat-to-Fiat</TabsTrigger>
           </TabsList>
         </Tabs>
       </StaggerItem>
@@ -87,7 +87,7 @@ function TransferPage() {
         <StaggerItem>
           <Card>
             <CardHeader>
-              <CardTitle>Onramp details</CardTitle>
+              <CardTitle>Pay-in details</CardTitle>
             </CardHeader>
             <CardContent>
               <OnrampForm account={account} prefill={{ amount, corridorId, network, token }} />
@@ -102,7 +102,7 @@ function TransferPage() {
                 <Globe2 className="size-5" />
               </span>
               <div className="grid gap-1">
-                <p className="font-medium">Cross-border transfers are coming soon</p>
+                <p className="font-medium">Fiat-to-Fiat transfers are coming soon</p>
                 <p className="max-w-sm text-pretty text-muted-foreground text-sm">
                   You’ll be able to pay approved recipients directly across supported countries from here.
                 </p>

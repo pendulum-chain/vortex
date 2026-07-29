@@ -74,7 +74,7 @@ export function TransactionsTable({
                   month: "short"
                 })}
               </TableCell>
-              <TableCell className="font-medium">{tx.direction === "BUY" ? "Onramp" : "Offramp"}</TableCell>
+              <TableCell className="font-medium">{tx.direction === "BUY" ? "Pay-in" : "Pay-out"}</TableCell>
               <TableCell>
                 <div className="grid gap-0.5">
                   <code className="font-mono text-xs">
@@ -127,7 +127,7 @@ export function TransactionsTable({
 }
 
 function FailedAction({ direction, reason }: { direction: Transaction["direction"]; reason?: string }) {
-  const transferLabel = direction === "BUY" ? "onramp" : "payout";
+  const transferLabel = direction === "BUY" ? "pay-in" : "pay-out";
   return (
     <Tooltip>
       <TooltipTrigger asChild>

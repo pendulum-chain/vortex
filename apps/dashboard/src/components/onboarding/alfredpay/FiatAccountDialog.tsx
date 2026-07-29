@@ -59,9 +59,9 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
     try {
       await deleteFiatAccount.mutateAsync(fiatAccountId);
       setConfirmingDeleteId(null);
-      toast.success("Payout account removed");
+      toast.success("Pay-out account removed");
     } catch (error) {
-      toast.error("Could not remove payout account", { description: error instanceof Error ? error.message : undefined });
+      toast.error("Could not remove pay-out account", { description: error instanceof Error ? error.message : undefined });
     }
   }
 
@@ -70,7 +70,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
       await addFiatAccount.mutateAsync(toAddFiatAccountRequest(corridorId, values));
       form.reset(fiatAccountDefaultValues(corridorId));
       onViewChange("list");
-      toast.success("Payout account added");
+      toast.success("Pay-out account added");
     } catch (error) {
       if (isApiError(error)) {
         for (const fieldError of error.data.fields ?? []) {
@@ -78,9 +78,9 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
             form.setError(fieldError.field, { message: fieldError.message });
           }
         }
-        form.setError("root.server", { message: error.message || "Could not add payout account" });
+        form.setError("root.server", { message: error.message || "Could not add pay-out account" });
       } else {
-        form.setError("root.server", { message: "Could not add payout account" });
+        form.setError("root.server", { message: "Could not add pay-out account" });
       }
     }
   }
@@ -91,9 +91,9 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
         {view === "list" ? (
           <>
             <DialogHeader>
-              <DialogTitle>Payout accounts</DialogTitle>
+              <DialogTitle>Pay-out accounts</DialogTitle>
               <DialogDescription>
-                Accounts available for receiving money through {config.methodLabel}. Payout accounts are not needed for onramps
+                Accounts available for receiving money through {config.methodLabel}. Payout accounts are not needed for pay-ins
                 or payments to third-party recipients.
               </DialogDescription>
             </DialogHeader>
@@ -105,7 +105,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-sm">
-                      {account.metadata?.accountHolderName || account.accountName || "Payout account"} · ••••
+                      {account.metadata?.accountHolderName || account.accountName || "Pay-out account"} · ••••
                       {account.accountNumber.slice(-4)}
                     </p>
                     <p className="text-muted-foreground text-xs">{config.methodLabel}</p>
@@ -138,9 +138,9 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Add payout account</DialogTitle>
+              <DialogTitle>Add pay-out account</DialogTitle>
               <DialogDescription>
-                This account enables reception of money through offramps. Onramps and payments to third-party recipients work
+                This account enables reception of money through pay-outs. Pay-ins and payments to third-party recipients work
                 without one.
               </DialogDescription>
             </DialogHeader>
@@ -204,7 +204,7 @@ export function FiatAccountDialog({ accounts, corridorId, onOpenChange, onViewCh
                     </Button>
                   )}
                   <Button disabled={addFiatAccount.isPending} type="submit">
-                    {addFiatAccount.isPending ? "Saving…" : "Save payout account"}
+                    {addFiatAccount.isPending ? "Saving…" : "Save pay-out account"}
                   </Button>
                 </DialogFooter>
               </form>

@@ -76,7 +76,7 @@ export interface Transaction {
   direction: "BUY" | "SELL";
   accountId: string;
   recipientId: string;
-  /** Denormalized display label; for ramp-history rows a destination label ("Payout account", "Your wallet"). */
+  /** Denormalized display label; for ramp-history rows a destination label ("Pay-out account", "Your wallet"). */
   recipientEmail: string;
   corridorId: CorridorId;
   /** SELL: the sender's funding wallet. BUY: the wallet tokens are delivered to. */
