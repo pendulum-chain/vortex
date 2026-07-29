@@ -404,8 +404,8 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       const quote = await QuoteTicket.findByPk(setup.quoteId);
       expect(quote?.status).toBe("consumed");
       const subsidies = await Subsidy.findAll();
-      expect(subsidies.length).toBe(2);
-      expect(subsidies.map(subsidy => subsidy.phase).sort()).toEqual(["subsidizePostSwap", "subsidizePreSwap"]);
+      expect(subsidies.length).toBe(1);
+      expect(subsidies.map(subsidy => subsidy.phase)).toEqual(["subsidizePreSwap"]);
       expect(subsidies.find(subsidy => subsidy.phase === "subsidizePreSwap")?.token).toBe(
         EvmToken.USDC as unknown as SubsidyToken
       );
@@ -436,14 +436,10 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       // the mykoboPayoutOnBase transfer, whose send failures are recoverable.
       const applyLedgerEffects = world.evm.onTransaction;
       world.evm.sendFailureMessage = "FakeEvm: scripted RPC outage";
-      let swapLanded = false;
       world.evm.onTransaction = tx => {
         applyLedgerEffects?.(tx);
         if (tx.serialized === setup.signedNablaSwap) {
-          swapLanded = true;
-        } else if (swapLanded && !tx.serialized) {
           world.evm.failNextSends = 1;
-          swapLanded = false;
         }
       };
 

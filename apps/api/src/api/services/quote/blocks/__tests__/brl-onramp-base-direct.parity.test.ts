@@ -7,6 +7,7 @@ import type { PhaseCtx } from "../core/types";
 import { DestinationTransferContext } from "../phases/destination-transfer/simulation";
 
 const feesReal = { ...feesNamespace };
+const brlaApiServiceGetInstanceReal = BrlaApiService.getInstance;
 const FEES = {
   displayFiat: { anchor: "1.5", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "1.8", vortex: "0.3" },
   usd: { anchor: "0.27", network: "0", partnerMarkup: "0", total: "0.324", vortex: "0.054" }
@@ -23,6 +24,7 @@ mock.module("../core/fees", () => ({
 const { brlOnrampBaseDirectFlow, brlOnrampBaseDirectPhaseFlow } = await import("../flows/brl-onramp-base-direct");
 
 afterAll(() => {
+  BrlaApiService.getInstance = brlaApiServiceGetInstanceReal;
   mock.module("../core/fees", () => ({ ...feesReal }));
 });
 

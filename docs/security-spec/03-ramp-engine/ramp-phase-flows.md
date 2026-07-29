@@ -32,6 +32,7 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 - **Removed:** the previous Monerium EUR on-ramp (EURe on Polygon → Squid → Moonbeam → XCM → Pendulum) is no longer active. See `monerium.md`.
 
 **BRL Off-ramp (Avenia/BRLA on Base):** User's crypto on source EVM → Squid bridge to Base USDC (user-signed, client-side) → Nabla-on-Base swap (USDC→BRLA) → Avenia PIX payout
+- A Base BRLA source requires no Squid source route or network fee. Quote simulation values the BRLA at the BRL/USD oracle rate before entering the common Base offramp pricing pipeline, preserving the fiat peg rather than treating one BRLA as one USD.
 - Runtime backend phases: `initial` → `fundEphemeral` → `distributeFees` (on Base, USDC) → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `subsidizePostSwap` → `brlaPayoutOnBase` → `complete`
 - The Squid bridge from the source EVM chain to Base is executed by the user's wallet (presigned `squidRouterApprove` + `squidRouterSwap` are submitted client-side); there is no runtime `squidRouterPay` phase in the BRL off-ramp.
 - `BrlOfframpBase` covers three source variants while preserving one runtime phase family: Base USDC emits one user-wallet `squidRouterNoPermitTransfer`; another Base token emits same-chain user-wallet Squid approve/swap; another EVM source emits cross-chain user-wallet Squid approve/swap into Base USDC. `fundEphemeral` verifies the reported hashes against those server-issued payloads before funding or executing Base phases.

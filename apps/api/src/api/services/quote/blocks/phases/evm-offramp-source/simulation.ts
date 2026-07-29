@@ -1,6 +1,7 @@
 import {
   EvmNetworks,
   EvmToken,
+  FiatToken,
   getOnChainTokenDetails,
   isEvmTokenDetails,
   Networks,
@@ -34,6 +35,38 @@ export async function simulateEvmOfframpSource<FromToken extends OnChainToken, F
   input: PhaseIO<FromToken, FromNetwork>,
   ctx: PhaseCtx
 ): Promise<PhaseResult<PhaseIO<typeof EvmToken.USDC, typeof Networks.Base>, EvmOfframpSourceMetadata>> {
+  if (input.chain === Networks.Base && input.token === EvmToken.BRLA) {
+    const fromTokenDetails = getOnChainTokenDetails(Networks.Base, EvmToken.BRLA);
+    const toTokenDetails = getOnChainTokenDetails(Networks.Base, EvmToken.USDC);
+    if (!fromTokenDetails || !isEvmTokenDetails(fromTokenDetails) || !toTokenDetails || !isEvmTokenDetails(toTokenDetails)) {
+      throw new Error("EvmOfframpSource: Missing Base BRLA or USDC token details");
+    }
+    if (!ctx.fees?.usd || !ctx.fees.displayFiat) {
+      throw new Error("EvmOfframpSource: Missing fee snapshot");
+    }
+    const fiatToUsdRate = await priceFeedService.getFiatToUsdExchangeRate(FiatToken.BRL);
+    const amountUsd = input.amount.times(fiatToUsdRate);
+    const amountUsdRaw = amountUsd.times(new Big(10).pow(toTokenDetails.decimals)).toFixed(0, 0);
+    ctx.addNote(`EvmOfframpSource: valued direct Base BRLA at ${amountUsd.toFixed()} USDC`);
+    return {
+      fees: ctx.fees,
+      metadata: {
+        fromNetwork: Networks.Base,
+        fromToken: fromTokenDetails.erc20AddressSourceChain,
+        inputAmountDecimal: input.amount,
+        inputAmountRaw: input.amountRaw,
+        network: Networks.Base,
+        networkFeeUSD: "0",
+        outputAmountDecimal: amountUsd,
+        outputAmountRaw: amountUsdRaw,
+        token: EvmToken.USDC,
+        toNetwork: Networks.Base,
+        toToken: toTokenDetails.erc20AddressSourceChain
+      },
+      output: { ...evmIO(EvmToken.USDC, Networks.Base, amountUsd, amountUsdRaw), requestInputAmountUsd: amountUsd }
+    };
+  }
+
   if (input.chain === Networks.Base && input.token === EvmToken.USDC) {
     const tokenDetails = getOnChainTokenDetails(Networks.Base, EvmToken.USDC);
     if (!tokenDetails || !isEvmTokenDetails(tokenDetails)) {

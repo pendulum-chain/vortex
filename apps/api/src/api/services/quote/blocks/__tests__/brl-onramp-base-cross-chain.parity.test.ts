@@ -4,6 +4,7 @@ import { BrlaApiService, EPaymentMethod, EvmToken, FiatToken, Networks, RampDire
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 
 const partnerPricingReal = { ...partnerPricingNamespace };
+const brlaApiServiceGetInstanceReal = BrlaApiService.getInstance;
 
 mock.module("../../core/nabla", () => ({
   calculateNablaSwapOutput: async () => {
@@ -46,6 +47,7 @@ mock.module("../../../partners/partner-pricing.service", () => ({
 mock.module("../../../ramp/ramp.service", () => ({ default: {} }));
 
 afterAll(() => {
+  BrlaApiService.getInstance = brlaApiServiceGetInstanceReal;
   mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
 });
 
