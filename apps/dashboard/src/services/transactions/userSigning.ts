@@ -61,6 +61,9 @@ export async function signAndSubmitEvmTransaction(unsignedTx: UnsignedTx): Promi
     chainId: targetChainId,
     data: txData.data,
     gas: BigInt(txData.gas),
+    maxFeePerGas: txData.maxFeePerGas ? BigInt(txData.maxFeePerGas) : undefined,
+    maxPriorityFeePerGas: txData.maxPriorityFeePerGas ? BigInt(txData.maxPriorityFeePerGas) : undefined,
+    nonce: txData.nonce,
     to: txData.to,
     value: BigInt(txData.value)
   });

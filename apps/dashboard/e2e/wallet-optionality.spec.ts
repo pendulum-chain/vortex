@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockBackend } from "./support/mockBackend";
 import { seedSession } from "./support/session";
 
-test("existing-wallet users keep the external connect path when Privy flags are off", async ({ page }) => {
+test("existing-wallet users keep the external connect path when CDP flags are off", async ({ page }) => {
   const backend = await mockBackend(page);
   await seedSession(page);
 

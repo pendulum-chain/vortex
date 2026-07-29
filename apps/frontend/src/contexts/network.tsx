@@ -58,7 +58,7 @@ export const NetworkProvider = ({ children }: NetworkProviderProps) => {
       setSelectedNetworkLocalStorage(enabledNetwork);
 
       // Will only switch chain on the EVM connected wallet case.
-      if (isNetworkEVM(enabledNetwork) && evmWallet.mode !== "privy_embedded") {
+      if (isNetworkEVM(enabledNetwork) && evmWallet.mode !== "cdp_embedded") {
         // Only switch chain if the network is different from the current one
         // see https://github.com/wevm/wagmi/issues/3417
         if (!connectedEvmChain || connectedEvmChain.id !== getNetworkId(enabledNetwork)) {

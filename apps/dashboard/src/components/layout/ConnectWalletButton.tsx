@@ -23,7 +23,7 @@ export function ConnectWalletButton() {
           className="gap-2"
           disabled={!wallet.ready || wallet.creatingEmbeddedWallet}
           onClick={() => {
-            if (wallet.mode === "privy_embedded") {
+            if (wallet.mode === "cdp_embedded") {
               void wallet.createEmbeddedWallet();
             } else if (wallet.canUseEmbeddedWallet) {
               setChooserOpen(true);
@@ -38,11 +38,7 @@ export function ConnectWalletButton() {
           ) : (
             <Wallet className="size-4 shrink-0" />
           )}
-          {wallet.mode === "privy_embedded"
-            ? "Create wallet"
-            : wallet.canUseEmbeddedWallet
-              ? "Choose wallet"
-              : "Connect wallet"}
+          {wallet.mode === "cdp_embedded" ? "Create wallet" : wallet.canUseEmbeddedWallet ? "Choose wallet" : "Connect wallet"}
         </Button>
         <Dialog onOpenChange={setChooserOpen} open={chooserOpen}>
           <DialogContent>
@@ -84,7 +80,7 @@ export function ConnectWalletButton() {
     );
   }
 
-  if (wallet.mode !== "privy_embedded" && isExternalConnected && !isOnSupportedNetwork) {
+  if (wallet.mode !== "cdp_embedded" && isExternalConnected && !isOnSupportedNetwork) {
     // AppKit reports the wallet's current (unsupported) network as caipNetwork here, so
     // switchNetwork(caipNetwork) would be a no-op — let the user pick a supported one.
     return (
@@ -98,7 +94,7 @@ export function ConnectWalletButton() {
     <Button
       className="gap-2"
       onClick={() => {
-        if (wallet.mode !== "privy_embedded") void open({ view: "Account" });
+        if (wallet.mode !== "cdp_embedded") void open({ view: "Account" });
       }}
       type="button"
       variant="outline"

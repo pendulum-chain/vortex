@@ -1,6 +1,6 @@
 import { apiClient } from "./api-client";
 
-export type WalletMode = "external" | "privy_embedded" | null;
+export type WalletMode = "external" | "cdp_embedded" | null;
 
 export interface ProfileWallet {
   address: `0x${string}`;
@@ -8,7 +8,7 @@ export interface ProfileWallet {
   createdAt: string;
   id: string;
   lastUsedAt: string;
-  provider: "privy";
+  provider: "cdp";
   providerWalletId: string;
   status: "active";
 }
@@ -20,7 +20,7 @@ export interface WalletsResponse {
 
 export const WalletsAPI = {
   getWallets: (signal?: AbortSignal) => apiClient.get<WalletsResponse>("/wallets", { signal }),
-  registerPrivyWallet: (input: { address: string; providerWalletId: string }) =>
-    apiClient.post<{ mode: "privy_embedded"; wallet: ProfileWallet }>("/wallets/privy", input),
+  registerCdpWallet: (input: { address: string; cdpUserId: string }) =>
+    apiClient.post<{ mode: "cdp_embedded"; wallet: ProfileWallet }>("/wallets/cdp", input),
   setMode: (mode: WalletMode) => apiClient.patch<{ mode: WalletMode }>("/wallets/mode", { mode })
 };

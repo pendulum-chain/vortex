@@ -4,14 +4,14 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react
 import { useAccount } from "wagmi";
 import { type WalletMode, WalletsAPI, type WalletsResponse } from "@/services/api/wallets.api";
 import { useAuthStore } from "@/stores/auth.store";
-import { privyWalletConfig } from "./config";
+import { cdpWalletConfig } from "./config";
 import { createExternalSigningAdapter } from "./externalSigningAdapter";
 import { setActiveWalletSigningAdapter } from "./signingAdapter";
 import { type WalletExperience, WalletExperienceContext } from "./WalletExperienceContext";
 
-const LazyPrivyWalletRuntime = lazy(async () => {
-  const module = await import("./PrivyWalletRuntime");
-  return { default: module.PrivyWalletProviderRuntime };
+const LazyCdpWalletRuntime = lazy(async () => {
+  const module = await import("./CdpWalletRuntime");
+  return { default: module.CdpWalletProviderRuntime };
 });
 
 export function WalletExperienceProvider({ children }: { children: React.ReactNode }) {
@@ -41,14 +41,14 @@ function WalletExperienceSession({ children, userId }: { children: React.ReactNo
   useEffect(() => () => setActiveWalletSigningAdapter(null), []);
 
   const storedMode = pendingMode ?? walletsQuery.data?.mode ?? null;
-  const mode = storedMode === "privy_embedded" && !privyWalletConfig.enabled ? "external" : storedMode;
-  const embeddedActive = privyWalletConfig.enabled && storedMode === "privy_embedded";
+  const mode = storedMode === "cdp_embedded" && !cdpWalletConfig.enabled ? "external" : storedMode;
+  const embeddedActive = cdpWalletConfig.enabled && storedMode === "cdp_embedded";
   const registeredWallet = walletsQuery.data?.wallets.find(
-    wallet => wallet.provider === "privy" && wallet.chainType === "ethereum" && wallet.status === "active"
+    wallet => wallet.provider === "cdp" && wallet.chainType === "ethereum" && wallet.status === "active"
   );
 
   const connectExternalWallet = useCallback(async () => {
-    if (storedMode === "privy_embedded") {
+    if (storedMode === "cdp_embedded") {
       const response = await WalletsAPI.setMode("external");
       setPendingMode(response.mode);
       queryClient.setQueryData<WalletsResponse>(["wallets", userId], current => ({
@@ -77,15 +77,15 @@ function WalletExperienceSession({ children, userId }: { children: React.ReactNo
       address,
       canSignOfframp: true,
       canUseAsOnrampDestination: true,
-      canUseEmbeddedWallet: privyWalletConfig.provisioningEnabled,
+      canUseEmbeddedWallet: cdpWalletConfig.provisioningEnabled,
       connectExternalWallet,
       connected: isConnected && Boolean(address),
       createEmbeddedWallet: async () => {
-        if (!privyWalletConfig.provisioningEnabled) {
+        if (!cdpWalletConfig.provisioningEnabled) {
           throw new Error("Embedded wallets are not enabled in this environment");
         }
         setAutoCreateEmbedded(true);
-        setPendingMode("privy_embedded");
+        setPendingMode("cdp_embedded");
       },
       creatingEmbeddedWallet: false,
       exportEmbeddedWallet: async () => {
@@ -101,17 +101,16 @@ function WalletExperienceSession({ children, userId }: { children: React.ReactNo
   if (embeddedActive) {
     return (
       <Suspense fallback={null}>
-        <LazyPrivyWalletRuntime
-          appId={privyWalletConfig.appId}
+        <LazyCdpWalletRuntime
           autoCreate={autoCreateEmbedded}
-          clientId={privyWalletConfig.clientId}
           connectExternalWallet={connectExternalWallet}
           onAutoCreateHandled={() => setAutoCreateEmbedded(false)}
           onModeChange={onModeChange}
+          projectId={cdpWalletConfig.projectId}
           registeredWallet={registeredWallet}
         >
           {children}
-        </LazyPrivyWalletRuntime>
+        </LazyCdpWalletRuntime>
       </Suspense>
     );
   }

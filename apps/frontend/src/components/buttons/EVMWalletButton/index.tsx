@@ -61,7 +61,7 @@ export function EVMWalletButton({
     );
   }
 
-  if (wallet.mode !== "privy_embedded" && !isOnSupportedNetwork) {
+  if (wallet.mode !== "cdp_embedded" && !isOnSupportedNetwork) {
     return (
       <BaseWalletButton
         hideIcon={hideIcon}
@@ -84,7 +84,7 @@ export function EVMWalletButton({
       customStyles={customStyles}
       hideIcon={hideIcon}
       onClick={() => {
-        if (wallet.mode !== "privy_embedded") open({ view: "Account" });
+        if (wallet.mode !== "cdp_embedded") open({ view: "Account" });
       }}
       variant={variant}
     />

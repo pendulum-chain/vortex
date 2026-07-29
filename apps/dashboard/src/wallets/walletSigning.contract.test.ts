@@ -39,6 +39,8 @@ const unsignedTx = {
   txData: {
     data: "0x1234",
     gas: "21000",
+    maxFeePerGas: "3000000000",
+    maxPriorityFeePerGas: "1000000000",
     nonce: 0,
     to: "0x2222222222222222222222222222222222222222",
     value: "7"
@@ -67,7 +69,7 @@ function fakeAdapter(kind: WalletSigningAdapter["kind"]) {
 }
 
 describe("wallet signer contract", () => {
-  for (const kind of ["external", "privy_embedded"] as const) {
+  for (const kind of ["external", "cdp_embedded"] as const) {
     it(`${kind} produces the same permit and transaction result shapes`, async () => {
       const fake = fakeAdapter(kind);
       setActiveWalletSigningAdapter(fake.adapter);
@@ -88,15 +90,25 @@ describe("wallet signer contract", () => {
         "sendTransaction",
         "waitForTransaction"
       ]);
-      const sent = fake.calls[1]?.value as { chainId: number; gas: bigint; value: bigint };
+      const sent = fake.calls[1]?.value as {
+        chainId: number;
+        gas: bigint;
+        maxFeePerGas: bigint;
+        maxPriorityFeePerGas: bigint;
+        nonce: number;
+        value: bigint;
+      };
       assert.equal(sent.chainId, 8453);
       assert.equal(sent.gas, 21000n);
+      assert.equal(sent.maxFeePerGas, 3000000000n);
+      assert.equal(sent.maxPriorityFeePerGas, 1000000000n);
+      assert.equal(sent.nonce, 0);
       assert.equal(sent.value, 7n);
     });
   }
 
   it("rejects a server-issued transaction for a different signer before broadcasting", async () => {
-    const fake = fakeAdapter("privy_embedded");
+    const fake = fakeAdapter("cdp_embedded");
     setActiveWalletSigningAdapter(fake.adapter);
 
     await assert.rejects(
@@ -110,7 +122,7 @@ describe("wallet signer contract", () => {
   });
 
   it("rejects typed data for a different signer before requesting a signature", async () => {
-    const fake = fakeAdapter("privy_embedded");
+    const fake = fakeAdapter("cdp_embedded");
     setActiveWalletSigningAdapter(fake.adapter);
 
     await assert.rejects(

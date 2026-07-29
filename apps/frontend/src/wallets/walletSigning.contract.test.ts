@@ -28,6 +28,8 @@ const unsignedTx = {
   txData: {
     data: "0x1234",
     gas: "21000",
+    maxFeePerGas: "3000000000",
+    maxPriorityFeePerGas: "1000000000",
     nonce: 0,
     to: "0x2222222222222222222222222222222222222222",
     value: "7"
@@ -56,7 +58,7 @@ function fakeAdapter(kind: EvmWalletSigningAdapter["kind"]) {
 }
 
 describe("widget wallet signer contract", () => {
-  for (const kind of ["external", "privy_embedded"] as const) {
+  for (const kind of ["external", "cdp_embedded"] as const) {
     it(`${kind} produces the same permit and transaction result shapes`, async () => {
       const fake = fakeAdapter(kind);
       setActiveEvmWalletSigningAdapter(fake.adapter);
@@ -79,13 +81,16 @@ describe("widget wallet signer contract", () => {
       expect(fake.calls[1]?.value).toMatchObject({
         chainId: 8453,
         gas: 21000n,
+        maxFeePerGas: 3000000000n,
+        maxPriorityFeePerGas: 1000000000n,
+        nonce: 0,
         value: 7n
       });
     });
   }
 
   it("rejects a transaction for a different signer before broadcasting", async () => {
-    const fake = fakeAdapter("privy_embedded");
+    const fake = fakeAdapter("cdp_embedded");
     setActiveEvmWalletSigningAdapter(fake.adapter);
 
     await expect(
@@ -98,7 +103,7 @@ describe("widget wallet signer contract", () => {
   });
 
   it("rejects typed data for a different signer before requesting a signature", async () => {
-    const fake = fakeAdapter("privy_embedded");
+    const fake = fakeAdapter("cdp_embedded");
     setActiveEvmWalletSigningAdapter(fake.adapter);
 
     await expect(

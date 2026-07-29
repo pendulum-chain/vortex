@@ -43,4 +43,11 @@ describe("dashboard auth session bridge", () => {
 
     assert.equal(notifications, 3);
   });
+
+  it("returns the current JWT to CDP while it remains fresh", async () => {
+    const accessToken = "header.eyJleHAiOjQxMDI0NDQ4MDB9.signature";
+    AuthService.storeTokens({ accessToken, refreshToken: "refresh", userId: "user" });
+
+    assert.equal(await AuthService.getFreshAccessToken(), accessToken);
+  });
 });

@@ -6,14 +6,14 @@ import { useAccount, useSignMessage } from "wagmi";
 import { useRampActor } from "../contexts/rampState";
 import { WalletMode, WalletsResponse, WalletsService } from "../services/api/wallets.service";
 import { AuthService } from "../services/auth";
-import { isPrivyEnabledForCurrentFrame, isPrivyProvisioningEnabledForCurrentFrame, privyWidgetConfig } from "./config";
+import { cdpWidgetConfig, isCdpEnabledForCurrentFrame, isCdpProvisioningEnabledForCurrentFrame } from "./config";
 import { createExternalSigningAdapter } from "./externalSigningAdapter";
 import { setActiveEvmWalletSigningAdapter } from "./signingAdapter";
 import { WidgetEvmWallet, WidgetWalletContext } from "./WidgetWalletContext";
 
-const LazyPrivyWidgetWalletRuntime = lazy(async () => {
-  const module = await import("./PrivyWidgetWalletRuntime");
-  return { default: module.PrivyWidgetWalletProviderRuntime };
+const LazyCdpWidgetWalletRuntime = lazy(async () => {
+  const module = await import("./CdpWidgetWalletRuntime");
+  return { default: module.CdpWidgetWalletProviderRuntime };
 });
 
 function accessTokenSnapshot(): string {
@@ -66,15 +66,15 @@ function WidgetWalletSession({
   useEffect(() => () => setActiveEvmWalletSigningAdapter(null), []);
 
   const storedMode = pendingMode ?? walletsQuery.data?.mode ?? null;
-  const mode = storedMode === "privy_embedded" && !isPrivyEnabledForCurrentFrame ? "external" : storedMode;
+  const mode = storedMode === "cdp_embedded" && !isCdpEnabledForCurrentFrame ? "external" : storedMode;
   const embeddedActive =
-    isPrivyEnabledForCurrentFrame && authenticated && (storedMode === "privy_embedded" || walletSetupRequested);
+    isCdpEnabledForCurrentFrame && authenticated && (storedMode === "cdp_embedded" || walletSetupRequested);
   const registeredWallet = walletsQuery.data?.wallets.find(
-    wallet => wallet.provider === "privy" && wallet.chainType === "ethereum" && wallet.status === "active"
+    wallet => wallet.provider === "cdp" && wallet.chainType === "ethereum" && wallet.status === "active"
   );
 
   const connectExternalWallet = useCallback(async () => {
-    if (storedMode === "privy_embedded") {
+    if (storedMode === "cdp_embedded") {
       const response = await WalletsService.setMode("external");
       setPendingMode(response.mode);
       queryClient.setQueryData<WalletsResponse>(["wallets", userId], current => ({
@@ -101,13 +101,13 @@ function WidgetWalletSession({
     () => ({
       activateSigner: () => setActiveEvmWalletSigningAdapter(externalAdapter),
       address: evmAddress,
-      canUseEmbeddedWallet: isPrivyProvisioningEnabledForCurrentFrame,
+      canUseEmbeddedWallet: isCdpProvisioningEnabledForCurrentFrame,
       connectExternalWallet,
       connected: isConnected && Boolean(evmAddress),
       createEmbeddedWallet: () => rampActor.send({ type: "REQUEST_EMBEDDED_WALLET" }),
       creatingEmbeddedWallet: walletSetupRequested,
       embeddedUnavailableReason:
-        privyWidgetConfig.enabled && !isPrivyEnabledForCurrentFrame
+        cdpWidgetConfig.enabled && !isCdpEnabledForCurrentFrame
           ? "Open this flow on Vortex to create or use an embedded wallet."
           : undefined,
       exportEmbeddedWallet: async () => {
@@ -134,16 +134,15 @@ function WidgetWalletSession({
   if (embeddedActive) {
     return (
       <Suspense fallback={null}>
-        <LazyPrivyWidgetWalletRuntime
-          appId={privyWidgetConfig.appId}
-          clientId={privyWidgetConfig.clientId}
+        <LazyCdpWidgetWalletRuntime
           connectExternalWallet={connectExternalWallet}
-          mode="privy_embedded"
+          mode="cdp_embedded"
           onModeChange={onModeChange}
+          projectId={cdpWidgetConfig.projectId}
           registeredWallet={registeredWallet}
         >
           {children}
-        </LazyPrivyWidgetWalletRuntime>
+        </LazyCdpWidgetWalletRuntime>
       </Suspense>
     );
   }

@@ -42,7 +42,7 @@ export const useVortexAccount = (forceNetwork?: Networks) => {
     if (!isNetworkEVM(selectedNetwork)) {
       return ASSETHUB_CHAIN_ID;
     } else {
-      return evmWallet.mode === "privy_embedded" ? getNetworkId(selectedNetwork) : externalChainId;
+      return evmWallet.mode === "cdp_embedded" ? getNetworkId(selectedNetwork) : externalChainId;
     }
   }, [selectedNetwork, evmWallet.mode, externalChainId]);
 

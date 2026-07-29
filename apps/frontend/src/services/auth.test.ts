@@ -5,7 +5,7 @@ import { AuthService } from "./auth";
 describe("widget auth session bridge", () => {
   beforeEach(() => localStorage.clear());
 
-  it("notifies Privy subscribers when access tokens change and on logout", () => {
+  it("notifies CDP subscribers when access tokens change and on logout", () => {
     const listener = vi.fn();
     const unsubscribe = AuthService.subscribe(listener);
     const tokens = {
@@ -21,5 +21,12 @@ describe("widget auth session bridge", () => {
     AuthService.storeTokens(tokens);
 
     expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns the current JWT to CDP while it remains fresh", async () => {
+    const accessToken = "header.eyJleHAiOjQxMDI0NDQ4MDB9.signature";
+    AuthService.storeTokens({ accessToken, refreshToken: "refresh", userId: "user" });
+
+    await expect(AuthService.getFreshAccessToken()).resolves.toBe(accessToken);
   });
 });

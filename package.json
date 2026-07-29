@@ -111,6 +111,7 @@
     "compile:contracts:relayer": "bun run --cwd contracts/relayer compile",
     "dev": "bun run --cwd packages/shared dev & bun run --cwd apps/api dev & bun run --cwd apps/frontend dev & wait",
     "dev:backend": "bun run --cwd apps/api dev",
+    "dev:cdp-spike": "bun run --cwd apps/cdp-spike dev",
     "dev:contracts:relayer": "bun run --cwd contracts/relayer node",
     "dev:dashboard": "bun run --cwd apps/dashboard dev",
     "dev:frontend": "bun run --cwd apps/frontend dev",
@@ -126,6 +127,7 @@
     "serve:frontend": "bun run --cwd apps/frontend preview",
     "test": "bun run test:shared && bun run test:kyc && bun run test:sdk && bun run test:rebalancer && bun run test:api && bun run test:frontend",
     "test:api": "cd apps/api && bun test",
+    "test:cdp-spike": "bun run --cwd apps/cdp-spike test",
     "test:contracts:relayer": "bun run --cwd contracts/relayer test",
     "test:coverage": "bun run --cwd packages/shared test:coverage && bun run --cwd packages/sdk test:coverage && bun run --cwd apps/rebalancer test:coverage && bun run --cwd apps/api test:coverage && bun run --cwd apps/frontend test:coverage && bun scripts/coverage-report.ts",
     "test:coverage:html": "bun scripts/coverage-report.ts --html coverage/index.html && open coverage/index.html",
@@ -138,7 +140,7 @@
     "test:rebalancer": "cd apps/rebalancer && bun test",
     "test:sdk": "bun run --cwd packages/sdk test",
     "test:shared": "cd packages/shared && bun test",
-    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd packages/sdk typecheck && bun run --cwd packages/kyc typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/frontend typecheck && bun run --cwd apps/dashboard typecheck && bun run --cwd apps/rebalancer typecheck",
+    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd packages/sdk typecheck && bun run --cwd packages/kyc typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/frontend typecheck && bun run --cwd apps/dashboard typecheck && bun run --cwd apps/cdp-spike typecheck && bun run --cwd apps/rebalancer typecheck",
     "verify": "biome check --no-errors-on-unmatched"
   },
   "workspaces": [

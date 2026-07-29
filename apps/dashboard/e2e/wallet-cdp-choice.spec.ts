@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { mockBackend } from "./support/mockBackend";
 import { seedSession } from "./support/session";
 
-test("Privy enablement adds an optional choice without removing external wallets", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "privy-choice", "Runs with the opt-in Privy Playwright configuration");
+test("CDP enablement adds an optional choice without removing external wallets", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "cdp-choice", "Runs with the opt-in CDP Playwright configuration");
 
   const backend = await mockBackend(page, { appOrigin: "http://127.0.0.1:5175" });
   await seedSession(page);

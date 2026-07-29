@@ -68,6 +68,18 @@ export class AuthService {
     return expiryMs === null || expiryMs > Date.now();
   }
 
+  static async getFreshAccessToken(): Promise<string | undefined> {
+    const tokens = this.getTokens();
+    if (!tokens) return undefined;
+
+    const expiryMs = this.decodeJwtExpiryMs(tokens.accessToken);
+    if (expiryMs === null || expiryMs > Date.now() + 60_000) {
+      return tokens.accessToken;
+    }
+
+    return (await this.refreshAccessToken())?.accessToken;
+  }
+
   private static decodeJwtExpiryMs(token: string): number | null {
     try {
       const payload = token.split(".")[1];

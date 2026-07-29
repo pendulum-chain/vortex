@@ -47,7 +47,7 @@ interface OnrampPrefill {
 
 export function OnrampForm({ account, prefill }: { account: SenderAccount; prefill?: OnrampPrefill }) {
   const wallet = useWalletExperience();
-  const address = wallet.mode === "privy_embedded" && !wallet.canUseAsOnrampDestination ? undefined : wallet.address;
+  const address = wallet.mode === "cdp_embedded" && !wallet.canUseAsOnrampDestination ? undefined : wallet.address;
   const { approved, isLoading: isLoadingApprovals } = useApprovedCorridors();
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
   const tokenOptions = getRampTokenOptions(RampDirection.BUY);

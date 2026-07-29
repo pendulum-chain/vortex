@@ -35,7 +35,7 @@ export function FundingMethods({ disabled, quote, submitting, token, onSubmit }:
   const hasEnoughBalance = balance ? hasSufficientTokenBalance(balance, quote.inputAmount) : false;
   const checkingBalance = portfolioQuery.isPending || portfolioQuery.isFetching;
 
-  if (wallet.mode === "privy_embedded" && !wallet.canSignOfframp) {
+  if (wallet.mode === "cdp_embedded" && !wallet.canSignOfframp) {
     return (
       <div className="grid gap-3 rounded-lg border border-dashed p-4 text-center">
         <p className="text-muted-foreground text-sm">Embedded-wallet payouts are not enabled in this environment.</p>
@@ -115,7 +115,7 @@ export function FundingMethods({ disabled, quote, submitting, token, onSubmit }:
               wallet.activateSigner();
               onSubmit({
                 destAddress: address,
-                label: wallet.mode === "privy_embedded" ? "Embedded wallet" : "Connected wallet",
+                label: wallet.mode === "cdp_embedded" ? "Embedded wallet" : "Connected wallet",
                 source: "wallet"
               });
             }

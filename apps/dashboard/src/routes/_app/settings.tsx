@@ -58,19 +58,19 @@ function SettingsPage() {
           <CardContent className="grid gap-3">
             <div className="surface-raised flex items-center gap-3 rounded-lg p-3">
               <span className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                {wallet.mode === "privy_embedded" ? <KeyRound className="size-4" /> : <Wallet className="size-4" />}
+                {wallet.mode === "cdp_embedded" ? <KeyRound className="size-4" /> : <Wallet className="size-4" />}
               </span>
               <div className="grid flex-1">
                 <span className="font-medium text-sm">
-                  {wallet.mode === "privy_embedded" ? "Vortex embedded wallet" : "Existing wallet"}
+                  {wallet.mode === "cdp_embedded" ? "Vortex embedded wallet" : "Existing wallet"}
                 </span>
                 <span className="text-muted-foreground text-xs">
                   {wallet.address ?? (wallet.connected ? "Connected" : "Not connected")}
                 </span>
               </div>
-              <Badge variant="secondary">{wallet.mode === "privy_embedded" ? "Embedded" : "External"}</Badge>
+              <Badge variant="secondary">{wallet.mode === "cdp_embedded" ? "Embedded" : "External"}</Badge>
             </div>
-            {wallet.mode === "privy_embedded" && wallet.address && (
+            {wallet.mode === "cdp_embedded" && wallet.address && (
               <div className="surface-raised grid justify-items-center gap-2 rounded-lg p-4">
                 <div className="rounded-lg bg-white p-3">
                   <QRCodeSVG aria-label="Embedded wallet receive address" size={128} value={wallet.address} />
@@ -81,7 +81,7 @@ function SettingsPage() {
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              {wallet.mode === "privy_embedded" ? (
+              {wallet.mode === "cdp_embedded" ? (
                 <>
                   {wallet.address && (
                     <>

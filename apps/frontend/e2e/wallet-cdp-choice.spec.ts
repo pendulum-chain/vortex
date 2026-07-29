@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mockBackend } from "./support/mockBackend";
 
 test("the widget offers both external and Vortex wallets when provisioning is enabled", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "privy-choice", "Runs with the opt-in Privy Playwright configuration");
+  test.skip(testInfo.project.name !== "cdp-choice", "Runs with the opt-in CDP Playwright configuration");
 
   await mockBackend(page);
   await page.goto("/widget?rampType=SELL&fiat=BRL&inputAmount=100");
