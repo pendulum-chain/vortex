@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from "bun:test";
+import { afterAll, describe, expect, it, mock } from "bun:test";
 import {
   ALFREDPAY_EVM_TOKEN,
   AlfredpayApiService,
@@ -11,7 +11,12 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 
+const alfredpayApiServiceGetInstanceReal = AlfredpayApiService.getInstance;
 let squidCalculations = 0;
+
+afterAll(() => {
+  AlfredpayApiService.getInstance = alfredpayApiServiceGetInstanceReal;
+});
 
 mock.module("../../core/quote-fees", () => ({
   calculateFeeComponents: async () => ({

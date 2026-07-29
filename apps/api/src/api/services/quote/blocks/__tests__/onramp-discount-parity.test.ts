@@ -1,6 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, mock, setSystemTime } from "bun:test";
 import { EPaymentMethod, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import * as priceFeedNamespace from "../../../priceFeed.service";
 import * as squidrouterNamespace from "../../core/squidrouter";
@@ -131,14 +132,18 @@ describe("catalog onramp discount parity", () => {
     expect(result.metadata.partnerId).toBe(partnerId);
     expect(Big(result.metadata.actualOutputAmountDecimal).toFixed()).toBe("97.5");
     expect(result.metadata.actualOutputAmountRaw).toBe("97500000");
-    expect(Big(result.metadata.adjustedDifference).toFixed()).toBe("0.00005");
-    expect(Big(result.metadata.adjustedTargetDiscount).toFixed()).toBe("0.02005");
-    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe("113.338889");
-    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe("15.838889");
+    const adjustedDifference = new Big(config.quote.deltaDBasisPoints).div(10000);
+    const adjustedTargetDiscount = new Big("0.02").plus(adjustedDifference);
+    const bridgeInput = new Big(100).times(adjustedTargetDiscount.plus(1));
+    const expectedOutput = bridgeInput.div("0.9");
+    expect(Big(result.metadata.adjustedDifference).toFixed()).toBe(adjustedDifference.toFixed());
+    expect(Big(result.metadata.adjustedTargetDiscount).toFixed()).toBe(adjustedTargetDiscount.toFixed());
+    expect(Big(result.metadata.expectedOutputAmountDecimal).toFixed(6)).toBe(expectedOutput.toFixed(6));
+    expect(Big(result.metadata.subsidyAmountInOutputTokenDecimal).toFixed(6)).toBe(expectedOutput.minus("97.5").toFixed(6));
     expect(result.metadata.applied).toBe(true);
     expect(bridgeQuoteRequests).toEqual([
       {
-        amountDecimal: "102.005",
+        amountDecimal: bridgeInput.toFixed(),
         fromNetwork: Networks.Base,
         inputCurrency: EvmToken.USDC,
         outputCurrency: EvmToken.USDC,

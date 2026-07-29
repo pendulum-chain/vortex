@@ -5,6 +5,7 @@ import { registerAlfredpayOfframp } from "../phases/alfredpay-offramp/registrati
 import type { AlfredpayOfframpMetadata } from "../phases/alfredpay-offramp/simulation";
 
 const alfredpayCustomerReal = { ...alfredpayCustomerNamespace };
+const alfredpayApiServiceGetInstanceReal = AlfredpayApiService.getInstance;
 
 mock.module("../../alfredpay-customer", () => ({
   resolveAlfredpayCustomerId: async () => "customer-1",
@@ -50,18 +51,17 @@ function context() {
 
 describe("Alfredpay offramp registration", () => {
   it("refreshes exact quotes, creates the order, and updates only provider identity metadata", async () => {
-    const service = AlfredpayApiService.getInstance();
-    const originalQuote = service.createOfframpQuote;
-    const originalOrder = service.createOfframp;
-    service.createOfframpQuote = mock(async () => ({
-      expiration: "2026-01-01T00:01:00Z",
-      fees: [{ amount: "1", currency: "MXN" }],
-      quoteId: "quote-new",
-      toAmount: "1980"
-    })) as never;
-    service.createOfframp = mock(async () => ({
-      depositAddress: "0x5555555555555555555555555555555555555555",
-      transactionId: "transaction-1"
+    AlfredpayApiService.getInstance = mock(() => ({
+      createOfframp: mock(async () => ({
+        depositAddress: "0x5555555555555555555555555555555555555555",
+        transactionId: "transaction-1"
+      })),
+      createOfframpQuote: mock(async () => ({
+        expiration: "2026-01-01T00:01:00Z",
+        fees: [{ amount: "1", currency: "MXN" }],
+        quoteId: "quote-new",
+        toAmount: "1980"
+      }))
     })) as never;
     try {
       const result = await registerAlfredpayOfframp(context());
@@ -78,29 +78,26 @@ describe("Alfredpay offramp registration", () => {
         walletAddress: "0x3333333333333333333333333333333333333333"
       });
     } finally {
-      service.createOfframpQuote = originalQuote;
-      service.createOfframp = originalOrder;
+      AlfredpayApiService.getInstance = alfredpayApiServiceGetInstanceReal;
     }
   });
 
   it("hard-fails on refreshed amount drift before creating an order", async () => {
-    const service = AlfredpayApiService.getInstance();
-    const originalQuote = service.createOfframpQuote;
-    const originalOrder = service.createOfframp;
     const createOrder = mock(async () => ({}));
-    service.createOfframpQuote = mock(async () => ({
-      expiration: "2026-01-01T00:01:00Z",
-      fees: [{ amount: "1", currency: "MXN" }],
-      quoteId: "quote-new",
-      toAmount: "1979"
+    AlfredpayApiService.getInstance = mock(() => ({
+      createOfframp: createOrder,
+      createOfframpQuote: mock(async () => ({
+        expiration: "2026-01-01T00:01:00Z",
+        fees: [{ amount: "1", currency: "MXN" }],
+        quoteId: "quote-new",
+        toAmount: "1979"
+      }))
     })) as never;
-    service.createOfframp = createOrder as never;
     try {
       await expect(registerAlfredpayOfframp(context())).rejects.toThrow("drifted");
       expect(createOrder).not.toHaveBeenCalled();
     } finally {
-      service.createOfframpQuote = originalQuote;
-      service.createOfframp = originalOrder;
+      AlfredpayApiService.getInstance = alfredpayApiServiceGetInstanceReal;
     }
   });
 });
