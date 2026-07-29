@@ -48,6 +48,27 @@ Avenia requires a subaccount per user, identified by tax ID (CPF for individuals
 
 `POST /v1/brla/createSubaccount` accepts an **optional** `quoteId`. In the normal ramp flow it is the quote that triggered onboarding; in quote-less onboarding paths such as the **KYB deep link** (`?kyb` / `?kybLocked` widget entry, where business verification starts before any quote exists) and authenticated dashboard sender onboarding, it is omitted. The controller stores it as the quote-provenance fields were dropped in the provider_customers cutover (they were write-only). It is never used as an authorization input, so its absence does not weaken any access check: the ownership guard (below) and authenticated user context gate subaccount creation independently of whether a quote is present.
 
+### Inbound verification webhook (`POST /v1/webhooks/avenia`)
+
+Avenia pushes KYC (individual) and — expected but unconfirmed — KYB (company) attempt
+updates to this endpoint. It is the primary trigger for verification result emails; the
+hourly `KybStatusWorker` poll is a reconciliation fallback behind it.
+
+This is the only Vortex endpoint authenticated purely by an **inbound RSA signature**
+rather than an API key or session. Avenia signs the raw request body with RSA-PSS /
+SHA-256; the receiver verifies it against Avenia's published key from `GET /v2/public-key`,
+cached for one hour and refetched once on a verification miss because Avenia rotates it
+without notice.
+
+The route is mounted **ahead of the global JSON body parser** (`config/express.ts`) with
+`bodyParser.raw`, because the signature covers the exact bytes sent — a parsed and
+re-serialised payload does not reproduce them.
+
+Verification kind is resolved from the local `TaxId.accountType` for the event's
+`subAccountId`, never from the payload, so a caller cannot influence which flow an event
+is treated as. Only `attempt.id`, `status`, `result`, `resultMessage` and `updatedAt` are
+consumed; nothing in the payload updates ramp, quote, or KYC-status state.
+
 ### The three-amount model (off-ramp)
 
 Three distinct BRL amounts are involved in `brlaPayoutOnBase`. They are **intentionally different**:
@@ -87,6 +108,10 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 23. **BRL Base destination variants MUST use token-specific static topology** — Base USDC MUST omit Squid entirely. Other configured non-BRLA Base outputs MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; transaction preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` at the nonce immediately after the Squid swap. BRLA remains the direct bypass in invariant 14.
 24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 
+16. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
+17. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
+18. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
+
 ## Threat Vectors & Mitigations
 
 | Threat | Attack Scenario | Mitigation |
@@ -104,6 +129,10 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 | **BRL→BRLA-Base self-swap drain** | The generic pipeline swaps the user's already-minted BRLA to USDC and back, charging two swaps of slippage/fees and triggering `finalSettlementSubsidy` against bridge-less dust (over-subsidy + strand) | `isBrlToBrlaBaseDirect` collapses the corridor to a single `destinationTransfer` with `isDirectTransfer = true`; Nabla/distributeFees/Squid/finalSettlementSubsidy/cleanup are skipped at both route-build and handler level. |
 | **Anonymous BRL register on someone else's subaccount** | An anonymous SDK caller (no Supabase session, no linked secret key) uses an anonymous BRL quote to register a ramp on top of another user's Avenia subaccount via the quoteId guess | `RampService.registerRamp` rejects provider-backed ramps without an effective user with `400 Invalid quote`; an attacker cannot bind a BRL ramp to a subaccount they do not own. |
 | **Claiming an anonymous BRL estimate at register time** | Attacker mints an anonymous BRL quote, then presents a Supabase token (or a different user's linked secret API key) at register time to bind the resulting ramp to a different user's `TaxId` | `RampService.registerRamp` rejects with `403` when `quote.userId == null && request.userId != null` (inv. 19). The register principal must re-quote with their identity so `quote.userId` is bound at quote time. |
+| **Forged verification webhook** | Attacker posts a fabricated `verification_approved` event for another user's subaccount | Body must carry a valid RSA-PSS signature from Avenia's published key; unsigned or mis-signed bodies are rejected 401 before any DB lookup. Even a valid event only enqueues an email — it grants no entitlement. |
+| **Webhook replay** | Attacker re-sends a captured, correctly-signed event repeatedly | Avenia provides no timestamp or nonce to check. Enqueue is idempotent on the attempt id, so replays collapse to a no-op; no email amplification is possible. |
+| **Key-rotation denial of service** | Avenia rotates the signing key; genuine events start failing verification | Key is fetched, never pinned; a failed verify against the cached key triggers exactly one refetch before rejection, so rotation self-heals within one request. |
+| **Unknown-subaccount probing** | Attacker uses signed events to enumerate which subaccounts Vortex knows | Requires a valid Avenia signature, so it is not reachable by an external attacker; responses are an identical `200 {received:true}` for known, unknown, and partner-owned subaccounts. |
 | **Destination-token decimal under-delivery** | A BRL on-ramp targets an 18-decimal token such as BSC USDT, but the quote output is truncated to 6 decimals before `destinationTransfer` raw amount construction. | On-ramp finalization uses destination-token decimals for BRL EVM outputs; Squid metadata preserves destination raw output from `route.estimate.toAmount`. |
 | **Company KYB status bypass or cross-user attempt lookup** | A browser asserts that hosted verification finished, or probes another user's Avenia attempt ID and receives provider submission metadata. | Initiation binds the attempt to the authenticated user's KYB case; status lookup checks that binding before the provider call, minimizes its response, and the client/parent accept only provider-confirmed `COMPLETED` + `APPROVED`. |
 
