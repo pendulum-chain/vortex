@@ -25,7 +25,7 @@ Two independent security reviews have been conducted:
 
 Both found overlapping but not identical issues. All findings from both reviews are incorporated below.
 
-> **Status note:** The findings from the two 2026-04-02 reviews were fixed in the then-current deployment. The post-#1232 review added execution-local token/native balance accounting and a codeless-destination guard to the source. Those later changes require new deployments and address-registry updates on every supported chain; source conformance MUST NOT be described as production remediation until that rollout is verified.
+> **Status note:** The findings from the two 2026-04-02 reviews were fixed in the then-current deployment. The post-#1232 review added execution-local token/native balance accounting and a codeless-destination guard to the source. Those later changes require new deployments and address-registry updates on every supported chain; source conformance MUST NOT be described as production remediation until that rollout is verified (RISK-007).
 
 ## Security Invariants
 
@@ -91,9 +91,9 @@ These incorporate all findings from both prior security reviews:
 
 ### General
 
-- [PARTIAL] All OpenZeppelin dependencies are pinned to specific versions (not floating). **PARTIAL** — uses caret range `^5.2.0` instead of exact pin; allows minor/patch updates which could introduce changes.
+- [x] OpenZeppelin contracts are pinned to exact version `5.6.1` in both the relayer package and lockfile. **PASS**
 - [x] Contract constructor verifies `destinationContract` is neither zero nor codeless; forwarding also fails if code is no longer present.
 - [x] Owner set via `Ownable(msg.sender)` in constructor and all recovery authority follows current `owner()`, including after ownership transfer.
 - [x] Nonce check (`usedPayloadNonces`) happens before any external call (line 86)
 - [x] No `selfdestruct` or `delegatecall` to untrusted addresses. **PASS** — verified: neither pattern present in contract source.
-- [N/A] Verify deployed contract bytecode matches source (if already on mainnet). **N/A** — requires on-chain verification, not a source code audit item.
+- [ ] Verify deployed contract bytecode matches source (if already on mainnet). **N/A** — requires on-chain verification, not a source code audit item.
