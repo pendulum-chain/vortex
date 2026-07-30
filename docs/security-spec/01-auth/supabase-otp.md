@@ -49,8 +49,8 @@ Two middleware variants exist:
 - [x] Error responses from auth middleware contain no token fragments, user details, or internal error messages — **PASS**
 - [x] Authentication logs contain no bearer-token fragments — **PASS**
 - [x] A present invalid optional credential returns `401`, while an indeterminate provider failure returns `503` without anonymous fallback — **PASS**
-- [x] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at startup — empty strings are treated as missing — **FAIL: All default to "" with no startup validation (F-019)**
+- [x] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at production startup — empty strings are treated as missing. **PASS**
 - [x] Token expiry is enforced by the verification call (not just signature validity) — **PASS**
 - [x] Frontend refresh goes through `/v1/auth/refresh` (not the anon-key client) and clears the session only on a `401`, retrying transient failures — **PASS**
 - [x] `/v1/auth/refresh` returns `401` only for a confirmed-invalid refresh token and `503` for transient/unexpected failures (so an outage cannot force logout) — **PASS**
-- [x] No endpoint that should require auth is using `optionalAuth` as a shortcut — **PARTIAL: BRLA KYC endpoints use optionalAuth but create user-specific resources**
+- [x] Optional auth is limited to anonymous quote discovery and non-mutating BRLA preflight endpoints; protected KYC/resource mutations require authentication, and an indeterminate presented credential never falls back to anonymous. **PASS**

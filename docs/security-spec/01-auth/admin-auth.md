@@ -32,7 +32,7 @@ the shared credential; individual admin identities are out of scope for this cha
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Timing attack on secret comparison** | Attacker sends varying tokens, measures response time to deduce correct secret | `safeCompare()` XORs all characters regardless of mismatch position; constant-time for equal-length strings |
-| **Timing leak on length** | `safeCompare()` returns `false` immediately when lengths differ, leaking the secret length | **Known weakness in current implementation** — `safeCompare` short-circuits on length mismatch. Should use `crypto.timingSafeEqual` which pads or rejects without leaking length. |
+| **Timing leak on length mismatch** | A naive comparison returns immediately when lengths differ | `safeCompare` performs a dummy `timingSafeEqual` operation before rejecting a different-length token; equal-length values use `crypto.timingSafeEqual`. |
 | **ADMIN_SECRET in logs** | Secret accidentally logged via request logging middleware | Auth header should be excluded from request logging; verify no middleware logs full headers |
 | **Shared secret rotation** | Need to rotate ADMIN_SECRET without downtime | Currently no dual-secret or graceful rotation — changing the env var immediately invalidates all admin sessions |
 | **No individual administrative principal** | A privileged change cannot be attributed to, selectively revoked from, or constrained to one operator | **ACCEPTED RISK.** Retain the shared `ADMIN_SECRET` model for now; protect and rotate it operationally. Individual identities and role separation require a later architectural change. |
@@ -43,11 +43,11 @@ the shared credential; individual admin identities are out of scope for this cha
 
 - [x] `adminAuth` middleware is applied to every admin-only endpoint — **PASS**
 - [x] `safeCompare()` is the only comparison used for the admin secret — no `===` or `==` anywhere — **PASS**
-- [x] **FINDING**: `safeCompare()` leaks secret length via early return on `a.length !== b.length` — verify this is acceptable or replace with `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` (which requires equal-length buffers but avoids the length-dependent branch) — **EXISTING F-010**
-- [x] `config.adminSecret` is validated at startup — empty string defaults should be caught — **PARTIAL: Runtime check returns 500, but no startup validation**
+- [x] `safeCompare()` uses `crypto.timingSafeEqual` for equal-length values and performs a dummy constant-time comparison before rejecting a different length. **PASS**
+- [x] `config.adminSecret` is validated at production startup, and the middleware also fails closed at runtime if absent. **PASS**
 - [x] No admin endpoint also accepts Supabase auth or API key auth as a fallback (admin is the only auth layer) — **PASS**
 - [x] Admin endpoints are not reachable from the public frontend (verify CORS, route prefix separation) — **PASS (CORS allows all origins to all routes, but auth middleware protects)**
 - [ ] `ADMIN_SECRET` is at least 32 characters in production — **N/A: Deployment config, not verifiable from code**
 - [x] No logging middleware captures the full `Authorization` header for admin requests — **PASS**
 - [x] Error response for invalid admin token does not include the expected token or any hint about the secret — **PASS**
-- [x] Admin auth errors are logged server-side with request metadata (IP, path) for audit trail — **FAIL: Only exceptions logged, not intentional rejections (F-020)**
+- [x] Missing and invalid admin-auth attempts are logged with request IP/path; secret values are not logged. **PASS**

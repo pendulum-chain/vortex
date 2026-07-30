@@ -79,7 +79,7 @@ Partner attribution resolves through the `api_keys.partner_id` FK (migration `04
 - [x] `enforcePartnerAuth` returns 403 (not 401) when partnerId is present but no auth provided — **PASS (active on `POST /v1/ramp/quotes` and `POST /v1/ramp/quotes/best`)**
 - [x] Partner name comparison is case-sensitive and exact (no normalization that could be exploited) — **PASS**
 - [x] No endpoint accepts secret keys from query parameters or request body — **PASS**
-- [x] Error responses from key validation use distinct error codes (`API_KEY_REQUIRED`, `INVALID_SECRET_KEY`, `INVALID_API_KEY`, `PARTNER_MISMATCH`) without revealing which step failed for valid key formats — **PARTIAL: `PARTNER_MISMATCH` leaks authenticated partner name in response details**
+- [x] Error responses use stable error codes without returning authenticated/requested partner names on `PARTNER_MISMATCH`. **PASS**
 - [x] `api_keys.user_id` migration (`034-add-user-id-to-api-keys`) added with `ON DELETE SET NULL`, `idx_api_keys_user_id`, and `idx_api_keys_active_user_lookup`. — **PASS**
 - [x] `api_keys.partner_name` is nullable (migration `035-make-api-key-partner-name-nullable`) and is a legacy backup column — authorization never reads it. — **PASS**
 - [x] `api_keys.partner_id` FK (migration `041-add-partner-id-to-api-keys`, backfilled from `partner_name`) is the sole partner-resolution path in `validateSecretApiKey`/`validatePublicApiKey`; user-scoped keys have `partner_id = NULL` and authenticate purely as `user_id`. — **PASS**
