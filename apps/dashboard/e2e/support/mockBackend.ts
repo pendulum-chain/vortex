@@ -251,6 +251,7 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
+  apiKeys?: Array<Record<string, unknown>>;
   onboardingState?: OnboardingState;
   companyMode?: boolean;
   selectionRequired?: boolean;
@@ -385,6 +386,7 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
+  const apiKeyRequests: Array<{ body: Record<string, unknown>; method: string; path: string }> = [];
   const requestOtpRequests: Array<Record<string, unknown>> = [];
   const verifyOtpRequests: Array<Record<string, unknown>> = [];
   const quoteRequests: Array<Record<string, unknown>> = [];
@@ -423,6 +425,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
+  let apiKeys = [...(options.apiKeys ?? [])];
   const onrampCorridor = { ARS: "AR", BRL: "BR", COP: "CO", MXN: "MX", USD: "US" }[options.onrampCurrency ?? "MXN"] as
     | "AR"
     | "BR"
@@ -560,6 +563,81 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
+      return;
+    }
+
+    if (path === "/v1/api-keys" && method === "GET") {
+      await fulfillJson({ apiKeys });
+      return;
+    }
+
+    if (path === "/v1/api-keys" && method === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      apiKeyRequests.push({ body, method, path });
+      const credentialId = `credential-e2e-${apiKeyRequests.length}`;
+      const createdAt = "2026-07-30T12:00:00.000Z";
+      const publicKey = "pk_test_abcdefghijklmnopqrstuvwxyz123456";
+      const secretKey = "sk_test_abcdefghijklmnopqrstuvwxyz123456";
+      const name = String(body.name ?? "API Key");
+      const expiresAt = String(body.expiresAt);
+      apiKeys = [
+        {
+          createdAt,
+          credentialId,
+          expiresAt,
+          id: `${credentialId}-public`,
+          isActive: true,
+          key: publicKey,
+          keyPrefix: "pk_test_",
+          lastUsedAt: null,
+          name: `${name} (Public)`,
+          type: "public",
+          updatedAt: createdAt
+        },
+        {
+          createdAt,
+          credentialId,
+          expiresAt,
+          id: `${credentialId}-secret`,
+          isActive: true,
+          keyPrefix: "sk_test_",
+          lastUsedAt: null,
+          name: `${name} (Secret)`,
+          type: "secret",
+          updatedAt: createdAt
+        },
+        ...apiKeys
+      ];
+      await fulfillJson({
+        createdAt,
+        credentialId,
+        expiresAt,
+        isActive: true,
+        publicKey: {
+          id: `${credentialId}-public`,
+          key: publicKey,
+          keyPrefix: "pk_test_",
+          name: `${name} (Public)`,
+          type: "public"
+        },
+        secretKey: {
+          id: `${credentialId}-secret`,
+          key: secretKey,
+          keyPrefix: "sk_test_",
+          name: `${name} (Secret)`,
+          type: "secret"
+        }
+      });
+      return;
+    }
+
+    if (path.startsWith("/v1/api-keys/") && method === "DELETE") {
+      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
+      apiKeyRequests.push({ body, method, path });
+      const keyId = path.split("/").at(-1);
+      const ids = new Set([keyId, typeof body.pairedKeyId === "string" ? body.pairedKeyId : undefined]);
+      apiKeys = apiKeys.filter(key => !ids.has(String(key.id)));
+      await route.fulfill({ status: 204 });
       return;
     }
 
@@ -1060,6 +1138,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
 
   return {
     acceptInviteRequests,
+    apiKeyRequests,
     archiveInvitationRequests,
     auth,
     avenia,

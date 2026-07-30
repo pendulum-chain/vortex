@@ -20,6 +20,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
 import { Route as AppQuoteRouteImport } from './routes/_app/quote'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
+import { Route as AppApiKeysRouteImport } from './routes/_app/api-keys'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -75,10 +76,16 @@ const AppOverviewRoute = AppOverviewRouteImport.update({
   path: '/overview',
   getParentRoute: () => AppRoute,
 } as any)
+const AppApiKeysRoute = AppApiKeysRouteImport.update({
+  id: '/api-keys',
+  path: '/api-keys',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/api-keys': typeof AppApiKeysRoute
   '/overview': typeof AppOverviewRoute
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/api-keys': typeof AppApiKeysRoute
   '/overview': typeof AppOverviewRoute
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/api-keys': typeof AppApiKeysRoute
   '/_app/overview': typeof AppOverviewRoute
   '/_app/quote': typeof AppQuoteRoute
   '/_app/recipients': typeof AppRecipientsRoute
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/api-keys'
     | '/overview'
     | '/quote'
     | '/recipients'
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/api-keys'
     | '/overview'
     | '/quote'
     | '/recipients'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/api-keys'
     | '/_app/overview'
     | '/_app/quote'
     | '/_app/recipients'
@@ -241,10 +253,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOverviewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/api-keys': {
+      id: '/_app/api-keys'
+      path: '/api-keys'
+      fullPath: '/api-keys'
+      preLoaderRoute: typeof AppApiKeysRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppApiKeysRoute: typeof AppApiKeysRoute
   AppOverviewRoute: typeof AppOverviewRoute
   AppQuoteRoute: typeof AppQuoteRoute
   AppRecipientsRoute: typeof AppRecipientsRoute
@@ -254,6 +274,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppApiKeysRoute: AppApiKeysRoute,
   AppOverviewRoute: AppOverviewRoute,
   AppQuoteRoute: AppQuoteRoute,
   AppRecipientsRoute: AppRecipientsRoute,
