@@ -2,7 +2,8 @@ import { EphemeralAccountType, type RampPhase } from "@vortexfi/shared";
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import { computeFees } from "./fees";
-import type { AnyContextMetadata } from "./metadata";
+import { assertFlowIdentity, BLOCK_FLOW_CATALOG_VERSION, buildFlowIdentity } from "./identity";
+import { type AnyContextMetadata, isRecord } from "./metadata";
 import { aggregateNativePrefunding, allocateNonces } from "./prepare";
 import type {
   Flow,
@@ -54,23 +55,139 @@ export class FlowBuilder<O extends PhaseIO> {
     return new FlowBuilder<Next>(this.inputResolver, [...this.phaseList, next]);
   }
 
-  build(name: string, staticStateMeta: Partial<StateMetadata> = {}): Flow<O> {
+  build(
+    name: string,
+    staticStateMeta: Partial<StateMetadata> = {},
+    version = 1,
+    catalogVersion = BLOCK_FLOW_CATALOG_VERSION
+  ): Flow<O> {
     const inputResolver = this.inputResolver;
     const phaseList = this.phaseList;
     const seenKeys = new Set<string>();
+    const seenPhases = new Set<RampPhase>();
     for (const phase of phaseList) {
       if (seenKeys.has(phase.context.key)) {
         throw new Error(`Flow ${name} defines duplicate metadata key ${phase.context.key}`);
       }
       seenKeys.add(phase.context.key);
+      const phaseExecutors = phase.executors ?? [];
+      if (phase.phases.length !== phaseExecutors.length) {
+        throw new Error(
+          `Flow ${name} block ${phase.name} defines ${phase.phases.length} phases but ${phaseExecutors.length} executors`
+        );
+      }
+      for (const [index, phaseName] of phase.phases.entries()) {
+        if (seenPhases.has(phaseName)) {
+          throw new Error(`Flow ${name} defines duplicate phase ${phaseName}`);
+        }
+        seenPhases.add(phaseName);
+        if (phaseExecutors[index]?.getPhaseName() !== phaseName) {
+          throw new Error(`Flow ${name} block ${phase.name} executor ${index} does not match persisted phase ${phaseName}`);
+        }
+      }
     }
     const phases: RampPhase[] = phaseList.flatMap(phase => phase.phases);
     const executors = phaseList.flatMap(phase => phase.executors ?? []);
+    const phaseFlow: RampPhase[] = ["initial", ...phases, "complete"];
+    if (new Set(phaseFlow).size !== phaseFlow.length) {
+      throw new Error(`Flow ${name} phase sequence contains duplicate names`);
+    }
+    const transitions: Record<string, readonly RampPhase[]> = {};
+    for (let index = 0; index < phaseFlow.length - 1; index++) {
+      const from = phaseFlow[index];
+      const next = phaseFlow[index + 1];
+      transitions[from] = next === "failed" ? [next] : [next, "failed"];
+    }
+    const identity = buildFlowIdentity({
+      catalogVersion,
+      contextSchemaVersions: phaseList.map(phase => [phase.context.key, phase.context.schemaVersion] as const),
+      id: name,
+      phases,
+      transitions,
+      version
+    });
+
+    const assertMetadata = (metadata: unknown, options: { allowLegacy?: boolean } = {}): void => {
+      if (!isRecord(metadata) || !isRecord(metadata.blocks) || !isRecord(metadata.globals)) {
+        throw new Error(`Invalid persisted metadata envelope for ${name}@${identity.version}`);
+      }
+      if (metadata.flow === undefined) {
+        if (!options.allowLegacy) {
+          throw new Error(`Persisted metadata is missing the flow identity for ${name}@${identity.version}`);
+        }
+      } else {
+        assertFlowIdentity(metadata.flow, identity);
+      }
+      const actualKeys = Object.keys(metadata.blocks).sort();
+      const expectedKeys = [...seenKeys].sort();
+      if (JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)) {
+        throw new Error(
+          `Persisted block set does not match ${name}@${identity.version}: got ${actualKeys.join(",")}, expected ${expectedKeys.join(",")}`
+        );
+      }
+      for (const key of expectedKeys) {
+        if (!isRecord(metadata.blocks[key])) {
+          throw new Error(`Persisted metadata for ${name}@${identity.version} block ${key} is not an object`);
+        }
+      }
+    };
+
+    const assertState = (state: unknown): void => {
+      if (!isRecord(state)) {
+        throw new Error(`Invalid persisted state envelope for ${name}@${identity.version}`);
+      }
+      assertFlowIdentity(state.flow, identity);
+      const storedPhaseFlow = state.phaseFlow;
+      if (
+        !Array.isArray(storedPhaseFlow) ||
+        storedPhaseFlow.some(value => typeof value !== "string") ||
+        JSON.stringify(storedPhaseFlow) !== JSON.stringify(phaseFlow)
+      ) {
+        throw new Error(`Persisted phase sequence does not match ${name}@${identity.version}`);
+      }
+      if (state.blockState !== undefined) {
+        if (!isRecord(state.blockState)) {
+          throw new Error(`Invalid persisted block state for ${name}@${identity.version}`);
+        }
+        for (const [key, value] of Object.entries(state.blockState)) {
+          if (!seenKeys.has(key) || !isRecord(value)) {
+            throw new Error(`Invalid persisted state for ${name}@${identity.version} block ${key}`);
+          }
+        }
+      }
+      if (state.transactionPlan !== undefined) {
+        if (!isRecord(state.transactionPlan)) {
+          throw new Error(`Invalid transaction plan for ${name}@${identity.version}`);
+        }
+        for (const field of ["nativePrefunding", "settlementBaselines"] as const) {
+          const values = state.transactionPlan[field];
+          if (values !== undefined && (!isRecord(values) || Object.values(values).some(value => typeof value !== "string"))) {
+            throw new Error(`Invalid ${field} transaction-plan values for ${name}@${identity.version}`);
+          }
+        }
+      }
+    };
+
     return {
+      assertMetadata,
+      assertState,
+      contextKeys: [...seenKeys],
       executors,
+      identity,
       name,
       phases,
       async prepareTxs(ctx: FlowPrepareCtx): Promise<PreparedFlowTxs> {
+        assertMetadata(ctx.metadata, { allowLegacy: true });
+        if (ctx.registrationFacts !== undefined) {
+          if (!isRecord(ctx.registrationFacts)) {
+            throw new Error(`Invalid registration facts for ${name}@${identity.version}`);
+          }
+          for (const [key, value] of Object.entries(ctx.registrationFacts)) {
+            if (!seenKeys.has(key) || !isRecord(value)) {
+              throw new Error(`Invalid registration facts for ${name}@${identity.version} block ${key}`);
+            }
+          }
+        }
         const intents: TxIntent[] = [];
         const blockState: Record<string, unknown> = {};
         const accountAddresses = Object.fromEntries(
@@ -112,13 +229,15 @@ export class FlowBuilder<O extends PhaseIO> {
           stateMeta: {
             ...stateMeta,
             blockState,
-            phaseFlow: ["initial", ...phases, "complete"],
+            flow: identity,
+            phaseFlow,
             transactionPlan: { nativePrefunding: aggregateNativePrefunding(intents) }
           },
           unsignedTxs: allocateNonces(intents)
         };
       },
       async register(ctx: FlowRegisterCtx) {
+        assertMetadata(ctx.metadata, { allowLegacy: true });
         const blocks = { ...ctx.metadata.blocks };
         const registrationFacts: Record<string, unknown> = {};
         const responseArtifacts: Record<string, unknown> = {};
@@ -144,7 +263,7 @@ export class FlowBuilder<O extends PhaseIO> {
           }
         }
         return {
-          metadata: { ...ctx.metadata, blocks },
+          metadata: { ...ctx.metadata, blocks, flow: identity },
           registrationFacts,
           responseArtifacts
         };
@@ -172,12 +291,15 @@ export class FlowBuilder<O extends PhaseIO> {
           expiresAt,
           metadata: {
             blocks,
+            flow: identity,
             globals: { fees: ctx.fees as never, partner: ctx.partner, request: ctx.request }
           },
           output: current as O
         };
       },
       async start(ctx: FlowStartCtx): Promise<FlowStartResult> {
+        assertMetadata(ctx.metadata);
+        assertState(ctx.state);
         let metadata = ctx.metadata;
         let state = ctx.state as StateMetadata;
         const responseArtifacts: Record<string, unknown> = {};
@@ -203,7 +325,8 @@ export class FlowBuilder<O extends PhaseIO> {
           }
         }
         return { metadata, responseArtifacts, state };
-      }
+      },
+      transitions
     };
   }
 }

@@ -25,8 +25,30 @@ export class PhaseRegistry {
    */
   public registerHandler(handler: PhaseHandler): void {
     const phaseName = handler.getPhaseName();
+    const existing = this.handlers.get(phaseName);
+    if (existing && existing !== handler) {
+      if (existing.constructor !== handler.constructor) {
+        throw new Error(`A different phase handler is already registered for ${phaseName}`);
+      }
+      logger.info(`Phase handler for ${phaseName} is already registered`);
+      return;
+    }
     this.handlers.set(phaseName, handler);
     logger.info(`Registered phase handler for ${phaseName}`);
+  }
+
+  /**
+   * Tests occasionally need to shadow a production handler. Keeping that capability
+   * explicit prevents production startup code from silently overwriting registrations.
+   */
+  public replaceHandlerForTest(handler: PhaseHandler): PhaseHandler | undefined {
+    if (process.env.NODE_ENV !== "test") {
+      throw new Error("replaceHandlerForTest is only available in tests");
+    }
+    const phaseName = handler.getPhaseName();
+    const previous = this.handlers.get(phaseName);
+    this.handlers.set(phaseName, handler);
+    return previous;
   }
 
   /**

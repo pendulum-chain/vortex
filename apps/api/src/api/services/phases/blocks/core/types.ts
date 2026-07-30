@@ -15,6 +15,7 @@ import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.mo
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../../quote/core/types";
+import type { FlowIdentity } from "./identity";
 import type { AnyContextMetadata, ContextSimulation, FlowMetadata } from "./metadata";
 
 export type TokenBrand = string;
@@ -183,9 +184,14 @@ export interface FlowStartResult {
 }
 
 export interface Flow<O extends PhaseIO = PhaseIO> {
+  readonly contextKeys: readonly string[];
   readonly name: string;
+  readonly identity: Readonly<FlowIdentity>;
   readonly phases: RampPhase[];
   readonly executors: PhaseHandler[];
+  readonly transitions: Readonly<Record<string, readonly RampPhase[]>>;
+  assertMetadata(metadata: unknown, options?: { allowLegacy?: boolean }): void;
+  assertState(state: unknown): void;
   register(ctx: FlowRegisterCtx): Promise<FlowRegistrationResult>;
   simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata; output: O }>;
   start(ctx: FlowStartCtx): Promise<FlowStartResult>;

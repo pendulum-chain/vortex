@@ -5,7 +5,8 @@ import { runWithRampContext } from "../../../config/ramp-context";
 import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
+import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
 import { StateMetadata } from "./meta-state-types";
 import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
@@ -185,19 +186,17 @@ export class PhaseProcessor {
    * If no phaseFlow exists (legacy ramp), return the handler's result as-is.
    */
   private resolveNextPhase(originalPhase: RampPhase, handlerResult: RampState, state: RampState): RampPhase {
-    // Handler explicitly changed the phase (short-circuit override) — honor it
-    if (handlerResult.currentPhase !== originalPhase) {
-      return handlerResult.currentPhase;
-    }
-
-    const phaseFlow = (state.state as StateMetadata).phaseFlow;
+    const stateMetadata = state.state as StateMetadata;
+    const phaseFlow = stateMetadata.phaseFlow;
 
     // Legacy ramp without phaseFlow — handler must set the next phase
     if (!phaseFlow) {
       return handlerResult.currentPhase;
     }
+    if (new Set(phaseFlow).size !== phaseFlow.length) {
+      throw new Error(`PhaseProcessor: phaseFlow contains duplicate phases for ramp ${state.id}`);
+    }
 
-    // Flow-driven routing — advance to the next phase in the sequence
     const currentIndex = phaseFlow.indexOf(originalPhase);
     if (currentIndex === -1) {
       throw new Error(`PhaseProcessor: Phase "${originalPhase}" not found in phaseFlow for ramp ${state.id}`);
@@ -208,7 +207,28 @@ export class PhaseProcessor {
       );
     }
 
-    return phaseFlow[currentIndex + 1];
+    const sequentialNext = phaseFlow[currentIndex + 1];
+
+    // Handler explicitly changed the phase. It may only use an edge declared by
+    // the persisted flow version; legacy flows are limited to the sequential edge
+    // or the universal fail-closed edge.
+    if (handlerResult.currentPhase !== originalPhase) {
+      const allowed = stateMetadata.flow
+        ? (() => {
+            const flow = getBlockFlowByIdentity(stateMetadata.flow);
+            flow.assertState(stateMetadata);
+            return flow.transitions[originalPhase] ?? [];
+          })()
+        : [sequentialNext, "failed"];
+      if (!allowed.includes(handlerResult.currentPhase)) {
+        throw new Error(
+          `PhaseProcessor: transition ${originalPhase} -> ${handlerResult.currentPhase} is not allowed for ramp ${state.id}`
+        );
+      }
+      return handlerResult.currentPhase;
+    }
+
+    return sequentialNext;
   }
 
   /**
@@ -227,8 +247,7 @@ export class PhaseProcessor {
       // Get the phase handler
       const handler = phaseRegistry.getHandler(currentPhase);
       if (!handler) {
-        logger.warn(`No handler found for phase ${currentPhase}`);
-        return;
+        throw new UnrecoverablePhaseError(`No handler registered for phase ${currentPhase}`);
       }
 
       // Execute the phase with a maximum waiting time

@@ -6,8 +6,10 @@ import {
   Networks,
   RampPhase
 } from "@vortexfi/shared";
+import type { FlowIdentity } from "./blocks/core/identity";
 
 export interface StateMetadata {
+  flow?: FlowIdentity;
   accountAddresses?: Partial<Record<EphemeralAccountType, string>>;
   blockState?: Record<string, unknown>;
   transactionPlan?: {

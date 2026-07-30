@@ -479,12 +479,16 @@ carries that descriptor and returns exactly one simulation context; only
 Typed metadata access goes through context descriptors
 (`getBlockMetadata(metadata, SomeContext)`) without a global key/type
 registry. A phase cannot read previous metadata, and duplicate keys are
-rejected when the flow is built at module load. Preparation and
-execution are deliberately type-erased and verified by implementation tests;
-blocks never declare dependencies on other block identities. Persisted
-decimal metadata uses JSON-safe scalar unions, so consumers explicitly
-construct `Big` values after loading JSONB. Fees, request data, and partner
-data are explicit globals rather than metadata installed by the first block.
+rejected when the flow is built at module load. Preparation and execution use
+type-erased iteration internally, but the persisted envelope is bound to a
+stable flow ID/version, topology hash, and per-context schema versions.
+Runtime checks reject an incompatible identity, phase sequence, context set,
+block-state envelope, or transaction plan before lifecycle hooks run. Tests
+supplement these checks; they are not the runtime data boundary. Blocks never
+declare dependencies on other block identities. Persisted decimal metadata
+uses JSON-safe scalar unions, so consumers explicitly construct `Big` values
+after loading JSONB. Fees, request data, and partner data are explicit globals
+rather than metadata installed by the first block.
 Offramp source phases carry the request's bridged USD valuation through the
 typed `PhaseIO` boundary so downstream subsidy math does not read another
 phase's metadata.
