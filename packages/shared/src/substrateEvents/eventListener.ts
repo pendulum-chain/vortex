@@ -19,9 +19,8 @@ export class EventListener {
     this.api = api;
     this.initEventSubscriber();
 
-    this.api?.on("connected", async (): Promise<void> => {
+    this.api?.on("connected", (): void => {
       logger.current.info("Connected (or reconnected) to the endpoint.");
-      await this.checkForMissedEvents();
     });
   }
 
@@ -79,10 +78,6 @@ export class EventListener {
         pendingEvents.splice(index, 1);
       }
     });
-  }
-
-  async checkForMissedEvents() {
-    // No-op: redeem/spacewalk event recovery removed with Stellar/Spacewalk deprecation.
   }
 
   unsubscribe() {

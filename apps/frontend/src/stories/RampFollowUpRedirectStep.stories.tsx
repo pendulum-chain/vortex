@@ -20,7 +20,7 @@ const createSnapshot = (callbackUrl = "https://example.com/callback") => ({
     getMessageSignature: undefined,
     initializeFailedMessage: undefined,
     isQuoteExpired: false,
-    isSep24Redo: false,
+    isQuoteRedo: false,
     partnerId: undefined,
     paymentData: undefined,
     quote: undefined,

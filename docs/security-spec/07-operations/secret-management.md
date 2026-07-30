@@ -12,7 +12,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Secret | Purpose | Blast Radius |
 |---|---|---|
-| `FUNDING_SECRET` | Stellar funding account keypair | Drain of Stellar funding pool — affects all Stellar off-ramps |
+| `FUNDING_SECRET` | **Removed/obsolete** — was the Stellar funding account keypair; Stellar/Spacewalk support was removed (migration 028). Unset in deployments; no code reads it. | None (obsolete) |
 | `PENDULUM_FUNDING_SEED` | Pendulum funding account seed | Drain of Pendulum funding pool — affects all subsidization |
 | `MOONBEAM_EXECUTOR_PRIVATE_KEY` | Calls `executeXCM` on Moonbeam receiver contract | Unauthorized XCM execution on Moonbeam — could route funds incorrectly |
 | `MOONBEAM_FUNDING_PRIVATE_KEY` | EVM subsidization transfers across all EVM chains in scope (Moonbeam, Base, Polygon, etc.); BRLA payouts on Base; EVM fee distribution on Base | Drain of EVM funding pool on every supported EVM chain — including BRLA payout path on Base |
@@ -63,7 +63,7 @@ This spec catalogs every secret, its purpose, its blast radius if compromised, a
 
 | Threat | Mitigation |
 |---|---|
-| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes: all funding accounts (Stellar, Pendulum, Moonbeam), all database access, admin access, all third-party API keys. The only mitigation is infrastructure hardening (firewalls, SSH hardening, monitoring). |
+| **Server compromise — full secret exfiltration** — Attacker gains shell access to the API server | **All secrets are exposed.** There is no HSM, no secrets manager, no encryption at rest for env vars. Blast radius includes: all funding accounts (Pendulum, Moonbeam, Base), all database access, admin access, all third-party API keys. The only mitigation is infrastructure hardening (firewalls, SSH hardening, monitoring). |
 | **Environment variable leak via error page or debug endpoint** — Misconfigured error handler dumps `process.env` | Express error handler strips stack traces in non-development mode. However, there is no explicit guard against dumping environment variables. A bug in error handling could expose secrets. |
 | **Ephemeral webhook keys after restart** — Without `WEBHOOK_PRIVATE_KEY`, webhook signatures change on every restart | Webhook consumers lose the ability to verify signatures from the previous instance. This is a reliability issue, not a direct security vulnerability, but it could cause consumers to reject legitimate webhooks or accept unverified ones (if they fall back to no-verification). |
 | **Credential rotation requires redeployment** — No runtime rotation mechanism | To rotate any secret, the environment variable must be updated and the service restarted. During the rotation window, the old secret may still be valid (e.g., API keys at third parties). There is no way to do zero-downtime rotation. |

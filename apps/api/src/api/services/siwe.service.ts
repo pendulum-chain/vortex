@@ -141,7 +141,7 @@ export const validateSignatureAndGetMemo = async (
   userChallengeSignature: string | null
 ): Promise<string | null> => {
   if (!userChallengeSignature || !nonce) {
-    return null; // Default memo value when single stellar account is used
+    return null; // No memo can be derived without a signed nonce
   }
 
   try {

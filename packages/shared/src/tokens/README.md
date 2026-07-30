@@ -17,14 +17,11 @@ tokens/
 │   ├── base.ts              # Base types shared across token types
 │   ├── evm.ts               # EVM-specific types
 │   ├── assethub.ts          # AssetHub-specific types
-│   ├── stellar.ts           # Stellar-specific types
 │   └── moonbeam.ts          # Moonbeam-specific types
 ├── evm/                     # EVM token configuration
 │   └── config.ts            # EVM token details
 ├── assethub/                # AssetHub token configuration
 │   └── config.ts            # AssetHub token details
-├── stellar/                 # Stellar token configuration
-│   └── config.ts            # Stellar token details
 ├── moonbeam/                # Moonbeam token configuration
 │   └── config.ts            # Moonbeam token details
 └── utils/                   # Utility functions
@@ -46,25 +43,21 @@ import {
   // Token Details
   EvmTokenDetails,
   AssetHubTokenDetails,
-  StellarTokenDetails,
   MoonbeamTokenDetails,
 
   // Configurations
   evmTokenConfig,
   assetHubTokenConfig,
-  stellarTokenConfig,
   moonbeamTokenConfig,
 
   // Utility Functions
   getOnChainTokenDetails,
   getAnyFiatTokenDetails,
   isEvmToken,
-  isStellarToken,
 
   // Constants
   Networks,
   PENDULUM_USDC_AXL,
-  HORIZON_URL,
 } from 'signer-service/src/config/tokens';
 ```
 

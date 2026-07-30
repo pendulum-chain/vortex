@@ -2,7 +2,7 @@
 
 ## What This Does
 
-Vortex is a cross-border payment gateway built on the Pendulum blockchain. It converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains (Pendulum, Moonbeam, Stellar, AssetHub, Hydration, Polygon, Base). The system is a Bun monorepo with four main components:
+Vortex is a cross-border payment gateway built on the Pendulum blockchain. It converts between fiat currencies (BRL, EUR, ARS) and crypto assets across multiple chains (Pendulum, Moonbeam, AssetHub, Hydration, Polygon, Base). The system is a Bun monorepo with four main components:
 
 - **API** (`apps/api`) — Express backend handling ramp orchestration, quote generation, auth, and external service integration
 - **Frontend** (`apps/frontend`) — React SPA for end-user flows
@@ -27,7 +27,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 │  │  ├─ Auth middleware (Supabase/API key/Admin)│                    │
 │  │  ├─ Controllers + Validators                │                    │
 │  │  ├─ Phase Processor (state machine)         │                    │
-│  │  └─ Services (ramp, quote, stellar, etc.)   │                    │
+│  │  └─ Services (ramp, quote, etc.)            │                    │
 │  └────┬───────────┬───────────┬───────────┬────┘                    │
 │       │           │           │           │                         │
 ├───────┼───────────┼───────────┼───────────┼─────────────────────────┤
@@ -38,9 +38,8 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 │  │(DB)     │ │(Auth)   │ │(RPC)     │ │(BRLA/Avenia,    │         │
 │  └─────────┘ └─────────┘ │Pendulum  │ │ Mykobo,         │         │
 │                           │Moonbeam  │ │ Alfredpay,      │         │
-│                           │Stellar   │ │ Squid, Stellar) │         │
-│                           │AssetHub  │ └─────────────────┘         │
-│                           │Hydration │                              │
+│                           │AssetHub  │ │ Squid)          │         │
+│                           │Hydration │ └─────────────────┘         │
 │                           │Polygon   │                              │
 │                           │Base      │                              │
 │                           └──────────┘                              │

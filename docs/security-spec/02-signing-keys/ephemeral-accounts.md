@@ -2,9 +2,8 @@
 
 ## What This Does
 
-Ephemeral accounts are temporary blockchain accounts created per ramp operation. They serve as intermediate holding addresses for assets during the multi-step ramp process. Each ramp creates up to three ephemeral accounts across different chains:
+Ephemeral accounts are temporary blockchain accounts created per ramp operation. They serve as intermediate holding addresses for assets during the multi-step ramp process. Each ramp creates up to two ephemeral accounts across different chain families:
 
-- **Stellar ephemeral** — Created via `createStellarEphemeral()`. A new Stellar keypair. The API's funding account creates this on-chain with a 2-of-2 multisig (ephemeral + funding account as co-signers), adds a trustline for the relevant Stellar asset, and funds it with a starting balance.
 - **Substrate (Pendulum) ephemeral** — Created via `createPendulumEphemeral()`. A new sr25519 keypair for the Pendulum parachain.
 - **EVM (Moonbeam) ephemeral** — Created via `createMoonbeamEphemeral()`. A new secp256k1 keypair for Moonbeam/EVM chains.
 
@@ -37,10 +36,9 @@ Frontend and SDK Substrate RPC clients are initialized lazily. Creating/importin
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Ephemeral key interception** | Attacker intercepts ephemeral keys during SDK storage (file read) | Keys stored locally only; file permissions should be restrictive; recommend encryption at rest for production SDK usage |
-| **Address substitution** | Attacker registers a ramp with someone else's address, hoping to receive funds at that address | Funds flow through the ephemeral (which the attacker controls the keys for), not directly to an arbitrary destination. The 2-of-2 multisig on Stellar prevents unilateral fund movement. |
+| **Address substitution** | Attacker registers a ramp with someone else's address, hoping to receive funds at that address | Funds flow through the ephemeral rather than directly to an arbitrary destination, and active-address reuse is rejected. |
 | **Ephemeral reuse** | Buggy or malicious clients submit the same still-unused address for multiple active ramps, causing nonce and balance cross-contamination | Client generation creates fresh keypairs; registration serializes matching addresses with transaction-scoped advisory locks and rejects addresses already present on a non-terminal ramp. |
-| **Funding account drain** | Attacker creates many ramps to drain the Stellar funding account's XLM balance | Rate limiting on ramp creation; monitoring funding account balance; bounded starting balance |
-| **Orphaned ephemerals** | Ramp fails mid-way, leaving funded ephemeral accounts unclaimed | Stellar 2-of-2 multisig allows the funding account to reclaim funds; Substrate/EVM ephemerals can be swept by the key holder |
+| **Orphaned ephemerals** | Ramp fails mid-way, leaving funded ephemeral accounts unclaimed | Substrate/EVM ephemerals can be swept by the key holder |
 | **Malicious ephemeral address (contract)** | On EVM, attacker provides a smart contract address as ephemeral, which could behave unexpectedly when receiving tokens | Validate that EVM ephemeral addresses are externally-owned accounts (EOAs), not contracts, before sending funds |
 | **Reused / non-fresh ephemeral** | Client (buggy SDK, attacker, or replay) submits an ephemeral address that already has on-chain history — non-zero nonce, or a funded native balance on a nonce-0 account. The server builds transactions assuming nonce 0 and an empty account, so mid-ramp execution halts with nonce-mismatch errors after subsidies/funding have been spent. | **MITIGATED (F-072)**: `validateEphemeralAccountsFresh(ephemerals, quote)` runs in `registerRamp` immediately after format validation. For each ephemeral type the client provides, it queries the chains the quote's route signs on (`quoteToSigningNetworks`) and rejects the registration if any check finds non-zero nonce, non-zero Substrate free balance, or non-zero EVM native balance. Fail-closed on RPC errors (`503`). |
 | **Unrelated-RPC registration DoS** | An RPC for a chain the ramp never uses is down; every registration that validated the full chain set would fail | Freshness is scoped to the route's chains (`quoteToSigningNetworks`), so an outage on an unrelated chain's RPC cannot block registrations that never touch it. |
@@ -49,10 +47,8 @@ Frontend and SDK Substrate RPC clients are initialized lazily. Creating/importin
 
 ## Audit Checklist
 
-- [x] `createStellarEphemeral()`, `createPendulumEphemeral()`, `createMoonbeamEphemeral()` are only called in the SDK/frontend, never in `apps/api` — ✅ PASS
+- [x] `createPendulumEphemeral()` and `createMoonbeamEphemeral()` are only called in the SDK/frontend, never in `apps/api` — ✅ PASS
 - [x] The API's ramp registration endpoint only accepts addresses (public keys), never private keys or seed phrases — ✅ PASS
-- [ ] Stellar ephemeral creation sets all thresholds to 2 and adds the funding account as a signer with weight 1 — ↗️ Deferred to Module 05
-- [x] `STELLAR_EPHEMERAL_STARTING_BALANCE_UNITS` is set to the minimum viable amount (just enough for trustlines + fees) — ✅ PASS (2.5 XLM)
 - [x] `storeEphemeralKeys` writes to local filesystem only — verify no network calls in the storage path — ✅ PASS
 - [ ] Ephemeral addresses are validated for format before use in transaction construction — ❌ FAIL (F-021)
 - [x] No code path in the API logs or persists ephemeral private keys — ✅ PASS

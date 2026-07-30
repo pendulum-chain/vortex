@@ -20,7 +20,7 @@ The pre/post executors dispatch by the block's chain context. The EVM pre-swap b
 1. Read the ephemeral account's current balance
 2. Compare against the expected amount (from ramp state metadata, e.g. `quote.metadata.nablaSwapEvm.inputAmountForSwapRaw` for pre-swap on the EVM branch)
 3. If balance < expected, transfer the difference from the **funding account** (a platform-controlled account with pooled funds)
-4. The funding account is derived from `FUNDING_SECRET` / `PENDULUM_FUNDING_SEED` (Pendulum/Stellar) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (EVM — used on **Moonbeam, Base, and any other EVM chain**; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible fallback)
+4. The funding account is derived from `PENDULUM_FUNDING_SEED` (Pendulum) or `EVM_FUNDING_PRIVATE_KEY` through `phases/blocks/core/evm-funding.ts` (EVM — used on **Moonbeam, Base, and any other EVM chain**; `MOONBEAM_EXECUTOR_PRIVATE_KEY` remains a backward-compatible fallback)
 
 **Why this matters for security:** Subsidization uses platform funds. If the amount calculations are wrong, the expected amounts are manipulated, or cap enforcement fails, the platform loses money. The funding accounts hold pooled assets — their compromise would affect all ramps, not just one.
 
