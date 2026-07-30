@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import sequelize from "../../config/database";
@@ -35,9 +36,22 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
   const { name, expiresAt } = (req.body ?? {}) as CreateApiKeyBody;
 
   try {
-    const environment = config.sandboxEnabled ? "test" : "live";
+    const baseName = name?.trim() || "API Key";
+    if (baseName.length > 91) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_API_KEY_NAME",
+          message: "name must be at most 91 characters",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
 
-    const activeKeyCount = await ApiKey.count({ where: { isActive: true, userId } });
+    const environment = config.sandboxEnabled ? "test" : "live";
+    const credentialId = randomUUID();
+
+    const activeKeyCount = await ApiKey.count({ where: { isActive: true, partnerId: null, partnerName: null, userId } });
     if (activeKeyCount + 2 > MAX_ACTIVE_KEYS_PER_USER) {
       res.status(httpStatus.CONFLICT).json({
         error: {
@@ -69,6 +83,17 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       return;
     }
 
+    if (expirationDate.getTime() <= Date.now()) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_EXPIRES_AT",
+          message: "expiresAt must be in the future",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
     if (expiresAt && expirationDate.getTime() > Date.now() + MAX_EXPIRY_MS) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
@@ -84,13 +109,14 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
     const { publicKeyRecord, secretKeyRecord } = await sequelize.transaction(async transaction => {
       const createdPublicKey = await ApiKey.create(
         {
+          credentialId,
           expiresAt: expirationDate,
           isActive: true,
           keyHash: null,
           keyPrefix: publicKeyPrefix,
           keyType: "public",
           keyValue: publicKey,
-          name: `${name || "API Key"} (Public)`,
+          name: `${baseName} (Public)`,
           partnerId: null,
           partnerName: null,
           userId
@@ -100,13 +126,14 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
 
       const createdSecretKey = await ApiKey.create(
         {
+          credentialId,
           expiresAt: expirationDate,
           isActive: true,
           keyHash: secretKeyHash,
           keyPrefix: secretKeyPrefix,
           keyType: "secret",
           keyValue: null,
-          name: `${name || "API Key"} (Secret)`,
+          name: `${baseName} (Secret)`,
           partnerId: null,
           partnerName: null,
           userId
@@ -119,6 +146,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
 
     res.status(httpStatus.CREATED).json({
       createdAt: publicKeyRecord.createdAt,
+      credentialId,
       expiresAt: expirationDate,
       isActive: true,
       publicKey: {
@@ -165,6 +193,7 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
     const apiKeys = await ApiKey.findAll({
       attributes: [
         "id",
+        "credentialId",
         "keyType",
         "keyPrefix",
         "keyValue",
@@ -176,12 +205,13 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
         "updatedAt"
       ],
       order: [["createdAt", "DESC"]],
-      where: { isActive: true, userId }
+      where: { isActive: true, partnerId: null, partnerName: null, userId }
     });
 
     res.status(httpStatus.OK).json({
       apiKeys: apiKeys.map(key => ({
         createdAt: key.createdAt,
+        credentialId: key.credentialId,
         expiresAt: key.expiresAt,
         id: key.id,
         isActive: key.isActive,
@@ -248,7 +278,9 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
   const otherKeyId = pairedKeyId ?? publicKeyId;
 
   try {
-    const primaryKey = await ApiKey.findOne({ where: { id: keyId, isActive: true, userId } });
+    const primaryKey = await ApiKey.findOne({
+      where: { id: keyId, isActive: true, partnerId: null, partnerName: null, userId }
+    });
     if (!primaryKey) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
@@ -266,7 +298,9 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
-    const pairedKey = await ApiKey.findOne({ where: { id: otherKeyId, isActive: true, userId } });
+    const pairedKey = await ApiKey.findOne({
+      where: { id: otherKeyId, isActive: true, partnerId: null, partnerName: null, userId }
+    });
     if (!pairedKey) {
       res.status(httpStatus.NOT_FOUND).json({
         error: {
@@ -291,9 +325,20 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
       return;
     }
 
+    if ((primaryKey.credentialId || pairedKey.credentialId) && primaryKey.credentialId !== pairedKey.credentialId) {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "KEY_PAIR_MISMATCH",
+          message: "The selected keys do not belong to the same credential",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
     const baseName = keyPairBaseName(primaryKey.name ?? "");
     const pairedBaseName = keyPairBaseName(pairedKey.name ?? "");
-    if (primaryKey.name && pairedKey.name && baseName !== pairedBaseName) {
+    if (!primaryKey.credentialId && primaryKey.name && pairedKey.name && baseName !== pairedBaseName) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: {
           code: "KEY_PAIR_MISMATCH",
@@ -305,7 +350,10 @@ export async function revokeUserApiKey(req: Request<{ keyId: string }>, res: Res
     }
 
     const revokedAt = new Date();
-    await Promise.all([primaryKey.update({ isActive: false, revokedAt }), pairedKey.update({ isActive: false, revokedAt })]);
+    await sequelize.transaction(async transaction => {
+      await primaryKey.update({ isActive: false, revokedAt }, { transaction });
+      await pairedKey.update({ isActive: false, revokedAt }, { transaction });
+    });
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     logger.error("Error revoking user API key:", error);

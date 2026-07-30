@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { Request, Response } from "express";
 import httpStatus from "http-status";
+import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import ApiKey from "../../../models/apiKey.model";
@@ -65,6 +67,7 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
 
     // Determine environment
     const environment = config.sandboxEnabled ? "test" : "live";
+    const credentialId = randomUUID();
 
     // Generate public key (pk_live_* or pk_test_*)
     const publicKey = generateApiKey("public", environment);
@@ -77,37 +80,48 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
 
     const expirationDate = expiresAt ? new Date(expiresAt) : null;
 
-    // Create public key record (partner_name kept as informational backup; auth resolves partner_id)
-    const publicKeyRecord = await ApiKey.create({
-      expiresAt: expirationDate,
-      isActive: true,
-      keyHash: null, // Store plaintext for public keys
-      keyPrefix: publicKeyPrefix,
-      keyType: "public",
-      keyValue: publicKey,
-      name: name ? `${name} (Public)` : "Public Key",
-      partnerId: partner.id,
-      partnerName,
-      userId: resolvedUserId
-    });
+    const { publicKeyRecord, secretKeyRecord } = await sequelize.transaction(async transaction => {
+      const createdPublicKey = await ApiKey.create(
+        {
+          credentialId,
+          expiresAt: expirationDate,
+          isActive: true,
+          keyHash: null,
+          keyPrefix: publicKeyPrefix,
+          keyType: "public",
+          keyValue: publicKey,
+          name: name ? `${name} (Public)` : "Public Key",
+          partnerId: partner.id,
+          partnerName,
+          userId: resolvedUserId
+        },
+        { transaction }
+      );
 
-    // Create secret key record
-    const secretKeyRecord = await ApiKey.create({
-      expiresAt: expirationDate,
-      isActive: true,
-      keyHash: secretKeyHash, // Don't store plaintext for secret keys
-      keyPrefix: secretKeyPrefix,
-      keyType: "secret",
-      keyValue: null,
-      name: name ? `${name} (Secret)` : "Secret Key",
-      partnerId: partner.id,
-      partnerName,
-      userId: resolvedUserId
+      const createdSecretKey = await ApiKey.create(
+        {
+          credentialId,
+          expiresAt: expirationDate,
+          isActive: true,
+          keyHash: secretKeyHash,
+          keyPrefix: secretKeyPrefix,
+          keyType: "secret",
+          keyValue: null,
+          name: name ? `${name} (Secret)` : "Secret Key",
+          partnerId: partner.id,
+          partnerName,
+          userId: resolvedUserId
+        },
+        { transaction }
+      );
+
+      return { publicKeyRecord: createdPublicKey, secretKeyRecord: createdSecretKey };
     });
 
     // Return both keys (secret shown only once!)
     res.status(httpStatus.CREATED).json({
       createdAt: publicKeyRecord.createdAt,
+      credentialId,
       expiresAt: expirationDate,
       isActive: true,
       partnerId: partner.id,
@@ -170,6 +184,7 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
     const apiKeys = await ApiKey.findAll({
       attributes: [
         "id",
+        "credentialId",
         "keyType",
         "keyPrefix",
         "keyValue", // Include for public keys
@@ -188,6 +203,7 @@ export async function listApiKeys(req: Request<{ partnerName: string }>, res: Re
     res.status(httpStatus.OK).json({
       apiKeys: apiKeys.map(key => ({
         createdAt: key.createdAt,
+        credentialId: key.credentialId,
         expiresAt: key.expiresAt,
         id: key.id,
         isActive: key.isActive, // Show full public key
