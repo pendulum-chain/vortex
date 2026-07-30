@@ -31,24 +31,25 @@ const NATIVE_TOKEN_ADDRESS = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
  * resolves by rail first, then provider + country — both are set so the corridor maps to MX
  * whichever branch runs; `state` (not `status`) is what the approval gate reads.
  */
-export function buildOnboardingStatus(state: OnboardingState = "approved", corridor: "AR" | "BR" | "CO" | "MX" | "US" = "MX") {
-  const rail = { AR: "ars", BR: "brl", CO: "cop", MX: "mxn", US: "usd" }[corridor];
+export function buildOnboardingStatus(
+  state: OnboardingState = "approved",
+  corridor: "AR" | "BR" | "CO" | "MX" | "US" | Array<"AR" | "BR" | "CO" | "MX" | "US"> = "MX"
+) {
+  const corridors = Array.isArray(corridor) ? corridor : [corridor];
   return {
     activeEntityId: "entity-e2e-1",
     entities: [
       {
-        accounts: [
-          {
-            country: corridor,
-            customerType: "individual",
-            id: "acct-e2e-mx",
-            kycCase: null,
-            provider: corridor === "BR" ? "avenia" : "alfredpay",
-            rail,
-            state,
-            status: state
-          }
-        ],
+        accounts: corridors.map(accountCorridor => ({
+          country: accountCorridor,
+          customerType: "individual",
+          id: `acct-e2e-${accountCorridor.toLowerCase()}`,
+          kycCase: null,
+          provider: accountCorridor === "BR" ? "avenia" : "alfredpay",
+          rail: { AR: "ars", BR: "brl", CO: "cop", MX: "mxn", US: "usd" }[accountCorridor],
+          state,
+          status: state
+        })),
         id: "entity-e2e-1",
         status: state,
         type: "individual"
@@ -252,6 +253,8 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 
 interface MockBackendOptions {
   apiKeys?: Array<Record<string, unknown>>;
+  approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
+  limits?: Array<Record<string, unknown>>;
   onboardingState?: OnboardingState;
   companyMode?: boolean;
   selectionRequired?: boolean;
@@ -387,6 +390,7 @@ function answerRpc(chainIdHex: string) {
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
   const apiKeyRequests: Array<{ body: Record<string, unknown>; method: string; path: string }> = [];
+  const limitsRequests: Array<Record<string, unknown>> = [];
   const requestOtpRequests: Array<Record<string, unknown>> = [];
   const verifyOtpRequests: Array<Record<string, unknown>> = [];
   const quoteRequests: Array<Record<string, unknown>> = [];
@@ -535,7 +539,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
         await fulfillStatus(
           options.companyMode
             ? buildCompanyOnboardingStatus("alfredpay", "MX", options.onboardingState ?? "approved")
-            : buildOnboardingStatus(options.onboardingState, onrampCorridor)
+            : buildOnboardingStatus(options.onboardingState, options.approvedCorridors ?? onrampCorridor)
         );
         return;
       }
@@ -563,6 +567,22 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       } else {
         await fulfillStatus(buildEmptyOnboardingStatus(options.companyMode));
       }
+      return;
+    }
+
+    if (path === "/v1/limits" && method === "POST") {
+      const body = request.postDataJSON() as { corridors?: Array<"AR" | "BR" | "CO" | "MX" | "US"> };
+      limitsRequests.push(body);
+      const currencyByCorridor = { AR: "ARS", BR: "BRL", CO: "COP", MX: "MXN", US: "USD" };
+      const period = { endsAt: "2026-08-01T00:00:00.000Z", startsAt: "2026-07-01T00:00:00.000Z", type: "calendar_month" };
+      await fulfillJson({
+        limits:
+          options.limits ??
+          (body.corridors ?? []).flatMap(corridor => [
+            { corridor, currency: currencyByCorridor[corridor], direction: "BUY", max: "10000", period, used: "1250" },
+            { corridor, currency: corridor === "BR" ? "BRL" : "USDC", direction: "SELL", max: "5000", period, used: "500" }
+          ])
+      });
       return;
     }
 
@@ -1153,6 +1173,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
     kybUploads,
     kyc,
     kycFormSubmissions,
+    limitsRequests,
     monerium,
     quoteRequests,
     registerRequests,

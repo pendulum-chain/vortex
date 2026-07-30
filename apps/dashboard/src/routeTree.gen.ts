@@ -20,6 +20,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppRecipientsRouteImport } from './routes/_app/recipients'
 import { Route as AppQuoteRouteImport } from './routes/_app/quote'
 import { Route as AppOverviewRouteImport } from './routes/_app/overview'
+import { Route as AppLimitsRouteImport } from './routes/_app/limits'
 import { Route as AppApiKeysRouteImport } from './routes/_app/api-keys'
 
 const LoginRoute = LoginRouteImport.update({
@@ -76,6 +77,11 @@ const AppOverviewRoute = AppOverviewRouteImport.update({
   path: '/overview',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLimitsRoute = AppLimitsRouteImport.update({
+  id: '/limits',
+  path: '/limits',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApiKeysRoute = AppApiKeysRouteImport.update({
   id: '/api-keys',
   path: '/api-keys',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/api-keys': typeof AppApiKeysRoute
+  '/limits': typeof AppLimitsRoute
   '/overview': typeof AppOverviewRoute
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/api-keys': typeof AppApiKeysRoute
+  '/limits': typeof AppLimitsRoute
   '/overview': typeof AppOverviewRoute
   '/quote': typeof AppQuoteRoute
   '/recipients': typeof AppRecipientsRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/api-keys': typeof AppApiKeysRoute
+  '/_app/limits': typeof AppLimitsRoute
   '/_app/overview': typeof AppOverviewRoute
   '/_app/quote': typeof AppQuoteRoute
   '/_app/recipients': typeof AppRecipientsRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/api-keys'
+    | '/limits'
     | '/overview'
     | '/quote'
     | '/recipients'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/api-keys'
+    | '/limits'
     | '/overview'
     | '/quote'
     | '/recipients'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/api-keys'
+    | '/_app/limits'
     | '/_app/overview'
     | '/_app/quote'
     | '/_app/recipients'
@@ -253,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppOverviewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/limits': {
+      id: '/_app/limits'
+      path: '/limits'
+      fullPath: '/limits'
+      preLoaderRoute: typeof AppLimitsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/api-keys': {
       id: '/_app/api-keys'
       path: '/api-keys'
@@ -265,6 +284,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppApiKeysRoute: typeof AppApiKeysRoute
+  AppLimitsRoute: typeof AppLimitsRoute
   AppOverviewRoute: typeof AppOverviewRoute
   AppQuoteRoute: typeof AppQuoteRoute
   AppRecipientsRoute: typeof AppRecipientsRoute
@@ -275,6 +295,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppApiKeysRoute: AppApiKeysRoute,
+  AppLimitsRoute: AppLimitsRoute,
   AppOverviewRoute: AppOverviewRoute,
   AppQuoteRoute: AppQuoteRoute,
   AppRecipientsRoute: AppRecipientsRoute,
