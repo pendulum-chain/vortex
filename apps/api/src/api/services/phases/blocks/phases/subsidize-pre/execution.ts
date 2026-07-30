@@ -247,7 +247,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
         throw e;
       }
       if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(e.message);
+        throw this.createReconciliationRequiredError(e.message);
       }
       throw this.createRecoverableError("SubsidizePreSwapExecutor: Failed to subsidize pre swap on EVM.");
     }

@@ -7,14 +7,20 @@ import {
   multiplyByPowerOfTen,
   RampPhase
 } from "@vortexfi/shared";
-import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
+import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
-import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { PhaseError, UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import {
+  FinancialOperationReconciliationRequiredError,
+  FinancialOperationRejectedError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -155,10 +161,43 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
         tokenDetails: outTokenDetails
       });
 
-      throwIfAborted(signal);
-      const txHash = await abortableCall(signal, () =>
-        evmClientManager.sendRawTransactionWithRetry(destinationNetwork, destinationTransfer as `0x${string}`)
-      );
+      const signedTransaction = destinationTransfer as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const destinationClient = evmClientManager.getClient(destinationNetwork);
+      const { hash: txHash } = await runFinancialOperation({
+        attemptClass: "destination-presigned-broadcast",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(destinationNetwork, signedTransaction)
+          );
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: destinationNetwork,
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () =>
+              destinationClient.getTransactionReceipt({ hash: deterministicHash })
+            );
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Destination transfer ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => destinationClient.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network: destinationNetwork, signedTransaction },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
       await state.update({
         state: {
           ...state.state,
@@ -168,6 +207,10 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
 
       return state;
     } catch (error) {
+      if (error instanceof PhaseError) throw error;
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
       throw this.createRecoverableError(
         `DestinationTransferExecutor: Error during phase execution - ${(error as Error).message}`
       );

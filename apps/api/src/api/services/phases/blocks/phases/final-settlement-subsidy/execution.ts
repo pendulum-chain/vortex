@@ -31,7 +31,11 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
-import { requireFinancialFlowIdentity, runFinancialOperation } from "../../core/financial-operation";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -441,6 +445,9 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       return state;
     } catch (error) {
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
       throw this.createRecoverableError(
         `FinalSettlementSubsidyExecutor: Error during phase execution - ${(error as Error).message}`
       );

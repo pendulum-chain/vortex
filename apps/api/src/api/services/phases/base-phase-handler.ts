@@ -5,7 +5,13 @@ import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
 import Subsidy from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
+import {
+  PhaseError,
+  ReconciliationRequiredPhaseError,
+  RecoverablePhaseError,
+  requiresManualReconciliation,
+  UnrecoverablePhaseError
+} from "../../errors/phase-error";
 import { StateMetadata } from "./meta-state-types";
 
 /**
@@ -62,16 +68,17 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
       return updatedState;
     } catch (error) {
-      logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, error);
+      const phaseError = requiresManualReconciliation(error) ? this.createReconciliationRequiredError(error.message) : error;
+      logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, phaseError);
 
       // Add error to the state
-      await this.logError(state, error);
+      await this.logError(state, phaseError);
 
-      if (error instanceof PhaseError) {
-        throw error;
+      if (phaseError instanceof PhaseError) {
+        throw phaseError;
       }
 
-      throw new UnrecoverablePhaseError(error instanceof Error ? error.message : "Unknown error in phase execution");
+      throw new UnrecoverablePhaseError(phaseError instanceof Error ? phaseError.message : "Unknown error in phase execution");
     }
   }
 
@@ -82,6 +89,10 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
   protected createRecoverableError(message: string): RecoverablePhaseError {
     return new RecoverablePhaseError(message);
+  }
+
+  protected createReconciliationRequiredError(message: string): ReconciliationRequiredPhaseError {
+    return new ReconciliationRequiredPhaseError(message);
   }
 
   protected createUnrecoverableError(message: string): UnrecoverablePhaseError {

@@ -15,7 +15,7 @@ import {
   SignedTypedData,
   sleep
 } from "@vortexfi/shared";
-import { erc20Abi } from "viem";
+import { erc20Abi, keccak256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
@@ -27,6 +27,11 @@ import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
+import {
+  FinancialOperationRejectedError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { FinalSettlementSubsidyExecutor } from "../final-settlement-subsidy/execution";
 import { FundEphemeralExecutor } from "../fund-ephemeral/execution";
@@ -423,10 +428,42 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
           `AlfredpayOfframpTransferExecutor: ephemeral balance does not cover the presigned final transfer: ${error instanceof Error ? error.message : String(error)}`
         );
       }
-      throwIfAborted(signal);
-      const txHash = await abortableCall(signal, () =>
-        evmClientManager.sendRawTransactionWithRetry(Networks.Polygon as EvmNetworks, offrampTransfer as `0x${string}`)
-      );
+      const network = Networks.Polygon as EvmNetworks;
+      const signedTransaction = offrampTransfer as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const networkClient = evmClientManager.getClient(network);
+      const { hash: txHash } = await runFinancialOperation({
+        attemptClass: "alfredpay-final-transfer",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(network, signedTransaction)
+          );
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: "polygon",
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () => networkClient.getTransactionReceipt({ hash: deterministicHash }));
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Alfredpay final transfer ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => networkClient.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network, signedTransaction },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
       await state.update({ state: { ...state.state, alfredpayOfframpTransferTxHash: txHash } });
       logger.info(`AlfredpayOfframpTransferExecutor: Final transfer sent. Hash: ${txHash}`);
     } else {

@@ -276,7 +276,7 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
         throw e;
       }
       if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(e.message);
+        throw this.createReconciliationRequiredError(e.message);
       }
       throw this.createRecoverableError("SubsidizePostSwapExecutor: Failed to subsidize post swap on EVM.");
     }

@@ -241,7 +241,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
       if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(error.message);
+        throw this.createReconciliationRequiredError(error.message);
       }
       throw error;
     }

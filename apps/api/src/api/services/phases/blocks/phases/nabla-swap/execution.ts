@@ -98,7 +98,7 @@ export class NablaApproveExecutor extends BasePhaseHandler {
         });
       } catch (error) {
         if (error instanceof FinancialOperationReconciliationRequiredError) {
-          throw this.createRecoverableError(error.message);
+          throw this.createReconciliationRequiredError(error.message);
         }
         throw error;
       }
@@ -145,7 +145,7 @@ export class NablaApproveExecutor extends BasePhaseHandler {
     } catch (e) {
       logger.error(`Could not approve token on EVM: ${(e as Error).message}`);
       if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(e.message);
+        throw this.createReconciliationRequiredError(e.message);
       }
       throw e;
     }
@@ -243,7 +243,7 @@ export class NablaSwapExecutor extends BasePhaseHandler {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
       if (e instanceof PhaseError) throw e;
       if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(e.message);
+        throw this.createReconciliationRequiredError(e.message);
       }
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }

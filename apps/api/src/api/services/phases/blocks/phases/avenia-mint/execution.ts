@@ -226,7 +226,7 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
       });
     } catch (error) {
       if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(error.message);
+        throw this.createReconciliationRequiredError(error.message);
       }
       throw error;
     }

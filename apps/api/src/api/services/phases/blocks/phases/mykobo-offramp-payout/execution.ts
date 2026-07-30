@@ -81,7 +81,7 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
     } catch (error) {
       if (error instanceof PhaseError) throw error;
       if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(error.message);
+        throw this.createReconciliationRequiredError(error.message);
       }
       logger.error("MykoboOfframpPayoutExecutor: Failed to send Mykobo payout transaction", error);
       throw this.createRecoverableError("Failed to send Mykobo payout transaction");

@@ -20,7 +20,7 @@ import {
 } from "../../../../../../constants/constants";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
-import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { PhaseError } from "../../../../../errors/phase-error";
 import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
@@ -32,6 +32,11 @@ import {
   isPendulumEphemeralFunded
 } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
@@ -55,8 +60,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for AssetHub route");
       const pendulum = await ApiManager.getInstance().getApi("pendulum");
       if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
-        throwIfAborted(signal);
-        await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, true));
+        await this.fundSubstrateEphemeralAccount(state, substrateAddress, true, "assethub-substrate-native-funding", signal);
       }
       return state;
     }
@@ -79,8 +83,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for Moonbeam route");
         const pendulum = await ApiManager.getInstance().getApi("pendulum");
         if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
-          throwIfAborted(signal);
-          await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, false));
+          await this.fundSubstrateEphemeralAccount(state, substrateAddress, false, "moonbeam-substrate-native-funding", signal);
         }
       }
       const sourceClient = EvmClientManager.getInstance().getClient(sourceNetwork);
@@ -130,8 +133,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     } catch (e) {
       logger.error("Error in FundEphemeralExecutor:", e);
 
-      if (e instanceof UnrecoverablePhaseError) {
+      if (e instanceof PhaseError) {
         throw e;
+      }
+      if (e instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(e.message);
       }
 
       throw this.createRecoverableError("Error funding ephemeral account");
@@ -224,23 +230,40 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
 
-      throwIfAborted(signal);
-      const txHash = await abortableCall(signal, () =>
-        walletClient.sendTransaction({
-          to: ephemeralAddress as `0x${string}`,
-          value: fundingAmountRaw
-        })
-      );
-
-      const receipt = await abortableCall(signal, () =>
-        networkClient.waitForTransactionReceipt({
-          hash: txHash as `0x${string}`
-        })
-      );
-
-      if (!receipt || receipt.status !== "success") {
-        throw new Error(`FundEphemeralExecutor: Transaction ${txHash} failed or was not found`);
-      }
+      await runFinancialOperation({
+        attemptClass: "source-evm-native-funding",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            walletClient.sendTransaction({
+              to: ephemeralAddress as `0x${string}`,
+              value: fundingAmountRaw
+            })
+          );
+          const receipt = await abortableCall(signal, () =>
+            networkClient.waitForTransactionReceipt({
+              hash: hash as `0x${string}`
+            })
+          );
+          if (!receipt || receipt.status !== "success") {
+            throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found`);
+          }
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: network,
+        request: {
+          amountRaw: fundingAmountRaw.toString(),
+          destination: ephemeralAddress,
+          network,
+          source: fundingAccount.address
+        },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
 
       // The receipt confirms inclusion, but downstream phases use a different RPC client which
       // may briefly lag behind. Poll the balance until it reflects the funded amount so that
@@ -259,6 +282,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${network} ephemeral:`, error);
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
       throw new Error(`FundEphemeralExecutor: Error during funding ${network} ephemeral: ` + error);
     }
   }
@@ -284,23 +310,40 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(destinationNetwork);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
 
-      throwIfAborted(signal);
-      const txHash = await abortableCall(signal, () =>
-        walletClient.sendTransaction({
-          to: ephemeralAddress as `0x${string}`,
-          value: BigInt(fundingAmountRaw)
-        })
-      );
-
-      const receipt = await abortableCall(signal, () =>
-        destinationClient.waitForTransactionReceipt({
-          hash: txHash as `0x${string}`
-        })
-      );
-
-      if (!receipt || receipt.status !== "success") {
-        throw new Error(`FundEphemeralExecutor: Transaction ${txHash} failed or was not found on ${destinationNetwork}`);
-      }
+      await runFinancialOperation({
+        attemptClass: "destination-evm-native-funding",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            walletClient.sendTransaction({
+              to: ephemeralAddress as `0x${string}`,
+              value: BigInt(fundingAmountRaw)
+            })
+          );
+          const receipt = await abortableCall(signal, () =>
+            destinationClient.waitForTransactionReceipt({
+              hash: hash as `0x${string}`
+            })
+          );
+          if (!receipt || receipt.status !== "success") {
+            throw new Error(`FundEphemeralExecutor: Transaction ${hash} failed or was not found on ${destinationNetwork}`);
+          }
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: destinationNetwork,
+        request: {
+          amountRaw: fundingAmountRaw,
+          destination: ephemeralAddress,
+          network: destinationNetwork,
+          source: fundingAccount.address
+        },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
 
       try {
         await waitUntilTrueWithTimeout(
@@ -316,7 +359,44 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral:`, error);
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
       throw new Error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral: ` + error);
+    }
+  }
+
+  private async fundSubstrateEphemeralAccount(
+    state: RampState,
+    substrateAddress: string,
+    requiresGlmr: boolean,
+    attemptClass: string,
+    signal?: AbortSignal
+  ): Promise<void> {
+    try {
+      await runFinancialOperation({
+        attemptClass,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const funded = await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, requiresGlmr));
+          if (!funded) {
+            throw new Error(`FundEphemeralExecutor: Pendulum funding outcome is unknown for ${substrateAddress}`);
+          }
+          return { funded: true };
+        },
+        phase: this.getPhaseName(),
+        provider: "pendulum",
+        request: { destination: substrateAddress, requiresGlmr },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
+    } catch (error) {
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
+      throw error;
     }
   }
 }

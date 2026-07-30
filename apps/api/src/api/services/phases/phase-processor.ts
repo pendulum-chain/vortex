@@ -5,7 +5,12 @@ import { runWithRampContext } from "../../../config/ramp-context";
 import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
+import {
+  PhaseError,
+  ReconciliationRequiredPhaseError,
+  RecoverablePhaseError,
+  UnrecoverablePhaseError
+} from "../../errors/phase-error";
 import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
 import { StateMetadata } from "./meta-state-types";
 import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
@@ -322,10 +327,18 @@ export class PhaseProcessor {
         error instanceof RecoverablePhaseError ? (error as RecoverablePhaseError).minimumWaitSeconds : undefined;
 
       if (isRecoverable) {
-        const currentRetries = this.retriesMap.get(state.id) || 0;
         // BasePhaseHandler already persisted this execution error before rethrowing it.
         const errorUpdatedState = state;
 
+        if (error instanceof ReconciliationRequiredPhaseError) {
+          logger.error(
+            `Pausing ramp ${errorUpdatedState.id} in phase ${state.currentPhase}: financial outcome requires reconciliation`
+          );
+          this.retriesMap.delete(errorUpdatedState.id);
+          return;
+        }
+
+        const currentRetries = this.retriesMap.get(state.id) || 0;
         const phaseHandler = phaseRegistry.getHandler(state.currentPhase);
         const maxRetries = phaseHandler?.getMaxRetries?.() ?? this.MAX_RETRIES;
 

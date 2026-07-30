@@ -14,6 +14,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { keccak256 } from "viem";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -22,6 +23,12 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { fetchWithTimeout } from "../../../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import {
+  FinancialOperationReconciliationRequiredError,
+  FinancialOperationRejectedError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { DistributeFeesContext, type DistributeFeesMetadata } from "./simulation";
 
@@ -60,16 +67,36 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
         const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
         if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
         throwIfAborted(signal);
-        const result = await abortableCall(signal, () =>
-          submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api))
-        );
-        if (result.status.type === "error") throw this.createRecoverableError("Pendulum fee distribution failed");
-        state.state = { ...state.state, distributeFeeHash: result.txHash.toString() };
+        const { hash } = await runFinancialOperation({
+          attemptClass: "substrate-fee-distribution",
+          externalId: result => result.hash,
+          flow: requireFinancialFlowIdentity(state.state),
+          perform: async () => {
+            throwIfAborted(signal);
+            const result = await abortableCall(signal, () =>
+              submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api))
+            );
+            if (result.status.type === "error") {
+              throw new FinancialOperationRejectedError("Pendulum fee distribution failed");
+            }
+            return { hash: result.txHash.toString() };
+          },
+          phase: this.getPhaseName(),
+          provider: Networks.Pendulum,
+          request: { network: Networks.Pendulum, signedTransaction: transaction.txData },
+          scopeId: state.id,
+          scopeType: "ramp",
+          signal
+        });
+        state.state = { ...state.state, distributeFeeHash: hash };
         await state.update({ state: state.state });
         return state;
       } catch (e) {
         logger.error(`Error distributing Pendulum fees for ramp ${state.id}:`, e);
         if (e instanceof PhaseError) throw e;
+        if (e instanceof FinancialOperationReconciliationRequiredError) {
+          throw this.createReconciliationRequiredError(e.message);
+        }
         const error = e instanceof Error ? e : new Error(String(e));
         throw this.createRecoverableError(`Failed to distribute Pendulum fees: ${error.message}`);
       }
@@ -107,10 +134,41 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       }
       const evmClientManager = EvmClientManager.getInstance();
       const network = distributeFeeTransaction.network as EvmNetworks;
-      throwIfAborted(signal);
-      const actualTxHash = await abortableCall(signal, () =>
-        evmClientManager.sendRawTransactionWithRetry(network, txData as `0x${string}`)
-      );
+      const signedTransaction = txData as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const client = evmClientManager.getClient(network);
+      const { hash: actualTxHash } = await runFinancialOperation({
+        attemptClass: "evm-fee-distribution",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(network, signedTransaction)
+          );
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: network,
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () => client.getTransactionReceipt({ hash: deterministicHash }));
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Fee distribution transaction ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => client.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network, signedTransaction },
+        scopeId: state.id,
+        scopeType: "ramp",
+        signal
+      });
 
       logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
       await state.update({
@@ -129,6 +187,9 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
 
       if (e instanceof PhaseError) {
         throw e;
+      }
+      if (e instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createReconciliationRequiredError(e.message);
       }
 
       const error = e instanceof Error ? e : new Error(String(e));

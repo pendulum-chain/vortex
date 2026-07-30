@@ -22,6 +22,8 @@ interface RunFinancialOperationArgs<Result> {
 }
 
 export class FinancialOperationReconciliationRequiredError extends APIError {
+  readonly requiresManualReconciliation = true;
+
   constructor(operation: FinancialOperation, reason: string) {
     super({
       message: `Financial operation ${operation.id} ${reason} and requires reconciliation`,

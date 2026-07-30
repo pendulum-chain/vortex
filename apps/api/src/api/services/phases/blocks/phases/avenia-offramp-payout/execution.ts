@@ -112,7 +112,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     } catch (error) {
       if (error instanceof PhaseError) throw error;
       if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(error.message);
+        throw this.createReconciliationRequiredError(error.message);
       }
       logger.error("AveniaOfframpPayoutExecutor: Failed to trigger PIX payout", error);
       throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Failed to trigger BRLA offramp");
@@ -158,7 +158,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     } catch (error) {
       if (error instanceof PhaseError) throw error;
       if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createRecoverableError(error.message);
+        throw this.createReconciliationRequiredError(error.message);
       }
       logger.error("AveniaOfframpPayoutExecutor: Failed to send BRLA payout transaction", error);
       throw this.createRecoverableError("Failed to send BRLA payout transaction");
