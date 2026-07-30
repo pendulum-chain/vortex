@@ -21,9 +21,9 @@ import type {
   TypedLogDescription,
   TypedListener,
   TypedContractMethod,
-} from "../../../../../common";
+} from "../../common";
 
-export interface ERC20PermitInterface extends Interface {
+export interface MockERC20PermitInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "DOMAIN_SEPARATOR"
@@ -32,9 +32,12 @@ export interface ERC20PermitInterface extends Interface {
       | "balanceOf"
       | "decimals"
       | "eip712Domain"
+      | "feeBps"
+      | "mint"
       | "name"
       | "nonces"
       | "permit"
+      | "setFeeBps"
       | "symbol"
       | "totalSupply"
       | "transfer"
@@ -66,6 +69,11 @@ export interface ERC20PermitInterface extends Interface {
     functionFragment: "eip712Domain",
     values?: undefined
   ): string;
+  encodeFunctionData(functionFragment: "feeBps", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "mint",
+    values: [AddressLike, BigNumberish]
+  ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(functionFragment: "nonces", values: [AddressLike]): string;
   encodeFunctionData(
@@ -79,6 +87,10 @@ export interface ERC20PermitInterface extends Interface {
       BytesLike,
       BytesLike
     ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "setFeeBps",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "symbol", values?: undefined): string;
   encodeFunctionData(
@@ -106,9 +118,12 @@ export interface ERC20PermitInterface extends Interface {
     functionFragment: "eip712Domain",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "feeBps", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "mint", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "nonces", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "permit", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "setFeeBps", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "symbol", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalSupply",
@@ -167,11 +182,11 @@ export namespace TransferEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
-export interface ERC20Permit extends BaseContract {
-  connect(runner?: ContractRunner | null): ERC20Permit;
+export interface MockERC20Permit extends BaseContract {
+  connect(runner?: ContractRunner | null): MockERC20Permit;
   waitForDeployment(): Promise<this>;
 
-  interface: ERC20PermitInterface;
+  interface: MockERC20PermitInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -244,6 +259,14 @@ export interface ERC20Permit extends BaseContract {
     "view"
   >;
 
+  feeBps: TypedContractMethod<[], [bigint], "view">;
+
+  mint: TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
   name: TypedContractMethod<[], [string], "view">;
 
   nonces: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
@@ -258,6 +281,12 @@ export interface ERC20Permit extends BaseContract {
       r: BytesLike,
       s: BytesLike
     ],
+    [void],
+    "nonpayable"
+  >;
+
+  setFeeBps: TypedContractMethod<
+    [newFeeBps: BigNumberish],
     [void],
     "nonpayable"
   >;
@@ -323,6 +352,16 @@ export interface ERC20Permit extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "feeBps"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "mint"
+  ): TypedContractMethod<
+    [to: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "name"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -343,6 +382,9 @@ export interface ERC20Permit extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "setFeeBps"
+  ): TypedContractMethod<[newFeeBps: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "symbol"
   ): TypedContractMethod<[], [string], "view">;

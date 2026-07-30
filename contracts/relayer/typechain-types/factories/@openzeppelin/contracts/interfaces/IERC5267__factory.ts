@@ -2,15 +2,18 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
-import type { IERC5267, IERC5267Interface } from "../../../../@openzeppelin/contracts/interfaces/IERC5267";
+import { Contract, Interface, type ContractRunner } from "ethers";
+import type {
+  IERC5267,
+  IERC5267Interface,
+} from "../../../../@openzeppelin/contracts/interfaces/IERC5267";
 
 const _abi = [
   {
     anonymous: false,
     inputs: [],
     name: "EIP712DomainChanged",
-    type: "event"
+    type: "event",
   },
   {
     inputs: [],
@@ -19,42 +22,42 @@ const _abi = [
       {
         internalType: "bytes1",
         name: "fields",
-        type: "bytes1"
+        type: "bytes1",
       },
       {
         internalType: "string",
         name: "name",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "string",
         name: "version",
-        type: "string"
+        type: "string",
       },
       {
         internalType: "uint256",
         name: "chainId",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "address",
         name: "verifyingContract",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "bytes32",
         name: "salt",
-        type: "bytes32"
+        type: "bytes32",
       },
       {
         internalType: "uint256[]",
         name: "extensions",
-        type: "uint256[]"
-      }
+        type: "uint256[]",
+      },
     ],
     stateMutability: "view",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class IERC5267__factory {

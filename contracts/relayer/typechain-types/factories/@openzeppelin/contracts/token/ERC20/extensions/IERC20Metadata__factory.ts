@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
+import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
   IERC20Metadata,
-  IERC20MetadataInterface
+  IERC20MetadataInterface,
 } from "../../../../../../@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata";
 
 const _abi = [
@@ -16,23 +16,23 @@ const _abi = [
         indexed: true,
         internalType: "address",
         name: "owner",
-        type: "address"
+        type: "address",
       },
       {
         indexed: true,
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         indexed: false,
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "Approval",
-    type: "event"
+    type: "event",
   },
   {
     anonymous: false,
@@ -41,90 +41,90 @@ const _abi = [
         indexed: true,
         internalType: "address",
         name: "from",
-        type: "address"
+        type: "address",
       },
       {
         indexed: true,
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         indexed: false,
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "Transfer",
-    type: "event"
+    type: "event",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "spender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "allowance",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "spender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "approve",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "account",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "balanceOf",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -133,11 +133,11 @@ const _abi = [
       {
         internalType: "uint8",
         name: "",
-        type: "uint8"
-      }
+        type: "uint8",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -146,11 +146,11 @@ const _abi = [
       {
         internalType: "string",
         name: "",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -159,11 +159,11 @@ const _abi = [
       {
         internalType: "string",
         name: "",
-        type: "string"
-      }
+        type: "string",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [],
@@ -172,65 +172,65 @@ const _abi = [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "transfer",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
+    type: "function",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "from",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "to",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "value",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "transferFrom",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "nonpayable",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class IERC20Metadata__factory {
@@ -238,7 +238,10 @@ export class IERC20Metadata__factory {
   static createInterface(): IERC20MetadataInterface {
     return new Interface(_abi) as IERC20MetadataInterface;
   }
-  static connect(address: string, runner?: ContractRunner | null): IERC20Metadata {
+  static connect(
+    address: string,
+    runner?: ContractRunner | null
+  ): IERC20Metadata {
     return new Contract(address, _abi, runner) as unknown as IERC20Metadata;
   }
 }

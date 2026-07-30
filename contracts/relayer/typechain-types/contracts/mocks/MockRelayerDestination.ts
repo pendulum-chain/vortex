@@ -3,8 +3,12 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
+  BytesLike,
   FunctionFragment,
+  Result,
   Interface,
+  AddressLike,
   ContractRunner,
   ContractMethod,
   Listener,
@@ -14,15 +18,33 @@ import type {
   TypedDeferredTopicFilter,
   TypedEventLog,
   TypedListener,
-} from "../../../../common";
+  TypedContractMethod,
+} from "../../common";
 
-export interface IERC20ErrorsInterface extends Interface {}
+export interface MockRelayerDestinationInterface extends Interface {
+  getFunction(nameOrSignature: "pull" | "pullAndRefund"): FunctionFragment;
 
-export interface IERC20Errors extends BaseContract {
-  connect(runner?: ContractRunner | null): IERC20Errors;
+  encodeFunctionData(
+    functionFragment: "pull",
+    values: [AddressLike, AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "pullAndRefund",
+    values: [AddressLike, AddressLike, BigNumberish, BigNumberish]
+  ): string;
+
+  decodeFunctionResult(functionFragment: "pull", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pullAndRefund",
+    data: BytesLike
+  ): Result;
+}
+
+export interface MockRelayerDestination extends BaseContract {
+  connect(runner?: ContractRunner | null): MockRelayerDestination;
   waitForDeployment(): Promise<this>;
 
-  interface: IERC20ErrorsInterface;
+  interface: MockRelayerDestinationInterface;
 
   queryFilter<TCEvent extends TypedContractEvent>(
     event: TCEvent,
@@ -61,9 +83,46 @@ export interface IERC20Errors extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  pull: TypedContractMethod<
+    [token: AddressLike, recipient: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+
+  pullAndRefund: TypedContractMethod<
+    [
+      token: AddressLike,
+      recipient: AddressLike,
+      amount: BigNumberish,
+      refund: BigNumberish
+    ],
+    [void],
+    "payable"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
+
+  getFunction(
+    nameOrSignature: "pull"
+  ): TypedContractMethod<
+    [token: AddressLike, recipient: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "pullAndRefund"
+  ): TypedContractMethod<
+    [
+      token: AddressLike,
+      recipient: AddressLike,
+      amount: BigNumberish,
+      refund: BigNumberish
+    ],
+    [void],
+    "payable"
+  >;
 
   filters: {};
 }

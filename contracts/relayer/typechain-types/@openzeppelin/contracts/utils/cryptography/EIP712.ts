@@ -4,21 +4,21 @@
 import type {
   BaseContract,
   BytesLike,
-  ContractMethod,
-  ContractRunner,
-  EventFragment,
   FunctionFragment,
+  Result,
   Interface,
+  EventFragment,
+  ContractRunner,
+  ContractMethod,
   Listener,
-  Result
 } from "ethers";
 import type {
   TypedContractEvent,
-  TypedContractMethod,
   TypedDeferredTopicFilter,
   TypedEventLog,
+  TypedLogDescription,
   TypedListener,
-  TypedLogDescription
+  TypedContractMethod,
 } from "../../../../common";
 
 export interface EIP712Interface extends Interface {
@@ -26,15 +26,21 @@ export interface EIP712Interface extends Interface {
 
   getEvent(nameOrSignatureOrTopic: "EIP712DomainChanged"): EventFragment;
 
-  encodeFunctionData(functionFragment: "eip712Domain", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "eip712Domain",
+    values?: undefined
+  ): string;
 
-  decodeFunctionResult(functionFragment: "eip712Domain", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "eip712Domain",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace EIP712DomainChangedEvent {
   export type InputTuple = [];
   export type OutputTuple = [];
-  export type OutputObject = {};
+  export interface OutputObject {}
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
   export type Log = TypedEventLog<Event>;
@@ -58,21 +64,31 @@ export interface EIP712 extends BaseContract {
     toBlock?: string | number | undefined
   ): Promise<Array<TypedEventLog<TCEvent>>>;
 
-  on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
+  on<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
   on<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     listener: TypedListener<TCEvent>
   ): Promise<this>;
 
-  once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
+  once<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
   once<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     listener: TypedListener<TCEvent>
   ): Promise<this>;
 
-  listeners<TCEvent extends TypedContractEvent>(event: TCEvent): Promise<Array<TypedListener<TCEvent>>>;
+  listeners<TCEvent extends TypedContractEvent>(
+    event: TCEvent
+  ): Promise<Array<TypedListener<TCEvent>>>;
   listeners(eventName?: string): Promise<Array<Listener>>;
-  removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>;
+  removeAllListeners<TCEvent extends TypedContractEvent>(
+    event?: TCEvent
+  ): Promise<this>;
 
   eip712Domain: TypedContractMethod<
     [],
@@ -90,9 +106,13 @@ export interface EIP712 extends BaseContract {
     "view"
   >;
 
-  getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
+  getFunction<T extends ContractMethod = ContractMethod>(
+    key: string | FunctionFragment
+  ): T;
 
-  getFunction(nameOrSignature: "eip712Domain"): TypedContractMethod<
+  getFunction(
+    nameOrSignature: "eip712Domain"
+  ): TypedContractMethod<
     [],
     [
       [string, string, string, bigint, string, string, bigint[]] & {
