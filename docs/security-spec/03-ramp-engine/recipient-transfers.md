@@ -154,8 +154,15 @@ out against another tenant's relationship.
     customer entity the acceptance linked. Sender-side KYC tracking is client-agnostic
     either way: list/eligibility read `provider_customers` scoped by the relationship's
     recipient entity + the invitation's provider/type/country.
+12. **Recipient-directed payout is unsupported in this API version.** Recipient list and
+    eligibility endpoints are onboarding/advisory functionality only. Ramp registration remains
+    a sender self-offramp and rejects `recipientId`, `senderRecipientId`,
+    `recipientRelationshipId`, and `recipientPayoutReferenceId` in `additionalData` with `400`
+    instead of silently ignoring them. No eligibility response authorizes money movement.
+    Enabling recipient payout requires a separately reviewed registration schema, ownership and
+    eligibility enforcement, and provider-side payout-instrument resolution.
 
-### Ramp registration vs. the recipient model — **PRESSING, TO BE DEFINED**
+### Ramp registration vs. the recipient model — intentionally out of scope
 
 Ramp registration today is structurally a **self-offramp** flow, and (post ownership
 enforcement) payout destinations are already bound to the *sender* on two of three corridors —
@@ -177,16 +184,17 @@ verified against the code:
 
 Consequently, sender→recipient transfers cannot be expressed through the current registration
 API at all (except mechanically on BRL): the gap is **not a missing destination check** but a
-missing concept — registration has no second principal. The pending design (plan §7 + §7.1,
-still to be defined) is a **recipient-context extension**: a registration that carries the
+missing concept — registration has no second principal. A future, separately reviewed design is
+a **recipient-context extension**: a registration that carries the
 `sender_recipients` id, where the server (a) verifies the relationship belongs to the
 authenticated sender, (b) runs `getTransferEligibility`, and (c) resolves the payout side from
 the **recipient's** provider identity / verified payout reference — recipient pix key + tax id
 for BRL (narrowing the currently-free destination whenever a recipient context is present), an
 order against the recipient's alfredpay customer + fiat account, a withdraw intent under the
 recipient's mykobo profile. Until that lands, every dashboard "transfer" is a self-offramp of
-the sender, and `GET /:id/eligibility` is UX, not a security boundary. Blocked on the §7.1
-payout-instrument decision (no code path writes `verified` payout references yet).
+the sender, `GET /:id/eligibility` is UX rather than a money-movement authorization boundary,
+and attempts to attach recipient context to registration are rejected. No code path writes
+`verified` payout references yet.
 
 ## Threat Vectors & Mitigations
 
@@ -246,6 +254,8 @@ payout-instrument decision (no code path writes `verified` payout references yet
 - [x] Alfredpay sender self accounts remain provider-side, registration carries only the
       sender-owned `fiatAccountId`, and creating one does not write a
       `recipient_payout_references` row or satisfy invited-recipient eligibility. **PASS**.
+- [x] Ramp registration rejects common recipient-context keys with `400`; eligibility cannot be
+      mistaken for authorization to direct a payout. **PASS**.
 
 ## Next Steps
 

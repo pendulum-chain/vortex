@@ -171,6 +171,22 @@ export class RampService extends BaseRampService {
    * on the client side.
    */
   public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+    const recipientContextKeys = [
+      "recipientId",
+      "recipientRelationshipId",
+      "recipientPayoutReferenceId",
+      "senderRecipientId"
+    ] as const;
+    const unsupportedRecipientKey = recipientContextKeys.find(key =>
+      Object.prototype.hasOwnProperty.call(request.additionalData ?? {}, key)
+    );
+    if (unsupportedRecipientKey) {
+      throw new APIError({
+        message: "Recipient-directed payout is not supported by ramp registration; recipient eligibility is advisory only.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
