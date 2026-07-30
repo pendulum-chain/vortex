@@ -103,38 +103,38 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     }
 
     // Nonce-gap guard: a presigned nonce ahead of the live ephemeral nonce can never be mined and
-    // would silently retry until the processor gives up, stranding user funds. Raise it for manual
-    // review. Reading the live nonce is best-effort: an RPC failure must not block the happy path.
+    // would silently retry until the processor gives up, stranding user funds. Both parsing and
+    // the live RPC preflight fail closed; only the latter is recoverable.
     if (!destinationTransferTxHash && state.state.evmEphemeralAddress) {
+      let presignedNonce: number;
       try {
-        const presignedNonce = parseTransaction(destinationTransfer as `0x${string}`).nonce;
-        if (presignedNonce !== undefined) {
-          try {
-            const liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
-              address: state.state.evmEphemeralAddress as `0x${string}`,
-              blockTag: "pending"
-            });
-            if (presignedNonce > liveNonce) {
-              throw this.createUnrecoverableError(
-                `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
-                  "The transfer can never broadcast (nonce gap); manual review required."
-              );
-            }
-          } catch (error) {
-            if (error instanceof UnrecoverablePhaseError) {
-              throw error;
-            }
-            logger.warn(
-              `DestinationTransferExecutor: could not verify ephemeral nonce before broadcast - ${(error as Error).message}`
-            );
-          }
+        const parsedNonce = parseTransaction(destinationTransfer as `0x${string}`).nonce;
+        if (parsedNonce === undefined) {
+          throw new Error("transaction has no nonce");
         }
+        presignedNonce = parsedNonce;
       } catch (error) {
-        if (error instanceof UnrecoverablePhaseError) {
-          throw error;
-        }
-        logger.warn(
-          `DestinationTransferExecutor: could not parse presigned destination transfer for nonce check - ${(error as Error).message}`
+        throw this.createUnrecoverableError(
+          `DestinationTransferExecutor: server-generated presigned destination transfer could not be validated: ${(error as Error).message}`
+        );
+      }
+
+      let liveNonce: number;
+      try {
+        liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
+          address: state.state.evmEphemeralAddress as `0x${string}`,
+          blockTag: "pending"
+        });
+      } catch (error) {
+        throw this.createRecoverableError(
+          `DestinationTransferExecutor: destination nonce preflight is unavailable: ${(error as Error).message}`
+        );
+      }
+
+      if (presignedNonce > liveNonce) {
+        throw this.createUnrecoverableError(
+          `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
+            "The transfer can never broadcast (nonce gap); manual review required."
         );
       }
     }
