@@ -1,10 +1,10 @@
 import {afterEach, describe, expect, it, mock} from "bun:test";
-import bcrypt from "bcrypt";
 import crypto from "crypto";
 import Partner from "../../models/partner.model";
 import ApiKey from "../../models/apiKey.model";
 import {
   AuthenticatedPartner,
+  assertActiveSecretApiKeysMigrated,
   digestApiKey,
   generateApiKey,
   getKeyPrefix,
@@ -22,12 +22,11 @@ function createSecretKeyRecord({
   partnerName = null
 }: { userId?: string | null; partnerId?: string | null; partnerName?: string | null } = {}): ApiKey & { raw: string } {
   const secret = generateApiKey("secret", "test");
-  const secretHash = bcrypt.hashSync(secret, 4);
   const record = Object.assign(new ApiKey(), {
     id: crypto.randomUUID(),
     isActive: true,
-    keyHash: secretHash,
-    keyPrefix: getKeyPrefix(secret),
+    keyHash: digestApiKey(secret),
+    keyPrefix: getSecretKeyLookupPrefix(secret),
     keyType: "secret" as const,
     partnerId,
     partnerName,
@@ -136,7 +135,7 @@ describe("digestApiKey + prefix helpers", () => {
   });
 });
 
-describe("validateSecretApiKey - O(1) lookup, digest verification, legacy upgrade (SPEC-018)", () => {
+describe("validateSecretApiKey - O(1) lookup and digest verification (SPEC-018)", () => {
   afterEach(() => {
     ApiKey.findAll = originalApiKeyFindAll;
     ApiKey.findOne = originalApiKeyFindOne;
@@ -182,27 +181,37 @@ describe("validateSecretApiKey - O(1) lookup, digest verification, legacy upgrad
     expect(await validateSecretApiKey(other)).toBeNull();
   });
 
-  it("falls back to the legacy 8-char prefix for old rows and upgrades them in place", async () => {
-    const key = createSecretKeyRecord({ partnerId: null, userId: "user-legacy" });
-    // Legacy rows only exist under the 8-char prefix: the 16-char lookup finds nothing.
-    const findAllMock = mock(async ({ where }: { where: { keyPrefix: string } }) =>
-      where.keyPrefix === getKeyPrefix(key.raw) ? [key as unknown as ApiKey] : []
-    );
+  it("does not fall back to a broad legacy-prefix scan", async () => {
+    const raw = generateApiKey("secret", "test");
+    const findAllMock = mock(async () => []);
     ApiKey.findAll = findAllMock as typeof ApiKey.findAll;
-    const updateMock = mock(async () => key);
-    key.update = updateMock as typeof key.update;
 
-    const result = await validateSecretApiKey(key.raw);
+    expect(await validateSecretApiKey(raw)).toBeNull();
 
-    expect(result?.apiKeyUserId).toBe("user-legacy");
-    expect(findAllMock).toHaveBeenCalledTimes(2);
-    // The matched legacy row is upgraded to the O(1) format (digest + 16-char prefix).
-    const upgradeCall = (updateMock.mock.calls as unknown as [Record<string, string>][])
-      .map(call => call[0])
-      .find(args => args.keyHash !== undefined);
-    expect(upgradeCall).toEqual({
-      keyHash: digestApiKey(key.raw),
-      keyPrefix: getSecretKeyLookupPrefix(key.raw)
-    });
+    expect(findAllMock).toHaveBeenCalledTimes(1);
+    const where = (findAllMock.mock.calls[0] as unknown as [{ where: { keyPrefix: string } }])[0].where;
+    expect(where.keyPrefix).toBe(getSecretKeyLookupPrefix(raw));
+  });
+});
+
+describe("assertActiveSecretApiKeysMigrated", () => {
+  afterEach(() => {
+    ApiKey.findAll = originalApiKeyFindAll;
+  });
+
+  it("accepts active secret keys in the lookup-prefix and digest format", async () => {
+    const key = createSecretKeyRecord({ partnerId: null, userId: "user-1" });
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    await expect(assertActiveSecretApiKeysMigrated()).resolves.toBeUndefined();
+  });
+
+  it("refuses startup while active legacy secret keys remain", async () => {
+    const key = createSecretKeyRecord({ partnerId: null, userId: "user-legacy" });
+    key.keyPrefix = getKeyPrefix(key.raw);
+    key.keyHash = "$2b$10$legacy-bcrypt-hash";
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    await expect(assertActiveSecretApiKeysMigrated()).rejects.toThrow("have not been migrated");
   });
 });

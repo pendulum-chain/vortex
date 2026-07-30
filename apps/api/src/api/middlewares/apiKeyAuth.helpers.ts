@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import crypto from "crypto";
 import logger from "../../config/logger";
 import ApiKey from "../../models/apiKey.model";
@@ -78,18 +77,17 @@ export function generateApiKey(keyType: "public" | "secret", environment: "live"
  * hex-encoded. The secret part is 32 chars of ~6 bits each (~190 bits of
  * entropy, ~140 bits beyond the lookup prefix), so a slow password hash adds
  * nothing except online-DoS exposure — a single fast digest compared in
- * constant time is the right primitive. Legacy rows still hold bcrypt hashes
- * (recognizable by their `$2` prefix) and are upgraded on first successful use.
+ * constant time is the right primitive.
  */
 export function digestApiKey(key: string): string {
   return crypto.createHash("sha256").update(key).digest("hex");
 }
 
-function isBcryptHash(hash: string): boolean {
-  return hash.startsWith("$2");
-}
-
 function digestMatches(apiKey: string, storedDigest: string): boolean {
+  if (!/^[0-9a-f]{64}$/.test(storedDigest)) {
+    return false;
+  }
+
   const presented = Buffer.from(digestApiKey(apiKey), "hex");
   const stored = Buffer.from(storedDigest, "hex");
   return presented.length === stored.length && crypto.timingSafeEqual(presented, stored);
@@ -116,6 +114,32 @@ export const SECRET_KEY_LOOKUP_PREFIX_LENGTH = 16;
 
 export function getSecretKeyLookupPrefix(key: string): string {
   return key.substring(0, SECRET_KEY_LOOKUP_PREFIX_LENGTH);
+}
+
+/**
+ * Refuse to serve traffic if an active secret key has not completed the
+ * offline digest migration. Checking once at startup keeps the request path
+ * bounded to a single indexed lookup and prevents a partial rollout from
+ * silently reintroducing a bcrypt scan.
+ */
+export async function assertActiveSecretApiKeysMigrated(): Promise<void> {
+  const activeSecretKeys = await ApiKey.findAll({
+    attributes: ["id", "keyHash", "keyPrefix"],
+    where: {
+      isActive: true,
+      keyType: "secret"
+    }
+  });
+  const legacyOrInvalidKeys = activeSecretKeys.filter(
+    key =>
+      key.keyPrefix.length !== SECRET_KEY_LOOKUP_PREFIX_LENGTH || key.keyHash === null || !/^[0-9a-f]{64}$/.test(key.keyHash)
+  );
+
+  if (legacyOrInvalidKeys.length > 0) {
+    throw new Error(
+      `${legacyOrInvalidKeys.length} active secret API key(s) have not been migrated to the 16-character lookup prefix and SHA-256 digest format. Run the API-key digest backfill before starting this release.`
+    );
+  }
 }
 
 /**
@@ -174,21 +198,18 @@ export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPub
 /**
  * Validate secret API key and return associated partner information.
  *
- * New-format rows are found by their 16-char lookup prefix (a non-secret key
- * identifier) and verified with a constant-time SHA-256 digest comparison —
- * O(1) regardless of how many keys are active. Rows created before the lookup
- * prefix existed only stored the 8-char type prefix (constant across every
- * secret key), so when the 16-char lookup finds nothing we fall back to the
- * legacy scan and bcrypt comparison; a legacy row that validates is upgraded
- * in place (16-char prefix + SHA-256 digest, possible because the plaintext is
- * in hand) so it takes the O(1) path from then on.
+ * Rows are found by their 16-char lookup prefix (a non-secret key identifier)
+ * and verified with a constant-time SHA-256 digest comparison — O(1)
+ * regardless of how many keys are active. Legacy rows must be converted by
+ * the offline backfill before deployment; startup rejects an incomplete
+ * migration and the unauthenticated request path never scans legacy rows.
  *
  * @param apiKey - The secret API key to validate
  * @returns Promise resolving to validation result, or null if invalid
  */
 export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSecretKey | null> {
   try {
-    let apiKeys = await ApiKey.findAll({
+    const apiKeys = await ApiKey.findAll({
       where: {
         isActive: true,
         keyPrefix: getSecretKeyLookupPrefix(apiKey),
@@ -196,36 +217,14 @@ export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSec
       }
     });
 
-    let legacyLookup = false;
-    if (apiKeys.length === 0) {
-      legacyLookup = true;
-      apiKeys = await ApiKey.findAll({
-        where: {
-          isActive: true,
-          keyPrefix: getKeyPrefix(apiKey),
-          keyType: "secret"
-        }
-      });
-    }
-
     for (const keyRecord of apiKeys) {
       if (!keyRecord.keyHash) {
         continue; // Skip if no hash (shouldn't happen for secret keys)
       }
 
-      // Legacy rows hold bcrypt hashes; upgraded/new rows hold SHA-256 digests.
-      const isMatch = isBcryptHash(keyRecord.keyHash)
-        ? await bcrypt.compare(apiKey, keyRecord.keyHash)
-        : digestMatches(apiKey, keyRecord.keyHash);
+      const isMatch = digestMatches(apiKey, keyRecord.keyHash);
 
       if (isMatch) {
-        if (legacyLookup) {
-          // Lazy upgrade; a failed write is harmless — the row simply stays on
-          // the legacy path until the next successful validation.
-          keyRecord.update({ keyHash: digestApiKey(apiKey), keyPrefix: getSecretKeyLookupPrefix(apiKey) }).catch(err => {
-            logger.error("Failed to upgrade legacy API key row to lookup-prefix format:", err);
-          });
-        }
         // Check expiration
         if (keyRecord.expiresAt && new Date() > keyRecord.expiresAt) {
           continue; // Key expired, try next
