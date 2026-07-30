@@ -59,8 +59,8 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 
 ## Security Invariants
 
-1. **All client-facing endpoints MUST enforce authentication** — either Supabase OTP, API key (sk\_), or admin token, depending on the route. No ramp or quote mutation endpoint may be accessible without auth.
-2. **Trust boundaries MUST be enforced at the middleware layer** — auth checks happen before controller logic, never inside controllers.
+1. **Every client-facing endpoint MUST declare its accepted principals** — protected routes require Supabase OTP, API key (`sk_`), or an admin token as appropriate. Quote creation and other explicitly catalogued public-information routes may be anonymous. Anonymous quote IDs are short-lived bearer references until atomically claimed.
+2. **Authentication and resource authorization are separate boundaries** — middleware authenticates the presented principal and rejects invalid or indeterminate credentials before controller logic. Controllers/services MUST additionally enforce ownership and authority after loading the referenced quote, ramp, webhook, recipient, or other resource.
 3. **The API server MUST NOT hold user private keys** — ephemeral keys are generated client-side (SDK/frontend). The server only receives addresses, never secrets.
 4. **Server-held secrets (funding keys, executor keys) MUST only be used for platform operations** — funding ephemeral accounts, executing subsidization, signing webhooks. Never for user-initiated transactions on behalf of the user's own assets.
 5. **All external service calls (BRLA, Mykobo, Alfredpay, chain RPCs) MUST be treated as untrusted** — responses must be validated, timeouts enforced, and failures handled without corrupting ramp state.

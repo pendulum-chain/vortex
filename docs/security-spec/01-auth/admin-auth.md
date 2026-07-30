@@ -12,6 +12,11 @@ The flow:
 
 This is the simplest auth mechanism in the system — a single static secret with no user identity, session management, or key rotation built in.
 
+This identity-less design is an explicitly accepted risk for the current architecture.
+It does not provide per-operator attribution, selective revocation, MFA, role separation,
+or non-repudiation. Administrative changes remain attributable only to possession of
+the shared credential; individual admin identities are out of scope for this change.
+
 ## Security Invariants
 
 1. **Token comparison MUST use constant-time comparison** — The `safeCompare()` function XORs character codes and accumulates the result, preventing timing attacks that could leak the secret byte-by-byte.
@@ -30,6 +35,7 @@ This is the simplest auth mechanism in the system — a single static secret wit
 | **Timing leak on length** | `safeCompare()` returns `false` immediately when lengths differ, leaking the secret length | **Known weakness in current implementation** — `safeCompare` short-circuits on length mismatch. Should use `crypto.timingSafeEqual` which pads or rejects without leaking length. |
 | **ADMIN_SECRET in logs** | Secret accidentally logged via request logging middleware | Auth header should be excluded from request logging; verify no middleware logs full headers |
 | **Shared secret rotation** | Need to rotate ADMIN_SECRET without downtime | Currently no dual-secret or graceful rotation — changing the env var immediately invalidates all admin sessions |
+| **No individual administrative principal** | A privileged change cannot be attributed to, selectively revoked from, or constrained to one operator | **ACCEPTED RISK.** Retain the shared `ADMIN_SECRET` model for now; protect and rotate it operationally. Individual identities and role separation require a later architectural change. |
 | **Brute force** | Attacker iterates possible ADMIN_SECRET values | Rate limiting on admin endpoints; sufficiently long secret (recommended: 64+ chars) |
 | **Unauthorized admin endpoint discovery** | Attacker probes for admin routes | Admin routes should not be documented in public API docs; return 401 for unrecognized routes (not 404) |
 

@@ -14,16 +14,16 @@ The flow:
 
 Two middleware variants exist:
 - **`requireAuth`** — Returns 401 if token is missing or invalid. Used on protected endpoints.
-- **`optionalAuth`** — Attaches `userId` if token is present and valid, but continues without auth if absent. Used on endpoints that behave differently for authenticated users.
+- **`optionalAuth`** — Attaches `userId` if a token is present and valid, continues anonymously only when the header is absent, returns `401` for a present invalid credential, and returns `503` when verification is indeterminate.
 
 ## Security Invariants
 
-1. **JWT verification MUST use Supabase's server-side verification** — The API MUST call `SupabaseAuthService.verifyToken()` which uses the `SUPABASE_SERVICE_KEY` (service role) to validate tokens. Client-side verification with the anon key is insufficient.
+1. **JWT verification MUST use authoritative Supabase Auth validation** — The API MUST call `SupabaseAuthService.verifyToken()` over a server-controlled channel. The configured Supabase project URL and anon key identify the trusted Auth project; the presented bearer token is authoritatively introspected by Supabase Auth. Service-role credentials are required only for operations that need service-role privileges and MUST NOT be a prerequisite merely to verify an access token.
 2. **Token extraction MUST require the `Bearer` prefix** — The middleware MUST reject tokens that don't start with `Bearer ` (note trailing space). Raw tokens in the header MUST be rejected.
 3. **`userId` MUST only be set by auth middleware** — No controller or service may set `req.userId` directly. It MUST originate exclusively from the middleware's JWT verification result.
-4. **`optionalAuth` MUST NOT fail the request on invalid tokens** — If a token is present but invalid/expired, `optionalAuth` logs a warning and continues with `userId` undefined. It MUST NOT return 401.
-5. **`requireAuth` MUST fail closed** — Any error during token verification (network error to Supabase, malformed token, expired token) MUST result in a 401 response. Never proceed without valid auth.
-6. **Auth errors MUST NOT leak token content** — Error responses must use generic messages ("Invalid or expired token"). Tokens must be truncated in logs (as implemented: first 15 + last 4 chars).
+4. **Optional authentication MUST NOT downgrade a presented credential** — No authorization header on an anonymous-eligible route continues anonymously. A present malformed, invalid, expired, or revoked credential returns `401`; it MUST NOT be converted into an anonymous request.
+5. **Verification outcomes MUST remain distinct** — Missing credentials on protected routes and definitively invalid credentials return `401`; a valid identity without authority returns `403`; a provider/network failure that makes verification indeterminate returns `503`. Neither middleware may proceed anonymously after an indeterminate result.
+6. **Auth errors MUST NOT leak token content** — Error responses use generic messages. Logs contain request ID, path, and an error category/message, but no full or truncated bearer-token fragment.
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
@@ -33,8 +33,8 @@ Two middleware variants exist:
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Stolen JWT** | Attacker intercepts a user's JWT (XSS, network sniffing) and replays it | Configured token expiry (1 week); TLS enforcement; HttpOnly cookies if applicable |
-| **Supabase service key leak** | Attacker obtains `SUPABASE_SERVICE_KEY` and forges arbitrary JWTs | Key stored only in env vars; never exposed in responses or logs; rotation procedure in place |
-| **Supabase outage** | Supabase is unreachable — verification calls fail | `requireAuth` fails closed (returns 401); no fallback to unverified access |
+| **Supabase service key leak** | Attacker obtains `SUPABASE_SERVICE_KEY` and gains broad administrative privileges | Access-token verification uses the least-privileged Auth client; service-role use is limited to administrative operations. The key remains server-only and independently rotatable. |
+| **Supabase outage** | Supabase is unreachable — verification calls fail | Both middleware variants fail closed with `503`; no fallback to anonymous or unverified access and no false invalid-token signal. |
 | **Email enumeration** | Attacker probes OTP endpoint to discover registered emails | OTP flow handled by Supabase — Vortex API never sees OTP requests; Supabase rate limits apply |
 | **Token reuse after logout** | User "logs out" in frontend but JWT is still valid server-side | Supabase token invalidation on signout; short expiry window limits exposure |
 | **userId injection** | Attacker sends crafted request with `userId` in body/headers to bypass auth | `req.userId` is set exclusively by middleware; controllers read from `req.userId` not from request body |
@@ -43,11 +43,12 @@ Two middleware variants exist:
 
 - [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) uses `requireAuth` (F-068 resolved); admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
-- [x] `SupabaseAuthService.verifyToken()` uses the service role key, not the anon key — **FAIL: Uses anon-key client (F-018). Functionally correct but deviates from spec.**
+- [x] `SupabaseAuthService.verifyToken()` uses authoritative Supabase Auth validation without requiring service-role privilege — **PASS**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**
 - [x] `req.userId` is never set by any code path other than the two auth middlewares — **PASS**
 - [x] Error responses from auth middleware contain no token fragments, user details, or internal error messages — **PASS**
-- [x] `optionalAuth` truncates tokens in warning logs (first 15 + last 4 characters) — **PASS**
+- [x] Authentication logs contain no bearer-token fragments — **PASS**
+- [x] A present invalid optional credential returns `401`, while an indeterminate provider failure returns `503` without anonymous fallback — **PASS**
 - [x] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_KEY` are validated at startup — empty strings are treated as missing — **FAIL: All default to "" with no startup validation (F-019)**
 - [x] Token expiry is enforced by the verification call (not just signature validity) — **PASS**
 - [x] Frontend refresh goes through `/v1/auth/refresh` (not the anon-key client) and clears the session only on a `401`, retrying transient failures — **PASS**
