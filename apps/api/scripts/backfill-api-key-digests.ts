@@ -23,16 +23,25 @@
  * legacy count is zero with the query printed at the end.
  */
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import bcrypt from "bcrypt";
+import dotenv from "dotenv";
 import { Op } from "sequelize";
-import {
-  digestApiKey,
-  getKeyPrefix,
-  getSecretKeyLookupPrefix,
-  isValidSecretKeyFormat
-} from "../src/api/middlewares/apiKeyAuth.helpers";
-import sequelize from "../src/config/database";
-import ApiKey from "../src/models/apiKey.model";
+
+// This script is often invoked from outside apps/api, where Bun will not
+// auto-load the API's .env file. Load it before importing database/config
+// modules because vars.ts validates the environment during module evaluation.
+dotenv.config({ path: path.resolve(import.meta.dir, "../.env") });
+
+const [
+  { digestApiKey, getKeyPrefix, getSecretKeyLookupPrefix, isValidSecretKeyFormat },
+  { default: sequelize },
+  { default: ApiKey }
+] = await Promise.all([
+  import("../src/api/middlewares/apiKeyAuth.helpers"),
+  import("../src/config/database"),
+  import("../src/models/apiKey.model")
+]);
 
 function readKeys(): string[] {
   const fileFlagIndex = process.argv.indexOf("--file");
