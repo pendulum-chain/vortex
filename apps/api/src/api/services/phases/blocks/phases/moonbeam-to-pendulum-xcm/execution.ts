@@ -26,9 +26,11 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
     const pendulum = await manager.getApi("pendulum");
     const arrived = async () => {
       const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.pendulumCurrencyId);
-      return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0").gt(0);
+      return new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0").gte(
+        metadata.outputAmountRaw
+      );
     };
-    if (!(await arrived())) {
+    if (!(await arrived()) && !state.state.moonbeamXcmTransactionHash) {
       const hasPreviousError = state.errorLogs.some(log => log.phase === this.getPhaseName());
       let moonbeam;
       try {
@@ -42,7 +44,9 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, moonbeam.api);
-        await abortableCall(signal, () => submitMoonbeamXcm(evmAddress, extrinsic));
+        const { hash } = await abortableCall(signal, () => submitMoonbeamXcm(evmAddress, extrinsic));
+        state.state = { ...state.state, moonbeamXcmTransactionHash: hash as `0x${string}` };
+        await state.update({ state: state.state });
       } catch (error) {
         logger.error("MoonbeamToPendulumXcmExecutor: XCM submission failed", error);
         const message = error instanceof Error ? error.message : String(error);

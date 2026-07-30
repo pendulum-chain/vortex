@@ -33,17 +33,23 @@ idempotency-key facility, is defined in
 - **Impact:** A reported arbitrary/non-final/failed hash can satisfy the source-hash gate; later balance checks may limit progress, but the hash itself is not evidence of the intended AssetHub transfer.
 - **Release relevance:** Inherited trust-boundary weakness. The block adds useful static checks, so this is not a regression, but on-chain provenance remains release-relevant for AssetHub offramps.
 
-### Moonbeam-to-Pendulum arrival uses a greater-than-zero heuristic
+### Resolved: Moonbeam-to-Pendulum positive-balance heuristic
 
-- **References:** The XCM executor treats any positive Pendulum token balance as arrival (`phases/moonbeam-to-pendulum-xcm/execution.ts:24-30`, `55`).
-- **Impact:** Pre-existing dust or a partial/unrelated transfer can suppress XCM submission or complete the wait without proving delivery of the quoted amount.
-- **Release relevance:** Pre-existing completion-integrity risk on Moonbeam-to-Pendulum routes; relevant when ephemerals can hold residual token balances.
+The executor now waits for Moonbeam source finalization, persists the finalized block
+hash, and requires the Pendulum balance to reach the phase-owned `outputAmountRaw`.
+Positive dust can no longer suppress submission or satisfy completion by itself.
 
-### Pendulum-to-AssetHub accepts a persisted hash without status or arrival proof
+### Pendulum-to-AssetHub accepts a persisted hash without arrival proof
 
-- **References:** The XCM executor returns immediately when `pendulumToAssethubXcmHash` exists and otherwise persists the submit result without checking source-chain success or AssetHub arrival (`phases/pendulum-to-assethub-xcm/execution.ts:11-22`).
-- **Impact:** A stale, failed, or merely submitted hash advances the ramp even if XCM execution fails or destination assets never arrive.
-- **Release relevance:** Pre-existing AssetHub delivery-evidence gap; directly relevant to release confidence for this corridor.
+- **References:** A new submission waits for source finalization and the expected
+  `xTokens.TransferredMultiAssets` event, but the executor returns immediately when
+  `pendulumToAssethubXcmHash` already exists and does not check AssetHub arrival
+  (`phases/pendulum-to-assethub-xcm/execution.ts`).
+- **Impact:** A persisted finalized source block can advance recovery even if destination
+  XCM execution fails or AssetHub assets never arrive.
+- **Release relevance:** Accepted only for the quote-disabled BRL→AssetHub recovery flow.
+  It is a blocker before that corridor is re-enabled and is indexed in the normative risk
+  register.
 
 ## Estimation and recovery heuristics
 

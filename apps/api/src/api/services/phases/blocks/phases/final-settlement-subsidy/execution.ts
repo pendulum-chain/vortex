@@ -26,6 +26,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
@@ -35,8 +36,9 @@ import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-// Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
-const MIN_BRIDGE_DELIVERY_RATIO = 0.9;
+// This is an explicitly scoped fallback for Squid-routed EVM delivery. It is not
+// authoritative bridge finality and MUST NOT be reused as a global cross-chain rule.
+const SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS = 9000;
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -123,10 +125,40 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       throw this.createUnrecoverableError("FinalSettlementSubsidyExecutor: Missing destination settlement baseline");
     }
     const baseline = new Big(baselineValue);
+    const squidMetadata = (
+      quote.metadata as unknown as {
+        blocks?: {
+          squidRouterSwap?: {
+            outputAmountRaw: string;
+            toNetwork: EvmNetworks;
+            toToken: string;
+          };
+        };
+      }
+    ).blocks?.squidRouterSwap;
+    const bridgeExpectedAmountRaw = squidMetadata?.outputAmountRaw ?? expectedAmountRaw.toFixed(0);
+    const existingEvidence = state.state.squidRouterDeliveryEvidence;
+    if (existingEvidence) {
+      this.assertMatchingDeliveryEvidence(
+        existingEvidence,
+        destinationNetwork,
+        outTokenDetails.erc20AddressSourceChain,
+        bridgeExpectedAmountRaw,
+        baselineValue,
+        state
+      );
+    }
 
-    // 2. Wait for the bridge delivery delta, excluding any balance that existed before the bridge.
+    // 2. Wait for the route-scoped bridge delivery delta, excluding any balance that
+    // existed before the bridge. Provider-terminal evidence is preferred. The 90%
+    // threshold remains only as the EVM balance fallback selected for provider-indexing
+    // gaps, and is persisted/logged as heuristic evidence rather than called finality.
+    const minimumBridgeDeliveryRaw = new Big(bridgeExpectedAmountRaw)
+      .mul(SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS)
+      .div(10_000)
+      .toFixed(0, 0);
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: baseline.plus(expectedAmountRaw.mul(MIN_BRIDGE_DELIVERY_RATIO)).toFixed(0, 0),
+      amountDesiredRaw: baseline.plus(minimumBridgeDeliveryRaw).toFixed(0),
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
@@ -135,6 +167,41 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       tokenDetails: outTokenDetails
     });
     logger.debug(`FinalSettlementSubsidyExecutor: Ephemeral balance=${actualBalance.toString()}`);
+    if (!existingEvidence) {
+      const sourceTransactionHash =
+        state.state.squidRouterSwapHash ?? state.state.squidRouterPermitExecutionHash ?? "legacy-unavailable";
+      const fallbackEvidence: SquidRouterDeliveryEvidence = {
+        baselineRaw: baselineValue,
+        destinationNetwork,
+        destinationToken: outTokenDetails.erc20AddressSourceChain,
+        expectedAmountRaw: bridgeExpectedAmountRaw,
+        kind: "destination-balance",
+        minimumRatioBps: SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS,
+        observedAt: new Date().toISOString(),
+        observedBalanceRaw: actualBalance.toFixed(0),
+        sourceTransactionHash
+      };
+      await state.update({
+        state: {
+          ...state.state,
+          squidRouterDeliveryEvidence: fallbackEvidence
+        }
+      });
+      logger.warn("SQUIDROUTER_DELIVERY_BALANCE_FALLBACK", {
+        destinationNetwork,
+        expectedAmountRaw: bridgeExpectedAmountRaw,
+        minimumRatioBps: SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS,
+        rampId: state.id,
+        sourceTransactionHash
+      });
+    } else {
+      logger.info("SQUIDROUTER_SETTLEMENT_EVIDENCE_ACCEPTED", {
+        kind: existingEvidence.kind,
+        provider: existingEvidence.provider,
+        rampId: state.id,
+        sourceTransactionHash: existingEvidence.sourceTransactionHash
+      });
+    }
 
     // 3. Check funding account balance
     const actualBalanceFundingAccount = await getEvmBalance({
@@ -162,6 +229,18 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         `FinalSettlementSubsidyExecutor: Actual balance ${actualBalance.toString()} meets required balance ${requiredBalanceRaw.toString()}. No subsidy needed.`
       );
       return state;
+    }
+
+    const subsidyAmountDecimal = subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals));
+    const subsidyAmountUsd = await priceFeedService.convertCurrency(
+      subsidyAmountDecimal.toFixed(),
+      outTokenDetails.assetSymbol as RampCurrency,
+      "USD" as RampCurrency
+    );
+    if (new Big(subsidyAmountUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
+      throw this.createUnrecoverableError(
+        `FinalSettlementSubsidyExecutor: Required subsidy $${subsidyAmountUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+      );
     }
 
     logger.info(
@@ -347,7 +426,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       await this.createSubsidy(
         state,
-        subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals)).toNumber(),
+        subsidyAmountDecimal.toNumber(),
         outTokenDetails.assetSymbol as SubsidyToken,
         fundingAccount.address,
         txHash
@@ -364,6 +443,29 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     } catch (error) {
       throw this.createRecoverableError(
         `FinalSettlementSubsidyExecutor: Error during phase execution - ${(error as Error).message}`
+      );
+    }
+  }
+
+  private assertMatchingDeliveryEvidence(
+    evidence: SquidRouterDeliveryEvidence,
+    destinationNetwork: EvmNetworks,
+    destinationToken: string,
+    expectedAmountRaw: string,
+    baselineRaw: string,
+    state: RampState
+  ): void {
+    const expectedSourceHash = state.state.squidRouterSwapHash ?? state.state.squidRouterPermitExecutionHash;
+    const mismatch =
+      evidence.destinationNetwork !== destinationNetwork ||
+      evidence.destinationToken.toLowerCase() !== destinationToken.toLowerCase() ||
+      evidence.expectedAmountRaw !== expectedAmountRaw ||
+      (evidence.baselineRaw !== undefined && evidence.baselineRaw !== baselineRaw) ||
+      (expectedSourceHash !== undefined && evidence.sourceTransactionHash !== expectedSourceHash) ||
+      (evidence.kind === "destination-balance" && evidence.minimumRatioBps !== SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS);
+    if (mismatch) {
+      throw this.createUnrecoverableError(
+        "FinalSettlementSubsidyExecutor: Persisted cross-chain delivery evidence does not match the ramp route"
       );
     }
   }

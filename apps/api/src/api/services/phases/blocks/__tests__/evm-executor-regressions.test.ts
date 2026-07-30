@@ -219,8 +219,14 @@ describe("EVM block executor regressions", () => {
     } as unknown as RampState;
     const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
     executor.createSubsidy = mock(async () => undefined);
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
 
-    await executor.executePhase(state);
+    try {
+      await executor.executePhase(state);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
 
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
   });

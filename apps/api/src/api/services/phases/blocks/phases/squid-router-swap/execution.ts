@@ -35,7 +35,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
-import { StateMetadata } from "../../../../phases/meta-state-types";
+import { SquidRouterDeliveryEvidence, StateMetadata } from "../../../../phases/meta-state-types";
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { SlackNotifier } from "../../../../slack.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
@@ -59,6 +59,13 @@ const AXELAR_CONFIRM_RECOVERY_COOLDOWN_MS = 10 * 60 * 1000;
 const STUCK_ALERT_REPEAT_MS = 6 * 60 * 60 * 1000;
 const EXTRA_GAS_PENDING_MARKER = "pending";
 const STATUS_REQUEST_TIMEOUT_MS = 30000;
+const DESTINATION_BALANCE_FALLBACK_MIN_RATIO_BPS = 9000;
+
+type TerminalBridgeEvidence = Pick<SquidRouterDeliveryEvidence, "kind" | "observedAt" | "provider" | "providerStatus">;
+
+type SquidRouterStatusWithSource = SquidRouterPayResponse & {
+  evidenceProvider: "axelar" | "squid";
+};
 
 // Port of the production SquidRouterPhaseHandler for block-owned bridge and passthrough routes.
 export class SquidRouterSwapExecutor extends BasePhaseHandler {
@@ -377,36 +384,69 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
   }
 
-  // Checks the Axelar bridge status and the destination balance in parallel; either one
-  // succeeding is a success. Only if both fail (timeout) we throw.
+  // Prefer authoritative provider-terminal status. An exact route-scoped destination
+  // balance delta remains a fallback because provider indexing can miss a real arrival.
+  // Whichever succeeds is persisted so downstream subsidy logic cannot silently change
+  // the meaning of "bridge complete".
   private async checkStatus(state: RampState, swapHash: string, quote: QuoteTicket, signal?: AbortSignal): Promise<void> {
     const toChain = this.resolveBridgeToChain(quote);
     const pollingTimeoutMs = getSquidRouterPayTimeoutMs();
+    const bridgeMeta = getBlockMetadata(quote.metadata, SquidRouterSwapContext);
 
     if (!toChain || !isNetworkEVM(toChain)) {
       logger.info("SquidRouterPayExecutor: Destination network is non-EVM; skipping EVM balance check optimization.", {
         toNetwork: quote.to
       });
-      await this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, signal);
+      const terminal = await this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, signal);
+      await this.persistDeliveryEvidence(state, {
+        ...terminal,
+        destinationNetwork: bridgeMeta.toNetwork,
+        destinationToken: bridgeMeta.toToken,
+        expectedAmountRaw: bridgeMeta.outputAmountRaw,
+        sourceTransactionHash: swapHash
+      });
       return;
     }
 
-    let balanceCheckPromise: Promise<Big>;
+    const competingCheckController = new AbortController();
+    const competingSignal = signal
+      ? AbortSignal.any([signal, competingCheckController.signal])
+      : competingCheckController.signal;
+    let balanceCheckPromise: Promise<SquidRouterDeliveryEvidence>;
 
     try {
       const outTokenDetails = getOnChainTokenDetails(toChain, quote.outputCurrency as OnChainToken) as EvmTokenDetails;
       const ephemeralAddress = state.state.evmEphemeralAddress;
 
       if (outTokenDetails && ephemeralAddress) {
+        const baselineKey = settlementBalanceKey(toChain, ephemeralAddress, outTokenDetails.erc20AddressSourceChain);
+        const baselineRaw = state.state.transactionPlan?.settlementBaselines?.[baselineKey];
+        if (baselineRaw === undefined) {
+          throw new Error(`Missing destination settlement baseline ${baselineKey}`);
+        }
+        const minimumDeliveryRaw = new Big(bridgeMeta.outputAmountRaw)
+          .mul(DESTINATION_BALANCE_FALLBACK_MIN_RATIO_BPS)
+          .div(10_000)
+          .toFixed(0, 0);
         balanceCheckPromise = checkEvmBalanceForToken({
-          amountDesiredRaw: "1", // A stricter target might time out if the bridge slipped and delivered slightly less.
+          amountDesiredRaw: new Big(baselineRaw).plus(minimumDeliveryRaw).toFixed(0),
           chain: toChain,
           intervalMs: BALANCE_POLLING_TIME_MS,
           ownerAddress: ephemeralAddress,
-          signal,
+          signal: competingSignal,
           timeoutMs: pollingTimeoutMs,
           tokenDetails: outTokenDetails
-        });
+        }).then(observedBalance => ({
+          baselineRaw,
+          destinationNetwork: bridgeMeta.toNetwork,
+          destinationToken: bridgeMeta.toToken,
+          expectedAmountRaw: bridgeMeta.outputAmountRaw,
+          kind: "destination-balance",
+          minimumRatioBps: DESTINATION_BALANCE_FALLBACK_MIN_RATIO_BPS,
+          observedAt: new Date().toISOString(),
+          observedBalanceRaw: observedBalance.toFixed(0),
+          sourceTransactionHash: swapHash
+        }));
       } else {
         logger.warn(
           "SquidRouterPayExecutor: Cannot perform balance check optimization (missing expected token details or address)."
@@ -418,16 +458,20 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       balanceCheckPromise = Promise.reject(err);
     }
 
-    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, signal).catch(err => {
-      throw err;
-    });
-
-    const balanceCheckWithErrorHandling = balanceCheckPromise.catch(err => {
-      throw err;
-    });
+    const bridgeCheckPromise = this.checkBridgeStatus(state, swapHash, quote, pollingTimeoutMs, competingSignal).then(
+      terminal => ({
+        ...terminal,
+        destinationNetwork: bridgeMeta.toNetwork,
+        destinationToken: bridgeMeta.toToken,
+        expectedAmountRaw: bridgeMeta.outputAmountRaw,
+        sourceTransactionHash: swapHash
+      })
+    );
 
     try {
-      await Promise.any([bridgeCheckPromise, balanceCheckWithErrorHandling]);
+      const evidence = await Promise.any([bridgeCheckPromise, balanceCheckPromise]);
+      competingCheckController.abort(new Error("Alternative Squid completion check succeeded"));
+      await this.persistDeliveryEvidence(state, evidence);
     } catch (error) {
       if (error instanceof AggregateError) {
         const balanceError = error.errors.find(e => e instanceof BalanceCheckError);
@@ -450,6 +494,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         throw this.createRecoverableError(errorMessage);
       }
       throw error;
+    } finally {
+      competingCheckController.abort(new Error("Squid completion check finished"));
     }
   }
 
@@ -459,14 +505,13 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     quote: QuoteTicket,
     timeoutMs = getSquidRouterPayTimeoutMs(),
     signal?: AbortSignal
-  ): Promise<void> {
-    let isExecuted = false;
+  ): Promise<TerminalBridgeEvidence> {
     let payTxHash: string | undefined = state.state.squidRouterPayTxHash;
     const timeoutAt = Date.now() + timeoutMs;
 
     await sleep(Math.min(this.initialDelayMs, timeoutMs), signal);
 
-    while (!isExecuted) {
+    while (true) {
       if (Date.now() >= timeoutAt) {
         throw this.createRecoverableError(`SquidRouterPayExecutor: Bridge status check timed out after ${timeoutMs}ms`);
       }
@@ -482,8 +527,12 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
           logger.warn(`SquidRouterPayExecutor: No squidRouter status found for swap hash ${swapHash}.`);
         } else if (squidRouterStatus.status === "success") {
           logger.info(`SquidRouterPayExecutor: Transaction ${swapHash} successfully executed on Squidrouter.`);
-          isExecuted = true;
-          break;
+          return {
+            kind: "provider-terminal",
+            observedAt: new Date().toISOString(),
+            provider: squidRouterStatus.evidenceProvider,
+            providerStatus: "success"
+          };
         }
 
         const isGmp = squidRouterStatus ? squidRouterStatus.isGMPTransaction : true;
@@ -496,8 +545,12 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             logger.info(`SquidRouterPayExecutor: Axelar status not found yet for hash ${swapHash}.`);
           } else if (axelarScanStatus.status === "executed" || axelarScanStatus.status === "express_executed") {
             logger.info(`SquidRouterPayExecutor: Transaction ${swapHash} successfully executed on Axelar.`);
-            isExecuted = true;
-            break;
+            return {
+              kind: "provider-terminal",
+              observedAt: new Date().toISOString(),
+              provider: "axelar",
+              providerStatus: axelarScanStatus.status
+            };
           } else if (!payTxHash) {
             logger.info("SquidRouterPayExecutor: Bridge transaction detected on Axelar. Proceeding to fund gas.");
             fundedThisIteration = true;
@@ -550,10 +603,10 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
   }
 
-  private async patchStateKey(
+  private async patchStateKey<K extends keyof StateMetadata & string>(
     state: RampState,
-    key: keyof StateMetadata & string,
-    value: string,
+    key: K,
+    value: StateMetadata[K],
     guardSql = "TRUE",
     guardReplacements: Record<string, unknown> = {}
   ): Promise<number> {
@@ -573,6 +626,19 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       state.state = { ...state.state, [key]: value };
     }
     return updatedRows;
+  }
+
+  private async persistDeliveryEvidence(state: RampState, evidence: SquidRouterDeliveryEvidence): Promise<void> {
+    await this.patchStateKey(state, "squidRouterDeliveryEvidence", evidence);
+    logger.info("SQUIDROUTER_DELIVERY_EVIDENCE", {
+      destinationNetwork: evidence.destinationNetwork,
+      expectedAmountRaw: evidence.expectedAmountRaw,
+      kind: evidence.kind,
+      minimumRatioBps: evidence.minimumRatioBps,
+      provider: evidence.provider,
+      rampId: state.id,
+      sourceTransactionHash: evidence.sourceTransactionHash
+    });
   }
 
   private async maybeRecoverStuckConfirm(
@@ -887,7 +953,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     state: RampState,
     quote: QuoteTicket,
     signal?: AbortSignal
-  ): Promise<SquidRouterPayResponse> {
+  ): Promise<SquidRouterStatusWithSource> {
     try {
       const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork;
       const fromChainId = getNetworkId(fromChain)?.toString();
@@ -909,7 +975,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         squidRouterQuoteId,
         this.statusRequestSignal(signal)
       );
-      return squidRouterStatus;
+      return { ...squidRouterStatus, evidenceProvider: "squid" };
     } catch (squidRouterError) {
       logger.warn(
         `SquidRouterPayExecutor: SquidRouter status check failed for swap hash ${swapHash}, attempting Axelar fallback: ${squidRouterError instanceof Error ? squidRouterError.message : String(squidRouterError)}`
@@ -930,12 +996,13 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
             : axelarScanStatus.status;
 
         return {
+          evidenceProvider: "axelar",
           id: "",
           isGMPTransaction: true,
           routeStatus: [],
           squidTransactionStatus: "",
           status: mappedStatus
-        } as SquidRouterPayResponse;
+        } as SquidRouterStatusWithSource;
       } catch (axelarError) {
         logger.error(
           `SquidRouterPayExecutor: Both SquidRouter and Axelar fallback failed for swap hash ${swapHash}. Axelar fallback error: ${axelarError instanceof Error ? axelarError.message : String(axelarError)}`
