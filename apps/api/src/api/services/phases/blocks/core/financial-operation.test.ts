@@ -2,7 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import FinancialOperation from "../../../../../models/financialOperation.model";
 import { resetTestDatabase, setupTestDatabase } from "../../../../../test-utils/db";
 import type { FlowIdentity } from "./identity";
-import { runFinancialOperation } from "./financial-operation";
+import { FinancialOperationRejectedError, runFinancialOperation } from "./financial-operation";
 
 const flow: FlowIdentity = {
   blockSchemaVersions: { payout: 1 },
@@ -87,7 +87,7 @@ describe("runFinancialOperation", () => {
   });
 
   it("allows corrected input after a definitive rejection without a side effect", async () => {
-    const rejected = Object.assign(new Error("invalid recipient"), { status: 422 });
+    const rejected = new FinancialOperationRejectedError("invalid recipient");
     await expect(
       runFinancialOperation({
         ...baseOperation,
@@ -107,6 +107,25 @@ describe("runFinancialOperation", () => {
     expect(result).toEqual({ id: "external-2" });
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
   });
+
+  for (const status of [408, 409, 422]) {
+    it(`does not infer a definitive rejection from HTTP ${status}`, async () => {
+      const rejected = Object.assign(new Error(`provider returned ${status}`), { status });
+      const perform = mock(async () => {
+        throw rejected;
+      });
+
+      await expect(runFinancialOperation({ ...baseOperation, perform, retryFailed: true })).rejects.toThrow(
+        `provider returned ${status}`
+      );
+      await expect(runFinancialOperation({ ...baseOperation, perform, retryFailed: true })).rejects.toThrow(
+        "requires reconciliation"
+      );
+
+      expect(perform).toHaveBeenCalledTimes(1);
+      expect(await FinancialOperation.findOne()).toMatchObject({ status: "unknown" });
+    });
+  }
 
   it("does not start an external operation when the phase is already aborted", async () => {
     const controller = new AbortController();

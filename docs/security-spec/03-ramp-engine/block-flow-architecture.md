@@ -73,8 +73,10 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 15. **Outcome-aware retry.** Financial-operation status MUST distinguish
     `not_started`, `submitted`, `confirmed`, `failed`, and `unknown`. A confirmed
     result is replayed locally without another provider call. A definitive rejection
-    may be retried with corrected inputs. A submitted or ambiguous result MUST halt for
-    reconciliation and MUST NOT be repeated automatically.
+    may be retried with corrected inputs only when the integration explicitly raises
+    `FinancialOperationRejectedError`, proving that no side effect occurred. HTTP status
+    classes alone MUST NOT establish that proof. A submitted or ambiguous result MUST
+    halt for reconciliation and MUST NOT be repeated automatically.
 16. **Upstream idempotency preference.** The stable operation key MUST be sent as the
     provider idempotency key when the provider supports one. When the integration does
     not expose such a facility, the local claim plus fail-closed reconciliation policy

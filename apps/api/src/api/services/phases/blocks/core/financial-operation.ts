@@ -61,12 +61,6 @@ function serializable<Result>(result: Result): Result {
   return JSON.parse(JSON.stringify(result)) as Result;
 }
 
-function providerStatus(error: unknown): number | undefined {
-  if (!error || typeof error !== "object" || !("status" in error)) return undefined;
-  const status = Number((error as { status?: unknown }).status);
-  return Number.isFinite(status) ? status : undefined;
-}
-
 export function requireFinancialFlowIdentity(state: Readonly<StateMetadata>): FlowIdentity {
   if (!state.flow) {
     throw new Error("Ramp state is missing the persisted flow identity required for a financial operation");
@@ -143,9 +137,9 @@ export async function runFinancialOperation<Result>({
           status: httpStatus.CONFLICT
         });
       }
-      // A definitive 4xx/provider rejection did not create the financial side effect.
-      // Resetting this logical operation is safe and permits corrected registration
-      // input to reuse the same stable operation identity.
+      // Only an explicit FinancialOperationRejectedError may enter this branch.
+      // That signal means the integration proved no financial side effect occurred,
+      // so corrected input may safely reuse the stable operation identity.
       await operation.update({ errorMessage: null, requestHash, response: null, status: "not_started" });
     } else if (operation.status === "not_started") {
       // The creator could have crashed before claiming the operation. Claiming is an
@@ -184,10 +178,9 @@ export async function runFinancialOperation<Result>({
     });
     return result;
   } catch (error) {
-    const status = providerStatus(error);
     await operation.update({
       errorMessage: (error instanceof Error ? error.message : String(error)).slice(0, 500),
-      status: status !== undefined && status >= 400 && status < 500 ? "failed" : "unknown"
+      status: error instanceof FinancialOperationRejectedError ? "failed" : "unknown"
     });
     throw error;
   }
