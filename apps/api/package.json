@@ -101,6 +101,7 @@
     "test:coverage": "bun test --timeout 15000 --coverage --coverage-reporter=lcov && bun ../../scripts/check-coverage.ts coverage/lcov.info 0.55 0.64",
     "test:db:start": "./scripts/test-db.sh start",
     "test:db:stop": "./scripts/test-db.sh stop",
+    "timeout:initial-ramps": "bun scripts/timeout-initial-ramps.ts",
     "typecheck": "tsc --noEmit"
   },
   "version": "1.0.0"
