@@ -18,6 +18,7 @@ import fiatRoutes from "./fiat.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
+import moneriumB2bRoutes from "./monerium-b2b.route";
 import mykoboRoutes from "./mykobo.route";
 import notificationsRoutes from "./notifications.route";
 import onboardingRoutes from "./onboarding.route";
@@ -162,6 +163,12 @@ router.use("/mykobo", mykoboRoutes);
  * Server-side Monerium OAuth and KYC/KYB status synchronization.
  */
 router.use("/monerium", moneriumRoutes);
+
+/**
+ * Monerium B2B whitelabel onramp.
+ * POST /v1/monerium-b2b/webhook — HMAC-authenticated durable-inbox webhook receiver.
+ */
+router.use("/monerium-b2b", moneriumB2bRoutes);
 
 /**
  * POST v1/webhook
