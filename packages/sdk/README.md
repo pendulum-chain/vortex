@@ -83,7 +83,7 @@ const startedRamp = await sdk.startRamp(rampProcess.id);
 console.log("Pay via:", startedRamp.achPaymentData);
 ```
 
-Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), not a `publicKey` alone, a partner-scoped key, or a Supabase Bearer token. The same user must have completed Alfredpay KYC for the country — the key and the KYC record belong to the same account, so registration resolves to the user's Alfredpay customer automatically.
+Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires the configured `secretKey` to resolve to an onboarded user. This can be a user-scoped key or a partner key delegated to the user; a `publicKey` or partner-only secret key is insufficient. The SDK does not accept Supabase Bearer tokens. The same user must have completed Alfredpay KYC for the country, so registration resolves to that user's Alfredpay customer automatically.
 
 > The SDK cannot mint keys or run KYC. Onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation) with the SDK.
 
@@ -213,12 +213,12 @@ Only the base Vortex API is required. If the RPC URL's are not provided, default
 
 ### API keys
 
-Two optional keys can be passed to the SDK:
+Two keys can be passed to the SDK:
 
 - `publicKey` (`pk_live_*` / `pk_test_*`): attached to quote requests for partner attribution and discount eligibility.
-- `secretKey` (`sk_live_*` / `sk_test_*`): sent as the `X-API-Key` header on every request, authenticating the partner.
+- `secretKey` (`sk_live_*` / `sk_test_*`): sent as the `X-API-Key` header on every request. SDK ramp registration requires it to resolve to a Vortex user, either directly or through a delegated partner key.
 
-Both are optional today. After the grace period, partner-scoped endpoints will reject calls that omit them, so it is recommended to start passing them now.
+The public key is optional for quotes. The secret key is required by SDK `registerRamp`; it must be kept server-side and is returned only once when created. User-scoped credentials can be created in the Vortex dashboard or through the OTP-authenticated `/v1/api-keys` endpoints. Raw API clients may alternatively register with the user's Supabase Bearer session.
 
 ```typescript
 const sdk = new VortexSdk({

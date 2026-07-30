@@ -59,7 +59,7 @@ console.log(rampProcess.depositQrCode);
 const started = await sdk.startRamp(rampProcess.id);
 ```
 
-The user must have completed BRL KYC level 1 or higher, and the SDK must be authenticated with that user's own user-linked `sk_*` key: the user's CPF/CNPJ is derived from the authenticated account. The `taxId` field is deprecated — if you still send it, it must match the tax ID on the account or registration is rejected. Partner keys cannot drive KYC and cannot register ramps; onboard the user through the Vortex app or Widget first.
+The user must have completed BRL KYC level 1 or higher, and the SDK's `sk_*` key must resolve to that user, either as a user-scoped key or a partner key delegated to the user. The user's CPF/CNPJ is derived from the authenticated account. The `taxId` field is deprecated — if you still send it, it must match the tax ID on the account or registration is rejected. Partner-only keys cannot drive KYC or register ramps; onboard the user through the Vortex app or Widget first.
 
 ## BRL Offramp (Sell)
 
@@ -147,7 +147,7 @@ console.log(started.achPaymentData);
 
 No user-signed on-chain transactions are required for onramp. The SDK signs ephemeral transactions during `registerRamp`.
 
-Quotes can be requested without any key (anonymous rate discovery). Registering the ramp requires the user to be onboarded first: authenticate the SDK with that user's own **user-linked** `secretKey` (the `sk_*` key created by that user), and the same user must have completed KYC for the corridor's country. The key and the KYC record belong to the same account, so registration resolves to the user's verified payment profile automatically. A `publicKey`-only registration, or a partner-scoped `sk_*` with no user, is rejected.
+Quotes can be requested without any key (anonymous rate discovery). Registering through the SDK requires the configured `secretKey` to resolve to an onboarded user, either directly or through a delegated partner key. The same user must have completed KYC for the corridor's country, so registration resolves to the user's verified payment profile automatically. A `publicKey`-only registration or a partner-only `sk_*` is rejected. Raw API integrations may alternatively register with the user's Supabase Bearer session.
 
 Partner `sk_*` keys cannot drive this KYC, and the SDK cannot mint keys or run KYC — onboard the user through the Vortex app or Widget first, then use their `sk_*` key (shown only once, at creation; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys) for minting it programmatically). This applies to buys and sells in all four corridors.
 

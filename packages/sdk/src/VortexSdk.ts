@@ -127,7 +127,7 @@ export class VortexSdk {
   }> {
     if (!this.secretKey) {
       throw new Error(
-        "Ramp registration requires a user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
+        "Ramp registration requires a secretKey (sk_*) that resolves to a Vortex user. Use a user-scoped key or a partner key delegated to a user."
       );
     }
 

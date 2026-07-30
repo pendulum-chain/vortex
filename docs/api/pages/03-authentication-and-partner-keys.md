@@ -105,6 +105,7 @@ Both body fields are optional. Response (`201`):
 
 ```json
 {
+  "credentialId": "00000000-0000-0000-0000-000000000000",
   "createdAt": "2026-07-06T12:00:00.000Z",
   "expiresAt": "2027-07-06T00:00:00.000Z",
   "isActive": true,
@@ -126,7 +127,8 @@ Both body fields are optional. Response (`201`):
 ```
 
 - **The secret key value is returned only in this response.** Vortex stores a hash; it cannot be retrieved again. Persist it to your secret manager immediately.
-- Keys expire after one year by default; `expiresAt` may extend this to at most two years from creation.
+- `credentialId` connects the public and secret records. It is non-secret metadata used for safe pair management.
+- Keys expire after one year by default; `expiresAt` must be in the future and may extend this to at most two years from creation.
 - A user may hold at most 10 active keys (a pair counts as two). Exceeding the cap returns `409 API_KEY_LIMIT_REACHED`; revoke unused keys first.
 - Sandbox mints `pk_test_*` / `sk_test_*`; production mints `pk_live_*` / `sk_live_*`.
 
@@ -148,8 +150,8 @@ The bearer token is only needed for key management; day-to-day quoting and rampi
 
 ### Managing Keys
 
-- `GET /v1/api-keys` — lists the user's active keys (public key values are included; secret values are never returned).
-- `DELETE /v1/api-keys/{keyId}` — revokes a key; returns `204`. Pass `{ "pairedKeyId": "..." }` in the body to revoke both halves of a pair together.
+- `GET /v1/api-keys` — lists the user's active keys with their `credentialId` (public key values are included; secret values are never returned).
+- `DELETE /v1/api-keys/{keyId}` — revokes a key; returns `204`. Pass `{ "pairedKeyId": "..." }` in the body to revoke both halves of the same credential atomically.
 
 ## Webhook Signing Key
 

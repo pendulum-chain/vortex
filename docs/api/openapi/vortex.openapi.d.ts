@@ -21,9 +21,9 @@ export interface paths {
         put?: never;
         /**
          * Create a user-linked API key pair
-         * @description Creates a public + secret API key pair bound to the authenticated user. The secret key value is returned only in this response; Vortex stores a hash and cannot show it again.
+         * @description Creates a public + secret API key pair bound to the authenticated user. Both records share a non-secret `credentialId`. The secret key value is returned only in this response; Vortex stores a hash and cannot show it again.
          *
-         *     Keys expire after one year by default; `expiresAt` may extend this to at most two years from now. A user may hold at most 10 active keys (a pair counts as two).
+         *     Keys expire after one year by default; `expiresAt` must be in the future and may extend this to at most two years from now. A user may hold at most 10 active keys (a pair counts as two).
          *
          *     Sandbox mints `pk_test_*`/`sk_test_*`; production mints `pk_live_*`/`sk_live_*`.
          *
@@ -48,7 +48,7 @@ export interface paths {
         post?: never;
         /**
          * Revoke an API key
-         * @description Revokes (soft-deletes) an API key owned by the authenticated user. Pass `pairedKeyId` in the body to revoke both halves of a pair together; the two keys must be of opposite types (one public, one secret) and share the same base name. The legacy `publicKeyId` body field is accepted as an alias.
+         * @description Revokes (soft-deletes) an API key owned by the authenticated user. Pass `pairedKeyId` in the body to revoke both halves of the same credential atomically. New keys must share a `credentialId`; legacy keys must be opposite types and share the same base name. The legacy `publicKeyId` body field is accepted as an alias.
          *
          *     **Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.
          */
@@ -1308,12 +1308,12 @@ export interface components {
         GetRampHistoryTransaction: {
             currentPhase: components["schemas"]["RampPhase"];
             date: string;
+            /** @description The deadline for starting an initial ramp. */
+            expiresAt: string;
             /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxExplorerLink?: string;
             /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxHash?: string;
-            /** @description The deadline for starting an initial ramp. */
-            expiresAt: string;
             from: components["schemas"]["DestinationType"];
             fromAmount: string;
             fromCurrency: components["schemas"]["RampCurrency"];
@@ -1412,6 +1412,8 @@ export interface components {
             apiKeys: {
                 /** Format: date-time */
                 createdAt: string;
+                /** @description Shared identifier for the public and secret records. Null only for ambiguous legacy records. */
+                credentialId?: string | null;
                 /** Format: date-time */
                 expiresAt: string;
                 id: string;
@@ -1724,6 +1726,8 @@ export interface components {
         UserApiKeyPairResponse: {
             /** Format: date-time */
             createdAt: string;
+            /** @description Non-secret identifier shared by both records in this credential. */
+            credentialId: string;
             /** Format: date-time */
             expiresAt: string;
             isActive: boolean;
@@ -1858,7 +1862,7 @@ export interface operations {
                     "application/json": components["schemas"]["UserApiKeyPairResponse"];
                 };
             };
-            /** @description `INVALID_EXPIRES_AT`: expiresAt is not a valid ISO-8601 date or is more than 2 years from now. */
+            /** @description `INVALID_EXPIRES_AT`: expiresAt is invalid, not in the future, or more than 2 years from now. `INVALID_API_KEY_NAME`: name exceeds 91 characters. */
             400: {
                 headers: {
                     [name: string]: unknown;

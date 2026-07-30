@@ -18,7 +18,7 @@ A machine-loadable capability catalog for AI coding agents integrating Vortex in
 - **Auth keys**: partner integrations use a key pair.
   - `pk_live_*` / `pk_test_*` — public key, sent in request bodies for partner attribution.
   - `sk_live_*` / `sk_test_*` — secret key, sent in the `X-API-Key` header. **Never expose `sk_*` in a browser or mobile app.**
-  - **Ramp registration requires a user-linked `sk_*` key in every corridor** — the register call is rejected unless the authenticated key resolves to a user account. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from that account, never from request fields.
+  - **Ramp registration requires an authenticated user identity in every corridor.** With the SDK, use a user-scoped `sk_*` key or a partner key delegated to a user. Raw API clients may instead use that user's Supabase Bearer session. Partner-only keys cannot register ramps. KYC identity (BRL tax ID, Alfredpay customer, Mykobo customer) is derived from the authenticated account, never from request fields.
 - **Decimals**: all amounts are strings. Never parse them through JS `Number` — use `BigInt`, `decimal.js`, or equivalent.
 - **Quote TTL**: quotes expire (see `expiresAt`). Re-quote, never reuse stale quotes.
 - **Presigned counts**: this is **per ephemeral-signed transaction, not per ramp**. Each transaction an ephemeral key signs must be submitted as 5 presigned variants — 1 primary plus exactly 4 backups with consecutive nonces in `meta.additionalTxs` (`NUMBER_OF_PRESIGNED_TXS = 5`); the API rejects any other backup count. A ramp can contain several ephemeral-signed transactions across its phases. (The SDK builds these for you; only raw-API integrations need to construct them.)
@@ -94,7 +94,7 @@ curl -X POST https://api.vortexfinance.co/v1/quotes \
     "outputCurrency": "USDC",
     "network": "Polygon",
     "paymentMethod": "pix",
-    "publicKey": "'"$VORTEX_PUBLIC_KEY"'"
+    "apiKey": "'"$VORTEX_PUBLIC_KEY"'"
   }'
 ```
 
@@ -343,7 +343,7 @@ triggers:
 ```
 
 ## When to use
-The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. These corridors **require a user-linked `sk_*` key**: registration resolves the user's KYC and payment profile from the authenticated account. Partner-scoped keys cannot register ramps here. EVM networks only (no AssetHub).
+The user wants to ramp USD, MXN, COP, or ARS over their domestic banking rail. Registration resolves the user's KYC and payment profile from the authenticated account. With the SDK, use a user-scoped `sk_*` key or a partner key delegated to that user; raw API clients may instead use the user's Bearer session. Partner-only keys cannot register ramps here. EVM networks only (no AssetHub).
 
 | Fiat | Rail identifier | Payment rail |
 |------|-----------------|--------------|
@@ -402,7 +402,7 @@ The SDK cannot **create** fiat accounts; they are created during onboarding in t
 ## Common failures
 - `MissingAlfredpayOnrampParametersError` / `MissingAlfredpayOfframpParametersError` — `destinationAddress`, `fiatAccountId`, or `walletAddress` missing.
 - `AlfredpayOnrampKycRequiredError` — the authenticated user has no approved KYC for the corridor's country.
-- `400` "requires an API key linked to a user" on register — the `sk_*` key is partner-scoped, not user-linked. Mint a user key after email OTP sign-in.
+- `400` "requires an API key linked to a user" on register — the `sk_*` key is partner-only. Mint a user-scoped key after email OTP sign-in or delegate the partner key to the user.
 - `InsufficientBalanceError` — the offramp pre-flight found the source wallet balance below the quote's input amount.
 
 ---
@@ -483,7 +483,7 @@ First-time integration, environment migration, or when an agent needs to decide 
 |-----|---------------|---------|
 | `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent inside request bodies as `publicKey`. |
 | `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | Webhook management and partner attribution. Sent as `X-API-Key` header. **Cannot register ramps** unless the key is also linked to a user. **Never** ship to browser/mobile bundles. |
-| `sk_live_*` / `sk_test_*` (user-linked) | Server-side only | Required for ramp registration in every corridor; corridor identity (BRL taxId, Alfredpay/Mykobo customer) is derived from the linked account. Minted programmatically after email OTP sign-in; shown once at creation. |
+| `sk_live_*` / `sk_test_*` (user-scoped) | Server-side only | Supplies the user identity required for SDK ramp registration; corridor identity (BRL taxId, Alfredpay/Mykobo customer) is derived from the linked account. Minted programmatically after email OTP sign-in; shown once at creation. |
 
 ## SDK recipe
 ```js
@@ -502,7 +502,7 @@ For server processes that manage their own ephemeral key storage (e.g. HSM, encr
 ## REST fallback
 Every authenticated endpoint takes:
 - Header: `X-API-Key: sk_<env>_<32chars>`
-- Body field: `"publicKey": "pk_<env>_<...>"`
+- Quote body field: `"apiKey": "pk_<env>_<...>"`
 
 ## Common failures
 - `401 Unauthorized` — `X-API-Key` missing, malformed, or wrong environment.
@@ -664,7 +664,7 @@ try {
 ## Current corridor reality (July 2026)
 - **BRL via PIX**: onramp and offramp both live. `taxId` deprecated — derived from the user-linked key.
 - **EUR via SEPA (Mykobo)**: onramp and offramp fully implemented in the SDK (`FiatToken.EURC`, rail `"sepa"`), but registration is feature-gated server-side and currently returns `503` "EUR ramps are currently disabled" when the gate is on. Quotes succeed regardless — probe registration, not quoting.
-- **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; requires a user-linked `sk_*` key. Route resolver determines availability per-combination.
+- **USD (ACH) / MXN (SPEI) / COP (ACH) / ARS (CBU)**: onramp and offramp live via the AlfredPay corridor; registration requires an authenticated user identity. Route resolver determines availability per-combination.
 - All corridors deliver to EVM networks; AssetHub is only available for BRL routes.
 
 ## Common failures
