@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
+  ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOfframpStatus,
   EvmToken,
@@ -86,6 +87,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.squidRouter.computeToAmount = params => params.fromAmount;
+    world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     world.alfredpay.offrampRate = ALFREDPAY_OFFRAMP_RATE;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
     // Fresh deposit address per test: the in-memory EVM ledger persists across

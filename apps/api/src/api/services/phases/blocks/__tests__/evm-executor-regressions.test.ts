@@ -16,7 +16,11 @@ const financialOperationReal = { ...financialOperationNamespace };
 const findQuote = mock(async () => undefined as unknown);
 const checkBalance = mock(async () => new Big(0));
 const getFundingBalance = mock(async () => new Big("1000000000"));
-const getOnrampTransaction = mock(async () => ({ status: AlfredpayOnrampStatus.CREATED }));
+const getOnrampTransaction = mock(
+  async (): Promise<{ metadata?: { txHash?: string }; status: AlfredpayOnrampStatus }> => ({
+    status: AlfredpayOnrampStatus.CREATED
+  })
+);
 const sendTransaction = mock(
   async () => "0x1111111111111111111111111111111111111111111111111111111111111111" as `0x${string}`
 );
@@ -231,7 +235,7 @@ describe("EVM block executor regressions", () => {
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
   });
 
-  it("propagates rejected AlfredPay failed statuses and stops polling on on-chain completion", async () => {
+  it("propagates rejected AlfredPay statuses and records on-chain completion while balance confirmation continues", async () => {
     const executor = Object.create(AlfredpayOnrampMintExecutor.prototype) as any;
     const state = { state: {}, update: mock(async () => state) } as unknown as RampState;
     const controller = new AbortController();
@@ -243,11 +247,20 @@ describe("EVM block executor regressions", () => {
     });
 
     getOnrampTransaction.mockClear();
-    getOnrampTransaction.mockResolvedValue({ status: AlfredpayOnrampStatus.ON_CHAIN_COMPLETED });
-    void executor.pollStatus("tx-2", state, 0, controller.signal);
+    getOnrampTransaction.mockResolvedValue({
+      metadata: { txHash: "0x2222222222222222222222222222222222222222222222222222222222222222" },
+      status: AlfredpayOnrampStatus.ON_CHAIN_COMPLETED
+    });
+    const polling = executor.pollStatus("tx-2", state, 1, controller.signal);
     await new Promise(resolve => setTimeout(resolve, 10));
     controller.abort();
+    await polling.catch(() => undefined);
 
-    expect(getOnrampTransaction).toHaveBeenCalledTimes(1);
+    expect(getOnrampTransaction.mock.calls.length).toBeGreaterThan(1);
+    expect(state.update).toHaveBeenCalledWith({
+      state: {
+        alfredpayOnrampMintTxHash: "0x2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    });
   });
 });
