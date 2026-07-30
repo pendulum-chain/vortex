@@ -31,7 +31,7 @@ type AnyPhase = {
   readonly context: AnyContextMetadata;
   readonly externalOperations?: {
     register?: { provider: string; attemptClass?: string };
-    start?: { provider: string; attemptClass?: string };
+    start?: { provider: string; attemptClass?: string; request?: (ctx: never) => unknown };
   };
   readonly name: string;
   readonly phases: RampPhase[];
@@ -351,7 +351,7 @@ export class FlowBuilder<O extends PhaseIO> {
                   perform: () => phase.start?.(startContext as never) as Promise<StartResult<unknown>>,
                   phase: phase.phases[0] ?? phase.context.key,
                   provider: startOperation.provider,
-                  request: {
+                  request: startOperation.request?.(startContext as never) ?? {
                     metadata: metadata.blocks[phase.context.key],
                     ownState: state.blockState?.[phase.context.key],
                     quoteId: ctx.quote.id,

@@ -14,7 +14,25 @@ export const AlfredpayMint: Phase<
 > = {
   context: AlfredpayMintContext,
   executors: [new AlfredpayOnrampMintExecutor()],
-  externalOperations: { start: { provider: "alfredpay" } },
+  externalOperations: {
+    start: {
+      provider: "alfredpay",
+      // The start call refreshes provider quoteId/expiration and persists them
+      // in its own result. Fingerprint only invariant financial inputs so a
+      // confirmed replay returns that result instead of conflicting with the
+      // metadata mutation caused by the first call.
+      request: ctx => ({
+        destinationAddress: ctx.state.destinationAddress,
+        fee: ctx.metadata.fee,
+        inputAmount: ctx.quote.inputAmount,
+        inputAmountRaw: ctx.metadata.inputAmountRaw,
+        inputCurrency: ctx.quote.inputCurrency,
+        outputAmountRaw: ctx.metadata.outputAmountRaw,
+        userId: ctx.userId,
+        userState: ctx.ownState
+      })
+    }
+  },
   name: "AlfredpayMint",
   phases: ["alfredpayOnrampMint"],
   prepareTxs: prepareAlfredpayMintTxs,

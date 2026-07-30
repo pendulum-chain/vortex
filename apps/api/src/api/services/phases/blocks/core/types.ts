@@ -145,7 +145,11 @@ export interface Phase<
   readonly context: Context;
   readonly externalOperations?: {
     register?: { provider: string; attemptClass?: string };
-    start?: { provider: string; attemptClass?: string };
+    start?: {
+      provider: string;
+      attemptClass?: string;
+      request?: (ctx: StartCtx<ContextSimulation<Context>>) => unknown;
+    };
   };
   readonly name: string;
   readonly phases: RampPhase[];
