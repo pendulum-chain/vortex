@@ -110,6 +110,7 @@ describe("BRL onramp Base direct transactions", () => {
       blockState: { aveniaMint: { aveniaTicketId: "ticket-123", taxId: "tax-123" } },
       destinationAddress: DESTINATION_ADDRESS,
       evmEphemeralAddress: EVM_EPHEMERAL_ADDRESS,
+      flow: brlOnrampBaseDirectFlow.identity,
       isDirectTransfer: true,
       phaseFlow: ["initial", "brlaOnrampMint", "fundEphemeral", "destinationTransfer", "complete"],
       transactionPlan: { nativePrefunding: {} }
