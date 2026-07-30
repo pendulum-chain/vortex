@@ -20,10 +20,18 @@ import { multiplyByPowerOfTen } from "../pendulum/helpers";
 import { AlfredpayLimitsService } from "./alfredpay-limits.service";
 
 const FIAT_TO_COUNTRY: Partial<Record<FiatToken, AlfredPayCountry>> = {
+  [FiatToken.ARS]: AlfredPayCountry.AR,
   [FiatToken.COP]: AlfredPayCountry.CO,
   [FiatToken.MXN]: AlfredPayCountry.MX,
   [FiatToken.USD]: AlfredPayCountry.US
 };
+
+const MONTHLY_USAGE_CACHE_TTL_MS = 60_000;
+const monthlyUsageCache = new Map<string, { expiresAt: number; usage: Map<string, string> }>();
+
+function usageKey(direction: RampDirection, fiat: FiatToken, stablecoin: AlfredpayStablecoinKey): string {
+  return `${direction}:${fiat}:${stablecoin}`;
+}
 
 export function alfredpayCountryForFiat(fiat: FiatToken): AlfredPayCountry | undefined {
   return FIAT_TO_COUNTRY[fiat];
@@ -102,9 +110,81 @@ export async function resolveAlfredpayQuoteLimits(args: {
   };
 }
 
-function startOfCurrentUtcMonth(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+export function getCurrentUtcMonthPeriod(now = new Date()): { startsAt: Date; endsAt: Date } {
+  return {
+    endsAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+    startsAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+  };
+}
+
+export function clearAlfredpayMonthlyUsageCache(): void {
+  monthlyUsageCache.clear();
+}
+
+async function getAlfredpayMonthlyUsageByFiat(userId: string): Promise<Map<string, string>> {
+  const { startsAt, endsAt } = getCurrentUtcMonthPeriod();
+  const cacheKey = `${userId}:${startsAt.toISOString()}`;
+  const cached = monthlyUsageCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.usage;
+
+  const completedRamps = (await RampState.findAll({
+    include: [{ as: "quote", model: QuoteTicket, required: true, where: { status: "consumed" } }],
+    where: {
+      createdAt: { [Op.gte]: startsAt, [Op.lt]: endsAt },
+      currentPhase: "complete",
+      userId
+    }
+  })) as Array<RampState & { quote: QuoteTicket }>;
+
+  const usage = new Map<string, string>();
+  for (const ramp of completedRamps) {
+    const quote = ramp.quote;
+    const blocks = (quote.metadata as { blocks?: Record<string, unknown> } | null)?.blocks;
+    let fiat: FiatToken | undefined;
+    let stablecoin: AlfredpayStablecoinKey | null = null;
+    let amount: unknown;
+
+    if (ramp.type === RampDirection.BUY) {
+      const block = blocks?.alfredpayMint as { currency?: FiatToken; inputAmountDecimal?: unknown } | undefined;
+      fiat = block?.currency;
+      stablecoin = stablecoinFromCurrency(ALFREDPAY_EVM_TOKEN);
+      amount = block?.inputAmountDecimal;
+
+      // Quotes persisted before block metadata was introduced can only be identified by their direct pair.
+      if (!fiat && isAlfredpayToken(quote.inputCurrency)) {
+        const legacyStablecoin = stablecoinFromCurrency(quote.outputCurrency);
+        if (legacyStablecoin) {
+          fiat = quote.inputCurrency;
+          stablecoin = legacyStablecoin;
+          amount = quote.inputAmount;
+        }
+      }
+    } else {
+      const block = blocks?.alfredpayOfframp as
+        | { currency?: FiatToken; inputAmountDecimal?: unknown; token?: RampCurrency }
+        | undefined;
+      fiat = block?.currency;
+      stablecoin = block?.token ? stablecoinFromCurrency(block.token) : null;
+      amount = block?.inputAmountDecimal;
+
+      if (!fiat && isAlfredpayToken(quote.outputCurrency)) {
+        const legacyStablecoin = stablecoinFromCurrency(quote.inputCurrency);
+        if (legacyStablecoin) {
+          fiat = quote.outputCurrency;
+          stablecoin = legacyStablecoin;
+          amount = quote.inputAmount;
+        }
+      }
+    }
+
+    if (!fiat || !stablecoin || amount === undefined) continue;
+    const key = usageKey(ramp.type, fiat, stablecoin);
+    usage.set(key, new Big(usage.get(key) ?? 0).plus(String(amount)).toFixed());
+  }
+
+  if (monthlyUsageCache.size > 10_000) monthlyUsageCache.clear();
+  monthlyUsageCache.set(cacheKey, { expiresAt: Date.now() + MONTHLY_USAGE_CACHE_TTL_MS, usage });
+  return usage;
 }
 
 /** Returned in input-currency human units: fiat on onramp, stablecoin on offramp. */
@@ -114,23 +194,6 @@ export async function getAlfredpayMonthlyUsage(
   fiat: FiatToken,
   stablecoin: AlfredpayStablecoinKey
 ): Promise<Big> {
-  const isOnramp = direction === RampDirection.BUY;
-  const fiatSide = isOnramp ? { inputCurrency: fiat } : { outputCurrency: fiat };
-  const stablecoinSide = isOnramp ? { outputCurrency: stablecoin } : { inputCurrency: stablecoin };
-
-  const completedRamps = (await RampState.findAll({
-    include: [{ as: "quote", model: QuoteTicket, required: true, where: { ...fiatSide, ...stablecoinSide } }],
-    where: {
-      createdAt: { [Op.gte]: startOfCurrentUtcMonth() },
-      currentPhase: "complete",
-      type: direction,
-      userId
-    }
-  })) as Array<RampState & { quote: QuoteTicket }>;
-
-  let total = new Big(0);
-  for (const ramp of completedRamps) {
-    total = total.plus(ramp.quote.inputAmount);
-  }
-  return total;
+  const usage = await getAlfredpayMonthlyUsageByFiat(userId);
+  return new Big(usage.get(usageKey(direction, fiat, stablecoin)) ?? 0);
 }

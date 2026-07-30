@@ -276,6 +276,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get user ramp limits
+         * @description Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.
+         *
+         *     **Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.
+         */
+        post: operations["getUserLimits"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public-key": {
         parameters: {
             query?: never;
@@ -1326,6 +1348,12 @@ export interface components {
             /** @description Destination address for a BUY ramp when available. */
             walletAddress?: string;
         };
+        GetUserLimitsRequest: {
+            corridors: ("AR" | "BR" | "CO" | "MX" | "US")[];
+        };
+        GetUserLimitsResponse: {
+            limits: components["schemas"]["UserLimit"][];
+        };
         GetUserRemainingLimitResponse: {
             /**
              * Format: double
@@ -1751,6 +1779,28 @@ export interface components {
                 /** @enum {string} */
                 type: "public" | "secret";
             };
+        };
+        UserLimit: {
+            /** @enum {string} */
+            corridor: "AR" | "BR" | "CO" | "MX" | "US";
+            currency: components["schemas"]["RampCurrency"];
+            direction: components["schemas"]["RampDirection"];
+            /** @description Maximum amount in the returned currency's human units. */
+            max: string;
+            period: components["schemas"]["UserLimitPeriod"];
+            /** @description Amount consumed during the period in the returned currency's human units. */
+            used: string;
+        };
+        UserLimitPeriod: {
+            /**
+             * Format: date-time
+             * @description Exclusive end of the reported period.
+             */
+            endsAt: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** @constant */
+            type: "calendar_month";
         };
         ValidatePixKeyResponse: {
             /** @description Indicates if the PIX key is valid. */
@@ -2458,6 +2508,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BrlaErrorResponse"];
                 };
+            };
+        };
+    };
+    getUserLimits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GetUserLimitsRequest"];
+            };
+        };
+        responses: {
+            /** @description Limits and consumed amounts for both directions of every requested corridor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUserLimitsResponse"];
+                };
+            };
+            /** @description Invalid corridor list or no completed provider profile for a requested corridor. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is not linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Provider limits are unavailable or invalid. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

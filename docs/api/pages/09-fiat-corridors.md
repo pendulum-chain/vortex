@@ -41,6 +41,8 @@ After `POST /v1/ramp/start`, the response's `achPaymentData` contains the bank t
 
 Per-currency minimum and maximum amounts are enforced at quote time and refreshed periodically from the payment partner. A quote outside the limits fails with a descriptive error; prompt the user to adjust the amount.
 
+Authenticated clients can request account limits with `POST /v1/limits`, passing a list of corridor country codes. The response contains separate onramp and offramp maximums, consumed amounts, units, and calendar-month boundaries. Avenia usage and period values come from the provider. Alfredpay usage is calculated from completed Vortex ramps and cached for 60 seconds; its calendar-month reset is a Vortex assumption because Alfredpay's public API does not publish quota-period semantics.
+
 ## EUR (SEPA)
 
 EUR routes settle over SEPA using the `"sepa"` rail identifier and support both buys and sells. EUR onramps deliver to EVM networks; AssetHub is not available as a destination.

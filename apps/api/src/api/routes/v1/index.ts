@@ -15,6 +15,7 @@ import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
+import limitsRoutes from "./limits.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
@@ -110,6 +111,11 @@ router.use("/brla", brlaRoutes);
  * GET/POST v1/ramp
  */
 router.use("/ramp", rampRoutes);
+
+/**
+ * POST v1/limits
+ */
+router.use("/limits", limitsRoutes);
 
 /**
  * GET v1/supported-payment-methods

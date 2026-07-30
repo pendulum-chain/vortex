@@ -17,6 +17,7 @@ const REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const CUSTOMER_TYPES: AlfredpayCustomerType[] = [AlfredpayCustomerType.INDIVIDUAL, AlfredpayCustomerType.BUSINESS];
 
 const ALFREDPAY_FIATS: Record<string, FiatToken> = {
+  ARS: FiatToken.ARS,
   COP: FiatToken.COP,
   MXN: FiatToken.MXN,
   USD: FiatToken.USD

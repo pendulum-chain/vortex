@@ -16,7 +16,7 @@ Three middleware components:
 
 ### Optional user binding (`api_keys.user_id`)
 
-A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET NULL`) lets an admin bind a secret key to a specific profile. The binding is propagated to the request as `req.apiKeyUserId` (set by `setApiKeyUserId` in the auth middleware). Controllers and services derive the **effective user id** with `getEffectiveUserId(req)`, which prefers `req.userId` (Supabase) and falls back to `req.apiKeyUserId`. Public keys never populate `req.apiKeyUserId`. Use of the effective user is required for Alfredpay quote creation, ramp registration on Avenia/BRL or Alfredpay corridors, Alfredpay fiat-account management, and the BRLA pre-flight endpoints.
+A nullable `user_id` column on `api_keys` (FK to `profiles.id`, `ON DELETE SET NULL`) lets an admin bind a secret key to a specific profile. The binding is propagated to the request as `req.apiKeyUserId` (set by `setApiKeyUserId` in the auth middleware). Controllers and services derive the **effective user id** with `getEffectiveUserId(req)`, which prefers `req.userId` (Supabase) and falls back to `req.apiKeyUserId`. Public keys never populate `req.apiKeyUserId`. Use of the effective user is required for Alfredpay quote creation, ramp registration on Avenia/BRL or Alfredpay corridors, Alfredpay fiat-account management, unified limit reads, and the BRLA pre-flight endpoints.
 
 ### Partner binding (`api_keys.partner_id`) and user-scoped keys
 

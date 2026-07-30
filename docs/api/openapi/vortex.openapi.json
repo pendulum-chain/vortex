@@ -503,6 +503,34 @@
         ],
         "type": "object"
       },
+      "GetUserLimitsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "corridors": {
+            "items": {
+              "enum": ["AR", "BR", "CO", "MX", "US"],
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
+          }
+        },
+        "required": ["corridors"],
+        "type": "object"
+      },
+      "GetUserLimitsResponse": {
+        "properties": {
+          "limits": {
+            "items": {
+              "$ref": "#/components/schemas/UserLimit"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["limits"],
+        "type": "object"
+      },
       "GetUserRemainingLimitResponse": {
         "properties": {
           "remainingLimitOfframp": {
@@ -1418,6 +1446,52 @@
         "required": ["credentialId", "createdAt", "expiresAt", "isActive", "publicKey", "secretKey"],
         "type": "object"
       },
+      "UserLimit": {
+        "properties": {
+          "corridor": {
+            "enum": ["AR", "BR", "CO", "MX", "US"],
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/RampCurrency"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RampDirection"
+          },
+          "max": {
+            "description": "Maximum amount in the returned currency's human units.",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/UserLimitPeriod"
+          },
+          "used": {
+            "description": "Amount consumed during the period in the returned currency's human units.",
+            "type": "string"
+          }
+        },
+        "required": ["corridor", "currency", "direction", "max", "period", "used"],
+        "type": "object"
+      },
+      "UserLimitPeriod": {
+        "properties": {
+          "endsAt": {
+            "description": "Exclusive end of the reported period.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "type": {
+            "const": "calendar_month",
+            "type": "string"
+          }
+        },
+        "required": ["type", "startsAt", "endsAt"],
+        "type": "object"
+      },
       "ValidatePixKeyResponse": {
         "properties": {
           "valid": {
@@ -2324,6 +2398,50 @@
         },
         "security": [],
         "summary": "Validate Pix key",
+        "tags": ["Account Management"]
+      }
+    },
+    "/v1/limits": {
+      "post": {
+        "deprecated": false,
+        "description": "Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.\n\n**Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.",
+        "operationId": "getUserLimits",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetUserLimitsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserLimitsResponse"
+                }
+              }
+            },
+            "description": "Limits and consumed amounts for both directions of every requested corridor."
+          },
+          "400": {
+            "description": "Invalid corridor list or no completed provider profile for a requested corridor."
+          },
+          "401": {
+            "description": "Missing or invalid credentials."
+          },
+          "403": {
+            "description": "The credential is not linked to a user."
+          },
+          "502": {
+            "description": "Provider limits are unavailable or invalid."
+          }
+        },
+        "security": [],
+        "summary": "Get user ramp limits",
         "tags": ["Account Management"]
       }
     },

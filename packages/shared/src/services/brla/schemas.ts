@@ -39,7 +39,7 @@ type ConsumedQuote = Pick<AveniaQuoteResponse, "quoteToken" | "inputAmount" | "o
   appliedFees: ConsumedFee[];
 };
 type ConsumedLimit = Pick<Limit, "currency" | "maxFiatIn" | "maxFiatOut"> & {
-  usedLimit: Pick<UsedLimitDetails, "usedFiatIn" | "usedFiatOut">;
+  usedLimit: Pick<UsedLimitDetails, "month" | "usedFiatIn" | "usedFiatOut" | "year">;
 };
 type ConsumedAccountInfo = Pick<AveniaAccountInfoResponse, "brCode"> & {
   accountInfo: Pick<AveniaSubaccountAccountInfo, "identityStatus">;
@@ -103,8 +103,10 @@ export const aveniaAccountLimitsSchema = z.looseObject({
         maxFiatIn: z.string().regex(DECIMAL_STRING),
         maxFiatOut: z.string().regex(DECIMAL_STRING),
         usedLimit: z.looseObject({
+          month: z.number().int().min(1).max(12),
           usedFiatIn: z.string().regex(DECIMAL_STRING),
-          usedFiatOut: z.string().regex(DECIMAL_STRING)
+          usedFiatOut: z.string().regex(DECIMAL_STRING),
+          year: z.number().int()
         })
       })
     )
