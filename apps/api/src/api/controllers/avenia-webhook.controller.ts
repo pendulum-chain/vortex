@@ -2,7 +2,7 @@ import { AveniaVerificationAttempt, AveniaWebhookEvent } from "@vortexfi/shared"
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
-import TaxId from "../../models/taxId.model";
+import { findAveniaOwnerBySubaccountId } from "../services/avenia/avenia-customer.service";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { verifyAveniaSignature } from "../services/avenia/webhook-signature";
 
@@ -12,8 +12,8 @@ import { verifyAveniaSignature } from "../services/avenia/webhook-signature";
  *
  * Avenia documents no KYB subscription, so company events are only expected to arrive
  * because both kinds share the attempts resource and we subscribe with "*". Which kind
- * an event belongs to is read from our own TaxId.accountType rather than the payload,
- * so this keeps working whatever Avenia labels the event.
+ * an event belongs to is read from our own ProviderCustomer.customerType rather than the
+ * payload, so this keeps working whatever Avenia labels the event.
  *
  * Everything past signature verification answers 200: Avenia must not retry an event
  * we have deliberately ignored (a ticket event, an unknown subaccount, a non-terminal
@@ -51,24 +51,22 @@ export const handleAveniaWebhook = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const taxIdRecord = await TaxId.findOne({
-      order: [["createdAt", "DESC"]],
-      where: { subAccountId: event.subAccountId }
-    });
+    const owner = await findAveniaOwnerBySubaccountId(event.subAccountId);
 
-    if (!taxIdRecord?.userId) {
+    if (!owner) {
       logger.warn(`Avenia webhook for unknown or partner-owned subaccount ${event.subAccountId}; no email will be sent`);
       res.status(httpStatus.OK).json({ received: true });
       return;
     }
 
-    const enqueued = await enqueueVerificationNotification(attempt, taxIdRecord.userId);
+    const enqueued = await enqueueVerificationNotification(attempt, owner.profileId);
 
     // accountType is logged so we can confirm empirically whether company attempts
     // reach us this way; the reconciliation poller is retired once they demonstrably do.
     logger.info(
-      `Avenia ${taxIdRecord.accountType} verification webhook: attempt ${attempt.id} status ${attempt.status}` +
-        `${attempt.result ? `/${attempt.result}` : ""}, email ${enqueued ? "enqueued" : "not applicable"}`
+      `Avenia ${owner.accountType} verification webhook: attempt ${attempt.id} ` +
+        `status ${attempt.status}${attempt.result ? `/${attempt.result}` : ""}, ` +
+        `email ${enqueued ? "enqueued" : "not applicable"}`
     );
 
     res.status(httpStatus.OK).json({ received: true });

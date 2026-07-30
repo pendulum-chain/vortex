@@ -29,7 +29,9 @@ for the in-app notification centre. The two are unrelated, and this feature does
 consult `notification_preferences.email_enabled` — see the open gap in the invariants below.
 
 The KYB worker polls `GET /v2/kyc/attempts/{attemptId}` for the specific attempt id recorded
-in `TaxId.kycAttempt` when `initiateKybLevel1` ran. It does not list a subaccount's attempts
+in `kyc_cases.provider_case_id` when `initiateKybLevel1` ran, and addresses the mail to the
+owning `customer_entities.profile_id` — a partner-owned entity has no profile, so it is
+skipped rather than notified. It does not list a subaccount's attempts
 and pick one: that endpoint has no documented ordering, so selecting from it would guess at
 which attempt a notification describes, and `resource_id` — the dedupe key — is that attempt id.
 

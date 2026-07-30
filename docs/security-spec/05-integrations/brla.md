@@ -64,10 +64,12 @@ The route is mounted **ahead of the global JSON body parser** (`config/express.t
 `bodyParser.raw`, because the signature covers the exact bytes sent — a parsed and
 re-serialised payload does not reproduce them.
 
-Verification kind is resolved from the local `TaxId.accountType` for the event's
-`subAccountId`, never from the payload, so a caller cannot influence which flow an event
-is treated as. Only `attempt.id`, `status`, `result`, `resultMessage` and `updatedAt` are
-consumed; nothing in the payload updates ramp, quote, or KYC-status state.
+Verification kind is resolved from the local `provider_customers.customer_type` for the
+event's `subAccountId`, never from the payload, so a caller cannot influence which flow an
+event is treated as. The recipient is likewise local: the owning `customer_entities.profile_id`,
+and an unknown or partner-owned subaccount is acknowledged without notifying anyone. Only
+`attempt.id`, `status`, `result`, `resultMessage` and `updatedAt` are consumed; nothing in the
+payload updates ramp, quote, or KYC-status state.
 
 ### The three-amount model (off-ramp)
 

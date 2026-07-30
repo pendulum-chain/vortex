@@ -1,3 +1,4 @@
+import * as shared from "@vortexfi/shared";
 import crypto from "crypto";
 
 function generate() {
@@ -18,7 +19,11 @@ export const keyServer = { servedKey: primaryKeys.publicKey };
 
 export const getAveniaPublicKey = async (): Promise<string> => keyServer.servedKey;
 
+// mock.module replaces the module for the whole process, so the real exports are spread
+// back in: a bare stub would strip every other @vortexfi/shared export from any test file
+// that happens to load after this one.
 export const sharedModuleMock = () => ({
+  ...shared,
   BrlaApiService: { getInstance: () => ({ getAveniaPublicKey }) }
 });
 

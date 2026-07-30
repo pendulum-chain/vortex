@@ -834,11 +834,9 @@ export const initiateKybLevel1 = async (
     // steps — so our status stays pending (dashboard keeps offering Continue). in_review is set only
     // once Avenia reports PROCESSING.
     await record.update({ status: VerificationStatus.Pending, statusExternal: KycAttemptStatus.PENDING });
+    // The attempt id persisted here is what the KYB status worker polls; without it the
+    // outcome is never observed and no verification email is sent.
     await upsertAveniaKycCase(record, VerificationStatus.Pending, KycAttemptStatus.PENDING, response.attemptId);
-
-    // The KYB status worker polls this attempt directly; without it the outcome
-    // is never observed and no verification email is sent.
-    await taxIdRecord.update({ kycAttempt: response.attemptId });
 
     res.status(httpStatus.OK).json(response);
   } catch (error) {

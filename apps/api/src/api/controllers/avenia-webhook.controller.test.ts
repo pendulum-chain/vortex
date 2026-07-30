@@ -10,24 +10,27 @@ import {
   sign
 } from "../services/avenia/__tests__/fixtures";
 
-interface TaxIdRow {
+interface AveniaOwner {
   accountType: string;
-  subAccountId: string;
-  userId: string | null;
+  profileId: string;
 }
 
 const enqueueVerificationNotification = mock(async (_attempt: { id: string }, _userId: string): Promise<boolean> => true);
-const findOne = mock(async (): Promise<TaxIdRow | null> => ({
-  accountType: "COMPANY",
-  subAccountId: "sub-1",
-  userId: "user-1"
-}));
+const findAveniaOwnerBySubaccountId = mock(
+  async (): Promise<AveniaOwner | null> => ({ accountType: "COMPANY", profileId: "user-1" })
+);
 
 // Signature verification is exercised for real here; only its key source is stubbed.
 mock.module("@vortexfi/shared", sharedModuleMock);
 mock.module("../../config/logger", loggerModuleMock);
 mock.module("../services/avenia/verification-notifications", () => ({ enqueueVerificationNotification }));
-mock.module("../../models/taxId.model", () => ({ default: { findOne } }));
+// mock.module is process-global, so the rest of the service is spread back in: stubbing the
+// lookup alone would strip upsertAveniaKycCase from every test file loaded after this one.
+const aveniaCustomerService = await import("../services/avenia/avenia-customer.service");
+mock.module("../services/avenia/avenia-customer.service", () => ({
+  ...aveniaCustomerService,
+  findAveniaOwnerBySubaccountId
+}));
 
 const { handleAveniaWebhook } = await import("./avenia-webhook.controller");
 
@@ -60,8 +63,8 @@ describe("handleAveniaWebhook", () => {
   beforeEach(() => {
     keyServer.servedKey = primaryKeys.publicKey;
     enqueueVerificationNotification.mockClear();
-    findOne.mockClear();
-    findOne.mockImplementation(async () => ({ accountType: "COMPANY", subAccountId: "sub-1", userId: "user-1" }));
+    findAveniaOwnerBySubaccountId.mockClear();
+    findAveniaOwnerBySubaccountId.mockImplementation(async () => ({ accountType: "COMPANY", profileId: "user-1" }));
   });
 
   it("enqueues a verification email for a known subaccount", async () => {
@@ -86,7 +89,7 @@ describe("handleAveniaWebhook", () => {
     const response = await post(EVENT, sign(Buffer.from(EVENT), rotatedKeys.privateKey));
 
     expect(response.status).toBe(401);
-    expect(findOne).not.toHaveBeenCalled();
+    expect(findAveniaOwnerBySubaccountId).not.toHaveBeenCalled();
     expect(enqueueVerificationNotification).not.toHaveBeenCalled();
   });
 
@@ -112,8 +115,8 @@ describe("handleAveniaWebhook", () => {
     expect(enqueueVerificationNotification).not.toHaveBeenCalled();
   });
 
-  it("acknowledges an unknown subaccount so Avenia stops retrying", async () => {
-    findOne.mockImplementation(async () => null);
+  it("acknowledges an unknown or partner-owned subaccount so Avenia stops retrying", async () => {
+    findAveniaOwnerBySubaccountId.mockImplementation(async () => null);
 
     const response = await signed(EVENT);
 

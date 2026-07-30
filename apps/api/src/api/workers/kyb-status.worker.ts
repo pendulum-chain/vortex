@@ -1,8 +1,10 @@
-import { AveniaAccountType, BrlaApiService } from "@vortexfi/shared";
+import { BrlaApiService } from "@vortexfi/shared";
 import { CronJob } from "cron";
 import { Op } from "sequelize";
 import logger from "../../config/logger";
-import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
+import CustomerEntity from "../../models/customerEntity.model";
+import KycCase from "../../models/kycCase.model";
+import { VerificationStatus } from "../../models/providerCustomer.model";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 
 const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
@@ -43,13 +45,14 @@ class KybStatusWorker {
   // eslint-disable-next-line class-methods-use-this
   private async poll(): Promise<void> {
     try {
-      const pending = await TaxId.findAll({
+      const pending = await KycCase.findAll({
+        include: [{ as: "customerEntity", model: CustomerEntity, required: true }],
         where: {
-          accountType: AveniaAccountType.COMPANY,
-          internalStatus: TaxIdInternalStatus.Requested,
-          kycAttempt: { [Op.not]: null },
-          requestedDate: { [Op.gte]: new Date(Date.now() - MAX_AGE_MS) },
-          userId: { [Op.not]: null }
+          createdAt: { [Op.gte]: new Date(Date.now() - MAX_AGE_MS) },
+          provider: "avenia",
+          providerCaseId: { [Op.not]: null },
+          status: { [Op.notIn]: [VerificationStatus.Approved, VerificationStatus.Rejected] },
+          type: "kyb"
         }
       });
 
@@ -61,18 +64,23 @@ class KybStatusWorker {
 
       const brlaApiService = BrlaApiService.getInstance();
 
-      for (const taxIdRecord of pending) {
+      for (const kycCase of pending) {
         try {
-          // Non-null by the kycAttempt filter in the query above.
-          const { attempt } = await brlaApiService.getKybAttemptStatus(taxIdRecord.kycAttempt as string);
+          // Partner-owned entities have no profile to email.
+          const profileId = kycCase.customerEntity?.profileId;
+          if (!profileId) {
+            continue;
+          }
+
+          // Non-null by the providerCaseId filter in the query above.
+          const { attempt } = await brlaApiService.getKybAttemptStatus(kycCase.providerCaseId as string);
           if (!attempt) {
             continue;
           }
 
-          // Non-null by the userId filter in the query above.
-          await enqueueVerificationNotification(attempt, taxIdRecord.userId as string);
+          await enqueueVerificationNotification(attempt, profileId);
         } catch (error) {
-          logger.error(`Error checking KYB status for subaccount ${taxIdRecord.subAccountId}: ${error}`);
+          logger.error(`Error checking KYB status for attempt ${kycCase.providerCaseId}: ${error}`);
         }
       }
     } catch (error) {
