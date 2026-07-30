@@ -123,7 +123,8 @@ export class RampService {
         status.status === "COMPLETE" ||
         status.status === "FAILED" ||
         status.currentPhase === "complete" ||
-        status.currentPhase === "failed"
+        status.currentPhase === "failed" ||
+        status.currentPhase === "timedOut"
       ) {
         return status;
       }
