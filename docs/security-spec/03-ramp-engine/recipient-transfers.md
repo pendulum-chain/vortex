@@ -35,7 +35,9 @@ out against another tenant's relationship.
    set it to `NULL` (acceptance re-checks `expired` under the row lock, so the sweep below cannot
    race an accept into overwriting an already-expired invite); sender listing also expires and
    clears pending rows past their TTL — expired rows stay visible to the sender (token `NULL`,
-   no re-copy) until archived — so accepted/expired invites hold no live secret at rest
+   no re-copy) until archived. An expired row not revisited by either path may retain its raw
+   value, but the server checks `expires_at` before redemption and will clear it on the next
+   preview, acceptance, or sender listing. Accepted invites hold no live secret at rest
    (`recipient-invite.service.ts`, `recipients.controller.ts`).
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its
@@ -44,8 +46,8 @@ out against another tenant's relationship.
    holding the token (subject to 2). Once accepted it binds to `accepted_by_profile_id`: any
    *other* profile presenting the token gets `409 INVITE_ALREADY_ACCEPTED`. Revoked/expired →
    `410`. Expiry is 14 days (`INVITE_TTL_MS`); redemption of a *pending* invite past `expires_at`
-   transitions the row to `expired`; sender listing performs the same transition and excludes
-   expired rows. This holds under concurrency: the acceptance transaction
+   transitions the row to `expired`; sender listing performs the same transition and includes
+   expired rows without a token so the sender can see why the link stopped working. This holds under concurrency: the acceptance transaction
    re-reads the invitation `FOR UPDATE` and re-checks acceptance/revocation under the lock, so
    two profiles redeeming the same token simultaneously produce exactly one relationship
    (integration-tested with parallel accepts).
@@ -111,8 +113,9 @@ out against another tenant's relationship.
     recipient payout capture remains in the recipient's widget onboarding session.
 11. **Invite discounts are role-gated at creation and materialized only once, at first
     acceptance.** `POST /v1/recipients/invite` accepts an optional `discounts` body
-    (`buyBps`/`sellBps`, integers `0..300` — bounded so the advertised discount always fits
-    under the runtime EVM discount-subsidy cap with execution headroom; `0` means none)
+    (`buyBps`/`sellBps`, integers `0..configuredMaximum`, where the deployment setting
+    `RECIPIENT_INVITE_MAX_DISCOUNT_BPS` defaults to and can never exceed the immutable
+    application hard cap of `300`; `0` means none)
     only from profiles holding the `discount_manager` role in `profile_roles`
     (`403 DISCOUNT_ROLE_REQUIRED` otherwise — the role check is server-side, the dashboard's
     field visibility is UX only). Validated seeds are stored on
@@ -207,7 +210,8 @@ payout-instrument decision (no code path writes `verified` payout references yet
 - **Self-granted pricing discount via invite**: a sender without the `discount_manager` role
   posts `discounts` directly to the API (bypassing the role-gated UI), or a discount manager
   posts oversized bps. The role is checked server-side against `profile_roles` and bps are
-  bounded (`0..1000`, integers); the seeded `fiatCurrency` comes from the validated corridor, so
+  bounded to integers from zero through the configured maximum, with an immutable 300-bps
+  application hard cap; the seeded `fiatCurrency` comes from the validated corridor, so
   a seed can never price a corridor the invite was not created for. An accepting profile with an
   existing active assignment keeps it (admin-set pricing is never clobbered by a link).
 - **Transfer to an unverified/restricted recipient**: the eligibility gate reports
