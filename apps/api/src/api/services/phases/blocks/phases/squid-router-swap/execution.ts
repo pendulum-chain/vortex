@@ -39,6 +39,12 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { SlackNotifier } from "../../../../slack.service";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import {
+  FinancialOperationReconciliationRequiredError,
+  FinancialOperationRejectedError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { settlementBalanceKey } from "../../core/settlement";
 import { SquidRouterSwapContext } from "./simulation";
@@ -176,7 +182,12 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
           );
         }
 
-        approveHash = await this.executeTransaction(sourceNetwork, approveTransaction.txData as string);
+        approveHash = await this.executeTransaction(
+          state,
+          sourceNetwork,
+          approveTransaction.txData as string,
+          "approve-broadcast"
+        );
         logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
         await state.update({
@@ -193,7 +204,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       let swapHash = state.state.squidRouterSwapHash;
       let updatedState = state;
       if (!swapHash) {
-        swapHash = await this.executeTransaction(sourceNetwork, swapTransaction.txData as string);
+        swapHash = await this.executeTransaction(state, sourceNetwork, swapTransaction.txData as string, "swap-broadcast");
         logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
         updatedState = await state.update({
@@ -210,19 +221,45 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       return updatedState;
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(error.message);
+      }
       throw error;
     }
   }
 
-  private async executeTransaction(network: EvmNetworks, txData: string): Promise<string> {
+  private async executeTransaction(
+    state: RampState,
+    network: EvmNetworks,
+    txData: string,
+    attemptClass: string
+  ): Promise<string> {
     try {
       const publicClient = EvmClientManager.getInstance().getClient(network);
-      const txHash = await publicClient.sendRawTransaction({
-        serializedTransaction: txData as `0x${string}`
+      const { hash } = await runFinancialOperation({
+        attemptClass,
+        externalId: operation => operation.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = await publicClient.sendRawTransaction({
+            serializedTransaction: txData as `0x${string}`
+          });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status !== "success") {
+            throw new FinancialOperationRejectedError(`Squid Router transaction ${hash} failed`);
+          }
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: network,
+        request: { network, signedTransaction: txData },
+        scopeId: state.id,
+        scopeType: "ramp"
       });
-      return txHash;
+      return hash;
     } catch (error) {
       logger.error("Error sending raw transaction", error);
+      if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
       throw new Error("Failed to send transaction");
     }
   }
@@ -450,7 +487,14 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
             const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork as EvmNetworks;
 
-            payTxHash = await this.executeFundTransaction(fromChain, nativeToFundRaw, swapHash as `0x${string}`, logIndex);
+            payTxHash = await this.executeFundTransaction(
+              state,
+              fromChain,
+              nativeToFundRaw,
+              swapHash as `0x${string}`,
+              logIndex,
+              "initial-gas-payment"
+            );
 
             const subsidyToken = fromChain === Networks.Polygon ? SubsidyToken.MATIC : SubsidyToken.ETH;
             const payerAccount = getEvmFundingAccount(fromChain).address;
@@ -639,7 +683,14 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     }
 
     const fromChain = getBlockMetadata(quote.metadata, SquidRouterSwapContext).fromNetwork as EvmNetworks;
-    const extraGasTxHash = await this.executeFundTransaction(fromChain, nativeToFundRaw, swapHash as `0x${string}`, logIndex);
+    const extraGasTxHash = await this.executeFundTransaction(
+      state,
+      fromChain,
+      nativeToFundRaw,
+      swapHash as `0x${string}`,
+      logIndex,
+      "supplemental-gas-payment"
+    );
     await this.patchStateKey(state, "squidRouterExtraGasTxHash", extraGasTxHash);
 
     logger.warn(
@@ -741,10 +792,12 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
   }
 
   private async executeFundTransaction(
+    state: RampState,
     fromChain: EvmNetworks,
     tokenValueRaw: string,
     swapHash: `0x${string}`,
-    logIndex: number
+    logIndex: number,
+    attemptClass: string
   ): Promise<Hash> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
@@ -764,21 +817,40 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       });
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-      const gasPaymentHash = await walletClient.sendTransaction({
-        account: walletClientAccount,
-        chain: publicClient.chain,
-        data: transactionData,
-        maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
-        maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
-        to: AXL_GAS_SERVICE_EVM as `0x${string}`,
-        value: BigInt(tokenValueRaw)
+      const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
+      const { hash: gasPaymentHash } = await runFinancialOperation({
+        attemptClass,
+        externalId: operation => operation.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = await walletClient.sendTransaction({
+            account: walletClientAccount,
+            chain: publicClient.chain,
+            data: transactionData,
+            maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
+            maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
+            nonce,
+            to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+            value: BigInt(tokenValueRaw)
+          });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status !== "success") {
+            throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
+          }
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: fromChain,
+        request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, nonce, swapHash },
+        scopeId: state.id,
+        scopeType: "ramp"
       });
 
       logger.info(`SquidRouterPayExecutor: ${fromChain} fund transaction sent with hash: ${gasPaymentHash}`);
       return gasPaymentHash;
     } catch (error) {
       logger.error(`SquidRouterPayExecutor: Error funding gas to Axelar gas service on ${fromChain}: `, error);
+      if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
       throw new Error(`SquidRouterPayExecutor: Failed to send ${fromChain} transaction`);
     }
   }

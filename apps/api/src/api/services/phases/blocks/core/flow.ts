@@ -2,6 +2,7 @@ import { EphemeralAccountType, type RampPhase } from "@vortexfi/shared";
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import { computeFees } from "./fees";
+import { runFinancialOperation } from "./financial-operation";
 import { assertFlowIdentity, BLOCK_FLOW_CATALOG_VERSION, buildFlowIdentity } from "./identity";
 import { type AnyContextMetadata, isRecord } from "./metadata";
 import { aggregateNativePrefunding, allocateNonces } from "./prepare";
@@ -28,6 +29,10 @@ import type {
 type AnyPhase = {
   readonly executors?: PhaseHandler[];
   readonly context: AnyContextMetadata;
+  readonly externalOperations?: {
+    register?: { provider: string; attemptClass?: string };
+    start?: { provider: string; attemptClass?: string };
+  };
   readonly name: string;
   readonly phases: RampPhase[];
   readonly prepareTxs?: (ctx: never) => Promise<{ intents: TxIntent[]; state?: unknown }>;
@@ -245,7 +250,7 @@ export class FlowBuilder<O extends PhaseIO> {
           if (!phase.register) {
             continue;
           }
-          const result = await phase.register({
+          const registerContext = {
             authenticatedUser: ctx.authenticatedUser,
             input: ctx.input,
             ipAddress: ctx.ipAddress,
@@ -253,7 +258,29 @@ export class FlowBuilder<O extends PhaseIO> {
             quote: ctx.quote,
             signingAccounts: ctx.signingAccounts,
             transaction: ctx.transaction
-          } as never);
+          };
+          const registrationOperation = phase.externalOperations?.register;
+          const result =
+            registrationOperation && ctx.transaction
+              ? await runFinancialOperation({
+                  attemptClass: registrationOperation.attemptClass ?? "registration",
+                  flow: identity,
+                  perform: () => phase.register?.(registerContext as never) as Promise<RegistrationResult<unknown, unknown>>,
+                  phase: phase.phases[0] ?? phase.context.key,
+                  provider: registrationOperation.provider,
+                  request: {
+                    authenticatedUserId: ctx.authenticatedUser.id,
+                    input: ctx.input,
+                    ipAddress: ctx.ipAddress,
+                    metadata: blocks[phase.context.key],
+                    quoteId: ctx.quote.id,
+                    signingAccounts: ctx.signingAccounts
+                  },
+                  retryFailed: true,
+                  scopeId: ctx.quote.id,
+                  scopeType: "quote"
+                })
+              : await phase.register(registerContext as never);
           registrationFacts[phase.context.key] = result.facts;
           if (result.metadata !== undefined) {
             blocks[phase.context.key] = result.metadata;
@@ -307,13 +334,34 @@ export class FlowBuilder<O extends PhaseIO> {
           if (!phase.start) {
             continue;
           }
-          const result = await phase.start({
+          const startContext = {
             metadata: metadata.blocks[phase.context.key],
             ownState: state.blockState?.[phase.context.key],
             quote: ctx.quote,
+            rampId: ctx.rampId,
             state,
             userId: ctx.userId
-          } as never);
+          };
+          const startOperation = phase.externalOperations?.start;
+          const result =
+            startOperation && ctx.rampId
+              ? await runFinancialOperation({
+                  attemptClass: startOperation.attemptClass ?? "start",
+                  flow: identity,
+                  perform: () => phase.start?.(startContext as never) as Promise<StartResult<unknown>>,
+                  phase: phase.phases[0] ?? phase.context.key,
+                  provider: startOperation.provider,
+                  request: {
+                    metadata: metadata.blocks[phase.context.key],
+                    ownState: state.blockState?.[phase.context.key],
+                    quoteId: ctx.quote.id,
+                    userId: ctx.userId
+                  },
+                  retryFailed: true,
+                  scopeId: ctx.rampId,
+                  scopeType: "ramp"
+                })
+              : await phase.start(startContext as never);
           if (result.metadata !== undefined) {
             metadata = { ...metadata, blocks: { ...metadata.blocks, [phase.context.key]: result.metadata } };
           }

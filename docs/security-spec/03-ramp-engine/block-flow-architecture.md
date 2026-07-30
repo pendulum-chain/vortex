@@ -65,6 +65,20 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     context-key typing only. Startup checks establish catalog/registry construction.
     Runtime validation establishes persisted-data compatibility. Tests are evidence of
     these controls, not substitutes for them.
+14. **Durable external-operation identity.** Every provider order, ticket, payout,
+    subsidy, swap, bridge broadcast, gas payment, or settlement transfer MUST claim a
+    unique `financial_operations` row before the external call. Its operation key is
+    derived from scope type/ID, persisted flow ID/version, phase instance, and attempt
+    class; its request hash binds the financial inputs.
+15. **Outcome-aware retry.** Financial-operation status MUST distinguish
+    `not_started`, `submitted`, `confirmed`, `failed`, and `unknown`. A confirmed
+    result is replayed locally without another provider call. A definitive rejection
+    may be retried with corrected inputs. A submitted or ambiguous result MUST halt for
+    reconciliation and MUST NOT be repeated automatically.
+16. **Upstream idempotency preference.** The stable operation key MUST be sent as the
+    provider idempotency key when the provider supports one. When the integration does
+    not expose such a facility, the local claim plus fail-closed reconciliation policy
+    is mandatory; an ambiguous timeout is not a retryable error.
 
 ## Threat Vectors & Mitigations
 
@@ -79,6 +93,9 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 | Old or manually edited JSONB is cast into a new TypeScript type | Versioned envelope validation before registration, start, or recovery |
 | Two blocks flatten different values into one legacy field | Compatibility merge rejects conflicting values |
 | An old flow implementation is removed too early | Deployment/removal check against pending quotes and nonterminal ramps |
+| A provider accepts an order and the database transaction later rolls back | Independent durable financial-operation claim; retry reuses the confirmed response or halts on ambiguity |
+| Two workers attempt the same external side effect | Unique operation key and atomic `not_started` → `submitted` claim |
+| A provider has no idempotency-key API | Unknown outcomes require reconciliation; automatic repetition is forbidden |
 
 ## Audit Checklist
 
@@ -91,6 +108,13 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 - [x] Handler overrides are checked against the persisted version's transition graph.
 - [x] Runtime envelopes and exact block-key sets are checked before lifecycle hooks.
 - [x] Compatibility projection rejects conflicting duplicate destinations.
+- [x] Provider lifecycle hooks that create orders or tickets are declared as external
+      operations and use a durable claim outside the ramp registration transaction.
+- [x] Confirmed operation responses are replayed locally; ambiguous outcomes halt
+      without calling the provider again.
+- [ ] Current Avenia, Mykobo, and AlfredPay clients do not expose a documented
+      idempotency-key parameter. Their operation keys are retained locally and the
+      fail-closed reconciliation fallback applies until provider support is available.
 - [ ] Block-local schemas currently validate their versioned object envelopes and exact
       ownership keys; field-by-field schemas must be added when a block changes persisted
       shape. Until then, a version bump is mandatory for any such change.

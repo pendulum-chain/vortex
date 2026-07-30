@@ -3,6 +3,7 @@ import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
+import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
 import MaintenanceSchedule from "./maintenanceSchedule.model";
 import Notification from "./notification.model";
@@ -102,6 +103,7 @@ const models = {
   ApiClientEvent,
   ApiKey,
   CustomerEntity,
+  FinancialOperation,
   KycCase,
   MaintenanceSchedule,
   Notification,

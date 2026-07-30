@@ -5,6 +5,7 @@ import RampState from "../../../../models/rampState.model";
 import type { PhaseHandler } from "../../phases/base-phase-handler";
 import phaseRegistry from "../../phases/phase-registry";
 import { BlockInitialExecutor } from "./core/initial-executor";
+import { getFlowMetadata } from "./core/metadata";
 import { getBlockExecutorFlows, getBlockFlowByIdentity, resolvePersistedBlockFlow } from "./flows/catalog";
 
 export function getBlockFlowHandlers(): PhaseHandler[] {
@@ -65,7 +66,12 @@ export async function assertPersistedBlockFlowVersionsSupported(): Promise<void>
   ]);
 
   for (const quote of pendingQuotes) {
-    resolvePersistedBlockFlow(quote.metadata);
+    const flow = resolvePersistedBlockFlow(quote.metadata);
+    if (!getFlowMetadata(quote.metadata).flow) {
+      await quote.update({
+        metadata: { ...getFlowMetadata(quote.metadata), flow: flow.identity } as unknown as QuoteTicket["metadata"]
+      });
+    }
   }
 
   for (const ramp of activeRamps) {
@@ -90,6 +96,12 @@ export async function assertPersistedBlockFlowVersionsSupported(): Promise<void>
     if (JSON.stringify(ramp.state.phaseFlow) !== JSON.stringify(expectedPhaseFlow)) {
       throw new Error(`Legacy ramp ${ramp.id} does not match supported flow ${flow.identity.id}@${flow.identity.version}`);
     }
+    if (!getFlowMetadata(quote.metadata).flow) {
+      await quote.update({
+        metadata: { ...getFlowMetadata(quote.metadata), flow: flow.identity } as unknown as QuoteTicket["metadata"]
+      });
+    }
+    await ramp.update({ state: { ...ramp.state, flow: flow.identity } });
   }
 
   logger.info(

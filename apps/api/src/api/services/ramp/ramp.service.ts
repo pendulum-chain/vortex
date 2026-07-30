@@ -1044,6 +1044,7 @@ export class RampService extends BaseRampService {
     const started = await resolvePersistedBlockFlow(metadata).start({
       metadata,
       quote: quote.get({ plain: true }),
+      rampId: rampState.id,
       state: rampState.state,
       userId: rampState.userId ?? undefined
     });

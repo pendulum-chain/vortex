@@ -14,6 +14,7 @@ export const AlfredpayMint: Phase<
 > = {
   context: AlfredpayMintContext,
   executors: [new AlfredpayOnrampMintExecutor()],
+  externalOperations: { start: { provider: "alfredpay" } },
   name: "AlfredpayMint",
   phases: ["alfredpayOnrampMint"],
   prepareTxs: prepareAlfredpayMintTxs,

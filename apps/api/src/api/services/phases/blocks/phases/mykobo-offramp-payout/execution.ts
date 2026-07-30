@@ -4,6 +4,11 @@ import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockState } from "../../core/metadata";
 import type { MykoboOfframpPayoutRegistrationFacts } from "./registration";
 import { MykoboOfframpPayoutContext } from "./simulation";
@@ -44,18 +49,35 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
       if (state.state.mykoboPayoutTxHash) {
         const receipt = await client.waitForTransactionReceipt({ hash: state.state.mykoboPayoutTxHash });
         if (receipt.status === "success") return;
+        throw this.createUnrecoverableError(`Mykobo payout transfer ${state.state.mykoboPayoutTxHash} failed`);
       } else {
         await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName());
       }
-      const hash = (await manager.sendRawTransactionWithRetry(
-        Networks.Base,
-        transaction.txData as `0x${string}`
-      )) as `0x${string}`;
-      const receipt = await client.waitForTransactionReceipt({ hash });
-      if (receipt.status !== "success") throw new Error(`Mykobo payout transfer ${hash} failed`);
+      const { hash } = await runFinancialOperation({
+        attemptClass: "presigned-payout-broadcast",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = (await manager.sendRawTransactionWithRetry(
+            Networks.Base,
+            transaction.txData as `0x${string}`
+          )) as `0x${string}`;
+          const receipt = await client.waitForTransactionReceipt({ hash });
+          if (receipt.status !== "success") throw new Error(`Mykobo payout transfer ${hash} failed`);
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: Networks.Base,
+        request: { network: Networks.Base, signedTransaction: transaction.txData },
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
       await state.update({ state: { ...state.state, mykoboPayoutTxHash: hash } });
     } catch (error) {
       if (error instanceof PhaseError) throw error;
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(error.message);
+      }
       logger.error("MykoboOfframpPayoutExecutor: Failed to send Mykobo payout transaction", error);
       throw this.createRecoverableError("Failed to send Mykobo payout transaction");
     }

@@ -124,6 +124,7 @@ export interface StartCtx<Metadata> {
   metadata: Readonly<Metadata>;
   ownState: Readonly<unknown>;
   quote: Readonly<QuoteFields>;
+  rampId?: string;
   state: Readonly<StateMetadata>;
   userId?: string;
 }
@@ -142,6 +143,10 @@ export interface Phase<
   RegistrationInput extends Record<string, unknown> = Record<string, unknown>
 > {
   readonly context: Context;
+  readonly externalOperations?: {
+    register?: { provider: string; attemptClass?: string };
+    start?: { provider: string; attemptClass?: string };
+  };
   readonly name: string;
   readonly phases: RampPhase[];
   // Property (not method) so pipe's brand check stays contravariant under strictFunctionTypes.
@@ -173,6 +178,7 @@ export interface FlowRegistrationResult {
 export interface FlowStartCtx {
   metadata: FlowMetadata;
   quote: Readonly<QuoteFields>;
+  rampId?: string;
   state: Readonly<StateMetadata>;
   userId?: string;
 }

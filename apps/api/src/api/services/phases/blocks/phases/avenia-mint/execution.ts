@@ -26,6 +26,11 @@ import { APIError } from "../../../../../errors/api-error";
 import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { syncAveniaOnHoldState } from "./on-hold";
@@ -168,42 +173,58 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
         : new Error(`Error checking Avenia balance: ${error}`);
     }
 
-    // Transfer the funds from the subaccount to the ephemeral address
-    const aveniaQuote = await brlaApiService.createPayInQuote({
-      blockchainSendMethod: BlockchainSendMethod.PERMIT,
-      inputAmount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
-      inputCurrency: BrlaCurrency.BRLA,
-      inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
-      inputThirdParty: false,
-      outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: paymentMethod,
-      outputThirdParty: false,
-      subAccountId: aveniaSubAccountId
-    });
-
-    logger.info("BrlaOnrampMintExecutor: Created Avenia pay-out quote for mint transfer.");
-
-    // Derive the expected on-chain amount from the live quote rather than the stale pre-computed
-    // metadata value: the live quote accounts for the fees actually applied at execution time.
-    const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDecimals).toFixed(0, 0);
+    let operationResult: { expectedAmountReceived: string; outputAmount: string; ticketId: string };
+    try {
+      operationResult = await runFinancialOperation({
+        attemptClass: "provider-mint-ticket",
+        externalId: result => result.ticketId,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const aveniaQuote = await brlaApiService.createPayInQuote({
+            blockchainSendMethod: BlockchainSendMethod.PERMIT,
+            inputAmount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
+            inputCurrency: BrlaCurrency.BRLA,
+            inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
+            inputThirdParty: false,
+            outputCurrency: BrlaCurrency.BRLA,
+            outputPaymentMethod: paymentMethod,
+            outputThirdParty: false,
+            subAccountId: aveniaSubAccountId
+          });
+          const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDecimals).toFixed(0, 0);
+          const aveniaTicket = await brlaApiService.createPixOutputTicket(
+            {
+              quoteToken: aveniaQuote.quoteToken,
+              ticketBlockchainOutput: {
+                walletAddress: state.state.evmEphemeralAddress,
+                walletChain: paymentMethod
+              }
+            },
+            aveniaSubAccountId
+          );
+          return { expectedAmountReceived, outputAmount: aveniaQuote.outputAmount, ticketId: aveniaTicket.id };
+        },
+        phase: this.getPhaseName(),
+        provider: "avenia",
+        request: {
+          amount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
+          destination: evmEphemeralAddress,
+          network,
+          subAccountId: aveniaSubAccountId
+        },
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
+    } catch (error) {
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(error.message);
+      }
+      throw error;
+    }
+    const { expectedAmountReceived, outputAmount, ticketId } = operationResult;
 
     logger.info(
-      `BrlaOnrampMintExecutor: Live Avenia quote output is ${aveniaQuote.outputAmount} BRLA (raw: ${expectedAmountReceived}). Pre-computed metadata value was ${preComputedExpectedAmountRaw}.`
-    );
-
-    const aveniaTicket = await brlaApiService.createPixOutputTicket(
-      {
-        quoteToken: aveniaQuote.quoteToken,
-        ticketBlockchainOutput: {
-          walletAddress: state.state.evmEphemeralAddress,
-          walletChain: paymentMethod
-        }
-      },
-      aveniaSubAccountId
-    );
-
-    logger.info(
-      `BrlaOnrampMintExecutor: Created Avenia transfer ticket with id ${aveniaTicket.id} to transfer ${aveniaQuote.outputAmount} BRLA to Base address ${state.state.evmEphemeralAddress}`
+      `BrlaOnrampMintExecutor: Avenia transfer ticket ${ticketId} will transfer ${outputAmount} BRLA to ${network} address ${state.state.evmEphemeralAddress}. Expected raw amount ${expectedAmountReceived}; quote-time amount was ${preComputedExpectedAmountRaw}.`
     );
 
     try {

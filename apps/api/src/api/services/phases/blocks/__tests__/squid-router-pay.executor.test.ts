@@ -3,8 +3,10 @@ import * as sharedNamespace from "@vortexfi/shared";
 import { Networks } from "@vortexfi/shared";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
+import * as financialOperationNamespace from "../core/financial-operation";
 
 const sharedReal = { ...sharedNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const SWAP_HASH = "0x31365ff4337000801303097a0494fd97ecc1661ea84fedee801f01825b236f49";
 const getStatus = mock(async (..._args: unknown[]) => ({
   id: "",
@@ -23,7 +25,12 @@ mock.module("@vortexfi/shared", () => ({
   ...sharedReal,
   EvmClientManager: {
     getInstance: () => ({
-      getClient: () => ({ chain: {}, estimateFeesPerGas }),
+      getClient: () => ({
+        chain: {},
+        estimateFeesPerGas,
+        getTransactionCount: async () => 0,
+        waitForTransactionReceipt: async () => ({ status: "success" })
+      }),
       getWalletClient: () => ({ account: fundingAccount, sendTransaction })
     })
   },
@@ -31,11 +38,17 @@ mock.module("@vortexfi/shared", () => ({
   getStatusAxelarScan,
   recoverAxelarStuckConfirm
 }));
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+}));
 
 const { SquidRouterPayExecutor } = await import("../phases/squid-router-swap/execution");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
 
 beforeEach(() => {
@@ -175,7 +188,7 @@ describe("SquidRouterPayExecutor reliability", () => {
       `state->>'squidRouterExtraGasTxHash' IS NULL`
     );
     expect(handler.executeFundTransaction).toHaveBeenCalledTimes(1);
-    expect(handler.executeFundTransaction.mock.calls[0]?.[0]).toBe(Networks.Arbitrum);
+    expect(handler.executeFundTransaction.mock.calls[0]?.[1]).toBe(Networks.Arbitrum);
   });
 
   it("records stuck-confirm recovery before broadcasting and honors its cooldown", async () => {
@@ -255,10 +268,10 @@ describe("SquidRouterPayExecutor reliability", () => {
   it("uses the configured EIP-1559 multipliers for Polygon and Base gas payments", async () => {
     const handler = Object.create(SquidRouterPayExecutor.prototype) as any;
 
-    await handler.executeFundTransaction(Networks.Polygon, "1", SWAP_HASH, 1);
+    await handler.executeFundTransaction(makeState(), Networks.Polygon, "1", SWAP_HASH, 1, "initial-gas-payment");
     expect(sendTransaction.mock.calls[0]?.[0]).toMatchObject({ maxFeePerGas: 10n, maxPriorityFeePerGas: 3n });
 
-    await handler.executeFundTransaction(Networks.Base, "1", SWAP_HASH, 1);
+    await handler.executeFundTransaction(makeState(), Networks.Base, "1", SWAP_HASH, 1, "initial-gas-payment");
     expect(sendTransaction.mock.calls[1]?.[0]).toMatchObject({ maxFeePerGas: 20n, maxPriorityFeePerGas: 6n });
   });
 });

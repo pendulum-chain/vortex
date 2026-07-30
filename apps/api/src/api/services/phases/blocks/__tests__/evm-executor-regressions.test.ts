@@ -2,14 +2,17 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
 import { AlfredpayOnrampStatus, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import type RampState from "../../../../../models/rampState.model";
 import * as quoteTicketNamespace from "../../../../../models/quoteTicket.model";
 import * as evmFundingNamespace from "../core/evm-funding";
+import * as financialOperationNamespace from "../core/financial-operation";
 import { priceFeedService } from "../../../priceFeed.service";
 
 const sharedReal = { ...sharedNamespace };
 const quoteTicketReal = { ...quoteTicketNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const findQuote = mock(async () => undefined as unknown);
 const checkBalance = mock(async () => new Big(0));
 const getFundingBalance = mock(async () => new Big("1000000000"));
@@ -28,6 +31,7 @@ mock.module("@vortexfi/shared", () => ({
     getInstance: () => ({
       getClient: () => ({
         estimateFeesPerGas: async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 1n }),
+        getTransactionCount: async () => 0,
         waitForTransactionReceipt
       }),
       sendTransactionWithBlindRetry: sendTransaction
@@ -43,6 +47,11 @@ mock.module("../core/evm-funding", () => ({
   ...evmFundingReal,
   getEvmFundingAccount: () => fundingAccount
 }));
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+}));
 const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution");
 const { FinalSettlementSubsidyExecutor } = await import("../phases/final-settlement-subsidy/execution");
 const { AlfredpayOnrampMintExecutor } = await import("../phases/alfredpay-mint/execution");
@@ -51,6 +60,7 @@ afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../../../../../models/quoteTicket.model", () => ({ ...quoteTicketReal }));
   mock.module("../core/evm-funding", () => ({ ...evmFundingReal }));
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
 
 beforeEach(() => {
@@ -163,6 +173,8 @@ describe("EVM block executor regressions", () => {
       outputCurrency: EvmToken.USDC
     });
     const originalConvertCurrency = priceFeedService.convertCurrency;
+    const originalDiscountCap = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
+    config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction = 0.05;
     priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
     const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
     executor.createSubsidy = mock(async () => undefined);
@@ -177,6 +189,7 @@ describe("EVM block executor regressions", () => {
       ).rejects.toMatchObject({ isRecoverable: true });
     } finally {
       priceFeedService.convertCurrency = originalConvertCurrency;
+      config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction = originalDiscountCap;
     }
 
     expect(sendTransaction).not.toHaveBeenCalled();

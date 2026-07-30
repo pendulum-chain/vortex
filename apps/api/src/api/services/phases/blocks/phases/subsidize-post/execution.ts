@@ -26,6 +26,11 @@ import { calculatePostSwapSubsidyComponents } from "../../../../phases/helpers/p
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePostContext } from "./simulation";
 
@@ -70,21 +75,39 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           const funding = getFundingAccount();
           const available = await getBalance(funding.address);
           if (available.lt(required)) throw this.createUnrecoverableError("Pendulum post-swap funding balance too low");
-          const result = await manager.executeApiCall(
-            api => api.tx.tokens.transfer(substrateAddress, metadata.outputCurrencyId, required.toFixed(0, 0)),
-            funding,
-            "pendulum"
-          );
+          const result = await runFinancialOperation({
+            attemptClass: "substrate-subsidy-transfer",
+            externalId: operation => operation.hash,
+            flow: requireFinancialFlowIdentity(state.state),
+            perform: async () => {
+              const sent = await manager.executeApiCall(
+                api => api.tx.tokens.transfer(substrateAddress, metadata.outputCurrencyId, required.toFixed(0, 0)),
+                funding,
+                "pendulum"
+              );
+              await waitUntilTrueWithTimeout(
+                async () => (await getBalance(substrateAddress)).gte(metadata.targetOutputAmountRaw),
+                2000
+              );
+              return { hash: sent.hash };
+            },
+            phase: this.getPhaseName(),
+            provider: Networks.Pendulum,
+            request: {
+              amountRaw: required.toFixed(0, 0),
+              currencyId: metadata.outputCurrencyId,
+              destination: substrateAddress,
+              source: funding.address
+            },
+            scopeId: state.id,
+            scopeType: "ramp"
+          });
           await this.createSubsidy(
             state,
             nativeToDecimal(required, metadata.outputDecimals).toNumber(),
             metadata.outputCurrency as SubsidyToken,
             funding.address,
             result.hash
-          );
-          await waitUntilTrueWithTimeout(
-            async () => (await getBalance(substrateAddress)).gte(metadata.targetOutputAmountRaw),
-            2000
           );
         }
         return state;
@@ -188,6 +211,7 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
 
         const publicClient = evmClientManager.getClient(destinationNetwork);
         const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+        const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
 
         const data = encodeFunctionData({
           abi: erc20Abi,
@@ -195,26 +219,43 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
           functionName: "transfer"
         });
 
-        const txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-          data,
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-          to: outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
-          value: 0n
+        const { hash: txHash } = await runFinancialOperation({
+          attemptClass: "evm-subsidy-transfer",
+          externalId: operation => operation.hash,
+          flow: requireFinancialFlowIdentity(state.state),
+          perform: async () => {
+            const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+              data,
+              maxFeePerGas,
+              maxPriorityFeePerGas,
+              nonce,
+              to: outputTokenDetails.erc20AddressSourceChain as `0x${string}`,
+              value: 0n
+            });
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            if (receipt.status !== "success") {
+              throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${hash} failed`);
+            }
+            return { hash };
+          },
+          phase: this.getPhaseName(),
+          provider: destinationNetwork,
+          request: {
+            amountRaw: requiredAmount.toFixed(0),
+            destination: evmEphemeralAddress,
+            network: destinationNetwork,
+            nonce,
+            source: fundingAccount.address,
+            token: outputTokenDetails.erc20AddressSourceChain
+          },
+          scopeId: state.id,
+          scopeType: "ramp"
         });
 
         const subsidyAmount = nativeToDecimal(requiredAmount, metadata.outputDecimals).toNumber();
         const subsidyToken = metadata.outputCurrency as unknown as SubsidyToken;
 
         await this.createSubsidy(state, subsidyAmount, subsidyToken, fundingAccount.address, txHash);
-
-        const receipt = await publicClient.waitForTransactionReceipt({
-          hash: txHash as `0x${string}`
-        });
-
-        if (!receipt || receipt.status !== "success") {
-          throw new Error(`SubsidizePostSwapExecutor: Subsidy transaction ${txHash} failed or was not found`);
-        }
       }
 
       return state;
@@ -222,6 +263,9 @@ export class SubsidizePostSwapExecutor extends BasePhaseHandler {
       logger.error("Error in subsidizePostSwap (EVM):", e);
       if (e instanceof PhaseError) {
         throw e;
+      }
+      if (e instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(e.message);
       }
       throw this.createRecoverableError("SubsidizePostSwapExecutor: Failed to subsidize post swap on EVM.");
     }

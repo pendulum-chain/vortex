@@ -14,6 +14,7 @@ export const MykoboMint: Phase<
 > = {
   context: MykoboMintContext,
   executors: [new MykoboOnrampDepositExecutor()],
+  externalOperations: { register: { provider: "mykobo" } },
   name: "MykoboMint",
   phases: ["mykoboOnrampDeposit"],
   prepareTxs: prepareMykoboMintTxs,

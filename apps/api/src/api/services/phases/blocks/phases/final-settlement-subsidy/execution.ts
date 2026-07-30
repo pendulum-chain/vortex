@@ -18,7 +18,7 @@ import {
   TokenType
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
+import { encodeFunctionData, erc20Abi } from "viem";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
@@ -29,6 +29,7 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import { requireFinancialFlowIdentity, runFinancialOperation } from "../../core/financial-operation";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -65,7 +66,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     }
 
     const evmClientManager = EvmClientManager.getInstance();
-    const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
     const alfredpayMetadata = (quote.metadata as unknown as { blocks?: { alfredpayOfframp?: { inputAmountRaw: string } } })
       .blocks?.alfredpayOfframp;
@@ -83,6 +83,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       ? new Big(alfredpayMetadata.inputAmountRaw)
       : multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
     const destinationNetwork = outputNetwork as EvmNetworks;
+    const fundingAccount = getEvmFundingAccount(destinationNetwork);
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 
@@ -104,6 +105,14 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         );
         return state;
       }
+      if (receipt) {
+        throw this.createUnrecoverableError(
+          `FinalSettlementSubsidyExecutor: Persisted subsidy transaction ${state.state.finalSettlementSubsidyTxHash} failed`
+        );
+      }
+      throw this.createRecoverableError(
+        `FinalSettlementSubsidyExecutor: Cannot reconcile persisted subsidy transaction ${state.state.finalSettlementSubsidyTxHash}`
+      );
     }
 
     const baselineKey = settlementBalanceKey(destinationNetwork, ephemeralAddress, outTokenDetails.erc20AddressSourceChain);
@@ -242,23 +251,40 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       }
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const txHashIdx = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-        data: swapRoute.transactionRequest.data as `0x${string}`,
-        gas: BigInt(swapRoute.transactionRequest.gasLimit),
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        to: swapRoute.transactionRequest.target as `0x${string}`,
-        value: BigInt(swapRoute.transactionRequest.value)
+      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+      const { hash: txHashIdx } = await runFinancialOperation({
+        attemptClass: "funding-swap",
+        externalId: operation => operation.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            data: swapRoute.transactionRequest.data as `0x${string}`,
+            gas: BigInt(swapRoute.transactionRequest.gasLimit),
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            nonce,
+            to: swapRoute.transactionRequest.target as `0x${string}`,
+            value: BigInt(swapRoute.transactionRequest.value)
+          });
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: destinationNetwork,
+        request: {
+          amountRaw: requiredNativeRaw,
+          destination: fundingAccount.address,
+          network: destinationNetwork,
+          nonce,
+          routeTarget: swapRoute.transactionRequest.target,
+          token: outTokenDetails.erc20AddressSourceChain
+        },
+        scopeId: state.id,
+        scopeType: "ramp"
       });
 
-      logger.info(`FinalSettlementSubsidyExecutor: Swap transaction sent: ${txHashIdx}. Waiting for receipt...`);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHashIdx });
-
-      if (receipt.status !== "success") {
-        throw new Error(`Swap transaction ${txHashIdx} failed`);
-      }
-
-      logger.info("FinalSettlementSubsidyExecutor: Swap successful. Waiting for balance update...");
+      logger.info(`FinalSettlementSubsidyExecutor: Swap transaction ${txHashIdx} confirmed. Waiting for balance update...`);
 
       await checkEvmBalanceForToken({
         amountDesiredRaw: subsidyAmountRaw.toString(),
@@ -271,54 +297,46 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     }
 
     // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
-    let txHash: `0x${string}` | undefined = state.state.finalSettlementSubsidyTxHash as `0x${string}` | undefined;
-
     try {
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-      let receipt: TransactionReceipt | undefined = undefined;
-      let attempt = 0;
-
-      while (attempt < 5 && (!receipt || receipt.status !== "success")) {
-        logger.debug(`FinalSettlementSubsidyExecutor: Subsidy transfer attempt ${attempt + 1}/5, isNative=${isNative}`);
-        if (isNative) {
-          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            to: ephemeralAddress,
-            value: BigInt(subsidyAmountRaw.toFixed(0))
-          });
-        } else {
-          const data = encodeFunctionData({
+      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+      const data = isNative
+        ? undefined
+        : encodeFunctionData({
             abi: erc20Abi,
             args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
             functionName: "transfer"
           });
-
-          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+      const { hash: txHash } = await runFinancialOperation({
+        attemptClass: "settlement-subsidy-transfer",
+        externalId: operation => operation.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
             data,
             maxFeePerGas,
             maxPriorityFeePerGas,
-            to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-            value: 0n
+            nonce,
+            to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
+            value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
           });
-        }
-
-        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-        if (!receipt || receipt.status !== "success") {
-          logger.error(`FinalSettlementSubsidyExecutor: Transaction ${txHash} failed or was not found. Retrying...`);
-          attempt++;
-          await new Promise(resolve => setTimeout(resolve, 20000));
-        }
-      }
-
-      if (!receipt || receipt.status !== "success") {
-        throw new Error(`Failed to confirm subsidy transaction after ${attempt} attempts`);
-      }
-      if (!txHash) {
-        throw new Error("Subsidy transaction confirmed without a transaction hash");
-      }
+          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
+          return { hash };
+        },
+        phase: this.getPhaseName(),
+        provider: destinationNetwork,
+        request: {
+          amountRaw: subsidyAmountRaw.toFixed(0),
+          destination: ephemeralAddress,
+          network: destinationNetwork,
+          nonce,
+          source: fundingAccount.address,
+          token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
+        },
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
 
       await this.createSubsidy(
         state,

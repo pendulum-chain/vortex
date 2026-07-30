@@ -5,37 +5,19 @@ quote engines, transaction builders, and concrete phase handlers have been delet
 references below point only to the current block implementation. "Inherited" records
 the behavior's historical origin, not an active legacy code path.
 
-## External side effects and idempotency
+## Resolved: external side effects and idempotency
 
-### Avenia mint and PIX payout provider IDs are persisted after provider calls
+Provider order/ticket creation, Avenia and Mykobo payout broadcasts, Nabla approve/swap
+broadcasts, Squid approve/swap broadcasts, Axelar gas payments, pre/post subsidies, and
+final-settlement funding operations now claim a durable `financial_operations` row
+before the external call. Confirmed results are replayed locally. Ambiguous outcomes
+stop for reconciliation instead of repeating the call. Wallet-signed funding operations
+pin the nonce across internal RPC retries, and a persisted failed fixed-nonce payout is
+unrecoverable rather than rebroadcast.
 
-- **References:** Mint creates the transfer ticket without persisting its ID in `phases/avenia-mint/execution.ts:147-196`. PIX payout creates the ticket and only then stores `payOutTicketId` in `phases/avenia-offramp-payout/execution.ts:54-67`.
-- **Impact:** A crash after Avenia accepts either request but before durable state is written can repeat the provider operation on retry. Mint recovery relies on the eventual balance shortcut; PIX recovery has no ID with which to resume the first ticket.
-- **Release relevance:** Pre-existing financial-operation duplication risk on Avenia corridors; not introduced by the block release.
-
-### EVM Nabla approve and swap broadcasts have no durable idempotency marker
-
-- **References:** Approve and swap broadcast and await receipts without storing their hashes (`phases/nabla-swap/execution.ts:68-97`, `148-179`).
-- **Impact:** A crash after broadcast can cause retry of the same presigned transaction without first reconciling its hash or receipt. Nonce behavior may reject or identify the replay, but application recovery is not explicit and can strand the phase on ambiguous RPC results.
-- **Release relevance:** Pre-existing Base Nabla recovery risk for EVM-ephemeral flows; release-relevant where automated crash recovery is required.
-
-### Squid broadcasts and initial gas payment have broadcast-to-persist windows
-
-- **References:** Squid approve/swap hashes are persisted only after `sendRawTransaction` returns (`phases/squid-router-swap/execution.ts:170-207`). Initial Axelar gas is sent before subsidy recording and `squidRouterPayTxHash` persistence (`phases/squid-router-swap/execution.ts:444-461`, `743-779`).
-- **Impact:** A crash in either interval leaves no durable hash. Retry can rebroadcast a Squid transaction or pay Axelar gas again; a crash after gas payment can also leave subsidy accounting incomplete.
-- **Release relevance:** Pre-existing cross-chain execution and operator-fund exposure on Squid corridors; not a block-port regression.
-
-### Subsidy and final-settlement transfers are not durably claimed before send
-
-- **References:** EVM pre/post subsidy sends before recording (`phases/subsidize-pre/execution.ts:143-175`, `phases/subsidize-post/execution.ts:174-205`). Final settlement sends, waits, records the subsidy, and only then persists `finalSettlementSubsidyTxHash` (`phases/final-settlement-subsidy/execution.ts:272-335`). Pendulum subsidy transfers likewise have no persisted operation marker (`phases/subsidize-pre/execution.ts:51-78`, `phases/subsidize-post/execution.ts:54-82`).
-- **Impact:** A crash or ambiguous RPC failure after transfer can cause another operator-funded transfer before the recipient balance or subsidy record reflects the first. Final-settlement retries within one execution can also send a fresh funding-account transaction after a failed/unknown receipt.
-- **Release relevance:** Pre-existing operator-fund and subsidy-accounting risk across subsidized corridors; materially release-relevant despite being inherited.
-
-### Failed fixed-nonce payout transactions are rebroadcast
-
-- **References:** Avenia and Mykobo payout executors rebroadcast the same presigned transaction after a stored receipt is not successful (`phases/avenia-offramp-payout/execution.ts:83-93`, `phases/mykobo-offramp-payout/execution.ts:44-56`).
-- **Impact:** These payloads use a fixed nonce that a reverted transaction has already consumed, so rebroadcast cannot replace the failed transfer and recovery can loop while payout funds remain at the ephemeral address.
-- **Release relevance:** Pre-existing failed-payout recovery defect on Avenia and Mykobo offramps; relevant to release readiness for failure scenarios, not evidence of port drift.
+The normative protocol, including the fallback for providers without an upstream
+idempotency-key facility, is defined in
+`docs/security-spec/03-ramp-engine/block-flow-architecture.md`.
 
 ## Validation and completion evidence
 

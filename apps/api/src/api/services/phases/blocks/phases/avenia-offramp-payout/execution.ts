@@ -14,6 +14,11 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
+import {
+  FinancialOperationReconciliationRequiredError,
+  requireFinancialFlowIdentity,
+  runFinancialOperation
+} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { AveniaPendulumOfframpContext } from "../avenia-pendulum-offramp/simulation";
@@ -62,22 +67,43 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
     }, "Avenia BRLA balance");
     try {
-      const payoutQuote = await api.createPayOutQuote({
-        outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
-        outputThirdParty: false,
-        subAccountId
+      const ticket = await runFinancialOperation({
+        attemptClass: "provider-payout-ticket",
+        externalId: result => result.id,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const payoutQuote = await api.createPayOutQuote({
+            outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
+            outputThirdParty: false,
+            subAccountId
+          });
+          const payload: PixOutputTicketPayload = {
+            quoteToken: payoutQuote.quoteToken,
+            ticketBlockchainInput: { walletAddress: facts.brlaEvmAddress },
+            ticketBrlPixOutput: { pixKey: facts.pixDestination }
+          };
+          const created = await api.createPixOutputTicket(payload, subAccountId);
+          return { id: created.id };
+        },
+        phase: this.getPhaseName(),
+        provider: "avenia",
+        request: {
+          brlaEvmAddress: facts.brlaEvmAddress,
+          outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
+          pixDestination: facts.pixDestination,
+          subAccountId
+        },
+        scopeId: state.id,
+        scopeType: "ramp"
       });
-      const payload: PixOutputTicketPayload = {
-        quoteToken: payoutQuote.quoteToken,
-        ticketBlockchainInput: { walletAddress: facts.brlaEvmAddress },
-        ticketBrlPixOutput: { pixKey: facts.pixDestination }
-      };
-      const ticket = await api.createPixOutputTicket(payload, subAccountId);
       await state.update({ state: { ...state.state, payOutTicketId: ticket.id } });
       await this.waitForPaid(ticket.id, subAccountId);
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(error.message);
+      }
       logger.error("AveniaOfframpPayoutExecutor: Failed to trigger PIX payout", error);
       throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Failed to trigger BRLA offramp");
     }
@@ -94,15 +120,32 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       if (state.state.brlaPayoutTxHash) {
         const receipt = await base.waitForTransactionReceipt({ hash: state.state.brlaPayoutTxHash });
         if (receipt.status === "success") return;
+        throw this.createUnrecoverableError(`Payout transfer ${state.state.brlaPayoutTxHash} failed`);
       } else {
         await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName());
       }
-      const hash = await client.sendRawTransactionWithRetry(Networks.Base, transaction.txData as `0x${string}`);
-      const receipt = await base.waitForTransactionReceipt({ hash: hash as `0x${string}` });
-      if (receipt.status !== "success") throw new Error(`Payout transfer ${hash} failed`);
+      const { hash } = await runFinancialOperation({
+        attemptClass: "presigned-payout-broadcast",
+        externalId: result => result.hash,
+        flow: requireFinancialFlowIdentity(state.state),
+        perform: async () => {
+          const hash = await client.sendRawTransactionWithRetry(Networks.Base, transaction.txData as `0x${string}`);
+          const receipt = await base.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+          if (receipt.status !== "success") throw new Error(`Payout transfer ${hash} failed`);
+          return { hash: hash as `0x${string}` };
+        },
+        phase: this.getPhaseName(),
+        provider: Networks.Base,
+        request: { network: Networks.Base, signedTransaction: transaction.txData },
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
       await state.update({ state: { ...state.state, brlaPayoutTxHash: hash as `0x${string}` } });
     } catch (error) {
       if (error instanceof PhaseError) throw error;
+      if (error instanceof FinancialOperationReconciliationRequiredError) {
+        throw this.createRecoverableError(error.message);
+      }
       logger.error("AveniaOfframpPayoutExecutor: Failed to send BRLA payout transaction", error);
       throw this.createRecoverableError("Failed to send BRLA payout transaction");
     }
