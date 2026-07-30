@@ -23,12 +23,7 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { fetchWithTimeout } from "../../../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  FinancialOperationRejectedError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { DistributeFeesContext, type DistributeFeesMetadata } from "./simulation";
 
@@ -67,10 +62,9 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
         const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
         if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
         throwIfAborted(signal);
-        const { hash } = await runFinancialOperation({
+        const { hash } = await this.runFinancialOperation(state, {
           attemptClass: "substrate-fee-distribution",
           externalId: result => result.hash,
-          flow: requireFinancialFlowIdentity(state.state),
           perform: async () => {
             throwIfAborted(signal);
             const result = await abortableCall(signal, () =>
@@ -81,11 +75,8 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
             }
             return { hash: result.txHash.toString() };
           },
-          phase: this.getPhaseName(),
           provider: Networks.Pendulum,
           request: { network: Networks.Pendulum, signedTransaction: transaction.txData },
-          scopeId: state.id,
-          scopeType: "ramp",
           signal
         });
         state.state = { ...state.state, distributeFeeHash: hash };
@@ -94,9 +85,6 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       } catch (e) {
         logger.error(`Error distributing Pendulum fees for ramp ${state.id}:`, e);
         if (e instanceof PhaseError) throw e;
-        if (e instanceof FinancialOperationReconciliationRequiredError) {
-          throw this.createReconciliationRequiredError(e.message);
-        }
         const error = e instanceof Error ? e : new Error(String(e));
         throw this.createRecoverableError(`Failed to distribute Pendulum fees: ${error.message}`);
       }
@@ -137,10 +125,9 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       const signedTransaction = txData as `0x${string}`;
       const deterministicHash = keccak256(signedTransaction);
       const client = evmClientManager.getClient(network);
-      const { hash: actualTxHash } = await runFinancialOperation({
+      const { hash: actualTxHash } = await this.runFinancialOperation(state, {
         attemptClass: "evm-fee-distribution",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -148,7 +135,6 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
           );
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: network,
         reconcile: async () => {
           try {
@@ -165,8 +151,6 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
           }
         },
         request: { network, signedTransaction },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -187,9 +171,6 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
 
       if (e instanceof PhaseError) {
         throw e;
-      }
-      if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(e.message);
       }
 
       const error = e instanceof Error ? e : new Error(String(e));

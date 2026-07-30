@@ -12,7 +12,14 @@ import {
   requiresManualReconciliation,
   UnrecoverablePhaseError
 } from "../../errors/phase-error";
+import {
+  runFinancialOperation as executeFinancialOperation,
+  type RunFinancialOperationArgs,
+  requireFinancialFlowIdentity
+} from "./blocks/core/financial-operation";
 import { StateMetadata } from "./meta-state-types";
+
+type RampFinancialOperationArgs<Result> = Omit<RunFinancialOperationArgs<Result>, "scopeType" | "scopeId" | "flow" | "phase">;
 
 /**
  * Base interface for phase handlers
@@ -97,6 +104,23 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
   protected createUnrecoverableError(message: string): UnrecoverablePhaseError {
     return new UnrecoverablePhaseError(message);
+  }
+
+  protected async runFinancialOperation<Result>(state: RampState, args: RampFinancialOperationArgs<Result>): Promise<Result> {
+    try {
+      return await executeFinancialOperation({
+        ...args,
+        flow: requireFinancialFlowIdentity(state.state),
+        phase: this.getPhaseName(),
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
+    } catch (error) {
+      if (requiresManualReconciliation(error)) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
+      throw error;
+    }
   }
 
   /**

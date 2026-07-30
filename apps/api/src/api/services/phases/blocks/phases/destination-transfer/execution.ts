@@ -15,12 +15,7 @@ import { PhaseError, UnrecoverablePhaseError } from "../../../../../errors/phase
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  FinancialOperationRejectedError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -164,10 +159,9 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       const signedTransaction = destinationTransfer as `0x${string}`;
       const deterministicHash = keccak256(signedTransaction);
       const destinationClient = evmClientManager.getClient(destinationNetwork);
-      const { hash: txHash } = await runFinancialOperation({
+      const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "destination-presigned-broadcast",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -175,7 +169,6 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
           );
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: destinationNetwork,
         reconcile: async () => {
           try {
@@ -194,8 +187,6 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
           }
         },
         request: { network: destinationNetwork, signedTransaction },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       await state.update({
@@ -208,9 +199,6 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
       throw this.createRecoverableError(
         `DestinationTransferExecutor: Error during phase execution - ${(error as Error).message}`
       );

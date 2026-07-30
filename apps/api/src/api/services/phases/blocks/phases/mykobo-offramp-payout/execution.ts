@@ -5,11 +5,6 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockState } from "../../core/metadata";
 import type { MykoboOfframpPayoutRegistrationFacts } from "./registration";
 import { MykoboOfframpPayoutContext } from "./simulation";
@@ -56,10 +51,9 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
       } else {
         await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName(), signal);
       }
-      const { hash } = await runFinancialOperation({
+      const { hash } = await this.runFinancialOperation(state, {
         attemptClass: "presigned-payout-broadcast",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = (await manager.sendRawTransactionWithRetry(
@@ -70,19 +64,13 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
           if (receipt.status !== "success") throw new Error(`Mykobo payout transfer ${hash} failed`);
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: Networks.Base,
         request: { network: Networks.Base, signedTransaction: transaction.txData },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       await state.update({ state: { ...state.state, mykoboPayoutTxHash: hash } });
     } catch (error) {
       if (error instanceof PhaseError) throw error;
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
       logger.error("MykoboOfframpPayoutExecutor: Failed to send Mykobo payout transaction", error);
       throw this.createRecoverableError("Failed to send Mykobo payout transaction");
     }

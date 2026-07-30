@@ -16,11 +16,6 @@ import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.se
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { AveniaPendulumOfframpContext } from "../avenia-pendulum-offramp/simulation";
@@ -73,10 +68,9 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       signal
     );
     try {
-      const ticket = await runFinancialOperation({
+      const ticket = await this.runFinancialOperation(state, {
         attemptClass: "provider-payout-ticket",
         externalId: result => result.id,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           const payoutQuote = await abortableCall(signal, () =>
             api.createPayOutQuote({
@@ -94,7 +88,6 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
           const created = await abortableCall(signal, () => api.createPixOutputTicket(payload, subAccountId));
           return { id: created.id };
         },
-        phase: this.getPhaseName(),
         provider: "avenia",
         request: {
           brlaEvmAddress: facts.brlaEvmAddress,
@@ -102,8 +95,6 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
           pixDestination: facts.pixDestination,
           subAccountId
         },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       await state.update({ state: { ...state.state, payOutTicketId: ticket.id } });
@@ -111,9 +102,6 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
       logger.error("AveniaOfframpPayoutExecutor: Failed to trigger PIX payout", error);
       throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Failed to trigger BRLA offramp");
     }
@@ -136,10 +124,9 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
       } else {
         await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName(), signal);
       }
-      const { hash } = await runFinancialOperation({
+      const { hash } = await this.runFinancialOperation(state, {
         attemptClass: "presigned-payout-broadcast",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await client.sendRawTransactionWithRetry(Networks.Base, transaction.txData as `0x${string}`);
@@ -147,19 +134,13 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
           if (receipt.status !== "success") throw new Error(`Payout transfer ${hash} failed`);
           return { hash: hash as `0x${string}` };
         },
-        phase: this.getPhaseName(),
         provider: Networks.Base,
         request: { network: Networks.Base, signedTransaction: transaction.txData },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       await state.update({ state: { ...state.state, brlaPayoutTxHash: hash as `0x${string}` } });
     } catch (error) {
       if (error instanceof PhaseError) throw error;
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
       logger.error("AveniaOfframpPayoutExecutor: Failed to send BRLA payout transaction", error);
       throw this.createRecoverableError("Failed to send BRLA payout transaction");
     }

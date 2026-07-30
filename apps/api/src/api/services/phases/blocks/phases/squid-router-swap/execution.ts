@@ -34,18 +34,14 @@ import { axelarGasServiceAbi } from "../../../../../../contracts/AxelarGasServic
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { SquidRouterDeliveryEvidence, StateMetadata } from "../../../../phases/meta-state-types";
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { SlackNotifier } from "../../../../slack.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getEvmFundingAccount } from "../../core/evm-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  FinancialOperationRejectedError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { settlementBalanceKey } from "../../core/settlement";
 import { SquidRouterSwapContext } from "./simulation";
@@ -240,9 +236,6 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
       return updatedState;
     } catch (error) {
       logger.error(`Error in squidRouter phase for ramp ${state.id}:`, error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
       throw error;
     }
   }
@@ -256,10 +249,9 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
   ): Promise<string> {
     try {
       const publicClient = EvmClientManager.getInstance().getClient(network);
-      const { hash } = await runFinancialOperation({
+      const { hash } = await this.runFinancialOperation(state, {
         attemptClass,
         externalId: operation => operation.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -273,17 +265,14 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: network,
         request: { network, signedTransaction: txData },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       return hash;
     } catch (error) {
       logger.error("Error sending raw transaction", error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
+      if (error instanceof PhaseError) throw error;
       throw new Error("Failed to send transaction");
     }
   }
@@ -907,10 +896,9 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       const nonce = await publicClient.getTransactionCount({ address: walletClientAccount.address, blockTag: "pending" });
-      const { hash: gasPaymentHash } = await runFinancialOperation({
+      const { hash: gasPaymentHash } = await this.runFinancialOperation(state, {
         attemptClass,
         externalId: operation => operation.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -931,11 +919,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: fromChain,
         request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, nonce, swapHash },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -943,7 +928,7 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       return gasPaymentHash;
     } catch (error) {
       logger.error(`SquidRouterPayExecutor: Error funding gas to Axelar gas service on ${fromChain}: `, error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
+      if (error instanceof PhaseError) throw error;
       throw new Error(`SquidRouterPayExecutor: Failed to send ${fromChain} transaction`);
     }
   }

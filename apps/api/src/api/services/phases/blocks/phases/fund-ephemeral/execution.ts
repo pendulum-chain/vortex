@@ -32,11 +32,6 @@ import {
   isPendulumEphemeralFunded
 } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
 import { AssethubOfframpSourceContext, type AssethubOfframpSourceRegistrationFacts } from "../assethub-offramp-source";
@@ -136,9 +131,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       if (e instanceof PhaseError) {
         throw e;
       }
-      if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(e.message);
-      }
 
       throw this.createRecoverableError("Error funding ephemeral account");
     }
@@ -230,10 +222,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
 
-      await runFinancialOperation({
+      await this.runFinancialOperation(state, {
         attemptClass: "source-evm-native-funding",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -252,7 +243,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: network,
         request: {
           amountRaw: fundingAmountRaw.toString(),
@@ -260,8 +250,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           network,
           source: fundingAccount.address
         },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -282,9 +270,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${network} ephemeral:`, error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
+      if (error instanceof PhaseError) throw error;
       throw new Error(`FundEphemeralExecutor: Error during funding ${network} ephemeral: ` + error);
     }
   }
@@ -310,10 +296,9 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(destinationNetwork);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
 
-      await runFinancialOperation({
+      await this.runFinancialOperation(state, {
         attemptClass: "destination-evm-native-funding",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -332,7 +317,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: destinationNetwork,
         request: {
           amountRaw: fundingAmountRaw,
@@ -340,8 +324,6 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
           network: destinationNetwork,
           source: fundingAccount.address
         },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -359,9 +341,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       }
     } catch (error) {
       logger.error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral:`, error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
+      if (error instanceof PhaseError) throw error;
       throw new Error(`FundEphemeralExecutor: Error during funding ${destinationNetwork} ephemeral: ` + error);
     }
   }
@@ -373,30 +353,19 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     attemptClass: string,
     signal?: AbortSignal
   ): Promise<void> {
-    try {
-      await runFinancialOperation({
-        attemptClass,
-        flow: requireFinancialFlowIdentity(state.state),
-        perform: async () => {
-          throwIfAborted(signal);
-          const funded = await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, requiresGlmr));
-          if (!funded) {
-            throw new Error(`FundEphemeralExecutor: Pendulum funding outcome is unknown for ${substrateAddress}`);
-          }
-          return { funded: true };
-        },
-        phase: this.getPhaseName(),
-        provider: "pendulum",
-        request: { destination: substrateAddress, requiresGlmr },
-        scopeId: state.id,
-        scopeType: "ramp",
-        signal
-      });
-    } catch (error) {
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
-      throw error;
-    }
+    await this.runFinancialOperation(state, {
+      attemptClass,
+      perform: async () => {
+        throwIfAborted(signal);
+        const funded = await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, requiresGlmr));
+        if (!funded) {
+          throw new Error(`FundEphemeralExecutor: Pendulum funding outcome is unknown for ${substrateAddress}`);
+        }
+        return { funded: true };
+      },
+      provider: "pendulum",
+      request: { destination: substrateAddress, requiresGlmr },
+      signal
+    });
   }
 }

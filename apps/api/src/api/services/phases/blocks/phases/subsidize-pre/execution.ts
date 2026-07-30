@@ -29,11 +29,6 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getEvmFundingAccount } from "../../core/evm-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { SubsidizePreContext } from "./simulation";
 
@@ -74,10 +69,9 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           const funding = getFundingAccount();
           const available = await getBalance(funding.address);
           if (available.lt(required)) throw this.createUnrecoverableError("Pendulum pre-swap funding balance too low");
-          const result = await runFinancialOperation({
+          const result = await this.runFinancialOperation(state, {
             attemptClass: "substrate-subsidy-transfer",
             externalId: operation => operation.hash,
-            flow: requireFinancialFlowIdentity(state.state),
             perform: async () => {
               throwIfAborted(signal);
               const sent = await abortableCall(signal, () =>
@@ -95,7 +89,6 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
               );
               return { hash: sent.hash };
             },
-            phase: this.getPhaseName(),
             provider: Networks.Pendulum,
             request: {
               amountRaw: required.toFixed(0, 0),
@@ -103,8 +96,6 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
               destination: substrateAddress,
               source: funding.address
             },
-            scopeId: state.id,
-            scopeType: "ramp",
             signal
           });
           await this.createSubsidy(
@@ -199,10 +190,9 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           functionName: "transfer"
         });
 
-        const { hash: txHash } = await runFinancialOperation({
+        const { hash: txHash } = await this.runFinancialOperation(state, {
           attemptClass: "evm-subsidy-transfer",
           externalId: operation => operation.hash,
-          flow: requireFinancialFlowIdentity(state.state),
           perform: async () => {
             throwIfAborted(signal);
             const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
@@ -219,7 +209,6 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
             }
             return { hash };
           },
-          phase: this.getPhaseName(),
           provider: destinationNetwork,
           request: {
             amountRaw: requiredAmount.toFixed(0),
@@ -229,8 +218,6 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
             source: fundingAccount.address,
             token: inputTokenDetails.erc20AddressSourceChain
           },
-          scopeId: state.id,
-          scopeType: "ramp",
           signal
         });
 
@@ -245,9 +232,6 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       logger.error("Error in subsidizePreSwap (EVM):", e);
       if (e instanceof PhaseError) {
         throw e;
-      }
-      if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(e.message);
       }
       throw this.createRecoverableError("SubsidizePreSwapExecutor: Failed to subsidize pre swap on EVM.");
     }

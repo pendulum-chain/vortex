@@ -27,11 +27,7 @@ import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
-import {
-  FinancialOperationRejectedError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { FinalSettlementSubsidyExecutor } from "../final-settlement-subsidy/execution";
 import { FundEphemeralExecutor } from "../fund-ephemeral/execution";
@@ -432,10 +428,9 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
       const signedTransaction = offrampTransfer as `0x${string}`;
       const deterministicHash = keccak256(signedTransaction);
       const networkClient = evmClientManager.getClient(network);
-      const { hash: txHash } = await runFinancialOperation({
+      const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "alfredpay-final-transfer",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -443,7 +438,6 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
           );
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: "polygon",
         reconcile: async () => {
           try {
@@ -460,8 +454,6 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
           }
         },
         request: { network, signedTransaction },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
       await state.update({ state: { ...state.state, alfredpayOfframpTransferTxHash: txHash } });

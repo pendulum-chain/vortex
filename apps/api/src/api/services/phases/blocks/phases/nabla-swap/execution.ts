@@ -25,12 +25,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  FinancialOperationRejectedError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { NablaSwapContext } from "./simulation";
 
@@ -74,34 +69,23 @@ export class NablaApproveExecutor extends BasePhaseHandler {
       });
       if (!dryRun.result || dryRun.result.type !== "success") throw new Error("Could not dry-run Nabla approval");
       const presigned = this.getPresignedTransaction(state, "nablaApprove");
-      try {
-        await runFinancialOperation({
-          attemptClass: "substrate-contract-broadcast",
-          externalId: result => result.hash,
-          flow: requireFinancialFlowIdentity(state.state),
-          perform: async () => {
-            throwIfAborted(signal);
-            const result = await abortableCall(signal, () =>
-              submitExtrinsic(decodeSubmittableExtrinsic(presigned.txData as string, pendulum.api))
-            );
-            if (result.status.type === "error") {
-              throw new FinancialOperationRejectedError("Could not approve token");
-            }
-            return { hash: result.txHash.toString() };
-          },
-          phase: this.getPhaseName(),
-          provider: Networks.Pendulum,
-          request: { network: Networks.Pendulum, signedTransaction: presigned.txData },
-          scopeId: state.id,
-          scopeType: "ramp",
-          signal
-        });
-      } catch (error) {
-        if (error instanceof FinancialOperationReconciliationRequiredError) {
-          throw this.createReconciliationRequiredError(error.message);
-        }
-        throw error;
-      }
+      await this.runFinancialOperation(state, {
+        attemptClass: "substrate-contract-broadcast",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const result = await abortableCall(signal, () =>
+            submitExtrinsic(decodeSubmittableExtrinsic(presigned.txData as string, pendulum.api))
+          );
+          if (result.status.type === "error") {
+            throw new FinancialOperationRejectedError("Could not approve token");
+          }
+          return { hash: result.txHash.toString() };
+        },
+        provider: Networks.Pendulum,
+        request: { network: Networks.Pendulum, signedTransaction: presigned.txData },
+        signal
+      });
       return state;
     }
     const evmClientManager = EvmClientManager.getInstance();
@@ -114,10 +98,9 @@ export class NablaApproveExecutor extends BasePhaseHandler {
         throw new Error("NablaApproveExecutor: Invalid EVM transaction data. This is a bug.");
       }
 
-      const { hash: txHash } = await runFinancialOperation({
+      const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "evm-presigned-broadcast",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -131,11 +114,8 @@ export class NablaApproveExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: Networks.Base,
         request: { network: Networks.Base, signedTransaction: nablaApproveTransaction },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -144,9 +124,6 @@ export class NablaApproveExecutor extends BasePhaseHandler {
       return state;
     } catch (e) {
       logger.error(`Could not approve token on EVM: ${(e as Error).message}`);
-      if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(e.message);
-      }
       throw e;
     }
   }
@@ -213,10 +190,9 @@ export class NablaSwapExecutor extends BasePhaseHandler {
 
       await this.dryRunEvmSwap(nablaSwapTransaction as `0x${string}`, evmEphemeralAddress as `0x${string}`, signal);
 
-      const { hash: txHash } = await runFinancialOperation({
+      const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "evm-presigned-broadcast",
         externalId: result => result.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await abortableCall(signal, () =>
@@ -230,11 +206,8 @@ export class NablaSwapExecutor extends BasePhaseHandler {
           }
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: Networks.Base,
         request: { network: Networks.Base, signedTransaction: nablaSwapTransaction },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -242,9 +215,6 @@ export class NablaSwapExecutor extends BasePhaseHandler {
     } catch (e) {
       logger.error(`Could not swap token on EVM: ${(e as Error).message}`);
       if (e instanceof PhaseError) throw e;
-      if (e instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(e.message);
-      }
       throw this.createUnrecoverableError(`Could not swap token on EVM: ${(e as Error).message}`);
     }
 
@@ -285,10 +255,9 @@ export class NablaSwapExecutor extends BasePhaseHandler {
       throw this.createRecoverableError("NablaSwapExecutor: estimated Pendulum output is below the soft minimum");
     }
     const presigned = this.getPresignedTransaction(state, "nablaSwap");
-    const { hash } = await runFinancialOperation({
+    const { hash } = await this.runFinancialOperation(state, {
       attemptClass: "substrate-contract-broadcast",
       externalId: result => result.hash,
-      flow: requireFinancialFlowIdentity(state.state),
       perform: async () => {
         throwIfAborted(signal);
         const result = await abortableCall(signal, () =>
@@ -299,11 +268,8 @@ export class NablaSwapExecutor extends BasePhaseHandler {
         }
         return { hash: result.txHash.toString() };
       },
-      phase: this.getPhaseName(),
       provider: Networks.Pendulum,
       request: { network: Networks.Pendulum, signedTransaction: presigned.txData },
-      scopeId: state.id,
-      scopeType: "ramp",
       signal
     });
     state.state = { ...state.state, nablaSwapTxHash: hash };

@@ -6,11 +6,6 @@ import RampState from "../../../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { MoonbeamToPendulumXcmContext } from ".";
 
@@ -49,26 +44,22 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, moonbeam.api);
-        const { hash } = await runFinancialOperation({
+        const { hash } = await this.runFinancialOperation(state, {
           attemptClass: "moonbeam-xcm-broadcast",
           externalId: result => result.hash,
-          flow: requireFinancialFlowIdentity(state.state),
           perform: async () => {
             throwIfAborted(signal);
             return abortableCall(signal, () => submitMoonbeamXcm(evmAddress, extrinsic));
           },
-          phase: this.getPhaseName(),
           provider: "moonbeam",
           request: { network: "moonbeam", signedTransaction: presigned.txData },
-          scopeId: state.id,
-          scopeType: "ramp",
           signal
         });
         state.state = { ...state.state, moonbeamXcmTransactionHash: hash as `0x${string}` };
         await state.update({ state: state.state });
       } catch (error) {
         logger.error("MoonbeamToPendulumXcmExecutor: XCM submission failed", error);
-        if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
+        if (error instanceof RecoverablePhaseError) throw error;
         const message = error instanceof Error ? error.message : String(error);
         throw new RecoverablePhaseError(
           message.includes("IsInvalid") || message.includes("banned")

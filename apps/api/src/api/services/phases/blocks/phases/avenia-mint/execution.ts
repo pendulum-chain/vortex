@@ -27,11 +27,6 @@ import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.se
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { syncAveniaOnHoldState } from "./on-hold";
@@ -176,60 +171,48 @@ export class BrlaOnrampMintExecutor extends BasePhaseHandler {
         : new Error(`Error checking Avenia balance: ${error}`);
     }
 
-    let operationResult: { expectedAmountReceived: string; outputAmount: string; ticketId: string };
-    try {
-      operationResult = await runFinancialOperation({
-        attemptClass: "provider-mint-ticket",
-        externalId: result => result.ticketId,
-        flow: requireFinancialFlowIdentity(state.state),
-        perform: async () => {
-          const aveniaQuote = await abortableCall(signal, () =>
-            brlaApiService.createPayInQuote({
-              blockchainSendMethod: BlockchainSendMethod.PERMIT,
-              inputAmount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
-              inputCurrency: BrlaCurrency.BRLA,
-              inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
-              inputThirdParty: false,
-              outputCurrency: BrlaCurrency.BRLA,
-              outputPaymentMethod: paymentMethod,
-              outputThirdParty: false,
-              subAccountId: aveniaSubAccountId
-            })
-          );
-          const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDecimals).toFixed(0, 0);
-          throwIfAborted(signal);
-          const aveniaTicket = await abortableCall(signal, () =>
-            brlaApiService.createPixOutputTicket(
-              {
-                quoteToken: aveniaQuote.quoteToken,
-                ticketBlockchainOutput: {
-                  walletAddress: state.state.evmEphemeralAddress,
-                  walletChain: paymentMethod
-                }
-              },
-              aveniaSubAccountId
-            )
-          );
-          return { expectedAmountReceived, outputAmount: aveniaQuote.outputAmount, ticketId: aveniaTicket.id };
-        },
-        phase: this.getPhaseName(),
-        provider: "avenia",
-        request: {
-          amount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
-          destination: evmEphemeralAddress,
-          network,
-          subAccountId: aveniaSubAccountId
-        },
-        scopeId: state.id,
-        scopeType: "ramp",
-        signal
-      });
-    } catch (error) {
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
-      throw error;
-    }
+    const operationResult = await this.runFinancialOperation(state, {
+      attemptClass: "provider-mint-ticket",
+      externalId: result => result.ticketId,
+      perform: async () => {
+        const aveniaQuote = await abortableCall(signal, () =>
+          brlaApiService.createPayInQuote({
+            blockchainSendMethod: BlockchainSendMethod.PERMIT,
+            inputAmount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
+            inputCurrency: BrlaCurrency.BRLA,
+            inputPaymentMethod: AveniaPaymentMethod.INTERNAL,
+            inputThirdParty: false,
+            outputCurrency: BrlaCurrency.BRLA,
+            outputPaymentMethod: paymentMethod,
+            outputThirdParty: false,
+            subAccountId: aveniaSubAccountId
+          })
+        );
+        const expectedAmountReceived = multiplyByPowerOfTen(new Big(aveniaQuote.outputAmount), tokenDecimals).toFixed(0, 0);
+        throwIfAborted(signal);
+        const aveniaTicket = await abortableCall(signal, () =>
+          brlaApiService.createPixOutputTicket(
+            {
+              quoteToken: aveniaQuote.quoteToken,
+              ticketBlockchainOutput: {
+                walletAddress: state.state.evmEphemeralAddress,
+                walletChain: paymentMethod
+              }
+            },
+            aveniaSubAccountId
+          )
+        );
+        return { expectedAmountReceived, outputAmount: aveniaQuote.outputAmount, ticketId: aveniaTicket.id };
+      },
+      provider: "avenia",
+      request: {
+        amount: Big(metadata.mint.outputAmountDecimal).toFixed(2, 0),
+        destination: evmEphemeralAddress,
+        network,
+        subAccountId: aveniaSubAccountId
+      },
+      signal
+    });
     const { expectedAmountReceived, outputAmount, ticketId } = operationResult;
 
     logger.info(

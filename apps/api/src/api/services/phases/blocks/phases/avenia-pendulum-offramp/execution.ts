@@ -19,11 +19,6 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import type { AveniaOfframpPayoutRegistrationFacts } from "../avenia-offramp-payout/registration";
 import { AveniaPendulumOfframpContext } from "./simulation";
@@ -64,21 +59,17 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
         throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, pendulum.api);
-        const { hash } = await runFinancialOperation({
+        const { hash } = await this.runFinancialOperation(state, {
           attemptClass: "pendulum-moonbeam-xcm-broadcast",
           externalId: result => result.hash,
-          flow: requireFinancialFlowIdentity(state.state),
           perform: async () => {
             throwIfAborted(signal);
             return abortableCall(signal, () =>
               submitXTokens(getAddressForFormat(substrateAddress, pendulum.ss58Format), extrinsic)
             );
           },
-          phase: this.getPhaseName(),
           provider: "pendulum",
           request: { network: "pendulum", signedTransaction: presigned.txData },
-          scopeId: state.id,
-          scopeType: "ramp",
           signal
         });
         submittedHash = hash;
@@ -105,7 +96,6 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
       throw this.createRecoverableError("PendulumToAveniaXcmExecutor: timed out waiting for Moonbeam arrival");
     } catch (error) {
       logger.error("PendulumToAveniaXcmExecutor failed", error);
-      if (error instanceof FinancialOperationReconciliationRequiredError) throw error;
       if (error instanceof Error && "isRecoverable" in error) throw error;
       throw this.createRecoverableError("PendulumToAveniaXcmExecutor failed");
     }

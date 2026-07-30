@@ -25,17 +25,13 @@ import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/co
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
-import {
-  FinancialOperationReconciliationRequiredError,
-  requireFinancialFlowIdentity,
-  runFinancialOperation
-} from "../../core/financial-operation";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -337,10 +333,9 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
       const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
-      const { hash: txHashIdx } = await runFinancialOperation({
+      const { hash: txHashIdx } = await this.runFinancialOperation(state, {
         attemptClass: "funding-swap",
         externalId: operation => operation.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
@@ -356,7 +351,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: destinationNetwork,
         request: {
           amountRaw: requiredNativeRaw,
@@ -366,8 +360,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           routeTarget: swapRoute.transactionRequest.target,
           token: outTokenDetails.erc20AddressSourceChain
         },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -395,10 +387,9 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
             args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
             functionName: "transfer"
           });
-      const { hash: txHash } = await runFinancialOperation({
+      const { hash: txHash } = await this.runFinancialOperation(state, {
         attemptClass: "settlement-subsidy-transfer",
         externalId: operation => operation.hash,
-        flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
           throwIfAborted(signal);
           const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
@@ -413,7 +404,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
           return { hash };
         },
-        phase: this.getPhaseName(),
         provider: destinationNetwork,
         request: {
           amountRaw: subsidyAmountRaw.toFixed(0),
@@ -423,8 +413,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           source: fundingAccount.address,
           token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
         },
-        scopeId: state.id,
-        scopeType: "ramp",
         signal
       });
 
@@ -445,9 +433,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       return state;
     } catch (error) {
-      if (error instanceof FinancialOperationReconciliationRequiredError) {
-        throw this.createReconciliationRequiredError(error.message);
-      }
+      if (error instanceof PhaseError) throw error;
       throw this.createRecoverableError(
         `FinalSettlementSubsidyExecutor: Error during phase execution - ${(error as Error).message}`
       );

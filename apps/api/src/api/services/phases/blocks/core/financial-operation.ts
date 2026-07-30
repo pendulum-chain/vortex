@@ -6,7 +6,7 @@ import type { StateMetadata } from "../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "./cancellation";
 import type { FlowIdentity } from "./identity";
 
-interface RunFinancialOperationArgs<Result> {
+export interface RunFinancialOperationArgs<Result> {
   scopeType: "quote" | "ramp";
   scopeId: string;
   flow: FlowIdentity;
