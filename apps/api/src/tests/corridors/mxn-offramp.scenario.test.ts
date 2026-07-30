@@ -13,6 +13,7 @@ import { BaseError, ContractFunctionExecutionError, decodeFunctionData, erc20Abi
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -305,7 +306,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",
+    "ambiguous funding failure: an RPC outage pauses the ramp for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -330,19 +331,21 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
-      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.currentPhase).toBe("fundEphemeral");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-      // The outage surfaced as exactly one recoverable fundEphemeral error...
+      // The transport error is recoverable at the phase layer, but the
+      // financial outcome is unknown, so retries halt instead of risking a
+      // duplicate funding transfer.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Error funding ephemeral account")) ?? [];
       expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "fundEphemeral" && log.recoverable === true)).toBe(true);
-
-      // ...and after the retry the deposit transfer reached the chain exactly
-      // once, paying the anchor in full.
-      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(setup.inputAmountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "fundEphemeral", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(0n);
     },
     30000
   );

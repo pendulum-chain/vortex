@@ -21,6 +21,7 @@ import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blo
 import { resolveBlockFlow } from "../../api/services/phases/blocks/flows/catalog";
 import { MykoboOfframpPayoutContext } from "../../api/services/phases/blocks/phases/mykobo-offramp-payout/simulation";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -428,7 +429,7 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
   );
 
   it(
-    "transient failure: a scripted RPC outage on the payout is recorded as recoverable and the corridor still completes",
+    "ambiguous payout failure: a scripted RPC outage pauses the corridor for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -446,14 +447,19 @@ describe("EUR offramp corridor (USDC on Base → SEPA via Mykobo)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("mykoboPayoutOnBase");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      // The payout handler wraps broadcast errors in its own recoverable message.
+      // The phase records the transport error, then the durable operation
+      // blocks blind retries because the provider outcome is unknown.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Failed to send Mykobo payout transaction")) ?? [];
       expect(outageLogs.length).toBeGreaterThanOrEqual(1);
       expect(outageLogs.every(log => log.phase === "mykoboPayoutOnBase")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.receivablesAddress)).toBe(setup.payoutAmountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(
+        await FinancialOperation.findOne({ where: { phase: "mykoboPayoutOnBase", scopeId: setup.rampId } })
+      ).toMatchObject({ status: "unknown" });
+      expect(world.evm.erc20Balance(Networks.Base, EURC_ON_BASE, setup.receivablesAddress)).toBe(0n);
     },
     30000
   );
