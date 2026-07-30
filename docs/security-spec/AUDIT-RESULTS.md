@@ -1,5 +1,9 @@
 # Security Audit Results — Code vs Spec
 
+> **Historical snapshot — non-normative.** This report records the 2026-04-02 audit state and
+> contains status labels that may have been superseded. Current requirements live in the module
+> specifications; current exceptions live in [RISK-REGISTER.md](RISK-REGISTER.md).
+
 > **Started:** 2026-04-02 | **Completed:** 2026-04-02 | **Auditor:** Automated + Manual Review
 >
 > Each section corresponds to a spec file. Checklist items are marked:

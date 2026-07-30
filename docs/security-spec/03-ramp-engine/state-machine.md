@@ -51,8 +51,8 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 
 ## Audit Checklist
 
-- [EXISTING FINDING] **F-003**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. No `SELECT FOR UPDATE` or advisory lock. Multi-instance deployment would be vulnerable.
-- [EXISTING FINDING] **F-004**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). Retry counter resets across processing cycles, creating an infinite soft loop.
+- [ ] **F-003**: Lock acquisition is non-atomic — `state.processingLock.locked` check and `RampState.update()` are separate operations with a race window. No `SELECT FOR UPDATE` or advisory lock. Multi-instance deployment would be vulnerable.
+- [ ] **F-004**: After max retries exhausted for a recoverable error, the ramp stays in its current phase (not transitioned to `failed`). Retry counter resets across processing cycles, creating an infinite soft loop.
 - [x] `state.update()` in the processor uses `{ fields: ["currentPhase", "phaseHistory"] }` — enforced and not bypassed
 - [x] Terminal states `complete` and `failed` both trigger `retriesMap.delete()` and halt recursion
 - [x] `MAX_EXECUTION_TIME_MS` (10 minutes) is enforced via `Promise.race` with a timeout promise, and the losing execution is aborted via `AbortSignal` (not merely abandoned)
@@ -68,4 +68,4 @@ Lock expiry is set to 15 minutes. If a lock is older than 15 minutes, it's consi
 - [x] `squidRouterPay` bounds both bridge-status and destination-balance polling at 80% of the processor timeout
 - [ ] Lock refresh/release are not owner-fenced; a surviving stale processor can still overwrite a replacement owner's lock timestamp (F-003 follow-up)
 - [x] Phase processor is a singleton — `PhaseProcessor.getInstance()` pattern, default export is singleton instance, no production file creates `new PhaseProcessor()` (tests instantiate the class directly)
-- [EXISTING FINDING] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.
+- [ ] **F-056**: `sandboxEnabled` causes `initial-phase-handler` to skip the entire state machine (transitions directly `initial` → `complete` after a 10-second sleep) — no production guard prevents this.

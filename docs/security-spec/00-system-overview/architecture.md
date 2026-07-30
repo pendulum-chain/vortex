@@ -83,12 +83,12 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 ## Audit Checklist
 
 - [x] Every route in `apps/api/src/api/routes/v1/` has appropriate auth middleware applied — **PASS: F-013 resolved. Legacy fundEphemeral/execute-xcm/subsidize endpoints removed. `/v1/ramp/*` and `/v1/ramp/quotes(/best)` enforce `requirePartnerOrUserAuth()` with per-principal ownership guards. `/v1/brla/*`, `/v1/mykobo/profiles` (F-068 resolved), `/v1/maintenance/*`, `/v1/webhook/*` use `requireAuth`/`adminAuth`/`apiKeyAuth` respectively.**
-- [FAIL] No controller directly accesses `process.env` for secrets — all go through `config/vars.ts` — **F-016: `PENDULUM_FUNDING_SEED` accessed directly in `pendulum.service.ts`; also `SLACK_WEB_HOOK_TOKEN`, `COINGECKO_API_KEY`**
+- [ ] No controller directly accesses `process.env` for secrets — all go through `config/vars.ts` — **F-016: `PENDULUM_FUNDING_SEED` accessed directly in `pendulum.service.ts`; also `SLACK_WEB_HOOK_TOKEN`, `COINGECKO_API_KEY`**
 - [x] Ephemeral key secrets never appear in API request/response payloads or logs
 - [x] Phase processor always reads fresh state from DB before executing a phase (no stale cache)
-- [FAIL] All external API calls have timeout configuration — **F-014: Most `fetch()` calls lack timeout/AbortController (Mykobo, price feeds, Subscan, etc.)**
-- [PARTIAL] Error responses never leak internal state, stack traces, or secret material — **F-015: Stack traces stripped in prod, but raw `err.message` leaks in some paths**
-- [N/A] Database connection uses TLS in production — **F-017: Not configured in Sequelize options; relies on server-side enforcement**
+- [ ] All external API calls have timeout configuration — **F-014: Most `fetch()` calls lack timeout/AbortController (Mykobo, price feeds, Subscan, etc.)**
+- [ ] Error responses never leak internal state, stack traces, or secret material — **F-015: Stack traces stripped in prod, but raw `err.message` leaks in some paths**
+- [ ] Database connection uses TLS in production — **F-017: Not configured in Sequelize options; relies on server-side enforcement**
 - [x] Rate limiting is applied at the network edge before auth middleware
 - [x] CORS configuration restricts origins to known frontend domains (staging origin tracked as F-008)
 - [x] Rebalancer keys are distinct from API server keys

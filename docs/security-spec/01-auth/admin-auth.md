@@ -12,7 +12,8 @@ The flow:
 
 This is the simplest auth mechanism in the system — a single static secret with no user identity, session management, or key rotation built in.
 
-This identity-less design is an explicitly accepted risk for the current architecture.
+This identity-less design is an explicitly accepted risk for the current architecture
+([risk register](../RISK-REGISTER.md), RISK-002).
 It does not provide per-operator attribution, selective revocation, MFA, role separation,
 or non-repudiation. Administrative changes remain attributable only to possession of
 the shared credential; individual admin identities are out of scope for this change.

@@ -1,5 +1,9 @@
 # Inherited Issues
 
+> This is an implementation-detail supplement, not an exception authority. Active product or
+> architecture exceptions are indexed in
+> `docs/security-spec/RISK-REGISTER.md`; that register controls status.
+
 These are active block behaviors inherited during the block migration. The former
 quote engines, transaction builders, and concrete phase handlers have been deleted;
 references below point only to the current block implementation. "Inherited" records

@@ -71,6 +71,6 @@ The cleanup worker (`cleanup.worker.ts`) selects ramps where `currentPhase ∈ {
 - [x] Cleanup worker processes at most 5 ramps per cycle — verified
 - [x] Cleanup worker marks ramps as cleaned (`postProcessDone: true` via `postCompleteState.cleanup.cleanupCompleted`) to prevent re-processing — verified
 - [x] Base post-process handler catches errors per-chain and does not let one chain's failure block others — verified (each handler's `process` returns `[success, error]` and the worker `Promise.allSettled`s them)
-- [EXISTING FINDING] **F-051**: No Slack alerting or monitoring notification for cleanup failures — silent fund trapping risk.
-- [EXISTING FINDING] **F-052**: No admin endpoint to manually trigger cleanup for a specific ramp ID.
-- [EXISTING FINDING] **F-057**: `destinationTransfer` handler sends presigned tx without validating destination address — combined with F-050, no destination validation exists in the ephemeral-to-user transfer path.
+- [ ] **F-051**: No Slack alerting or monitoring notification for cleanup failures — silent fund trapping risk.
+- [ ] **F-052**: No admin endpoint to manually trigger cleanup for a specific ramp ID.
+- [ ] **F-057**: `destinationTransfer` handler sends presigned tx without validating destination address — combined with F-050, no destination validation exists in the ephemeral-to-user transfer path.

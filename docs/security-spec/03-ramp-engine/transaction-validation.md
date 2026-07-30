@@ -68,10 +68,10 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 ## Audit Checklist
 
 - [x] **F-038**: EVM typed data (`SignedTypedData` / `SignedTypedDataArray`) is bound to the server-issued unsigned typed data and the recovered signer.
-- [EXISTING FINDING] **F-039**: Stellar payment validation checks shape, source, destination presence, positive amount, asset presence, and operation count, but NOT quote-bound amount, destination, or asset identity.
-- [EXISTING FINDING] **F-040**: Stellar `createAccount` validation checks operation count/order and required fields, but NOT exact startingBalance threshold, expected SetOptions cosigner, or expected ChangeTrust asset.
+- [ ] **F-039**: Stellar payment validation checks shape, source, destination presence, positive amount, asset presence, and operation count, but NOT quote-bound amount, destination, or asset identity.
+- [ ] **F-040**: Stellar `createAccount` validation checks operation count/order and required fields, but NOT exact startingBalance threshold, expected SetOptions cosigner, or expected ChangeTrust asset.
 - [x] **F-041**: SELL-direction `squidRouterApprove`/`squidRouterSwap` are rejected at `validatePresignedTxs` and verified by on-chain hash + receipt + calldata via `verifyUserSubmittedSquidHashes` at the top of `FundEphemeralPhaseHandler.executePhase`. The swap hash is required; the approve hash is optional (pre-existing allowance) but content-verified whenever reported.
-- [EXISTING FINDING] **F-042**: Substrate transaction validation checks signer and decodable method, but NOT expected method, parameters, amounts, or destinations.
+- [ ] **F-042**: Substrate transaction validation checks signer and decodable method, but NOT expected method, parameters, amounts, or destinations.
 - [x] **F-043**: `areAllTxsIncluded` remains metadata-only, but content substitution is blocked earlier by identity-keyed unsigned transaction lookup plus per-format content validation.
 - [x] **F-047**: `getTransactionTypeForPhase` throws on unknown phases instead of defaulting to EVM.
 - [x] **F-048**: Stellar payment validation requires exactly one operation.
@@ -84,10 +84,10 @@ The two layers together guarantee that the client cannot (a) sneak a malicious p
 - [x] Offramp-specific validation (`validateOfframpQuote`, `validateBRLOfframp`, `validateStellarOfframp`) checks quote consistency
 - [x] `RAMP_START_EXPIRATION_TIME_SECONDS` enforces a time window between registration and start — prevents stale presigned transactions from being executed
 - [x] Default rejection for unrecognized phases — `getTransactionTypeForPhase` throws instead of defaulting to EVM (see F-047)
-- [EXISTING FINDING] **F-055**: Backup presigned transactions (`backupApprove`) use unlimited `maxUint256` ERC-20 approval amount — excessive blast radius if funding key is compromised.
-- [EXISTING FINDING] **F-056**: `sandboxEnabled` bypasses chainId validation in `validateEvmTransaction` and skips entire ramp flow in `initial-phase-handler` — no production guard prevents accidental activation.
+- [ ] **F-055**: Backup presigned transactions (`backupApprove`) use unlimited `maxUint256` ERC-20 approval amount — excessive blast radius if funding key is compromised.
+- [ ] **F-056**: `sandboxEnabled` bypasses chainId validation in `validateEvmTransaction` and skips entire ramp flow in `initial-phase-handler` — no production guard prevents accidental activation.
 - [x] **F-057**: `destinationTransfer` decodes native transfers and ERC-20 `transfer` calldata and verifies the recipient matches `state.destinationAddress` before broadcasting.
-- [EXISTING FINDING] **F-058**: No per-presigned-transaction TTL after ramp starts — `getPresignedTransaction` performs no age check, presigned txs remain valid indefinitely through recovery retries.
+- [ ] **F-058**: No per-presigned-transaction TTL after ramp starts — `getPresignedTransaction` performs no age check, presigned txs remain valid indefinitely through recovery retries.
 - [x] Presigned-tx partitioning via `partitionUnsignedTxs` + `filterUnsignedTxsForResponse`. **PASS** — ephemeral txs hidden from SDK response until `ephemeralPresignChecksPass` flips true.
 - [x] Deposit QR code (BRL onramp) gated on `ephemeralPresignChecksPass`. **PASS** — verified in `meta-state-types.ts`.
 - [x] Signed presigned transaction matching accepts normal signed payload mutations while still binding EVM raw transactions to the unsigned server-built `to`/`data`/`value`/`nonce` and minimum gas/fee parameters, and typed-data payloads to the unsigned typed-data content with signatures stripped for comparison.

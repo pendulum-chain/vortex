@@ -2,6 +2,24 @@
 
 This directory contains the security specification for the Vortex cross-border payment platform. Each file defines the **intended behavior** of a system module — the invariants that must hold, the threats that must be mitigated, and the concrete checks an auditor should perform against the actual code.
 
+## Document Authority
+
+Use documents in this order:
+
+1. **Module specifications** define normative current behavior.
+2. **`RISK-REGISTER.md`** is the only authority for current accepted, deferred, or
+   deployment-dependent exceptions to those requirements.
+3. **Review and audit artifacts** (`REVIEW-*.md`, `AUDIT-RESULTS.md`, `FINDINGS.md`,
+   `SPEC-DELTA-*.md`) are dated evidence/history. They are not normative and their status labels
+   can be stale.
+4. **Implementation-side notes** such as
+   `apps/api/src/api/services/phases/blocks/INHERITED-ISSUES.md` provide engineering detail; every
+   still-active exception must also be indexed in the risk register.
+
+If code and a normative invariant disagree, treat the code as a finding. If a historical
+document disagrees with a module specification or the risk register, the current normative
+documents win.
+
 ## Purpose
 
 1. **Audit baseline** — During code review, each spec file acts as the source of truth for "how it should work." Any deviation between code and spec is a finding.
@@ -18,6 +36,7 @@ This directory contains the security specification for the Vortex cross-border p
 
 | Module | Path | Scope |
 |---|---|---|
+| Current Risk Register | `RISK-REGISTER.md` | Authoritative accepted, deferred, and rollout-dependent exceptions |
 | System Overview | `00-system-overview/architecture.md` | Trust boundaries, component map, data flows |
 | Supabase OTP Auth | `01-auth/supabase-otp.md` | Email OTP, session lifecycle, token handling |
 | API Key Auth | `01-auth/api-keys.md` | Dual-key system (pk\_/sk\_), validation, partner matching |
@@ -54,9 +73,17 @@ This directory contains the security specification for the Vortex cross-border p
 | Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
 | Notifications | `07-operations/notifications.md` | In-app feed authorization, PII redaction rules, email dispatch status |
 
-## Per-File Format
+## Checklist Semantics
 
-Every spec file uses exactly four sections:
+- `[x]` means the stated current-code conformance check was performed and passed.
+- `[ ]` means open, partially conforming, not verified, deployment-dependent, or not applicable
+  to source-only review. The text must say which.
+- Labels such as `[FAIL]`, `[PARTIAL]`, `[N/A]`, and `[EXISTING FINDING]` are not checkbox syntax
+  and must not be used in normative module checklists.
+
+## Usual Per-File Format
+
+Most module specifications use these sections:
 
 - **What This Does** — Brief overview, scope, why it matters for security.
 - **Security Invariants** — Numbered, testable MUST-hold properties. The core of the spec.

@@ -38,7 +38,7 @@ out against another tenant's relationship.
    no re-copy) until archived. An expired row not revisited by either path may retain its raw
    value, but the server checks `expires_at` before redemption and will clear it on the next
    preview, acceptance, or sender listing. Accepted invites hold no live secret at rest
-   (`recipient-invite.service.ts`, `recipients.controller.ts`).
+   (`recipient-invite.service.ts`, `recipients.controller.ts`; RISK-003).
 2. **Redemption is token-bound (plan D1).** Possession of the token is the redemption key. If
    `invitee_email` was recorded, the redeemer's authenticated email must additionally match its
    canonical (trimmed, lowercased) form, else `403 INVITE_EMAIL_MISMATCH`.
@@ -154,7 +154,7 @@ out against another tenant's relationship.
     customer entity the acceptance linked. Sender-side KYC tracking is client-agnostic
     either way: list/eligibility read `provider_customers` scoped by the relationship's
     recipient entity + the invitation's provider/type/country.
-12. **Recipient-directed payout is unsupported in this API version.** Recipient list and
+12. **Recipient-directed payout is unsupported in this API version (RISK-004).** Recipient list and
     eligibility endpoints are onboarding/advisory functionality only. Ramp registration remains
     a sender self-offramp and rejects `recipientId`, `senderRecipientId`,
     `recipientRelationshipId`, and `recipientPayoutReferenceId` in `additionalData` with `400`

@@ -46,7 +46,7 @@ The full provider priority for `getUsdToFiatExchangeRate()` is Binance USDT spot
 - [x] FastForex response status and rate are validated. **PASS** — non-OK responses throw; missing, zero, or negative rates throw.
 - [x] FastForex rates are sanity-checked against CoinGecko when the reference is available. **PASS** — `assertRateWithinSanityBand("fastforex", ...)` compares the spread with per-currency limits when CoinGecko returns a valid reference; otherwise it warns and accepts the valid FastForex rate. The same helper guards Binance rates.
 - [x] FastForex failures fall back to CoinGecko. **PASS** — failures are caught and logged before requesting the CoinGecko fallback.
-- [x] CoinGecko fallback/reference uses USDC as the USD proxy. **PASS / OPERATIONAL RISK** — accepted by current code, but operators should monitor depeg conditions because this is not a pure fiat FX reference.
+- [ ] CoinGecko fallback/reference uses USDC as the USD proxy. **ACCEPTED RISK RISK-014** — operators must monitor depeg conditions because this is not a pure fiat FX reference.
 - [x] Both-provider failure fails closed. **PASS** — `convertCurrency()` rethrows provider failures instead of returning the original amount.
 - [x] Accepted fiat rates use the configured short cache TTL. **PASS** — `fiatExchangeRateCache` entries expire after `FIAT_CACHE_TTL_MS`.
 - [x] No FastForex secret is logged. **PASS** — logs include provider URL and error context, not `FASTFOREX_API_KEY`.
