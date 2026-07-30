@@ -87,7 +87,12 @@ export async function isDestinationEvmEphemeralFunded(
 const PRESIGNED_TRANSFER_BALANCE_POLL_MS = 5000;
 const PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS = 3 * 60 * 1000;
 
-export async function ensurePresignedTransferFunded(rawTx: `0x${string}`, network: EvmNetworks, phase: string): Promise<void> {
+export async function ensurePresignedTransferFunded(
+  rawTx: `0x${string}`,
+  network: EvmNetworks,
+  phase: string,
+  signal?: AbortSignal
+): Promise<void> {
   let sender: `0x${string}`;
   let tokenAddress: `0x${string}` | undefined;
   let amountRaw: bigint;
@@ -124,7 +129,8 @@ export async function ensurePresignedTransferFunded(rawTx: `0x${string}`, networ
       amountRaw.toString(),
       PRESIGNED_TRANSFER_BALANCE_POLL_MS,
       PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS,
-      network
+      network,
+      signal
     );
   } else {
     await checkEvmNativeBalancePeriodically(
@@ -132,7 +138,8 @@ export async function ensurePresignedTransferFunded(rawTx: `0x${string}`, networ
       amountRaw.toString(),
       PRESIGNED_TRANSFER_BALANCE_POLL_MS,
       PRESIGNED_TRANSFER_BALANCE_TIMEOUT_MS,
-      network
+      network,
+      signal
     );
   }
 }

@@ -12,6 +12,7 @@ import {
   RampCurrency,
   RampDirection,
   RampPhase,
+  sleep,
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import { Big } from "big.js";
@@ -26,6 +27,7 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import {
   FinancialOperationReconciliationRequiredError,
@@ -46,7 +48,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
     return 200;
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
@@ -77,14 +79,19 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
             externalId: operation => operation.hash,
             flow: requireFinancialFlowIdentity(state.state),
             perform: async () => {
-              const sent = await manager.executeApiCall(
-                api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
-                funding,
-                "pendulum"
+              throwIfAborted(signal);
+              const sent = await abortableCall(signal, () =>
+                manager.executeApiCall(
+                  api => api.tx.tokens.transfer(substrateAddress, currencyId, required.toFixed(0, 0)),
+                  funding,
+                  "pendulum"
+                )
               );
               await waitUntilTrueWithTimeout(
                 async () => (await getBalance(substrateAddress)).gte(metadata.targetInputAmountRaw),
-                5000
+                5000,
+                180000,
+                signal
               );
               return { hash: sent.hash };
             },
@@ -97,7 +104,8 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
               source: funding.address
             },
             scopeId: state.id,
-            scopeType: "ramp"
+            scopeType: "ramp",
+            signal
           });
           await this.createSubsidy(
             state,
@@ -132,13 +140,14 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
       const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;
 
       // Wait for token settlement before checking balance
-      await new Promise(resolve => setTimeout(resolve, EVM_SETTLEMENT_DELAY_MS));
+      await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
 
       const currentBalance = await checkEvmBalanceForToken({
         amountDesiredRaw: "1",
         chain: inputTokenDetails.network as EvmNetworks,
         intervalMs: 1000,
         ownerAddress: evmEphemeralAddress,
+        signal,
         timeoutMs: 5000,
         tokenDetails: inputTokenDetails
       });
@@ -195,6 +204,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           externalId: operation => operation.hash,
           flow: requireFinancialFlowIdentity(state.state),
           perform: async () => {
+            throwIfAborted(signal);
             const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
               data,
               maxFeePerGas,
@@ -203,7 +213,7 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
               to: inputTokenDetails.erc20AddressSourceChain as `0x${string}`,
               value: 0n
             });
-            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
             if (receipt.status !== "success") {
               throw new Error(`SubsidizePreSwapExecutor: Subsidy transaction ${hash} failed`);
             }
@@ -220,7 +230,8 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
             token: inputTokenDetails.erc20AddressSourceChain
           },
           scopeId: state.id,
-          scopeType: "ramp"
+          scopeType: "ramp",
+          signal
         });
 
         const subsidyAmount = nativeToDecimal(requiredAmount, metadata.inputDecimals).toNumber();

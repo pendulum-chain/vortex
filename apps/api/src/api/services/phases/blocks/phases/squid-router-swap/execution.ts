@@ -38,6 +38,7 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
 import { getSquidRouterPayStuckAlertMs, getSquidRouterPayTimeoutMs } from "../../../../phases/phase-processor-config";
 import { SlackNotifier } from "../../../../slack.service";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import {
   FinancialOperationReconciliationRequiredError,
@@ -65,7 +66,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     return "squidRouterSwap";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     logger.info(`Executing squidRouter phase for ramp ${state.id}`);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -127,10 +128,12 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
           chain: sourceNetwork,
           intervalMs: 1000,
           ownerAddress: evmEphemeralAddress,
+          signal,
           timeoutMs: 15000,
           tokenDetails: sourceTokenDetails
         });
       } catch (_error) {
+        throwIfAborted(signal);
         throw this.createRecoverableError(
           `Unable to verify squidRouter input balance for ${evmEphemeralAddress} on ${sourceNetwork}; balance may not be settled yet`
         );
@@ -154,11 +157,13 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         destinationTokenDetails.erc20AddressSourceChain
       );
       if (state.state.transactionPlan?.settlementBaselines?.[baselineKey] === undefined) {
-        const baseline = await getEvmBalance({
-          chain: destinationNetwork,
-          ownerAddress: evmEphemeralAddress as `0x${string}`,
-          tokenDetails: destinationTokenDetails
-        });
+        const baseline = await abortableCall(signal, () =>
+          getEvmBalance({
+            chain: destinationNetwork,
+            ownerAddress: evmEphemeralAddress as `0x${string}`,
+            tokenDetails: destinationTokenDetails
+          })
+        );
         await state.update({
           state: {
             ...state.state,
@@ -175,7 +180,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
 
       let approveHash = state.state.squidRouterApproveHash;
       if (!approveHash) {
-        const accountNonce = await this.getNonce(sourceNetwork, approveTransaction.signer as `0x${string}`);
+        const accountNonce = await this.getNonce(sourceNetwork, approveTransaction.signer as `0x${string}`, signal);
         if (approveTransaction.nonce && approveTransaction.nonce !== accountNonce) {
           logger.warn(
             `Nonce mismatch for approve transaction of account ${approveTransaction.signer}: expected ${accountNonce}, got ${approveTransaction.nonce}`
@@ -186,7 +191,8 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
           state,
           sourceNetwork,
           approveTransaction.txData as string,
-          "approve-broadcast"
+          "approve-broadcast",
+          signal
         );
         logger.info(`Approve transaction executed with hash: ${approveHash}`);
 
@@ -198,13 +204,19 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         });
       }
 
-      await this.waitForTransactionConfirmation(sourceNetwork, approveHash);
+      await this.waitForTransactionConfirmation(sourceNetwork, approveHash, signal);
       logger.info(`Approve transaction confirmed: ${approveHash}`);
 
       let swapHash = state.state.squidRouterSwapHash;
       let updatedState = state;
       if (!swapHash) {
-        swapHash = await this.executeTransaction(state, sourceNetwork, swapTransaction.txData as string, "swap-broadcast");
+        swapHash = await this.executeTransaction(
+          state,
+          sourceNetwork,
+          swapTransaction.txData as string,
+          "swap-broadcast",
+          signal
+        );
         logger.info(`Swap transaction executed with hash: ${swapHash}`);
 
         updatedState = await state.update({
@@ -215,7 +227,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         });
       }
 
-      await this.waitForTransactionConfirmation(sourceNetwork, swapHash);
+      await this.waitForTransactionConfirmation(sourceNetwork, swapHash, signal);
       logger.info(`Swap transaction confirmed: ${swapHash}`);
 
       return updatedState;
@@ -232,7 +244,8 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     state: RampState,
     network: EvmNetworks,
     txData: string,
-    attemptClass: string
+    attemptClass: string,
+    signal?: AbortSignal
   ): Promise<string> {
     try {
       const publicClient = EvmClientManager.getInstance().getClient(network);
@@ -241,10 +254,13 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         externalId: operation => operation.hash,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
-          const hash = await publicClient.sendRawTransaction({
-            serializedTransaction: txData as `0x${string}`
-          });
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            publicClient.sendRawTransaction({
+              serializedTransaction: txData as `0x${string}`
+            })
+          );
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
           if (receipt.status !== "success") {
             throw new FinancialOperationRejectedError(`Squid Router transaction ${hash} failed`);
           }
@@ -254,7 +270,8 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
         provider: network,
         request: { network, signedTransaction: txData },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
       return hash;
     } catch (error) {
@@ -264,7 +281,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     }
   }
 
-  private async waitForTransactionConfirmation(network: EvmNetworks, txHash: string): Promise<void> {
+  private async waitForTransactionConfirmation(network: EvmNetworks, txHash: string, signal?: AbortSignal): Promise<void> {
     const maxRetries = 3;
     const baseDelay = 5000; // 5 seconds
     const maxDelay = 30000; // 30 seconds
@@ -272,9 +289,11 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         const publicClient = EvmClientManager.getInstance().getClient(network);
-        const receipt = await publicClient.waitForTransactionReceipt({
-          hash: txHash as `0x${string}`
-        });
+        const receipt = await abortableCall(signal, () =>
+          publicClient.waitForTransactionReceipt({
+            hash: txHash as `0x${string}`
+          })
+        );
 
         if (!receipt || receipt.status !== "success") {
           throw new Error(`SquidRouterSwapExecutor: Transaction ${txHash} failed or was not found`);
@@ -282,6 +301,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
 
         return;
       } catch (error) {
+        throwIfAborted(signal);
         const isLastAttempt = attempt === maxRetries;
         const isTransactionNotFoundError =
           error instanceof Error &&
@@ -302,7 +322,7 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
             `SquidRouterSwapExecutor: Transaction ${txHash} not found on attempt ${attempt + 1}/${maxRetries + 1}. Retrying in ${delay}ms...`
           );
 
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await sleep(delay, signal);
         } else {
           throw this.createRecoverableError(`SquidRouterSwapExecutor: Error waiting for transaction confirmation: ${error}`);
         }
@@ -310,10 +330,10 @@ export class SquidRouterSwapExecutor extends BasePhaseHandler {
     }
   }
 
-  private async getNonce(network: EvmNetworks, address: `0x${string}`): Promise<number> {
+  private async getNonce(network: EvmNetworks, address: `0x${string}`, signal?: AbortSignal): Promise<number> {
     try {
       const publicClient = EvmClientManager.getInstance().getClient(network);
-      return await publicClient.getTransactionCount({ address });
+      return await abortableCall(signal, () => publicClient.getTransactionCount({ address }));
     } catch (error) {
       logger.error("Error getting nonce", error);
       throw this.createRecoverableError("Failed to get transaction nonce");
@@ -493,7 +513,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
               nativeToFundRaw,
               swapHash as `0x${string}`,
               logIndex,
-              "initial-gas-payment"
+              "initial-gas-payment",
+              signal
             );
 
             const subsidyToken = fromChain === Networks.Polygon ? SubsidyToken.MATIC : SubsidyToken.ETH;
@@ -689,7 +710,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
       nativeToFundRaw,
       swapHash as `0x${string}`,
       logIndex,
-      "supplemental-gas-payment"
+      "supplemental-gas-payment",
+      signal
     );
     await this.patchStateKey(state, "squidRouterExtraGasTxHash", extraGasTxHash);
 
@@ -797,7 +819,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
     tokenValueRaw: string,
     swapHash: `0x${string}`,
     logIndex: number,
-    attemptClass: string
+    attemptClass: string,
+    signal?: AbortSignal
   ): Promise<Hash> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
@@ -823,17 +846,20 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         externalId: operation => operation.hash,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
-          const hash = await walletClient.sendTransaction({
-            account: walletClientAccount,
-            chain: publicClient.chain,
-            data: transactionData,
-            maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
-            maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
-            nonce,
-            to: AXL_GAS_SERVICE_EVM as `0x${string}`,
-            value: BigInt(tokenValueRaw)
-          });
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            walletClient.sendTransaction({
+              account: walletClientAccount,
+              chain: publicClient.chain,
+              data: transactionData,
+              maxFeePerGas: fromChain === Networks.Polygon ? maxFeePerGas : maxFeePerGas * 2n,
+              maxPriorityFeePerGas: fromChain === Networks.Polygon ? maxPriorityFeePerGas : maxPriorityFeePerGas * 2n,
+              nonce,
+              to: AXL_GAS_SERVICE_EVM as `0x${string}`,
+              value: BigInt(tokenValueRaw)
+            })
+          );
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
           if (receipt.status !== "success") {
             throw new FinancialOperationRejectedError(`Axelar gas payment ${hash} failed`);
           }
@@ -843,7 +869,8 @@ export class SquidRouterPayExecutor extends BasePhaseHandler {
         provider: fromChain,
         request: { amountRaw: tokenValueRaw, logIndex, network: fromChain, nonce, swapHash },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
 
       logger.info(`SquidRouterPayExecutor: ${fromChain} fund transaction sent with hash: ${gasPaymentHash}`);

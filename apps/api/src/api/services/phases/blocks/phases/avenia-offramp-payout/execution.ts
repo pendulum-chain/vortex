@@ -4,7 +4,8 @@ import {
   EvmClientManager,
   Networks,
   PixOutputTicketPayload,
-  RampPhase
+  RampPhase,
+  sleep
 } from "@vortexfi/shared";
 import Big from "big.js";
 import logger from "../../../../../../config/logger";
@@ -13,6 +14,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { findAveniaCustomerByTaxId } from "../../../../avenia/avenia-customer.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
 import {
   FinancialOperationReconciliationRequiredError,
@@ -37,7 +39,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     return getAnchorPayoutMaxRetries();
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     if (isAnchorMockingEnabled()) {
       logger.warn(`AveniaOfframpPayoutExecutor: Pausing test ramp ${state.id} before the anchor payout`);
       throw this.createRecoverableError("Avenia payout paused by MOCK_ANCHOR_OPERATIONS");
@@ -57,32 +59,39 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     if (!customer) throw new Error("AveniaOfframpPayoutExecutor: Avenia customer not found");
     const subAccountId = customer.providerSubaccountId ?? "";
     if (state.state.payOutTicketId) {
-      await this.waitForPaid(state.state.payOutTicketId, subAccountId);
+      await this.waitForPaid(state.state.payOutTicketId, subAccountId, signal);
       return state;
     }
-    if (!isPendulumPayout) await this.sendPayoutTransfer(state);
+    if (!isPendulumPayout) await this.sendPayoutTransfer(state, signal);
     const api = BrlaApiService.getInstance();
-    await this.poll(async () => {
-      const balance = await api.getAccountBalance(subAccountId);
-      return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
-    }, "Avenia BRLA balance");
+    await this.poll(
+      async () => {
+        const balance = await abortableCall(signal, () => api.getAccountBalance(subAccountId));
+        return new Big(balance?.balances?.BRLA ?? 0).gte(new Big(metadata.transferAmountDecimal).round(2, 0));
+      },
+      "Avenia BRLA balance",
+      signal
+    );
     try {
       const ticket = await runFinancialOperation({
         attemptClass: "provider-payout-ticket",
         externalId: result => result.id,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
-          const payoutQuote = await api.createPayOutQuote({
-            outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
-            outputThirdParty: false,
-            subAccountId
-          });
+          const payoutQuote = await abortableCall(signal, () =>
+            api.createPayOutQuote({
+              outputAmount: new Big(quote.outputAmount).round(2, 0).toString(),
+              outputThirdParty: false,
+              subAccountId
+            })
+          );
+          throwIfAborted(signal);
           const payload: PixOutputTicketPayload = {
             quoteToken: payoutQuote.quoteToken,
             ticketBlockchainInput: { walletAddress: facts.brlaEvmAddress },
             ticketBrlPixOutput: { pixKey: facts.pixDestination }
           };
-          const created = await api.createPixOutputTicket(payload, subAccountId);
+          const created = await abortableCall(signal, () => api.createPixOutputTicket(payload, subAccountId));
           return { id: created.id };
         },
         phase: this.getPhaseName(),
@@ -94,10 +103,11 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
           subAccountId
         },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
       await state.update({ state: { ...state.state, payOutTicketId: ticket.id } });
-      await this.waitForPaid(ticket.id, subAccountId);
+      await this.waitForPaid(ticket.id, subAccountId, signal);
       return state;
     } catch (error) {
       if (error instanceof PhaseError) throw error;
@@ -109,7 +119,7 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     }
   }
 
-  private async sendPayoutTransfer(state: RampState): Promise<void> {
+  private async sendPayoutTransfer(state: RampState, signal?: AbortSignal): Promise<void> {
     try {
       const client = EvmClientManager.getInstance();
       const base = client.getClient(Networks.Base);
@@ -118,19 +128,22 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
         throw new Error("AveniaOfframpPayoutExecutor: Missing presigned payout transaction");
       }
       if (state.state.brlaPayoutTxHash) {
-        const receipt = await base.waitForTransactionReceipt({ hash: state.state.brlaPayoutTxHash });
+        const receipt = await abortableCall(signal, () =>
+          base.waitForTransactionReceipt({ hash: state.state.brlaPayoutTxHash as `0x${string}` })
+        );
         if (receipt.status === "success") return;
         throw this.createUnrecoverableError(`Payout transfer ${state.state.brlaPayoutTxHash} failed`);
       } else {
-        await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName());
+        await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName(), signal);
       }
       const { hash } = await runFinancialOperation({
         attemptClass: "presigned-payout-broadcast",
         externalId: result => result.hash,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
+          throwIfAborted(signal);
           const hash = await client.sendRawTransactionWithRetry(Networks.Base, transaction.txData as `0x${string}`);
-          const receipt = await base.waitForTransactionReceipt({ hash: hash as `0x${string}` });
+          const receipt = await abortableCall(signal, () => base.waitForTransactionReceipt({ hash: hash as `0x${string}` }));
           if (receipt.status !== "success") throw new Error(`Payout transfer ${hash} failed`);
           return { hash: hash as `0x${string}` };
         },
@@ -138,7 +151,8 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
         provider: Networks.Base,
         request: { network: Networks.Base, signedTransaction: transaction.txData },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
       await state.update({ state: { ...state.state, brlaPayoutTxHash: hash as `0x${string}` } });
     } catch (error) {
@@ -151,28 +165,33 @@ export class AveniaOfframpPayoutExecutor extends BasePhaseHandler {
     }
   }
 
-  private async waitForPaid(ticketId: string, subAccountId: string): Promise<void> {
+  private async waitForPaid(ticketId: string, subAccountId: string, signal?: AbortSignal): Promise<void> {
     const api = BrlaApiService.getInstance();
-    await this.poll(async () => {
-      const ticket = await api.getAveniaPayoutTicket(ticketId, subAccountId);
-      if (ticket.status === AveniaTicketStatus.FAILED) {
-        throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Ticket status is FAILED");
-      }
-      return ticket.status === AveniaTicketStatus.PAID;
-    }, `Avenia payout ticket ${ticketId}`);
+    await this.poll(
+      async () => {
+        const ticket = await abortableCall(signal, () => api.getAveniaPayoutTicket(ticketId, subAccountId));
+        if (ticket.status === AveniaTicketStatus.FAILED) {
+          throw this.createUnrecoverableError("AveniaOfframpPayoutExecutor: Ticket status is FAILED");
+        }
+        return ticket.status === AveniaTicketStatus.PAID;
+      },
+      `Avenia payout ticket ${ticketId}`,
+      signal
+    );
   }
 
-  private async poll(check: () => Promise<boolean>, label: string): Promise<void> {
+  private async poll(check: () => Promise<boolean>, label: string, signal?: AbortSignal): Promise<void> {
     const start = Date.now();
     let lastError: unknown;
     while (Date.now() - start < POLL_TIMEOUT_MS) {
+      throwIfAborted(signal);
       try {
         if (await check()) return;
       } catch (error) {
         if (error instanceof PhaseError) throw error;
         lastError = error;
       }
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      await sleep(POLL_INTERVAL_MS, signal);
     }
     if (lastError) throw this.createUnrecoverableError(`${label} polling failed: ${lastError}`);
     throw this.createRecoverableError(`${label} polling timed out`);

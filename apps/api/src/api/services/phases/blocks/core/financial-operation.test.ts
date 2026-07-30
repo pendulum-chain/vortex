@@ -107,4 +107,19 @@ describe("runFinancialOperation", () => {
     expect(result).toEqual({ id: "external-2" });
     expect(await FinancialOperation.findOne()).toMatchObject({ status: "confirmed" });
   });
+
+  it("does not start an external operation when the phase is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort(new Error("phase timed out"));
+    const perform = mock(async () => ({ id: "external-1" }));
+
+    await expect(
+      runFinancialOperation({
+        ...baseOperation,
+        perform,
+        signal: controller.signal
+      })
+    ).rejects.toThrow("phase timed out");
+    expect(perform).not.toHaveBeenCalled();
+  });
 });

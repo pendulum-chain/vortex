@@ -25,6 +25,7 @@ import { fundEphemeralAccount } from "../../../../pendulum/pendulum.service";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import {
   DESTINATION_EVM_FUNDING_AMOUNTS,
   isDestinationEvmEphemeralFunded,
@@ -42,7 +43,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     return "fundEphemeral";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) {
       throw new Error("Quote not found for the given state");
@@ -54,7 +55,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for AssetHub route");
       const pendulum = await ApiManager.getInstance().getApi("pendulum");
       if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
-        await fundEphemeralAccount("pendulum", substrateAddress, true);
+        throwIfAborted(signal);
+        await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, true));
       }
       return state;
     }
@@ -63,7 +65,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     if (!evmEphemeralAddress) {
       throw new Error("FundEphemeralExecutor: State metadata corrupted, missing evmEphemeralAddress. This is a bug.");
     }
-    await this.verifyUserSubmittedSourceTransactions(state, quote);
+    await this.verifyUserSubmittedSourceTransactions(state, quote, signal);
     const metadata = blocks[EvmOfframpSourceContext.key]
       ? (blocks[EvmOfframpSourceContext.key] as EvmOfframpSourceMetadata)
       : blocks.alfredpayOfframp
@@ -77,7 +79,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         if (!substrateAddress) throw new Error("FundEphemeralExecutor: missing Substrate ephemeral for Moonbeam route");
         const pendulum = await ApiManager.getInstance().getApi("pendulum");
         if (!(await isPendulumEphemeralFunded(substrateAddress, pendulum))) {
-          await fundEphemeralAccount("pendulum", substrateAddress, false);
+          throwIfAborted(signal);
+          await abortableCall(signal, () => fundEphemeralAccount("pendulum", substrateAddress, false));
         }
       }
       const sourceClient = EvmClientManager.getInstance().getClient(sourceNetwork);
@@ -98,7 +101,13 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
 
       if (currentBalanceRaw < requiredFundingRaw) {
         logger.info(`Funding ${sourceNetwork} ephemeral account ${evmEphemeralAddress}`);
-        await this.fundEvmEphemeralAccount(state, sourceNetwork, requiredFundingRaw - currentBalanceRaw, requiredFundingRaw);
+        await this.fundEvmEphemeralAccount(
+          state,
+          sourceNetwork,
+          requiredFundingRaw - currentBalanceRaw,
+          requiredFundingRaw,
+          signal
+        );
       } else {
         logger.info(`${sourceNetwork} ephemeral address already funded.`);
       }
@@ -113,7 +122,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         const isFunded = await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork);
         if (!isFunded) {
           logger.info(`Funding EVM ephemeral account ${evmEphemeralAddress} on ${destinationNetwork}`);
-          await this.fundDestinationEvmEphemeralAccount(state, destinationNetwork);
+          await this.fundDestinationEvmEphemeralAccount(state, destinationNetwork, signal);
         } else {
           logger.info(`EVM ephemeral account already funded on ${destinationNetwork}.`);
         }
@@ -145,7 +154,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     }
   }
 
-  private async verifyUserSubmittedSourceTransactions(state: RampState, quote: QuoteTicket): Promise<void> {
+  private async verifyUserSubmittedSourceTransactions(
+    state: RampState,
+    quote: QuoteTicket,
+    signal?: AbortSignal
+  ): Promise<void> {
     if (state.type !== RampDirection.SELL) return;
     if (state.from === Networks.AssetHub) return;
     if (isAlfredpayToken(quote.outputCurrency as FiatToken)) return;
@@ -159,6 +172,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         hash: state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
         label: "User direct USDC transfer to ephemeral",
         presignedPhase: "squidRouterNoPermitTransfer",
+        signal,
         state
       });
       return;
@@ -175,6 +189,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         hash: approveHash,
         label: "User squidRouter approve",
         presignedPhase: "squidRouterApprove",
+        signal,
         state
       });
     }
@@ -183,6 +198,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       hash: state.state.squidRouterSwapHash as `0x${string}` | undefined,
       label: "User squidRouter swap",
       presignedPhase: "squidRouterSwap",
+      signal,
       state
     });
   }
@@ -191,7 +207,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     state: RampState,
     network: EvmNetworks,
     fundingAmountRaw: bigint,
-    requiredFundingRaw: bigint
+    requiredFundingRaw: bigint,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
@@ -207,14 +224,19 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(network);
       const walletClient = evmClientManager.getWalletClient(network, fundingAccount);
 
-      const txHash = await walletClient.sendTransaction({
-        to: ephemeralAddress as `0x${string}`,
-        value: fundingAmountRaw
-      });
+      throwIfAborted(signal);
+      const txHash = await abortableCall(signal, () =>
+        walletClient.sendTransaction({
+          to: ephemeralAddress as `0x${string}`,
+          value: fundingAmountRaw
+        })
+      );
 
-      const receipt = await networkClient.waitForTransactionReceipt({
-        hash: txHash as `0x${string}`
-      });
+      const receipt = await abortableCall(signal, () =>
+        networkClient.waitForTransactionReceipt({
+          hash: txHash as `0x${string}`
+        })
+      );
 
       if (!receipt || receipt.status !== "success") {
         throw new Error(`FundEphemeralExecutor: Transaction ${txHash} failed or was not found`);
@@ -227,7 +249,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         await waitUntilTrueWithTimeout(
           async () => (await networkClient.getBalance({ address: ephemeralAddress as `0x${string}` })) >= requiredFundingRaw,
           1000,
-          30000
+          30000,
+          signal
         );
       } catch (pollError) {
         throw new Error(
@@ -240,7 +263,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
     }
   }
 
-  protected async fundDestinationEvmEphemeralAccount(state: RampState, destinationNetwork: EvmNetworks): Promise<void> {
+  protected async fundDestinationEvmEphemeralAccount(
+    state: RampState,
+    destinationNetwork: EvmNetworks,
+    signal?: AbortSignal
+  ): Promise<void> {
     try {
       const evmClientManager = EvmClientManager.getInstance();
       const destinationClient = evmClientManager.getClient(destinationNetwork);
@@ -257,14 +284,19 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
       const fundingAccount = getEvmFundingAccount(destinationNetwork);
       const walletClient = evmClientManager.getWalletClient(destinationNetwork, fundingAccount);
 
-      const txHash = await walletClient.sendTransaction({
-        to: ephemeralAddress as `0x${string}`,
-        value: BigInt(fundingAmountRaw)
-      });
+      throwIfAborted(signal);
+      const txHash = await abortableCall(signal, () =>
+        walletClient.sendTransaction({
+          to: ephemeralAddress as `0x${string}`,
+          value: BigInt(fundingAmountRaw)
+        })
+      );
 
-      const receipt = await destinationClient.waitForTransactionReceipt({
-        hash: txHash as `0x${string}`
-      });
+      const receipt = await abortableCall(signal, () =>
+        destinationClient.waitForTransactionReceipt({
+          hash: txHash as `0x${string}`
+        })
+      );
 
       if (!receipt || receipt.status !== "success") {
         throw new Error(`FundEphemeralExecutor: Transaction ${txHash} failed or was not found on ${destinationNetwork}`);
@@ -274,7 +306,8 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         await waitUntilTrueWithTimeout(
           () => isDestinationEvmEphemeralFunded(ephemeralAddress, destinationNetwork),
           1000,
-          30000
+          30000,
+          signal
         );
       } catch (pollError) {
         throw new Error(

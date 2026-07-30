@@ -3,6 +3,7 @@ import httpStatus from "http-status";
 import FinancialOperation from "../../../../../models/financialOperation.model";
 import { APIError } from "../../../../errors/api-error";
 import type { StateMetadata } from "../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "./cancellation";
 import type { FlowIdentity } from "./identity";
 
 interface RunFinancialOperationArgs<Result> {
@@ -14,6 +15,7 @@ interface RunFinancialOperationArgs<Result> {
   provider: string;
   request: unknown;
   retryFailed?: boolean;
+  signal?: AbortSignal;
   perform(idempotencyKey: string): Promise<Result>;
   reconcile?: (operation: FinancialOperation) => Promise<Result | null>;
   externalId?: (result: Result) => string | undefined;
@@ -81,8 +83,10 @@ export async function runFinancialOperation<Result>({
   perform,
   reconcile,
   externalId,
-  retryFailed = false
+  retryFailed = false,
+  signal
 }: RunFinancialOperationArgs<Result>): Promise<Result> {
+  throwIfAborted(signal);
   const requestHash = digest(request);
   const operationKey = digest({
     attemptClass,
@@ -161,8 +165,15 @@ export async function runFinancialOperation<Result>({
     throw new FinancialOperationReconciliationRequiredError(operation, "is already in progress");
   }
 
+  if (signal?.aborted) {
+    // The durable claim exists, but no external call has started. Return it to
+    // the only state that recovery may safely claim automatically.
+    await operation.update({ status: "not_started" });
+    throwIfAborted(signal);
+  }
+
   try {
-    const result = await perform(operationKey);
+    const result = await abortableCall(signal, () => perform(operationKey));
     const stored = serializable(result);
     await operation.update({
       externalId: externalId?.(result) ?? null,

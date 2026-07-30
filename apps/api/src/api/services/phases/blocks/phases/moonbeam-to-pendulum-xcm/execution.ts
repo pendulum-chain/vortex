@@ -5,6 +5,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { RecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata } from "../../core/metadata";
 import { MoonbeamToPendulumXcmContext } from ".";
 
@@ -13,7 +14,7 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
     return "moonbeamToPendulumXcm";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) throw new Error("Quote not found for the given state");
     const metadata = getBlockMetadata(quote.metadata, MoonbeamToPendulumXcmContext);
@@ -38,9 +39,10 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         throw new RecoverablePhaseError("MoonbeamToPendulumXcmExecutor: All RPC options exhausted.", 1800);
       }
       try {
+        throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, moonbeam.api);
-        await submitMoonbeamXcm(evmAddress, extrinsic);
+        await abortableCall(signal, () => submitMoonbeamXcm(evmAddress, extrinsic));
       } catch (error) {
         logger.error("MoonbeamToPendulumXcmExecutor: XCM submission failed", error);
         const message = error instanceof Error ? error.message : String(error);
@@ -52,7 +54,7 @@ export class MoonbeamToPendulumXcmExecutor extends BasePhaseHandler {
         );
       }
     }
-    await waitUntilTrue(arrived, 5000);
+    await waitUntilTrue(arrived, 5000, signal);
     return state;
   }
 }

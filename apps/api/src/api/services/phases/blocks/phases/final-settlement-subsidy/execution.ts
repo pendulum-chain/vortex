@@ -27,6 +27,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { requireFinancialFlowIdentity, runFinancialOperation } from "../../core/financial-operation";
@@ -57,7 +58,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     return "finalSettlementSubsidy";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyExecutor: Starting phase execution for ramp ${state.id}, type=${state.type}`);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -93,11 +94,11 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
     // 1. Idempotency check
     if (state.state.finalSettlementSubsidyTxHash) {
-      const receipt = await publicClient
-        .getTransactionReceipt({
+      const receipt = await abortableCall(signal, () =>
+        publicClient.getTransactionReceipt({
           hash: state.state.finalSettlementSubsidyTxHash as `0x${string}`
         })
-        .catch(() => null);
+      ).catch(() => null);
 
       if (receipt && receipt.status === "success") {
         logger.info(
@@ -129,6 +130,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
+      signal,
       timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
       tokenDetails: outTokenDetails
     });
@@ -257,6 +259,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         externalId: operation => operation.hash,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
+          throwIfAborted(signal);
           const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
             data: swapRoute.transactionRequest.data as `0x${string}`,
             gas: BigInt(swapRoute.transactionRequest.gasLimit),
@@ -266,7 +269,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
             to: swapRoute.transactionRequest.target as `0x${string}`,
             value: BigInt(swapRoute.transactionRequest.value)
           });
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
           if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
           return { hash };
         },
@@ -281,7 +284,8 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           token: outTokenDetails.erc20AddressSourceChain
         },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
 
       logger.info(`FinalSettlementSubsidyExecutor: Swap transaction ${txHashIdx} confirmed. Waiting for balance update...`);
@@ -291,6 +295,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         chain: destinationNetwork,
         intervalMs: BALANCE_POLLING_TIME_MS,
         ownerAddress: fundingAccount.address,
+        signal,
         timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
         tokenDetails: outTokenDetails
       });
@@ -312,6 +317,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         externalId: operation => operation.hash,
         flow: requireFinancialFlowIdentity(state.state),
         perform: async () => {
+          throwIfAborted(signal);
           const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
             data,
             maxFeePerGas,
@@ -320,7 +326,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
             to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
             value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
           });
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
           if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
           return { hash };
         },
@@ -335,7 +341,8 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
           token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
         },
         scopeId: state.id,
-        scopeType: "ramp"
+        scopeType: "ramp",
+        signal
       });
 
       await this.createSubsidy(

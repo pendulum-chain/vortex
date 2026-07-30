@@ -79,6 +79,11 @@ runtime validation, and startup wiring checks therefore remain mandatory.
     provider idempotency key when the provider supports one. When the integration does
     not expose such a facility, the local claim plus fail-closed reconciliation policy
     is mandatory; an ambiguous timeout is not a retryable error.
+17. **Cancellation propagation.** Every execution block MUST accept the processor
+    `AbortSignal` and propagate it through polling, sleeps, provider/RPC waits, and
+    financial-operation claims. No new external side effect may begin after
+    cancellation. If cancellation races an already-started financial call, its outcome
+    is `unknown` until reconciled.
 
 ## Threat Vectors & Mitigations
 

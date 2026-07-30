@@ -65,10 +65,12 @@ idempotency-key facility, is defined in
 - **Impact:** Fees, prior spending, partial balances, or unrelated transfers can be mistaken for an already-submitted XCM, causing the phase to wait for a Moonbeam arrival that will not occur instead of broadcasting the intended transfer.
 - **Release relevance:** Pre-existing recovery/liveness risk for Pendulum-to-Moonbeam transfer flows; not introduced by the block implementation.
 
-## Cancellation and liveness
+## Resolved: cancellation and liveness
 
-### Long waits do not consistently honor the phase abort signal
-
-- **References:** Representative block loops/sleeps omit `AbortSignal`: Avenia PIX polling (`phases/avenia-offramp-payout/execution.ts:101-125`), Mykobo payout polling (`phases/mykobo-offramp-payout/execution.ts:64-93`), Pendulum-to-Avenia arrival (`phases/avenia-pendulum-offramp/execution.ts:59-64`), destination balance polling (`phases/destination-transfer/execution.ts:142-150`), and final-settlement receipt/backoff (`phases/final-settlement-subsidy/execution.ts:281-316`).
-- **Impact:** After the phase processor times out or aborts an execution, outstanding polling, receipt waits, and sleeps can continue consuming RPC/provider capacity and may overlap a retry, increasing duplicate-side-effect races.
-- **Release relevance:** Pre-existing operational stability and concurrency risk under timeouts; release-relevant at production load, while Squid status polling is separately signal-aware.
+Every catalog-registered block executor accepts the processor's `AbortSignal`. Shared
+polling helpers receive it, explicit timers use abort-aware `sleep`, provider and RPC
+waits use `abortableCall`, and every durable financial operation checks the signal
+before beginning its external call. Multi-call provider operations re-check between
+calls. An underlying transport without native cancellation may finish the request it
+already started, but the abandoned executor is detached and cannot begin subsequent
+work; the financial operation remains `unknown` until reconciliation.

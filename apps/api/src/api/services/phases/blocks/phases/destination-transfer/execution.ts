@@ -14,6 +14,7 @@ import RampState from "../../../../../../models/rampState.model";
 import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -59,7 +60,7 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     return "destinationTransfer";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -87,7 +88,9 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     if (destinationTransferTxHash) {
       try {
         const client = evmClientManager.getClient(destinationNetwork);
-        const receipt = await client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` });
+        const receipt = await abortableCall(signal, () =>
+          client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` })
+        );
 
         if (receipt.status === "success") {
           return state;
@@ -121,10 +124,12 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
 
       let liveNonce: number;
       try {
-        liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
-          address: state.state.evmEphemeralAddress as `0x${string}`,
-          blockTag: "pending"
-        });
+        liveNonce = await abortableCall(signal, () =>
+          evmClientManager.getClient(destinationNetwork).getTransactionCount({
+            address: state.state.evmEphemeralAddress as `0x${string}`,
+            blockTag: "pending"
+          })
+        );
       } catch (error) {
         throw this.createRecoverableError(
           `DestinationTransferExecutor: destination nonce preflight is unavailable: ${(error as Error).message}`
@@ -145,13 +150,14 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
         chain: destinationNetwork,
         intervalMs: BALANCE_POLLING_TIME_MS,
         ownerAddress: state.state.evmEphemeralAddress,
+        signal,
         timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
         tokenDetails: outTokenDetails
       });
 
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(
-        destinationNetwork,
-        destinationTransfer as `0x${string}`
+      throwIfAborted(signal);
+      const txHash = await abortableCall(signal, () =>
+        evmClientManager.sendRawTransactionWithRetry(destinationNetwork, destinationTransfer as `0x${string}`)
       );
       await state.update({
         state: {
