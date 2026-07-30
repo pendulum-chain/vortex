@@ -94,11 +94,9 @@ const FIAT_PEG_BY_STABLECOIN: Record<string, FiatToken> = {
  * USD amount by the inverted FIAT-USD oracle rate, but request.inputAmount is denominated
  * in the input token: USD-like stables pass through unchanged, fiat-pegged stables
  * (BRLA, EURC) are valued at their peg's FIAT-USD oracle rate, and any other token falls
- * back to the bridged USDC amount when available.
- *
- * A rate-feed failure while valuing a fiat-pegged stable MUST NOT fail the quote: the
- * engine already holds the bridged USDC amount, a good USD-denominated proxy, so we fall
- * back to it (or the raw input as a last resort) rather than throwing from discount math.
+ * back to an independently computed bridged USDC amount when available. A raw non-USD
+ * input is never relabeled as USD; inability to establish the denomination fails quote
+ * creation.
  */
 export async function getUsdDenominatedInputAmount(ctx: QuoteContext): Promise<Big> {
   const { inputAmount, inputCurrency } = ctx.request;
@@ -130,7 +128,9 @@ function usdFallbackFromContext(ctx: QuoteContext): Big {
   if (ctx.evmToEvm?.outputAmountDecimal) {
     return ctx.evmToEvm.outputAmountDecimal;
   }
-  return new Big(ctx.request.inputAmount);
+  throw new Error(
+    `Cannot value ${ctx.request.inputCurrency} input in USD: no fresh rate or independently derived USD route amount`
+  );
 }
 
 /**
@@ -226,13 +226,11 @@ export function calculateSubsidyAmount(expectedOutput: Big, actualOutput: Big, m
     return new Big(0);
   }
 
-  const shortfall = expectedOutput.minus(actualOutput);
-
-  // Cap at maxSubsidy if configured
-  const maxSubsidyBig = new Big(maxSubsidy);
-  if (maxSubsidy > 0) {
-    const maxAllowedSubsidy = expectedOutput.mul(maxSubsidyBig);
-    return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
+  if (maxSubsidy <= 0) {
+    return new Big(0);
   }
-  return shortfall;
+
+  const shortfall = expectedOutput.minus(actualOutput);
+  const maxAllowedSubsidy = expectedOutput.mul(maxSubsidy);
+  return shortfall.gt(maxAllowedSubsidy) ? maxAllowedSubsidy : shortfall;
 }
