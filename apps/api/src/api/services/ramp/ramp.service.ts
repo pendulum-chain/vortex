@@ -165,6 +165,17 @@ export class RampService extends BaseRampService {
       });
     }
   }
+
+  private static assertStartDeadlineNotExceeded(ramp: Pick<RampState, "createdAt">): void {
+    const ageSeconds = (Date.now() - ramp.createdAt.getTime()) / 1000;
+    if (ageSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+      throw new APIError({
+        message: "Maximum time window to start process exceeded. Ramp invalidated.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -412,6 +423,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertStartDeadlineNotExceeded(rampState);
+
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
@@ -520,17 +533,7 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      RampService.assertStartDeadlineNotExceeded(rampState);
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {

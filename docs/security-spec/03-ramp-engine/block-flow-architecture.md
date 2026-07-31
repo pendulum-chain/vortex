@@ -26,10 +26,15 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 3. **Version dispatch.** Registration, preparation, start, and recovery MUST dispatch
    using the persisted flow identity. Resolving the current catalog by request and then
    silently accepting a different identity is forbidden.
-4. **Recovery support.** A flow version MUST remain registered while any nonterminal
-   ramp references it. A deployment may remove a version only after a database check
-   proves no pending quote or nonterminal ramp depends on it. Rollback MUST retain every
-   version introduced by the deployment being rolled back.
+4. **Recovery support.** A flow version MUST remain registered while the configured
+   backend can still dispatch persisted state that references it. The startup check MUST
+   cover every unexpired pending quote and every resumable ramp owned by the configured
+   flow variant. Resumable ramps include all nonterminal ramps after `initial`, regardless
+   of age, plus `initial` ramps within the start deadline. Both update and start MUST
+   reject an `initial` ramp after that deadline, before invoking a persisted-flow
+   lifecycle hook. A deployment may remove a version only after this scoped check proves
+   that the backend cannot dispatch it. Rollback MUST retain every version introduced by
+   the deployment being rolled back.
 5. **Legacy adoption.** Unversioned quotes may be adopted by the current version only
    when their request and exact block-key set match that version. Their registration
    MUST persist the adopted identity. An unversioned ramp's stored phase sequence may be
@@ -99,7 +104,7 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 | A registry registration silently replaces another handler | Duplicate registration is rejected |
 | Old or manually edited JSONB is cast into a new TypeScript type | Versioned envelope validation before registration, start, or recovery |
 | Two blocks flatten different values into one legacy field | Compatibility merge rejects conflicting values |
-| An old flow implementation is removed too early | Deployment/removal check against pending quotes and nonterminal ramps |
+| An old flow implementation is removed too early | Per-variant deployment/removal check against unexpired pending quotes and resumable ramps; update and start reject expired initial ramps before lifecycle hooks |
 | A provider accepts an order and the database transaction later rolls back | Independent durable financial-operation claim; retry reuses the confirmed response or halts on ambiguity |
 | Two workers attempt the same external side effect | Unique operation key and atomic `not_started` → `submitted` claim |
 | A provider has no idempotency-key API | Unknown outcomes require reconciliation; automatic repetition is forbidden |
@@ -125,5 +130,6 @@ runtime validation, and startup wiring checks therefore remain mandatory.
 - [ ] Block-local schemas currently validate their versioned object envelopes and exact
       ownership keys; field-by-field schemas must be added when a block changes persisted
       shape. Until then, a version bump is mandatory for any such change.
-- [ ] Deployment automation must query for referenced versions before permitting their
-      removal; the runtime fails closed if an unsupported version reaches it.
+- [ ] Deployment automation must query each flow variant for referenced versions in
+      unexpired pending quotes and resumable ramps before permitting their removal; the
+      runtime fails closed if an unsupported version reaches it.

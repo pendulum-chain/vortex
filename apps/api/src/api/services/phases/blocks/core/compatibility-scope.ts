@@ -7,11 +7,12 @@ const TERMINAL_RAMP_PHASES = ["complete", "failed", "timedOut"] as const;
 /**
  * Selects only persisted state that this backend could still execute.
  *
- * A registered ramp remains in `initial` until startRamp is called, but startRamp
- * rejects it after the shared expiration window. Older initial rows therefore
- * cannot be resumed and must not make a later deployment depend on legacy quote
- * metadata. Once a ramp has entered a financial phase, age never makes it safe to
- * ignore: every non-terminal phase owned by this flow variant stays fail-closed.
+ * A registered ramp remains in `initial` until startRamp is called. Both updateRamp
+ * and startRamp reject it after the shared expiration window, before either can run
+ * the persisted-flow lifecycle. Older initial rows therefore cannot be resumed and
+ * must not make a later deployment depend on legacy quote metadata. Once a ramp has
+ * entered a financial phase, age never makes it safe to ignore: every non-terminal
+ * phase owned by this flow variant stays fail-closed.
  */
 export function getPersistedBlockFlowCompatibilityScope(flowVariant: FlowVariant, now = new Date()) {
   const initialRampCutoff = new Date(now.getTime() - RAMP_START_EXPIRATION_TIME_SECONDS * 1000);
