@@ -31,6 +31,7 @@ import { isAddress } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
+import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
@@ -51,8 +52,6 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
-
-const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
 
 function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
