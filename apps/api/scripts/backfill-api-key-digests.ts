@@ -15,8 +15,8 @@
  * a match/miss verdict.
  *
  * Usage:
- *   bun scripts/backfill-api-key-digests.ts --file /secure/path/keys.txt [--dry-run]
- *   cat keys.txt | bun scripts/backfill-api-key-digests.ts [--dry-run]
+ *   bun scripts/backfill-api-key-digests.ts --file /secure/path/keys.txt [--ssl-ca-cert /secure/path/database-ca.crt] [--dry-run]
+ *   cat keys.txt | bun scripts/backfill-api-key-digests.ts [--ssl-ca-cert /secure/path/database-ca.crt] [--dry-run]
  *
  * Safe to re-run: already-migrated rows are skipped. Run it in every environment BEFORE
  * removing the legacy fallback from `validateSecretApiKey`, and confirm the remaining
@@ -33,22 +33,20 @@ import { Op } from "sequelize";
 // modules because vars.ts validates the environment during module evaluation.
 dotenv.config({ path: path.resolve(import.meta.dir, "../.env") });
 
-const [
-  { digestApiKey, getKeyPrefix, getSecretKeyLookupPrefix, isValidSecretKeyFormat },
-  { default: sequelize },
-  { default: ApiKey }
-] = await Promise.all([
-  import("../src/api/middlewares/apiKeyAuth.helpers"),
-  import("../src/config/database"),
-  import("../src/models/apiKey.model")
-]);
+function readOption(name: string): string | undefined {
+  const optionIndex = process.argv.indexOf(name);
+  if (optionIndex === -1) return undefined;
+
+  const value = process.argv[optionIndex + 1];
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
+}
 
 function readKeys(): string[] {
-  const fileFlagIndex = process.argv.indexOf("--file");
-  const raw =
-    fileFlagIndex !== -1 && process.argv[fileFlagIndex + 1]
-      ? readFileSync(process.argv[fileFlagIndex + 1], "utf8")
-      : readFileSync(0, "utf8");
+  const keyFilePath = readOption("--file");
+  const raw = keyFilePath ? readFileSync(keyFilePath, "utf8") : readFileSync(0, "utf8");
 
   return raw
     .split("\n")
@@ -57,86 +55,109 @@ function readKeys(): string[] {
 }
 
 async function main(): Promise<void> {
-  const dryRun = process.argv.includes("--dry-run");
-  const keys = readKeys();
-
-  if (keys.length === 0) {
-    console.error("No keys provided. Pass --file <path> or pipe keys on stdin (one per line).");
-    process.exit(1);
+  const sslCaCertPath = readOption("--ssl-ca-cert");
+  if (sslCaCertPath) {
+    // Set this before importing database.ts: Sequelize reads its TLS options
+    // while that module is evaluated. A CLI value intentionally overrides .env.
+    process.env.DB_SSL_CA_CERT_PATH = path.resolve(sslCaCertPath);
   }
 
-  const malformed = keys.filter(key => !isValidSecretKeyFormat(key));
-  if (malformed.length > 0) {
-    console.error(`${malformed.length} input line(s) are not valid secret-key format; aborting without changes.`);
-    process.exit(1);
-  }
+  const [
+    { digestApiKey, getKeyPrefix, getSecretKeyLookupPrefix, isValidSecretKeyFormat },
+    { default: sequelize },
+    { default: ApiKey }
+  ] = await Promise.all([
+    import("../src/api/middlewares/apiKeyAuth.helpers"),
+    import("../src/config/database"),
+    import("../src/models/apiKey.model")
+  ]);
 
-  // Only rows still on the legacy format can be migrated: their prefix is the 8-char
-  // constant. Already-migrated rows carry the 16-char prefix and are left alone.
-  const legacyRows = await ApiKey.findAll({
-    where: {
-      keyType: "secret",
-      [Op.and]: sequelize.where(sequelize.fn("length", sequelize.col("key_prefix")), 8)
+  try {
+    const dryRun = process.argv.includes("--dry-run");
+    const keys = readKeys();
+
+    if (keys.length === 0) {
+      throw new Error("No keys provided. Pass --file <path> or pipe keys on stdin (one per line).");
     }
-  });
 
-  console.log(`Legacy secret-key rows found: ${legacyRows.length}`);
-  console.log(`Plaintext keys supplied: ${keys.length}`);
+    const malformed = keys.filter(key => !isValidSecretKeyFormat(key));
+    if (malformed.length > 0) {
+      throw new Error(`${malformed.length} input line(s) are not valid secret-key format; aborting without changes.`);
+    }
 
-  const matchedRowIds = new Set<string>();
-  let migrated = 0;
-
-  for (const key of keys) {
-    const publicPrefix = getKeyPrefix(key);
-    const candidates = legacyRows.filter(row => row.keyPrefix === publicPrefix && row.keyHash);
-
-    let matched = false;
-    for (const row of candidates) {
-      if (matchedRowIds.has(row.id)) continue;
-      // Legacy rows hold bcrypt hashes; this is the one place we still pay that cost.
-      if (!(await bcrypt.compare(key, row.keyHash as string))) continue;
-
-      matched = true;
-      matchedRowIds.add(row.id);
-      if (!dryRun) {
-        await row.update({ keyHash: digestApiKey(key), keyPrefix: getSecretKeyLookupPrefix(key) });
+    // Only rows still on the legacy format can be migrated: their prefix is the 8-char
+    // constant. Already-migrated rows carry the 16-char prefix and are left alone.
+    const legacyRows = await ApiKey.findAll({
+      where: {
+        keyType: "secret",
+        [Op.and]: sequelize.where(sequelize.fn("length", sequelize.col("key_prefix")), 8)
       }
-      migrated++;
-      console.log(`  ${publicPrefix}… → migrated (row ${row.id}, active=${row.isActive})`);
-      break;
+    });
+
+    console.log(`Legacy secret-key rows found: ${legacyRows.length}`);
+    console.log(`Plaintext keys supplied: ${keys.length}`);
+
+    const matchedRowIds = new Set<string>();
+    let migrated = 0;
+
+    for (const key of keys) {
+      const publicPrefix = getKeyPrefix(key);
+      const candidates = legacyRows.filter(row => row.keyPrefix === publicPrefix && row.keyHash);
+
+      let matched = false;
+      for (const row of candidates) {
+        if (matchedRowIds.has(row.id)) continue;
+        // Legacy rows hold bcrypt hashes; this is the one place we still pay that cost.
+        if (!(await bcrypt.compare(key, row.keyHash as string))) continue;
+
+        matched = true;
+        matchedRowIds.add(row.id);
+        if (!dryRun) {
+          await row.update({ keyHash: digestApiKey(key), keyPrefix: getSecretKeyLookupPrefix(key) });
+        }
+        migrated++;
+        console.log(`  ${publicPrefix}… → migrated (row ${row.id}, active=${row.isActive})`);
+        break;
+      }
+
+      if (!matched) {
+        console.log(`  ${publicPrefix}… → NO MATCHING ROW (already migrated, revoked, or wrong environment)`);
+      }
     }
 
-    if (!matched) {
-      console.log(`  ${publicPrefix}… → NO MATCHING ROW (already migrated, revoked, or wrong environment)`);
+    const unmatchedRows = legacyRows.filter(row => !matchedRowIds.has(row.id));
+
+    console.log(`\n${dryRun ? "[dry run] would migrate" : "Migrated"}: ${migrated}`);
+    console.log(`Legacy rows left unmigrated: ${unmatchedRows.length}`);
+    for (const row of unmatchedRows) {
+      console.log(`  row ${row.id} (active=${row.isActive}, name=${row.name ?? "-"}) — no plaintext supplied`);
     }
-  }
 
-  const unmatchedRows = legacyRows.filter(row => !matchedRowIds.has(row.id));
+    if (unmatchedRows.some(row => row.isActive)) {
+      console.log(
+        "\n⚠️  Active legacy rows remain. The legacy bcrypt fallback must stay in place until\n" +
+          "   they are migrated or revoked — removing it would break those keys."
+      );
+    } else {
+      console.log("\n✅ No active legacy rows remain. The legacy fallback in validateSecretApiKey can be removed.");
+    }
 
-  console.log(`\n${dryRun ? "[dry run] would migrate" : "Migrated"}: ${migrated}`);
-  console.log(`Legacy rows left unmigrated: ${unmatchedRows.length}`);
-  for (const row of unmatchedRows) {
-    console.log(`  row ${row.id} (active=${row.isActive}, name=${row.name ?? "-"}) — no plaintext supplied`);
-  }
-
-  if (unmatchedRows.some(row => row.isActive)) {
     console.log(
-      "\n⚠️  Active legacy rows remain. The legacy bcrypt fallback must stay in place until\n" +
-        "   they are migrated or revoked — removing it would break those keys."
+      "\nVerify independently with:\n  SELECT count(*) FROM api_keys WHERE key_type='secret' AND is_active AND length(key_prefix)=8;"
     );
-  } else {
-    console.log("\n✅ No active legacy rows remain. The legacy fallback in validateSecretApiKey can be removed.");
+  } finally {
+    await sequelize.close();
   }
-
-  console.log(
-    "\nVerify independently with:\n  SELECT count(*) FROM api_keys WHERE key_type='secret' AND is_active AND length(key_prefix)=8;"
-  );
-
-  await sequelize.close();
 }
 
-main().catch(async error => {
-  console.error("Backfill failed:", error instanceof Error ? error.message : error);
-  await sequelize.close();
-  process.exit(1);
+main().catch(error => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error("Backfill failed:", message);
+  if (message.includes("ESSLREQUIRED") || message.includes("SSL connection is required")) {
+    console.error(
+      "The database requires TLS. Set DB_SSL_CA_CERT_PATH in apps/api/.env or pass " +
+        "--ssl-ca-cert /path/to/database-ca.crt. If its CA is already trusted by your system, set DB_SSL_REQUIRED=true."
+    );
+  }
+  process.exitCode = 1;
 });
