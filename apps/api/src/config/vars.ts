@@ -104,6 +104,18 @@ function readFractionEnv(name: string, defaultValue: string): number {
   return value;
 }
 
+export const RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS = 300;
+
+function readRecipientInviteDiscountLimit(): number {
+  const name = "RECIPIENT_INVITE_MAX_DISCOUNT_BPS";
+  const rawValue = process.env[name] ?? String(RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS);
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value < 0 || value > RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS || rawValue.trim() === "") {
+    throw new Error(`${name} must be an integer between 0 and ${RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS}`);
+  }
+  return value;
+}
+
 interface Config {
   env: string;
   deploymentEnv: DeploymentEnv;
@@ -158,6 +170,9 @@ interface Config {
   quote: {
     discountStateTimeoutMinutes: number;
     deltaDBasisPoints: number;
+  };
+  recipients: {
+    inviteMaxDiscountBps: number;
   };
   mykobo: {
     feeFallback: MykoboFeeFallback;
@@ -273,6 +288,9 @@ export const config: Config = {
   rateLimitMaxRequests: process.env.RATE_LIMIT_MAX_REQUESTS || 100,
   rateLimitNumberOfProxies: process.env.RATE_LIMIT_NUMBER_OF_PROXIES || 1,
   rateLimitWindowMinutes: process.env.RATE_LIMIT_WINDOW_MINUTES || 1,
+  recipients: {
+    inviteMaxDiscountBps: readRecipientInviteDiscountLimit()
+  },
 
   sandboxEnabled: process.env.SANDBOX_ENABLED === "true",
 

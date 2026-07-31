@@ -3060,19 +3060,31 @@
             "in": "query",
             "name": "limit",
             "required": false,
-            "schema": { "default": 20, "type": "integer" }
+            "schema": {
+              "default": 20,
+              "type": "integer"
+            }
           },
           {
             "description": "The offset for querying older transactions.",
             "in": "query",
             "name": "offset",
             "required": false,
-            "schema": { "default": 0, "type": "integer" }
+            "schema": {
+              "default": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GetRampHistoryResponse" } } },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRampHistoryResponse"
+                }
+              }
+            },
             "description": "Authenticated user's ramp history.",
             "headers": {}
           }
@@ -4328,7 +4340,7 @@
     "/v1/webhook": {
       "post": {
         "deprecated": false,
-        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "description": "Register a new webhook to receive event notifications.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nWebhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -4344,7 +4356,7 @@
                     "type": "array"
                   },
                   "quoteId": {
-                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote",
+                    "description": "(required* one of two: quoteId or sessionId): Subscribe to events for a specific quote. The quote must have been created with your API key.",
                     "type": "string"
                   },
                   "sessionId": {
@@ -4352,7 +4364,7 @@
                     "type": "string"
                   },
                   "url": {
-                    "description": "Your HTTPS webhook endpoint URL",
+                    "description": "Your HTTPS webhook endpoint URL. No embedded credentials; must resolve to a publicly routable address.",
                     "type": "string"
                   }
                 },
@@ -4426,7 +4438,7 @@
     "/v1/webhook/{id}": {
       "delete": {
         "deprecated": false,
-        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.",
+        "description": "Remove a webhook subscription.\n\n**Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.\n\nDeletion is scoped to your account: a webhook registered by another account returns `404`.",
         "parameters": [
           {
             "description": "",

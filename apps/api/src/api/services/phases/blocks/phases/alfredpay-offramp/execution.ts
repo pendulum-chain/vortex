@@ -12,9 +12,10 @@ import {
   isSignedTypedDataArray,
   Networks,
   RampPhase,
-  SignedTypedData
+  SignedTypedData,
+  sleep
 } from "@vortexfi/shared";
-import { erc20Abi } from "viem";
+import { erc20Abi, keccak256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
@@ -24,7 +25,9 @@ import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { verifyUserSubmittedTxByHash } from "../../../../phases/helpers/user-tx-verifier";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getAnchorPayoutMaxRetries, isAnchorMockingEnabled } from "../anchor-test-mode";
 import { FinalSettlementSubsidyExecutor } from "../final-settlement-subsidy/execution";
 import { FundEphemeralExecutor } from "../fund-ephemeral/execution";
@@ -95,15 +98,18 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
     fromNetwork: EvmNetworks,
     token: `0x${string}`,
     owner: `0x${string}`,
-    value: bigint
+    value: bigint,
+    signal?: AbortSignal
   ): Promise<void> {
     const publicClient = this.evmClientManager.getClient(fromNetwork);
-    const balance = await publicClient.readContract({
-      abi: erc20Abi,
-      address: token,
-      args: [owner],
-      functionName: "balanceOf"
-    });
+    const balance = await abortableCall(signal, () =>
+      publicClient.readContract({
+        abi: erc20Abi,
+        address: token,
+        args: [owner],
+        functionName: "balanceOf"
+      })
+    );
 
     if (balance < value) {
       throw this.createRecoverableError(
@@ -133,14 +139,15 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
     state: RampState,
     hash: `0x${string}`,
     fromNetwork: EvmNetworks,
-    label: string
+    label: string,
+    signal?: AbortSignal
   ): Promise<RampState> {
     logger.info(`${label} tx sent: ${hash}`);
     const updatedState = await state.update({
       state: { ...state.state, squidRouterPermitExecutionHash: hash }
     });
     const { publicClient } = this.getExecutorClients(fromNetwork);
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
     if (!receipt || receipt.status !== "success") throw this.createRecoverableError(`${label} tx failed: ${hash}`);
     logger.info(`${label} tx confirmed: ${hash}`);
     return updatedState;
@@ -151,20 +158,22 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
     hash: `0x${string}` | undefined,
     fromNetwork: EvmNetworks,
     label: string,
-    presignedPhase: RampPhase
+    presignedPhase: RampPhase,
+    signal?: AbortSignal
   ): Promise<void> {
-    await verifyUserSubmittedTxByHash({ fromNetwork, hash, label, presignedPhase, state });
+    await verifyUserSubmittedTxByHash({ fromNetwork, hash, label, presignedPhase, signal, state });
     logger.info(`${label} tx confirmed: ${hash}`);
   }
 
-  private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks): Promise<RampState> {
+  private async executeNoPermitFallback(state: RampState, fromNetwork: EvmNetworks, signal?: AbortSignal): Promise<RampState> {
     if (state.state.isDirectTransfer) {
       await this.waitForUserHash(
         state,
         state.state.squidRouterNoPermitTransferHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit direct transfer",
-        "squidRouterNoPermitTransfer"
+        "squidRouterNoPermitTransfer",
+        signal
       );
     } else {
       const hasApproveBlueprint = state.unsignedTxs.some(tx => tx.phase === "squidRouterNoPermitApprove");
@@ -174,7 +183,8 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
           state.state.squidRouterNoPermitApproveHash as `0x${string}` | undefined,
           fromNetwork,
           "No-permit approve",
-          "squidRouterNoPermitApprove"
+          "squidRouterNoPermitApprove",
+          signal
         );
       }
       await this.waitForUserHash(
@@ -182,7 +192,8 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
         state.state.squidRouterNoPermitSwapHash as `0x${string}` | undefined,
         fromNetwork,
         "No-permit swap",
-        "squidRouterNoPermitSwap"
+        "squidRouterNoPermitSwap",
+        signal
       );
     }
     return state;
@@ -191,7 +202,8 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
   private async executeDirectTransfer(
     state: RampState,
     signedTypedDataArray: SignedTypedData[],
-    fromNetwork: EvmNetworks
+    fromNetwork: EvmNetworks,
+    signal?: AbortSignal
   ): Promise<RampState> {
     if (!isSignedTypedDataArray(signedTypedDataArray) || signedTypedDataArray.length !== 1) {
       throw this.createUnrecoverableError("Invalid txData format for direct transfer: expected array of 1 SignedTypedData");
@@ -203,43 +215,52 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
     const { walletClient, publicClient } = this.getExecutorClients(fromNetwork);
 
-    await this.assertOwnerHasBalance(fromNetwork, token, owner, value);
-    const allowance = await publicClient.readContract({
-      abi: erc20Abi,
-      address: token,
-      args: [owner, spender],
-      functionName: "allowance"
-    });
+    await this.assertOwnerHasBalance(fromNetwork, token, owner, value, signal);
+    const allowance = await abortableCall(signal, () =>
+      publicClient.readContract({
+        abi: erc20Abi,
+        address: token,
+        args: [owner, spender],
+        functionName: "allowance"
+      })
+    );
 
     if (allowance >= value) {
       logger.info(`Existing allowance ${allowance} covers required ${value}, skipping permit for ramp ${state.id}`);
     } else {
-      const permitHash = await walletClient.writeContract({
-        abi: permitAbi,
-        address: token,
-        args: [owner, spender, value, deadline, permitSig.v, permitSig.r, permitSig.s],
-        functionName: "permit"
-      });
+      throwIfAborted(signal);
+      const permitHash = await abortableCall(signal, () =>
+        walletClient.writeContract({
+          abi: permitAbi,
+          address: token,
+          args: [owner, spender, value, deadline, permitSig.v, permitSig.r, permitSig.s],
+          functionName: "permit"
+        })
+      );
       logger.info(`Direct transfer permit tx sent: ${permitHash}`);
-      const permitReceipt = await publicClient.waitForTransactionReceipt({ hash: permitHash });
+      const permitReceipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash: permitHash }));
       if (!permitReceipt || permitReceipt.status !== "success") {
         throw this.createRecoverableError(`Direct transfer permit tx failed: ${permitHash}`);
       }
     }
 
-    const transferHash = await walletClient.writeContract({
-      abi: transferFromAbi,
-      address: token,
-      args: [owner, ephemeralAddress, value],
-      functionName: "transferFrom"
-    });
-    return this.saveHashAndAwaitReceipt(state, transferHash, fromNetwork, "Direct transfer");
+    throwIfAborted(signal);
+    const transferHash = await abortableCall(signal, () =>
+      walletClient.writeContract({
+        abi: transferFromAbi,
+        address: token,
+        args: [owner, ephemeralAddress, value],
+        functionName: "transferFrom"
+      })
+    );
+    return this.saveHashAndAwaitReceipt(state, transferHash, fromNetwork, "Direct transfer", signal);
   }
 
   private async executeRelayerTransfer(
     state: RampState,
     signedTypedDataArray: SignedTypedData[],
-    fromNetwork: EvmNetworks
+    fromNetwork: EvmNetworks,
+    signal?: AbortSignal
   ): Promise<RampState> {
     if (!isSignedTypedDataArray(signedTypedDataArray) || signedTypedDataArray.length !== 2) {
       throw this.createUnrecoverableError("Invalid txData format: expected array of 2 SignedTypedData objects");
@@ -255,36 +276,39 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
       throw this.createUnrecoverableError("Missing squidRouterPermitExecutionValue in ramp state");
     }
 
-    await this.assertOwnerHasBalance(fromNetwork, token, owner, value);
+    await this.assertOwnerHasBalance(fromNetwork, token, owner, value, signal);
     const { walletClient } = this.getExecutorClients(fromNetwork);
-    const hash = await walletClient.writeContract({
-      abi: tokenRelayerAbi,
-      address: getAlfredpayRelayerAddress(fromNetwork),
-      args: [
-        {
-          deadline,
-          owner,
-          payloadData: payloadMessage.data as `0x${string}`,
-          payloadDeadline: BigInt(payloadMessage.deadline as string),
-          payloadNonce: BigInt(payloadMessage.nonce as string),
-          payloadR: payloadSig.r,
-          payloadS: payloadSig.s,
-          payloadV: payloadSig.v,
-          payloadValue: executionValue,
-          permitR: permitSig.r,
-          permitS: permitSig.s,
-          permitV: permitSig.v,
-          token,
-          value
-        }
-      ],
-      functionName: "execute",
-      value: BigInt(executionValue)
-    });
-    return this.saveHashAndAwaitReceipt(state, hash, fromNetwork, "Relayer execute");
+    throwIfAborted(signal);
+    const hash = await abortableCall(signal, () =>
+      walletClient.writeContract({
+        abi: tokenRelayerAbi,
+        address: getAlfredpayRelayerAddress(fromNetwork),
+        args: [
+          {
+            deadline,
+            owner,
+            payloadData: payloadMessage.data as `0x${string}`,
+            payloadDeadline: BigInt(payloadMessage.deadline as string),
+            payloadNonce: BigInt(payloadMessage.nonce as string),
+            payloadR: payloadSig.r,
+            payloadS: payloadSig.s,
+            payloadV: payloadSig.v,
+            payloadValue: executionValue,
+            permitR: permitSig.r,
+            permitS: permitSig.s,
+            permitV: permitSig.v,
+            token,
+            value
+          }
+        ],
+        functionName: "execute",
+        value: BigInt(executionValue)
+      })
+    );
+    return this.saveHashAndAwaitReceipt(state, hash, fromNetwork, "Relayer execute", signal);
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     logger.info(`Executing squidRouterPermitExecute phase for ramp ${state.id}`);
     const fromNetwork = getNetworkFromDestination(state.from);
     if (!fromNetwork || !isNetworkEVM(fromNetwork)) {
@@ -292,16 +316,19 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
     }
 
     try {
-      if (state.state.isNoPermitFallback) return await this.executeNoPermitFallback(state, fromNetwork);
+      if (state.state.isNoPermitFallback) return await this.executeNoPermitFallback(state, fromNetwork, signal);
 
       const existingHash = state.state.squidRouterPermitExecutionHash || null;
       if (existingHash) {
         try {
-          const receipt = await this.evmClientManager.getClient(fromNetwork).waitForTransactionReceipt({
-            hash: existingHash as `0x${string}`
-          });
+          const receipt = await abortableCall(signal, () =>
+            this.evmClientManager.getClient(fromNetwork).waitForTransactionReceipt({
+              hash: existingHash as `0x${string}`
+            })
+          );
           if (receipt?.status === "success") return state;
         } catch (error) {
+          throwIfAborted(signal);
           logger.info(`Could not verify existing transaction status: ${error}, will retry`);
         }
       }
@@ -312,7 +339,9 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
       }
 
       const signedTypedDataArray = permitExecuteTransaction.txData as SignedTypedData[];
-      if (state.state.isDirectTransfer) return await this.executeDirectTransfer(state, signedTypedDataArray, fromNetwork);
+      if (state.state.isDirectTransfer) {
+        return await this.executeDirectTransfer(state, signedTypedDataArray, fromNetwork, signal);
+      }
 
       const executionValue = state.state.squidRouterPermitExecutionValue;
       if (executionValue === undefined || executionValue === null) {
@@ -325,7 +354,7 @@ export class AlfredpayOfframpPermitExecutor extends BasePhaseHandler {
           `squidRouterPermitExecutionValue ${executionValueBigInt} exceeds maximum allowed ${maxAllowedValue}`
         );
       }
-      return await this.executeRelayerTransfer(state, signedTypedDataArray, fromNetwork);
+      return await this.executeRelayerTransfer(state, signedTypedDataArray, fromNetwork, signal);
     } catch (error) {
       logger.error(`Error in squidRouterPermitExecute phase for ramp ${state.id}:`, error);
       if (error instanceof PhaseError) throw error;
@@ -358,7 +387,7 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
     return getAnchorPayoutMaxRetries();
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     if (isAnchorMockingEnabled()) {
       throw this.createRecoverableError("AlfredPay payout paused by MOCK_ANCHOR_OPERATIONS");
     }
@@ -368,13 +397,13 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
 
     const alfredpayApiService = AlfredpayApiService.getInstance();
     const evmClientManager = EvmClientManager.getInstance();
-    let alfredpayTx = await alfredpayApiService.getOfframpTransaction(alfredpayTransactionId);
+    let alfredpayTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(alfredpayTransactionId));
     if (!alfredpayTx) {
       throw new Error(`AlfredpayOfframpTransferExecutor: Transaction ${alfredpayTransactionId} not found in Alfredpay.`);
     }
 
     if (!alfredpayOfframpTransferTxHash && new Date(alfredpayTx.expiration) < new Date()) {
-      const recovered = await this.recreateAlfredpayOfframp(state, alfredpayTx);
+      const recovered = await this.recreateAlfredpayOfframp(state, alfredpayTx, signal);
       if (!recovered) return this.transitionToNextPhase(state, "failed");
       alfredpayTx = recovered.alfredpayTx;
       state = recovered.state;
@@ -386,23 +415,55 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
         await ensurePresignedTransferFunded(
           offrampTransfer as `0x${string}`,
           Networks.Polygon as EvmNetworks,
-          this.getPhaseName()
+          this.getPhaseName(),
+          signal
         );
       } catch (error) {
+        if (error instanceof PhaseError) throw error;
         throw this.createRecoverableError(
           `AlfredpayOfframpTransferExecutor: ephemeral balance does not cover the presigned final transfer: ${error instanceof Error ? error.message : String(error)}`
         );
       }
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(
-        Networks.Polygon as EvmNetworks,
-        offrampTransfer as `0x${string}`
-      );
+      const network = Networks.Polygon as EvmNetworks;
+      const signedTransaction = offrampTransfer as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const networkClient = evmClientManager.getClient(network);
+      const { hash: txHash } = await this.runFinancialOperation(state, {
+        attemptClass: "alfredpay-final-transfer",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(network, signedTransaction)
+          );
+          return { hash };
+        },
+        provider: "polygon",
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () => networkClient.getTransactionReceipt({ hash: deterministicHash }));
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Alfredpay final transfer ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => networkClient.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network, signedTransaction },
+        signal
+      });
       await state.update({ state: { ...state.state, alfredpayOfframpTransferTxHash: txHash } });
       logger.info(`AlfredpayOfframpTransferExecutor: Final transfer sent. Hash: ${txHash}`);
     } else {
       try {
         const client = evmClientManager.getClient(Networks.Polygon as EvmNetworks);
-        const receipt = await client.getTransactionReceipt({ hash: alfredpayOfframpTransferTxHash as `0x${string}` });
+        const receipt = await abortableCall(signal, () =>
+          client.getTransactionReceipt({ hash: alfredpayOfframpTransferTxHash as `0x${string}` })
+        );
         if (receipt.status !== "success") {
           throw new Error(
             `AlfredpayOfframpTransferExecutor: Final transfer transaction ${alfredpayOfframpTransferTxHash} failed on chain.`
@@ -414,7 +475,7 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
     }
 
     try {
-      await this.pollAlfredpayOfframpStatus(alfredpayTx.transactionId, ALFREDPAY_POLL_INTERVAL_MS);
+      await this.pollAlfredpayOfframpStatus(alfredpayTx.transactionId, ALFREDPAY_POLL_INTERVAL_MS, signal);
     } catch (error) {
       if (isAlfredpayFailedStatusError(error)) return this.transitionToNextPhase(state, "failed");
       throw this.createRecoverableError(
@@ -426,7 +487,8 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
 
   private async recreateAlfredpayOfframp(
     state: RampState,
-    expiredTx: Awaited<ReturnType<AlfredpayApiService["getOfframpTransaction"]>>
+    expiredTx: Awaited<ReturnType<AlfredpayApiService["getOfframpTransaction"]>>,
+    signal?: AbortSignal
   ): Promise<{ state: RampState; alfredpayTx: Awaited<ReturnType<AlfredpayApiService["getOfframpTransaction"]>> } | null> {
     const { alfredpayUserId, fiatAccountId, walletAddress } = state.state as StateMetadata;
     if (!alfredpayUserId || !fiatAccountId || !walletAddress) return null;
@@ -434,29 +496,35 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
     const alfredpayApiService = AlfredpayApiService.getInstance();
     try {
       const toCurrency = expiredTx.toCurrency as AlfredpayFiatCurrency;
-      const freshQuote = await alfredpayApiService.createOfframpQuote({
-        chain: AlfredpayChain.MATIC,
-        fromAmount: expiredTx.fromAmount,
-        fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-        metadata: { businessId: "vortex", customerId: alfredpayUserId },
-        paymentMethodType: AlfredpayPaymentMethodType.BANK,
-        toCurrency
-      });
-      const newOrder = await alfredpayApiService.createOfframp({
-        amount: expiredTx.fromAmount,
-        chain: AlfredpayChain.MATIC,
-        customerId: alfredpayUserId,
-        fiatAccountId,
-        fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-        originAddress: walletAddress,
-        quoteId: freshQuote.quoteId,
-        toCurrency
-      });
+      const freshQuote = await abortableCall(signal, () =>
+        alfredpayApiService.createOfframpQuote({
+          chain: AlfredpayChain.MATIC,
+          fromAmount: expiredTx.fromAmount,
+          fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+          metadata: { businessId: "vortex", customerId: alfredpayUserId },
+          paymentMethodType: AlfredpayPaymentMethodType.BANK,
+          toCurrency
+        })
+      );
+      throwIfAborted(signal);
+      const newOrder = await abortableCall(signal, () =>
+        alfredpayApiService.createOfframp({
+          amount: expiredTx.fromAmount,
+          chain: AlfredpayChain.MATIC,
+          customerId: alfredpayUserId,
+          fiatAccountId,
+          fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
+          originAddress: walletAddress,
+          quoteId: freshQuote.quoteId,
+          toCurrency
+        })
+      );
       if (newOrder.depositAddress.toLowerCase() !== expiredTx.depositAddress.toLowerCase()) return null;
       await state.update({ state: { ...state.state, alfredpayTransactionId: newOrder.transactionId } });
-      const refreshedTx = await alfredpayApiService.getOfframpTransaction(newOrder.transactionId);
+      const refreshedTx = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(newOrder.transactionId));
       return { alfredpayTx: refreshedTx, state };
     } catch (error) {
+      throwIfAborted(signal);
       logger.error(
         `AlfredpayOfframpTransferExecutor: Error during recovery: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -464,34 +532,27 @@ export class AlfredpayOfframpTransferExecutor extends BasePhaseHandler {
     }
   }
 
-  private async pollAlfredpayOfframpStatus(transactionId: string, intervalMs: number): Promise<void> {
+  private async pollAlfredpayOfframpStatus(transactionId: string, intervalMs: number, signal?: AbortSignal): Promise<void> {
     const alfredpayApiService = AlfredpayApiService.getInstance();
     const startTime = Date.now();
-    return new Promise<void>((resolve, reject) => {
-      const poll = async () => {
-        if (Date.now() - startTime > ALFREDPAY_OFFRAMP_TIMEOUT_MS) {
-          reject(new Error(`AlfredpayOfframpTransferExecutor: Polling timed out after ${ALFREDPAY_OFFRAMP_TIMEOUT_MS}ms`));
-          return;
+    while (Date.now() - startTime <= ALFREDPAY_OFFRAMP_TIMEOUT_MS) {
+      throwIfAborted(signal);
+      try {
+        const response = await abortableCall(signal, () => alfredpayApiService.getOfframpTransaction(transactionId));
+        if (response.status === AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED) return;
+        if (response.status === AlfredpayOfframpStatus.FAILED) {
+          throw { failureReason: "Alfredpay reported FAILED status", kind: "failed" as const };
         }
-        try {
-          const response = await alfredpayApiService.getOfframpTransaction(transactionId);
-          if (response.status === AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED) {
-            resolve();
-            return;
-          }
-          if (response.status === AlfredpayOfframpStatus.FAILED) {
-            reject({ failureReason: "Alfredpay reported FAILED status", kind: "failed" as const });
-            return;
-          }
-        } catch (error) {
-          logger.warn(
-            `AlfredpayOfframpTransferExecutor: Error polling Alfredpay status for ${transactionId}: ${error instanceof Error ? error.message : String(error)}`
-          );
-        }
-        setTimeout(poll, intervalMs);
-      };
-      poll();
-    });
+      } catch (error) {
+        if (isAlfredpayFailedStatusError(error)) throw error;
+        throwIfAborted(signal);
+        logger.warn(
+          `AlfredpayOfframpTransferExecutor: Error polling Alfredpay status for ${transactionId}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+      await sleep(intervalMs, signal);
+    }
+    throw new Error(`AlfredpayOfframpTransferExecutor: Polling timed out after ${ALFREDPAY_OFFRAMP_TIMEOUT_MS}ms`);
   }
 }
 

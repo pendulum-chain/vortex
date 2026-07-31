@@ -2,8 +2,11 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
-import type { Nonces, NoncesInterface } from "../../../../@openzeppelin/contracts/utils/Nonces";
+import { Contract, Interface, type ContractRunner } from "ethers";
+import type {
+  Nonces,
+  NoncesInterface,
+} from "../../../../@openzeppelin/contracts/utils/Nonces";
 
 const _abi = [
   {
@@ -11,36 +14,36 @@ const _abi = [
       {
         internalType: "address",
         name: "account",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "currentNonce",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "InvalidAccountNonce",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "nonces",
     outputs: [
       {
         internalType: "uint256",
         name: "",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     stateMutability: "view",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class Nonces__factory {

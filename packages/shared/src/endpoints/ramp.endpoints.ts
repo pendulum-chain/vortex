@@ -191,6 +191,15 @@ export interface RegisterRampRequest {
     sessionId?: string;
     email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
     ipAddress?: string; // Required for Mykobo EUR ramps (user IP for fraud checks; auto-filled from req.ip if omitted)
+    /**
+     * Recipient-directed payout is intentionally unsupported in this API version.
+     * The server rejects common recipient-context keys instead of silently treating
+     * the request as a sender self-offramp.
+     */
+    recipientId?: never;
+    recipientPayoutReferenceId?: never;
+    recipientRelationshipId?: never;
+    senderRecipientId?: never;
     [key: string]: unknown;
   };
 }

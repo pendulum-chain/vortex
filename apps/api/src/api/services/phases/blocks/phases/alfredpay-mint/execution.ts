@@ -7,13 +7,15 @@ import {
   BalanceCheckErrorType,
   checkEvmBalancePeriodically,
   Networks,
-  RampPhase
+  RampPhase,
+  sleep
 } from "@vortexfi/shared";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata } from "../../core/metadata";
 import { isAnchorMockingEnabled } from "../anchor-test-mode";
 import { AlfredpayMintContext } from "./simulation";
@@ -32,7 +34,7 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
     return "alfredpayOnrampMint";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const { evmEphemeralAddress, alfredpayTransactionId } = state.state as StateMetadata;
     if (!evmEphemeralAddress || !alfredpayTransactionId) {
       throw new Error("AlfredpayOnrampMintExecutor: Missing ephemeral address or Alfredpay transaction ID");
@@ -53,7 +55,8 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
           metadata.outputAmountRaw,
           POLL_INTERVAL_MS,
           MINT_TIMEOUT_MS,
-          Networks.Polygon
+          Networks.Polygon,
+          signal
         );
       } catch (error) {
         if (error instanceof BalanceCheckError && error.type === BalanceCheckErrorType.Timeout) {
@@ -65,6 +68,7 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
     }
 
     const abortController = new AbortController();
+    const pollingSignal = signal ? AbortSignal.any([signal, abortController.signal]) : abortController.signal;
     try {
       await Promise.race([
         checkEvmBalancePeriodically(
@@ -73,9 +77,10 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
           metadata.outputAmountRaw,
           POLL_INTERVAL_MS,
           MINT_TIMEOUT_MS,
-          Networks.Polygon
+          Networks.Polygon,
+          pollingSignal
         ),
-        this.pollStatus(alfredpayTransactionId, state, POLL_INTERVAL_MS, abortController.signal)
+        this.pollStatus(alfredpayTransactionId, state, POLL_INTERVAL_MS, pollingSignal)
       ]);
     } catch (error) {
       if (isAlfredpayFailedStatusError(error)) {
@@ -94,35 +99,28 @@ export class AlfredpayOnrampMintExecutor extends BasePhaseHandler {
     return state;
   }
 
-  private pollStatus(transactionId: string, state: RampState, intervalMs: number, signal: AbortSignal): Promise<never> {
-    return new Promise<never>((_, reject) => {
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      signal.addEventListener("abort", () => timeoutId && clearTimeout(timeoutId), { once: true });
-      const poll = async () => {
-        if (signal.aborted) return;
-        try {
-          const { status, metadata } = await AlfredpayApiService.getInstance().getOnrampTransaction(transactionId);
-          if (status === AlfredpayOnrampStatus.FAILED) {
-            reject({ failureReason: metadata?.failureReason, kind: "failed" as const });
-            return;
-          }
-          if (status === AlfredpayOnrampStatus.ON_CHAIN_COMPLETED) {
-            const currentState = state.state as StateMetadata;
-            if (metadata?.txHash && !currentState.alfredpayOnrampMintTxHash) {
-              await state.update({ state: { ...currentState, alfredpayOnrampMintTxHash: metadata.txHash } });
-            }
-            return;
-          }
-        } catch (error) {
-          if (isAlfredpayFailedStatusError(error)) {
-            reject(error);
-            return;
-          }
-          logger.warn(`AlfredpayOnrampMintExecutor: Error polling Alfredpay status: ${error}`);
+  private async pollStatus(transactionId: string, state: RampState, intervalMs: number, signal: AbortSignal): Promise<never> {
+    while (true) {
+      throwIfAborted(signal);
+      try {
+        const { status, metadata } = await abortableCall(signal, () =>
+          AlfredpayApiService.getInstance().getOnrampTransaction(transactionId)
+        );
+        if (status === AlfredpayOnrampStatus.FAILED) {
+          throw { failureReason: metadata?.failureReason, kind: "failed" as const };
         }
-        timeoutId = setTimeout(poll, intervalMs);
-      };
-      void poll();
-    });
+        if (status === AlfredpayOnrampStatus.ON_CHAIN_COMPLETED) {
+          const currentState = state.state as StateMetadata;
+          if (metadata?.txHash && !currentState.alfredpayOnrampMintTxHash) {
+            await state.update({ state: { ...currentState, alfredpayOnrampMintTxHash: metadata.txHash } });
+          }
+        }
+      } catch (error) {
+        if (isAlfredpayFailedStatusError(error)) throw error;
+        throwIfAborted(signal);
+        logger.warn(`AlfredpayOnrampMintExecutor: Error polling Alfredpay status: ${error}`);
+      }
+      await sleep(intervalMs, signal);
+    }
   }
 }

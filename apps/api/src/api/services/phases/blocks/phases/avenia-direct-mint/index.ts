@@ -18,6 +18,7 @@ export const AveniaDirectMint: Phase<
 > = {
   context: AveniaMintContext,
   executors: [new BrlaOnrampMintExecutor()],
+  externalOperations: { register: { provider: "avenia" } },
   name: "AveniaDirectMint",
   phases: ["brlaOnrampMint"],
   prepareTxs: prepareAveniaDirectMintTxs,

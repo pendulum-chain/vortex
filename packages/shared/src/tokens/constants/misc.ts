@@ -44,7 +44,6 @@ export function getNablaBasePool(
   throw new Error(`getNablaBasePool: no Nabla pool on Base supports the pair ${inputTokenAddress} -> ${outputTokenAddress}`);
 }
 
-export const SPACEWALK_REDEEM_SAFETY_MARGIN = 0.05;
 export const AMM_MINIMUM_OUTPUT_SOFT_MARGIN = 0.02;
 export const AMM_MINIMUM_OUTPUT_HARD_MARGIN = 0.05;
 

@@ -83,10 +83,8 @@ export async function createPartnerPricingConfig(req: Request, res: Response): P
         return;
       }
     }
-    // The discount engine only applies the cap when maxSubsidy > 0, so a negative value
-    // would silently mean "uncapped", not "invalid" — reject it here.
-    if (body.maxSubsidy !== undefined && body.maxSubsidy < 0) {
-      invalidInput(res, "maxSubsidy must be non-negative");
+    if (body.maxSubsidy !== undefined && (body.maxSubsidy < 0 || body.maxSubsidy > 1)) {
+      invalidInput(res, "maxSubsidy must be between 0 (disabled) and 1");
       return;
     }
 

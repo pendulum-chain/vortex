@@ -100,7 +100,7 @@ The removed input-currency-to-RPC fallback no longer exists. The block executor 
 - [x] Verify `Promise.any` correctly races bridge status check vs balance check. **PASS** — `AggregateError` handling confirmed.
 - [x] Verify `calculateGasFeeInUnits()` cannot produce negative or astronomically large values. **PASS**
 - [x] Verify `addNativeGas` call targets the correct Axelar gas service address (`0x2d5d7d31F671F86C782533cc367F14109a082712`) on the correct chain. **PASS**
-- [PARTIAL] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` (gas funding) and `MOONBEAM_EXECUTOR_PRIVATE_KEY` (relayer calls) are distinct keys. **PARTIAL** — distinct env vars, but operationally `MOONBEAM_FUNDING_PRIVATE_KEY` is reused on **Base** for subsidization and the `backupApprove` funding spender. The name no longer reflects its scope; rename to `EVM_FUNDING_PRIVATE_KEY` and expose via a per-network getter (see `06-cross-chain/fund-routing.md`).
+- [ ] Verify `MOONBEAM_FUNDING_PRIVATE_KEY` (gas funding) and `MOONBEAM_EXECUTOR_PRIVATE_KEY` (relayer calls) are distinct keys. **PARTIAL** — distinct env vars, but operationally `MOONBEAM_FUNDING_PRIVATE_KEY` is reused on **Base** for subsidization and the `backupApprove` funding spender. The name no longer reflects its scope; rename to `EVM_FUNDING_PRIVATE_KEY` and expose via a per-network getter (see `06-cross-chain/fund-routing.md`).
 - [x] Source RPC selection uses phase-owned `fromNetwork`; there is no Moonbeam fallback. **PASS** — `phases/blocks/phases/squid-router-swap/execution.ts`.
 - [x] `isSignedTypedDataArray` validation in `phases/blocks/phases/alfredpay-offramp/execution.ts` is correct. **PASS**
 - [x] **Owner balance guard before permit execution**: `assertOwnerHasBalance` runs on both the direct-transfer and relayer paths before `permit()` / `TokenRelayer.execute()`; insufficient balance raises a recoverable error (retry window via `getMaxRetries()=20`), and the direct-transfer path skips `permit()` when the standing allowance already covers `value`. **PASS**
@@ -110,7 +110,7 @@ The removed input-currency-to-RPC fallback no longer exists. The block executor 
 - [x] `DEFAULT_SQUIDROUTER_GAS_ESTIMATE` (1,600,000) reasonable upper bound. **PASS**
 - [x] `MAX_FINAL_SETTLEMENT_SUBSIDY_USD` cap is enforced. **PASS (FIXED F-001)** — `throw` added.
 - [x] `squidRouterPermitExecutionValue` validated before `msg.value`. **PASS (FIXED F-027)**.
-- [PARTIAL] `sendTransactionWithBlindRetry` nonce safety. **PARTIAL** — by design.
+- [ ] `sendTransactionWithBlindRetry` nonce safety. **PARTIAL** — by design.
 - [x] **FINDING F-063 (MEDIUM)**: SquidRouter slippage rejection (>2.5%) enforced. **PASS (FIXED)**.
 - [x] **No-permit fallback receipt validation**: `waitForUserHash` verifies receipt `from`, receipt `to`, and transaction `input` against the expected user address and presigned EVM transaction payload before advancing.
 - [x] **Skip-Squid trivial path**: the block catalog selects the direct flow for exact same-chain corridors; direct quote simulation preserves zero network fee and transaction preparation omits Squid phases. **PASS** — no security checks bypassed.

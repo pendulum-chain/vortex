@@ -17,7 +17,7 @@ const createSnapshot = (params: { callbackUrl?: string; apiKey?: string; partner
     getMessageSignature: undefined,
     initializeFailedMessage: undefined,
     isQuoteExpired: false,
-    isSep24Redo: false,
+    isQuoteRedo: false,
     partnerId: params.partnerId,
     paymentData: undefined,
     quote: undefined,

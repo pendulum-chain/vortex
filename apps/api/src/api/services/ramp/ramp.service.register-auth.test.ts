@@ -88,4 +88,20 @@ describe("RampService.registerRamp user gating", () => {
     // different 400 (missing destinationAddress), which must not satisfy this test.
     expect(error.message).toContain("requires an API key linked to a user");
   });
+
+  it("rejects unsupported recipient-directed payout context instead of silently treating it as self-offramp data", async () => {
+    const service = new TestRampService();
+
+    await expect(
+      service.registerRamp({
+        additionalData: { senderRecipientId: "relationship-1" },
+        quoteId: "quote-1",
+        signingAccounts: [],
+        userId: "user-a"
+      } as never)
+    ).rejects.toMatchObject({
+      message: expect.stringContaining("Recipient-directed payout is not supported"),
+      status: httpStatus.BAD_REQUEST
+    });
+  });
 });

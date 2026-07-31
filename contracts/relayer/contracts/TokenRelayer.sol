@@ -30,6 +30,19 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         "Payload(address destination,address owner,address token,uint256 value,bytes data,uint256 ethValue,uint256 nonce,uint256 deadline)"
     );
 
+    error InvalidDestination(address destination);
+    error NativeRefundFailed(address recipient, uint256 amount);
+    error TokenBalanceNotRestored(
+        address token,
+        uint256 balanceBefore,
+        uint256 balanceAfter
+    );
+    error TokenReceiptMismatch(
+        address token,
+        uint256 requested,
+        uint256 received
+    );
+
     address public immutable destinationContract;
 
     mapping(address => mapping(uint256 => bool)) public usedPayloadNonces;
@@ -57,6 +70,14 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         address indexed token,
         uint256 amount
     );
+    event RelayerTransferObserved(
+        address indexed signer,
+        address indexed token,
+        uint256 requested,
+        uint256 received,
+        uint256 consumed
+    );
+    event NativeRefunded(address indexed executor, uint256 amount);
 
     // Events for withdrawal operations
     event TokenWithdrawn(address indexed token, uint256 amount, address indexed to);
@@ -67,7 +88,12 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         Ownable(msg.sender)
         EIP712("TokenRelayer", "1")
     {
-        require(_destinationContract != address(0), "Invalid destination");
+        if (
+            _destinationContract == address(0) ||
+            _destinationContract.code.length == 0
+        ) {
+            revert InvalidDestination(_destinationContract);
+        }
         destinationContract = _destinationContract;
     }
 
@@ -79,6 +105,7 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
     function execute(ExecuteParams calldata params) external payable nonReentrant {
         address owner = params.owner;
         uint256 nonce = params.payloadNonce;
+        IERC20 token = IERC20(params.token);
 
         // --- Checks ---
         require(owner != address(0), "Invalid owner");
@@ -100,6 +127,8 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         require(ECDSA.recover(digest, params.payloadV, params.payloadR, params.payloadS) == owner, "Invalid sig");
 
         require(msg.value == params.payloadValue, "Incorrect ETH value provided");
+        uint256 tokenBalanceBefore = token.balanceOf(address(this));
+        uint256 ethBalanceBefore = address(this).balance - msg.value;
 
         // --- Effects (before interactions per CEI pattern) ---
         // State changes before any external calls
@@ -107,7 +136,7 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
 
         // --- Interactions ---
         // permit wrapped in try-catch for front-run resilience
-        _executePermitAndTransfer(
+        uint256 received = _executePermitAndTransfer(
             params.token,
             owner,
             params.value,
@@ -116,16 +145,46 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
             params.permitR,
             params.permitS
         );
+        if (received != params.value) {
+            revert TokenReceiptMismatch(params.token, params.value, received);
+        }
 
-        // Approve exact amount, forward call, then revoke
-        IERC20(params.token).forceApprove(destinationContract, params.value);
+        // Approve no more than this execution actually contributed, forward the signed
+        // call, then revoke. The post-call balance check prevents both cross-execution
+        // subsidy and successful partial consumption from contaminating the shared balance.
+        token.forceApprove(destinationContract, received);
 
         bool callSuccess = _forwardCall(params.payloadData, msg.value);
         require(callSuccess, "Call failed");
 
         // Revoke approval after the call to prevent residual allowance
-        IERC20(params.token).forceApprove(destinationContract, 0);
+        token.forceApprove(destinationContract, 0);
 
+        uint256 tokenBalanceAfter = token.balanceOf(address(this));
+        if (tokenBalanceAfter != tokenBalanceBefore) {
+            revert TokenBalanceNotRestored(
+                params.token,
+                tokenBalanceBefore,
+                tokenBalanceAfter
+            );
+        }
+
+        uint256 nativeRefund = address(this).balance - ethBalanceBefore;
+        if (nativeRefund > 0) {
+            (bool refundSuccess, ) = msg.sender.call{value: nativeRefund}("");
+            if (!refundSuccess) {
+                revert NativeRefundFailed(msg.sender, nativeRefund);
+            }
+            emit NativeRefunded(msg.sender, nativeRefund);
+        }
+
+        emit RelayerTransferObserved(
+            owner,
+            params.token,
+            params.value,
+            received,
+            received
+        );
         emit RelayerExecuted(owner, params.token, params.value);
     }
 
@@ -167,7 +226,7 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) internal {
+    ) internal returns (uint256 received) {
         // Wrap permit in try-catch for front-run resilience
         try IERC20Permit(token).permit(owner, address(this), value, deadline, v, r, s) {
             // permit succeeded
@@ -179,11 +238,21 @@ contract TokenRelayer is Ownable, ReentrancyGuard, EIP712 {
             );
         }
 
-        // Transfer tokens from owner to this contract
+        // Attribute only the balance increase from this execution. A nominal ERC-20
+        // transfer amount is not proof of receipt for fee-on-transfer or rebasing tokens.
+        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransferFrom(owner, address(this), value);
+        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
+        if (balanceAfter < balanceBefore) {
+            revert TokenReceiptMismatch(token, value, 0);
+        }
+        return balanceAfter - balanceBefore;
     }
 
     function _forwardCall(bytes memory data, uint256 value) internal returns (bool) {
+        if (destinationContract.code.length == 0) {
+            return false;
+        }
         (bool success, ) = destinationContract.call{value: value}(data);
         return success;
     }

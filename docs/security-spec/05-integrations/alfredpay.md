@@ -103,7 +103,7 @@ For routed Alfredpay onramps (any non-passthrough output), the final quote outpu
 - [x] Alfredpay block executors use `RecoverablePhaseError` for transient failures. **PASS** — verified in the block execution modules.
 - [x] HTTPS enforced for Alfredpay API calls. **PASS** — base URL uses `https://`.
 - [x] No Alfredpay credentials or user payment details in logs. **PASS** — no credential leakage observed in log statements.
-- [FAIL] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
+- [ ] Timeout configured for Alfredpay API calls. **FAIL F-014** — no explicit HTTP client timeout configured; relies on default system timeouts.
 - [x] `subsidizePreSwap` runs before `squidRouterSwap` on the onramp flow, and `finalSettlementSubsidy` runs before `alfredpayOfframpTransfer` on the offramp flow. **PASS** — flow tests pin both sequences.
 - [x] Onramp fallback emits `alfredOnrampMintFallback` from the `AlfredpayMint` block using the phase-owned mint output. **PASS** — `phases/blocks/phases/alfredpay-mint/transactions.ts`. Phase is registered as an EVM phase in `transactions/validation.ts`.
 - [x] Offramp fallback emits `alfredpayOfframpTransferFallback` for expired-quote recovery; phase is registered as an EVM phase in `transactions/validation.ts:250`. **PASS**.

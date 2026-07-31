@@ -5,8 +5,21 @@ import logger from "../../../config/logger";
 import RampState from "../../../models/rampState.model";
 import Subsidy from "../../../models/subsidy.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError, UnrecoverablePhaseError } from "../../errors/phase-error";
+import {
+  PhaseError,
+  ReconciliationRequiredPhaseError,
+  RecoverablePhaseError,
+  requiresManualReconciliation,
+  UnrecoverablePhaseError
+} from "../../errors/phase-error";
+import {
+  runFinancialOperation as executeFinancialOperation,
+  type RunFinancialOperationArgs,
+  requireFinancialFlowIdentity
+} from "./blocks/core/financial-operation";
 import { StateMetadata } from "./meta-state-types";
+
+type RampFinancialOperationArgs<Result> = Omit<RunFinancialOperationArgs<Result>, "scopeType" | "scopeId" | "flow" | "phase">;
 
 /**
  * Base interface for phase handlers
@@ -62,16 +75,17 @@ export abstract class BasePhaseHandler implements PhaseHandler {
 
       return updatedState;
     } catch (error) {
-      logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, error);
+      const phaseError = requiresManualReconciliation(error) ? this.createReconciliationRequiredError(error.message) : error;
+      logger.error(`Error executing phase ${this.getPhaseName()} for ramp ${state.id}:`, phaseError);
 
       // Add error to the state
-      await this.logError(state, error);
+      await this.logError(state, phaseError);
 
-      if (error instanceof PhaseError) {
-        throw error;
+      if (phaseError instanceof PhaseError) {
+        throw phaseError;
       }
 
-      throw new UnrecoverablePhaseError(error instanceof Error ? error.message : "Unknown error in phase execution");
+      throw new UnrecoverablePhaseError(phaseError instanceof Error ? phaseError.message : "Unknown error in phase execution");
     }
   }
 
@@ -84,8 +98,29 @@ export abstract class BasePhaseHandler implements PhaseHandler {
     return new RecoverablePhaseError(message);
   }
 
+  protected createReconciliationRequiredError(message: string): ReconciliationRequiredPhaseError {
+    return new ReconciliationRequiredPhaseError(message);
+  }
+
   protected createUnrecoverableError(message: string): UnrecoverablePhaseError {
     return new UnrecoverablePhaseError(message);
+  }
+
+  protected async runFinancialOperation<Result>(state: RampState, args: RampFinancialOperationArgs<Result>): Promise<Result> {
+    try {
+      return await executeFinancialOperation({
+        ...args,
+        flow: requireFinancialFlowIdentity(state.state),
+        phase: this.getPhaseName(),
+        scopeId: state.id,
+        scopeType: "ramp"
+      });
+    } catch (error) {
+      if (requiresManualReconciliation(error)) {
+        throw this.createReconciliationRequiredError(error.message);
+      }
+      throw error;
+    }
   }
 
   /**

@@ -1,6 +1,7 @@
 import { EvmClientManager, EvmNetworks, isEvmTransactionData, RampPhase, UnsignedTx } from "@vortexfi/shared";
 import RampState from "../../../../models/rampState.model";
 import { RecoverablePhaseError, UnrecoverablePhaseError } from "../../../errors/phase-error";
+import { abortableCall } from "../blocks/core/cancellation";
 
 // Reads the unsigned blueprint from state.unsignedTxs — NOT state.presignedTxs. For user-wallet
 // phases the presignedTxs path is rejected by validation, so the blueprint is the only source of
@@ -22,6 +23,7 @@ interface VerifyUserSubmittedTxOptions {
   fromNetwork: EvmNetworks;
   label: string;
   presignedPhase: RampPhase;
+  signal?: AbortSignal;
 }
 
 // Cross-checks an integrator-reported on-chain tx hash against the unsigned blueprint we issued
@@ -32,7 +34,8 @@ export async function verifyUserSubmittedTxByHash({
   hash,
   fromNetwork,
   label,
-  presignedPhase
+  presignedPhase,
+  signal
 }: VerifyUserSubmittedTxOptions): Promise<void> {
   if (!hash) {
     throw new RecoverablePhaseError(`${label} hash not yet reported by frontend`);
@@ -47,7 +50,7 @@ export async function verifyUserSubmittedTxByHash({
 
   const publicClient = EvmClientManager.getInstance().getClient(fromNetwork);
 
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
+  const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
   if (!receipt || receipt.status !== "success") {
     throw new RecoverablePhaseError(`${label} tx failed: ${hash}`);
   }
@@ -61,7 +64,7 @@ export async function verifyUserSubmittedTxByHash({
     );
   }
 
-  const tx = await publicClient.getTransaction({ hash });
+  const tx = await abortableCall(signal, () => publicClient.getTransaction({ hash }));
   if (tx.input.toLowerCase() !== expectedData) {
     throw new UnrecoverablePhaseError(`${label} tx ${hash} calldata does not match presigned payload`);
   }

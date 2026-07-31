@@ -18,6 +18,7 @@ export const MykoboOfframpPayout: Phase<
 > = {
   context: MykoboOfframpPayoutContext,
   executors: [new MykoboOfframpPayoutExecutor()],
+  externalOperations: { register: { provider: "mykobo" } },
   name: "MykoboOfframpPayout",
   phases: ["mykoboPayoutOnBase"],
   prepareTxs: prepareMykoboOfframpPayoutTxs,

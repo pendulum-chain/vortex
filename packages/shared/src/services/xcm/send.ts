@@ -214,8 +214,10 @@ export const submitMoonbeamXcm = async (
 
         if (status.isInBlock) {
           willFinalize = true;
-          const hash = status.asInBlock.toString();
+        }
 
+        if (status.isFinalized) {
+          const hash = status.asFinalized.toString();
           // Try to find 'polkadotXcm.Sent' events
           const xcmSentEvents = events.filter(
             record => record.event.section === "polkadotXcm" && record.event.method === "Sent"
@@ -224,8 +226,9 @@ export const submitMoonbeamXcm = async (
             .map(event => parseEventMoonbeamXcmSent(event))
             .filter(event => event.originAddress === address);
 
-          if (!event) {
+          if (event.length === 0) {
             reject(new Error(`No XcmSent event found for account ${address}`));
+            return;
           }
           resolve({ event: event[0], hash });
         }

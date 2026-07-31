@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
+import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
   IERC1155Errors,
-  IERC1155ErrorsInterface
+  IERC1155ErrorsInterface,
 } from "../../../../../@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC1155Errors";
 
 const _abi = [
@@ -14,103 +14,103 @@ const _abi = [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "balance",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "needed",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "tokenId",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC1155InsufficientBalance",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "approver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC1155InvalidApprover",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "uint256",
         name: "idsLength",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "uint256",
         name: "valuesLength",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC1155InvalidArrayLength",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "operator",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC1155InvalidOperator",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "receiver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC1155InvalidReceiver",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC1155InvalidSender",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "operator",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC1155MissingApprovalForAll",
-    type: "error"
-  }
+    type: "error",
+  },
 ] as const;
 
 export class IERC1155Errors__factory {
@@ -118,7 +118,10 @@ export class IERC1155Errors__factory {
   static createInterface(): IERC1155ErrorsInterface {
     return new Interface(_abi) as IERC1155ErrorsInterface;
   }
-  static connect(address: string, runner?: ContractRunner | null): IERC1155Errors {
+  static connect(
+    address: string,
+    runner?: ContractRunner | null
+  ): IERC1155Errors {
     return new Contract(address, _abi, runner) as unknown as IERC1155Errors;
   }
 }

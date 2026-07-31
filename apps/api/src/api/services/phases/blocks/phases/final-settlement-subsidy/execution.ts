@@ -18,23 +18,27 @@ import {
   TokenType
 } from "@vortexfi/shared";
 import Big from "big.js";
-import { encodeFunctionData, erc20Abi, TransactionReceipt } from "viem";
+import { encodeFunctionData, erc20Abi } from "viem";
 import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../../../config/logger";
 import { MAX_FINAL_SETTLEMENT_SUBSIDY_USD } from "../../../../../../constants/constants";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
+import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
-// Wait for >=90% of expected bridge delivery to absorb slippage while still waiting for actual bridge arrival.
-const MIN_BRIDGE_DELIVERY_RATIO = 0.9;
+// This is an explicitly scoped fallback for Squid-routed EVM delivery. It is not
+// authoritative bridge finality and MUST NOT be reused as a global cross-chain rule.
+const SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS = 9000;
 
 const NATIVE_TOKENS: Record<EvmNetworks, { symbol: string; decimals: number }> = {
   [Networks.Ethereum]: { decimals: 18, symbol: "ETH" },
@@ -56,7 +60,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     return "finalSettlementSubsidy";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     logger.debug(`FinalSettlementSubsidyExecutor: Starting phase execution for ramp ${state.id}, type=${state.type}`);
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -65,7 +69,6 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     }
 
     const evmClientManager = EvmClientManager.getInstance();
-    const fundingAccount = getEvmFundingAccount(Networks.Moonbeam);
 
     const alfredpayMetadata = (quote.metadata as unknown as { blocks?: { alfredpayOfframp?: { inputAmountRaw: string } } })
       .blocks?.alfredpayOfframp;
@@ -83,6 +86,7 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       ? new Big(alfredpayMetadata.inputAmountRaw)
       : multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
     const destinationNetwork = outputNetwork as EvmNetworks;
+    const fundingAccount = getEvmFundingAccount(destinationNetwork);
     const publicClient = evmClientManager.getClient(destinationNetwork);
     const ephemeralAddress = state.state.evmEphemeralAddress as `0x${string}`;
 
@@ -92,11 +96,11 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
     // 1. Idempotency check
     if (state.state.finalSettlementSubsidyTxHash) {
-      const receipt = await publicClient
-        .getTransactionReceipt({
+      const receipt = await abortableCall(signal, () =>
+        publicClient.getTransactionReceipt({
           hash: state.state.finalSettlementSubsidyTxHash as `0x${string}`
         })
-        .catch(() => null);
+      ).catch(() => null);
 
       if (receipt && receipt.status === "success") {
         logger.info(
@@ -104,6 +108,14 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         );
         return state;
       }
+      if (receipt) {
+        throw this.createUnrecoverableError(
+          `FinalSettlementSubsidyExecutor: Persisted subsidy transaction ${state.state.finalSettlementSubsidyTxHash} failed`
+        );
+      }
+      throw this.createRecoverableError(
+        `FinalSettlementSubsidyExecutor: Cannot reconcile persisted subsidy transaction ${state.state.finalSettlementSubsidyTxHash}`
+      );
     }
 
     const baselineKey = settlementBalanceKey(destinationNetwork, ephemeralAddress, outTokenDetails.erc20AddressSourceChain);
@@ -113,17 +125,83 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       throw this.createUnrecoverableError("FinalSettlementSubsidyExecutor: Missing destination settlement baseline");
     }
     const baseline = new Big(baselineValue);
+    const squidMetadata = (
+      quote.metadata as unknown as {
+        blocks?: {
+          squidRouterSwap?: {
+            outputAmountRaw: string;
+            toNetwork: EvmNetworks;
+            toToken: string;
+          };
+        };
+      }
+    ).blocks?.squidRouterSwap;
+    const bridgeExpectedAmountRaw = squidMetadata?.outputAmountRaw ?? expectedAmountRaw.toFixed(0);
+    const existingEvidence = state.state.squidRouterDeliveryEvidence;
+    if (existingEvidence) {
+      this.assertMatchingDeliveryEvidence(
+        existingEvidence,
+        destinationNetwork,
+        outTokenDetails.erc20AddressSourceChain,
+        bridgeExpectedAmountRaw,
+        baselineValue,
+        state
+      );
+    }
 
-    // 2. Wait for the bridge delivery delta, excluding any balance that existed before the bridge.
+    // 2. Wait for the route-scoped bridge delivery delta, excluding any balance that
+    // existed before the bridge. Provider-terminal evidence is preferred. The 90%
+    // threshold remains only as the EVM balance fallback selected for provider-indexing
+    // gaps, and is persisted/logged as heuristic evidence rather than called finality.
+    const minimumBridgeDeliveryRaw = new Big(bridgeExpectedAmountRaw)
+      .mul(SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS)
+      .div(10_000)
+      .toFixed(0, 0);
     const actualBalance = await checkEvmBalanceForToken({
-      amountDesiredRaw: baseline.plus(expectedAmountRaw.mul(MIN_BRIDGE_DELIVERY_RATIO)).toFixed(0, 0),
+      amountDesiredRaw: baseline.plus(minimumBridgeDeliveryRaw).toFixed(0),
       chain: destinationNetwork,
       intervalMs: BALANCE_POLLING_TIME_MS,
       ownerAddress: ephemeralAddress,
+      signal,
       timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
       tokenDetails: outTokenDetails
     });
     logger.debug(`FinalSettlementSubsidyExecutor: Ephemeral balance=${actualBalance.toString()}`);
+    if (!existingEvidence) {
+      const sourceTransactionHash =
+        state.state.squidRouterSwapHash ?? state.state.squidRouterPermitExecutionHash ?? "legacy-unavailable";
+      const fallbackEvidence: SquidRouterDeliveryEvidence = {
+        baselineRaw: baselineValue,
+        destinationNetwork,
+        destinationToken: outTokenDetails.erc20AddressSourceChain,
+        expectedAmountRaw: bridgeExpectedAmountRaw,
+        kind: "destination-balance",
+        minimumRatioBps: SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS,
+        observedAt: new Date().toISOString(),
+        observedBalanceRaw: actualBalance.toFixed(0),
+        sourceTransactionHash
+      };
+      await state.update({
+        state: {
+          ...state.state,
+          squidRouterDeliveryEvidence: fallbackEvidence
+        }
+      });
+      logger.warn("SQUIDROUTER_DELIVERY_BALANCE_FALLBACK", {
+        destinationNetwork,
+        expectedAmountRaw: bridgeExpectedAmountRaw,
+        minimumRatioBps: SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS,
+        rampId: state.id,
+        sourceTransactionHash
+      });
+    } else {
+      logger.info("SQUIDROUTER_SETTLEMENT_EVIDENCE_ACCEPTED", {
+        kind: existingEvidence.kind,
+        provider: existingEvidence.provider,
+        rampId: state.id,
+        sourceTransactionHash: existingEvidence.sourceTransactionHash
+      });
+    }
 
     // 3. Check funding account balance
     const actualBalanceFundingAccount = await getEvmBalance({
@@ -151,6 +229,18 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
         `FinalSettlementSubsidyExecutor: Actual balance ${actualBalance.toString()} meets required balance ${requiredBalanceRaw.toString()}. No subsidy needed.`
       );
       return state;
+    }
+
+    const subsidyAmountDecimal = subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals));
+    const subsidyAmountUsd = await priceFeedService.convertCurrency(
+      subsidyAmountDecimal.toFixed(),
+      outTokenDetails.assetSymbol as RampCurrency,
+      "USD" as RampCurrency
+    );
+    if (new Big(subsidyAmountUsd).gt(MAX_FINAL_SETTLEMENT_SUBSIDY_USD)) {
+      throw this.createUnrecoverableError(
+        `FinalSettlementSubsidyExecutor: Required subsidy $${subsidyAmountUsd} exceeds maximum allowed $${MAX_FINAL_SETTLEMENT_SUBSIDY_USD}`
+      );
     }
 
     logger.info(
@@ -242,87 +332,93 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       }
 
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-      const txHashIdx = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-        data: swapRoute.transactionRequest.data as `0x${string}`,
-        gas: BigInt(swapRoute.transactionRequest.gasLimit),
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-        to: swapRoute.transactionRequest.target as `0x${string}`,
-        value: BigInt(swapRoute.transactionRequest.value)
+      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+      const { hash: txHashIdx } = await this.runFinancialOperation(state, {
+        attemptClass: "funding-swap",
+        externalId: operation => operation.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+            data: swapRoute.transactionRequest.data as `0x${string}`,
+            gas: BigInt(swapRoute.transactionRequest.gasLimit),
+            maxFeePerGas,
+            maxPriorityFeePerGas,
+            nonce,
+            to: swapRoute.transactionRequest.target as `0x${string}`,
+            value: BigInt(swapRoute.transactionRequest.value)
+          });
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+          if (receipt.status !== "success") throw new Error(`Swap transaction ${hash} failed`);
+          return { hash };
+        },
+        provider: destinationNetwork,
+        request: {
+          amountRaw: requiredNativeRaw,
+          destination: fundingAccount.address,
+          network: destinationNetwork,
+          nonce,
+          routeTarget: swapRoute.transactionRequest.target,
+          token: outTokenDetails.erc20AddressSourceChain
+        },
+        signal
       });
 
-      logger.info(`FinalSettlementSubsidyExecutor: Swap transaction sent: ${txHashIdx}. Waiting for receipt...`);
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHashIdx });
-
-      if (receipt.status !== "success") {
-        throw new Error(`Swap transaction ${txHashIdx} failed`);
-      }
-
-      logger.info("FinalSettlementSubsidyExecutor: Swap successful. Waiting for balance update...");
+      logger.info(`FinalSettlementSubsidyExecutor: Swap transaction ${txHashIdx} confirmed. Waiting for balance update...`);
 
       await checkEvmBalanceForToken({
         amountDesiredRaw: subsidyAmountRaw.toString(),
         chain: destinationNetwork,
         intervalMs: BALANCE_POLLING_TIME_MS,
         ownerAddress: fundingAccount.address,
+        signal,
         timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
         tokenDetails: outTokenDetails
       });
     }
 
     // 5. Execute the subsidy transfer (native value transfer vs ERC-20 transfer)
-    let txHash: `0x${string}` | undefined = state.state.finalSettlementSubsidyTxHash as `0x${string}` | undefined;
-
     try {
       const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-
-      let receipt: TransactionReceipt | undefined = undefined;
-      let attempt = 0;
-
-      while (attempt < 5 && (!receipt || receipt.status !== "success")) {
-        logger.debug(`FinalSettlementSubsidyExecutor: Subsidy transfer attempt ${attempt + 1}/5, isNative=${isNative}`);
-        if (isNative) {
-          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
-            maxFeePerGas,
-            maxPriorityFeePerGas,
-            to: ephemeralAddress,
-            value: BigInt(subsidyAmountRaw.toFixed(0))
-          });
-        } else {
-          const data = encodeFunctionData({
+      const nonce = await publicClient.getTransactionCount({ address: fundingAccount.address, blockTag: "pending" });
+      const data = isNative
+        ? undefined
+        : encodeFunctionData({
             abi: erc20Abi,
             args: [ephemeralAddress, BigInt(subsidyAmountRaw.toFixed(0))],
             functionName: "transfer"
           });
-
-          txHash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
+      const { hash: txHash } = await this.runFinancialOperation(state, {
+        attemptClass: "settlement-subsidy-transfer",
+        externalId: operation => operation.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await evmClientManager.sendTransactionWithBlindRetry(destinationNetwork, fundingAccount, {
             data,
             maxFeePerGas,
             maxPriorityFeePerGas,
-            to: outTokenDetails.erc20AddressSourceChain as `0x${string}`,
-            value: 0n
+            nonce,
+            to: isNative ? ephemeralAddress : (outTokenDetails.erc20AddressSourceChain as `0x${string}`),
+            value: isNative ? BigInt(subsidyAmountRaw.toFixed(0)) : 0n
           });
-        }
-
-        receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-        if (!receipt || receipt.status !== "success") {
-          logger.error(`FinalSettlementSubsidyExecutor: Transaction ${txHash} failed or was not found. Retrying...`);
-          attempt++;
-          await new Promise(resolve => setTimeout(resolve, 20000));
-        }
-      }
-
-      if (!receipt || receipt.status !== "success") {
-        throw new Error(`Failed to confirm subsidy transaction after ${attempt} attempts`);
-      }
-      if (!txHash) {
-        throw new Error("Subsidy transaction confirmed without a transaction hash");
-      }
+          const receipt = await abortableCall(signal, () => publicClient.waitForTransactionReceipt({ hash }));
+          if (receipt.status !== "success") throw new Error(`Subsidy transaction ${hash} failed`);
+          return { hash };
+        },
+        provider: destinationNetwork,
+        request: {
+          amountRaw: subsidyAmountRaw.toFixed(0),
+          destination: ephemeralAddress,
+          network: destinationNetwork,
+          nonce,
+          source: fundingAccount.address,
+          token: isNative ? NATIVE_TOKEN_ADDRESS : outTokenDetails.erc20AddressSourceChain
+        },
+        signal
+      });
 
       await this.createSubsidy(
         state,
-        subsidyAmountRaw.div(new Big(10).pow(outTokenDetails.decimals)).toNumber(),
+        subsidyAmountDecimal.toNumber(),
         outTokenDetails.assetSymbol as SubsidyToken,
         fundingAccount.address,
         txHash
@@ -337,8 +433,32 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
 
       return state;
     } catch (error) {
+      if (error instanceof PhaseError) throw error;
       throw this.createRecoverableError(
         `FinalSettlementSubsidyExecutor: Error during phase execution - ${(error as Error).message}`
+      );
+    }
+  }
+
+  private assertMatchingDeliveryEvidence(
+    evidence: SquidRouterDeliveryEvidence,
+    destinationNetwork: EvmNetworks,
+    destinationToken: string,
+    expectedAmountRaw: string,
+    baselineRaw: string,
+    state: RampState
+  ): void {
+    const expectedSourceHash = state.state.squidRouterSwapHash ?? state.state.squidRouterPermitExecutionHash;
+    const mismatch =
+      evidence.destinationNetwork !== destinationNetwork ||
+      evidence.destinationToken.toLowerCase() !== destinationToken.toLowerCase() ||
+      evidence.expectedAmountRaw !== expectedAmountRaw ||
+      (evidence.baselineRaw !== undefined && evidence.baselineRaw !== baselineRaw) ||
+      (expectedSourceHash !== undefined && evidence.sourceTransactionHash !== expectedSourceHash) ||
+      (evidence.kind === "destination-balance" && evidence.minimumRatioBps !== SQUID_EVM_DELIVERY_FALLBACK_MIN_RATIO_BPS);
+    if (mismatch) {
+      throw this.createUnrecoverableError(
+        "FinalSettlementSubsidyExecutor: Persisted cross-chain delivery evidence does not match the ramp route"
       );
     }
   }

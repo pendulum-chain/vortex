@@ -17,6 +17,7 @@ export const AveniaMint: Phase<
 > = {
   context: AveniaMintContext,
   executors: [new BrlaOnrampMintExecutor()],
+  externalOperations: { register: { provider: "avenia" } },
   name: "AveniaMint",
   phases: ["brlaOnrampMint"],
   prepareTxs: prepareAveniaMintTxs,

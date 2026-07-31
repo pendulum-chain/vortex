@@ -1,6 +1,6 @@
 import type { AccountMeta } from "@vortexfi/shared";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
-import { resolveBlockFlow } from "../flows/catalog";
+import { resolvePersistedBlockFlow } from "../flows/catalog";
 import { accountCapabilities } from "./accounts";
 import { getFlowMetadata } from "./metadata";
 import type { PreparedFlowTxs } from "./types";
@@ -14,7 +14,7 @@ interface PrepareBlockFlowTransactionsArgs {
 }
 
 export function assertBlockFlowMapped(quote: QuoteTicket): void {
-  resolveBlockFlow(getFlowMetadata(quote.metadata).globals.request);
+  resolvePersistedBlockFlow(quote.metadata);
 }
 
 export async function prepareBlockFlowTransactions({
@@ -26,7 +26,7 @@ export async function prepareBlockFlowTransactions({
 }: PrepareBlockFlowTransactionsArgs): Promise<PreparedFlowTxs> {
   const metadata = getFlowMetadata(quote.metadata);
   const quoteFields = quote.get({ plain: true });
-  return resolveBlockFlow(metadata.globals.request).prepareTxs({
+  return resolvePersistedBlockFlow(metadata).prepareTxs({
     accounts: accountCapabilities(signingAccounts),
     destinationAddress,
     metadata,

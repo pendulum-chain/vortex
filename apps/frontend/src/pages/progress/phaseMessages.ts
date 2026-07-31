@@ -1,8 +1,10 @@
 import {
   FiatToken,
   getAnyFiatTokenDetails,
+  getNetworkDisplayName,
   getNetworkFromDestination,
   getOnChainTokenDetailsOrDefault,
+  isAlfredpayToken,
   Networks,
   OnChainToken,
   RampDirection,
@@ -20,6 +22,8 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
 
   const fromNetwork = getNetworkFromDestination(quote.from);
   const toNetwork = getNetworkFromDestination(quote.to);
+  const fromNetworkDisplayName = (fromNetwork && getNetworkDisplayName(fromNetwork)) || String(quote.from);
+  const toNetworkDisplayName = (toNetwork && getNetworkDisplayName(toNetwork)) || String(quote.to);
 
   const inputAssetSymbol =
     currentState.type === RampDirection.SELL
@@ -42,14 +46,23 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
   const getSquidRouterPermitMessage = () =>
     t("pages.progress.squidRouterPermitExecute", {
       assetSymbol: inputAssetSymbol,
-      fromNetwork: quote.from
+      fromNetwork: fromNetworkDisplayName
     });
-  const getSquidRouterSwapMessage = () =>
-    t("pages.progress.squidRouterSwap", {
+  const squidRouterSourceNetwork = isAlfredpayToken(quote.inputCurrency) ? Networks.Polygon : Networks.Base;
+  const squidRouterSourceDisplayName = getNetworkDisplayName(squidRouterSourceNetwork);
+  const getSquidRouterSwapMessage = () => {
+    if (squidRouterSourceNetwork === toNetwork) {
+      return t("pages.progress.squidRouterSameChainSwap", {
+        assetSymbol: outputAssetSymbol,
+        network: squidRouterSourceDisplayName
+      });
+    }
+    return t("pages.progress.squidRouterSwap", {
       assetSymbol: outputAssetSymbol,
-      fromNetwork: quote.inputCurrency === FiatToken.EURC ? "Polygon" : "Moonbeam",
-      toNetwork: quote.to === Networks.AssetHub ? "Moonbeam" : toNetwork
+      fromNetwork: squidRouterSourceDisplayName,
+      toNetwork: toNetworkDisplayName
     });
+  };
 
   const getTransferringMessage = () => t("pages.progress.transferringToLocalPartner");
   const getDestinationTransferMessage = () => t("pages.progress.destinationTransfer", { assetSymbol: outputAssetSymbol });
@@ -98,14 +111,16 @@ export function getMessageForPhase(ramp: RampState | undefined, t: TFunction<"tr
     pendulumToMoonbeamXcm: t("pages.progress.pendulumToMoonbeamXcm", {
       assetSymbol: outputAssetSymbol
     }),
-    squidRouterApprove: getSquidRouterSwapMessage(),
+    squidRouterApprove: t("pages.progress.squidRouterApprove", {
+      network: squidRouterSourceDisplayName
+    }),
     squidRouterNoPermitApprove: t("pages.progress.squidRouterNoPermitApprove", {
       assetSymbol: inputAssetSymbol
     }),
     squidRouterNoPermitSwap: t("pages.progress.squidRouterNoPermitSwap", {
       assetSymbol: inputAssetSymbol,
-      fromNetwork: quote.from,
-      toNetwork: quote.to
+      fromNetwork: fromNetworkDisplayName,
+      toNetwork: toNetworkDisplayName
     }),
     squidRouterNoPermitTransfer: t("pages.progress.squidRouterNoPermitTransfer", {
       assetSymbol: inputAssetSymbol

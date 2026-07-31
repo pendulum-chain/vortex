@@ -2,8 +2,11 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
-import type { IERC165, IERC165Interface } from "../../../../../@openzeppelin/contracts/utils/introspection/IERC165";
+import { Contract, Interface, type ContractRunner } from "ethers";
+import type {
+  IERC165,
+  IERC165Interface,
+} from "../../../../../@openzeppelin/contracts/utils/introspection/IERC165";
 
 const _abi = [
   {
@@ -11,20 +14,20 @@ const _abi = [
       {
         internalType: "bytes4",
         name: "interfaceId",
-        type: "bytes4"
-      }
+        type: "bytes4",
+      },
     ],
     name: "supportsInterface",
     outputs: [
       {
         internalType: "bool",
         name: "",
-        type: "bool"
-      }
+        type: "bool",
+      },
     ],
     stateMutability: "view",
-    type: "function"
-  }
+    type: "function",
+  },
 ] as const;
 
 export class IERC165__factory {

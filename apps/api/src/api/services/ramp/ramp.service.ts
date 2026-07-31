@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
@@ -42,7 +43,7 @@ import {
 import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers";
 import { accountCapabilities } from "../phases/blocks/core/accounts";
 import { getFlowMetadata } from "../phases/blocks/core/metadata";
-import { resolveBlockFlow } from "../phases/blocks/flows/catalog";
+import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
 import { validatePresignedTxs } from "../transactions/validation";
@@ -52,6 +53,22 @@ import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
 
 const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
+
+function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error(`${label} contains a non-object compatibility record`);
+    }
+    for (const [key, value] of Object.entries(record)) {
+      if (Object.hasOwn(merged, key) && !isDeepStrictEqual(merged[key], value)) {
+        throw new Error(`${label} contains conflicting values for compatibility field ${key}`);
+      }
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -154,6 +171,22 @@ export class RampService extends BaseRampService {
    * on the client side.
    */
   public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+    const recipientContextKeys = [
+      "recipientId",
+      "recipientRelationshipId",
+      "recipientPayoutReferenceId",
+      "senderRecipientId"
+    ] as const;
+    const unsupportedRecipientKey = recipientContextKeys.find(key =>
+      Object.prototype.hasOwnProperty.call(request.additionalData ?? {}, key)
+    );
+    if (unsupportedRecipientKey) {
+      throw new APIError({
+        message: "Recipient-directed payout is not supported by ramp registration; recipient eligibility is advisory only.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -260,7 +293,7 @@ export class RampService extends BaseRampService {
         });
       }
 
-      await validateEphemeralAccountsFresh(ephemerals);
+      await validateEphemeralAccountsFresh(ephemerals, quote);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
@@ -880,7 +913,7 @@ export class RampService extends BaseRampService {
     }
 
     const metadata = getFlowMetadata(quote.metadata);
-    const flow = resolveBlockFlow(metadata.globals.request);
+    const flow = resolvePersistedBlockFlow(metadata);
     const quoteFields = quote.get({ plain: true });
     const registered = await flow.register({
       authenticatedUser: { id: userId },
@@ -900,12 +933,14 @@ export class RampService extends BaseRampService {
       registrationFacts: registered.registrationFacts,
       userId
     });
-    const compatibilityState = Object.assign(
-      {},
+    const compatibilityState = mergeCompatibilityRecords("Prepared ramp state", [
       ...Object.values(registered.registrationFacts),
       ...Object.values(prepared.stateMeta.blockState ?? {})
-    ) as Partial<StateMetadata>;
-    const responseArtifacts = Object.assign({}, ...Object.values(registered.responseArtifacts)) as {
+    ]) as Partial<StateMetadata>;
+    const responseArtifacts = mergeCompatibilityRecords(
+      "Ramp registration response",
+      Object.values(registered.responseArtifacts)
+    ) as {
       aveniaTicketId?: string;
       depositQrCode?: string;
       ibanPaymentData?: IbanPaymentData;
@@ -1022,9 +1057,10 @@ export class RampService extends BaseRampService {
     transaction: Transaction
   ): Promise<{ achPaymentData?: AlfredpayFiatPaymentInstructions }> {
     const metadata = getFlowMetadata(quote.metadata);
-    const started = await resolveBlockFlow(metadata.globals.request).start({
+    const started = await resolvePersistedBlockFlow(metadata).start({
       metadata,
       quote: quote.get({ plain: true }),
+      rampId: rampState.id,
       state: rampState.state,
       userId: rampState.userId ?? undefined
     });

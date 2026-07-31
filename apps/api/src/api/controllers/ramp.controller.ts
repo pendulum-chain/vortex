@@ -84,11 +84,9 @@ export function mapProviderFailure(error: unknown): { error: unknown; logContext
 /**
  * Render the provider log context as a message suffix.
  *
- * The app logger (`config/logger.ts`) formats only `{ timestamp, level, message, label }` and
- * drops any metadata object passed as the second argument. Provider context therefore has to
- * live in the message string itself to reach the logs — passing it as metadata (as we did
- * before) silently discarded it. Server-side only; the body is already truncated. Returns an
- * empty string for non-provider failures so their log line is unchanged.
+ * Keeping this short context in the message makes provider failures easy to scan and search.
+ * Server-side only; the body is already sanitized and truncated. Returns an empty string for
+ * non-provider failures so their log line is unchanged.
  */
 export function formatProviderContext(logContext: Record<string, unknown>): string {
   if (!logContext.provider) {

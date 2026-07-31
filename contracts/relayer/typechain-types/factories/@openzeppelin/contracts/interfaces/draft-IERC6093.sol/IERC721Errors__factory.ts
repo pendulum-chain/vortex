@@ -2,10 +2,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Contract, type ContractRunner, Interface } from "ethers";
+import { Contract, Interface, type ContractRunner } from "ethers";
 import type {
   IERC721Errors,
-  IERC721ErrorsInterface
+  IERC721ErrorsInterface,
 } from "../../../../../@openzeppelin/contracts/interfaces/draft-IERC6093.sol/IERC721Errors";
 
 const _abi = [
@@ -14,104 +14,104 @@ const _abi = [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "tokenId",
-        type: "uint256"
+        type: "uint256",
       },
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721IncorrectOwner",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "operator",
-        type: "address"
+        type: "address",
       },
       {
         internalType: "uint256",
         name: "tokenId",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC721InsufficientApproval",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "approver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721InvalidApprover",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "operator",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721InvalidOperator",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "owner",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721InvalidOwner",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "receiver",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721InvalidReceiver",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "address",
         name: "sender",
-        type: "address"
-      }
+        type: "address",
+      },
     ],
     name: "ERC721InvalidSender",
-    type: "error"
+    type: "error",
   },
   {
     inputs: [
       {
         internalType: "uint256",
         name: "tokenId",
-        type: "uint256"
-      }
+        type: "uint256",
+      },
     ],
     name: "ERC721NonexistentToken",
-    type: "error"
-  }
+    type: "error",
+  },
 ] as const;
 
 export class IERC721Errors__factory {
@@ -119,7 +119,10 @@ export class IERC721Errors__factory {
   static createInterface(): IERC721ErrorsInterface {
     return new Interface(_abi) as IERC721ErrorsInterface;
   }
-  static connect(address: string, runner?: ContractRunner | null): IERC721Errors {
+  static connect(
+    address: string,
+    runner?: ContractRunner | null
+  ): IERC721Errors {
     return new Contract(address, _abi, runner) as unknown as IERC721Errors;
   }
 }

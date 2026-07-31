@@ -1,17 +1,21 @@
+import { randomUUID } from "node:crypto";
 import { RampDirection, TransactionStatus, WebhookEventType, WebhookPayload } from "@vortexfi/shared";
 import cryptoService from "../../../config/crypto";
 import logger from "../../../config/logger";
 import Webhook from "../../../models/webhook.model";
 import { fetchWithTimeout } from "../../helpers/fetchWithTimeout";
 import webhookService from "./webhook.service";
+import { assertResolvesToPublicAddress } from "./webhook-url";
 
 export class WebhookDeliveryService {
   private readonly maxRetries = 5;
   private readonly timeoutMs = 30000;
   private readonly retryDelays = [1000, 2000, 4000, 8000, 16000];
 
-  private generateSignature(payload: string): string {
-    return cryptoService.signPayload(payload);
+  // The signature covers the timestamp header, so a captured body+signature cannot be
+  // replayed later with a fresh timestamp. Consumers verify over `${timestamp}.${body}`.
+  private generateSignature(timestamp: number, payload: string): string {
+    return cryptoService.signPayload(`${timestamp}.${payload}`);
   }
 
   private mapPhaseToStatus(phase: string): TransactionStatus {
@@ -22,9 +26,13 @@ export class WebhookDeliveryService {
 
   private async deliverWebhook(webhook: Webhook, payload: WebhookPayload, attempt = 1): Promise<boolean> {
     try {
+      // Re-resolved on every attempt so a DNS record cannot be re-pointed at internal
+      // infrastructure after registration (SSRF guard).
+      await assertResolvesToPublicAddress(webhook.url);
+
       const payloadString = JSON.stringify(payload);
-      const signature = this.generateSignature(payloadString);
       const timestamp = Math.floor(Date.now() / 1000);
+      const signature = this.generateSignature(timestamp, payloadString);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -34,13 +42,17 @@ export class WebhookDeliveryService {
         headers: {
           "Content-Type": "application/json",
           "User-Agent": "Vortex-Webhooks/1.0",
+          // Signature over `${timestamp}.${body}` (RSA-PSS, SHA-256). Recipients must
+          // verify against that exact string, check the timestamp is within a bounded
+          // window (e.g. 5 minutes), and deduplicate on the payload's eventId — it stays
+          // stable across delivery retries, so a duplicate eventId outside a retry
+          // window indicates a replay.
           "X-Vortex-Signature": signature,
-          // The timestamp allows webhook receivers to validate request freshness and prevent replay attacks.
-          // Recipients should verify the timestamp is within a reasonable window (e.g., 5 minutes)
-          // and reject requests with timestamps too old or too far in the future.
           "X-Vortex-Timestamp": timestamp.toString()
         },
         method: "POST",
+        // A public host must not be able to bounce the request to a private one.
+        redirect: "error",
         signal: controller.signal
       });
 
@@ -93,6 +105,7 @@ export class WebhookDeliveryService {
       }
 
       const payload: WebhookPayload = {
+        eventId: randomUUID(),
         eventType: WebhookEventType.TRANSACTION_CREATED,
         payload: {
           quoteId,
@@ -129,6 +142,7 @@ export class WebhookDeliveryService {
       }
 
       const payload: WebhookPayload = {
+        eventId: randomUUID(),
         eventType: WebhookEventType.STATUS_CHANGE,
         payload: {
           quoteId,

@@ -6,6 +6,7 @@ import { APIError } from "../../../../errors/api-error";
 const { BlockInitialExecutor } = await import("../core/initial-executor");
 const { getBlockExecutorFlows, resolveBlockFlow } = await import("../flows/catalog");
 const { getBlockFlowHandlers } = await import("../register-handlers");
+const { PhaseProcessor } = await import("../../phase-processor");
 
 const mappedRequest = {
   from: EPaymentMethod.PIX,
@@ -153,5 +154,25 @@ describe("block flow production wiring", () => {
       "initial",
       ...new Set(getBlockExecutorFlows().flatMap(flow => flow.phases))
     ]);
+  });
+
+  it("rejects handler shortcuts outside the persisted flow transition graph", () => {
+    const flow = resolveBlockFlow(mappedRequest);
+    const originalPhase = flow.phases[0];
+    const state = {
+      id: "ramp-1",
+      state: {
+        flow: flow.identity,
+        phaseFlow: ["initial", ...flow.phases, "complete"]
+      }
+    };
+    const processor = new PhaseProcessor() as unknown as {
+      resolveNextPhase(original: string, result: { currentPhase: string }, state: unknown): string;
+    };
+
+    expect(() => processor.resolveNextPhase(originalPhase, { currentPhase: "complete" }, state)).toThrow(
+      "is not allowed"
+    );
+    expect(processor.resolveNextPhase(originalPhase, { currentPhase: "failed" }, state)).toBe("failed");
   });
 });
