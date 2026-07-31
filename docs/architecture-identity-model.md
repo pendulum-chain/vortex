@@ -88,7 +88,7 @@ The detailed redemption, token-retention, authorization, and payability rules ar
 normative in
 [`security-spec/03-ramp-engine/recipient-transfers.md`](security-spec/03-ramp-engine/recipient-transfers.md).
 Current product behavior and acknowledged gaps are in
-[`dashboard.md`](dashboard.md).
+[`product-dashboard.md`](product-dashboard.md).
 
 ## Authentication and ownership flow
 

@@ -291,6 +291,6 @@ provider-shaped rather than UI-shaped.
 
 ---
 
-Architecture: [`docs/identity-model.md`](identity-model.md).
+Architecture: [`docs/architecture-identity-model.md`](architecture-identity-model.md).
 Security-sensitive recipient behavior:
 [`docs/security-spec/03-ramp-engine/recipient-transfers.md`](security-spec/03-ramp-engine/recipient-transfers.md).

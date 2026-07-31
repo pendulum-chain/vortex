@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// E2E journeys are non-PR-blocking (see docs/testing.md): they run nightly in CI
+// E2E journeys are non-PR-blocking (see docs/operations-testing.md): they run nightly in CI
 // and locally via `bun test:e2e`. The backend is mocked per-test with page.route, so no
 // API server, database, or chain access is needed — only the Vite dev server.
 export default defineConfig({

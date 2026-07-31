@@ -1,5 +1,5 @@
 /**
- * External API contract: Avenia/BRLA (docs/testing.md).
+ * External API contract: Avenia/BRLA (docs/operations-testing.md).
  *
  * The same consumed-contract schemas run against the fake (hermetic, PR-blocking)
  * and against the partner API (live, nightly). Live tests skip cleanly when BRLA_*

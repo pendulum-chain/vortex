@@ -77,6 +77,8 @@ update the existing canonical document when one owns the topic.
   directories. Git history is the archive.
 - Keep general project documents directly under `docs/`; only `docs/api/` and
   `docs/security-spec/` currently warrant dedicated directory trees.
+- Name general documents `docs/<kind>-<topic>.md` using the kind prefixes defined in
+  `docs/README.md`.
 - Name active drafts `docs/proposal-<topic>.md`; accepted decisions become
   `docs/adr-NNNN-<topic>.md`, with current behavior updated in the relevant maintained
   document.

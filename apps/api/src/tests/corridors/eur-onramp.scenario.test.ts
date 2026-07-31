@@ -68,7 +68,7 @@ interface CorridorSetup {
  * → complete against the fake external world.
  *
  * This scenario is the hermetic-coverage precondition documented next to the
- * kill-switch and in docs/testing.md ("EUR re-enablement
+ * kill-switch and in docs/operations-testing.md ("EUR re-enablement
  * precondition"). The kill-switch itself stays on; once it is lifted, replace
  * the seeding helper with a plain POST /v1/ramp/register like the BRL/MXN
  * corridor files.

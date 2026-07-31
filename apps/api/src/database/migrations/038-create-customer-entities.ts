@@ -1,7 +1,7 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
 // Creates customer_entities (the legal/compliance customer anchor between profiles and
-// provider/KYC tables — see docs/identity-model.md) and
+// provider/KYC tables — see docs/architecture-identity-model.md) and
 // backfills one 'individual' entity per existing profile.
 export async function up(queryInterface: QueryInterface): Promise<void> {
   await queryInterface.createTable("customer_entities", {

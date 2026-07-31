@@ -16,12 +16,12 @@ The smaller set of general project documents stays directly in `docs/`:
 
 | Document | Purpose |
 |---|---|
-| [`identity-model.md`](identity-model.md) | Current cross-module identity and ownership architecture |
-| [`dashboard.md`](dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`testing.md`](testing.md) | Maintained test strategy and suite boundaries |
-| [`maintenance-mode.md`](maintenance-mode.md) | Maintenance-mode behavior and operations |
 | [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
+| [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
 | [`incident-2026-07-17-phase-handler-race.md`](incident-2026-07-17-phase-handler-race.md) | Durable incident evidence and follow-up controls |
+| [`operations-maintenance-mode.md`](operations-maintenance-mode.md) | Maintenance-mode behavior and operations |
+| [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
+| [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
@@ -57,13 +57,15 @@ Before adding a Markdown file:
 
 1. Search this index and update an existing canonical document whenever it has the same
    audience and lifecycle.
-2. Start new general documentation as one clearly named file directly under `docs/`.
-   Create a subdirectory only when a coherent subsystem has multiple maintained artifacts
+2. Start new general documentation directly under `docs/` and name it
+   `<kind>-<topic>.md`. The supported kind prefixes are `architecture`, `product`,
+   `operations`, `adr`, `incident`, and `proposal`.
+3. Create a subdirectory only when a coherent subsystem has multiple maintained artifacts
    or its own generation/publishing tooling.
-3. Give non-current or non-authoritative files an explicit status.
-4. Link to implementation instead of copying file inventories, schemas, or command lists
+4. Give non-current or non-authoritative files an explicit status.
+5. Link to implementation instead of copying file inventories, schemas, or command lists
    that are already obvious from the repository.
-5. Update links and this index in the same change.
+6. Update links and this index in the same change.
 
 Do not add:
 

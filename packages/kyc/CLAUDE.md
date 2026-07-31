@@ -23,6 +23,6 @@ bun typecheck
 ## Documentation
 
 Follow [`docs/README.md`](../../docs/README.md). Current identity architecture belongs in
-`docs/identity-model.md`, product behavior in the relevant product spec, and
+`docs/architecture-identity-model.md`, product behavior in the relevant product spec, and
 provider security requirements in `docs/security-spec/05-integrations/`. Do not create
 provider implementation plans or progress files in this package.

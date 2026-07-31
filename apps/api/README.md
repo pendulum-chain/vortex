@@ -44,7 +44,7 @@ bun test <file-or-pattern>
 
 The normal suite is hermetic. Tests that call live provider sandboxes or chains require
 `RUN_LIVE_TESTS=1` and are never part of the default PR path. See
-[`docs/testing.md`](../../docs/testing.md).
+[`docs/operations-testing.md`](../../docs/operations-testing.md).
 
 ## Architecture and contracts
 
@@ -54,7 +54,7 @@ The normal suite is hermetic. Tests that call live provider sandboxes or chains 
 - [`docs/security-spec/`](../../docs/security-spec/README.md) is authoritative for
   security-sensitive behavior and accepted risks.
 - [`docs/api/`](../../docs/api/README.md) is the partner-facing API documentation source.
-- [`docs/identity-model.md`](../../docs/identity-model.md)
+- [`docs/architecture-identity-model.md`](../../docs/architecture-identity-model.md)
   explains the cross-module customer, provider, partner, and recipient model.
 
 Do not duplicate endpoint catalogs or security rules in this README; update the canonical
