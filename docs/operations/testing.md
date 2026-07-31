@@ -249,7 +249,7 @@ never PR-blocking.
 
 The fakes and the production code share TypeScript types, but nothing else verifies those types
 against what partners actually return — the real clients cast `response.json()` unvalidated. The
-contract suites close that gap (full design: `docs/features/contract-tests.md`): per service, a
+contract suites close that gap: per service, a
 zod schema in `packages/shared/src/services/<service>/schemas.ts` models the raw wire JSON of the
 **consumed** fields, and the same schema is parsed against the fake's output (hermetic, part of
 the PR-blocking api suite) and against the real partner API (`RUN_LIVE_TESTS=1`, nightly
