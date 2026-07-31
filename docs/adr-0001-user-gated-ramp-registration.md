@@ -57,8 +57,8 @@ The key axes are independent:
 
 ## Current references
 
-- [`architecture/identity-model.md`](../architecture/identity-model.md)
-- [`security-spec/01-auth/api-keys.md`](../security-spec/01-auth/api-keys.md)
-- [`security-spec/03-ramp-engine/quote-lifecycle.md`](../security-spec/03-ramp-engine/quote-lifecycle.md)
+- [`identity-model.md`](identity-model.md)
+- [`security-spec/01-auth/api-keys.md`](security-spec/01-auth/api-keys.md)
+- [`security-spec/03-ramp-engine/quote-lifecycle.md`](security-spec/03-ramp-engine/quote-lifecycle.md)
 - `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
 - `apps/api/src/api/services/ramp/ramp.service.ts`

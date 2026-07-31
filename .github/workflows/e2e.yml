@@ -1,4 +1,4 @@
-# Non-PR-blocking Playwright E2E journeys (see docs/operations/testing.md).
+# Non-PR-blocking Playwright E2E journeys (see docs/testing.md).
 # Runs nightly and on demand; failures alert but never gate merges.
 name: e2e
 

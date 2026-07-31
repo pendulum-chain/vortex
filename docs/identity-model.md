@@ -5,7 +5,7 @@ on 2026-07-31.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
-owned by [`docs/security-spec/`](../security-spec/README.md).
+owned by [`docs/security-spec/`](security-spec/README.md).
 
 ## Design principles
 
@@ -75,7 +75,7 @@ Public `pk_*` keys are stored as public values and are suitable for attribution.
 `sk_*` keys are stored as hashes and may authenticate requests. A partner-only key may
 quote but cannot register a ramp for an arbitrary customer; registration requires either
 a Supabase user or a secret key linked to one user. See
-[`ADR 0001`](../decisions/0001-user-gated-ramp-registration.md).
+[`ADR 0001`](adr-0001-user-gated-ramp-registration.md).
 
 ### Recipients
 
@@ -86,9 +86,9 @@ label, and verification status.
 
 The detailed redemption, token-retention, authorization, and payability rules are
 normative in
-[`security-spec/03-ramp-engine/recipient-transfers.md`](../security-spec/03-ramp-engine/recipient-transfers.md).
+[`security-spec/03-ramp-engine/recipient-transfers.md`](security-spec/03-ramp-engine/recipient-transfers.md).
 Current product behavior and acknowledged gaps are in
-[`product/dashboard.md`](../product/dashboard.md).
+[`dashboard.md`](dashboard.md).
 
 ## Authentication and ownership flow
 

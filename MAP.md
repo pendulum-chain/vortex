@@ -31,14 +31,9 @@ workspace; use [`docs/README.md`](docs/README.md) to locate durable project cont
 
 | Path | Responsibility |
 |---|---|
+| `docs` | Documentation index plus the small set of current project, ADR, incident, and proposal files. |
 | `docs/security-spec` | Normative security invariants, current risk register, and dated audit evidence. |
 | `docs/api` | Partner-facing OpenAPI and guide-page publication source. |
-| `docs/architecture` | Current cross-module architecture. |
-| `docs/decisions` | Accepted ADRs. |
-| `docs/product` | Current product specs and acknowledged gaps. |
-| `docs/operations` | Testing, operational behavior, runbooks, and incidents. |
-| `docs/research` | Dated external research retained for live decisions. |
-| `docs/proposals` | Active, non-authoritative discussion drafts. |
 
 The full placement and lifecycle policy is in [`docs/README.md`](docs/README.md).
 

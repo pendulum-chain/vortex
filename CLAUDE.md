@@ -63,7 +63,7 @@ when shared is rebuilt. Check: `tokenAvailability`, `mapFiatToDestination`, succ
 
 Biome config: line width 128, 2-space indent, semicolons always, no trailing commas,
 double quotes, sorted Tailwind classes (`useSortedClasses`). General: prefer composition
-over inheritance; create ADRs in `/docs/decisions` for major architectural changes.
+over inheritance; create `/docs/adr-NNNN-<topic>.md` for major architectural changes.
 Frontend-specific and XState conventions live in
 [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md).
 
@@ -75,9 +75,11 @@ update the existing canonical document when one owns the topic.
 
 - Do not create memory banks, progress journals, completed-plan summaries, or archive
   directories. Git history is the archive.
-- Active drafts belong in `docs/proposals/`; accepted decisions become ADRs in
-  `docs/decisions/`, with current behavior updated in the relevant architecture, product,
-  operations, API, or security document.
+- Keep general project documents directly under `docs/`; only `docs/api/` and
+  `docs/security-spec/` currently warrant dedicated directory trees.
+- Name active drafts `docs/proposal-<topic>.md`; accepted decisions become
+  `docs/adr-NNNN-<topic>.md`, with current behavior updated in the relevant maintained
+  document.
 - Keep local `README.md` files only when they explain a non-obvious subsystem contract.
 - Repair indexes and relative links in the same change as a move or deletion.
 

@@ -19,7 +19,7 @@ import {
 } from "./types";
 
 /**
- * External API contract schemas for Alfredpay (see docs/operations/testing.md).
+ * External API contract schemas for Alfredpay (see docs/testing.md).
  *
  * These model the raw wire JSON of the fields Vortex actually consumes — not the full
  * partner response. Unknown extra fields always pass (loose objects); a removed or

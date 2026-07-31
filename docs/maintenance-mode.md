@@ -51,4 +51,4 @@ the exact schema and indexes.
 
 Do not expose maintenance administration in the partner API docs. Authentication and
 route-surface requirements are covered by
-[`security-spec/07-operations/api-surface.md`](../security-spec/07-operations/api-surface.md).
+[`security-spec/07-operations/api-surface.md`](security-spec/07-operations/api-surface.md).

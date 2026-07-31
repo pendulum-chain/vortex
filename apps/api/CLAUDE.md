@@ -52,6 +52,6 @@ integrations, or migrations that affect invariants must be cross-checked against
 ## Documentation
 
 Follow [`docs/README.md`](../../docs/README.md). Update the block-flow README only for its
-local implementation contract; cross-module identity belongs in `docs/architecture/`,
-testing in `docs/operations/testing.md`, public endpoints in `docs/api/`, and security
+local implementation contract; cross-module identity belongs in `docs/identity-model.md`,
+testing in `docs/testing.md`, public endpoints in `docs/api/`, and security
 behavior in `docs/security-spec/`. Do not add implementation plans or agent memory files.

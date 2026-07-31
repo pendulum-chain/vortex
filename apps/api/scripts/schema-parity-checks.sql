@@ -1,4 +1,4 @@
--- Parity checks for the 038-049 schema migration (run after each deploy of the 038-049 set; see docs/architecture/identity-model.md).
+-- Parity checks for the 038-049 schema migration (run after each deploy of the 038-049 set; see docs/identity-model.md).
 -- Read-only. Mirrors the backfill rules of migrations 038/039/040 exactly, so:
 --   * PARITY checks must return 0 — any non-zero row count is a real backfill gap.
 --   * INFO checks are expected to be non-zero; they size the deliberately-skipped buckets.

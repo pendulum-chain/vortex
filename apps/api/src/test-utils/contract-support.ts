@@ -1,5 +1,5 @@
 /**
- * Helpers for the external API contract suites (docs/operations/testing.md).
+ * Helpers for the external API contract suites (docs/testing.md).
  *
  * Partner sandboxes are allowed to be shaky: any error thrown by the live call
  * itself (network failure, 5xx, rate limit) makes the check INCONCLUSIVE — logged

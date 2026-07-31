@@ -2,7 +2,7 @@
 
 React 19 + Vite account surface for OTP authentication, customer-entity selection,
 provider onboarding, recipients, notifications, transaction history, and self-ramp flows.
-Read [`docs/product/dashboard.md`](../../docs/product/dashboard.md) before changing product
+Read [`docs/dashboard.md`](../../docs/dashboard.md) before changing product
 scope or an acknowledged gap.
 
 ## Architecture
@@ -30,5 +30,5 @@ Lint from the repository root with `bun lint:fix`. After changing
 
 Follow [`docs/README.md`](../../docs/README.md). Update the dashboard product spec instead
 of adding plans under this app. Identity architecture belongs in
-`docs/architecture/identity-model.md`; tests in `docs/operations/testing.md`; security
+`docs/identity-model.md`; tests in `docs/testing.md`; security
 behavior in `docs/security-spec/`.

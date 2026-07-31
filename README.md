@@ -73,8 +73,8 @@ Workspace-specific setup and caveats live in their `README.md` or `CLAUDE.md`.
 - [`docs/security-spec/`](docs/security-spec/README.md) is the audit-facing source of
   truth for security-sensitive behavior.
 - [`docs/api/`](docs/api/README.md) contains the public OpenAPI source and partner guides.
-- [`docs/README.md`](docs/README.md) explains where architecture, product, operations,
-  research, decisions, and proposals belong.
+- [`docs/README.md`](docs/README.md) indexes current architecture, product, operations,
+  decisions, incidents, and proposals.
 - [`CLAUDE.md`](CLAUDE.md) and scoped `CLAUDE.md` files contain coding-agent rules.
 
 ## AI integration guidance
