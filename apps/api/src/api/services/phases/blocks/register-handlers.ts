@@ -1,9 +1,10 @@
-import { Op } from "sequelize";
 import logger from "../../../../config/logger";
+import { config } from "../../../../config/vars";
 import QuoteTicket from "../../../../models/quoteTicket.model";
 import RampState from "../../../../models/rampState.model";
 import type { PhaseHandler } from "../../phases/base-phase-handler";
 import phaseRegistry from "../../phases/phase-registry";
+import { getPersistedBlockFlowCompatibilityScope } from "./core/compatibility-scope";
 import { BlockInitialExecutor } from "./core/initial-executor";
 import { getFlowMetadata } from "./core/metadata";
 import { getBlockExecutorFlows, getBlockFlowByIdentity, resolvePersistedBlockFlow } from "./flows/catalog";
@@ -54,14 +55,15 @@ export function registerBlockFlowHandlers(): void {
 }
 
 export async function assertPersistedBlockFlowVersionsSupported(): Promise<void> {
+  const { pendingQuoteWhere, resumableRampWhere } = getPersistedBlockFlowCompatibilityScope(config.flowVariant);
   const [pendingQuotes, activeRamps] = await Promise.all([
     QuoteTicket.findAll({
       attributes: ["id", "metadata"],
-      where: { expiresAt: { [Op.gt]: new Date() }, status: "pending" }
+      where: pendingQuoteWhere
     }),
     RampState.findAll({
       attributes: ["id", "quoteId", "state"],
-      where: { currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut"] } }
+      where: resumableRampWhere
     })
   ]);
 
@@ -75,9 +77,14 @@ export async function assertPersistedBlockFlowVersionsSupported(): Promise<void>
   }
 
   for (const ramp of activeRamps) {
-    const quote = await QuoteTicket.findByPk(ramp.quoteId, { attributes: ["id", "metadata"] });
+    const quote = await QuoteTicket.findByPk(ramp.quoteId, { attributes: ["flowVariant", "id", "metadata"] });
     if (!quote) {
       throw new Error(`Active ramp ${ramp.id} references missing quote ${ramp.quoteId}`);
+    }
+    if (quote.flowVariant !== config.flowVariant) {
+      throw new Error(
+        `Active ramp ${ramp.id} belongs to flow ${config.flowVariant} but references quote ${ramp.quoteId} from flow ${quote.flowVariant}`
+      );
     }
     const quoteFlow = resolvePersistedBlockFlow(quote.metadata);
     const flow = ramp.state.flow ? getBlockFlowByIdentity(ramp.state.flow) : quoteFlow;
@@ -105,6 +112,6 @@ export async function assertPersistedBlockFlowVersionsSupported(): Promise<void>
   }
 
   logger.info(
-    `Validated persisted block-flow support for ${pendingQuotes.length} pending quotes and ${activeRamps.length} active ramps`
+    `Validated persisted block-flow support for ${pendingQuotes.length} pending quotes and ${activeRamps.length} resumable ramps in flow ${config.flowVariant}`
   );
 }
