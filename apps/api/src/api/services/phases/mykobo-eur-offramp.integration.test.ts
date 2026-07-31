@@ -197,7 +197,7 @@ RampRecoveryWorker.prototype.start = mock(async (): Promise<void> => {
 }
 
 // Live test: hits the real Mykobo sandbox and needs MYKOBO_ACCESS_KEY/MYKOBO_SECRET_KEY.
-// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/operations/testing.md).
 describe.skipIf(!process.env.RUN_LIVE_TESTS)("Mykobo EUR offramp contract test (real sandbox, no on-chain submission)", () => {
   it("requires Mykobo sandbox credentials in the environment", () => {
     if (!MYKOBO_ACCESS_KEY || !MYKOBO_SECRET_KEY) {

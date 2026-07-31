@@ -10,7 +10,7 @@ import { APIError } from "../../errors/api-error";
 import { RampService } from "./ramp.service";
 
 // Locks in the user-gating guards at the top of RampService.registerRamp. See
-// docs/architecture/user-gated-ramp-registration.md. The guards run before any DB write or
+// docs/decisions/0001-user-gated-ramp-registration.md. The guards run before any DB write or
 // signing-account validation, so overriding withTransaction (to skip the real DB) and mocking
 // QuoteTicket.findByPk and the User lookup are enough to drive them.
 class TestRampService extends RampService {

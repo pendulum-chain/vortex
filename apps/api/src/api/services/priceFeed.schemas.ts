@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * External API contract schema for the CoinGecko price feed consumed by
- * PriceFeedService (see docs/features/contract-tests.md).
+ * PriceFeedService (see docs/operations/testing.md).
  *
  * GET /simple/price returns `{ [tokenId]: { [vsCurrency]: number } }`;
  * getCryptoPrice reads exactly `data[tokenId][vsCurrency]` and treats a missing

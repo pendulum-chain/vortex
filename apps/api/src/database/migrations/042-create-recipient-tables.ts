@@ -1,6 +1,6 @@
 import { DataTypes, QueryInterface } from "sequelize";
 
-// Recipient product tables (docs/architecture/recipient-transfers-schema.md, refined by the
+// Recipient product tables (docs/architecture/identity-model.md, refined by the
 // plan's D1/D3): recipient_invitations are LINK-based — token_hash is the redemption key and
 // invitee_email is optional metadata; recipient_payout_references are thin pointers to
 // provider-side instruments (no payout PII stored locally). All net-new, atomic revert.

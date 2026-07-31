@@ -2,7 +2,7 @@ import {expect, test} from "bun:test";
 import {dryRunExtrinsic,} from "../../index";
 import {createAssethubToMoonbeamTransferWithSwapOnHydration} from "./assethubToMoonbeam";
 
-// Hits live AssetHub/Hydration RPCs; opt-in only (see docs/testing-strategy.md).
+// Hits live AssetHub/Hydration RPCs; opt-in only (see docs/operations/testing.md).
 test.skipIf(!process.env.RUN_LIVE_TESTS)("dry-run assethub to moonbeam with swap on hydration", async () => {
   // Hardcoded values for testing purposes. The transferred asset is USDT on AssetHub
   // (hardcoded in the production function).
