@@ -1,8 +1,9 @@
-import { EvmClientManager, MykoboApiService, MykoboTransactionStatus, Networks, type RampPhase } from "@vortexfi/shared";
+import { EvmClientManager, MykoboApiService, MykoboTransactionStatus, Networks, type RampPhase, sleep } from "@vortexfi/shared";
 import logger from "../../../../../../config/logger";
 import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { ensurePresignedTransferFunded } from "../../core/destination-funding";
 import { getBlockState } from "../../core/metadata";
 import type { MykoboOfframpPayoutRegistrationFacts } from "./registration";
@@ -16,12 +17,12 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
     return "mykoboPayoutOnBase";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const facts = state.state.blockState?.[MykoboOfframpPayoutContext.key]
       ? getBlockState<MykoboOfframpPayoutRegistrationFacts>(state.state, MykoboOfframpPayoutContext)
       : this.legacyFacts(state);
-    await this.sendPayout(state);
-    await this.pollUntilCompleted(facts.mykoboTransactionId);
+    await this.sendPayout(state, signal);
+    await this.pollUntilCompleted(facts.mykoboTransactionId, signal);
     return state;
   }
 
@@ -33,7 +34,7 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
     return { mykoboEmail, mykoboReceivablesAddress, mykoboTransactionId, mykoboTransactionReference };
   }
 
-  private async sendPayout(state: RampState): Promise<void> {
+  private async sendPayout(state: RampState, signal?: AbortSignal): Promise<void> {
     try {
       const manager = EvmClientManager.getInstance();
       const client = manager.getClient(Networks.Base);
@@ -42,17 +43,31 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
         throw new Error("MykoboOfframpPayoutExecutor: Missing presigned payout transaction");
       }
       if (state.state.mykoboPayoutTxHash) {
-        const receipt = await client.waitForTransactionReceipt({ hash: state.state.mykoboPayoutTxHash });
+        const receipt = await abortableCall(signal, () =>
+          client.waitForTransactionReceipt({ hash: state.state.mykoboPayoutTxHash as `0x${string}` })
+        );
         if (receipt.status === "success") return;
+        throw this.createUnrecoverableError(`Mykobo payout transfer ${state.state.mykoboPayoutTxHash} failed`);
       } else {
-        await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName());
+        await ensurePresignedTransferFunded(transaction.txData as `0x${string}`, Networks.Base, this.getPhaseName(), signal);
       }
-      const hash = (await manager.sendRawTransactionWithRetry(
-        Networks.Base,
-        transaction.txData as `0x${string}`
-      )) as `0x${string}`;
-      const receipt = await client.waitForTransactionReceipt({ hash });
-      if (receipt.status !== "success") throw new Error(`Mykobo payout transfer ${hash} failed`);
+      const { hash } = await this.runFinancialOperation(state, {
+        attemptClass: "presigned-payout-broadcast",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = (await manager.sendRawTransactionWithRetry(
+            Networks.Base,
+            transaction.txData as `0x${string}`
+          )) as `0x${string}`;
+          const receipt = await abortableCall(signal, () => client.waitForTransactionReceipt({ hash }));
+          if (receipt.status !== "success") throw new Error(`Mykobo payout transfer ${hash} failed`);
+          return { hash };
+        },
+        provider: Networks.Base,
+        request: { network: Networks.Base, signedTransaction: transaction.txData },
+        signal
+      });
       await state.update({ state: { ...state.state, mykoboPayoutTxHash: hash } });
     } catch (error) {
       if (error instanceof PhaseError) throw error;
@@ -61,13 +76,14 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
     }
   }
 
-  private async pollUntilCompleted(transactionId: string): Promise<void> {
+  private async pollUntilCompleted(transactionId: string, signal?: AbortSignal): Promise<void> {
     const api = MykoboApiService.getInstance();
     const start = Date.now();
     let lastError: unknown;
     while (Date.now() - start < POLL_TIMEOUT_MS) {
+      throwIfAborted(signal);
       try {
-        const { transaction } = await api.getTransaction(transactionId);
+        const { transaction } = await abortableCall(signal, () => api.getTransaction(transactionId));
         if (transaction.status === MykoboTransactionStatus.COMPLETED) return;
         if (
           transaction.status === MykoboTransactionStatus.FAILED ||
@@ -83,7 +99,7 @@ export class MykoboOfframpPayoutExecutor extends BasePhaseHandler {
         lastError = error;
         logger.warn("MykoboOfframpPayoutExecutor: Polling Mykobo transaction failed; retrying", error);
       }
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+      await sleep(POLL_INTERVAL_MS, signal);
     }
     if (lastError) {
       throw this.createRecoverableError(

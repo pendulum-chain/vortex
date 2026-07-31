@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import logger from "../../config/logger";
-import { SupabaseAuthService } from "../services/auth";
+import { AccessTokenVerificationError, SupabaseAuthService } from "../services/auth";
 
 declare global {
   // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
@@ -38,9 +38,10 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.userEmail = result.email;
     next();
   } catch (error) {
-    logger.error("Auth middleware error:", error);
-    return res.status(401).json({
-      error: "Authentication failed"
+    const unavailable = error instanceof AccessTokenVerificationError && error.transient;
+    logVerificationFailure(req, unavailable ? "provider_unavailable" : "verification_error", error);
+    return res.status(unavailable ? 503 : 401).json({
+      error: unavailable ? "Authentication service unavailable" : "Authentication failed"
     });
   }
 }
@@ -49,31 +50,37 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
  * Optional auth - attaches userId if token present
  */
 export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  if (authHeader === undefined) {
+    next();
+    return;
+  }
+  if (!authHeader.startsWith("Bearer ") || authHeader.length <= 7) {
+    return res.status(401).json({ error: "Missing or invalid authorization header" });
+  }
+
   try {
-    const authHeader = req.headers.authorization;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      const result = await SupabaseAuthService.verifyToken(token);
-
-      if (result.valid) {
-        req.userId = result.user_id;
-      }
+    const result = await SupabaseAuthService.verifyToken(authHeader.substring(7));
+    if (!result.valid) {
+      return res.status(401).json({ error: "Invalid or expired token" });
     }
-
+    req.userId = result.user_id;
+    req.userEmail = result.email;
     next();
   } catch (error) {
-    // Log truncated token for security - only show first/last few characters
-    const authHeader = req.headers.authorization;
-    const truncatedAuth = authHeader
-      ? `${authHeader.substring(0, 15)}...${authHeader.substring(authHeader.length - 4)}`
-      : undefined;
-
-    logger.warn("optionalAuth middleware: authentication error", {
-      authorization: truncatedAuth,
-      error,
-      path: req.path
+    const unavailable = error instanceof AccessTokenVerificationError && error.transient;
+    logVerificationFailure(req, unavailable ? "provider_unavailable" : "verification_error", error);
+    return res.status(unavailable ? 503 : 401).json({
+      error: unavailable ? "Authentication service unavailable" : "Authentication failed"
     });
-    next();
   }
+}
+
+function logVerificationFailure(req: Request, category: string, error: unknown): void {
+  logger.warn("Supabase access-token verification failed", {
+    category,
+    error: error instanceof Error ? error.message : String(error),
+    path: req.path,
+    requestId: req.headers["x-request-id"]
+  });
 }

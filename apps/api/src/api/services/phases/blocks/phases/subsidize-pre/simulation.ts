@@ -93,11 +93,11 @@ export function buildFullSubsidy(
 }
 
 function capSubsidy(idealSubsidy: Big, expectedOutput: Big, maxSubsidy: number): Big {
-  if (maxSubsidy > 0) {
-    const maxAllowed = expectedOutput.mul(maxSubsidy);
-    return idealSubsidy.gt(maxAllowed) ? maxAllowed : idealSubsidy;
+  if (maxSubsidy <= 0) {
+    return new Big(0);
   }
-  return idealSubsidy;
+  const maxAllowed = expectedOutput.mul(maxSubsidy);
+  return idealSubsidy.gt(maxAllowed) ? maxAllowed : idealSubsidy;
 }
 
 export async function computeExpectedOutput(ctx: PhaseCtx): Promise<{ decimal: Big; raw: string }> {

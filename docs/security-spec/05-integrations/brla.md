@@ -119,15 +119,15 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 - [x] Avenia subaccount creation is idempotent. **PASS** — checks existing subaccount before creating.
 - [x] Recovery: `payOutTicketId` short-circuits ticket re-creation. **PASS** — verified in `phases/blocks/phases/avenia-offramp-payout/execution.ts`.
 - [x] Recovery: `brlaPayoutTxHash` short-circuits on-chain transfer re-broadcast. **PASS** — verified in `phases/blocks/phases/avenia-offramp-payout/execution.ts`.
-- [PARTIAL] Avenia API responses are validated (status, amount, ticket ID). **PARTIAL** — ticket status checked for `PAID`/`FAILED`; `PARTIAL-FAILED` is modeled and the rebalancer handles it for Polygon transfer tickets, but API payout handlers still treat only `FAILED` as terminal; no explicit amount cross-check on `getAccountBalance` response shape.
+- [ ] Avenia API responses are validated (status, amount, ticket ID). **PARTIAL** — ticket status checked for `PAID`/`FAILED`; `PARTIAL-FAILED` is modeled and the rebalancer handles it for Polygon transfer tickets, but API payout handlers still treat only `FAILED` as terminal; no explicit amount cross-check on `getAccountBalance` response shape.
 - [x] `RecoverablePhaseError` used for transient Avenia API failures. **PASS** — `createRecoverableError` wraps `sendBrlaPayoutTransaction` failures and ticket-status timeouts.
 - [x] HTTPS enforced for all Avenia API calls. **PASS** — base URL uses `https://`.
-- [PARTIAL] No Avenia API credentials or user tax IDs appear in logs. **PARTIAL** — `payOutTicketId` is debug-logged with the literal CPF subaccount; review log redaction.
+- [ ] No Avenia API credentials or user tax IDs appear in logs. **PARTIAL** — `payOutTicketId` is debug-logged with the literal CPF subaccount; review log redaction.
 - [x] Dashboard BRL onramps render only the server-issued PIX QR/copy payload, use ephemeral-only signing, and do not call `/ramp/start` before explicit payment confirmation; Avenia/Base balance verification remains authoritative. **PASS**.
-- [FAIL] **F-014**: Timeout configured for Avenia HTTP client. **FAIL** — relies on default system/library timeouts; no explicit `AbortController` on `BrlaApiService` calls.
+- [ ] **F-014**: Timeout configured for Avenia HTTP client. **FAIL** — relies on default system/library timeouts; no explicit `AbortController` on `BrlaApiService` calls.
 - [x] PIX deposit details (QR code) generated server-side. **PASS** — comes from Avenia API response.
 - [x] PIX deposit details released to user only after presign validation. **PASS** — gated by `ephemeralPresignChecksPass` (see `transaction-validation.md`).
-- [PARTIAL] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
+- [ ] Avenia interactions logged for reconciliation (amounts, not credentials). **PARTIAL** — info logs include amounts; no formal reconciliation log with structured fields.
 - [x] **FINDING F-064 (MEDIUM)**: BRLA KYC callback endpoint requires authentication. **PASS (FIXED)** — `/kyc/record-attempt` uses `requireAuth`.
 - [x] BRL→BRLA-on-Base on-ramps emit only provider mint, funding, and `destinationTransfer` — no Nabla, fee distribution, Squid, final settlement, or Base cleanup transaction. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.
 - [x] The BRL→BRLA direct flow omits Squid and final settlement rather than relying on executor short-circuits. **PASS** — `phases/blocks/flows/brl-onramp-base-direct.ts`.

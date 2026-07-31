@@ -8,7 +8,7 @@ import { SelectionDropdownMotion } from "../components/TokenSelection/NetworkSel
 const networks = [
   { icon: "polkadot.svg", id: "polkadot", name: "Polkadot" },
   { icon: "ethereum.svg", id: "ethereum", name: "Ethereum" },
-  { icon: "stellar.svg", id: "stellar", name: "Stellar" },
+  { icon: "base.svg", id: "base", name: "Base" },
   { icon: "moonbeam.svg", id: "moonbeam", name: "Moonbeam" }
 ];
 

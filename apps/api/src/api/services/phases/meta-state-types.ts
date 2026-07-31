@@ -6,8 +6,24 @@ import {
   Networks,
   RampPhase
 } from "@vortexfi/shared";
+import type { FlowIdentity } from "./blocks/core/identity";
+
+export interface SquidRouterDeliveryEvidence {
+  baselineRaw?: string;
+  destinationNetwork: Networks;
+  destinationToken: string;
+  expectedAmountRaw: string;
+  kind: "provider-terminal" | "destination-balance";
+  minimumRatioBps?: number;
+  observedAt: string;
+  observedBalanceRaw?: string;
+  provider?: "axelar" | "squid";
+  providerStatus?: string;
+  sourceTransactionHash: string;
+}
 
 export interface StateMetadata {
+  flow?: FlowIdentity;
   accountAddresses?: Partial<Record<EphemeralAccountType, string>>;
   blockState?: Record<string, unknown>;
   transactionPlan?: {
@@ -46,6 +62,9 @@ export interface StateMetadata {
   squidRouterApproveHash: string;
   squidRouterSwapHash: string;
   squidRouterPayTxHash: string;
+  // Completion evidence for the exact Squid route. Provider-terminal evidence is
+  // preferred; an EVM balance delta may be used as an explicit bounded fallback.
+  squidRouterDeliveryEvidence?: SquidRouterDeliveryEvidence;
   // Timestamp of the last Axelar stuck-confirm recovery attempt, persisted so
   // retried phase executions respect the cooldown instead of re-broadcasting.
   axelarConfirmRecoveryAt?: string;

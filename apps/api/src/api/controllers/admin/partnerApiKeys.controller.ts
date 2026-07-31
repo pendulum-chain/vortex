@@ -7,7 +7,7 @@ import { config } from "../../../config/vars";
 import ApiKey from "../../../models/apiKey.model";
 import Partner from "../../../models/partner.model";
 import User from "../../../models/user.model";
-import { generateApiKey, getKeyPrefix, hashApiKey } from "../../middlewares/apiKeyAuth.helpers";
+import { digestApiKey, generateApiKey, getKeyPrefix, getSecretKeyLookupPrefix } from "../../middlewares/apiKeyAuth.helpers";
 
 /**
  * Create a new API key pair (public + secret) for a partner
@@ -75,8 +75,8 @@ export async function createApiKey(req: Request<{ partnerName: string }>, res: R
 
     // Generate secret key (sk_live_* or sk_test_*)
     const secretKey = generateApiKey("secret", environment);
-    const secretKeyHash = await hashApiKey(secretKey);
-    const secretKeyPrefix = getKeyPrefix(secretKey);
+    const secretKeyHash = digestApiKey(secretKey);
+    const secretKeyPrefix = getSecretKeyLookupPrefix(secretKey);
 
     const expirationDate = expiresAt ? new Date(expiresAt) : null;
 

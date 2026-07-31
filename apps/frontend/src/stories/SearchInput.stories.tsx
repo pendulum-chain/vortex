@@ -127,7 +127,7 @@ export const WithFilteredList: Story = {
       "Bitcoin (BTC)",
       "Ethereum (ETH)",
       "Polkadot (DOT)",
-      "Stellar (XLM)",
+      "Polygon (POL)",
       "USDC",
       "USDT",
       "DAI",

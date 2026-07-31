@@ -4,8 +4,10 @@ import * as sharedNamespace from "@vortexfi/shared";
 import Big from "big.js";
 import QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
+import * as financialOperationNamespace from "../core/financial-operation";
 
 const sharedReal = { ...sharedNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const fundingAccount = { address: "funding" };
 type BalanceResponse = { free: { toString(): string } };
 const accounts = mock(async (_address: string, _currencyId: unknown): Promise<BalanceResponse> => ({
@@ -30,6 +32,12 @@ const pendulum = {
 };
 const getApi = mock(async () => pendulum);
 const ownedSpies: Array<{ mockRestore(): void }> = [];
+
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+}));
 
 let SubsidizePreSwapExecutor: typeof import("../phases/subsidize-pre/execution").SubsidizePreSwapExecutor;
 let SubsidizePostSwapExecutor: typeof import("../phases/subsidize-post/execution").SubsidizePostSwapExecutor;
@@ -81,6 +89,7 @@ afterAll(() => {
   QuoteTicket.findOne = originalFindOne;
   globalThis.fetch = originalFetch;
   for (const spy of ownedSpies) spy.mockRestore();
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
 
 function state(overrides: Record<string, unknown> = {}): RampState {

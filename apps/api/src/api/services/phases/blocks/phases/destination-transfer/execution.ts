@@ -7,13 +7,15 @@ import {
   multiplyByPowerOfTen,
   RampPhase
 } from "@vortexfi/shared";
-import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
+import { decodeFunctionData, erc20Abi, keccak256, parseTransaction } from "viem";
 import logger from "../../../../../../config/logger";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
-import { UnrecoverablePhaseError } from "../../../../../errors/phase-error";
+import { PhaseError, UnrecoverablePhaseError } from "../../../../../errors/phase-error";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { StateMetadata } from "../../../../phases/meta-state-types";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 
 const BALANCE_POLLING_TIME_MS = 5000;
 const EVM_BALANCE_CHECK_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -59,7 +61,7 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     return "destinationTransfer";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const evmClientManager = EvmClientManager.getInstance();
 
     const quote = await QuoteTicket.findByPk(state.quoteId);
@@ -87,7 +89,9 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     if (destinationTransferTxHash) {
       try {
         const client = evmClientManager.getClient(destinationNetwork);
-        const receipt = await client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` });
+        const receipt = await abortableCall(signal, () =>
+          client.getTransactionReceipt({ hash: destinationTransferTxHash as `0x${string}` })
+        );
 
         if (receipt.status === "success") {
           return state;
@@ -103,38 +107,40 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
     }
 
     // Nonce-gap guard: a presigned nonce ahead of the live ephemeral nonce can never be mined and
-    // would silently retry until the processor gives up, stranding user funds. Raise it for manual
-    // review. Reading the live nonce is best-effort: an RPC failure must not block the happy path.
+    // would silently retry until the processor gives up, stranding user funds. Both parsing and
+    // the live RPC preflight fail closed; only the latter is recoverable.
     if (!destinationTransferTxHash && state.state.evmEphemeralAddress) {
+      let presignedNonce: number;
       try {
-        const presignedNonce = parseTransaction(destinationTransfer as `0x${string}`).nonce;
-        if (presignedNonce !== undefined) {
-          try {
-            const liveNonce = await evmClientManager.getClient(destinationNetwork).getTransactionCount({
-              address: state.state.evmEphemeralAddress as `0x${string}`,
-              blockTag: "pending"
-            });
-            if (presignedNonce > liveNonce) {
-              throw this.createUnrecoverableError(
-                `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
-                  "The transfer can never broadcast (nonce gap); manual review required."
-              );
-            }
-          } catch (error) {
-            if (error instanceof UnrecoverablePhaseError) {
-              throw error;
-            }
-            logger.warn(
-              `DestinationTransferExecutor: could not verify ephemeral nonce before broadcast - ${(error as Error).message}`
-            );
-          }
+        const parsedNonce = parseTransaction(destinationTransfer as `0x${string}`).nonce;
+        if (parsedNonce === undefined) {
+          throw new Error("transaction has no nonce");
         }
+        presignedNonce = parsedNonce;
       } catch (error) {
-        if (error instanceof UnrecoverablePhaseError) {
-          throw error;
-        }
-        logger.warn(
-          `DestinationTransferExecutor: could not parse presigned destination transfer for nonce check - ${(error as Error).message}`
+        throw this.createUnrecoverableError(
+          `DestinationTransferExecutor: server-generated presigned destination transfer could not be validated: ${(error as Error).message}`
+        );
+      }
+
+      let liveNonce: number;
+      try {
+        liveNonce = await abortableCall(signal, () =>
+          evmClientManager.getClient(destinationNetwork).getTransactionCount({
+            address: state.state.evmEphemeralAddress as `0x${string}`,
+            blockTag: "pending"
+          })
+        );
+      } catch (error) {
+        throw this.createRecoverableError(
+          `DestinationTransferExecutor: destination nonce preflight is unavailable: ${(error as Error).message}`
+        );
+      }
+
+      if (presignedNonce > liveNonce) {
+        throw this.createUnrecoverableError(
+          `DestinationTransferExecutor: presigned nonce ${presignedNonce} is ahead of the ephemeral live nonce ${liveNonce}. ` +
+            "The transfer can never broadcast (nonce gap); manual review required."
         );
       }
     }
@@ -145,14 +151,44 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
         chain: destinationNetwork,
         intervalMs: BALANCE_POLLING_TIME_MS,
         ownerAddress: state.state.evmEphemeralAddress,
+        signal,
         timeoutMs: EVM_BALANCE_CHECK_TIMEOUT_MS,
         tokenDetails: outTokenDetails
       });
 
-      const txHash = await evmClientManager.sendRawTransactionWithRetry(
-        destinationNetwork,
-        destinationTransfer as `0x${string}`
-      );
+      const signedTransaction = destinationTransfer as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const destinationClient = evmClientManager.getClient(destinationNetwork);
+      const { hash: txHash } = await this.runFinancialOperation(state, {
+        attemptClass: "destination-presigned-broadcast",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(destinationNetwork, signedTransaction)
+          );
+          return { hash };
+        },
+        provider: destinationNetwork,
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () =>
+              destinationClient.getTransactionReceipt({ hash: deterministicHash })
+            );
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Destination transfer ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => destinationClient.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network: destinationNetwork, signedTransaction },
+        signal
+      });
       await state.update({
         state: {
           ...state.state,
@@ -162,6 +198,7 @@ export class DestinationTransferExecutor extends BasePhaseHandler {
 
       return state;
     } catch (error) {
+      if (error instanceof PhaseError) throw error;
       throw this.createRecoverableError(
         `DestinationTransferExecutor: Error during phase execution - ${(error as Error).message}`
       );

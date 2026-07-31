@@ -19,11 +19,12 @@ declare module "./vars" {
 }
 
 function getDialectOptions() {
-  if (config.env !== "production") {
+  const caCertPath = process.env.DB_SSL_CA_CERT_PATH?.trim();
+  const sslRequired = config.env === "production" || process.env.DB_SSL_REQUIRED === "true" || Boolean(caCertPath);
+
+  if (!sslRequired) {
     return undefined;
   }
-
-  const caCertPath = process.env.DB_SSL_CA_CERT_PATH;
 
   return {
     ssl: {

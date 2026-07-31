@@ -47,5 +47,4 @@ the authority for correct instrumentation in this app.
 
 `FiatToken` has 6 values (`EURC`, `ARS`, `BRL`, `USD`, `MXN`, `COP`). Any
 `Record<FiatToken, X>` must include all six or the build fails. Common spots:
-`tokenAvailability`, `mapFiatToDestination`, success-page `ARRIVAL_TEXT_BY_TOKEN`,
-sep10 `tokenMapping`.
+`tokenAvailability`, `mapFiatToDestination`, success-page `ARRIVAL_TEXT_BY_TOKEN`.

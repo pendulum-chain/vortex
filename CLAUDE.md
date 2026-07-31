@@ -54,7 +54,7 @@ run `bun build:shared` before running frontend/api** — otherwise they use stal
 
 Any `Record<FiatToken, X>` must include ALL six. Missing entries cause TypeScript errors
 when shared is rebuilt. Check: `tokenAvailability`, `mapFiatToDestination`, success page
-`ARRIVAL_TEXT_BY_TOKEN`, sep10 `tokenMapping`.
+`ARRIVAL_TEXT_BY_TOKEN`.
 
 ## Code Style
 

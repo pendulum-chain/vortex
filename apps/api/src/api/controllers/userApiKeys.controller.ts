@@ -5,16 +5,15 @@ import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import ApiKey from "../../models/apiKey.model";
-import { generateApiKey, getKeyPrefix, hashApiKey } from "../middlewares/apiKeyAuth.helpers";
+import { digestApiKey, generateApiKey, getKeyPrefix, getSecretKeyLookupPrefix } from "../middlewares/apiKeyAuth.helpers";
 
 interface CreateApiKeyBody {
   expiresAt?: string;
   name?: string;
 }
 
-// Secret-key validation bcrypt-compares against every active key sharing the constant
-// 8-char prefix (e.g. "sk_live_"), so the total number of active keys directly bounds
-// auth latency. Cap what a single user can mint.
+// Keep the number of active credentials per user bounded for resource hygiene and to
+// limit the blast radius of a compromised account.
 export const MAX_ACTIVE_KEYS_PER_USER = 10;
 
 // Keys must expire; cap client-supplied expiry at 2 years (default is 1 year).
@@ -67,8 +66,8 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
     const publicKeyPrefix = getKeyPrefix(publicKey);
 
     const secretKey = generateApiKey("secret", environment);
-    const secretKeyHash = await hashApiKey(secretKey);
-    const secretKeyPrefix = getKeyPrefix(secretKey);
+    const secretKeyHash = digestApiKey(secretKey);
+    const secretKeyPrefix = getSecretKeyLookupPrefix(secretKey);
 
     const expirationDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Default to 1 year from now
 

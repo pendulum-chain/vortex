@@ -153,6 +153,7 @@ describe("block flow registration", () => {
     });
 
     expect(registered.registrationFacts).toEqual({ registered: { providerId: "provider-123" } });
+    expect(registered.metadata.flow).toEqual(flow.identity);
     expect(registered.metadata.blocks.registered).toEqual({ version: 2 });
     expect(registered.responseArtifacts).toEqual({ registered: { paymentReference: "reference" } });
 
@@ -169,6 +170,8 @@ describe("block flow registration", () => {
       plain: { ownFacts: undefined },
       registered: { providerId: "provider-123" }
     });
+    expect(prepared.stateMeta.flow).toEqual(flow.identity);
+    expect(prepared.stateMeta.phaseFlow).toEqual(["initial", "complete"]);
 
     const started = await flow.start({
       metadata: registered.metadata,
@@ -179,6 +182,23 @@ describe("block flow registration", () => {
     expect(started.metadata.blocks.registered).toEqual({ version: 3 });
     expect(started.responseArtifacts).toEqual({ registered: { started: true } });
     expect(started.state.aveniaTicketId).toBe("provider-123");
+  });
+
+  it("rejects persisted identity and phase topology mismatches before lifecycle hooks", async () => {
+    const flow = FlowBuilder.start(fiatRequestIO(FiatToken.BRL), RegisteredPhase).build("Versioned");
+    const simulated = await flow.simulate(phaseCtx(FiatToken.BRL, Networks.Base));
+    const badMetadata = {
+      ...simulated.metadata,
+      flow: { ...simulated.metadata.flow, topologyHash: "tampered" }
+    };
+    expect(() => flow.assertMetadata(badMetadata)).toThrow("topologyHash");
+
+    const state = {
+      blockState: {},
+      flow: flow.identity,
+      phaseFlow: ["initial", "nablaSwap", "complete"]
+    };
+    expect(() => flow.assertState(state)).toThrow("phase sequence");
   });
 });
 

@@ -1,13 +1,14 @@
 import {afterEach, describe, expect, it, mock} from "bun:test";
-import bcrypt from "bcrypt";
 import crypto from "crypto";
 import Partner from "../../models/partner.model";
 import ApiKey from "../../models/apiKey.model";
 import {
   AuthenticatedPartner,
+  assertActiveSecretApiKeysMigrated,
+  digestApiKey,
   generateApiKey,
   getKeyPrefix,
-  hashApiKey,
+  getSecretKeyLookupPrefix,
   validateSecretApiKey
 } from "./apiKeyAuth.helpers";
 
@@ -21,12 +22,11 @@ function createSecretKeyRecord({
   partnerName = null
 }: { userId?: string | null; partnerId?: string | null; partnerName?: string | null } = {}): ApiKey & { raw: string } {
   const secret = generateApiKey("secret", "test");
-  const secretHash = bcrypt.hashSync(secret, 4);
   const record = Object.assign(new ApiKey(), {
     id: crypto.randomUUID(),
     isActive: true,
-    keyHash: secretHash,
-    keyPrefix: getKeyPrefix(secret),
+    keyHash: digestApiKey(secret),
+    keyPrefix: getSecretKeyLookupPrefix(secret),
     keyType: "secret" as const,
     partnerId,
     partnerName,
@@ -125,11 +125,93 @@ describe("validateSecretApiKey - apiKeyUserId propagation", () => {
   });
 });
 
-describe("hashApiKey + getKeyPrefix consistency", () => {
-  it("produces a hash that validates against the original secret", async () => {
+describe("digestApiKey + prefix helpers", () => {
+  it("produces a stable SHA-256 hex digest and the documented prefixes", () => {
     const secret = generateApiKey("secret", "test");
-    const hash = await hashApiKey(secret);
-    expect(await bcrypt.compare(secret, hash)).toBe(true);
+    expect(digestApiKey(secret)).toMatch(/^[0-9a-f]{64}$/);
+    expect(digestApiKey(secret)).toBe(digestApiKey(secret));
     expect(getKeyPrefix(secret)).toBe(secret.substring(0, 8));
+    expect(getSecretKeyLookupPrefix(secret)).toBe(secret.substring(0, 16));
+  });
+});
+
+describe("validateSecretApiKey - O(1) lookup and digest verification (SPEC-018)", () => {
+  afterEach(() => {
+    ApiKey.findAll = originalApiKeyFindAll;
+    ApiKey.findOne = originalApiKeyFindOne;
+    Partner.findOne = originalPartnerFindOne;
+  });
+
+  function createDigestKeyRecord(): ApiKey & { raw: string } {
+    const secret = generateApiKey("secret", "test");
+    const record = Object.assign(new ApiKey(), {
+      id: crypto.randomUUID(),
+      isActive: true,
+      keyHash: digestApiKey(secret),
+      keyPrefix: getSecretKeyLookupPrefix(secret),
+      keyType: "secret" as const,
+      partnerId: null,
+      partnerName: null,
+      raw: secret,
+      userId: "user-1"
+    });
+    record.update = (async () => record) as typeof record.update;
+    return record;
+  }
+
+  it("finds a new-format key by its 16-char lookup prefix and verifies the SHA-256 digest", async () => {
+    const key = createDigestKeyRecord();
+    const findAllMock = mock(async () => [key as unknown as ApiKey]);
+    ApiKey.findAll = findAllMock as typeof ApiKey.findAll;
+
+    const result = await validateSecretApiKey(key.raw);
+
+    expect(result?.apiKeyId).toBe(key.id);
+    // Exactly one lookup, keyed by the 16-char prefix — never a broad prefix scan.
+    expect(findAllMock).toHaveBeenCalledTimes(1);
+    const where = (findAllMock.mock.calls[0] as unknown as [{ where: { keyPrefix: string } }])[0].where;
+    expect(where.keyPrefix).toBe(getSecretKeyLookupPrefix(key.raw));
+  });
+
+  it("rejects a wrong key against a digest record without falling through", async () => {
+    const key = createDigestKeyRecord();
+    const other = generateApiKey("secret", "test");
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    expect(await validateSecretApiKey(other)).toBeNull();
+  });
+
+  it("does not fall back to a broad legacy-prefix scan", async () => {
+    const raw = generateApiKey("secret", "test");
+    const findAllMock = mock(async () => []);
+    ApiKey.findAll = findAllMock as typeof ApiKey.findAll;
+
+    expect(await validateSecretApiKey(raw)).toBeNull();
+
+    expect(findAllMock).toHaveBeenCalledTimes(1);
+    const where = (findAllMock.mock.calls[0] as unknown as [{ where: { keyPrefix: string } }])[0].where;
+    expect(where.keyPrefix).toBe(getSecretKeyLookupPrefix(raw));
+  });
+});
+
+describe("assertActiveSecretApiKeysMigrated", () => {
+  afterEach(() => {
+    ApiKey.findAll = originalApiKeyFindAll;
+  });
+
+  it("accepts active secret keys in the lookup-prefix and digest format", async () => {
+    const key = createSecretKeyRecord({ partnerId: null, userId: "user-1" });
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    await expect(assertActiveSecretApiKeysMigrated()).resolves.toBeUndefined();
+  });
+
+  it("refuses startup while active legacy secret keys remain", async () => {
+    const key = createSecretKeyRecord({ partnerId: null, userId: "user-legacy" });
+    key.keyPrefix = getKeyPrefix(key.raw);
+    key.keyHash = "$2b$10$legacy-bcrypt-hash";
+    ApiKey.findAll = mock(async () => [key as unknown as ApiKey]) as typeof ApiKey.findAll;
+
+    await expect(assertActiveSecretApiKeysMigrated()).rejects.toThrow("have not been migrated");
   });
 });

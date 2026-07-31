@@ -5,11 +5,28 @@ import logger from "../../../config/logger";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import Webhook from "../../../models/webhook.model";
 import { APIError } from "../../errors/api-error";
+import { getResolvedUrlViolation, getWebhookUrlViolation } from "./webhook-url";
+
+/**
+ * Principal that owns a webhook: the partner behind a partner-scoped secret key,
+ * or the user behind a user-scoped secret key. Exactly one side is set.
+ */
+export interface WebhookOwner {
+  partnerId: string | null;
+  userId: string | null;
+}
 
 export class WebhookService {
-  public async registerWebhook(request: RegisterWebhookRequest): Promise<RegisterWebhookResponse> {
+  public async registerWebhook(request: RegisterWebhookRequest, owner: WebhookOwner): Promise<RegisterWebhookResponse> {
     try {
       const { url, quoteId, sessionId, events } = request;
+
+      if (!owner.partnerId && !owner.userId) {
+        throw new APIError({
+          message: "API key is not linked to a partner or user",
+          status: httpStatus.FORBIDDEN
+        });
+      }
 
       // Validate URL format
       if (!url) {
@@ -19,9 +36,22 @@ export class WebhookService {
         });
       }
 
-      if (!url.startsWith("https://")) {
+      const urlViolation = getWebhookUrlViolation(url);
+      if (urlViolation) {
         throw new APIError({
-          message: "Webhook URL must use HTTPS",
+          message: urlViolation,
+          status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      // Resolve at registration so a hostname pointing at internal infrastructure fails
+      // fast with a clear error instead of being stored and only rejected at delivery.
+      // A host that does not resolve yet is allowed; delivery re-resolves regardless,
+      // since DNS can change (or be re-pointed) after registration.
+      const resolvedViolation = await getResolvedUrlViolation(url);
+      if (resolvedViolation) {
+        throw new APIError({
+          message: resolvedViolation,
           status: httpStatus.BAD_REQUEST
         });
       }
@@ -54,10 +84,14 @@ export class WebhookService {
         });
       }
 
-      // Validate that quoteId exists in the database if provided
+      // The quote must exist AND belong to the registering principal. A foreign quote
+      // returns the same 404 as a nonexistent one so quote IDs cannot be probed.
       if (quoteId) {
         const existingQuote = await QuoteTicket.findByPk(quoteId);
-        if (!existingQuote) {
+        const ownsQuote =
+          existingQuote &&
+          (owner.partnerId ? existingQuote.partnerId === owner.partnerId : existingQuote.userId === owner.userId);
+        if (!ownsQuote) {
           throw new APIError({
             message: `Quote with ID ${quoteId} not found`,
             status: httpStatus.NOT_FOUND
@@ -70,9 +104,11 @@ export class WebhookService {
       const webhook = await Webhook.create({
         events: webhookEvents,
         isActive: true,
+        partnerId: owner.partnerId,
         quoteId: quoteId || null,
         sessionId: sessionId || null,
-        url
+        url,
+        userId: owner.partnerId ? null : owner.userId
       });
 
       logger.info(`Webhook registered: ${webhook.id} for URL: ${url}`);
@@ -101,9 +137,16 @@ export class WebhookService {
     }
   }
 
-  public async deleteWebhook(id: string): Promise<boolean> {
+  public async deleteWebhook(id: string, owner: WebhookOwner): Promise<boolean> {
     try {
-      const webhook = await Webhook.findByPk(id);
+      if (!owner.partnerId && !owner.userId) {
+        return false;
+      }
+
+      // Owner-scoped: a webhook belonging to another principal behaves exactly like a
+      // nonexistent one (uniform 404 upstream).
+      const ownerCondition: WhereOptions = owner.partnerId ? { partnerId: owner.partnerId } : { userId: owner.userId };
+      const webhook = await Webhook.findOne({ where: { id, ...ownerCondition } });
 
       if (!webhook) {
         return false;
@@ -122,7 +165,15 @@ export class WebhookService {
   }
 
   /**
-   * Find webhooks that should receive a specific event
+   * Find webhooks that should receive a specific event.
+   *
+   * Target matching (quote/session/global) is combined with an owner filter: a webhook
+   * only receives the event if its owner principal owns the quote the event belongs to.
+   * This keeps session IDs (free-form strings) from leaking events across tenants.
+   *
+   * Every row has an owner (enforced by a CHECK constraint), so there is deliberately no
+   * ownerless escape hatch here — one would match every quote and reopen the cross-tenant
+   * hole for exactly the rows an attacker could have planted before ownership existed.
    */
   public async findWebhooksForEvent(
     eventType: WebhookEventType,
@@ -130,37 +181,46 @@ export class WebhookService {
     sessionId?: string | null
   ): Promise<Webhook[]> {
     try {
-      const whereConditions: WhereOptions = {
-        events: {
-          [Op.contains]: [eventType]
-        },
-        isActive: true
-      };
-
-      const orConditions: WhereOptions[] = [];
+      const targetConditions: WhereOptions[] = [];
 
       // Match webhooks subscribed to this specific quote
       if (quoteId) {
-        orConditions.push({ quoteId });
+        targetConditions.push({ quoteId });
       }
 
       // Match webhooks subscribed to this specific session
       if (sessionId) {
-        orConditions.push({ sessionId });
+        targetConditions.push({ sessionId });
       }
 
       // Match webhooks with no specific quote or session (global webhooks)
-      orConditions.push({
+      targetConditions.push({
         quoteId: null,
         sessionId: null
       });
 
-      if (orConditions.length > 0) {
-        whereConditions[Op.or as unknown as string] = orConditions;
+      const quote = quoteId ? await QuoteTicket.findByPk(quoteId, { attributes: ["partnerId", "userId"] }) : null;
+      const ownerConditions: WhereOptions[] = [];
+      if (quote?.partnerId) {
+        ownerConditions.push({ partnerId: quote.partnerId });
+      }
+      if (quote?.userId) {
+        ownerConditions.push({ userId: quote.userId });
+      }
+
+      // No resolvable quote owner means no webhook may claim the event.
+      if (ownerConditions.length === 0) {
+        return [];
       }
 
       const webhooks = await Webhook.findAll({
-        where: whereConditions
+        where: {
+          [Op.and]: [{ [Op.or]: targetConditions }, { [Op.or]: ownerConditions }],
+          events: {
+            [Op.contains]: [eventType]
+          },
+          isActive: true
+        }
       });
 
       return webhooks;

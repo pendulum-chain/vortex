@@ -2,18 +2,25 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
 import { AlfredpayOnrampStatus, EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
+import { config } from "../../../../../config/vars";
 import type RampState from "../../../../../models/rampState.model";
 import * as quoteTicketNamespace from "../../../../../models/quoteTicket.model";
 import * as evmFundingNamespace from "../core/evm-funding";
+import * as financialOperationNamespace from "../core/financial-operation";
 import { priceFeedService } from "../../../priceFeed.service";
 
 const sharedReal = { ...sharedNamespace };
 const quoteTicketReal = { ...quoteTicketNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const findQuote = mock(async () => undefined as unknown);
 const checkBalance = mock(async () => new Big(0));
 const getFundingBalance = mock(async () => new Big("1000000000"));
-const getOnrampTransaction = mock(async () => ({ status: AlfredpayOnrampStatus.CREATED }));
+const getOnrampTransaction = mock(
+  async (): Promise<{ metadata?: { txHash?: string }; status: AlfredpayOnrampStatus }> => ({
+    status: AlfredpayOnrampStatus.CREATED
+  })
+);
 const sendTransaction = mock(
   async () => "0x1111111111111111111111111111111111111111111111111111111111111111" as `0x${string}`
 );
@@ -28,6 +35,7 @@ mock.module("@vortexfi/shared", () => ({
     getInstance: () => ({
       getClient: () => ({
         estimateFeesPerGas: async () => ({ maxFeePerGas: 10n, maxPriorityFeePerGas: 1n }),
+        getTransactionCount: async () => 0,
         waitForTransactionReceipt
       }),
       sendTransactionWithBlindRetry: sendTransaction
@@ -43,6 +51,11 @@ mock.module("../core/evm-funding", () => ({
   ...evmFundingReal,
   getEvmFundingAccount: () => fundingAccount
 }));
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+}));
 const { SubsidizePostSwapExecutor } = await import("../phases/subsidize-post/execution");
 const { FinalSettlementSubsidyExecutor } = await import("../phases/final-settlement-subsidy/execution");
 const { AlfredpayOnrampMintExecutor } = await import("../phases/alfredpay-mint/execution");
@@ -51,6 +64,7 @@ afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../../../../../models/quoteTicket.model", () => ({ ...quoteTicketReal }));
   mock.module("../core/evm-funding", () => ({ ...evmFundingReal }));
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
 });
 
 beforeEach(() => {
@@ -163,6 +177,8 @@ describe("EVM block executor regressions", () => {
       outputCurrency: EvmToken.USDC
     });
     const originalConvertCurrency = priceFeedService.convertCurrency;
+    const originalDiscountCap = config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction;
+    config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction = 0.05;
     priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
     const executor = Object.create(SubsidizePostSwapExecutor.prototype) as any;
     executor.createSubsidy = mock(async () => undefined);
@@ -177,6 +193,7 @@ describe("EVM block executor regressions", () => {
       ).rejects.toMatchObject({ isRecoverable: true });
     } finally {
       priceFeedService.convertCurrency = originalConvertCurrency;
+      config.subsidy.evmPostSwapDiscountSubsidyQuoteFraction = originalDiscountCap;
     }
 
     expect(sendTransaction).not.toHaveBeenCalled();
@@ -206,13 +223,19 @@ describe("EVM block executor regressions", () => {
     } as unknown as RampState;
     const executor = Object.create(FinalSettlementSubsidyExecutor.prototype) as any;
     executor.createSubsidy = mock(async () => undefined);
+    const originalConvertCurrency = priceFeedService.convertCurrency;
+    priceFeedService.convertCurrency = mock(async amount => String(amount)) as typeof priceFeedService.convertCurrency;
 
-    await executor.executePhase(state);
+    try {
+      await executor.executePhase(state);
+    } finally {
+      priceFeedService.convertCurrency = originalConvertCurrency;
+    }
 
     expect(executor.createSubsidy).toHaveBeenCalledWith(state, 0.1, EvmToken.USDT, fundingAccount.address, expect.any(String));
   });
 
-  it("propagates rejected AlfredPay failed statuses and stops polling on on-chain completion", async () => {
+  it("propagates rejected AlfredPay statuses and records on-chain completion while balance confirmation continues", async () => {
     const executor = Object.create(AlfredpayOnrampMintExecutor.prototype) as any;
     const state = { state: {}, update: mock(async () => state) } as unknown as RampState;
     const controller = new AbortController();
@@ -224,11 +247,20 @@ describe("EVM block executor regressions", () => {
     });
 
     getOnrampTransaction.mockClear();
-    getOnrampTransaction.mockResolvedValue({ status: AlfredpayOnrampStatus.ON_CHAIN_COMPLETED });
-    void executor.pollStatus("tx-2", state, 0, controller.signal);
+    getOnrampTransaction.mockResolvedValue({
+      metadata: { txHash: "0x2222222222222222222222222222222222222222222222222222222222222222" },
+      status: AlfredpayOnrampStatus.ON_CHAIN_COMPLETED
+    });
+    const polling = executor.pollStatus("tx-2", state, 1, controller.signal);
     await new Promise(resolve => setTimeout(resolve, 10));
     controller.abort();
+    await polling.catch(() => undefined);
 
-    expect(getOnrampTransaction).toHaveBeenCalledTimes(1);
+    expect(getOnrampTransaction.mock.calls.length).toBeGreaterThan(1);
+    expect(state.update).toHaveBeenCalledWith({
+      state: {
+        alfredpayOnrampMintTxHash: "0x2222222222222222222222222222222222222222222222222222222222222222"
+      }
+    });
   });
 });

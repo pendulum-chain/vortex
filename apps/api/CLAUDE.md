@@ -10,7 +10,7 @@ architecture and commands. Run commands from `apps/api/` unless noted.
 - **Services**: business logic in `src/api/services/`.
 - **Models**: Sequelize models in `src/models/` (RampState, QuoteTicket, Partner, …).
 - **Workers**: background jobs in `src/api/workers/`.
-- **Cross-chain**: XCM handlers, Nabla AMM integration, Stellar/BRLA APIs.
+- **Cross-chain**: XCM handlers, Nabla AMM integration, BRLA APIs.
 - **Middlewares / observability / errors / helpers**: under `src/api/`.
 
 ### Ramp state machine

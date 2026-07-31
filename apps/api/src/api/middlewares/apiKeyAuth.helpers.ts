@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import crypto from "crypto";
 import logger from "../../config/logger";
 import ApiKey from "../../models/apiKey.model";
@@ -74,13 +73,24 @@ export function generateApiKey(keyType: "public" | "secret", environment: "live"
 }
 
 /**
- * Hash an API key for storage using bcrypt (only for secret keys)
- * @param key - The raw API key to hash
- * @returns Promise resolving to the hashed key
+ * Digest an API key for storage (secret keys only). SHA-256 of the full key,
+ * hex-encoded. The secret part is 32 chars of ~6 bits each (~190 bits of
+ * entropy, ~140 bits beyond the lookup prefix), so a slow password hash adds
+ * nothing except online-DoS exposure — a single fast digest compared in
+ * constant time is the right primitive.
  */
-export async function hashApiKey(key: string): Promise<string> {
-  const saltRounds = 10;
-  return bcrypt.hash(key, saltRounds);
+export function digestApiKey(key: string): string {
+  return crypto.createHash("sha256").update(key).digest("hex");
+}
+
+function digestMatches(apiKey: string, storedDigest: string): boolean {
+  if (!/^[0-9a-f]{64}$/.test(storedDigest)) {
+    return false;
+  }
+
+  const presented = Buffer.from(digestApiKey(apiKey), "hex");
+  const stored = Buffer.from(storedDigest, "hex");
+  return presented.length === stored.length && crypto.timingSafeEqual(presented, stored);
 }
 
 /**
@@ -91,6 +101,45 @@ export async function hashApiKey(key: string): Promise<string> {
 export function getKeyPrefix(key: string): string {
   // pk_live_ or sk_test_ = 8 chars, pk_test_ or sk_live_ = 8 chars
   return key.substring(0, 8);
+}
+
+/**
+ * Lookup prefix for secret keys: the 8-char type/environment prefix plus the
+ * first 8 random chars. It acts as a non-secret key identifier — 62^8 values,
+ * so an indexed equality lookup returns at most a handful of rows and
+ * verification cost no longer grows with the number of active keys in the
+ * environment.
+ */
+export const SECRET_KEY_LOOKUP_PREFIX_LENGTH = 16;
+
+export function getSecretKeyLookupPrefix(key: string): string {
+  return key.substring(0, SECRET_KEY_LOOKUP_PREFIX_LENGTH);
+}
+
+/**
+ * Refuse to serve traffic if an active secret key has not completed the
+ * offline digest migration. Checking once at startup keeps the request path
+ * bounded to a single indexed lookup and prevents a partial rollout from
+ * silently reintroducing a bcrypt scan.
+ */
+export async function assertActiveSecretApiKeysMigrated(): Promise<void> {
+  const activeSecretKeys = await ApiKey.findAll({
+    attributes: ["id", "keyHash", "keyPrefix"],
+    where: {
+      isActive: true,
+      keyType: "secret"
+    }
+  });
+  const legacyOrInvalidKeys = activeSecretKeys.filter(
+    key =>
+      key.keyPrefix.length !== SECRET_KEY_LOOKUP_PREFIX_LENGTH || key.keyHash === null || !/^[0-9a-f]{64}$/.test(key.keyHash)
+  );
+
+  if (legacyOrInvalidKeys.length > 0) {
+    throw new Error(
+      `${legacyOrInvalidKeys.length} active secret API key(s) have not been migrated to the 16-character lookup prefix and SHA-256 digest format. Run the API-key digest backfill before starting this release.`
+    );
+  }
 }
 
 /**
@@ -147,32 +196,33 @@ export async function validatePublicApiKey(apiKey: string): Promise<ValidatedPub
 }
 
 /**
- * Validate secret API key and return associated partner information
- * Uses bcrypt hash comparison for security
+ * Validate secret API key and return associated partner information.
+ *
+ * Rows are found by their 16-char lookup prefix (a non-secret key identifier)
+ * and verified with a constant-time SHA-256 digest comparison — O(1)
+ * regardless of how many keys are active. Legacy rows must be converted by
+ * the offline backfill before deployment; startup rejects an incomplete
+ * migration and the unauthenticated request path never scans legacy rows.
+ *
  * @param apiKey - The secret API key to validate
  * @returns Promise resolving to validation result, or null if invalid
  */
 export async function validateSecretApiKey(apiKey: string): Promise<ValidatedSecretKey | null> {
   try {
-    // Extract prefix for quick lookup
-    const prefix = getKeyPrefix(apiKey);
-
-    // Find all active secret keys with this prefix
     const apiKeys = await ApiKey.findAll({
       where: {
         isActive: true,
-        keyPrefix: prefix,
+        keyPrefix: getSecretKeyLookupPrefix(apiKey),
         keyType: "secret"
       }
     });
 
-    // Check each key's hash using bcrypt
     for (const keyRecord of apiKeys) {
       if (!keyRecord.keyHash) {
         continue; // Skip if no hash (shouldn't happen for secret keys)
       }
 
-      const isMatch = await bcrypt.compare(apiKey, keyRecord.keyHash);
+      const isMatch = digestMatches(apiKey, keyRecord.keyHash);
 
       if (isMatch) {
         // Check expiration

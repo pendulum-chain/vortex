@@ -33,6 +33,7 @@ export function AlfredpayOfframp<FromToken extends EvmToken, FromNetwork extends
       new AlfredpayOfframpSettlementExecutor(),
       new AlfredpayOfframpTransferExecutor()
     ],
+    externalOperations: { register: { provider: "alfredpay" } },
     name: "AlfredpayOfframp",
     phases: ["squidRouterPermitExecute", "fundEphemeral", "finalSettlementSubsidy", "alfredpayOfframpTransfer"],
     prepareTxs: prepareAlfredpayOfframpTxs,

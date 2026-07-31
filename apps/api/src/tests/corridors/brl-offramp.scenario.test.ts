@@ -14,6 +14,7 @@ import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, par
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
 import { getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -354,7 +355,7 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
   );
 
   it(
-    "transient failure: a scripted RPC outage is recorded as recoverable and the corridor still completes",
+    "ambiguous payout failure: a scripted RPC outage pauses the corridor for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -373,14 +374,20 @@ describe("BRL offramp swap corridor (USDC on Base → pix via Avenia)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("brlaPayoutOnBase");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
-      // The payout handler wraps broadcast errors in its own recoverable message.
+      // The first broadcast error is recoverable at the phase layer, but its
+      // financial-operation claim is now ambiguous. Automatic retries halt
+      // rather than risk paying the anchor twice.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Failed to send BRLA payout transaction")) ?? [];
       expect(outageLogs.length).toBeGreaterThanOrEqual(1);
       expect(outageLogs.every(log => log.phase === "brlaPayoutOnBase")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(setup.swapOutputRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(
+        await FinancialOperation.findOne({ where: { phase: "brlaPayoutOnBase", scopeId: setup.rampId } })
+      ).toMatchObject({ status: "unknown" });
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, world.brla.subaccountEvmWallet)).toBe(0n);
     },
     30000
   );

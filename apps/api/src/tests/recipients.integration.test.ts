@@ -867,6 +867,20 @@ describe("invite discounts (discount_manager)", () => {
     expect((await createInvite(sender.token, { discounts: { sellBps: 300 } })).status).toBe(201);
   });
 
+  it("enforces an operator ceiling below the immutable 300 bps hard cap", async () => {
+    const sender = await createApprovedSender("sender@example.com");
+    await grantDiscountManager(sender.user.id);
+    const originalLimit = config.recipients.inviteMaxDiscountBps;
+    config.recipients.inviteMaxDiscountBps = 125;
+
+    try {
+      expect((await createInvite(sender.token, { discounts: { buyBps: 125 } })).status).toBe(201);
+      expect((await createInvite(sender.token, { discounts: { buyBps: 126 } })).status).toBe(400);
+    } finally {
+      config.recipients.inviteMaxDiscountBps = originalLimit;
+    }
+  });
+
   it("treats zero bps as no discount and requires no role for it", async () => {
     const sender = await createApprovedSender("sender@example.com");
     const { status, body } = await createInvite(sender.token, { discounts: { buyBps: 0, sellBps: 0 } });

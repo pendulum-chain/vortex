@@ -14,6 +14,7 @@ import {
   waitUntilTrueWithTimeout
 } from "@vortexfi/shared";
 import Big from "big.js";
+import { keccak256 } from "viem";
 import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -21,6 +22,8 @@ import RampState from "../../../../../../models/rampState.model";
 import { PhaseError } from "../../../../../errors/phase-error";
 import { fetchWithTimeout } from "../../../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
+import { FinancialOperationRejectedError } from "../../core/financial-operation";
 import { getBlockMetadata } from "../../core/metadata";
 import { DistributeFeesContext, type DistributeFeesMetadata } from "./simulation";
 
@@ -35,7 +38,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     return "distributeFees";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findOne({ where: { id: state.quoteId } });
     if (!quote) {
       throw this.createUnrecoverableError(`Quote ticket not found for ID: ${state.quoteId}`);
@@ -45,7 +48,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     const metadata = getBlockMetadata(quote.metadata, DistributeFeesContext);
     if (metadata.network === Networks.Pendulum) {
       try {
-        if (existingHash && (await this.isPendulumExtrinsicSuccessful(existingHash))) return state;
+        if (existingHash && (await this.isPendulumExtrinsicSuccessful(existingHash, signal))) return state;
         const transaction = this.getPresignedTransaction(state, "distributeFees");
         if (!transaction) return state;
         const substrateAddress = state.state.substrateEphemeralAddress;
@@ -58,9 +61,25 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
         const balance = await pendulum.api.query.tokens.accounts(substrateAddress, metadata.outputCurrencyId);
         const available = new Big((balance as unknown as { free?: { toString(): string } }).free?.toString() ?? "0");
         if (available.lt(required)) throw this.createRecoverableError("Pendulum fee balance is not available");
-        const result = await submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api));
-        if (result.status.type === "error") throw this.createRecoverableError("Pendulum fee distribution failed");
-        state.state = { ...state.state, distributeFeeHash: result.txHash.toString() };
+        throwIfAborted(signal);
+        const { hash } = await this.runFinancialOperation(state, {
+          attemptClass: "substrate-fee-distribution",
+          externalId: result => result.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            const result = await abortableCall(signal, () =>
+              submitExtrinsic(decodeSubmittableExtrinsic(transaction.txData as string, pendulum.api))
+            );
+            if (result.status.type === "error") {
+              throw new FinancialOperationRejectedError("Pendulum fee distribution failed");
+            }
+            return { hash: result.txHash.toString() };
+          },
+          provider: Networks.Pendulum,
+          request: { network: Networks.Pendulum, signedTransaction: transaction.txData },
+          signal
+        });
+        state.state = { ...state.state, distributeFeeHash: hash };
         await state.update({ state: state.state });
         return state;
       } catch (e) {
@@ -73,7 +92,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     if (existingHash) {
       logger.info(`Found existing distribute fee hash for ramp ${state.id}: ${existingHash}`);
 
-      const isSuccessful = await this.isEvmTransactionSuccessful(existingHash, Networks.Base).catch((_: unknown) => {
+      const isSuccessful = await this.isEvmTransactionSuccessful(existingHash, Networks.Base, signal).catch((_: unknown) => {
         throw this.createRecoverableError("Failed to check EVM transaction status from existing hash.");
       });
 
@@ -94,7 +113,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       // The funding token (USDC) may not yet be on the ephemeral when we reach this phase.
       // Poll for it before submitting; if it never arrives within the timeout, throw a
       // recoverable error so we retry the phase.
-      await this.ensureEvmFeeTokenBalance(metadata, distributeFeeTransaction.signer);
+      await this.ensureEvmFeeTokenBalance(metadata, distributeFeeTransaction.signer, signal);
 
       logger.info(`Submitting EVM fee distribution transaction for ramp ${state.id}...`);
       const txData = distributeFeeTransaction.txData;
@@ -103,7 +122,37 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       }
       const evmClientManager = EvmClientManager.getInstance();
       const network = distributeFeeTransaction.network as EvmNetworks;
-      const actualTxHash = await evmClientManager.sendRawTransactionWithRetry(network, txData as `0x${string}`);
+      const signedTransaction = txData as `0x${string}`;
+      const deterministicHash = keccak256(signedTransaction);
+      const client = evmClientManager.getClient(network);
+      const { hash: actualTxHash } = await this.runFinancialOperation(state, {
+        attemptClass: "evm-fee-distribution",
+        externalId: result => result.hash,
+        perform: async () => {
+          throwIfAborted(signal);
+          const hash = await abortableCall(signal, () =>
+            evmClientManager.sendRawTransactionWithRetry(network, signedTransaction)
+          );
+          return { hash };
+        },
+        provider: network,
+        reconcile: async () => {
+          try {
+            const receipt = await abortableCall(signal, () => client.getTransactionReceipt({ hash: deterministicHash }));
+            if (receipt.status !== "success") {
+              throw new FinancialOperationRejectedError(`Fee distribution transaction ${deterministicHash} failed`);
+            }
+            await abortableCall(signal, () => client.getTransaction({ hash: deterministicHash }));
+            return { hash: deterministicHash };
+          } catch (error) {
+            throwIfAborted(signal);
+            if (error instanceof FinancialOperationRejectedError) throw error;
+            return null;
+          }
+        },
+        request: { network, signedTransaction },
+        signal
+      });
 
       logger.info(`Transaction broadcast with hash ${actualTxHash}. Persisting hash...`);
       await state.update({
@@ -113,7 +162,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
         }
       });
 
-      await this.waitForEvmTransactionSuccess(actualTxHash, network);
+      await this.waitForEvmTransactionSuccess(actualTxHash, network, signal);
 
       logger.info(`Successfully verified fee distribution transaction for ramp ${state.id}: ${actualTxHash}`);
       return state;
@@ -138,7 +187,11 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     return multiplyByPowerOfTen(totalUsd, decimals);
   }
 
-  private async ensureEvmFeeTokenBalance(metadata: DistributeFeesMetadata, signerAddress: string): Promise<void> {
+  private async ensureEvmFeeTokenBalance(
+    metadata: DistributeFeesMetadata,
+    signerAddress: string,
+    signal?: AbortSignal
+  ): Promise<void> {
     const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC] as EvmTokenDetails | undefined;
     if (!baseUsdcConfig) {
       throw this.createUnrecoverableError("Base USDC configuration not found; cannot verify fee balance.");
@@ -160,6 +213,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
         chain: Networks.Base as EvmNetworks,
         intervalMs: FEE_BALANCE_POLL_INTERVAL_MS,
         ownerAddress: signerAddress,
+        signal,
         timeoutMs: FEE_BALANCE_POLL_TIMEOUT_MS,
         tokenDetails: baseUsdcConfig
       });
@@ -172,34 +226,38 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     }
   }
 
-  private async isEvmTransactionSuccessful(txHash: string, network: EvmNetworks): Promise<boolean> {
+  private async isEvmTransactionSuccessful(txHash: string, network: EvmNetworks, signal?: AbortSignal): Promise<boolean> {
     try {
       const publicClient = EvmClientManager.getInstance().getClient(network);
-      const receipt = await publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` });
+      const receipt = await abortableCall(signal, () => publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` }));
       return receipt?.status === "success";
     } catch (error) {
+      throwIfAborted(signal);
       logger.debug(`Error checking EVM transaction receipt: ${error}`);
       return false;
     }
   }
 
-  private async waitForEvmTransactionSuccess(txHash: string, network: EvmNetworks): Promise<void> {
+  private async waitForEvmTransactionSuccess(txHash: string, network: EvmNetworks, signal?: AbortSignal): Promise<void> {
     await waitUntilTrueWithTimeout(
-      () => this.isEvmTransactionSuccessful(txHash, network),
+      () => this.isEvmTransactionSuccessful(txHash, network, signal),
       2000, // check every 2 seconds
-      180000 // timeout after 3 minutes
+      180000, // timeout after 3 minutes
+      signal
     );
   }
 
-  private async isPendulumExtrinsicSuccessful(extrinsicHash: string): Promise<boolean> {
-    const response = await fetchWithTimeout("https://pendulum.api.subscan.io/api/scan/extrinsic", {
-      body: JSON.stringify({ events_limit: 10, hash: extrinsicHash, hide_events: false }),
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.subscanApiKey || ""
-      },
-      method: "POST"
-    });
+  private async isPendulumExtrinsicSuccessful(extrinsicHash: string, signal?: AbortSignal): Promise<boolean> {
+    const response = await abortableCall(signal, () =>
+      fetchWithTimeout("https://pendulum.api.subscan.io/api/scan/extrinsic", {
+        body: JSON.stringify({ events_limit: 10, hash: extrinsicHash, hide_events: false }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": config.subscanApiKey || ""
+        },
+        method: "POST"
+      })
+    );
     if (!response.ok) throw new Error(`Subscan API response error: ${response.status} ${response.statusText}`);
     const data = await response.json();
     if (data.code !== 0) throw new Error(`Subscan API error code: ${data.code}, message: ${data.message}`);

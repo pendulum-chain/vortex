@@ -56,7 +56,7 @@ describe("createUserApiKey", () => {
     expect((res.body as { error: { code: string } }).error.code).toBe("INVALID_EXPIRES_AT");
   });
 
-  it("creates public and secret records with one credential ID", async () => {
+  it("creates one credential pair with the expected lookup prefixes", async () => {
     const records: Array<Record<string, unknown>> = [];
     ApiKey.count = mock(async () => 0) as unknown as typeof ApiKey.count;
     ApiKey.create = mock(async attributes => {
@@ -77,6 +77,10 @@ describe("createUserApiKey", () => {
     expect(records).toHaveLength(2);
     expect(records[0]?.credentialId).toBe(records[1]?.credentialId);
     expect((res.body as { credentialId: string }).credentialId).toBe(records[0]?.credentialId as string);
+    const publicRecord = records.find(record => record.keyType === "public");
+    const secretRecord = records.find(record => record.keyType === "secret");
+    expect(publicRecord?.keyPrefix).toBe((publicRecord?.keyValue as string).slice(0, 8));
+    expect(secretRecord?.keyPrefix).toHaveLength(16);
     expect(records.find(record => record.keyType === "secret")?.keyValue).toBeNull();
     expect(records.find(record => record.keyType === "secret")?.keyHash).toBeString();
   });

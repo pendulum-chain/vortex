@@ -15,9 +15,9 @@ describe("calculateSubsidyAmount", () => {
     expect(result.toString()).toBe("0");
   });
 
-  it("returns full shortfall when no maxSubsidy cap", () => {
+  it("returns 0 when maxSubsidy is disabled", () => {
     const result = calculateSubsidyAmount(new Big(100), new Big(90), 0);
-    expect(result.toString()).toBe("10");
+    expect(result.toString()).toBe("0");
   });
 
   it("caps subsidy at maxSubsidy fraction of expected output", () => {
@@ -119,11 +119,10 @@ describe("getUsdDenominatedInputAmount", () => {
     expect(usd.toString()).toBe("194.757138");
   });
 
-  it("falls back to the raw input when the fiat-peg rate lookup fails and no bridged amount exists", async () => {
+  it("fails when the fiat-peg rate lookup fails and no USD route amount exists", async () => {
     rateSpy = spyOn(priceFeedService, "getFiatToUsdExchangeRate").mockRejectedValue(new Error("feed down"));
 
-    const usd = await getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"));
-    expect(usd.toString()).toBe("1000");
+    await expect(getUsdDenominatedInputAmount(makeCtx("BRLA", "1000"))).rejects.toThrow("Cannot value BRLA input in USD");
   });
 
   it("falls back to the bridged USDC amount for tokens without a fiat peg", async () => {
@@ -131,8 +130,7 @@ describe("getUsdDenominatedInputAmount", () => {
     expect(usd.toString()).toBe("1834.201");
   });
 
-  it("falls back to the request amount when no bridged amount is available", async () => {
-    const usd = await getUsdDenominatedInputAmount(makeCtx("ETH", "0.5"));
-    expect(usd.toString()).toBe("0.5");
+  it("fails for non-pegged input when no USD route amount is available", async () => {
+    await expect(getUsdDenominatedInputAmount(makeCtx("ETH", "0.5"))).rejects.toThrow("Cannot value ETH input in USD");
   });
 });

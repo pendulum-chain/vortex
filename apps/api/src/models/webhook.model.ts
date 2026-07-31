@@ -7,6 +7,10 @@ export interface WebhookAttributes {
   url: string;
   quoteId: string | null;
   sessionId: string | null;
+  // Owner principal: exactly one of partnerId/userId for rows registered through the
+  // API; both null only on legacy rows created before ownership existed.
+  partnerId: string | null;
+  userId: string | null;
   events: WebhookEventType[];
   isActive: boolean;
   createdAt: Date;
@@ -23,6 +27,10 @@ class Webhook extends Model<WebhookAttributes, WebhookCreationAttributes> implem
   declare quoteId: string | null;
 
   declare sessionId: string | null;
+
+  declare partnerId: string | null;
+
+  declare userId: string | null;
 
   declare events: WebhookEventType[];
 
@@ -71,6 +79,15 @@ Webhook.init(
       field: "is_active",
       type: DataTypes.BOOLEAN
     },
+    partnerId: {
+      allowNull: true,
+      field: "partner_id",
+      references: {
+        key: "id",
+        model: "partners"
+      },
+      type: DataTypes.UUID
+    },
     quoteId: {
       allowNull: true,
       field: "quote_id",
@@ -102,6 +119,11 @@ Webhook.init(
         },
         isUrl: true
       }
+    },
+    userId: {
+      allowNull: true,
+      field: "user_id",
+      type: DataTypes.UUID
     }
   },
   {
@@ -121,6 +143,14 @@ Webhook.init(
       {
         fields: ["is_active", "events"],
         name: "idx_webhooks_active_events"
+      },
+      {
+        fields: ["partner_id"],
+        name: "idx_webhooks_partner_id"
+      },
+      {
+        fields: ["user_id"],
+        name: "idx_webhooks_user_id"
       }
     ],
     modelName: "Webhook",

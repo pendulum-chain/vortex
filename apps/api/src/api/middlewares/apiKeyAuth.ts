@@ -136,11 +136,7 @@ export function apiKeyAuth(options: ApiKeyAuthOptions = {}) {
           return res.status(403).json({
             error: {
               code: "PARTNER_MISMATCH",
-              details: {
-                authenticatedPartnerName: partner?.name ?? null,
-                requestedPartnerName: requestedPartnerName
-              },
-              message: "The authenticated partner name does not match the requested partner's name",
+              message: "The authenticated partner does not match the requested partner",
               status: 403
             }
           });
@@ -212,11 +208,7 @@ export function enforcePartnerAuth() {
         return res.status(403).json({
           error: {
             code: "PARTNER_MISMATCH",
-            details: {
-              authenticatedPartnerName: req.authenticatedPartner.name,
-              requestedPartnerName: requestedPartnerName
-            },
-            message: "The authenticated partner name does not match the requested partner's name",
+            message: "The authenticated partner does not match the requested partner",
             status: 403
           }
         });

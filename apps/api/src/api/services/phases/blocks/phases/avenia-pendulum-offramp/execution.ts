@@ -9,6 +9,7 @@ import {
   Networks,
   nativeToDecimal,
   RampPhase,
+  sleep,
   submitXTokens
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -17,6 +18,7 @@ import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
 import { SubsidyToken } from "../../../../../../models/subsidy.model";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
+import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { getBlockMetadata, getBlockState } from "../../core/metadata";
 import type { AveniaOfframpPayoutRegistrationFacts } from "../avenia-offramp-payout/registration";
 import { AveniaPendulumOfframpContext } from "./simulation";
@@ -29,7 +31,7 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
     return "pendulumToMoonbeamXcm";
   }
 
-  protected async executePhase(state: RampState): Promise<RampState> {
+  protected async executePhase(state: RampState, signal?: AbortSignal): Promise<RampState> {
     const quote = await QuoteTicket.findByPk(state.quoteId);
     if (!quote) throw new Error("PendulumToAveniaXcmExecutor: quote not found");
     const metadata = getBlockMetadata(quote.metadata, AveniaPendulumOfframpContext);
@@ -54,16 +56,30 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
     try {
       let submittedHash: string | undefined;
       if (!state.state.pendulumToMoonbeamXcmHash && !(await leftPendulum())) {
+        throwIfAborted(signal);
         const presigned = this.getPresignedTransaction(state, this.getPhaseName());
         const extrinsic = decodeSubmittableExtrinsic(presigned.txData as string, pendulum.api);
-        const { hash } = await submitXTokens(getAddressForFormat(substrateAddress, pendulum.ss58Format), extrinsic);
+        const { hash } = await this.runFinancialOperation(state, {
+          attemptClass: "pendulum-moonbeam-xcm-broadcast",
+          externalId: result => result.hash,
+          perform: async () => {
+            throwIfAborted(signal);
+            return abortableCall(signal, () =>
+              submitXTokens(getAddressForFormat(substrateAddress, pendulum.ss58Format), extrinsic)
+            );
+          },
+          provider: "pendulum",
+          request: { network: "pendulum", signedTransaction: presigned.txData },
+          signal
+        });
         submittedHash = hash;
         state.state = { ...state.state, pendulumToMoonbeamXcmHash: hash };
         await state.update({ state: state.state });
       }
       const started = Date.now();
       while (Date.now() - started < POLL_TIMEOUT_MS) {
-        if (await arrived()) {
+        throwIfAborted(signal);
+        if (await abortableCall(signal, arrived)) {
           if (submittedHash !== undefined) {
             await this.createSubsidy(
               state,
@@ -75,7 +91,7 @@ export class PendulumToAveniaXcmExecutor extends BasePhaseHandler {
           }
           return state;
         }
-        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+        await sleep(POLL_INTERVAL_MS, signal);
       }
       throw this.createRecoverableError("PendulumToAveniaXcmExecutor: timed out waiting for Moonbeam arrival");
     } catch (error) {

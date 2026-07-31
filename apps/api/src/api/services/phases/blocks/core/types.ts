@@ -15,6 +15,7 @@ import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.mo
 import type { PhaseHandler } from "../../../phases/base-phase-handler";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../../quote/core/types";
+import type { FlowIdentity } from "./identity";
 import type { AnyContextMetadata, ContextSimulation, FlowMetadata } from "./metadata";
 
 export type TokenBrand = string;
@@ -123,6 +124,7 @@ export interface StartCtx<Metadata> {
   metadata: Readonly<Metadata>;
   ownState: Readonly<unknown>;
   quote: Readonly<QuoteFields>;
+  rampId?: string;
   state: Readonly<StateMetadata>;
   userId?: string;
 }
@@ -141,6 +143,14 @@ export interface Phase<
   RegistrationInput extends Record<string, unknown> = Record<string, unknown>
 > {
   readonly context: Context;
+  readonly externalOperations?: {
+    register?: { provider: string; attemptClass?: string };
+    start?: {
+      provider: string;
+      attemptClass?: string;
+      request?: (ctx: StartCtx<ContextSimulation<Context>>) => unknown;
+    };
+  };
   readonly name: string;
   readonly phases: RampPhase[];
   // Property (not method) so pipe's brand check stays contravariant under strictFunctionTypes.
@@ -172,6 +182,7 @@ export interface FlowRegistrationResult {
 export interface FlowStartCtx {
   metadata: FlowMetadata;
   quote: Readonly<QuoteFields>;
+  rampId?: string;
   state: Readonly<StateMetadata>;
   userId?: string;
 }
@@ -183,9 +194,14 @@ export interface FlowStartResult {
 }
 
 export interface Flow<O extends PhaseIO = PhaseIO> {
+  readonly contextKeys: readonly string[];
   readonly name: string;
+  readonly identity: Readonly<FlowIdentity>;
   readonly phases: RampPhase[];
   readonly executors: PhaseHandler[];
+  readonly transitions: Readonly<Record<string, readonly RampPhase[]>>;
+  assertMetadata(metadata: unknown, options?: { allowLegacy?: boolean }): void;
+  assertState(state: unknown): void;
   register(ctx: FlowRegisterCtx): Promise<FlowRegistrationResult>;
   simulate(ctx: PhaseCtx): Promise<{ expiresAt?: Date; metadata: FlowMetadata; output: O }>;
   start(ctx: FlowStartCtx): Promise<FlowStartResult>;

@@ -49,7 +49,7 @@ describe("EUR Base same-chain registration", () => {
         input: { email: "verified@example.com" },
         ipAddress: "203.0.113.4",
         metadata: {
-          blocks: {},
+          blocks: Object.fromEntries(flow.contextKeys.map(key => [key, {}])),
           globals: {
             fees: { usd: { anchor: "0.06", network: "0.1", partnerMarkup: "0", total: "0.26", vortex: "0.1" } },
             partner: null,

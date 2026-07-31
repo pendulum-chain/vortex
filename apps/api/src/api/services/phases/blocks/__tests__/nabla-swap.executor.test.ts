@@ -2,8 +2,10 @@ import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import * as sharedNamespace from "@vortexfi/shared";
 import { parseTransaction } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import * as financialOperationNamespace from "../core/financial-operation";
 
 const sharedReal = { ...sharedNamespace };
+const financialOperationReal = { ...financialOperationNamespace };
 const account = privateKeyToAccount("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 const unexpectedAddress = "0x1111111111111111111111111111111111111111";
 const routerAddress = "0x2222222222222222222222222222222222222222";
@@ -45,6 +47,11 @@ mock.module("@vortexfi/shared", () => ({
     }
   }
 }));
+mock.module("../core/financial-operation", () => ({
+  ...financialOperationReal,
+  requireFinancialFlowIdentity: () => ({ id: "test-flow", version: 1 }),
+  runFinancialOperation: async ({ perform }: { perform(key: string): Promise<unknown> }) => perform("test-operation")
+}));
 
 const { default: QuoteTicket } = await import("../../../../../models/quoteTicket.model");
 const { NablaSwapExecutor } = await import("../phases/nabla-swap/execution");
@@ -52,6 +59,7 @@ const realQuoteTicketFindByPk = QuoteTicket.findByPk;
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
+  mock.module("../core/financial-operation", () => ({ ...financialOperationReal }));
   QuoteTicket.findByPk = realQuoteTicketFindByPk;
 });
 
