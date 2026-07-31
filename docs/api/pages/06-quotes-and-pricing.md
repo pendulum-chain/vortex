@@ -15,6 +15,7 @@ Quotes are the entry point for every Vortex ramp. A quote pins down the route, i
 ```http
 POST /v1/quotes
 Content-Type: application/json
+X-Public-Key: pk_live_...
 ```
 
 ```json
@@ -24,15 +25,14 @@ Content-Type: application/json
   "to": "polygon",
   "inputAmount": "150",
   "inputCurrency": "BRL",
-  "outputCurrency": "USDC",
-  "apiKey": "pk_live_..."
+  "outputCurrency": "USDC"
 }
 ```
 
 - `rampType` is `"BUY"` (onramp, fiat → crypto) or `"SELL"` (offramp, crypto → fiat).
 - `from` / `to` are either a fiat rail (`"pix"`, `"sepa"`, `"ach"`, `"spei"`, `"cbu"`) or a network identifier (`"polygon"`, `"base"`, `"ethereum"`, `"arbitrum"`, `"bsc"`, `"avalanche"`, `"assethub"`, `"stellar"`, `"moonbeam"`). `"ach"` serves USD and COP, `"spei"` serves MXN, and `"cbu"` serves ARS; see [Fiat Corridors](https://api-docs.vortexfinance.co/fiat-corridors).
 - `inputAmount` is a decimal string in the smallest commonly used unit of `inputCurrency` (e.g. `"150"` for 150 BRL, `"100"` for 100 USDC). Do not pass raw chain base units.
-- `apiKey` (optional) is the partner public key `pk_live_*` / `pk_test_*`. Required for partner attribution and discount eligibility.
+- `X-Public-Key` (optional) carries the public half of one API credential for attribution and discount eligibility. The legacy body `apiKey` field remains accepted for quote compatibility; if both are sent, their values must match.
 
 ## Quote Response
 
@@ -110,6 +110,6 @@ Quotes are immutable and short-lived. If the user takes too long to confirm, or 
 
 ## Partner Pricing
 
-Pass the partner public key as `apiKey` in the quote body to apply partner pricing and attribution. When a ramp later specifies a `partnerId`, the request must be authenticated with the matching partner secret key in `X-API-Key`. See [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
+Pass the credential's public value through `X-Public-Key` to apply partner pricing and attribution. The SDK also retains it in the quote body for compatibility. When `X-Public-Key` and `X-API-Key` are both present, they must belong to the same credential or Vortex returns `403 CREDENTIAL_MISMATCH`. See [Authentication And API Credentials](https://api-docs.vortexfinance.co/authentication-and-partner-keys).
 
 ---

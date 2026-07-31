@@ -6,6 +6,7 @@ import {
   observeApiClientEvent
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
+import { CredentialContext } from "../services/apiCredential.service";
 import { getKeyType, isValidApiKeyFormat, validatePublicApiKey } from "./apiKeyAuth.helpers";
 
 // Extend Express Request type to include validated public key
@@ -13,9 +14,9 @@ declare global {
   // biome-ignore lint/style/noNamespace: Express request augmentation follows the existing backend pattern.
   namespace Express {
     interface Request {
+      credential?: CredentialContext;
       validatedPublicKey?: {
         apiKey: string;
-        partnerName: string | null;
       };
     }
   }
@@ -30,8 +31,14 @@ declare global {
 export function validatePublicKey() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Check for apiKey in query params or body
-      const apiKey = (req.query.apiKey as string) || req.body?.apiKey;
+      const headerKey = req.headers["x-public-key"] as string | undefined;
+      const legacyKey = (req.query.apiKey as string | undefined) || req.body?.apiKey;
+      if (headerKey && legacyKey && headerKey !== legacyKey) {
+        return res.status(403).json({
+          error: { code: "CREDENTIAL_MISMATCH", message: "Public credential values do not match", status: 403 }
+        });
+      }
+      const apiKey = headerKey || legacyKey;
 
       // If no API key provided, continue without validation
       if (!apiKey) {
@@ -79,9 +86,9 @@ export function validatePublicKey() {
 
       // Attach validated public key info to request
       req.validatedPublicKey = {
-        apiKey,
-        partnerName: result.partnerName
+        apiKey
       };
+      req.credential = result.credential;
 
       next();
     } catch (error) {
@@ -101,6 +108,6 @@ function recordPublicKeyFailure(req: Request, httpStatus: number, apiKeyPrefix: 
     operation: "auth_public_key",
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || req.apiKeyUserId || null
+    userId: req.userId || req.credential?.profileId || null
   });
 }

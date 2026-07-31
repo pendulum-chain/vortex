@@ -19,7 +19,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCreateApiCredential } from "@/hooks/useApiKeys";
+import { useCreateApiCredential } from "@/hooks/useApiCredentials";
 
 const schema = z
   .object({
@@ -98,8 +98,8 @@ export function CreateApiCredentialDialog() {
             acknowledged={acknowledged}
             onAcknowledgedChange={setAcknowledged}
             onDone={() => onOpenChange(false)}
-            publicKey={createCredential.data.publicKey.key}
-            secretKey={createCredential.data.secretKey.key}
+            publicKey={createCredential.data.publicKey}
+            secretKey={createCredential.data.secretKey}
           />
         ) : (
           <>

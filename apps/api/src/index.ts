@@ -9,8 +9,8 @@ import { config } from "./config/vars";
 
 import { runMigrations } from "./database/migrator";
 import "./models"; // Initialize models
-import { assertActiveSecretApiKeysMigrated } from "./api/middlewares/apiKeyAuth.helpers";
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
+import { assertApiCredentialSchemaReady } from "./api/services/apiCredential.service";
 import {
   assertPersistedBlockFlowVersionsSupported,
   registerBlockFlowHandlers
@@ -62,9 +62,7 @@ const initializeApp = async () => {
     // Run database migrations
     await runMigrations();
 
-    // A partial API-key rollout must fail before any unauthenticated request
-    // can reach a legacy bcrypt scan.
-    await assertActiveSecretApiKeysMigrated();
+    await assertApiCredentialSchemaReady();
 
     // Initialize EVM clients
     const _evmClientManager = EvmClientManager.getInstance();

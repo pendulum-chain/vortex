@@ -4,6 +4,7 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
+import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import TaxId, {TaxIdInternalStatus} from "../../models/taxId.model";
 import User from "../../models/user.model";
@@ -46,12 +47,15 @@ function mockEntityPerProfile() {
 }
 
 const originalUserFindByPk = User.findByPk;
+const originalManagedProfileFindOne = PartnerManagedProfile.findOne;
 
 beforeEach(() => {
+  PartnerManagedProfile.findOne = mock(async () => null) as unknown as typeof PartnerManagedProfile.findOne;
   User.findByPk = mock(async () => null) as unknown as typeof User.findByPk;
 });
 
 afterEach(() => {
+  PartnerManagedProfile.findOne = originalManagedProfileFindOne;
   User.findByPk = originalUserFindByPk;
 });
 
@@ -139,8 +143,15 @@ describe("getAveniaUser", () => {
     const res = createResponse();
     await getAveniaUser(
       {
-        apiKeyUserId: "user-1",
+        apiKeyUserId: "stale-user",
         authenticatedPartner: { id: "partner-1", name: "Partner" },
+        credential: {
+          credentialId: "credential-1",
+          environment: "test",
+          partnerId: "partner-1",
+          profileId: "user-1",
+          strength: "secret"
+        },
         query: { taxId: "08786985906" }
       } as any,
       res as any

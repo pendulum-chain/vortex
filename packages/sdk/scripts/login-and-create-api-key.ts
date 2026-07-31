@@ -4,7 +4,7 @@
 //   1. POST /v1/auth/request-otp { email }            -> Supabase emails a one-time code
 //   2. (prompt) read the 6-digit code from the inbox
 //   3. POST /v1/auth/verify-otp { email, token }      -> { access_token, refresh_token, user_id }
-//   4. POST /v1/api-keys { Authorization: Bearer ... } -> { publicKey, secretKey } (sk_* returned ONCE)
+//   4. POST /v1/api-credentials { Authorization: Bearer ... } -> public + secret credential
 //   5. persist keys to .api-key.json for the next script
 //
 // The minted pair is user-scoped (partner_name = NULL): the X-API-Key header authenticates
@@ -27,12 +27,13 @@ const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? "test@email.io";
 const API_KEY_NAME = process.env.API_KEY_NAME ?? "sdk-test";
 const API_KEY_OUTFILE = process.env.API_KEY_OUTFILE ?? ".api-key.json";
 
-interface ApiKeyResponse {
+interface ApiCredentialResponse {
   createdAt: string;
   expiresAt: string;
-  isActive: boolean;
-  publicKey: { id: string; key: string; keyPrefix: string; name: string; type: "public" };
-  secretKey: { id: string; key: string; keyPrefix: string; name: string; type: "secret" };
+  id: string;
+  name: string;
+  publicKey: string;
+  secretKey: string;
 }
 
 interface VerifyOtpResponse {
@@ -77,8 +78,8 @@ async function verifyOtp(email: string, token: string): Promise<VerifyOtpRespons
   return postJson<VerifyOtpResponse>("/auth/verify-otp", { email, token });
 }
 
-async function createApiKey(accessToken: string, name: string): Promise<ApiKeyResponse> {
-  return postJson<ApiKeyResponse>("/api-keys", { name }, accessToken);
+async function createApiCredential(accessToken: string, name: string): Promise<ApiCredentialResponse> {
+  return postJson<ApiCredentialResponse>("/api-credentials", { name }, accessToken);
 }
 
 async function main(): Promise<void> {
@@ -94,20 +95,19 @@ async function main(): Promise<void> {
   const auth = await verifyOtp(TEST_USER_EMAIL, token);
   console.log(`   user_id: ${auth.user_id}`);
 
-  console.log(`\n🗝️  Creating user-scoped api-key "${API_KEY_NAME}" ...`);
-  const keyPair = await createApiKey(auth.access_token, API_KEY_NAME);
-  console.log("   publicKey:", keyPair.publicKey.key);
-  console.log("   secretKey:", keyPair.secretKey.key, "  (shown once)");
+  console.log(`\n🗝️  Creating user-scoped API credential "${API_KEY_NAME}" ...`);
+  const credential = await createApiCredential(auth.access_token, API_KEY_NAME);
+  console.log("   publicKey:", credential.publicKey);
+  console.log("   secretKey:", credential.secretKey, "  (shown once)");
 
   const out = {
     apiUrl: API_BASE_URL,
-    createdAt: keyPair.createdAt,
-    expiresAt: keyPair.expiresAt,
-    name: API_KEY_NAME,
-    publicKey: keyPair.publicKey.key,
-    publicKeyId: keyPair.publicKey.id,
-    secretKey: keyPair.secretKey.key,
-    secretKeyId: keyPair.secretKey.id,
+    createdAt: credential.createdAt,
+    credentialId: credential.id,
+    expiresAt: credential.expiresAt,
+    name: credential.name,
+    publicKey: credential.publicKey,
+    secretKey: credential.secretKey,
     userId: auth.user_id
   };
   fs.writeFileSync(API_KEY_OUTFILE, JSON.stringify(out, null, 2));

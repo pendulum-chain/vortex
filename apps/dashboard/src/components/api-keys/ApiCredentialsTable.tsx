@@ -7,36 +7,40 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { type ApiCredential, groupApiCredentials, keyPreview } from "@/domain/api-credentials";
-import { useApiKeys, useRevokeApiCredential } from "@/hooks/useApiKeys";
+import { type ApiCredential, keyPreview, toApiCredentials } from "@/domain/api-credentials";
+import { useApiCredentials, useRevokeApiCredential } from "@/hooks/useApiCredentials";
 
 function formatDate(value: string | null): string {
   if (!value) return "Never";
   return new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatEnvironment(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 export function ApiCredentialsTable() {
   const [selected, setSelected] = useState<ApiCredential | null>(null);
-  const apiKeys = useApiKeys();
-  const credentials = groupApiCredentials(apiKeys.data?.apiKeys ?? []);
+  const apiCredentials = useApiCredentials();
+  const credentials = toApiCredentials(apiCredentials.data?.credentials ?? []);
 
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Active credentials</CardTitle>
+          <CardTitle>API credentials</CardTitle>
           <CardDescription>Public keys identify requests. Secret keys authenticate requests from your server.</CardDescription>
         </CardHeader>
         <CardContent>
-          {apiKeys.isLoading ? (
+          {apiCredentials.isLoading ? (
             <div className="grid gap-3">
               <Skeleton className="h-12 w-full" />
               <Skeleton className="h-12 w-full" />
             </div>
-          ) : apiKeys.isError ? (
+          ) : apiCredentials.isError ? (
             <div className="grid justify-items-start gap-3 py-6">
               <p className="text-muted-foreground text-sm">Could not load your API credentials.</p>
-              <Button onClick={() => apiKeys.refetch()} size="sm" variant="outline">
+              <Button onClick={() => apiCredentials.refetch()} size="sm" variant="outline">
                 Try again
               </Button>
             </div>
@@ -57,6 +61,7 @@ export function ApiCredentialsTable() {
                   <TableHead>Name</TableHead>
                   <TableHead>Public key</TableHead>
                   <TableHead>Environment</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
                   <TableHead>Last used</TableHead>
@@ -67,52 +72,59 @@ export function ApiCredentialsTable() {
                 {credentials.map(credential => (
                   <TableRow key={credential.id}>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{credential.name}</span>
-                        {credential.isLegacy && <Badge variant="outline">Legacy</Badge>}
-                      </div>
+                      <span className="font-medium">{credential.name}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 font-mono text-xs">
                         <span>{keyPreview(credential.publicKey)}</span>
-                        {credential.publicKey?.key && (
-                          <Button
-                            aria-label={`Copy public key for ${credential.name}`}
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(credential.publicKey?.key ?? "");
-                                toast.success("Public key copied");
-                              } catch {
-                                toast.error("Could not copy the public key");
-                              }
-                            }}
-                            size="icon"
-                            type="button"
-                            variant="ghost"
-                          >
-                            <Copy />
-                          </Button>
-                        )}
+                        <Button
+                          aria-label={`Copy public key for ${credential.name}`}
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(credential.publicKey);
+                              toast.success("Public key copied");
+                            } catch {
+                              toast.error("Could not copy the public key");
+                            }
+                          }}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Copy />
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={credential.environment === "Live" ? "default" : "secondary"}>
-                        {credential.environment}
+                      <Badge variant={credential.environment === "live" ? "default" : "secondary"}>
+                        {formatEnvironment(credential.environment)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={credential.status === "active" ? "default" : "outline"}>
+                        {credential.status === "active" ? "Active" : credential.status === "expired" ? "Expired" : "Revoked"}
                       </Badge>
                     </TableCell>
                     <TableCell>{formatDate(credential.createdAt)}</TableCell>
                     <TableCell>{formatDate(credential.expiresAt)}</TableCell>
-                    <TableCell>{formatDate(credential.lastUsedAt)}</TableCell>
+                    <TableCell>
+                      <div className="grid gap-1 text-xs">
+                        <span>Public: {formatDate(credential.publicLastUsedAt)}</span>
+                        <span>Secret: {formatDate(credential.secretLastUsedAt)}</span>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        aria-label={`Revoke ${credential.name}`}
-                        onClick={() => setSelected(credential)}
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                      >
-                        <Trash2 />
-                      </Button>
+                      {credential.status !== "revoked" && (
+                        <Button
+                          aria-label={`Revoke ${credential.name}`}
+                          onClick={() => setSelected(credential)}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -137,26 +149,21 @@ function RevokeCredentialDialog({
 
   if (!credential) return null;
 
-  const primary = credential.secretKey ?? credential.publicKey;
-  const pairedKeyId = credential.publicKey && credential.secretKey ? credential.publicKey.id : undefined;
+  const credentialId = credential.id;
   const credentialName = credential.name;
 
   function revokeCredential() {
-    if (!primary) return;
-    revoke.mutate(
-      { keyId: primary.id, pairedKeyId },
-      {
-        onError: error => {
-          toast.error("Could not revoke the API credential", {
-            description: error instanceof Error ? error.message : undefined
-          });
-        },
-        onSuccess: () => {
-          toast.success(`${credentialName} revoked`);
-          onOpenChange(false);
-        }
+    revoke.mutate(credentialId, {
+      onError: error => {
+        toast.error("Could not revoke the API credential", {
+          description: error instanceof Error ? error.message : undefined
+        });
+      },
+      onSuccess: () => {
+        toast.success(`${credentialName} revoked`);
+        onOpenChange(false);
       }
-    );
+    });
   }
 
   return (

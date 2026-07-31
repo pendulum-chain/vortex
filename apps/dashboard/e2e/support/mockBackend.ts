@@ -252,7 +252,7 @@ export function buildSellUnsignedTxs(evmEphemeral: string) {
 }
 
 interface MockBackendOptions {
-  apiKeys?: Array<Record<string, unknown>>;
+  apiCredentials?: Array<Record<string, unknown>>;
   approvedCorridors?: Array<"AR" | "BR" | "CO" | "MX" | "US">;
   limits?: Array<Record<string, unknown>>;
   onboardingState?: OnboardingState;
@@ -389,7 +389,7 @@ function answerRpc(chainIdHex: string) {
  * changed default RPC URL fails the suite instead of silently reaching the network.
  */
 export async function mockBackend(page: Page, options: MockBackendOptions = {}) {
-  const apiKeyRequests: Array<{ body: Record<string, unknown>; method: string; path: string }> = [];
+  const apiCredentialRequests: Array<{ body: Record<string, unknown> | null; method: string; path: string }> = [];
   const limitsRequests: Array<Record<string, unknown>> = [];
   const requestOtpRequests: Array<Record<string, unknown>> = [];
   const verifyOtpRequests: Array<Record<string, unknown>> = [];
@@ -429,7 +429,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
   let selectedCompany = options.companyMode ?? false;
   let hasActiveEntity = options.selectionRequired !== true;
   const fiatAccounts = [...(options.fiatAccounts ?? buildFiatAccounts())];
-  let apiKeys = [...(options.apiKeys ?? [])];
+  let apiCredentials = [...(options.apiCredentials ?? [])];
   const onrampCorridor = { ARS: "AR", BRL: "BR", COP: "CO", MXN: "MX", USD: "US" }[options.onrampCurrency ?? "MXN"] as
     | "AR"
     | "BR"
@@ -586,77 +586,50 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
       return;
     }
 
-    if (path === "/v1/api-keys" && method === "GET") {
-      await fulfillJson({ apiKeys });
+    if (path === "/v1/api-credentials" && method === "GET") {
+      await fulfillJson({ credentials: apiCredentials });
       return;
     }
 
-    if (path === "/v1/api-keys" && method === "POST") {
+    if (path === "/v1/api-credentials" && method === "POST") {
       const body = request.postDataJSON() as Record<string, unknown>;
-      apiKeyRequests.push({ body, method, path });
-      const credentialId = `credential-e2e-${apiKeyRequests.length}`;
+      apiCredentialRequests.push({ body, method, path });
+      const credentialId = `credential-e2e-${apiCredentialRequests.length}`;
       const createdAt = "2026-07-30T12:00:00.000Z";
       const publicKey = "pk_test_abcdefghijklmnopqrstuvwxyz123456";
       const secretKey = "sk_test_abcdefghijklmnopqrstuvwxyz123456";
       const name = String(body.name ?? "API Key");
       const expiresAt = String(body.expiresAt);
-      apiKeys = [
-        {
-          createdAt,
-          credentialId,
-          expiresAt,
-          id: `${credentialId}-public`,
-          isActive: true,
-          key: publicKey,
-          keyPrefix: "pk_test_",
-          lastUsedAt: null,
-          name: `${name} (Public)`,
-          type: "public",
-          updatedAt: createdAt
-        },
-        {
-          createdAt,
-          credentialId,
-          expiresAt,
-          id: `${credentialId}-secret`,
-          isActive: true,
-          keyPrefix: "sk_test_",
-          lastUsedAt: null,
-          name: `${name} (Secret)`,
-          type: "secret",
-          updatedAt: createdAt
-        },
-        ...apiKeys
-      ];
-      await fulfillJson({
+      const credential = {
         createdAt,
-        credentialId,
+        environment: "test",
         expiresAt,
-        isActive: true,
-        publicKey: {
-          id: `${credentialId}-public`,
-          key: publicKey,
-          keyPrefix: "pk_test_",
-          name: `${name} (Public)`,
-          type: "public"
-        },
-        secretKey: {
-          id: `${credentialId}-secret`,
-          key: secretKey,
-          keyPrefix: "sk_test_",
-          name: `${name} (Secret)`,
-          type: "secret"
-        }
-      });
+        id: credentialId,
+        name,
+        partnerId: "partner-e2e-1",
+        profileId: "profile-e2e-1",
+        publicKey,
+        publicLastUsedAt: null,
+        revokedAt: null,
+        secretKeyPrefix: "sk_test_",
+        secretLastUsedAt: null,
+        updatedAt: createdAt
+      };
+      apiCredentials = [credential, ...apiCredentials];
+      await fulfillJson({ ...credential, secretKey });
       return;
     }
 
-    if (path.startsWith("/v1/api-keys/") && method === "DELETE") {
-      const body = (request.postDataJSON() ?? {}) as Record<string, unknown>;
-      apiKeyRequests.push({ body, method, path });
-      const keyId = path.split("/").at(-1);
-      const ids = new Set([keyId, typeof body.pairedKeyId === "string" ? body.pairedKeyId : undefined]);
-      apiKeys = apiKeys.filter(key => !ids.has(String(key.id)));
+    if (path.startsWith("/v1/api-credentials/") && method === "DELETE") {
+      apiCredentialRequests.push({
+        body: request.postData() ? (request.postDataJSON() as Record<string, unknown>) : null,
+        method,
+        path
+      });
+      const credentialId = path.split("/").at(-1);
+      apiCredentials = apiCredentials.map(credential =>
+        credential.id === credentialId ? { ...credential, revokedAt: "2026-07-30T12:05:00.000Z" } : credential
+      );
       await route.fulfill({ status: 204 });
       return;
     }
@@ -1158,7 +1131,7 @@ export async function mockBackend(page: Page, options: MockBackendOptions = {}) 
 
   return {
     acceptInviteRequests,
-    apiKeyRequests,
+    apiCredentialRequests,
     archiveInvitationRequests,
     auth,
     avenia,

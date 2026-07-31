@@ -1,54 +1,58 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { ApiKeyRecord } from "@/services/api/api-keys.service";
-import { groupApiCredentials, keyPreview } from "./api-credentials";
+import type { ApiCredentialRecord } from "@/services/api/api-credentials.service";
+import { credentialStatus, keyPreview, toApiCredentials } from "./api-credentials";
 
-function key(overrides: Partial<ApiKeyRecord> & Pick<ApiKeyRecord, "id" | "type">): ApiKeyRecord {
+function credential(overrides: Partial<ApiCredentialRecord> = {}): ApiCredentialRecord {
   return {
     createdAt: "2026-01-01T00:00:00.000Z",
-    credentialId: "credential-1",
+    environment: "live",
     expiresAt: "2027-01-01T00:00:00.000Z",
-    isActive: true,
-    keyPrefix: overrides.type === "public" ? "pk_live_" : "sk_live_",
-    lastUsedAt: null,
-    name: `Production (${overrides.type === "public" ? "Public" : "Secret"})`,
+    id: "credential-1",
+    name: "Production",
+    partnerId: "partner-1",
+    profileId: "profile-1",
+    publicKey: "pk_live_abcdefghijklmnopqrstuvwxyz123456",
+    publicLastUsedAt: null,
+    revokedAt: null,
+    secretKeyPrefix: "sk_live_",
+    secretLastUsedAt: null,
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
   };
 }
 
-describe("groupApiCredentials", () => {
-  it("groups public and secret records by credential ID even when names are duplicated", () => {
-    const records = [
-      key({ id: "public-1", key: "pk_live_abcdefghijklmnopqrstuvwxyz123456", type: "public" }),
-      key({ id: "secret-1", type: "secret" }),
-      key({ credentialId: "credential-2", id: "public-2", type: "public" }),
-      key({ credentialId: "credential-2", id: "secret-2", type: "secret" })
-    ];
+describe("credentialStatus", () => {
+  const now = new Date("2026-07-31T00:00:00.000Z");
 
-    const credentials = groupApiCredentials(records);
-
-    assert.equal(credentials.length, 2);
-    assert.equal(credentials[0]?.publicKey?.id, "public-1");
-    assert.equal(credentials[0]?.secretKey?.id, "secret-1");
-    assert.equal(credentials[1]?.publicKey?.id, "public-2");
-    assert.equal(credentials[1]?.secretKey?.id, "secret-2");
+  it("derives active and expired status from the expiration date", () => {
+    assert.equal(credentialStatus(credential(), now), "active");
+    assert.equal(credentialStatus(credential({ expiresAt: "2026-07-30T00:00:00.000Z" }), now), "expired");
   });
 
-  it("keeps unpaired legacy records separate rather than matching by name", () => {
+  it("gives revoked status precedence over expiration", () => {
+    const record = credential({ expiresAt: "2026-01-02T00:00:00.000Z", revokedAt: "2026-01-01T00:00:00.000Z" });
+    assert.equal(credentialStatus(record, now), "revoked");
+  });
+});
+
+describe("toApiCredentials", () => {
+  it("maps direct credential records and sorts newest first", () => {
     const records = [
-      key({ credentialId: null, id: "legacy-public", type: "public" }),
-      key({ credentialId: null, id: "legacy-secret", type: "secret" })
+      credential(),
+      credential({ createdAt: "2026-02-01T00:00:00.000Z", id: "credential-2", name: "Staging" })
     ];
 
-    const credentials = groupApiCredentials(records);
+    const credentials = toApiCredentials(records, new Date("2026-07-31T00:00:00.000Z"));
 
-    assert.equal(credentials.length, 2);
-    assert.ok(credentials.every(credential => credential.isLegacy));
+    assert.deepEqual(
+      credentials.map(item => item.id),
+      ["credential-2", "credential-1"]
+    );
+    assert.equal(credentials[0]?.publicKey, records[1]?.publicKey);
   });
 
   it("masks public keys while retaining a useful preview", () => {
-    const publicKey = key({ id: "public-1", key: "pk_live_abcdefghijklmnopqrstuvwxyz123456", type: "public" });
-    assert.equal(keyPreview(publicKey), "pk_live_abcd••••3456");
+    assert.equal(keyPreview(credential().publicKey), "pk_live_abcd••••3456");
   });
 });

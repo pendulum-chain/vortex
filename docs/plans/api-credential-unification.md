@@ -1,6 +1,8 @@
 # API Credential Unification Plan
 
-**Status:** Proposed
+**Status:** Implemented; production cutover pending
+
+**Rollout boundary:** runtime, dashboard, SDK, managed-profile provisioning, immutable-ID migration tooling, `ramp-info`, and fail-closed startup checks are implemented. Production still requires the operator-reviewed inventory, digest backfill or reissue, managed-profile provisioning, explicit manifest migration, and zero-count gates in the runbook.
 
 **Related PR:** [#1298 — Add limits and api key handling to dashboard](https://github.com/pendulum-chain/vortex/pull/1298)
 
@@ -23,7 +25,7 @@ one API credential
 └── optional partner: manages and attributes a delegated credential
 ```
 
-This plan assumes that `ramp-info` is a new public-key-capable endpoint. There is no route with that literal name at the time of writing.
+The shared and SDK contracts include public-key-capable `GET /v1/ramp-info`; the backend route and sanitized projection remain an implementation boundary.
 
 ## Goals
 

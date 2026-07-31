@@ -7,15 +7,15 @@ import {
 } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
 import { SupabaseAuthService } from "../services/auth";
-import { getKeyType, isValidSecretKeyFormat, validateSecretApiKey } from "./apiKeyAuth.helpers";
-import { setApiKeyUserId } from "./effectiveUser";
+import { getKeyType, isValidSecretKeyFormat, validatePublicApiKey, validateSecretApiKey } from "./apiKeyAuth.helpers";
 
 export { assertQuoteOwnership, assertRampOwnership } from "./ownershipAuth";
 
 /**
  * Dual-track authentication: accepts either a partner secret API key
  * (X-API-Key: sk_*) or a Supabase user Bearer token (Authorization: Bearer ...).
- * Exactly one of req.authenticatedPartner or req.userId is populated on success.
+ * Canonical API credential identity is populated on `req.credential`; Supabase
+ * identity remains on `req.userId`.
  */
 export function requirePartnerOrUserAuth() {
   return dualAuthHandler({ requireCredentials: true });
@@ -64,10 +64,25 @@ function dualAuthHandler({ requireCredentials }: { requireCredentials: boolean }
           });
         }
 
+        const publicKey = req.headers["x-public-key"] as string | undefined;
+        if (publicKey) {
+          const publicResult = await validatePublicApiKey(publicKey);
+          if (!publicResult) {
+            return res.status(401).json({
+              error: { code: "INVALID_PUBLIC_KEY", message: "The provided public API key is invalid or expired.", status: 401 }
+            });
+          }
+          if (publicResult.credential.credentialId !== result.credential.credentialId) {
+            return res.status(403).json({
+              error: { code: "CREDENTIAL_MISMATCH", message: "Public and secret credentials do not match", status: 403 }
+            });
+          }
+        }
+
         if (result.partner) {
           req.authenticatedPartner = result.partner;
         }
-        setApiKeyUserId(req, result.apiKeyUserId);
+        req.credential = result.credential;
         return next();
       }
 
@@ -122,10 +137,10 @@ function recordDualAuthFailure(
     httpStatus,
     metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["partnerId"] }),
     operation: "auth_dual",
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || req.apiKeyUserId || null
+    userId: req.userId || req.credential?.profileId || null
   });
 }

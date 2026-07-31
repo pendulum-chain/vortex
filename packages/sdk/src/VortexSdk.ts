@@ -8,6 +8,7 @@ import {
   EphemeralAccount,
   EphemeralAccountType,
   EvmTransactionData,
+  GetRampInfoResponse,
   GetRampStatusResponse,
   isAlfredpayToken,
   isEvmTransactionData,
@@ -60,7 +61,7 @@ export class VortexSdk {
   private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
-    this.apiService = new ApiService(config.apiBaseUrl, config.secretKey);
+    this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
     this.publicKey = config.publicKey;
@@ -108,6 +109,10 @@ export class VortexSdk {
 
   async getRampStatus(rampId: string): Promise<GetRampStatusResponse> {
     return this.apiService.getRampStatus(rampId);
+  }
+
+  async getRampInfo(): Promise<GetRampInfoResponse> {
+    return this.apiService.getRampInfo();
   }
 
   async getUserTransactions(rampProcess: RampProcess, userAddress: string): Promise<UnsignedTx[]> {

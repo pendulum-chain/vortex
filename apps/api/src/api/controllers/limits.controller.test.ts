@@ -32,6 +32,18 @@ describe("getLimits", () => {
     expect(response.body).toEqual({ error: "A user-scoped credential is required" });
   });
 
+  it("does not accept the legacy API key user field as identity", async () => {
+    const response = responseDouble();
+
+    await getLimits(
+      { apiKeyUserId: "legacy-user", body: { corridors: ["US"] } } as unknown as Request,
+      response as unknown as Response,
+      mock(() => undefined)
+    );
+
+    expect(response.statusCode).toBe(403);
+  });
+
   it("rejects duplicate, unsupported, and unknown corridor input", async () => {
     for (const body of [
       { corridors: ["US", "US"] },

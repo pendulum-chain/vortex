@@ -31,6 +31,7 @@ import { isAddress } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
+import PartnerManagedProfile from "../../../models/partnerManagedProfile.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
@@ -241,6 +242,20 @@ export class RampService extends BaseRampService {
         throw new APIError({
           message: "Authenticated user profile not found.",
           status: httpStatus.BAD_REQUEST
+        });
+      }
+
+      const technicalManagedProfile = await PartnerManagedProfile.findOne({
+        attributes: ["id"],
+        transaction,
+        where: { profileId: effectiveUserId, subjectType: "technical" }
+      });
+      if (technicalManagedProfile) {
+        throw new APIError({
+          isPublic: true,
+          message: "Technical managed profiles are not eligible to register ramps.",
+          status: httpStatus.FORBIDDEN,
+          type: "TECHNICAL_PROFILE_NOT_RAMP_ELIGIBLE"
         });
       }
 
