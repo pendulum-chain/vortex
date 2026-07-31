@@ -9,10 +9,12 @@ Use documents in this order:
 1. **Module specifications** define normative current behavior.
 2. **`RISK-REGISTER.md`** is the only authority for current accepted, deferred, or
    deployment-dependent exceptions to those requirements.
-3. **Review and audit artifacts** (`REVIEW-*.md`, `AUDIT-RESULTS.md`, `FINDINGS.md`,
-   `SPEC-DELTA-*.md`) are dated evidence/history. They are not normative and their status labels
-   can be stale.
-4. **Implementation-side notes** such as
+3. **Retained review evidence** (`REVIEW-POST-1232-2026-07-30.md` and
+   `PUBLIC-RELEASE-READINESS.md`) is non-normative. It remains only while its review or
+   remediation context is still useful; status claims may be stale.
+4. **Older audit results, findings trackers, and spec deltas** are kept in Git history,
+   not alongside the maintained specification.
+5. **Implementation-side notes** such as
    `apps/api/src/api/services/phases/blocks/INHERITED-ISSUES.md` provide engineering detail; every
    still-active exception must also be indexed in the risk register.
 
@@ -49,7 +51,6 @@ documents win.
 | Discount Mechanism | `03-ramp-engine/discount-mechanism.md` | Partner discounts, subsidies, dynamic adjustment |
 | Profile Partner Pricing | `03-ramp-engine/profile-partner-pricing.md` | Supabase profile assignments to ramp-specific partner pricing IDs |
 | Recipient Transfers | `03-ramp-engine/recipient-transfers.md` | Invite token hashing/retention/expiry, token-bound redemption, invitation/relationship archiving, sender↔recipient authorization, transfer eligibility gate |
-| FastForex | `05-integrations/fastforex.md` | USD-fiat conversion provider hardening and fallback |
 | Transaction Validation | `03-ramp-engine/transaction-validation.md` | Presigned tx verification, content validation, signing model |
 | Ephemeral Account Lifecycle | `03-ramp-engine/ephemeral-accounts.md` | Funding, cleanup, stuck fund prevention |
 | Ramp Phase Flows | `03-ramp-engine/ramp-phase-flows.md` | Per-corridor token flow, phase handler map, subsidy bounds |
@@ -70,6 +71,13 @@ documents win.
 | API Surface | `07-operations/api-surface.md` | Rate limiting, CORS, input validation, error handling |
 | Client Observability | `07-operations/client-observability.md` | Request IDs, sanitized API client events, operational monitoring |
 | Notifications | `07-operations/notifications.md` | In-app feed authorization, PII redaction rules, email dispatch status |
+
+## Retained Evidence
+
+| Document | Why it remains |
+|---|---|
+| `REVIEW-POST-1232-2026-07-30.md` | Latest full spec-first review of the block-flow architecture and the evidence that drove its remediation |
+| `PUBLIC-RELEASE-READINESS.md` | Repository-history secret exposure review with remediation actions that still require operational confirmation |
 
 ## Checklist Semantics
 

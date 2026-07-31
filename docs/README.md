@@ -18,8 +18,6 @@ The smaller set of general project documents stays directly in `docs/`:
 |---|---|
 | [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
-| [`incident-2026-07-17-phase-handler-race.md`](incident-2026-07-17-phase-handler-race.md) | Durable incident evidence and follow-up controls |
-| [`operations-maintenance-mode.md`](operations-maintenance-mode.md) | Maintenance-mode behavior and operations |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
@@ -85,12 +83,13 @@ ADRs contain: status, context, decision, consequences, and links to current
 specifications. Amend an ADR only to clarify it; create a later ADR when the decision
 changes and mark the earlier one superseded.
 
-### Incidents and research
+### Temporary evidence
 
-Keep an incident report when it contains durable evidence, causal analysis, and follow-up
-controls. Name it `incident-YYYY-MM-DD-<topic>.md`. Summarize external research in the
-proposal or ADR it informs instead of retaining a standalone vendor report after the
-decision no longer needs it.
+An active incident investigation may use `incident-YYYY-MM-DD-<topic>.md`. Remove it once
+the root cause and lasting controls are represented by code, tests, the security spec, or
+the risk register; Git history preserves the forensic record. Summarize external research
+in the proposal or ADR it informs instead of retaining a standalone vendor report after
+the decision no longer needs it.
 
 ## Documentation definition of done
 
