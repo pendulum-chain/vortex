@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { AlfredpayCustomerType, EvmToken, FiatToken, RampDirection } from "@vortexfi/shared";
+import { Op } from "sequelize";
 import RampState from "../../../models/rampState.model";
 import {
   clearAlfredpayMonthlyUsageCache,
@@ -34,6 +35,7 @@ describe("getAlfredpayMonthlyUsage", () => {
   });
 
   it("counts routed provider-leg amounts and caches the monthly aggregate", async () => {
+    let query: { where: { [Op.and]: { val: string }; createdAt?: unknown } } | undefined;
     const findAll = mock(async () => [
       {
         quote: {
@@ -62,7 +64,10 @@ describe("getAlfredpayMonthlyUsage", () => {
         type: RampDirection.SELL
       }
     ]);
-    RampState.findAll = findAll as unknown as typeof RampState.findAll;
+    RampState.findAll = mock(async options => {
+      query = options as typeof query;
+      return findAll();
+    }) as unknown as typeof RampState.findAll;
 
     expect((await getAlfredpayMonthlyUsage("user-1", RampDirection.BUY, FiatToken.MXN, "USDT")).toFixed()).toBe(
       "125.5"
@@ -71,6 +76,9 @@ describe("getAlfredpayMonthlyUsage", () => {
       "40.25"
     );
     expect(findAll).toHaveBeenCalledTimes(1);
+    expect(query?.where.createdAt).toBeUndefined();
+    expect(query?.where[Op.and].val).toContain("phase_history");
+    expect(query?.where[Op.and].val).toContain("entry->>'timestamp'");
   });
 
   it("counts direct ramps persisted before provider block metadata", async () => {

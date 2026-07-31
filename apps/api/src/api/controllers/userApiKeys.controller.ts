@@ -5,11 +5,12 @@ import sequelize from "../../config/database";
 import logger from "../../config/logger";
 import { config } from "../../config/vars";
 import ApiKey from "../../models/apiKey.model";
+import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getKeyPrefix, getSecretKeyLookupPrefix } from "../middlewares/apiKeyAuth.helpers";
 
 interface CreateApiKeyBody {
-  expiresAt?: string;
-  name?: string;
+  expiresAt?: unknown;
+  name?: unknown;
 }
 
 // Keep the number of active credentials per user bounded for resource hygiene and to
@@ -18,6 +19,7 @@ export const MAX_ACTIVE_KEYS_PER_USER = 10;
 
 // Keys must expire; cap client-supplied expiry at 2 years (default is 1 year).
 const MAX_EXPIRY_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 export async function createUserApiKey(req: Request, res: Response): Promise<void> {
   const userId = req.userId;
@@ -35,6 +37,17 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
   const { name, expiresAt } = (req.body ?? {}) as CreateApiKeyBody;
 
   try {
+    if (name !== undefined && typeof name !== "string") {
+      res.status(httpStatus.BAD_REQUEST).json({
+        error: {
+          code: "INVALID_API_KEY_NAME",
+          message: "name must be a string",
+          status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
     const baseName = name?.trim() || "API Key";
     if (baseName.length > 91) {
       res.status(httpStatus.BAD_REQUEST).json({
@@ -47,27 +60,16 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const environment = config.sandboxEnabled ? "test" : "live";
-    const credentialId = randomUUID();
-
-    const activeKeyCount = await ApiKey.count({ where: { isActive: true, partnerId: null, partnerName: null, userId } });
-    if (activeKeyCount + 2 > MAX_ACTIVE_KEYS_PER_USER) {
-      res.status(httpStatus.CONFLICT).json({
+    if (expiresAt !== undefined && (typeof expiresAt !== "string" || !ISO_DATE_TIME_PATTERN.test(expiresAt))) {
+      res.status(httpStatus.BAD_REQUEST).json({
         error: {
-          code: "API_KEY_LIMIT_REACHED",
-          message: `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_USER} keys). Revoke unused keys before creating new ones.`,
-          status: httpStatus.CONFLICT
+          code: "INVALID_EXPIRES_AT",
+          message: "expiresAt must be a valid ISO-8601 date",
+          status: httpStatus.BAD_REQUEST
         }
       });
       return;
     }
-
-    const publicKey = generateApiKey("public", environment);
-    const publicKeyPrefix = getKeyPrefix(publicKey);
-
-    const secretKey = generateApiKey("secret", environment);
-    const secretKeyHash = digestApiKey(secretKey);
-    const secretKeyPrefix = getSecretKeyLookupPrefix(secretKey);
 
     const expirationDate = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Default to 1 year from now
 
@@ -104,9 +106,26 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Create the pair atomically so a failure cannot leave an orphaned half.
-    const { publicKeyRecord, secretKeyRecord } = await sequelize.transaction(async transaction => {
-      const createdPublicKey = await ApiKey.create(
+    const environment = config.sandboxEnabled ? "test" : "live";
+    const credentialId = randomUUID();
+    const publicKey = generateApiKey("public", environment);
+    const publicKeyPrefix = getKeyPrefix(publicKey);
+    const secretKey = generateApiKey("secret", environment);
+    const secretKeyHash = digestApiKey(secretKey);
+    const secretKeyPrefix = getSecretKeyLookupPrefix(secretKey);
+
+    // Lock the profile so concurrent requests for one user cannot both pass the cap check.
+    const records = await sequelize.transaction(async transaction => {
+      const user = await User.findByPk(userId, { attributes: ["id"], lock: transaction.LOCK.UPDATE, transaction });
+      if (!user) throw new Error("Authenticated user profile not found");
+
+      const activeKeyCount = await ApiKey.count({
+        transaction,
+        where: { isActive: true, partnerId: null, partnerName: null, userId }
+      });
+      if (activeKeyCount + 2 > MAX_ACTIVE_KEYS_PER_USER) return null;
+
+      const publicKeyRecord = await ApiKey.create(
         {
           credentialId,
           expiresAt: expirationDate,
@@ -123,7 +142,7 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
         { transaction }
       );
 
-      const createdSecretKey = await ApiKey.create(
+      const secretKeyRecord = await ApiKey.create(
         {
           credentialId,
           expiresAt: expirationDate,
@@ -140,8 +159,21 @@ export async function createUserApiKey(req: Request, res: Response): Promise<voi
         { transaction }
       );
 
-      return { publicKeyRecord: createdPublicKey, secretKeyRecord: createdSecretKey };
+      return { publicKeyRecord, secretKeyRecord };
     });
+
+    if (!records) {
+      res.status(httpStatus.CONFLICT).json({
+        error: {
+          code: "API_KEY_LIMIT_REACHED",
+          message: `Active API key limit reached (${MAX_ACTIVE_KEYS_PER_USER} keys). Revoke unused keys before creating new ones.`,
+          status: httpStatus.CONFLICT
+        }
+      });
+      return;
+    }
+
+    const { publicKeyRecord, secretKeyRecord } = records;
 
     res.status(httpStatus.CREATED).json({
       createdAt: publicKeyRecord.createdAt,

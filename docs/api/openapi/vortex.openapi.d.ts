@@ -1441,7 +1441,7 @@ export interface components {
                 /** Format: date-time */
                 createdAt: string;
                 /** @description Shared identifier for the public and secret records. Null only for ambiguous legacy records. */
-                credentialId?: string | null;
+                credentialId: string | null;
                 /** Format: date-time */
                 expiresAt: string;
                 id: string;

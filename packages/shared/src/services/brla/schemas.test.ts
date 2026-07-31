@@ -107,6 +107,9 @@ describe("aveniaAccountLimitsSchema", () => {
     expect(() => aveniaAccountLimitsSchema.parse(body)).not.toThrow();
     delete usedLimit.month;
     expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
+    usedLimit.month = 7;
+    delete usedLimit.year;
+    expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
   });
 });
 

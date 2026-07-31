@@ -12,6 +12,7 @@ import {
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { Op } from "sequelize";
+import sequelize from "../../../config/database";
 import ProviderCustomer from "../../../models/providerCustomer.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
@@ -127,10 +128,17 @@ async function getAlfredpayMonthlyUsageByFiat(userId: string): Promise<Map<strin
   const cached = monthlyUsageCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.usage;
 
+  const completionPeriod = sequelize.literal(`EXISTS (
+    SELECT 1 FROM jsonb_array_elements("RampState"."phase_history") AS entry
+    WHERE entry->>'phase' = 'complete'
+      AND (entry->>'timestamp')::timestamptz >= ${sequelize.escape(startsAt)}
+      AND (entry->>'timestamp')::timestamptz < ${sequelize.escape(endsAt)}
+  )`);
+
   const completedRamps = (await RampState.findAll({
     include: [{ as: "quote", model: QuoteTicket, required: true, where: { status: "consumed" } }],
     where: {
-      createdAt: { [Op.gte]: startsAt, [Op.lt]: endsAt },
+      [Op.and]: completionPeriod,
       currentPhase: "complete",
       userId
     }

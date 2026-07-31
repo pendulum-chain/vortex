@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import httpStatus from "http-status";
 import sequelize from "../../config/database";
 import ApiKey from "../../models/apiKey.model";
+import User from "../../models/user.model";
 import { createUserApiKey, listUserApiKeys, MAX_ACTIVE_KEYS_PER_USER, revokeUserApiKey } from "./userApiKeys.controller";
 
 function createResponse() {
@@ -25,12 +26,37 @@ function createResponse() {
 describe("createUserApiKey", () => {
   const originalCount = ApiKey.count;
   const originalCreate = ApiKey.create;
+  const originalFindByPk = User.findByPk;
   const originalTransaction = sequelize.transaction;
+
+  beforeEach(() => {
+    User.findByPk = mock(async () => ({ id: "user-1" })) as unknown as typeof User.findByPk;
+    sequelize.transaction = mock(async callback =>
+      callback({ LOCK: { UPDATE: "UPDATE" } } as never)
+    ) as unknown as typeof sequelize.transaction;
+  });
 
   afterEach(() => {
     ApiKey.count = originalCount;
     ApiKey.create = originalCreate;
+    User.findByPk = originalFindByPk;
     sequelize.transaction = originalTransaction;
+  });
+
+  it("rejects a non-string name with 400", async () => {
+    const res = createResponse();
+    await createUserApiKey({ body: { name: 1 }, userId: "user-1" } as never, res as never);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect((res.body as { error: { code: string } }).error.code).toBe("INVALID_API_KEY_NAME");
+  });
+
+  it("rejects a non-ISO expiration date with 400", async () => {
+    const res = createResponse();
+    await createUserApiKey({ body: { expiresAt: "07/31/2027" }, userId: "user-1" } as never, res as never);
+
+    expect(res.statusCode).toBe(httpStatus.BAD_REQUEST);
+    expect((res.body as { error: { code: string } }).error.code).toBe("INVALID_EXPIRES_AT");
   });
 
   it("rejects creation with 409 when the per-user active key cap is reached", async () => {
@@ -68,7 +94,6 @@ describe("createUserApiKey", () => {
       records.push(record);
       return record;
     }) as unknown as typeof ApiKey.create;
-    sequelize.transaction = mock(async callback => callback({} as never)) as unknown as typeof sequelize.transaction;
 
     const res = createResponse();
     await createUserApiKey({ body: { name: "Production" }, userId: "user-1" } as never, res as never);
@@ -83,6 +108,28 @@ describe("createUserApiKey", () => {
     expect(secretRecord?.keyPrefix).toHaveLength(16);
     expect(records.find(record => record.keyType === "secret")?.keyValue).toBeNull();
     expect(records.find(record => record.keyType === "secret")?.keyHash).toBeString();
+  });
+
+  it("locks the user profile and counts active keys inside the creation transaction", async () => {
+    const transaction = { LOCK: { UPDATE: "UPDATE" } };
+    let lockOptions: Record<string, unknown> | undefined;
+    let countOptions: Record<string, unknown> | undefined;
+    User.findByPk = mock(async (_userId, options) => {
+      lockOptions = options as Record<string, unknown>;
+      return { id: "user-1" } as never;
+    }) as unknown as typeof User.findByPk;
+    ApiKey.count = mock(async options => {
+      countOptions = options as Record<string, unknown>;
+      return MAX_ACTIVE_KEYS_PER_USER;
+    }) as unknown as typeof ApiKey.count;
+    sequelize.transaction = mock(async callback => callback(transaction as never)) as unknown as typeof sequelize.transaction;
+
+    const res = createResponse();
+    await createUserApiKey({ body: {}, userId: "user-1" } as never, res as never);
+
+    expect(lockOptions).toMatchObject({ lock: "UPDATE", transaction });
+    expect(countOptions).toMatchObject({ transaction });
+    expect(res.statusCode).toBe(httpStatus.CONFLICT);
   });
 });
 

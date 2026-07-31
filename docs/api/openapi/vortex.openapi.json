@@ -771,7 +771,17 @@
                   "type": "string"
                 }
               },
-              "required": ["createdAt", "expiresAt", "id", "isActive", "keyPrefix", "name", "type", "updatedAt"],
+              "required": [
+                "createdAt",
+                "credentialId",
+                "expiresAt",
+                "id",
+                "isActive",
+                "keyPrefix",
+                "name",
+                "type",
+                "updatedAt"
+              ],
               "type": "object"
             },
             "type": "array"

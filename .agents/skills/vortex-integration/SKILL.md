@@ -481,7 +481,7 @@ First-time integration, environment migration, or when an agent needs to decide 
 ## Key types
 | Key | Where it goes | Purpose |
 |-----|---------------|---------|
-| `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent inside request bodies as `publicKey`. |
+| `pk_live_*` / `pk_test_*` | Anywhere (browser-safe) | Partner attribution. Sent in quote request bodies as `apiKey`. |
 | `sk_live_*` / `sk_test_*` (partner-scoped) | Server-side only | Webhook management and partner attribution. Sent as `X-API-Key` header. **Cannot register ramps** unless the key is also linked to a user. **Never** ship to browser/mobile bundles. |
 | `sk_live_*` / `sk_test_*` (user-scoped) | Server-side only | Supplies the user identity required for SDK ramp registration; corridor identity (BRL taxId, Alfredpay/Mykobo customer) is derived from the linked account. Minted programmatically after email OTP sign-in; shown once at creation. |
 
