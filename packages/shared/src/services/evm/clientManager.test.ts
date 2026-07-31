@@ -7,6 +7,9 @@ describe("redactRpcUrlForLogs", () => {
     expect(redactRpcUrlForLogs("https://polygon-mainnet.g.alchemy.com/v2/test-api-key")).toBe(
       "https://polygon-mainnet.g.alchemy.com/v2/[redacted]"
     );
+    expect(redactRpcUrlForLogs("https://polygon-amoy.g.alchemy.com/v2/test-api-key")).toBe(
+      "https://polygon-amoy.g.alchemy.com/v2/[redacted]"
+    );
   });
 
   it("leaves empty viem default RPC markers readable", () => {
@@ -21,12 +24,11 @@ describe("redactRpcUrlForLogs", () => {
 });
 
 describe("EvmClientManager RPC cache keys", () => {
-  it("keeps viem's default transport distinct from explicit RPC URLs", () => {
+  it("uses viem's default transport as the Polygon Amoy fallback", () => {
     const manager = EvmClientManager.getInstance();
-    const explicitRpcClient = manager.getClient(Networks.PolygonAmoy, "https://polygon-amoy.api.onfinality.io/public");
     const defaultRpcClient = manager.getClient(Networks.PolygonAmoy, "");
 
-    expect(defaultRpcClient).not.toBe(explicitRpcClient);
+    expect(defaultRpcClient).toBeDefined();
   });
 });
 

@@ -67,7 +67,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: polygonAmoy,
       name: Networks.PolygonAmoy,
-      rpcUrls: ["https://polygon-amoy.api.onfinality.io/public", ""]
+      rpcUrls: apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`, ""] : [""]
     },
     {
       chain: moonbeam,
