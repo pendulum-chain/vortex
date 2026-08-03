@@ -88,6 +88,95 @@ tax-reference hash; it does not print email addresses or raw tax IDs. Record the
 timestamp, target database/environment, deployed commit, latest `SequelizeMeta` migration, operator,
 full Sections 0-4 output, and process exit status with the deployment evidence.
 
+### Ownerless Avenia exploration
+
+The following read-only query inventories every ownerless `tax_ids` row, shows whether a
+canonical Avenia provider customer now exists for the same normalized tax ID, and reports ramps
+whose owning `state.taxId` matches it. It deliberately does not match `receiverTaxId`, because a
+payment recipient may legitimately differ from the Avenia account owner.
+
+```sql
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
+
+WITH ownerless_tax_ids AS (
+  SELECT
+    t.*,
+    regexp_replace(t.tax_id, '[^0-9]', '', 'g') AS normalized_tax_id,
+    encode(
+      sha256(convert_to(regexp_replace(t.tax_id, '[^0-9]', '', 'g'), 'UTF8')),
+      'hex'
+    ) AS tax_reference_hash
+  FROM tax_ids t
+  WHERE t.user_id IS NULL
+),
+ramp_evidence AS (
+  SELECT
+    t.tax_reference_hash,
+    COUNT(rs.id) AS ramp_count,
+    MIN(rs.created_at) AS first_ramp_at,
+    MAX(rs.created_at) AS latest_ramp_at,
+    ARRAY_AGG(rs.id ORDER BY rs.created_at)
+      FILTER (WHERE rs.id IS NOT NULL) AS ramp_ids,
+    ARRAY_AGG(DISTINCT rs.user_id)
+      FILTER (WHERE rs.user_id IS NOT NULL) AS ramp_user_ids,
+    ARRAY_AGG(DISTINCT qt.user_id)
+      FILTER (WHERE qt.user_id IS NOT NULL) AS quote_user_ids,
+    COUNT(rs.id) FILTER (WHERE rs.user_id IS NULL) AS ramps_without_user,
+    COUNT(rs.id) FILTER (
+      WHERE rs.user_id IS NOT NULL
+        AND qt.user_id IS NOT NULL
+        AND rs.user_id <> qt.user_id
+    ) AS ramp_quote_owner_mismatches
+  FROM ownerless_tax_ids t
+  LEFT JOIN ramp_states rs
+    ON regexp_replace(COALESCE(rs.state ->> 'taxId', ''), '[^0-9]', '', 'g') =
+       t.normalized_tax_id
+  LEFT JOIN quote_tickets qt ON qt.id = rs.quote_id
+  GROUP BY t.tax_reference_hash
+)
+SELECT
+  t.normalized_tax_id AS tax_id,
+  t.tax_reference_hash AS legacy_tax_hash,
+  t.internal_status AS legacy_status,
+  COALESCE(t.sub_account_id, '') <> '' AS legacy_has_subaccount,
+  CASE WHEN pc.id IS NULL THEN 'NOT_MIGRATED' ELSE 'MIGRATED' END AS migration_status,
+  pc.id AS canonical_provider_customer_id,
+  pc.customer_entity_id AS canonical_customer_entity_id,
+  ce.profile_id AS canonical_profile_id,
+  pc.status AS canonical_status,
+  COALESCE(r.ramp_count, 0) > 0 AS has_ever_ramped,
+  COALESCE(r.ramp_count, 0) AS ramp_count,
+  r.first_ramp_at,
+  r.latest_ramp_at,
+  r.ramp_ids,
+  r.ramp_user_ids,
+  r.quote_user_ids,
+  COALESCE(r.ramps_without_user, 0) AS ramps_without_user,
+  COALESCE(r.ramp_quote_owner_mismatches, 0) AS ramp_quote_owner_mismatches
+FROM ownerless_tax_ids t
+LEFT JOIN provider_customers pc
+  ON pc.provider = 'avenia'
+ AND pc.tax_reference_hash = t.tax_reference_hash
+LEFT JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+LEFT JOIN ramp_evidence r ON r.tax_reference_hash = t.tax_reference_hash
+ORDER BY
+  has_ever_ramped DESC,
+  migration_status,
+  t.tax_reference_hash;
+
+ROLLBACK;
+```
+
+`MIGRATED` means a canonical row exists for the tax hash; `NOT_MIGRATED` means the row remains
+legacy-only. Ramp and quote user IDs are investigation leads, not ownership proof: historical
+tax IDs and quote/session references were caller-influenced, and different users or mismatched
+owners require manual reconciliation. Rows with a real legacy subaccount and no canonical match
+are the highest-priority deletion blockers.
+
+The query cannot mutate data because it runs in an explicit read-only transaction and ends with
+`ROLLBACK`. Its output includes raw CPF/CNPJ values and must be handled as restricted PII: do not
+place unredacted results in ordinary logs, tickets, chat, or deployment artifacts.
+
 Never delete or alter a legacy source row merely to make the gate pass. Repair the canonical
 record or document and approve a changed deletion decision through the security risk process.
 The gate proves database mapping only; it does not replace provider-side reconciliation, the
