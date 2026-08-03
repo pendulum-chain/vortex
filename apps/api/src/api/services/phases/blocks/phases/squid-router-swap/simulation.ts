@@ -70,7 +70,6 @@ export async function simulateSquidRouterSwap<
     fromNetwork: fromChain as Networks,
     fromToken: bridgeSourceToken,
     originalInputAmountForRateCalc: input.amountRaw,
-    rampType: ctx.request.rampType,
     toNetwork: toChain as Networks,
     toToken: bridgeTargetToken
   });

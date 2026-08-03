@@ -69,7 +69,6 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       fromNetwork,
       inputCurrency: fromToken as OnChainToken,
       outputCurrency: ALFREDPAY_EVM_TOKEN,
-      rampType: RampDirection.SELL,
       toNetwork: Networks.Polygon
     });
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(

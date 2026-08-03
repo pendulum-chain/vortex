@@ -10,7 +10,6 @@ import {
   OnChainToken,
   parseContractBalanceResponse,
   QuoteError,
-  RampDirection,
   RouteParams,
   SquidrouterCachedRoute,
   SquidrouterCachedRouteResult,
@@ -34,11 +33,9 @@ export interface EvmBridgeRequest {
   fromNetwork: Networks;
   toNetwork: Networks;
   originalInputAmountForRateCalc: string; // The inputAmountForSwap that went into Nabla, for final rate calculation
-  rampType: RampDirection; // Whether this is an onramp or offramp
 }
 
 export interface EvmBridgeQuoteRequest {
-  rampType: RampDirection; // Whether this is an onramp or offramp
   amountDecimal: string; // Raw amount
   inputCurrency: OnChainToken;
   outputCurrency: OnChainToken;

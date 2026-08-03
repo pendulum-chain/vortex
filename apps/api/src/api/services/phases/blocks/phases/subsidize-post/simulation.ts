@@ -54,7 +54,6 @@ export async function simulateSubsidizePost<Token extends TokenBrand, Chain exte
         fromNetwork: Networks.Base,
         inputCurrency: EvmToken.USDC,
         outputCurrency: ctx.request.outputCurrency as OnChainToken,
-        rampType: ctx.request.rampType,
         toNetwork
       });
       if (expectedOutput.gt(0) && bridge.outputAmountDecimal.gt(0)) {
