@@ -109,6 +109,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   });
 
   async function createQuoteViaApi(): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
+    const squidRouteCount = world.squidRouter.requestedRoutes.length;
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Polygon,
@@ -123,6 +124,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       method: "POST"
     });
     expect(response.status).toBe(201);
+    expect(world.squidRouter.requestedRoutes).toHaveLength(squidRouteCount);
     return (await response.json()) as { id: string; inputAmount: string; outputAmount: string };
   }
 
@@ -280,6 +282,25 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   function submissionsOf(signedTransfer: `0x${string}`): number {
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
   }
+
+  it("quotes direct Polygon USDT 1:1 without requesting a Squid route", async () => {
+    const quote = await createQuoteViaApi();
+    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayOfframp?: {
+              bridgeInputAmountRaw?: string;
+              bridgeOutputAmountRaw?: string;
+            };
+          };
+        }
+      | undefined;
+    const expectedRaw = parseUnits(quote.inputAmount, ALFREDPAY_ERC20_DECIMALS).toString();
+
+    expect(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw).toBe(expectedRaw);
+    expect(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw).toBe(expectedRaw);
+  });
 
   it(
     "happy path: processes the full Alfredpay offramp phase sequence to complete",
