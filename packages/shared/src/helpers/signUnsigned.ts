@@ -118,7 +118,7 @@ async function signMultipleSubstrateTransactions(
  * @param apiKey - Optional Alchemy API key
  * @returns WalletClient for the specified network
  */
-function createEvmClient(
+export function createEvmClient(
   network: string, // Accept string to match UnsignedTx.network type usually being string/enum
   evmEphemeral: EphemeralAccount,
   apiKey?: string
@@ -136,7 +136,7 @@ function createEvmClient(
       break;
     case Networks.PolygonAmoy:
       chain = polygonAmoy;
-      rpcUrls = ["https://polygon-amoy.api.onfinality.io/public"];
+      rpcUrls = apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Moonbeam:
       chain = moonbeam;

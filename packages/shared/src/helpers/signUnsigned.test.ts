@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
+import type { WalletClient } from "viem";
+import { polygonAmoy } from "viem/chains";
 import type { UnsignedTx } from "../endpoints/ramp.endpoints";
-import type { Networks } from "./networks";
 
 // Importing ./signUnsigned pulls in the package barrel, which freezes src/constants.ts from
 // process.env for the whole test run. Provide the env defaults other test files rely on before
@@ -8,10 +9,20 @@ import type { Networks } from "./networks";
 process.env.ALFREDPAY_API_KEY ||= "test-key";
 process.env.ALFREDPAY_API_SECRET ||= "test-secret";
 
-const { Networks: NetworksEnum } = await import("./networks");
-const { groupUnsignedTxsForSigning } = await import("./signUnsigned");
+const { Networks } = await import("./networks");
+const { createEvmClient, groupUnsignedTxsForSigning } = await import("./signUnsigned");
 
-function makeTx(network: Networks, phase: UnsignedTx["phase"]): UnsignedTx {
+const EPHEMERAL = {
+  address: "0x0000000000000000000000000000000000000000",
+  secret: "0x0000000000000000000000000000000000000000000000000000000000000001"
+};
+
+function transportUrls(client: WalletClient): (string | undefined)[] {
+  const transport = client.transport as unknown as { transports: { value?: { url?: string } }[] };
+  return transport.transports.map(t => t.value?.url);
+}
+
+function makeTx(network: UnsignedTx["network"], phase: UnsignedTx["phase"]): UnsignedTx {
   return {
     meta: {},
     network,
@@ -29,9 +40,26 @@ function makeTx(network: Networks, phase: UnsignedTx["phase"]): UnsignedTx {
   };
 }
 
+describe("createEvmClient Polygon Amoy transports", () => {
+  it("prefers Alchemy for signing and keeps viem's default transport as the fallback", () => {
+    const client = createEvmClient(Networks.PolygonAmoy, EPHEMERAL, "test-api-key");
+
+    expect(transportUrls(client)).toEqual([
+      "https://polygon-amoy.g.alchemy.com/v2/test-api-key",
+      polygonAmoy.rpcUrls.default.http[0]
+    ]);
+  });
+
+  it("uses only viem's default transport without an Alchemy API key", () => {
+    const client = createEvmClient(Networks.PolygonAmoy, EPHEMERAL);
+
+    expect(transportUrls(client)).toEqual([polygonAmoy.rpcUrls.default.http[0]]);
+  });
+});
+
 describe("groupUnsignedTxsForSigning", () => {
   it("assigns destination-phase transactions on directly signed EVM networks to the EVM group only", () => {
-    const tx = makeTx(NetworksEnum.Arbitrum, "destinationTransfer");
+    const tx = makeTx(Networks.Arbitrum, "destinationTransfer");
 
     const groups = groupUnsignedTxsForSigning([tx]);
 
@@ -40,7 +68,7 @@ describe("groupUnsignedTxsForSigning", () => {
   });
 
   it("keeps destination-phase transactions on other networks in the destination group", () => {
-    const tx = makeTx(NetworksEnum.BaseSepolia, "destinationTransfer");
+    const tx = makeTx(Networks.BaseSepolia, "destinationTransfer");
 
     const groups = groupUnsignedTxsForSigning([tx]);
 
@@ -55,7 +83,7 @@ describe("groupUnsignedTxsForSigning", () => {
       "backupSquidRouterSwap",
       "backupApprove"
     ];
-    const txs = Object.values(NetworksEnum).flatMap(network => destinationPhases.map(phase => makeTx(network, phase)));
+    const txs = Object.values(Networks).flatMap(network => destinationPhases.map(phase => makeTx(network, phase)));
 
     const groups = groupUnsignedTxsForSigning(txs);
 
