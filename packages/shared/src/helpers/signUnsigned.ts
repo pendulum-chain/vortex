@@ -208,7 +208,14 @@ export async function signUnsignedTransactions(
   // Group transactions
   const moonbeamTxs = unsignedTxs.filter(tx => tx.network === Networks.Moonbeam);
   const evmTxs = unsignedTxs.filter(
-    tx => tx.network === Networks.Polygon || tx.network === Networks.PolygonAmoy || tx.network === Networks.Base
+    tx =>
+      tx.network === Networks.Polygon ||
+      tx.network === Networks.PolygonAmoy ||
+      tx.network === Networks.Base ||
+      tx.network === Networks.Arbitrum ||
+      tx.network === Networks.Avalanche ||
+      tx.network === Networks.BSC ||
+      tx.network === Networks.Ethereum
   );
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
   const destinationNetworkTxs = unsignedTxs.filter(

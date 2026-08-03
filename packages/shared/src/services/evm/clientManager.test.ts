@@ -1,5 +1,6 @@
-import {describe, expect, it} from "bun:test";
+import {describe, expect, it, mock} from "bun:test";
 import {Networks} from "../../helpers";
+import logger from "../../logger";
 import {EvmClientManager, getEvmNetworks, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
@@ -43,7 +44,18 @@ describe("EvmClientManager read contract retries", () => {
     const manager = EvmClientManager.getInstance();
     const managerWithMockedClient = manager as EvmClientManager & { getClient: EvmClientManager["getClient"] };
     const originalGetClient = managerWithMockedClient.getClient;
+    const originalLogger = logger.current;
+    const warningMessages: string[] = [];
     let attempts = 0;
+
+    logger.current = {
+      debug: mock(() => {}),
+      error: mock(() => {}),
+      info: mock(() => {}),
+      warn: mock((...args: unknown[]) => {
+        warningMessages.push(String(args[0]));
+      })
+    };
 
     managerWithMockedClient.getClient = (() =>
       ({
@@ -67,8 +79,12 @@ describe("EvmClientManager read contract retries", () => {
         )
       ).rejects.toThrow("EXCEEDS_MAX_COVERAGE_RATIO");
       expect(attempts).toBe(1);
+      expect(warningMessages).toHaveLength(1);
+      expect(warningMessages[0]).toContain("read contract failed without retry on base");
+      expect(warningMessages[0]).not.toContain("attempt 1/4 failed");
     } finally {
       managerWithMockedClient.getClient = originalGetClient;
+      logger.current = originalLogger;
     }
   });
 });
