@@ -1,9 +1,9 @@
 # API Credential Production Rollout
 
-Status: current for the credential implementation in PR #1298. The managed-profile
-steps describe the claimable Supabase workflow currently implemented on that branch and
-must be revised before rollout if
-[`proposal-headless-partner-managed-profiles.md`](proposal-headless-partner-managed-profiles.md)
+Status: current for the credential implementation presently in PR #1298. Its pricing,
+partner-owned credential/webhook, and managed-profile steps describe the behavior now on
+that branch and must be revised before rollout if
+[`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md)
 is implemented.
 
 ## Purpose
