@@ -16,6 +16,7 @@ export class AuthService {
   private static readonly REFRESH_TOKEN_KEY = "vortex_dashboard_refresh_token";
   private static readonly USER_ID_KEY = "vortex_dashboard_user_id";
   private static readonly USER_EMAIL_KEY = "vortex_dashboard_user_email";
+  private static refreshPromise: Promise<AuthTokens | null> | null = null;
 
   static storeTokens(tokens: AuthTokens): void {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, tokens.accessToken);
@@ -78,9 +79,20 @@ export class AuthService {
   /**
    * Refresh the access token via `/v1/auth/refresh`. Returns the new tokens, or `null`
    * when the refresh token is confirmed invalid (401 — session cleared). Transient
-   * failures throw so callers can retry without destroying a still-valid session.
+   * failures throw so callers can retry without destroying a still-valid session. All
+   * callers share an in-flight refresh so proactive refresh and 401 recovery cannot race
+   * refresh-token rotation.
    */
-  static async refreshAccessToken(): Promise<AuthTokens | null> {
+  static refreshAccessToken(): Promise<AuthTokens | null> {
+    if (!this.refreshPromise) {
+      this.refreshPromise = this.performTokenRefresh().finally(() => {
+        this.refreshPromise = null;
+      });
+    }
+    return this.refreshPromise;
+  }
+
+  private static async performTokenRefresh(): Promise<AuthTokens | null> {
     const tokens = this.getTokens();
     if (!tokens) {
       return null;

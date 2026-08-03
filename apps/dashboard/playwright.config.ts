@@ -21,7 +21,10 @@ export default defineConfig({
     command: "bun x --bun vite --port 5174 --strictPort --host 127.0.0.1",
     // A placeholder Alchemy key keeps the frontend-matched transport path active; every endpoint
     // is intercepted per-test. VITE_API_URL defaults to the likewise-intercepted localhost API.
-    env: { VITE_ALCHEMY_API_KEY: "e2e-mock-key" },
+    env: {
+      VITE_ALCHEMY_API_KEY: "e2e-mock-key",
+      VITE_WIDGET_URL: "http://127.0.0.1:5173"
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     url: "http://127.0.0.1:5174/"
