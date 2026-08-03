@@ -226,7 +226,14 @@ export class FakeBrla {
             maxChainOut: "10000000",
             maxFiatIn: "10000000",
             maxFiatOut: "10000000",
-            usedLimit: { usedChainIn: "0", usedChainOut: "0", usedFiatIn: "0", usedFiatOut: "0" }
+            usedLimit: {
+              month: new Date().getUTCMonth() + 1,
+              usedChainIn: "0",
+              usedChainOut: "0",
+              usedFiatIn: "0",
+              usedFiatOut: "0",
+              year: new Date().getUTCFullYear()
+            }
           }
         ]
       }

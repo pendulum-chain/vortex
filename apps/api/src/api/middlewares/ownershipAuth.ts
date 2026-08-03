@@ -1,16 +1,14 @@
 import httpStatus from "http-status";
-import Partner from "../../models/partner.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { APIError } from "../errors/api-error";
 import { buildApiClientRequestMetadata, observeApiClientEvent } from "../observability/apiClientEvent.service";
 import { getRequestDurationMs } from "../observability/requestContext";
-import type { AuthenticatedPartner } from "./apiKeyAuth.helpers";
+import type { CredentialContext } from "../services/apiCredential.service";
 import { getEffectiveUserId } from "./effectiveUser";
 
 interface OwnershipRequest {
-  authenticatedPartner?: AuthenticatedPartner;
-  apiKeyUserId?: string;
+  credential?: CredentialContext;
   body?: unknown;
   method?: string;
   params?: unknown;
@@ -19,18 +17,6 @@ interface OwnershipRequest {
   requestId?: string;
   requestStartedAt?: number;
   userId?: string;
-}
-
-async function ownsPartnerRecord(authenticatedPartner: AuthenticatedPartner, partnerId: string | null): Promise<boolean> {
-  if (!partnerId) {
-    return false;
-  }
-
-  const quotePartner = await Partner.findByPk(partnerId);
-  if (!quotePartner?.isActive) {
-    return false;
-  }
-  return partnerId === authenticatedPartner.id || quotePartner.name === authenticatedPartner.name;
 }
 
 /**
@@ -45,13 +31,13 @@ export async function assertRampOwnership(req: OwnershipRequest, rampId: string)
     throw new APIError({ message: "Ramp not found", status: httpStatus.NOT_FOUND });
   }
 
-  if (req.authenticatedPartner) {
+  if (req.credential?.partnerId) {
     const quote = await QuoteTicket.findByPk(ramp.quoteId);
     if (!quote) {
       recordOwnershipFailure(req, httpStatus.NOT_FOUND, "quote_not_found", { quoteId: ramp.quoteId, rampId });
       throw new APIError({ message: "Associated quote not found", status: httpStatus.NOT_FOUND });
     }
-    if (!(await ownsPartnerRecord(req.authenticatedPartner, quote.partnerId))) {
+    if (quote.partnerId !== req.credential.partnerId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId: ramp.quoteId, rampId });
       throw new APIError({
         message: "Authenticated partner does not own this ramp",
@@ -61,10 +47,11 @@ export async function assertRampOwnership(req: OwnershipRequest, rampId: string)
     // Enforce user consistency on the underlying
     // quote so one partner key cannot operate on a different linked user's
     // provider-backed ramp.
-    if (req.apiKeyUserId && quote.userId && quote.userId !== req.apiKeyUserId) {
+    const profileId = getEffectiveUserId(req);
+    if (profileId && quote.userId && quote.userId !== profileId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId: ramp.quoteId, rampId });
       throw new APIError({
-        message: "Authenticated API key user does not own this ramp",
+        message: "Authenticated profile does not own this ramp",
         status: httpStatus.FORBIDDEN
       });
     }
@@ -114,8 +101,16 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
     throw new APIError({ message: "Quote not found", status: httpStatus.NOT_FOUND });
   }
 
-  if (req.authenticatedPartner) {
-    if (!(await ownsPartnerRecord(req.authenticatedPartner, quote.partnerId))) {
+  if (quote.apiCredentialId && req.credential?.strength === "secret" && quote.apiCredentialId !== req.credential.credentialId) {
+    recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
+    throw new APIError({
+      message: "Secret credential does not match the credential used to create this quote",
+      status: httpStatus.FORBIDDEN
+    });
+  }
+
+  if (req.credential?.partnerId) {
+    if (quote.partnerId !== req.credential.partnerId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
       throw new APIError({
         message: "Authenticated partner does not own this quote",
@@ -125,10 +120,11 @@ export async function assertQuoteOwnership(req: OwnershipRequest, quoteId: strin
     // Enforce user consistency on the quote so one
     // partner key cannot operate on a different linked user's provider-bound
     // quote.
-    if (req.apiKeyUserId && quote.userId && quote.userId !== req.apiKeyUserId) {
+    const profileId = getEffectiveUserId(req);
+    if (profileId && quote.userId && quote.userId !== profileId) {
       recordOwnershipFailure(req, httpStatus.FORBIDDEN, "ownership_denied", { quoteId });
       throw new APIError({
-        message: "Authenticated API key user does not own this quote",
+        message: "Authenticated profile does not own this quote",
         status: httpStatus.FORBIDDEN
       });
     }
@@ -178,8 +174,7 @@ function recordOwnershipFailure(
     httpStatus: status,
     metadata: buildApiClientRequestMetadata(req, { bodyKeys: ["quoteId", "rampId"], paramKeys: ["id"] }),
     operation: "auth_ownership",
-    partnerId: req.authenticatedPartner?.id || null,
-    partnerName: req.authenticatedPartner?.name || null,
+    partnerId: req.credential?.partnerId || null,
     requestId: req.requestId,
     status: "failure",
     userId: getEffectiveUserId(req) || null

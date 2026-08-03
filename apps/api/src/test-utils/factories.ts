@@ -17,7 +17,7 @@ import { getOrCreateCustomerEntityForProfile } from "../api/services/customer-en
 import type { StateMetadata } from "../api/services/phases/meta-state-types";
 import type { QuoteTicketMetadata } from "../api/services/quote/core/types";
 import { config } from "../config/vars";
-import ApiKey from "../models/apiKey.model";
+import ApiCredential from "../models/apiCredential.model";
 import Partner, { type PartnerAttributes } from "../models/partner.model";
 import PartnerPricingConfig, { type PartnerPricingConfigAttributes } from "../models/partnerPricingConfig.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
@@ -89,8 +89,9 @@ export async function createTestPartner(overrides: TestPartnerOverrides = {}): P
  */
 export async function createTestApiKey(
   options: { partnerName?: string; userId?: string } = {}
-): Promise<{ record: ApiKey; plaintextKey: string }> {
+): Promise<{ record: ApiCredential; plaintextKey: string; publicKey: string }> {
   const plaintextKey = generateApiKey("secret", "test");
+  const publicKey = generateApiKey("public", "test");
 
   // Auth resolves partners by FK; translate the name (unique) to the id here so tests can
   // keep passing partnerName.
@@ -100,20 +101,18 @@ export async function createTestApiKey(
     partnerId = partner?.id ?? null;
   }
 
-  const record = await ApiKey.create({
-    expiresAt: null,
-    isActive: true,
-    keyHash: digestApiKey(plaintextKey),
-    keyPrefix: getSecretKeyLookupPrefix(plaintextKey),
-    keyType: "secret",
-    keyValue: null,
-    lastUsedAt: null,
+  const profileId = options.userId ?? (await createTestUser()).id;
+  const record = await ApiCredential.create({
+    environment: "test",
+    expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
     name: "test key",
     partnerId,
-    partnerName: options.partnerName ?? null,
-    userId: options.userId ?? null
+    profileId,
+    publicKeyValue: publicKey,
+    secretKeyDigest: digestApiKey(plaintextKey),
+    secretKeyPrefix: getSecretKeyLookupPrefix(plaintextKey)
   });
-  return { plaintextKey, record };
+  return { plaintextKey, publicKey, record };
 }
 
 /** Minimal complete fee structure so status/fee readers work; override per test. */

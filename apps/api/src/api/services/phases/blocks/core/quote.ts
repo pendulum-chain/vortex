@@ -138,6 +138,7 @@ export async function runBlockQuoteFlow(ctx: QuoteContext): Promise<void> {
   }
 
   const record = await QuoteTicket.create({
+    apiCredentialId: ctx.request.apiCredentialId || null,
     apiKey: ctx.request.apiKey || null,
     countryCode: ctx.request.countryCode,
     expiresAt,

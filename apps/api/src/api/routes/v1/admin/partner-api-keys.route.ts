@@ -8,7 +8,7 @@ const router: Router = Router({ mergeParams: true });
 router.use(adminAuth);
 
 /**
- * POST /v1/admin/partners/:partnerName/api-keys
+ * POST /v1/admin/partners/:partnerName/api-credentials
  * Create a new API key for a partner (by name)
  *
  * This will create a key that works for ALL partner records with the same name
@@ -25,7 +25,7 @@ router.use(adminAuth);
 router.post("/", createApiKey);
 
 /**
- * GET /v1/admin/partners/:partnerName/api-keys
+ * GET /v1/admin/partners/:partnerName/api-credentials
  * List all API keys for a partner (by name)
  *
  * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
@@ -33,11 +33,11 @@ router.post("/", createApiKey);
 router.get("/", listApiKeys);
 
 /**
- * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
+ * DELETE /v1/admin/partners/:partnerName/api-credentials/:credentialId
  * Revoke (soft delete) an API key
  *
  * Authentication: Requires Authorization: Bearer <ADMIN_SECRET>
  */
-router.delete("/:keyId", revokeApiKey);
+router.delete("/:credentialId", revokeApiKey);
 
 export default router;

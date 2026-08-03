@@ -4,6 +4,8 @@ const OPENAPI_FILE = "docs/api/openapi/vortex.openapi.json";
 const MANIFEST_FILE = "docs/api/apidog/page-manifest.json";
 
 const REQUIRED_PATHS = [
+  "/v1/api-credentials",
+  "/v1/api-credentials/{credentialId}",
   "/v1/brla/createSubaccount",
   "/v1/brla/getKycStatus",
   "/v1/brla/getSelfieLivenessUrl",
@@ -18,6 +20,7 @@ const REQUIRED_PATHS = [
   "/v1/quotes/{id}",
   "/v1/ramp/history",
   "/v1/ramp/history/{walletAddress}",
+  "/v1/ramp-info",
   "/v1/ramp/register",
   "/v1/ramp/start",
   "/v1/ramp/update",

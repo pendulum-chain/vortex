@@ -1,6 +1,7 @@
 import sequelize from "../config/database";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
+import ApiCredential from "./apiCredential.model";
 import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
 import FinancialOperation from "./financialOperation.model";
@@ -9,6 +10,7 @@ import MaintenanceSchedule from "./maintenanceSchedule.model";
 import Notification from "./notification.model";
 import NotificationPreference from "./notificationPreference.model";
 import Partner from "./partner.model";
+import PartnerManagedProfile from "./partnerManagedProfile.model";
 import PartnerPricingConfig from "./partnerPricingConfig.model";
 import ProfilePartnerAssignment from "./profilePartnerAssignment.model";
 import ProfileRole from "./profileRole.model";
@@ -61,6 +63,16 @@ ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
 ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
 Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
 
+User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
+ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "partnerId" });
+ApiCredential.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
+User.hasOne(PartnerManagedProfile, { as: "managedProfile", foreignKey: "profileId" });
+PartnerManagedProfile.belongsTo(User, { as: "profile", foreignKey: "profileId" });
+Partner.hasMany(PartnerManagedProfile, { as: "managedProfiles", foreignKey: "partnerId" });
+PartnerManagedProfile.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
+
 // Partner pricing split
 Partner.hasMany(PartnerPricingConfig, { as: "pricingConfigs", foreignKey: "partnerId" });
 PartnerPricingConfig.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
@@ -101,6 +113,7 @@ NotificationPreference.belongsTo(User, { as: "profile", foreignKey: "profileId" 
 const models = {
   Anchor,
   ApiClientEvent,
+  ApiCredential,
   ApiKey,
   CustomerEntity,
   FinancialOperation,
@@ -109,6 +122,7 @@ const models = {
   Notification,
   NotificationPreference,
   Partner,
+  PartnerManagedProfile,
   PartnerPricingConfig,
   ProfilePartnerAssignment,
   ProfileRole,

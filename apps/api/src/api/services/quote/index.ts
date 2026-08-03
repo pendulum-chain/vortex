@@ -34,7 +34,12 @@ type BestQuoteFailure = {
 
 export class QuoteService extends BaseRampService {
   public async createQuote(
-    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string }
+    request: CreateQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    }
   ): Promise<QuoteResponse> {
     return this.executeQuoteCalculation(request);
   }
@@ -59,7 +64,12 @@ export class QuoteService extends BaseRampService {
    * @returns The best quote across all eligible networks
    */
   public async createBestQuote(
-    request: CreateBestQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string }
+    request: CreateBestQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    }
   ): Promise<QuoteResponse> {
     const { rampType, from, to, networks } = request;
 
@@ -157,7 +167,12 @@ export class QuoteService extends BaseRampService {
    * @returns The calculated quote
    */
   private async executeQuoteCalculation(
-    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string },
+    request: CreateQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    },
     skipPersistence = false
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);

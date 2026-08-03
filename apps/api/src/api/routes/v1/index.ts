@@ -2,12 +2,13 @@ import { Request, Response, Router } from "express";
 import { sendStatusWithPk as sendMoonbeamStatusWithPk } from "../../controllers/moonbeam.controller";
 import { sendStatusWithPk as sendPendulumStatusWithPk } from "../../controllers/pendulum.controller";
 import apiClientEventsRoutes from "./admin/api-client-events.route";
+import managedProfilesRoutes from "./admin/managed-profiles.route";
 import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import profileRolesRoutes from "./admin/profile-roles.route";
 import alfredpayRoutes from "./alfredpay.route";
-import apiKeysRoutes from "./api-keys.route";
+import apiCredentialsRoutes from "./api-credentials.route";
 import authRoutes from "./auth.route";
 import brlaRoutes from "./brla.route";
 import contactRoutes from "./contact.route";
@@ -15,6 +16,7 @@ import countriesRoutes from "./countries.route";
 import cryptocurrenciesRoutes from "./cryptocurrencies.route";
 import emailRoutes from "./email.route";
 import fiatRoutes from "./fiat.route";
+import limitsRoutes from "./limits.route";
 import maintenanceRoutes from "./maintenance.route";
 import metricsRoutes from "./metrics.route";
 import moneriumRoutes from "./monerium.route";
@@ -26,6 +28,7 @@ import priceRoutes from "./price.route";
 import publicKeyRoutes from "./public-key.route";
 import quoteRoutes from "./quote.route";
 import rampRoutes from "./ramp.route";
+import rampInfoRoutes from "./ramp-info.route";
 import ratingRoutes from "./rating.route";
 import recipientsRoutes from "./recipients.route";
 import sessionRoutes from "./session.route";
@@ -110,6 +113,12 @@ router.use("/brla", brlaRoutes);
  * GET/POST v1/ramp
  */
 router.use("/ramp", rampRoutes);
+router.use("/ramp-info", rampInfoRoutes);
+
+/**
+ * POST v1/limits
+ */
+router.use("/limits", limitsRoutes);
 
 /**
  * GET v1/supported-payment-methods
@@ -204,24 +213,17 @@ router.use("/notifications", notificationsRoutes);
  */
 router.use("/onboarding", onboardingRoutes);
 
-/**
- * Self-serve API key management for authenticated Supabase users.
- * Keys created here are user-scoped (no partner binding) and authenticate
- * via the X-API-Key header on quote/ramp endpoints as the linked user.
- * POST /v1/api-keys
- * GET /v1/api-keys
- * DELETE /v1/api-keys/:keyId
- */
-router.use("/api-keys", apiKeysRoutes);
+/** One-record API credential management for authenticated Supabase users. */
+router.use("/api-credentials", apiCredentialsRoutes);
 
 /**
  * Admin routes for partner API key management
  * Uses partner name (not ID) to manage keys for all partner configurations
- * POST /v1/admin/partners/:partnerName/api-keys
- * GET /v1/admin/partners/:partnerName/api-keys
- * DELETE /v1/admin/partners/:partnerName/api-keys/:keyId
+ * POST /v1/admin/partners/:partnerName/api-credentials
+ * GET /v1/admin/partners/:partnerName/api-credentials
+ * DELETE /v1/admin/partners/:partnerName/api-credentials/:credentialId
  */
-router.use("/admin/partners/:partnerName/api-keys", partnerApiKeysRoutes);
+router.use("/admin/partners/:partnerName/api-credentials", partnerApiKeysRoutes);
 
 /**
  * Admin routes for profile partner pricing assignments
@@ -245,6 +247,7 @@ router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
  * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
  */
 router.use("/admin/profile-roles", profileRolesRoutes);
+router.use("/admin/managed-profiles", managedProfilesRoutes);
 
 /**
  * Admin routes for API client observability dashboards

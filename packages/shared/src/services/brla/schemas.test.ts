@@ -97,6 +97,20 @@ describe("aveniaAccountLimitsSchema", () => {
     delete (body.limitInfo.limits[0].usedLimit as Record<string, unknown>).usedFiatIn;
     expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
   });
+
+  test("requires the provider usage year and month", () => {
+    const usedLimit: Record<string, unknown> = { month: 7, usedFiatIn: "0", usedFiatOut: "0", year: 2026 };
+    const body = {
+      limitInfo: { limits: [{ currency: "BRL", maxFiatIn: "10000", maxFiatOut: "10000", usedLimit }] }
+    };
+
+    expect(() => aveniaAccountLimitsSchema.parse(body)).not.toThrow();
+    delete usedLimit.month;
+    expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
+    usedLimit.month = 7;
+    delete usedLimit.year;
+    expect(() => aveniaAccountLimitsSchema.parse(body)).toThrow();
+  });
 });
 
 describe("aveniaAccountBalanceSchema", () => {
