@@ -1,6 +1,6 @@
 import {describe, expect, it} from "bun:test";
 import {Networks} from "../../helpers";
-import {EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
+import {EvmClientManager, getEvmNetworks, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
@@ -24,11 +24,17 @@ describe("redactRpcUrlForLogs", () => {
 });
 
 describe("EvmClientManager RPC cache keys", () => {
-  it("uses viem's default transport as the Polygon Amoy fallback", () => {
-    const manager = EvmClientManager.getInstance();
-    const defaultRpcClient = manager.getClient(Networks.PolygonAmoy, "");
+  it("uses Alchemy first and viem's default transport as the Polygon Amoy fallback", () => {
+    const apiKey = "test-api-key";
+    const polygonAmoyConfig = getEvmNetworks(apiKey).find(network => network.name === Networks.PolygonAmoy);
 
-    expect(defaultRpcClient).toBeDefined();
+    expect(polygonAmoyConfig?.rpcUrls).toEqual([`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`, ""]);
+  });
+
+  it("uses only viem's default Polygon Amoy transport without an Alchemy API key", () => {
+    const polygonAmoyConfig = getEvmNetworks().find(network => network.name === Networks.PolygonAmoy);
+
+    expect(polygonAmoyConfig?.rpcUrls).toEqual([""]);
   });
 });
 

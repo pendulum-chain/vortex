@@ -56,7 +56,7 @@ function isNonRetryableReadContractError(error: Error): boolean {
   return NON_RETRYABLE_READ_CONTRACT_REVERTS.some(revertReason => error.message.includes(revertReason));
 }
 
-function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
+export function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
   // Note on defining RPC URLs: '' is equal to viem's default RPC for that chain: http().
   return [
     {
