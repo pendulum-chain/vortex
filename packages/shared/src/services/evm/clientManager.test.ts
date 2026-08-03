@@ -1,7 +1,8 @@
 import {describe, expect, it, mock} from "bun:test";
 import {Networks} from "../../helpers";
 import logger from "../../logger";
-import {EvmClientManager, getEvmNetworks, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
+import {EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
+import {getEvmNetworks} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
