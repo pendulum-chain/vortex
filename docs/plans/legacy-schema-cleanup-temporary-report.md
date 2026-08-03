@@ -1,15 +1,15 @@
-# Temporary report: legacy-schema cleanup migration 057
+# Temporary report: legacy-schema cleanup migration 060
 
-**Status:** BLOCKED - do not deploy migration 057 until every precondition below is complete.
+**Status:** BLOCKED - do not deploy migration 060 until every precondition below is complete.
 
 This report tracks the temporary risks and deployment work for
-`apps/api/src/database/migrations/057-drop-legacy-schema.ts`. Delete this report after the
+`apps/api/src/database/migrations/060-drop-legacy-schema.ts`. Delete this report after the
 cleanup is verified in production and the lasting architecture, runbook, and security
 specifications have been updated.
 
 ## Cleanup scope
 
-Migration 057 removes:
+Migration 060 removes:
 
 - Legacy tables: `mykobo_customers`, `alfredpay_customers`, `kyc_level_2`,
   `partners_legacy`, and `tax_ids`.
@@ -45,14 +45,14 @@ throws because deleted data cannot be reconstructed.
 - [ ] Confirm the current `Partner` model remains identity-only and all pricing, subsidy,
   dynamic-discount, and payout-address reads resolve through `partner_pricing_configs`.
 - [ ] Deploy the compatibility release first and confirm no old API or worker instance is
-  running before migration 057 acquires its locks.
+  running before migration 060 acquires its locks.
 - [ ] Audit the live PostgreSQL catalog for unexpected foreign keys, views, materialized
   views, functions, triggers, RLS policies, publications, grants, and cross-schema
   dependencies. Do not add `CASCADE` to bypass a finding.
 - [ ] Confirm no Supabase view/RPC, Edge Function, BI export, support script, or other
   external consumer reads the removed objects.
 - [ ] Take a restorable pre-migration backup and rehearse restoration. Migration reverts
-  older than 057 are no longer a valid recovery strategy.
+  older than 060 are no longer a valid recovery strategy.
 
 ## Principal risks
 
@@ -61,7 +61,7 @@ throws because deleted data cannot be reconstructed.
    to delete or an external archive is required.
 2. **Authentication regression.** Dropping `api_keys.partner_name` before explicit
    revocation is live can make deleted-partner keys indistinguishable from user-scoped
-   keys. Migration 057 aborts while an active orphaned key is visible, but application
+   keys. Migration 060 aborts while an active orphaned key is visible, but application
    compatibility must still be established before deployment.
 3. **Avenia account regression.** Dropping `tax_ids` while the adoption read exists causes
    subaccount creation to fail and abandons any unresolved quarantined account.
@@ -76,14 +76,14 @@ throws because deleted data cannot be reconstructed.
    or external readers are absent.
 7. **Rollback boundary.** Migration 039's `down()` requires `partners_legacy` and the old
    `partners` row shape. Several earlier down migrations likewise expect removed objects.
-   Recovery after 057 is application rollback plus database restore, not Umzug revert.
+   Recovery after 060 is application rollback plus database restore, not Umzug revert.
 8. **Parity tooling retirement.** `schema-parity-checks.sql` reads every legacy source and
    will fail after cleanup. Preserve its final production result, then archive or replace
    the script as part of the cleanup documentation update.
 
 ## Deployment verification
 
-- [ ] Migration 057 is recorded exactly once in `SequelizeMeta` and all listed objects are
+- [ ] Migration 060 is recorded exactly once in `SequelizeMeta` and all listed objects are
   absent from `information_schema`/`pg_catalog`.
 - [ ] API-key authentication passes for partner-bound and user-scoped public/secret keys;
   deleted-partner keys remain revoked.

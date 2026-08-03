@@ -101,5 +101,5 @@ export async function up(queryInterface: QueryInterface): Promise<void> {
 }
 
 export async function down(): Promise<void> {
-  throw new Error("057-drop-legacy-schema is irreversible; restore a pre-migration database backup instead");
+  throw new Error("060-drop-legacy-schema is irreversible; restore a pre-migration database backup instead");
 }
