@@ -256,7 +256,7 @@ export class RampService extends BaseRampService {
 
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
-      // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
+      // RUN_LIVE_TESTS-gated tests only — see docs/operations-testing.md).
       if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
         throw new APIError({
           message: "EUR ramps are currently disabled",

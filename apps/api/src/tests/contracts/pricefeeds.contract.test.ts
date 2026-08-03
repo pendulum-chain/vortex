@@ -1,5 +1,5 @@
 /**
- * External API contract: CoinGecko price feed (docs/features/contract-tests.md).
+ * External API contract: CoinGecko price feed (docs/operations-testing.md).
  *
  * Unlike the anchor fakes, FakePrices patches PriceFeedService's methods *above*
  * the HTTP seam (it never produces wire JSON), so the verified-fake half is

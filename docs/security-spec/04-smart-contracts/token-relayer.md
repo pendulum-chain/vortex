@@ -19,11 +19,9 @@ The contract uses:
 
 ### Prior Security Reviews
 
-Two independent security reviews have been conducted:
-- `docs/token-relayer-security-review-2026-03-04.md` (first review)
-- `contracts/relayer/SECURITY_AUDIT.md` (second review, more detailed)
-
-Both found overlapping but not identical issues. All findings from both reviews are incorporated below.
+The point-in-time review reports were consolidated into this specification because their
+unresolved findings described an older contract version. Their findings remain in Git history;
+all lasting threats, fixes, and deployment caveats are incorporated below.
 
 > **Status note:** The findings from the two 2026-04-02 reviews were fixed in the then-current deployment. The post-#1232 review added execution-local token/native balance accounting and a codeless-destination guard to the source. Those later changes require new deployments and address-registry updates on every supported chain; source conformance MUST NOT be described as production remediation until that rollout is verified (RISK-007).
 
