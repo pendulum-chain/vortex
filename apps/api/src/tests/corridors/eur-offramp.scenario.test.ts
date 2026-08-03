@@ -86,7 +86,7 @@ interface CorridorSetup {
  * fake external world.
  *
  * This is the hermetic-coverage precondition documented next to the
- * kill-switch and in docs/testing-strategy.md ("EUR re-enablement
+ * kill-switch and in docs/operations-testing.md ("EUR re-enablement
  * precondition"). The kill-switch itself stays on; once lifted, replace the
  * seeding helper with a plain POST /v1/ramp/register like the BRL corridor.
  */

@@ -18,7 +18,7 @@ import {
 } from "./types";
 
 /**
- * External API contract schemas for Avenia/BRLA (see docs/features/contract-tests.md).
+ * External API contract schemas for Avenia/BRLA (see docs/operations-testing.md).
  *
  * These model the raw wire JSON of the fields Vortex actually consumes — not the full
  * partner response. Unknown extra fields always pass (loose objects); a removed or
