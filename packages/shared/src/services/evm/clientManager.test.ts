@@ -1,12 +1,15 @@
 import {describe, expect, it, mock} from "bun:test";
 import {Networks} from "../../helpers";
 import logger from "../../logger";
-import {EvmClientManager, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
+import {EvmClientManager, getEvmNetworks, redactRpcUrlForLogs, sanitizeRpcErrorMessage} from "./clientManager";
 
 describe("redactRpcUrlForLogs", () => {
   it("redacts provider API keys from RPC URLs", () => {
     expect(redactRpcUrlForLogs("https://polygon-mainnet.g.alchemy.com/v2/test-api-key")).toBe(
       "https://polygon-mainnet.g.alchemy.com/v2/[redacted]"
+    );
+    expect(redactRpcUrlForLogs("https://polygon-amoy.g.alchemy.com/v2/test-api-key")).toBe(
+      "https://polygon-amoy.g.alchemy.com/v2/[redacted]"
     );
   });
 
@@ -21,11 +24,25 @@ describe("redactRpcUrlForLogs", () => {
   });
 });
 
+describe("EvmClientManager RPC configuration", () => {
+  it("prefers Alchemy for Polygon Amoy and keeps viem's default transport as the fallback", () => {
+    const polygonAmoyConfig = getEvmNetworks("test-api-key").find(network => network.name === Networks.PolygonAmoy);
+
+    expect(polygonAmoyConfig?.rpcUrls).toEqual(["https://polygon-amoy.g.alchemy.com/v2/test-api-key", ""]);
+  });
+
+  it("uses only viem's default Polygon Amoy transport without an Alchemy API key", () => {
+    const polygonAmoyConfig = getEvmNetworks().find(network => network.name === Networks.PolygonAmoy);
+
+    expect(polygonAmoyConfig?.rpcUrls).toEqual([""]);
+  });
+});
+
 describe("EvmClientManager RPC cache keys", () => {
   it("keeps viem's default transport distinct from explicit RPC URLs", () => {
     const manager = EvmClientManager.getInstance();
-    const explicitRpcClient = manager.getClient(Networks.PolygonAmoy, "https://polygon-amoy.api.onfinality.io/public");
-    const defaultRpcClient = manager.getClient(Networks.PolygonAmoy, "");
+    const explicitRpcClient = manager.getClient(Networks.Moonbeam, "https://rpc.api.moonbeam.network");
+    const defaultRpcClient = manager.getClient(Networks.Moonbeam, "");
 
     expect(defaultRpcClient).not.toBe(explicitRpcClient);
   });
