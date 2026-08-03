@@ -8,7 +8,7 @@ import {
 import logger from "../../../config/logger";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
-import { getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
+import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
 export function alfredpayTypeToCustomerType(type: AlfredpayCustomerType): ProviderCustomerType {
   return type === AlfredpayCustomerType.BUSINESS ? "business" : "individual";
@@ -181,18 +181,30 @@ function toView(record: ProviderCustomer): AlfredpayCustomerView {
 /**
  * Latest alfredpay account for (user, country[, type]) — reproduces the legacy
  * updatedAt-DESC tie-break across a user's individual/business rows.
+ *
+ * Typed lookups scan every entity the profile owns: migration 040 attached legacy
+ * business rows to the profile's individual entity, so scoping to the same-typed entity
+ * made every migrated business customer invisible to the KYB endpoints (and findOrCreate'd
+ * an empty business entity as a side effect of a read). The row's customer_type is
+ * authoritative; the owning entity's type is not. Type-less lookups keep resolving the
+ * active entity — that is the quote/ramp account context and must not widen.
  */
 export async function findAlfredpayCustomer(
   userId: string,
   country: AlfredPayCountry,
   type?: AlfredpayCustomerType
 ): Promise<AlfredpayCustomerView | null> {
-  const entity = await getOrCreateCustomerEntityForProfile(userId, type ? alfredpayTypeToCustomerType(type) : undefined);
+  const entityIds = type
+    ? await findCustomerEntityIdsForProfile(userId)
+    : [(await getOrCreateCustomerEntityForProfile(userId)).id];
+  if (entityIds.length === 0) {
+    return null;
+  }
   const record = await ProviderCustomer.findOne({
     order: [["updatedAt", "DESC"]],
     where: {
       country,
-      customerEntityId: entity.id,
+      customerEntityId: entityIds,
       provider: "alfredpay",
       ...(type ? { customerType: alfredpayTypeToCustomerType(type) } : {})
     }
@@ -300,10 +312,22 @@ export async function createAlfredpayCustomer(
   values: { alfredPayId: string; country: AlfredPayCountry; status: AlfredPayStatus; type: AlfredpayCustomerType }
 ): Promise<AlfredpayCustomerView> {
   const customerType = alfredpayTypeToCustomerType(values.type);
-  const entity = await getOrCreateCustomerEntityForProfile(userId, customerType);
+  // Keep a profile's rows of one customer_type on a single entity. Legacy business rows
+  // live on the (active) individual entity, and ramp registration resolves the active
+  // entity — homing a new country's row on the typed entity instead would make that
+  // corridor unrampable for migrated profiles.
+  const entityIds = await findCustomerEntityIdsForProfile(userId);
+  const sibling =
+    entityIds.length > 0
+      ? await ProviderCustomer.findOne({
+          order: [["updatedAt", "DESC"]],
+          where: { customerEntityId: entityIds, customerType, provider: "alfredpay" }
+        })
+      : null;
+  const customerEntityId = sibling?.customerEntityId ?? (await getOrCreateCustomerEntityForProfile(userId, customerType)).id;
   const record = await ProviderCustomer.create({
     country: values.country,
-    customerEntityId: entity.id,
+    customerEntityId,
     customerType,
     provider: "alfredpay",
     providerCustomerId: values.alfredPayId,

@@ -50,7 +50,7 @@ import {
   upsertAveniaKycCase
 } from "../services/avenia/avenia-customer.service";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
-import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
@@ -370,8 +370,11 @@ export const createSubaccount = async (
 
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
+    // Ownership is profile-level, not typed-entity-level: migration 040 left business rows
+    // on the profile's individual entity, and comparing against the typed entity 409'd the
+    // legitimate owner's own retry.
     let existing = await findAveniaCustomerByTaxId(normalizedTaxId);
-    if (existing && existing.customerEntityId !== entity.id) {
+    if (existing && !(await findCustomerEntityIdsForProfile(effectiveUserId)).includes(existing.customerEntityId)) {
       res.status(httpStatus.CONFLICT).json({
         error: "A subaccount already exists for this taxId"
       });
@@ -668,8 +671,11 @@ export const getUploadUrls = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId, "business");
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership: legacy business rows live on the profile's individual
+    // entity, so the owning entity's type cannot gate access — and a read path must not
+    // findOrCreate an entity as a side effect.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -876,14 +882,17 @@ export const getKybAttemptStatus = async (
       return;
     }
 
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, "business");
-    if (kycCase.customerEntityId !== entity.id) {
+    // Profile-level ownership: legacy business rows live on the profile's individual
+    // entity, so the owning entity's type cannot gate access — and a read path must not
+    // findOrCreate an entity as a side effect.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(kycCase.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This KYB attempt is not linked to your user profile." });
       return;
     }
 
     const record = kycCase.providerCustomerId ? await ProviderCustomer.findByPk(kycCase.providerCustomerId) : null;
-    if (!record || record.customerEntityId !== entity.id || record.provider !== "avenia") {
+    if (!record || !ownedEntityIds.includes(record.customerEntityId) || record.provider !== "avenia") {
       res.status(httpStatus.NOT_FOUND).json({ error: "KYB account not found" });
       return;
     }

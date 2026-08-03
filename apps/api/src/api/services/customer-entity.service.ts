@@ -60,6 +60,26 @@ export async function getOrCreateCustomerEntityForProfile(
   return entity;
 }
 
+/**
+ * All customer entity ids owned by a profile, oldest first. Read-only counterpart to
+ * getOrCreateCustomerEntityForProfile for lookup/ownership paths: migration 040 attached
+ * legacy business provider rows to the profile's individual entity, so a row's owning
+ * entity does not reliably carry the row's customer_type — callers that filter provider
+ * rows by customer_type must scope by every entity the profile owns, and a pure lookup
+ * must not leave an empty entity behind.
+ */
+export async function findCustomerEntityIdsForProfile(profileId: string): Promise<string[]> {
+  const entities = await CustomerEntity.findAll({
+    attributes: ["id"],
+    order: [
+      ["createdAt", "ASC"],
+      ["id", "ASC"]
+    ],
+    where: { profileId }
+  });
+  return entities.map(entity => entity.id);
+}
+
 export async function selectActiveCustomerEntity(
   profileId: string,
   type: CustomerEntityType,
