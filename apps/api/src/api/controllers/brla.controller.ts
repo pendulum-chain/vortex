@@ -366,8 +366,6 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
-
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
     // Ownership is profile-level, not typed-entity-level: migration 040 left business rows
@@ -394,6 +392,9 @@ export const createSubaccount = async (
           });
           return;
         }
+        // Typed-entity resolution is deferred to the row-creating branches so a retry that
+        // only updates an existing row cannot create a stray typed entity.
+        const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
         existing = await ProviderCustomer.create({
           country: "BR",
           customerEntityId: entity.id,
@@ -436,6 +437,7 @@ export const createSubaccount = async (
     } else {
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
+      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
       existing = await ProviderCustomer.create({
         companyName,
         country: "BR",

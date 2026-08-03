@@ -172,7 +172,9 @@ Key properties:
   the profile's individual entity, so comparing against the typed business entity 403'd/409'd
   the legitimate owner (`getUploadUrls`, `getKybAttemptStatus`, the `createSubaccount`
   conflict check) and findOrCreate'd stray empty business entities as a read side effect.
-  Cross-profile requests still fail closed.
+  `createSubaccount` defers typed-entity creation to the branches that persist a new row,
+  so a retry that updates an existing row creates no entity. Cross-profile requests still
+  fail closed.
 - KYC/KYB state transitions update canonical status and provider status on both
   `provider_customers` and the account's `kyc_cases` row in the same code path.
   `updateAveniaKycOutcome` treats `approved` as terminal (a stale attempt read never

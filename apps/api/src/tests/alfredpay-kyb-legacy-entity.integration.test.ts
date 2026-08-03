@@ -219,4 +219,32 @@ describe("Alfredpay KYB on a migrated (individual-entity) profile", () => {
     expect(created?.customerEntityId).toBe(entity.id);
     expect(await CustomerEntity.count({ where: { profileId: user.id } })).toBe(1);
   });
+
+  it("createAlfredpayCustomer prefers the active entity when rows are split across entities", async () => {
+    const { entity, user } = await seedLegacyBusinessCustomer("kyb-legacy-split@example.com");
+
+    // A profile hit by the pre-fix duplicate bug: a *newer* same-type row sits on a stray
+    // business entity. The new corridor must still land on the active entity — the only one
+    // quote/ramp resolution reads — not on the most recently updated sibling's entity.
+    const strayBusinessEntity = await CustomerEntity.create({ profileId: user.id, status: "active", type: "business" });
+    await ProviderCustomer.create({
+      country: "MX",
+      customerEntityId: strayBusinessEntity.id,
+      customerType: "business",
+      provider: "alfredpay",
+      providerCustomerId: "ap-legacy-duplicate",
+      rail: "mxn",
+      status: VerificationStatus.Started
+    });
+
+    await createAlfredpayCustomer(user.id, {
+      alfredPayId: "ap-legacy-us",
+      country: AlfredPayCountry.US,
+      status: AlfredPayStatus.Consulted,
+      type: AlfredpayCustomerType.BUSINESS
+    });
+
+    const created = await ProviderCustomer.findOne({ where: { providerCustomerId: "ap-legacy-us" } });
+    expect(created?.customerEntityId).toBe(entity.id);
+  });
 });

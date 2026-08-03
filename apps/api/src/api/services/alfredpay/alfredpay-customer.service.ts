@@ -8,6 +8,7 @@ import {
 import logger from "../../../config/logger";
 import KycCase from "../../../models/kycCase.model";
 import ProviderCustomer, { ProviderCustomerType, VerificationStatus } from "../../../models/providerCustomer.model";
+import User from "../../../models/user.model";
 import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../customer-entity.service";
 
 export function alfredpayTypeToCustomerType(type: AlfredpayCustomerType): ProviderCustomerType {
@@ -312,18 +313,21 @@ export async function createAlfredpayCustomer(
   values: { alfredPayId: string; country: AlfredPayCountry; status: AlfredPayStatus; type: AlfredpayCustomerType }
 ): Promise<AlfredpayCustomerView> {
   const customerType = alfredpayTypeToCustomerType(values.type);
-  // Keep a profile's rows of one customer_type on a single entity. Legacy business rows
-  // live on the (active) individual entity, and ramp registration resolves the active
-  // entity — homing a new country's row on the typed entity instead would make that
-  // corridor unrampable for migrated profiles.
+  // Keep a profile's rows of one customer_type on a single entity, preferring the entity
+  // quote/ramp resolution actually reads — the active one. Legacy business rows live on the
+  // (active) individual entity, and a profile hit by the pre-fix duplicate bug can also
+  // carry a newer same-type row on a stray business entity; homing the new corridor there
+  // (or on the typed entity) would make it unrampable for migrated profiles.
   const entityIds = await findCustomerEntityIdsForProfile(userId);
-  const sibling =
+  const siblings =
     entityIds.length > 0
-      ? await ProviderCustomer.findOne({
+      ? await ProviderCustomer.findAll({
           order: [["updatedAt", "DESC"]],
           where: { customerEntityId: entityIds, customerType, provider: "alfredpay" }
         })
-      : null;
+      : [];
+  const activeEntityId = siblings.length > 0 ? (await User.findByPk(userId))?.activeCustomerEntityId : null;
+  const sibling = siblings.find(row => row.customerEntityId === activeEntityId) ?? siblings[0];
   const customerEntityId = sibling?.customerEntityId ?? (await getOrCreateCustomerEntityForProfile(userId, customerType)).id;
   const record = await ProviderCustomer.create({
     country: values.country,

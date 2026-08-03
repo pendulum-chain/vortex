@@ -753,10 +753,8 @@ describe("createSubaccount", () => {
     CustomerEntity.findAll = mock(async () => [
       { id: "entity-user-1-individual" }
     ]) as unknown as typeof CustomerEntity.findAll;
-    CustomerEntity.findOrCreate = mock(async () => [
-      { id: "entity-user-1-business" },
-      true
-    ]) as unknown as typeof CustomerEntity.findOrCreate;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
     const existingUpdate = mock(async () => undefined);
     ProviderCustomer.findOne = mock(async () => ({
       customerEntityId: "entity-user-1-individual",
@@ -776,6 +774,8 @@ describe("createSubaccount", () => {
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(res.body).toEqual({ subAccountId: "new-subaccount" });
     expect(existingUpdate).toHaveBeenCalledWith(expect.objectContaining({ providerSubaccountId: "new-subaccount" }));
+    // The retry updates the existing row in place — typed-entity creation must not run.
+    expect(strayCreate).not.toHaveBeenCalled();
   });
 
   it("rejects when a quarantined legacy record belongs to a different user", async () => {
