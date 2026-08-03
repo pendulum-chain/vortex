@@ -78,7 +78,7 @@ Its response is an allowlisted per-corridor projection:
 4. **Public keys MUST use `X-Public-Key` for new APIs**: the legacy quote/session `apiKey` field is attribution-only compatibility input and must agree with the header when both are present.
 5. **Secret material MUST NOT be persisted**: only a SHA-256 digest and indexed 16-character lookup prefix are stored; comparison uses `crypto.timingSafeEqual`.
 6. **Format validation MUST precede lookup**: malformed or wrong-type keys are rejected before querying credentials.
-7. **Revoked and expired credentials MUST fail both halves**: usability requires `revoked_at IS NULL AND expires_at > NOW()`.
+7. **Revoked, expired, and partner-deactivated credentials MUST fail both halves**: credential usability requires `revoked_at IS NULL AND expires_at > NOW()`; partner-managed credential usability additionally requires the referenced partner to have `is_active = true`.
 8. **Validation MUST return `CredentialContext`**: business code receives credential ID, environment, profile ID, partner ID, and strength rather than interpreting key-row null combinations.
 9. **Public capability MUST remain allowlisted**: public possession grants only quote/widget attribution and sanitized `ramp-info`; sensitive reads and all ramp/provider/webhook mutations require secret or session capability as listed above.
 10. **Two presented halves MUST match**: different credential IDs return `403 CREDENTIAL_MISMATCH`; no mixed context may continue downstream.
@@ -103,6 +103,7 @@ Its response is an allowlisted per-corridor projection:
 | Public key from one credential is combined with another secret | Resolve both and return `403 CREDENTIAL_MISMATCH` before business logic. |
 | Concurrent creation exceeds the cap | Lock the profile, count active non-expired credentials, and insert in one transaction. |
 | Revocation leaves one half active | One row and one `revoked_at` update disable both values. |
+| Partner deactivation leaves one half active | Public and secret validation both require the credential's partner to be active. |
 | Legacy or ambiguous rows remain reachable | No legacy runtime lookup; startup refuses active legacy rows. Production migration uses explicit immutable-ID mappings, never names. |
 | Shared managed identity crosses customer ownership | Require one genuine managed profile per subject and immutable partner/external-user association. |
 | Public eligibility read leaks PII or exact limits | `ramp-info` uses an explicit projection and accepts no subject selector. |
