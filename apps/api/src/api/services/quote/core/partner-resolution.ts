@@ -7,7 +7,6 @@ import { getTargetFiatCurrency } from "../../phases/blocks/core/helpers";
 import type { PartnerPricingSource } from "./types";
 
 type QuotePartnerResolutionRequest = CreateQuoteRequest & {
-  partnerName?: string | null;
   userId?: string;
 };
 
@@ -23,15 +22,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 async function findPartnerForRamp(
   partnerRef: string,
   rampType: RampDirection,
-  fiatCurrency: RampCurrency,
-  source: PartnerPricingSource
+  fiatCurrency: RampCurrency
 ): Promise<PartnerWithPricing | null> {
-  const isUuid = source === "request" && UUID_PATTERN.test(partnerRef);
+  const isUuid = UUID_PATTERN.test(partnerRef);
   const partner = await findPartnerWithPricing(isUuid ? { id: partnerRef } : { name: partnerRef }, rampType, fiatCurrency);
 
   if (!partner) {
     logger.warn(
-      `Partner '${partnerRef}' from ${source} not found or not active for rampType=${rampType}. Proceeding with default fees.`
+      `Partner '${partnerRef}' from request not found or not active for rampType=${rampType}. Proceeding with default fees.`
     );
   }
 
@@ -74,22 +72,12 @@ export async function resolveQuotePartner(
   const fiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
   if (request.partnerId) {
-    const partner = await findPartnerForRamp(request.partnerId, request.rampType, fiatCurrency, "request");
+    const partner = await findPartnerForRamp(request.partnerId, request.rampType, fiatCurrency);
     return {
       ownerPartnerId: partner?.id ?? null,
       partner,
       pricingPartnerId: partner?.id ?? null,
       source: "request"
-    };
-  }
-
-  if (request.partnerName) {
-    const partner = await findPartnerForRamp(request.partnerName, request.rampType, fiatCurrency, "publicKey");
-    return {
-      ownerPartnerId: partner?.id ?? null,
-      partner,
-      pricingPartnerId: partner?.id ?? null,
-      source: "publicKey"
     };
   }
 

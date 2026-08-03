@@ -37,7 +37,6 @@ export class QuoteService extends BaseRampService {
     request: CreateQuoteRequest & {
       apiCredentialId?: string;
       apiKey?: string | null;
-      partnerName?: string | null;
       userId?: string;
     }
   ): Promise<QuoteResponse> {
@@ -67,7 +66,6 @@ export class QuoteService extends BaseRampService {
     request: CreateBestQuoteRequest & {
       apiCredentialId?: string;
       apiKey?: string | null;
-      partnerName?: string | null;
       userId?: string;
     }
   ): Promise<QuoteResponse> {
@@ -170,7 +168,6 @@ export class QuoteService extends BaseRampService {
     request: CreateQuoteRequest & {
       apiCredentialId?: string;
       apiKey?: string | null;
-      partnerName?: string | null;
       userId?: string;
     },
     skipPersistence = false

@@ -107,8 +107,7 @@ async function apiFetch<T>(
 }
 
 export const apiClient = {
-  delete: <T>(url: string, config?: { data?: unknown; params?: Params }) =>
-    apiFetch<T>("DELETE", url, { data: config?.data, params: config?.params }),
+  delete: <T>(url: string, config?: { params?: Params }) => apiFetch<T>("DELETE", url, { params: config?.params }),
   get: <T>(url: string, config?: { params?: Params; signal?: AbortSignal }) =>
     apiFetch<T>("GET", url, { params: config?.params, signal: config?.signal }),
   patch: <T>(url: string, data?: unknown) => apiFetch<T>("PATCH", url, { data }),

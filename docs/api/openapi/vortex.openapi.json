@@ -2387,7 +2387,7 @@
             "description": "Provider limits are unavailable or invalid."
           }
         },
-        "security": [],
+        "security": [{ "SecretApiKey": [] }, { "BearerAuth": [] }],
         "summary": "Get user ramp limits",
         "tags": ["Account Management"]
       }
