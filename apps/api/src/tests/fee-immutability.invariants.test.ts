@@ -119,8 +119,11 @@ describe("fee immutability invariants (BRL onramp)", () => {
 
     const quote = await createQuoteViaApi();
     const persistedAtCreation = await QuoteTicket.findByPk(quote.id as string);
-    const feesAtCreation = JSON.stringify(persistedAtCreation?.metadata.fees);
-    expect(persistedAtCreation?.metadata.fees).toBeDefined();
+    const creationMetadata = persistedAtCreation?.metadata as unknown as
+      | { globals: { fees?: unknown } }
+      | undefined;
+    const feesAtCreation = JSON.stringify(creationMetadata?.globals.fees);
+    expect(creationMetadata?.globals.fees).toBeDefined();
 
     // Registration with fee fields smuggled into additionalData must succeed
     // while leaving the persisted fee structure byte-identical.
@@ -133,7 +136,10 @@ describe("fee immutability invariants (BRL onramp)", () => {
     const ramp = (await registerResponse.json()) as { id: string };
 
     const persistedAfterRegister = await QuoteTicket.findByPk(quote.id as string);
-    expect(JSON.stringify(persistedAfterRegister?.metadata.fees)).toBe(feesAtCreation);
+    const registeredMetadata = persistedAfterRegister?.metadata as unknown as
+      | { globals: { fees?: unknown } }
+      | undefined;
+    expect(JSON.stringify(registeredMetadata?.globals.fees)).toBe(feesAtCreation);
 
     const statusResponse = await app.request(`/v1/ramp/${ramp.id}`, {
       headers: { Authorization: `Bearer ${testUserToken(user.id)}` }
@@ -147,6 +153,9 @@ describe("fee immutability invariants (BRL onramp)", () => {
 
     // The persisted structure is still exactly the creation-time one.
     const persistedAfterStatus = await QuoteTicket.findByPk(quote.id as string);
-    expect(JSON.stringify(persistedAfterStatus?.metadata.fees)).toBe(feesAtCreation);
+    const statusMetadata = persistedAfterStatus?.metadata as unknown as
+      | { globals: { fees?: unknown } }
+      | undefined;
+    expect(JSON.stringify(statusMetadata?.globals.fees)).toBe(feesAtCreation);
   });
 });

@@ -176,6 +176,9 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
+    // The quote simulator asks Squid for the USDT settlement leg even on the
+    // direct Polygon corridor. Squid therefore reports 6-decimal output.
+    world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     // Fresh deposit address per test: the in-memory EVM ledger persists across
     // tests, so a shared address would accumulate balances between scenarios.
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
@@ -245,7 +248,10 @@ describe("SDK ↔ API contract (Alfredpay offramps, USDT on Polygon → bank pay
     const quote = await QuoteTicket.findByPk(quoteId);
     const ephemeralAddress = state?.state.evmEphemeralAddress as `0x${string}`;
     expect(ephemeralAddress).toBeTruthy();
-    const inputAmountRaw = BigInt(quote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = quote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     world.evm.setNativeBalance(Networks.Polygon, ephemeralAddress, parseUnits("2", 18));

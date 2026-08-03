@@ -3,7 +3,19 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
-import webhookService from "../services/webhook/webhook.service";
+import { getEffectiveUserId } from "../middlewares/effectiveUser";
+import webhookService, { WebhookOwner } from "../services/webhook/webhook.service";
+
+// Webhooks are owned by the principal behind the secret key: the partner for
+// partner-scoped keys, the linked user for self-serve user keys.
+function webhookOwnerFromRequest(req: Pick<Request, "credential" | "userId">): WebhookOwner {
+  if (req.userId) return { partnerId: null, userId: req.userId };
+  const partnerId = req.credential?.partnerId ?? null;
+  return {
+    partnerId,
+    userId: partnerId ? null : (getEffectiveUserId(req) ?? null)
+  };
+}
 
 export const registerWebhook = async (
   req: Request<unknown, unknown, RegisterWebhookRequest>,
@@ -42,12 +54,15 @@ export const registerWebhook = async (
       });
     }
 
-    const webhook = await webhookService.registerWebhook({
-      events,
-      quoteId,
-      sessionId,
-      url
-    });
+    const webhook = await webhookService.registerWebhook(
+      {
+        events,
+        quoteId,
+        sessionId,
+        url
+      },
+      webhookOwnerFromRequest(req)
+    );
 
     res.status(httpStatus.CREATED).json(webhook);
   } catch (error) {
@@ -71,7 +86,7 @@ export const deleteWebhook = async (
       });
     }
 
-    const success = await webhookService.deleteWebhook(id);
+    const success = await webhookService.deleteWebhook(id, webhookOwnerFromRequest(req));
 
     if (!success) {
       throw new APIError({

@@ -20,6 +20,7 @@ import { BaseError, ContractFunctionExecutionError, decodeFunctionData, encodeFu
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -182,9 +183,9 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     world.alfredpay.onrampStatusMetadata = null;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
     world.alfredpay.offrampDepositAddress = privateKeyToAccount(generatePrivateKey()).address.toLowerCase();
-    // The direct corridors never bridge; the cross-chain setups switch the
-    // fake route to USDT's 6 decimals, so reset to the fake's default here.
-    world.squidRouter.toTokenDecimals = 18;
+    // Both direct and cross-chain Alfredpay SELL simulations price a
+    // Squid-delivered Polygon USDT settlement leg.
+    world.squidRouter.toTokenDecimals = 6;
     world.squidRouter.bridgeStatus = "success";
   });
 
@@ -353,7 +354,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
 
@@ -433,7 +437,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -529,8 +536,16 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayMint?: { outputAmountRaw?: string };
+            squidRouterSwap?: { outputAmountRaw?: string };
+          };
+        }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
+    const bridgedAmountRaw = BigInt(metadata?.blocks.squidRouterSwap?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);
 
@@ -620,7 +635,10 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     const registered = await RampState.findByPk(ramp.id);
@@ -786,7 +804,7 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
     });
 
     it(
-      `transient failure (${currency.fiat}): an RPC outage on the destination transfer is recoverable and the onramp still completes`,
+      `ambiguous destination broadcast (${currency.fiat}): pauses for reconciliation without paying the recipient`,
       async () => {
         const setup = await setUpOnrampRamp(currency);
         // The first broadcast of this corridor is the destination transfer.
@@ -796,17 +814,19 @@ describe("Alfredpay currency corridors (USD/COP/ARS, on- and offramp)", () => {
         await phaseProcessor.processRamp(setup.rampId);
 
         const final = await RampState.findByPk(setup.rampId);
-        expect(final?.currentPhase).toBe("complete");
-        expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(ONRAMP_PHASES);
+        expect(final?.currentPhase).toBe("destinationTransfer");
+        expect(final?.phaseHistory.map(entry => entry.phase)).not.toContain("complete");
         expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-        // The scripted outage was recorded as a recoverable destinationTransfer
-        // error, and after the retry the destination was still paid in full.
         const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-        expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+        expect(outageLogs.length).toBe(1);
         expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
         expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(setup.amountRaw);
+        expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+        expect(
+          await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })
+        ).toMatchObject({ status: "unknown" });
+        expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(0n);
       },
       30000
     );

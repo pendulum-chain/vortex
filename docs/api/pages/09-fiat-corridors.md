@@ -4,7 +4,7 @@ This page collects what each fiat corridor requires before a ramp can be registe
 
 ## BRL (PIX)
 
-BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the identity under which KYC is completed, but it is not how the ramp identifies the user: registration must be authenticated with the user's own **user-linked** `sk_*` key, and the tax ID is derived from that account. A `taxId` field may still be provided for backwards compatibility, but only as a cross-check — it must match the account's tax ID, and it cannot select a different user or claim an unlinked tax ID.
+BRL routes settle over PIX and require user onboarding with Vortex's local payment partner before ramping. The user's Brazilian tax ID — CPF for individuals, CNPJ for businesses — is the identity under which KYC is completed, but it is not how the ramp identifies the user: registration must authenticate as that user through a user-scoped key, a partner key delegated to the user, or a Supabase Bearer session. The tax ID is derived from that account. A `taxId` field may still be provided for backwards compatibility, but only as a cross-check — it must match the account's tax ID, and it cannot select a different user or claim an unlinked tax ID.
 
 Level 1 onboarding collects basic identity information and enables lower-limit BRL flows. Level 2 adds document and liveness verification and may be required for higher limits or stricter compliance rules. The user must have completed KYC on the same account whose key registers the ramp; otherwise the ramp may fail or require additional account-management steps.
 
@@ -27,7 +27,7 @@ All four corridors support buys and sells on EVM networks; AssetHub is not avail
 
 Each corridor requires the user to complete KYC for the corridor's country before a ramp can be registered. Onboard the user through the Vortex app or hosted Widget; the identity documents collected differ per country (for example INE, resident card, or passport in Mexico; cédula in Colombia; DNI in Argentina). Business users can be sent straight into verification with the [KYB Deep Link](https://api-docs.vortexfinance.co/kyb-deep-link).
 
-Unlike BRL, ramp registration must be authenticated with the user's own **user-linked** `sk_*` key — the ramp resolves the user's KYC and payment profile from the authenticated account, not from request fields. Your integration can mint that key programmatically after an email OTP sign-in; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Partner-scoped keys cannot register ramps in these corridors and cannot drive KYC on a user's behalf. Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
+Unlike BRL, ramp registration still resolves the user's KYC and payment profile from the authenticated account, not from request fields. Authenticate as that user through a user-scoped key, a partner key delegated to the user, or a Supabase Bearer session. Your integration can mint a user-scoped key programmatically after an email OTP sign-in; see [Authentication And API Keys](https://api-docs.vortexfinance.co/authentication-and-partner-keys). Partner-only keys cannot register ramps or drive KYC on a user's behalf. Quotes remain available anonymously for rate discovery; eligibility is enforced at registration time, not quote time.
 
 ### Fiat Accounts
 
@@ -40,6 +40,8 @@ After `POST /v1/ramp/start`, the response's `achPaymentData` contains the bank t
 ### Limits
 
 Per-currency minimum and maximum amounts are enforced at quote time and refreshed periodically from the payment partner. A quote outside the limits fails with a descriptive error; prompt the user to adjust the amount.
+
+Authenticated clients can request account limits with `POST /v1/limits`, passing a list of corridor country codes. The response contains separate onramp and offramp maximums, consumed amounts, units, and calendar-month boundaries. Avenia usage and period values come from the provider. Alfredpay usage is calculated from completed Vortex ramps and cached for 60 seconds; its calendar-month reset is a Vortex assumption because Alfredpay's public API does not publish quota-period semantics.
 
 ## EUR (SEPA)
 

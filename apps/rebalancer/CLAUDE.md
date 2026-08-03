@@ -14,3 +14,9 @@ Lint from root with `bun lint:fix`, or `bunx @biomejs/biome check apps/rebalance
 
 Depends on `@vortexfi/shared` — after changing `packages/shared`, run `bun build:shared`
 (from root) before running this service.
+
+## Documentation
+
+Follow [`docs/README.md`](../../docs/README.md). Keep setup that operators need in the
+local README and maintain security/behavioral requirements in
+`docs/security-spec/07-operations/rebalancer.md`. Do not add session plans or progress logs.

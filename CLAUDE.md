@@ -17,8 +17,10 @@ Full wayfinding is in [`MAP.md`](MAP.md). This is a **Bun monorepo** using works
 
 - **apps/frontend** — React 19 + Vite web app → [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md)
 - **apps/api** — Express backend (PostgreSQL + Sequelize) → [`apps/api/CLAUDE.md`](apps/api/CLAUDE.md)
+- **apps/dashboard** — authenticated React dashboard → [`apps/dashboard/CLAUDE.md`](apps/dashboard/CLAUDE.md)
 - **apps/rebalancer** — liquidity rebalancing service → [`apps/rebalancer/CLAUDE.md`](apps/rebalancer/CLAUDE.md)
 - **packages/shared** — `@vortexfi/shared` utilities/configs → [`packages/shared/CLAUDE.md`](packages/shared/CLAUDE.md)
+- **packages/kyc** — shared KYC/KYB state machines → [`packages/kyc/CLAUDE.md`](packages/kyc/CLAUDE.md)
 - **packages/sdk** — `@vortexfi/sdk` public SDK → [`packages/sdk/CLAUDE.md`](packages/sdk/CLAUDE.md)
 
 ## Monorepo Commands
@@ -33,9 +35,10 @@ bun install          # install all dependencies
 bun dev              # frontend + backend + shared concurrently
 bun dev:frontend     # http://127.0.0.1:5173
 bun dev:backend      # http://localhost:3000
+bun dev:dashboard    # http://localhost:5174
 bun dev:rebalancer
 
-bun build            # build all (shared -> sdk -> frontend -> backend)
+bun build            # build all workspaces in dependency order
 bun build:shared     # rebuild shared (see below)
 
 bun lint             # Biome lint          bun lint:fix   # auto-fix
@@ -54,15 +57,33 @@ run `bun build:shared` before running frontend/api** — otherwise they use stal
 
 Any `Record<FiatToken, X>` must include ALL six. Missing entries cause TypeScript errors
 when shared is rebuilt. Check: `tokenAvailability`, `mapFiatToDestination`, success page
-`ARRIVAL_TEXT_BY_TOKEN`, sep10 `tokenMapping`.
+`ARRIVAL_TEXT_BY_TOKEN`.
 
 ## Code Style
 
 Biome config: line width 128, 2-space indent, semicolons always, no trailing commas,
 double quotes, sorted Tailwind classes (`useSortedClasses`). General: prefer composition
-over inheritance; create ADRs in `/docs/adr` for major architectural changes.
+over inheritance; create `/docs/adr-NNNN-<topic>.md` for major architectural changes.
 Frontend-specific and XState conventions live in
 [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md).
+
+## Documentation Structure
+
+[`docs/README.md`](docs/README.md) defines the only supported documentation locations,
+their authority, and their lifecycle. Before creating Markdown, search that index and
+update the existing canonical document when one owns the topic.
+
+- Do not create memory banks, progress journals, completed-plan summaries, or archive
+  directories. Git history is the archive.
+- Keep general project documents directly under `docs/`; only `docs/api/` and
+  `docs/security-spec/` currently warrant dedicated directory trees.
+- Name general documents `docs/<kind>-<topic>.md` using the kind prefixes defined in
+  `docs/README.md`.
+- Name active drafts `docs/proposal-<topic>.md`; accepted decisions become
+  `docs/adr-NNNN-<topic>.md`, with current behavior updated in the relevant maintained
+  document.
+- Keep local `README.md` files only when they explain a non-obvious subsystem contract.
+- Repair indexes and relative links in the same change as a move or deletion.
 
 ## Commit Messages & PR Titles
 
@@ -75,7 +96,7 @@ Every commit message and PR title follows [Conventional Commits](https://www.con
 - **type** — `feat`, `fix`, `docs`, `test`, `refactor`, `perf`, `style`, `chore`, `ci`, or
   `revert`.
 - **scope** — the workspace touched: `api`, `frontend`, `dashboard`, `rebalancer`,
-  `shared`, or `sdk`. Use `repo` for cross-cutting changes (root config, CI, monorepo
+  `shared`, `kyc`, or `sdk`. Use `repo` for cross-cutting changes (root config, CI, monorepo
   tooling). One workspace dominates a mixed change? Use that. Truly global? `repo`.
 - **summary** — imperative mood ("add", not "added"/"adds"), lowercase after the colon,
   no trailing period, ≤ 72 characters.

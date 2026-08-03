@@ -1,9 +1,10 @@
-import {AveniaAccountType, BrlaApiError, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
+import {AveniaAccountType, AveniaDocumentType, BrlaApiError, BrlaApiService, KycAttemptResult, KycAttemptStatus} from "@vortexfi/shared";
 import {afterEach, beforeEach, describe, expect, it, mock} from "bun:test";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
+import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
 import TaxId, {TaxIdInternalStatus} from "../../models/taxId.model";
 import User from "../../models/user.model";
@@ -12,6 +13,7 @@ import {
   fetchSubaccountKycStatus,
   getAveniaUser,
   getKybAttemptStatus,
+  getUploadUrls,
   initiateKybLevel1,
   recordInitialKycAttempt
 } from "./brla.controller";
@@ -35,6 +37,7 @@ function createResponse() {
 
 // getOrCreateCustomerEntityForProfile resolves each profile to a deterministic entity id.
 // Type-less lookups resolve via findOne (oldest-entity default); typed ones via findOrCreate.
+// Profile-ownership checks enumerate the profile's entities via findAll.
 function mockEntityPerProfile() {
   CustomerEntity.findOne = mock(async (options: { where: { profileId: string } }) => ({
     id: `entity-${options.where.profileId}`
@@ -43,16 +46,24 @@ function mockEntityPerProfile() {
     { id: `entity-${options.where.profileId}` },
     false
   ]) as unknown as typeof CustomerEntity.findOrCreate;
+  CustomerEntity.findAll = mock(async (options: { where: { profileId: string } }) => [
+    { id: `entity-${options.where.profileId}` }
+  ]) as unknown as typeof CustomerEntity.findAll;
 }
 
 const originalUserFindByPk = User.findByPk;
+const originalManagedProfileFindOne = PartnerManagedProfile.findOne;
+const originalEntityFindAll = CustomerEntity.findAll;
 
 beforeEach(() => {
+  PartnerManagedProfile.findOne = mock(async () => null) as unknown as typeof PartnerManagedProfile.findOne;
   User.findByPk = mock(async () => null) as unknown as typeof User.findByPk;
 });
 
 afterEach(() => {
+  PartnerManagedProfile.findOne = originalManagedProfileFindOne;
   User.findByPk = originalUserFindByPk;
+  CustomerEntity.findAll = originalEntityFindAll;
 });
 
 describe("getAveniaUser", () => {
@@ -139,8 +150,15 @@ describe("getAveniaUser", () => {
     const res = createResponse();
     await getAveniaUser(
       {
-        apiKeyUserId: "user-1",
+        apiKeyUserId: "stale-user",
         authenticatedPartner: { id: "partner-1", name: "Partner" },
+        credential: {
+          credentialId: "credential-1",
+          environment: "test",
+          partnerId: "partner-1",
+          profileId: "user-1",
+          strength: "secret"
+        },
         query: { taxId: "08786985906" }
       } as any,
       res as any
@@ -580,6 +598,33 @@ describe("Avenia company KYB", () => {
     expect(providerStatus).not.toHaveBeenCalled();
   });
 
+  // Migration 040 attached business rows to the profile's (038-backfilled) individual entity.
+  // Comparing ownership against the typed business entity 403'd the legitimate owner and
+  // findOrCreate'd an empty business entity as a side effect of the read.
+  it("resolves a KYB attempt whose rows live on the profile's legacy individual entity", async () => {
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    KycCase.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      providerCustomerId: "customer-1"
+    })) as unknown as typeof KycCase.findOne;
+    ProviderCustomer.findByPk = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      provider: "avenia",
+      status: VerificationStatus.Approved
+    })) as unknown as typeof ProviderCustomer.findByPk;
+
+    const res = createResponse();
+    await getKybAttemptStatus({ query: { attemptId: "attempt-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(res.body).toEqual({ result: KycAttemptResult.APPROVED, status: KycAttemptStatus.COMPLETED });
+    expect(strayCreate).not.toHaveBeenCalled();
+  });
+
   it("persists an approved provider result and returns only normalized browser fields", async () => {
     mockEntityPerProfile();
     const caseUpdate = mock(async () => undefined);
@@ -698,6 +743,39 @@ describe("createSubaccount", () => {
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(res.body).toEqual({ error: "A subaccount already exists for this taxId" });
     expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
+  });
+
+  // Migration 040 attached business rows to the profile's individual entity; the conflict
+  // check compared against the typed business entity and 409'd the owner's own retry.
+  it("does not 409 the owner's retry when the business row sits on the legacy individual entity", async () => {
+    mockBrlaApi();
+    createAveniaSubaccountMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    const existingUpdate = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      status: VerificationStatus.Pending,
+      update: existingUpdate
+    })) as unknown as typeof ProviderCustomer.findOne;
+
+    const res = createResponse();
+    await createSubaccount(
+      {
+        body: { accountType: AveniaAccountType.COMPANY, name: "Legacy Co", taxId: "11222333000181" },
+        userId: "user-1"
+      } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(res.body).toEqual({ subAccountId: "new-subaccount" });
+    expect(existingUpdate).toHaveBeenCalledWith(expect.objectContaining({ providerSubaccountId: "new-subaccount" }));
+    // The retry updates the existing row in place — typed-entity creation must not run.
+    expect(strayCreate).not.toHaveBeenCalled();
   });
 
   it("rejects when a quarantined legacy record belongs to a different user", async () => {
@@ -855,5 +933,78 @@ describe("createSubaccount", () => {
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
     expect(updateMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("getUploadUrls", () => {
+  const originalProviderFindOne = ProviderCustomer.findOne;
+  const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
+  const originalGetInstance = BrlaApiService.getInstance;
+  const originalLoggerError = logger.error;
+
+  beforeEach(() => {
+    logger.error = mock(() => logger) as typeof logger.error;
+  });
+
+  afterEach(() => {
+    ProviderCustomer.findOne = originalProviderFindOne;
+    CustomerEntity.findOrCreate = originalEntityFindOrCreate;
+    BrlaApiService.getInstance = originalGetInstance;
+    logger.error = originalLoggerError;
+  });
+
+  const uploadUrlsMock = mock(async () => ({ id: "doc-1", uploadURLBack: "back-url", uploadURLFront: "front-url" }));
+
+  function mockBrlaApi() {
+    BrlaApiService.getInstance = mock(
+      () => ({ getDocumentUploadUrls: uploadUrlsMock }) as unknown as BrlaApiService
+    );
+  }
+
+  // Migration 040 attached business rows to the profile's individual entity; the ownership
+  // check compared against the typed business entity and 403'd the legitimate owner.
+  it("serves upload URLs for a business row on the legacy individual entity without creating entities", async () => {
+    mockBrlaApi();
+    uploadUrlsMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+
+    const res = createResponse();
+    await getUploadUrls(
+      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "user-1" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(uploadUrlsMock).toHaveBeenCalledTimes(2);
+    expect(strayCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a tax id owned by another profile", async () => {
+    mockBrlaApi();
+    uploadUrlsMock.mockClear();
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-attacker" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-victim",
+      providerSubaccountId: "subaccount-1"
+    })) as unknown as typeof ProviderCustomer.findOne;
+
+    const res = createResponse();
+    await getUploadUrls(
+      { body: { documentType: AveniaDocumentType.ID, taxId: "11222333000181" }, userId: "attacker" } as any,
+      res as any
+    );
+
+    expect(res.statusCode).toBe(httpStatus.FORBIDDEN);
+    expect(uploadUrlsMock).not.toHaveBeenCalled();
   });
 });

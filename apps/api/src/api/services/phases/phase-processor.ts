@@ -1,10 +1,18 @@
+import { RampPhase } from "@vortexfi/shared";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
 import { runWithRampContext } from "../../../config/ramp-context";
 import { config } from "../../../config/vars";
 import RampState from "../../../models/rampState.model";
 import { APIError } from "../../errors/api-error";
-import { PhaseError, RecoverablePhaseError } from "../../errors/phase-error";
+import {
+  PhaseError,
+  ReconciliationRequiredPhaseError,
+  RecoverablePhaseError,
+  UnrecoverablePhaseError
+} from "../../errors/phase-error";
+import { getBlockFlowByIdentity } from "./blocks/flows/catalog";
+import { StateMetadata } from "./meta-state-types";
 import { getPhaseProcessorMaxExecutionTimeMs, getPhaseProcessorRetryDelayMs } from "./phase-processor-config";
 import phaseRegistry from "./phase-registry";
 
@@ -176,6 +184,59 @@ export class PhaseProcessor {
   }
 
   /**
+   * Resolve the next phase for a ramp.
+   *
+   * If the handler explicitly changed the phase (short-circuit override), honor it.
+   * Otherwise, if a phaseFlow is defined, advance to the next phase in the sequence.
+   * If no phaseFlow exists (legacy ramp), return the handler's result as-is.
+   */
+  private resolveNextPhase(originalPhase: RampPhase, handlerResult: RampState, state: RampState): RampPhase {
+    const stateMetadata = state.state as StateMetadata;
+    const phaseFlow = stateMetadata.phaseFlow;
+
+    // Legacy ramp without phaseFlow — handler must set the next phase
+    if (!phaseFlow) {
+      return handlerResult.currentPhase;
+    }
+    if (new Set(phaseFlow).size !== phaseFlow.length) {
+      throw new Error(`PhaseProcessor: phaseFlow contains duplicate phases for ramp ${state.id}`);
+    }
+
+    const currentIndex = phaseFlow.indexOf(originalPhase);
+    if (currentIndex === -1) {
+      throw new Error(`PhaseProcessor: Phase "${originalPhase}" not found in phaseFlow for ramp ${state.id}`);
+    }
+    if (currentIndex >= phaseFlow.length - 1) {
+      throw new Error(
+        `PhaseProcessor: Phase "${originalPhase}" is the last phase in phaseFlow but not terminal for ramp ${state.id}`
+      );
+    }
+
+    const sequentialNext = phaseFlow[currentIndex + 1];
+
+    // Handler explicitly changed the phase. It may only use an edge declared by
+    // the persisted flow version; legacy flows are limited to the sequential edge
+    // or the universal fail-closed edge.
+    if (handlerResult.currentPhase !== originalPhase) {
+      const allowed = stateMetadata.flow
+        ? (() => {
+            const flow = getBlockFlowByIdentity(stateMetadata.flow);
+            flow.assertState(stateMetadata);
+            return flow.transitions[originalPhase] ?? [];
+          })()
+        : [sequentialNext, "failed"];
+      if (!allowed.includes(handlerResult.currentPhase)) {
+        throw new Error(
+          `PhaseProcessor: transition ${originalPhase} -> ${handlerResult.currentPhase} is not allowed for ramp ${state.id}`
+        );
+      }
+      return handlerResult.currentPhase;
+    }
+
+    return sequentialNext;
+  }
+
+  /**
    * Process a phase
    * @param state The current ramp state
    */
@@ -191,8 +252,7 @@ export class PhaseProcessor {
       // Get the phase handler
       const handler = phaseRegistry.getHandler(currentPhase);
       if (!handler) {
-        logger.warn(`No handler found for phase ${currentPhase}`);
-        return;
+        throw new UnrecoverablePhaseError(`No handler registered for phase ${currentPhase}`);
       }
 
       // Execute the phase with a maximum waiting time
@@ -220,11 +280,19 @@ export class PhaseProcessor {
         clearTimeout(timeoutId);
       });
 
+      // Resolve the next phase: handler short-circuit > explicit flow > handler-driven (legacy)
+      const nextPhase = this.resolveNextPhase(currentPhase, pendingState, state);
+
+      const phaseHistory =
+        nextPhase !== pendingState.currentPhase
+          ? [...pendingState.phaseHistory, { phase: nextPhase, timestamp: new Date() }]
+          : pendingState.phaseHistory;
+
       // Single source of authority for phase transitions.
       // Persist only the phase-related fields on the original persisted instance
       // to avoid inserting new records or clobbering unrelated columns.
       const updatedState = await state.update(
-        { currentPhase: pendingState.currentPhase, phaseHistory: pendingState.phaseHistory },
+        { currentPhase: nextPhase, phaseHistory },
         { fields: ["currentPhase", "phaseHistory"] }
       );
 
@@ -259,23 +327,18 @@ export class PhaseProcessor {
         error instanceof RecoverablePhaseError ? (error as RecoverablePhaseError).minimumWaitSeconds : undefined;
 
       if (isRecoverable) {
+        // BasePhaseHandler already persisted this execution error before rethrowing it.
+        const errorUpdatedState = state;
+
+        if (error instanceof ReconciliationRequiredPhaseError) {
+          logger.error(
+            `Pausing ramp ${errorUpdatedState.id} in phase ${state.currentPhase}: financial outcome requires reconciliation`
+          );
+          this.retriesMap.delete(errorUpdatedState.id);
+          return;
+        }
+
         const currentRetries = this.retriesMap.get(state.id) || 0;
-
-        // Add error to the state
-        const errorLogs = [
-          ...state.errorLogs,
-          {
-            details: error.stack || "",
-            error: error.message || "Unknown error",
-            isPhaseError,
-            phase: state.currentPhase,
-            recoverable: isRecoverable,
-            timestamp: new Date().toISOString()
-          }
-        ];
-
-        const errorUpdatedState = await state.update({ errorLogs });
-
         const phaseHandler = phaseRegistry.getHandler(state.currentPhase);
         const maxRetries = phaseHandler?.getMaxRetries?.() ?? this.MAX_RETRIES;
 

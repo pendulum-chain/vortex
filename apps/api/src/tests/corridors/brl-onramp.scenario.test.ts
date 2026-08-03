@@ -3,6 +3,7 @@ import { EvmToken, evmTokenConfig, FiatToken, Networks, RampDirection, type Ramp
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import Subsidy from "../../models/subsidy.model";
@@ -231,7 +232,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   );
 
   it(
-    "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",
+    "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -241,18 +242,19 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-      // The scripted outage was recorded as a recoverable destinationTransfer error...
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-
-      // ...and the transfer was broadcast exactly once (first attempt never hit the chain).
-      expect(submissionsOf(setup.signedTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
     },
     30000
   );
@@ -284,7 +286,7 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
   );
 
   it(
-    "retry exhaustion: a permanently failing broadcast stops processing without moving funds, and stays resumable",
+    "reconciliation lock: clearing an RPC outage does not authorize an ambiguous broadcast retry",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -293,26 +295,23 @@ describe("BRL onramp direct corridor (pix → BRLA on Base)", () => {
 
       await phaseProcessor.processRamp(setup.rampId);
 
-      // Per docs/security-spec/03-ramp-engine/state-machine.md (F-004): after the
-      // recoverable-retry budget is exhausted the processor stops WITHOUT a
-      // terminal transition — the ramp stays in its phase, the lock is released,
-      // and nothing was broadcast.
       const stuck = await RampState.findByPk(setup.rampId);
       expect(stuck?.currentPhase).toBe("destinationTransfer");
       expect(stuck?.processingLock).toEqual({ locked: false, lockedAt: null });
       const outageLogs = stuck?.errorLogs.filter(log => log.error.includes("scripted permanent outage")) ?? [];
-      // 1 initial attempt + MAX_RETRIES (8) retries.
-      expect(outageLogs.length).toBe(9);
+      expect(outageLogs.length).toBe(1);
       expect(submissionsOf(setup.signedTransfer)).toBe(0);
       expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
 
-      // Once the outage clears, a fresh processing cycle completes the ramp.
+      // A later processing cycle may reconcile but must not blindly resubmit.
       world.evm.failNextSends = 0;
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
-      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.currentPhase).toBe("destinationTransfer");
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Base, BRLA_ON_BASE, setup.destination)).toBe(0n);
     },
     30000
   );

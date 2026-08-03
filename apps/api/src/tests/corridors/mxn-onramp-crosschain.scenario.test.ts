@@ -12,9 +12,13 @@ import {
 } from "@vortexfi/shared";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
-import { getEvmFundingAccount } from "../../api/services/phases/evm-funding";
+import { getEvmFundingAccount } from "../../api/services/phases/blocks/core/evm-funding";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { AlfredpayMintContext } from "../../api/services/phases/blocks/phases/alfredpay-mint/simulation";
+import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
+import FinancialOperation from "../../models/financialOperation.model";
 import RampState from "../../models/rampState.model";
 import Subsidy, { SubsidyToken } from "../../models/subsidy.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -206,8 +210,11 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
-    const bridgedAmountRaw = BigInt(persistedQuote?.metadata.evmToEvm?.outputAmountRaw ?? "0");
+    if (!persistedQuote) {
+      throw new Error("Quote not found after registration");
+    }
+    const mintAmountRaw = BigInt(getBlockMetadata(persistedQuote.metadata, AlfredpayMintContext).outputAmountRaw);
+    const bridgedAmountRaw = BigInt(getBlockMetadata(persistedQuote.metadata, SquidRouterSwapContext).outputAmountRaw);
     expect(mintAmountRaw).toBeGreaterThan(0n);
     expect(bridgedAmountRaw).toBeGreaterThan(0n);
 
@@ -351,7 +358,7 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
   );
 
   it(
-    "transient failure: an RPC outage on the Arbitrum destination transfer is recoverable and the corridor still completes",
+    "ambiguous destination broadcast: pauses the Arbitrum payout for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -369,16 +376,19 @@ describe("MXN onramp cross-chain corridor (spei → Polygon mint → USDT on Arb
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-
-      expect(submissionsOf(setup.signedTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Arbitrum, USDT_ON_ARBITRUM, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Arbitrum, USDT_ON_ARBITRUM, setup.destination)).toBe(0n);
     },
     30000
   );

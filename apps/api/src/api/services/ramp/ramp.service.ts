@@ -1,30 +1,15 @@
+import { isDeepStrictEqual } from "node:util";
 import { decodeAddress, encodeAddress } from "@polkadot/util-crypto";
 import {
   AccountMeta,
-  ALFREDPAY_ONCHAIN_CURRENCY,
-  AlfredpayApiService,
-  AlfredpayChain,
-  AlfredpayFiatCurrency,
   AlfredpayFiatPaymentInstructions,
-  AlfredpayPaymentMethodType,
-  AveniaPaymentMethod,
-  BrlaApiService,
-  BrlaCurrency,
-  CreateAlfredpayOfframpQuoteRequest,
-  CreateAlfredpayOnrampRequest,
   EphemeralAccountType,
   FiatToken,
   GetRampHistoryResponse,
   GetRampStatusResponse,
-  generateReferenceLabel,
   IbanPaymentData,
   isAlfredpayToken,
-  Limit,
-  MykoboApiService,
-  MykoboCurrency,
-  MykoboTransactionType,
   Networks,
-  normalizeTaxId,
   QuoteError,
   RampDirection,
   RampErrorLog,
@@ -37,8 +22,7 @@ import {
   TransactionStatus,
   UnsignedTx,
   UpdateRampRequest,
-  UpdateRampResponse,
-  validateMaskedNumber
+  UpdateRampResponse
 } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
@@ -47,35 +31,44 @@ import { isAddress } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
+import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../../constants/constants";
+import PartnerManagedProfile from "../../../models/partnerManagedProfile.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
 import { APIError } from "../../errors/api-error";
-import { getTargetFiatCurrency } from "../../services/quote/core/helpers";
 import {
   ActivePartner,
   handleQuoteConsumptionForDiscountState,
   resolveActivePartnerById
-} from "../../services/quote/engines/discount/helpers";
-import { findAveniaCustomerByTaxId } from "../avenia/avenia-customer.service";
-import { resolveAveniaAccountForRamp } from "../avenia-account";
-import { resolveMykoboCustomerForUser } from "../mykobo/mykobo-customer.service";
+} from "../../services/phases/blocks/core/discount";
+import { getTargetFiatCurrency } from "../../services/phases/blocks/core/helpers";
+import { accountCapabilities } from "../phases/blocks/core/accounts";
+import { getFlowMetadata } from "../phases/blocks/core/metadata";
+import { resolvePersistedBlockFlow } from "../phases/blocks/flows/catalog";
 import { StateMetadata } from "../phases/meta-state-types";
 import phaseProcessor from "../phases/phase-processor";
-import { PriceFeedService } from "../priceFeed.service";
-import { resolveAlfredpayCustomerId } from "../quote/alfredpay-customer";
-import { prepareOfframpTransactions } from "../transactions/offramp";
-import { prepareOnrampTransactions } from "../transactions/onramp";
-import { AveniaOnrampTransactionParams } from "../transactions/onramp/common/types";
-import { prepareMykoboToEvmOnrampTransactions } from "../transactions/onramp/routes/mykobo-to-evm";
 import { validatePresignedTxs } from "../transactions/validation";
 import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
-import { RampTransactionPreparationKind, selectRampTransactionPreparationKind } from "./ramp-transaction-preparation";
 
-const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
+function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const record of records) {
+    if (!record || typeof record !== "object" || Array.isArray(record)) {
+      throw new Error(`${label} contains a non-object compatibility record`);
+    }
+    for (const [key, value] of Object.entries(record)) {
+      if (Object.hasOwn(merged, key) && !isDeepStrictEqual(merged[key], value)) {
+        throw new Error(`${label} contains conflicting values for compatibility field ${key}`);
+      }
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
 
 // Classifies unsigned txs by signer: ephemeral-signed (backend pre-signs) vs user-wallet-signed.
 function partitionUnsignedTxs(
@@ -173,11 +166,38 @@ export class RampService extends BaseRampService {
       });
     }
   }
+
+  private static assertStartDeadlineNotExceeded(ramp: Pick<RampState, "createdAt">): void {
+    const ageSeconds = (Date.now() - ramp.createdAt.getTime()) / 1000;
+    if (ageSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+      throw new APIError({
+        message: "Maximum time window to start process exceeded. Ramp invalidated.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
    */
   public async registerRamp(request: RegisterRampRequest, _route = "/v1/ramp/register"): Promise<RampProcess> {
+    const recipientContextKeys = [
+      "recipientId",
+      "recipientRelationshipId",
+      "recipientPayoutReferenceId",
+      "senderRecipientId"
+    ] as const;
+    const unsupportedRecipientKey = recipientContextKeys.find(key =>
+      Object.prototype.hasOwnProperty.call(request.additionalData ?? {}, key)
+    );
+    if (unsupportedRecipientKey) {
+      throw new APIError({
+        message: "Recipient-directed payout is not supported by ramp registration; recipient eligibility is advisory only.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+
     return this.withTransaction(async transaction => {
       const { signingAccounts, quoteId, additionalData } = request;
 
@@ -235,9 +255,23 @@ export class RampService extends BaseRampService {
         });
       }
 
+      const technicalManagedProfile = await PartnerManagedProfile.findOne({
+        attributes: ["id"],
+        transaction,
+        where: { profileId: effectiveUserId, subjectType: "technical" }
+      });
+      if (technicalManagedProfile) {
+        throw new APIError({
+          isPublic: true,
+          message: "Technical managed profiles are not eligible to register ramps.",
+          status: httpStatus.FORBIDDEN,
+          type: "TECHNICAL_PROFILE_NOT_RAMP_ELIGIBLE"
+        });
+      }
+
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
-      // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
+      // RUN_LIVE_TESTS-gated tests only — see docs/operations-testing.md).
       if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
         throw new APIError({
           message: "EUR ramps are currently disabled",
@@ -284,13 +318,12 @@ export class RampService extends BaseRampService {
         });
       }
 
-      await validateEphemeralAccountsFresh(ephemerals);
+      await validateEphemeralAccountsFresh(ephemerals, quote);
 
       const { unsignedTxs, stateMeta, depositQrCode, ibanPaymentData, aveniaTicketId } = await this.prepareRampTransactions(
         quote,
         normalizedSigningAccounts,
         additionalData,
-        signingAccounts,
         transaction,
         effectiveUserId
       );
@@ -405,6 +438,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertStartDeadlineNotExceeded(rampState);
+
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
@@ -448,14 +483,7 @@ export class RampService extends BaseRampService {
       const presignChecksPass = await this.tryReleaseDepositQr(rampState, quote, transaction);
       const ephemeralPresignChecksPass = presignChecksPass || (await this.ephemeralPresignChecksPass(rampState));
 
-      let achPaymentData: AlfredpayFiatPaymentInstructions | undefined = undefined;
-      if (isAlfredpayToken(quote.inputCurrency as FiatToken)) {
-        achPaymentData = await this.processAlfredpayOnrampStart(rampState, quote, transaction);
-      }
-
-      if (isAlfredpayToken(quote.outputCurrency as FiatToken)) {
-        await this.processAlfredpayOfframpStart(rampState, quote, transaction);
-      }
+      const { achPaymentData } = await this.startPersistedFlow(rampState, quote, transaction);
 
       // Create response
       const response: UpdateRampResponse = {
@@ -520,17 +548,7 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      RampService.assertStartDeadlineNotExceeded(rampState);
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
@@ -546,6 +564,8 @@ export class RampService extends BaseRampService {
         Substrate: rampState.state.substrateEphemeralAddress
       };
       await validatePresignedTxs(rampState.type, rampState.presignedTxs, ephemerals, rampState.unsignedTxs);
+
+      await this.startPersistedFlow(rampState, quote, transaction);
 
       logger.log("Triggering TRANSACTION_CREATED webhook for ramp state:", rampState.id);
       webhookDeliveryService
@@ -616,8 +636,9 @@ export class RampService extends BaseRampService {
       });
     }
 
-    const usdFees = quote.metadata.fees?.usd;
-    const fiatFees = quote.metadata.fees?.displayFiat;
+    const { fees, subsidyDisplay } = getFlowMetadata(quote.metadata).globals;
+    const usdFees = fees.usd;
+    const fiatFees = fees.displayFiat;
     if (!usdFees || !fiatFees) {
       throw new APIError({
         message: "Quote fee structure is incomplete",
@@ -691,11 +712,11 @@ export class RampService extends BaseRampService {
       quoteId: rampState.quoteId,
       sessionId: rampState.state.sessionId,
       status: this.mapPhaseToStatus(rampState.currentPhase),
-      ...(quote.metadata.subsidyDisplay
+      ...(subsidyDisplay
         ? {
-            discountCurrency: quote.metadata.subsidyDisplay.currency,
-            discountFiat: quote.metadata.subsidyDisplay.fiat,
-            discountUsd: quote.metadata.subsidyDisplay.usd
+            discountCurrency: subsidyDisplay.currency,
+            discountFiat: subsidyDisplay.fiat,
+            discountUsd: subsidyDisplay.usd
           }
         : {}),
       to: rampState.to,
@@ -867,444 +888,10 @@ export class RampService extends BaseRampService {
     });
   }
 
-  /**
-   * Sum the BRL-equivalent volume of all in-progress ramps for a given taxId and direction.
-   */
-  private async getPendingBrlVolume(taxId: string, direction: RampDirection): Promise<Big> {
-    const normalizedTaxId = normalizeTaxId(taxId);
-
-    const pendingRamps = await RampState.findAll({
-      include: [{ as: "quote", model: QuoteTicket }],
-      where: {
-        currentPhase: { [Op.notIn]: ["complete", "failed", "timedOut", "initial"] },
-        "state.taxId": normalizedTaxId,
-        type: direction
-      }
-    });
-
-    let totalPendingBrl = new Big(0);
-    for (const ramp of pendingRamps) {
-      const quote = (ramp as RampState & { quote: QuoteTicket }).quote;
-      if (!quote) continue;
-
-      const brlAmount = direction === RampDirection.BUY ? quote.inputAmount : quote.outputAmount;
-      totalPendingBrl = totalPendingBrl.plus(brlAmount);
-    }
-
-    return totalPendingBrl;
-  }
-
-  /**
-   * Validate the ramp amount against both per-currency (BRL) and global (*) limits,
-   * accounting for pending ramp volume that hasn't settled on Avenia yet.
-   */
-  private async validateAveniaLimits(
-    amountBrl: string,
-    limits: Limit[],
-    direction: RampDirection,
-    taxId: string
-  ): Promise<void> {
-    const pendingBrl = await this.getPendingBrlVolume(taxId, direction);
-    const effectiveAmountBrl = new Big(amountBrl).plus(pendingBrl);
-
-    const brlLimits = limits.find(limit => limit.currency === BrlaCurrency.BRL);
-    if (!brlLimits) {
-      throw new APIError({
-        message: "BRL limits not found.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const brlRemaining =
-      direction === RampDirection.BUY
-        ? Number(brlLimits.maxFiatIn) - Number(brlLimits.usedLimit.usedFiatIn)
-        : Number(brlLimits.maxFiatOut) - Number(brlLimits.usedLimit.usedFiatOut);
-
-    if (effectiveAmountBrl.gt(brlRemaining)) {
-      throw new APIError({
-        message: "Amount exceeds BRL limit.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const globalLimits = limits.find(limit => limit.currency === "*");
-    if (globalLimits) {
-      const priceFeedService = PriceFeedService.getInstance();
-      const effectiveAmountUsd = await priceFeedService.convertCurrency(
-        effectiveAmountBrl.toFixed(2),
-        FiatToken.BRL,
-        FiatToken.USD,
-        2
-      );
-
-      const globalRemaining =
-        direction === RampDirection.BUY
-          ? Number(globalLimits.maxFiatIn) - Number(globalLimits.usedLimit.usedFiatIn)
-          : Number(globalLimits.maxFiatOut) - Number(globalLimits.usedLimit.usedFiatOut);
-
-      if (Number(effectiveAmountUsd) > globalRemaining) {
-        throw new APIError({
-          message: "Amount exceeds global limit.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
-    }
-  }
-
-  /**
-   * BRLA. Get subaccount and validate pix and tax id.
-   */
-  public async validateBrlaOfframpRequest(
-    taxId: string,
-    pixKey: string,
-    receiverTaxId: string,
-    amount: string
-  ): Promise<{ wallets: { evm: string }; brCode: string }> {
-    const brlaApiService = BrlaApiService.getInstance();
-
-    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
-    if (!aveniaCustomer) {
-      throw new APIError({
-        message: "Subaccount not found",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
-    const subAccountData = await brlaApiService.subaccountInfo(aveniaSubAccountId);
-    const subaccountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
-    if (!subaccountLimits) {
-      throw new APIError({
-        message: "Failed to fetch subaccount limits",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    // To make it harder to extract information, both the pixKey and the receiverTaxId are required to be correct.
-    // The user-facing error stays generic, but server-side logs differentiate failure modes for diagnosis.
-    let pixKeyData;
-    try {
-      pixKeyData = await brlaApiService.validatePixKey(pixKey);
-    } catch (error) {
-      logger.warn(
-        `validateBrlaOfframpRequest: pix-info lookup failed for pixKey=${pixKey}: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-      throw new APIError({
-        message: "Invalid pixKey or receiverTaxId.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    let masksMatch: boolean;
-    try {
-      // Do NOT pass the masked taxId through normalizeTaxId: that helper strips all
-      // non-digits, which would also strip the `*` mask characters and break the
-      // length-aligned comparison done by validateMaskedNumber.
-      masksMatch = validateMaskedNumber(pixKeyData.taxId, normalizeTaxId(receiverTaxId));
-    } catch (error) {
-      logger.warn(
-        `validateBrlaOfframpRequest: pix key owner taxId is not comparable to receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(
-          receiverTaxId
-        )}: ${error instanceof Error ? error.message : String(error)}`
-      );
-      throw new APIError({
-        message: "Invalid pixKey or receiverTaxId.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!masksMatch) {
-      logger.warn(
-        `validateBrlaOfframpRequest: pix key owner taxId does not match receiverTaxId. masked=${pixKeyData.taxId}, provided=${normalizeTaxId(receiverTaxId)}`
-      );
-      throw new APIError({
-        message: "Invalid pixKey or receiverTaxId.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    await this.validateAveniaLimits(amount, subaccountLimits.limitInfo.limits, RampDirection.SELL, taxId);
-
-    const evmAddress = subAccountData?.wallets.find(w => w.chain === "EVM")?.walletAddress;
-
-    if (!evmAddress) {
-      throw new APIError({
-        message: "EVM wallet not found in subaccount.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    return { brCode: subAccountData.brCode, wallets: { evm: evmAddress } };
-  }
-
-  /**
-   * BRLA. Validate the onramp request. Returns appropiate pay in code if valid.
-   */
-  public async validateBrlaOnrampRequest(
-    taxId: string,
-    quote: QuoteTicket,
-    amount: string
-  ): Promise<{ brCode: string; aveniaTicketId: string }> {
-    const brlaApiService = BrlaApiService.getInstance();
-
-    const aveniaCustomer = await findAveniaCustomerByTaxId(taxId);
-    if (!aveniaCustomer) {
-      throw new APIError({
-        message: "Subaccount not found.",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-    const aveniaSubAccountId = aveniaCustomer.providerSubaccountId ?? "";
-
-    const accountLimits = await brlaApiService.getSubaccountUsedLimit(aveniaSubAccountId);
-    if (!accountLimits) {
-      throw new APIError({
-        message: "Failed to fetch subaccount limits.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    await this.validateAveniaLimits(amount, accountLimits.limitInfo.limits, RampDirection.BUY, taxId);
-
-    const aveniaQuote = await brlaApiService.createPayInQuote({
-      inputAmount: String(amount),
-      inputCurrency: BrlaCurrency.BRL,
-      inputPaymentMethod: AveniaPaymentMethod.PIX,
-      inputThirdParty: false,
-      outputCurrency: BrlaCurrency.BRLA,
-      outputPaymentMethod: AveniaPaymentMethod.INTERNAL,
-      outputThirdParty: false,
-      subAccountId: aveniaSubAccountId
-    });
-
-    const aveniaTicket = await brlaApiService.createPixInputTicket(
-      {
-        quoteToken: aveniaQuote.quoteToken,
-        ticketBlockchainOutput: {
-          // This means we are paying out to the subAccount itself.
-          beneficiaryWalletId: "00000000-0000-0000-0000-000000000000"
-        },
-        ticketBrlPixInput: {
-          additionalData: generateReferenceLabel(quote)
-        }
-      },
-      aveniaSubAccountId
-    );
-
-    return { aveniaTicketId: aveniaTicket.id, brCode: aveniaTicket.brCode };
-  }
-
-  private async prepareOfframpBrlTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    userId: string
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode?: string }> {
-    if (!additionalData || !additionalData.pixDestination) {
-      throw new APIError({
-        message: "pixDestination is required for offramp to BRL",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
-    const derivedTaxId = aveniaAccount.taxId;
-    const derivedReceiverTaxId = normalizeTaxId(additionalData.receiverTaxId || derivedTaxId);
-
-    const subaccount = await this.validateBrlaOfframpRequest(
-      derivedTaxId,
-      additionalData.pixDestination,
-      derivedReceiverTaxId,
-      quote.outputAmount
-    );
-
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      brlaEvmAddress: subaccount.wallets.evm,
-      pixDestination: additionalData.pixDestination,
-      quote,
-      receiverTaxId: derivedReceiverTaxId,
-      signingAccounts: normalizedSigningAccounts,
-      taxId: derivedTaxId,
-      userAddress: additionalData.walletAddress,
-      userId
-    });
-
-    return { depositQrCode: subaccount.brCode, stateMeta, unsignedTxs };
-  }
-
-  private async prepareOfframpNonBrlTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    transaction: Transaction,
-    userId: string
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata> }> {
-    // We refresh the quote. It will be used in the transaction creation process, right after this.
-    if (isAlfredpayToken(quote.outputCurrency as FiatToken) && quote.metadata.alfredpayOfframp) {
-      const toCurrency = quote.outputCurrency as unknown as AlfredpayFiatCurrency;
-      await this.refreshAlfredpayOfframpQuoteIfMatching(
-        quote,
-        quote.metadata.alfredpayOfframp,
-        toCurrency,
-        userId,
-        transaction
-      );
-    }
-
-    const { unsignedTxs, stateMeta } = await prepareOfframpTransactions({
-      destinationAddress: additionalData?.destinationAddress,
-      email: additionalData?.email,
-      fiatAccountId: additionalData?.fiatAccountId as string | undefined,
-      ipAddress: additionalData?.ipAddress,
-      quote,
-      signingAccounts: normalizedSigningAccounts,
-      userAddress: additionalData?.walletAddress,
-      userId
-    });
-
-    return { stateMeta, unsignedTxs };
-  }
-
-  private async prepareAveniaOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[],
-    userId: string
-  ): Promise<{ unsignedTxs: UnsignedTx[]; stateMeta: Partial<StateMetadata>; depositQrCode: string; aveniaTicketId: string }> {
-    if (!additionalData || !additionalData.destinationAddress) {
-      throw new APIError({
-        message: "Parameter destinationAddress is required for onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const hasEvmEphemeral = signingAccounts.some(ephemeral => ephemeral.type === EphemeralAccountType.EVM);
-    if (!hasEvmEphemeral) {
-      throw new APIError({
-        message: "Base ephemeral not found",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const aveniaAccount = await resolveAveniaAccountForRamp(userId, additionalData.taxId);
-    const derivedTaxId = aveniaAccount.taxId;
-
-    const { brCode, aveniaTicketId } = await this.validateBrlaOnrampRequest(derivedTaxId, quote, quote.inputAmount);
-
-    const params: AveniaOnrampTransactionParams = {
-      destinationAddress: additionalData.destinationAddress,
-      quote,
-      signingAccounts: normalizedSigningAccounts,
-      taxId: derivedTaxId
-    };
-
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions(params);
-
-    return { aveniaTicketId, depositQrCode: brCode, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
-  private async prepareAlfredpayOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    userId: string
-  ): Promise<{
-    unsignedTxs: UnsignedTx[];
-    stateMeta: Partial<StateMetadata>;
-  }> {
-    if (!additionalData || !additionalData.destinationAddress) {
-      throw new APIError({
-        message: "Parameter destinationAddress is required for Alfredpay onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    await resolveAlfredpayCustomerId(quote.inputCurrency, userId);
-
-    const { unsignedTxs, stateMeta } = await prepareOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
-      quote,
-      signingAccounts: normalizedSigningAccounts,
-      userId
-    });
-
-    return { stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
-  private async prepareMykoboOnrampTransactions(
-    quote: QuoteTicket,
-    normalizedSigningAccounts: AccountMeta[],
-    additionalData: RegisterRampRequest["additionalData"],
-    userId: string
-  ): Promise<{
-    unsignedTxs: UnsignedTx[];
-    stateMeta: Partial<StateMetadata>;
-    ibanPaymentData?: IbanPaymentData;
-  }> {
-    if (!additionalData?.destinationAddress || !additionalData?.ipAddress) {
-      throw new APIError({
-        message: "Parameters destinationAddress and ipAddress are required for Mykobo EUR onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    // The Mykobo email is derived from the effective user's profile (and KYC must be approved);
-    // a client-supplied email is accepted only if it matches. See resolveMykoboCustomerForUser.
-    const { email } = await resolveMykoboCustomerForUser(userId, additionalData.email);
-
-    const evmEphemeralEntry = normalizedSigningAccounts.find(account => account.type === "EVM");
-    if (!evmEphemeralEntry) {
-      throw new APIError({
-        message: "EVM ephemeral account is required for Mykobo EUR onramp",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    const mykobo = MykoboApiService.getInstance();
-    const intent = await mykobo.createTransactionIntent({
-      currency: MykoboCurrency.EURC,
-      email_address: email,
-      ip_address: additionalData.ipAddress,
-      transaction_type: MykoboTransactionType.DEPOSIT,
-      value: new Big(quote.inputAmount).toFixed(2, 0),
-      wallet_address: evmEphemeralEntry.address
-    });
-
-    const instructions = intent.instructions;
-    if (!instructions || !("iban" in instructions)) {
-      throw new APIError({
-        message: "Mykobo deposit intent did not return IBAN instructions",
-        status: httpStatus.BAD_GATEWAY
-      });
-    }
-
-    const { unsignedTxs, stateMeta } = await prepareMykoboToEvmOnrampTransactions({
-      destinationAddress: additionalData.destinationAddress,
-      ipAddress: additionalData.ipAddress,
-      mykoboEmail: email,
-      mykoboTransactionId: intent.transaction.id,
-      mykoboTransactionReference: intent.transaction.reference,
-      quote,
-      signingAccounts: normalizedSigningAccounts
-    });
-
-    const ibanPaymentData: IbanPaymentData = {
-      bic: "",
-      iban: instructions.iban,
-      receiverName: instructions.bank_account_name,
-      reference: intent.transaction.reference
-    };
-
-    return { ibanPaymentData, stateMeta: stateMeta as Partial<StateMetadata>, unsignedTxs };
-  }
-
   private async prepareRampTransactions(
     quote: QuoteTicket,
     normalizedSigningAccounts: AccountMeta[],
     additionalData: RegisterRampRequest["additionalData"],
-    signingAccounts: AccountMeta[],
     transaction: Transaction,
     userId: string
   ): Promise<{
@@ -1314,22 +901,73 @@ export class RampService extends BaseRampService {
     aveniaTicketId?: string;
     ibanPaymentData?: IbanPaymentData;
   }> {
-    switch (selectRampTransactionPreparationKind(quote, additionalData)) {
-      case RampTransactionPreparationKind.OfframpBrl:
-        return this.prepareOfframpBrlTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-
-      case RampTransactionPreparationKind.OfframpNonBrl:
-        return this.prepareOfframpNonBrlTransactions(quote, normalizedSigningAccounts, additionalData, transaction, userId);
-
-      case RampTransactionPreparationKind.OnrampMykobo:
-        return this.prepareMykoboOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-
-      case RampTransactionPreparationKind.OnrampAlfredpay:
-        return this.prepareAlfredpayOnrampTransactions(quote, normalizedSigningAccounts, additionalData, userId);
-
-      case RampTransactionPreparationKind.OnrampAvenia:
-        return this.prepareAveniaOnrampTransactions(quote, normalizedSigningAccounts, additionalData, signingAccounts, userId);
+    if (
+      (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) &&
+      (!additionalData?.destinationAddress || !additionalData.ipAddress)
+    ) {
+      throw new APIError({
+        message: `Parameters destinationAddress and ipAddress are required for Mykobo EUR ${quote.rampType === RampDirection.BUY ? "onramp" : "offramp"}`,
+        status: httpStatus.BAD_REQUEST
+      });
     }
+    if (quote.rampType === RampDirection.BUY && !additionalData?.destinationAddress) {
+      const provider = isAlfredpayToken(quote.inputCurrency as FiatToken) ? "Alfredpay " : "";
+      throw new APIError({
+        message: `Parameter destinationAddress is required for ${provider}onramp`,
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+    if (quote.rampType === RampDirection.BUY && quote.inputCurrency === FiatToken.BRL) {
+      if (!normalizedSigningAccounts.some(account => account.type === EphemeralAccountType.EVM)) {
+        throw new APIError({ message: "Base ephemeral not found", status: httpStatus.BAD_REQUEST });
+      }
+      if (
+        quote.to === Networks.AssetHub &&
+        !normalizedSigningAccounts.some(account => account.type === EphemeralAccountType.Substrate)
+      ) {
+        throw new APIError({ message: "Pendulum ephemeral not found", status: httpStatus.BAD_REQUEST });
+      }
+    }
+
+    const metadata = getFlowMetadata(quote.metadata);
+    const flow = resolvePersistedBlockFlow(metadata);
+    const quoteFields = quote.get({ plain: true });
+    const registered = await flow.register({
+      authenticatedUser: { id: userId },
+      input: additionalData ?? {},
+      ipAddress: additionalData?.ipAddress,
+      metadata,
+      quote: quoteFields,
+      signingAccounts: normalizedSigningAccounts,
+      transaction
+    });
+    await quote.update({ metadata: registered.metadata as unknown as QuoteTicket["metadata"] }, { transaction });
+    const prepared = await flow.prepareTxs({
+      accounts: accountCapabilities(normalizedSigningAccounts),
+      destinationAddress: additionalData?.destinationAddress,
+      metadata: registered.metadata,
+      quote: quoteFields,
+      registrationFacts: registered.registrationFacts,
+      userId
+    });
+    const compatibilityState = mergeCompatibilityRecords("Prepared ramp state", [
+      ...Object.values(registered.registrationFacts),
+      ...Object.values(prepared.stateMeta.blockState ?? {})
+    ]) as Partial<StateMetadata>;
+    const responseArtifacts = mergeCompatibilityRecords(
+      "Ramp registration response",
+      Object.values(registered.responseArtifacts)
+    ) as {
+      aveniaTicketId?: string;
+      depositQrCode?: string;
+      ibanPaymentData?: IbanPaymentData;
+    };
+    return {
+      ...responseArtifacts,
+      aveniaTicketId: responseArtifacts.aveniaTicketId ?? compatibilityState.aveniaTicketId,
+      stateMeta: { ...prepared.stateMeta, ...compatibilityState },
+      unsignedTxs: prepared.unsignedTxs
+    };
   }
 
   private async ephemeralPresignChecksPass(rampState: RampState): Promise<boolean> {
@@ -1430,251 +1068,26 @@ export class RampService extends BaseRampService {
     }
   }
 
-  private async processAlfredpayOnrampStart(
+  private async startPersistedFlow(
     rampState: RampState,
     quote: QuoteTicket,
     transaction: Transaction
-  ): Promise<AlfredpayFiatPaymentInstructions | undefined> {
-    if (rampState.state.alfredpayTransactionId) {
-      return;
+  ): Promise<{ achPaymentData?: AlfredpayFiatPaymentInstructions }> {
+    const metadata = getFlowMetadata(quote.metadata);
+    const started = await resolvePersistedBlockFlow(metadata).start({
+      metadata,
+      quote: quote.get({ plain: true }),
+      rampId: rampState.id,
+      state: rampState.state,
+      userId: rampState.userId ?? undefined
+    });
+    if (started.metadata !== metadata) {
+      await quote.update({ metadata: started.metadata as unknown as QuoteTicket["metadata"] }, { transaction });
     }
-
-    const alfredpayService = AlfredpayApiService.getInstance();
-    const originalAlfredpayMint = quote.metadata.alfredpayMint;
-    const originalQuoteId = originalAlfredpayMint?.quoteId;
-
-    if (!originalQuoteId || !originalAlfredpayMint) {
-      throw new APIError({
-        message: "Missing Alfredpay quote ID in metadata",
-        status: httpStatus.BAD_REQUEST
-      });
+    if (started.state !== rampState.state) {
+      await rampState.update({ state: started.state }, { transaction });
     }
-
-    if (!rampState.userId) {
-      throw new APIError({
-        message: "Missing user ID in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!rampState.state.destinationAddress) {
-      throw new APIError({
-        message: "Destination address not found in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!rampState.state.alfredpayUserId) {
-      throw new APIError({
-        message: "Missing Alfredpay user ID in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    // Alfredpay quotes expire ~30s after creation, which is often shorter than the time the
-    // user needs to sign ephemeral txs in the UI. Try refreshing the Alfredpay quote
-    const fromCurrency = quote.inputCurrency as unknown as AlfredpayFiatCurrency;
-    const effectiveQuoteId = await this.refreshAlfredpayOnrampQuoteIfMatching(
-      quote,
-      originalAlfredpayMint,
-      fromCurrency,
-      rampState.userId,
-      transaction
-    );
-
-    const orderRequest: CreateAlfredpayOnrampRequest = {
-      amount: quote.inputAmount,
-      chain: AlfredpayChain.MATIC,
-      customerId: rampState.state.alfredpayUserId,
-      depositAddress: rampState.state.evmEphemeralAddress,
-      fromCurrency,
-      paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      quoteId: effectiveQuoteId,
-      toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
-    };
-
-    const order = await alfredpayService.createOnramp(orderRequest);
-
-    await rampState.update(
-      {
-        state: {
-          ...rampState.state,
-          alfredpayTransactionId: order.transaction.transactionId,
-          fiatPaymentInstructions: order.fiatPaymentInstructions
-        }
-      },
-      { transaction }
-    );
-
-    return order.fiatPaymentInstructions;
-  }
-
-  private async refreshAlfredpayOnrampQuoteIfMatching(
-    quote: QuoteTicket,
-    originalAlfredpayMint: NonNullable<QuoteTicket["metadata"]["alfredpayMint"]>,
-    fromCurrency: AlfredpayFiatCurrency,
-    userId: string,
-    transaction: Transaction
-  ): Promise<string> {
-    const alfredpayService = AlfredpayApiService.getInstance();
-    const originalQuoteId = originalAlfredpayMint.quoteId;
-
-    const customerId = await resolveAlfredpayCustomerId(fromCurrency, userId);
-
-    try {
-      const freshQuote = await alfredpayService.createOnrampQuote({
-        chain: AlfredpayChain.MATIC,
-        fromAmount: new Big(quote.inputAmount).toString(),
-        fromCurrency,
-        metadata: {
-          businessId: "vortex",
-          customerId
-        },
-        paymentMethodType: AlfredpayPaymentMethodType.BANK,
-        toCurrency: ALFREDPAY_ONCHAIN_CURRENCY
-      });
-
-      // outputAmountDecimal arrives as a serialized Big after JSONB roundtrip; normalize via Big().
-      const originalToAmount = new Big(originalAlfredpayMint.outputAmountDecimal as unknown as string);
-      const freshToAmount = new Big(freshQuote.toAmount);
-
-      const originalFee = new Big(originalAlfredpayMint.fee as unknown as string);
-      const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, fromCurrency);
-
-      if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
-        logger.warn(
-          `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refreshed Alfredpay quote drifted. ` +
-            `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
-            `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
-            `Falling back to original quoteId ${originalQuoteId}.`
-        );
-        return originalQuoteId;
-      }
-
-      await quote.update(
-        {
-          metadata: {
-            ...quote.metadata,
-            alfredpayMint: {
-              ...originalAlfredpayMint,
-              expirationDate: new Date(freshQuote.expiration),
-              quoteId: freshQuote.quoteId
-            }
-          }
-        },
-        { transaction }
-      );
-
-      logger.info(
-        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: swapped Alfredpay quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
-      );
-      return freshQuote.quoteId;
-    } catch (error) {
-      logger.warn(
-        `[refreshAlfredpayOnrampQuote] Quote ${quote.id}: refresh failed (${
-          error instanceof Error ? error.message : String(error)
-        }). Falling back to original quoteId ${originalQuoteId}.`
-      );
-      return originalQuoteId;
-    }
-  }
-
-  private async refreshAlfredpayOfframpQuoteIfMatching(
-    quote: QuoteTicket,
-    originalAlfredpayOfframp: NonNullable<QuoteTicket["metadata"]["alfredpayOfframp"]>,
-    toCurrency: AlfredpayFiatCurrency,
-    userId: string,
-    transaction: Transaction
-  ): Promise<string> {
-    const alfredpayService = AlfredpayApiService.getInstance();
-    const originalQuoteId = originalAlfredpayOfframp.quoteId;
-
-    const customerId = await resolveAlfredpayCustomerId(toCurrency, userId);
-
-    const freshQuote = await alfredpayService.createOfframpQuote({
-      chain: AlfredpayChain.MATIC,
-      fromAmount: originalAlfredpayOfframp.inputAmountDecimal.toString(),
-      fromCurrency: ALFREDPAY_ONCHAIN_CURRENCY,
-      metadata: { businessId: "vortex", customerId },
-      paymentMethodType: AlfredpayPaymentMethodType.BANK,
-      toCurrency
-    } satisfies CreateAlfredpayOfframpQuoteRequest);
-
-    const originalToAmount = new Big(originalAlfredpayOfframp.outputAmountDecimal as unknown as string);
-    const freshToAmount = new Big(freshQuote.toAmount);
-
-    const originalFee = new Big(originalAlfredpayOfframp.fee as unknown as string);
-    const freshFee = AlfredpayApiService.sumFeesByCurrency(freshQuote.fees, toCurrency);
-
-    if (!freshToAmount.eq(originalToAmount) || !freshFee.eq(originalFee)) {
-      throw new APIError({
-        message:
-          `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: refreshed Alfredpay offramp quote drifted. ` +
-          `toAmount original=${originalToAmount.toString()} fresh=${freshToAmount.toString()}, ` +
-          `fee original=${originalFee.toString()} fresh=${freshFee.toString()}. ` +
-          "Cannot proceed with offramp order.",
-        status: httpStatus.INTERNAL_SERVER_ERROR
-      });
-    }
-
-    await quote.update(
-      {
-        metadata: {
-          ...quote.metadata,
-          alfredpayOfframp: {
-            ...originalAlfredpayOfframp,
-            expirationDate: new Date(freshQuote.expiration),
-            quoteId: freshQuote.quoteId
-          }
-        }
-      },
-      { transaction }
-    );
-
-    logger.info(
-      `[refreshAlfredpayOfframpQuote] Quote ${quote.id}: swapped Alfredpay offramp quote ${originalQuoteId} -> ${freshQuote.quoteId}.`
-    );
-    return freshQuote.quoteId;
-  }
-
-  private async processAlfredpayOfframpStart(
-    rampState: RampState,
-    quote: QuoteTicket,
-    transaction: Transaction
-  ): Promise<void> {
-    if (rampState.state.alfredpayTransactionId) {
-      return;
-    }
-
-    const alfredpayQuoteId = quote.metadata.alfredpayOfframp?.quoteId;
-
-    if (!alfredpayQuoteId) {
-      throw new APIError({
-        message: "Missing Alfredpay quote ID in metadata",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!rampState.state.alfredpayUserId) {
-      throw new APIError({
-        message: "Missing Alfredpay user ID in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!rampState.state.fiatAccountId) {
-      throw new APIError({
-        message: "Missing fiatAccountId in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
-    if (!rampState.state.walletAddress) {
-      throw new APIError({
-        message: "Wallet address not found in ramp state",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
+    return Object.assign({}, ...Object.values(started.responseArtifacts));
   }
 }
 

@@ -4,7 +4,7 @@ import path from "node:path";
 
 import RampState, {RampStateAttributes, RampStateCreationAttributes} from "../../../models/rampState.model";
 import {PhaseProcessor} from "./phase-processor";
-import registerPhaseHandlers from "./register-handlers";
+import { registerBlockFlowHandlers } from "./blocks/register-handlers";
 
 const fixturePath = path.join(__dirname, "failedRampStateRecovery.json");
 
@@ -103,14 +103,14 @@ RampState.create = mock(async (data: RampStateCreationAttributes) => {
 }
 
 // Live test: replays a persisted failed ramp state against real services.
-// Opt-in via RUN_LIVE_TESTS=1 (see docs/testing-strategy.md).
+// Opt-in via RUN_LIVE_TESTS=1 (see docs/operations-testing.md).
 describe.skipIf(!process.env.RUN_LIVE_TESTS)("Restart PhaseProcessor Integration Test", () => {
   it("should re-start an offramp (evm -> sepa) through multiple phases until completion", async () => {
     try {
       const processor = new PhaseProcessor();
 
       // wait for handlers to be registered
-      registerPhaseHandlers();
+      registerBlockFlowHandlers();
       await new Promise(resolve => setTimeout(resolve, 1000));
       await processor.processRamp(rampState.id);
 

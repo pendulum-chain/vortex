@@ -79,12 +79,14 @@ export async function createTransactionDataFromRoute({
   });
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
+  const bumpedMaxFeePerGas = (maxFeePerGas * 2n).toString();
+  const bumpedMaxPriorityFeePerGas = ((maxPriorityFeePerGas ?? maxFeePerGas) * 2n).toString();
 
   const approveData: EvmTransactionData = {
     data: approveTransactionData as `0x${string}`,
     gas: "150000",
-    maxFeePerGas: maxFeePerGas.toString(),
-    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    maxFeePerGas: bumpedMaxFeePerGas,
+    maxPriorityFeePerGas: bumpedMaxPriorityFeePerGas,
     to: inputTokenErc20Address as `0x${string}`,
     value: "0"
   };
@@ -96,8 +98,8 @@ export async function createTransactionDataFromRoute({
   const swapData: EvmTransactionData = {
     data: transactionRequest.data as `0x${string}`,
     gas: normalizeBigIntString(transactionRequest.gasLimit),
-    maxFeePerGas: maxFeePerGas.toString(),
-    maxPriorityFeePerGas: (maxPriorityFeePerGas ?? maxFeePerGas).toString(),
+    maxFeePerGas: bumpedMaxFeePerGas,
+    maxPriorityFeePerGas: bumpedMaxPriorityFeePerGas,
     to: transactionRequest.target as `0x${string}`,
     value: normalizeBigIntString(swapValue ?? transactionRequest.value)
   };

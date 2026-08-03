@@ -1,19 +1,8 @@
 import { AuthService, type AuthTokens } from "../auth";
 import { API_BASE_URL } from "./base-url";
 
-// Single-flight token refresh: concurrent 401s share one refresh instead of each firing
-// their own (which would race the refresh-token rotation and fail).
-let refreshPromise: Promise<AuthTokens | null> | null = null;
-
 function refreshTokenOnce(): Promise<AuthTokens | null> {
-  if (!refreshPromise) {
-    refreshPromise = AuthService.refreshAccessToken()
-      .catch(() => null)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
+  return AuthService.refreshAccessToken().catch(() => null);
 }
 
 export class ApiError extends Error {
@@ -75,7 +64,7 @@ async function apiFetch<T>(
 
   if (response.status === 401 && initialTokens?.accessToken) {
     const refreshed = await refreshTokenOnce();
-    if (refreshed?.accessToken) {
+    if (refreshed?.accessToken && refreshed.userId === initialTokens.userId) {
       response = await doFetch(refreshed.accessToken);
     }
   }
@@ -107,7 +96,8 @@ async function apiFetch<T>(
 }
 
 export const apiClient = {
-  delete: <T>(url: string, config?: { params?: Params }) => apiFetch<T>("DELETE", url, { params: config?.params }),
+  delete: <T>(url: string, config?: { data?: unknown; params?: Params }) =>
+    apiFetch<T>("DELETE", url, { data: config?.data, params: config?.params }),
   get: <T>(url: string, config?: { params?: Params; signal?: AbortSignal }) =>
     apiFetch<T>("GET", url, { params: config?.params, signal: config?.signal }),
   patch: <T>(url: string, data?: unknown) => apiFetch<T>("PATCH", url, { data }),

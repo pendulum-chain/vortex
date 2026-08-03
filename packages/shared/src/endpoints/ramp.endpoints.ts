@@ -64,7 +64,8 @@ export type CleanupPhase =
   | "baseCleanupUsdc"
   | "baseCleanupBrla"
   | "baseCleanupEurc"
-  | "baseCleanupAxlUsdc";
+  | "baseCleanupAxlUsdc"
+  | "ethereumCleanupUsdc";
 
 export enum EphemeralAccountType {
   Substrate = "Substrate",
@@ -87,8 +88,8 @@ export interface EvmTransactionData {
 }
 
 export interface TypedDataDomain {
-  name: string;
-  version: string;
+  name?: string;
+  version?: string;
   salt?: `0x${string}`;
   chainId?: number;
   verifyingContract: EvmAddress;
@@ -190,6 +191,15 @@ export interface RegisterRampRequest {
     sessionId?: string;
     email?: string; // Required for Mykobo EUR ramps (binds ramp to anchor profile)
     ipAddress?: string; // Required for Mykobo EUR ramps (user IP for fraud checks; auto-filled from req.ip if omitted)
+    /**
+     * Recipient-directed payout is intentionally unsupported in this API version.
+     * The server rejects common recipient-context keys instead of silently treating
+     * the request as a sender self-offramp.
+     */
+    recipientId?: never;
+    recipientPayoutReferenceId?: never;
+    recipientRelationshipId?: never;
+    senderRecipientId?: never;
     [key: string]: unknown;
   };
 }
@@ -249,6 +259,17 @@ export interface RampProcess {
 
 export interface GetRampStatusRequest {
   id: string;
+}
+
+export interface GetRampInfoResponse {
+  corridors: Record<
+    string,
+    {
+      kycStatus: "not_started" | "pending" | "approved" | "rejected";
+      canBuy: boolean;
+      canSell: boolean;
+    }
+  >;
 }
 
 export interface GetRampStatusResponse extends RampProcess {

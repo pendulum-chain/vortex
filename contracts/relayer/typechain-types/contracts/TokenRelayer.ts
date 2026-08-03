@@ -2,25 +2,25 @@
 /* tslint:disable */
 /* eslint-disable */
 import type {
-  AddressLike,
   BaseContract,
   BigNumberish,
   BytesLike,
-  ContractMethod,
-  ContractRunner,
-  EventFragment,
   FunctionFragment,
+  Result,
   Interface,
+  EventFragment,
+  AddressLike,
+  ContractRunner,
+  ContractMethod,
   Listener,
-  Result
 } from "ethers";
 import type {
   TypedContractEvent,
-  TypedContractMethod,
   TypedDeferredTopicFilter,
   TypedEventLog,
+  TypedLogDescription,
   TypedListener,
-  TypedLogDescription
+  TypedContractMethod,
 } from "../common";
 
 export declare namespace TokenRelayer {
@@ -93,38 +93,91 @@ export interface TokenRelayerInterface extends Interface {
     nameOrSignatureOrTopic:
       | "EIP712DomainChanged"
       | "ETHWithdrawn"
+      | "NativeRefunded"
       | "OwnershipTransferred"
       | "RelayerExecuted"
+      | "RelayerTransferObserved"
       | "TokenWithdrawn"
   ): EventFragment;
 
-  encodeFunctionData(functionFragment: "destinationContract", values?: undefined): string;
-  encodeFunctionData(functionFragment: "eip712Domain", values?: undefined): string;
-  encodeFunctionData(functionFragment: "execute", values: [TokenRelayer.ExecuteParamsStruct]): string;
-  encodeFunctionData(functionFragment: "isExecutionCompleted", values: [AddressLike, BigNumberish]): string;
+  encodeFunctionData(
+    functionFragment: "destinationContract",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "eip712Domain",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "execute",
+    values: [TokenRelayer.ExecuteParamsStruct]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "isExecutionCompleted",
+    values: [AddressLike, BigNumberish]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
-  encodeFunctionData(functionFragment: "renounceOwnership", values?: undefined): string;
-  encodeFunctionData(functionFragment: "transferOwnership", values: [AddressLike]): string;
-  encodeFunctionData(functionFragment: "usedPayloadNonces", values: [AddressLike, BigNumberish]): string;
-  encodeFunctionData(functionFragment: "withdrawETH", values: [BigNumberish]): string;
-  encodeFunctionData(functionFragment: "withdrawToken", values: [AddressLike, BigNumberish]): string;
+  encodeFunctionData(
+    functionFragment: "renounceOwnership",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "transferOwnership",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "usedPayloadNonces",
+    values: [AddressLike, BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawETH",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "withdrawToken",
+    values: [AddressLike, BigNumberish]
+  ): string;
 
-  decodeFunctionResult(functionFragment: "destinationContract", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "eip712Domain", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "destinationContract",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "eip712Domain",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "execute", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "isExecutionCompleted", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "isExecutionCompleted",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "renounceOwnership", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "transferOwnership", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "usedPayloadNonces", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "withdrawETH", data: BytesLike): Result;
-  decodeFunctionResult(functionFragment: "withdrawToken", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "renounceOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "usedPayloadNonces",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawETH",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "withdrawToken",
+    data: BytesLike
+  ): Result;
 }
 
 export namespace EIP712DomainChangedEvent {
   export type InputTuple = [];
   export type OutputTuple = [];
-  export type OutputObject = {};
+  export interface OutputObject {}
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
   export type Log = TypedEventLog<Event>;
@@ -137,6 +190,19 @@ export namespace ETHWithdrawnEvent {
   export interface OutputObject {
     amount: bigint;
     to: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace NativeRefundedEvent {
+  export type InputTuple = [executor: AddressLike, amount: BigNumberish];
+  export type OutputTuple = [executor: string, amount: bigint];
+  export interface OutputObject {
+    executor: string;
+    amount: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -158,7 +224,11 @@ export namespace OwnershipTransferredEvent {
 }
 
 export namespace RelayerExecutedEvent {
-  export type InputTuple = [signer: AddressLike, token: AddressLike, amount: BigNumberish];
+  export type InputTuple = [
+    signer: AddressLike,
+    token: AddressLike,
+    amount: BigNumberish
+  ];
   export type OutputTuple = [signer: string, token: string, amount: bigint];
   export interface OutputObject {
     signer: string;
@@ -171,8 +241,40 @@ export namespace RelayerExecutedEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace RelayerTransferObservedEvent {
+  export type InputTuple = [
+    signer: AddressLike,
+    token: AddressLike,
+    requested: BigNumberish,
+    received: BigNumberish,
+    consumed: BigNumberish
+  ];
+  export type OutputTuple = [
+    signer: string,
+    token: string,
+    requested: bigint,
+    received: bigint,
+    consumed: bigint
+  ];
+  export interface OutputObject {
+    signer: string;
+    token: string;
+    requested: bigint;
+    received: bigint;
+    consumed: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace TokenWithdrawnEvent {
-  export type InputTuple = [token: AddressLike, amount: BigNumberish, to: AddressLike];
+  export type InputTuple = [
+    token: AddressLike,
+    amount: BigNumberish,
+    to: AddressLike
+  ];
   export type OutputTuple = [token: string, amount: bigint, to: string];
   export interface OutputObject {
     token: string;
@@ -202,21 +304,31 @@ export interface TokenRelayer extends BaseContract {
     toBlock?: string | number | undefined
   ): Promise<Array<TypedEventLog<TCEvent>>>;
 
-  on<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
+  on<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
   on<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     listener: TypedListener<TCEvent>
   ): Promise<this>;
 
-  once<TCEvent extends TypedContractEvent>(event: TCEvent, listener: TypedListener<TCEvent>): Promise<this>;
+  once<TCEvent extends TypedContractEvent>(
+    event: TCEvent,
+    listener: TypedListener<TCEvent>
+  ): Promise<this>;
   once<TCEvent extends TypedContractEvent>(
     filter: TypedDeferredTopicFilter<TCEvent>,
     listener: TypedListener<TCEvent>
   ): Promise<this>;
 
-  listeners<TCEvent extends TypedContractEvent>(event: TCEvent): Promise<Array<TypedListener<TCEvent>>>;
+  listeners<TCEvent extends TypedContractEvent>(
+    event: TCEvent
+  ): Promise<Array<TypedListener<TCEvent>>>;
   listeners(eventName?: string): Promise<Array<Listener>>;
-  removeAllListeners<TCEvent extends TypedContractEvent>(event?: TCEvent): Promise<this>;
+  removeAllListeners<TCEvent extends TypedContractEvent>(
+    event?: TCEvent
+  ): Promise<this>;
 
   destinationContract: TypedContractMethod<[], [string], "view">;
 
@@ -236,26 +348,56 @@ export interface TokenRelayer extends BaseContract {
     "view"
   >;
 
-  execute: TypedContractMethod<[params: TokenRelayer.ExecuteParamsStruct], [void], "payable">;
+  execute: TypedContractMethod<
+    [params: TokenRelayer.ExecuteParamsStruct],
+    [void],
+    "payable"
+  >;
 
-  isExecutionCompleted: TypedContractMethod<[signer: AddressLike, nonce: BigNumberish], [boolean], "view">;
+  isExecutionCompleted: TypedContractMethod<
+    [signer: AddressLike, nonce: BigNumberish],
+    [boolean],
+    "view"
+  >;
 
   owner: TypedContractMethod<[], [string], "view">;
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
-  transferOwnership: TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  transferOwnership: TypedContractMethod<
+    [newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
 
-  usedPayloadNonces: TypedContractMethod<[arg0: AddressLike, arg1: BigNumberish], [boolean], "view">;
+  usedPayloadNonces: TypedContractMethod<
+    [arg0: AddressLike, arg1: BigNumberish],
+    [boolean],
+    "view"
+  >;
 
-  withdrawETH: TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+  withdrawETH: TypedContractMethod<
+    [amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
-  withdrawToken: TypedContractMethod<[token: AddressLike, amount: BigNumberish], [void], "nonpayable">;
+  withdrawToken: TypedContractMethod<
+    [token: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
-  getFunction<T extends ContractMethod = ContractMethod>(key: string | FunctionFragment): T;
+  getFunction<T extends ContractMethod = ContractMethod>(
+    key: string | FunctionFragment
+  ): T;
 
-  getFunction(nameOrSignature: "destinationContract"): TypedContractMethod<[], [string], "view">;
-  getFunction(nameOrSignature: "eip712Domain"): TypedContractMethod<
+  getFunction(
+    nameOrSignature: "destinationContract"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "eip712Domain"
+  ): TypedContractMethod<
     [],
     [
       [string, string, string, bigint, string, string, bigint[]] & {
@@ -270,20 +412,46 @@ export interface TokenRelayer extends BaseContract {
     ],
     "view"
   >;
-  getFunction(nameOrSignature: "execute"): TypedContractMethod<[params: TokenRelayer.ExecuteParamsStruct], [void], "payable">;
+  getFunction(
+    nameOrSignature: "execute"
+  ): TypedContractMethod<
+    [params: TokenRelayer.ExecuteParamsStruct],
+    [void],
+    "payable"
+  >;
   getFunction(
     nameOrSignature: "isExecutionCompleted"
-  ): TypedContractMethod<[signer: AddressLike, nonce: BigNumberish], [boolean], "view">;
-  getFunction(nameOrSignature: "owner"): TypedContractMethod<[], [string], "view">;
-  getFunction(nameOrSignature: "renounceOwnership"): TypedContractMethod<[], [void], "nonpayable">;
-  getFunction(nameOrSignature: "transferOwnership"): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  ): TypedContractMethod<
+    [signer: AddressLike, nonce: BigNumberish],
+    [boolean],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "owner"
+  ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "renounceOwnership"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "transferOwnership"
+  ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "usedPayloadNonces"
-  ): TypedContractMethod<[arg0: AddressLike, arg1: BigNumberish], [boolean], "view">;
-  getFunction(nameOrSignature: "withdrawETH"): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
+  ): TypedContractMethod<
+    [arg0: AddressLike, arg1: BigNumberish],
+    [boolean],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "withdrawETH"
+  ): TypedContractMethod<[amount: BigNumberish], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "withdrawToken"
-  ): TypedContractMethod<[token: AddressLike, amount: BigNumberish], [void], "nonpayable">;
+  ): TypedContractMethod<
+    [token: AddressLike, amount: BigNumberish],
+    [void],
+    "nonpayable"
+  >;
 
   getEvent(
     key: "EIP712DomainChanged"
@@ -294,7 +462,18 @@ export interface TokenRelayer extends BaseContract {
   >;
   getEvent(
     key: "ETHWithdrawn"
-  ): TypedContractEvent<ETHWithdrawnEvent.InputTuple, ETHWithdrawnEvent.OutputTuple, ETHWithdrawnEvent.OutputObject>;
+  ): TypedContractEvent<
+    ETHWithdrawnEvent.InputTuple,
+    ETHWithdrawnEvent.OutputTuple,
+    ETHWithdrawnEvent.OutputObject
+  >;
+  getEvent(
+    key: "NativeRefunded"
+  ): TypedContractEvent<
+    NativeRefundedEvent.InputTuple,
+    NativeRefundedEvent.OutputTuple,
+    NativeRefundedEvent.OutputObject
+  >;
   getEvent(
     key: "OwnershipTransferred"
   ): TypedContractEvent<
@@ -304,10 +483,25 @@ export interface TokenRelayer extends BaseContract {
   >;
   getEvent(
     key: "RelayerExecuted"
-  ): TypedContractEvent<RelayerExecutedEvent.InputTuple, RelayerExecutedEvent.OutputTuple, RelayerExecutedEvent.OutputObject>;
+  ): TypedContractEvent<
+    RelayerExecutedEvent.InputTuple,
+    RelayerExecutedEvent.OutputTuple,
+    RelayerExecutedEvent.OutputObject
+  >;
+  getEvent(
+    key: "RelayerTransferObserved"
+  ): TypedContractEvent<
+    RelayerTransferObservedEvent.InputTuple,
+    RelayerTransferObservedEvent.OutputTuple,
+    RelayerTransferObservedEvent.OutputObject
+  >;
   getEvent(
     key: "TokenWithdrawn"
-  ): TypedContractEvent<TokenWithdrawnEvent.InputTuple, TokenWithdrawnEvent.OutputTuple, TokenWithdrawnEvent.OutputObject>;
+  ): TypedContractEvent<
+    TokenWithdrawnEvent.InputTuple,
+    TokenWithdrawnEvent.OutputTuple,
+    TokenWithdrawnEvent.OutputObject
+  >;
 
   filters: {
     "EIP712DomainChanged()": TypedContractEvent<
@@ -332,6 +526,17 @@ export interface TokenRelayer extends BaseContract {
       ETHWithdrawnEvent.OutputObject
     >;
 
+    "NativeRefunded(address,uint256)": TypedContractEvent<
+      NativeRefundedEvent.InputTuple,
+      NativeRefundedEvent.OutputTuple,
+      NativeRefundedEvent.OutputObject
+    >;
+    NativeRefunded: TypedContractEvent<
+      NativeRefundedEvent.InputTuple,
+      NativeRefundedEvent.OutputTuple,
+      NativeRefundedEvent.OutputObject
+    >;
+
     "OwnershipTransferred(address,address)": TypedContractEvent<
       OwnershipTransferredEvent.InputTuple,
       OwnershipTransferredEvent.OutputTuple,
@@ -352,6 +557,17 @@ export interface TokenRelayer extends BaseContract {
       RelayerExecutedEvent.InputTuple,
       RelayerExecutedEvent.OutputTuple,
       RelayerExecutedEvent.OutputObject
+    >;
+
+    "RelayerTransferObserved(address,address,uint256,uint256,uint256)": TypedContractEvent<
+      RelayerTransferObservedEvent.InputTuple,
+      RelayerTransferObservedEvent.OutputTuple,
+      RelayerTransferObservedEvent.OutputObject
+    >;
+    RelayerTransferObserved: TypedContractEvent<
+      RelayerTransferObservedEvent.InputTuple,
+      RelayerTransferObservedEvent.OutputTuple,
+      RelayerTransferObservedEvent.OutputObject
     >;
 
     "TokenWithdrawn(address,uint256,address)": TypedContractEvent<

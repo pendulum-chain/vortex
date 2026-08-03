@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
+  ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   AlfredpayOfframpStatus,
   EvmToken,
@@ -13,6 +14,7 @@ import { BaseError, ContractFunctionExecutionError, decodeFunctionData, erc20Abi
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import { parseUnits } from "viem/utils";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -85,6 +87,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
     world.squidRouter.computeToAmount = params => params.fromAmount;
+    world.squidRouter.toTokenDecimals = ALFREDPAY_ERC20_DECIMALS;
     world.alfredpay.offrampRate = ALFREDPAY_OFFRAMP_RATE;
     world.alfredpay.offrampStatus = AlfredpayOfframpStatus.FIAT_TRANSFER_COMPLETED;
     // Fresh deposit address per test: the in-memory EVM ledger persists across
@@ -106,6 +109,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   });
 
   async function createQuoteViaApi(): Promise<{ id: string; inputAmount: string; outputAmount: string }> {
+    const squidRouteCount = world.squidRouter.requestedRoutes.length;
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: Networks.Polygon,
@@ -120,6 +124,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       method: "POST"
     });
     expect(response.status).toBe(201);
+    expect(world.squidRouter.requestedRoutes).toHaveLength(squidRouteCount);
     return (await response.json()) as { id: string; inputAmount: string; outputAmount: string };
   }
 
@@ -161,7 +166,10 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, userWallet);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const inputAmountRaw = BigInt(persistedQuote?.metadata.alfredpayOfframp?.inputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayOfframp?: { inputAmountRaw?: string } } }
+      | undefined;
+    const inputAmountRaw = BigInt(metadata?.blocks.alfredpayOfframp?.inputAmountRaw ?? "0");
     expect(inputAmountRaw).toBeGreaterThan(0n);
 
     // The register RESPONSE withholds user-wallet txs until the ephemeral
@@ -275,6 +283,25 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTransfer).length;
   }
 
+  it("quotes direct Polygon USDT 1:1 without requesting a Squid route", async () => {
+    const quote = await createQuoteViaApi();
+    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+    const metadata = persistedQuote?.metadata as unknown as
+      | {
+          blocks: {
+            alfredpayOfframp?: {
+              bridgeInputAmountRaw?: string;
+              bridgeOutputAmountRaw?: string;
+            };
+          };
+        }
+      | undefined;
+    const expectedRaw = parseUnits(quote.inputAmount, ALFREDPAY_ERC20_DECIMALS).toString();
+
+    expect(metadata?.blocks.alfredpayOfframp?.bridgeInputAmountRaw).toBe(expectedRaw);
+    expect(metadata?.blocks.alfredpayOfframp?.bridgeOutputAmountRaw).toBe(expectedRaw);
+  });
+
   it(
     "happy path: processes the full Alfredpay offramp phase sequence to complete",
     async () => {
@@ -302,7 +329,7 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
-    "transient failure: an RPC outage on the ephemeral gas funding is recoverable and the ramp still completes",
+    "ambiguous funding failure: an RPC outage pauses the ramp for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -327,19 +354,21 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
-      expect(final?.phaseHistory.map(entry => entry.phase)).toEqual(HAPPY_PATH_PHASES);
+      expect(final?.currentPhase).toBe("fundEphemeral");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
-      // The outage surfaced as exactly one recoverable fundEphemeral error...
+      // The transport error is recoverable at the phase layer, but the
+      // financial outcome is unknown, so retries halt instead of risking a
+      // duplicate funding transfer.
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("Error funding ephemeral account")) ?? [];
       expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "fundEphemeral" && log.recoverable === true)).toBe(true);
-
-      // ...and after the retry the deposit transfer reached the chain exactly
-      // once, paying the anchor in full.
-      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(setup.inputAmountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "fundEphemeral", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedOfframpTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(0n);
     },
     30000
   );

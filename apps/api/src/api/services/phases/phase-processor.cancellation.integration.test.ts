@@ -58,12 +58,12 @@ describe("PhaseProcessor execution cancellation", () => {
   beforeAll(async () => {
     await setupTestDatabase();
     await resetTestDatabase();
-    phaseRegistry.registerHandler(hangingHandler);
+    phaseRegistry.replaceHandlerForTest(hangingHandler);
   });
 
   afterAll(() => {
     if (originalHandler) {
-      phaseRegistry.registerHandler(originalHandler);
+      phaseRegistry.replaceHandlerForTest(originalHandler);
     } else {
       // The registry has no unregister API; drop the shadow entry directly.
       (phaseRegistry as unknown as { handlers: Map<string, PhaseHandler> }).handlers.delete(TEST_PHASE);
@@ -117,7 +117,7 @@ describe("PhaseProcessor execution cancellation", () => {
       },
       getPhaseName: () => TEST_PHASE
     };
-    phaseRegistry.registerHandler(syncThrowHandler);
+    phaseRegistry.replaceHandlerForTest(syncThrowHandler);
 
     try {
       const state = await createTestRampState({ currentPhase: TEST_PHASE });
@@ -135,7 +135,7 @@ describe("PhaseProcessor execution cancellation", () => {
       expect(reloaded?.processingLock.locked).toBe(false);
     } finally {
       process.off("unhandledRejection", onUnhandled);
-      phaseRegistry.registerHandler(hangingHandler);
+      phaseRegistry.replaceHandlerForTest(hangingHandler);
     }
   });
 

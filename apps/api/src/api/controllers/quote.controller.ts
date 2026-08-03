@@ -31,7 +31,7 @@ export const createQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey } = req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, apiKey } = req.body;
 
     const network = getNetworkFromDestination(rampType === RampDirection.BUY ? to : from);
 
@@ -44,19 +44,19 @@ export const createQuote = async (
 
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
-    const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
     const effectiveUserId = getEffectiveUserId(req);
 
     // Create quote with public key and partner name for discount application
     const quote = await quoteService.createQuote({
+      apiCredentialId: req.credential?.credentialId,
       apiKey: publicApiKey,
       from,
       inputAmount,
       inputCurrency,
       network,
       outputCurrency,
-      partnerId,
-      partnerName: publicKeyPartnerName,
+      partnerId: req.credential?.partnerId ?? undefined,
+      partnerName: undefined,
       rampType,
       to,
       userId: effectiveUserId
@@ -68,8 +68,8 @@ export const createQuote = async (
       httpStatus: httpStatus.CREATED,
       network,
       operation: "quote_create",
-      partnerId: req.authenticatedPartner?.id || partnerId || null,
-      partnerName: req.authenticatedPartner?.name || publicKeyPartnerName || null,
+      partnerId: req.credential?.partnerId || null,
+      partnerName: req.authenticatedPartner?.name || null,
       paymentMethod: quote.paymentMethod,
       quoteId: quote.id,
       rampType,
@@ -84,8 +84,8 @@ export const createQuote = async (
     observeQuoteFailure(req, "quote_create", error, {
       apiKeyPrefix: getSafeApiKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey, ["pk_"]),
       network: getNetworkFromDestination(req.body?.rampType === RampDirection.BUY ? req.body?.to : req.body?.from),
-      partnerId: req.authenticatedPartner?.id || req.body?.partnerId || null,
-      partnerName: req.authenticatedPartner?.name || req.validatedPublicKey?.partnerName || null,
+      partnerId: req.credential?.partnerId || null,
+      partnerName: req.authenticatedPartner?.name || null,
       paymentMethod: req.body?.paymentMethod,
       rampType: req.body?.rampType
     });
@@ -103,16 +103,15 @@ export const createBestQuote = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, partnerId, apiKey, countryCode, networks } =
-      req.body;
+    const { rampType, from, to, inputAmount, inputCurrency, outputCurrency, apiKey, countryCode, networks } = req.body;
 
     // Get apiKey from body or from validated public key middleware
     const publicApiKey = apiKey || req.validatedPublicKey?.apiKey;
-    const publicKeyPartnerName = req.validatedPublicKey?.partnerName;
     const effectiveUserId = getEffectiveUserId(req);
 
     // Create best quote by querying all eligible networks
     const quote = await quoteService.createBestQuote({
+      apiCredentialId: req.credential?.credentialId,
       apiKey: publicApiKey,
       countryCode,
       from,
@@ -120,8 +119,8 @@ export const createBestQuote = async (
       inputCurrency,
       networks,
       outputCurrency,
-      partnerId,
-      partnerName: publicKeyPartnerName,
+      partnerId: req.credential?.partnerId ?? undefined,
+      partnerName: undefined,
       rampType,
       to,
       userId: effectiveUserId
@@ -133,8 +132,8 @@ export const createBestQuote = async (
       httpStatus: httpStatus.CREATED,
       network: quote.network,
       operation: "quote_create_best",
-      partnerId: req.authenticatedPartner?.id || partnerId || null,
-      partnerName: req.authenticatedPartner?.name || publicKeyPartnerName || null,
+      partnerId: req.credential?.partnerId || null,
+      partnerName: req.authenticatedPartner?.name || null,
       paymentMethod: quote.paymentMethod,
       quoteId: quote.id,
       rampType,
@@ -148,8 +147,8 @@ export const createBestQuote = async (
     logger.error("Error creating best quote", { errorType: classifyApiClientError(error), requestId: req.requestId });
     observeQuoteFailure(req, "quote_create_best", error, {
       apiKeyPrefix: getSafeApiKeyPrefix(req.body?.apiKey || req.validatedPublicKey?.apiKey, ["pk_"]),
-      partnerId: req.authenticatedPartner?.id || req.body?.partnerId || null,
-      partnerName: req.authenticatedPartner?.name || req.validatedPublicKey?.partnerName || null,
+      partnerId: req.credential?.partnerId || null,
+      partnerName: req.authenticatedPartner?.name || null,
       rampType: req.body?.rampType
     });
     next(error);

@@ -11,6 +11,7 @@ import httpStatus from "http-status";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import logger from "../../config/logger";
+import { config, RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS } from "../../config/vars";
 import CustomerEntity from "../../models/customerEntity.model";
 import ProfileRole from "../../models/profileRole.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
@@ -56,12 +57,14 @@ interface CreateInviteBody {
   discounts?: { buyBps?: number; sellBps?: number };
 }
 
-// Bounded by the runtime EVM discount-subsidy cap (5% of quote output, which also absorbs
-// adverse execution): a larger advertised discount could never execute without stalling.
-const MAX_DISCOUNT_BPS = 300;
-
 function isValidBps(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= MAX_DISCOUNT_BPS;
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS &&
+    value <= config.recipients.inviteMaxDiscountBps
+  );
 }
 
 export async function createInvite(req: Request, res: Response): Promise<void> {
@@ -116,7 +119,7 @@ export async function createInvite(req: Request, res: Response): Promise<void> {
       res,
       httpStatus.BAD_REQUEST,
       "INVALID_DISCOUNTS",
-      `discounts.buyBps and discounts.sellBps must be integers between 0 and ${MAX_DISCOUNT_BPS}`
+      `discounts.buyBps and discounts.sellBps must be integers between 0 and ${config.recipients.inviteMaxDiscountBps}`
     );
     return;
   }

@@ -23,6 +23,7 @@ packages/sdk/.env
 **/.env.production
 **/.env.staging
 !**/.env.example
+**/.env
 
 # Editor directories and files
 .vscode/*

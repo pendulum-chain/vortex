@@ -3,6 +3,7 @@ import {
   CreateBestQuoteRequest,
   CreateQuoteRequest,
   DestinationType,
+  EvmToken,
   FiatToken,
   getNetworkFromDestination,
   isNetworkEVM,
@@ -17,15 +18,14 @@ import pLimit from "p-limit";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import { APIError } from "../../errors/api-error";
+import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "../phases/blocks/core/helpers";
+import { MykoboFeeUnavailableError } from "../phases/blocks/core/mykobo-fee";
+import { runBlockQuoteFlow } from "../phases/blocks/core/quote";
+import { buildBlockQuoteResponse } from "../phases/blocks/core/quote-response";
 import { BaseRampService } from "../ramp/base.service";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "./core/errors";
-import { getTargetFiatCurrency, SUPPORTED_CHAINS, validateChainSupport } from "./core/helpers";
 import { resolveQuotePartner } from "./core/partner-resolution";
 import { createQuoteContext } from "./core/quote-context";
-import { QuoteOrchestrator } from "./core/quote-orchestrator";
-import { buildQuoteResponse } from "./engines/finalize";
-import { MykoboFeeUnavailableError } from "./engines/mykobo-fee";
-import { RouteResolver } from "./routes/route-resolver";
 
 type BestQuoteFailure = {
   error: unknown;
@@ -34,7 +34,12 @@ type BestQuoteFailure = {
 
 export class QuoteService extends BaseRampService {
   public async createQuote(
-    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string }
+    request: CreateQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    }
   ): Promise<QuoteResponse> {
     return this.executeQuoteCalculation(request);
   }
@@ -50,7 +55,7 @@ export class QuoteService extends BaseRampService {
       return null;
     }
 
-    return buildQuoteResponse(quote);
+    return buildBlockQuoteResponse(quote);
   }
 
   /**
@@ -59,7 +64,12 @@ export class QuoteService extends BaseRampService {
    * @returns The best quote across all eligible networks
    */
   public async createBestQuote(
-    request: CreateBestQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string }
+    request: CreateBestQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    }
   ): Promise<QuoteResponse> {
     const { rampType, from, to, networks } = request;
 
@@ -157,10 +167,26 @@ export class QuoteService extends BaseRampService {
    * @returns The calculated quote
    */
   private async executeQuoteCalculation(
-    request: CreateQuoteRequest & { apiKey?: string | null; partnerName?: string | null; userId?: string },
+    request: CreateQuoteRequest & {
+      apiCredentialId?: string;
+      apiKey?: string | null;
+      partnerName?: string | null;
+      userId?: string;
+    },
     skipPersistence = false
   ): Promise<QuoteResponse> {
     validateChainSupport(request.rampType, request.from, request.to);
+
+    if (
+      (request.rampType === RampDirection.BUY &&
+        request.inputCurrency === FiatToken.BRL &&
+        getNetworkFromDestination(request.to) === Networks.AssetHub) ||
+      (request.rampType === RampDirection.SELL &&
+        getNetworkFromDestination(request.from) === Networks.AssetHub &&
+        request.outputCurrency === FiatToken.BRL)
+    ) {
+      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
+    }
 
     if (request.rampType === RampDirection.BUY && request.to === Networks.Ethereum) {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
@@ -204,12 +230,8 @@ export class QuoteService extends BaseRampService {
       ctx.skipPersistence = true;
     }
 
-    const orchestrator = new QuoteOrchestrator();
-    const resolver = new RouteResolver();
-    const strategy = resolver.resolve(ctx);
-
     try {
-      await orchestrator.run(strategy, ctx);
+      await runBlockQuoteFlow(ctx);
     } catch (error) {
       logger.error(error instanceof Error ? error.message : String(error));
 

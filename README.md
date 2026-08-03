@@ -1,240 +1,91 @@
 # Vortex
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/27783b79-512d-4205-89c1-d3ead6e3ed46/deploy-status)](https://app.netlify.com/sites/pendulum-pay/deploys)&nbsp;
-![TypeScript](https://img.shields.io/badge/-TypeScript-05122A?style=flat&logo=typescript)&nbsp;
-![React](https://img.shields.io/badge/-React-05122A?style=flat&logo=react)&nbsp;
-![Vite](https://img.shields.io/badge/-Vite-05122A?style=flat&logo=vite)&nbsp;
-![Polkadot](https://img.shields.io/badge/-Polkadot-05122A?style=flat&logo=polkadot)&nbsp;
-![Ethereum](https://img.shields.io/badge/-Ethereum-05122A?style=flat&logo=ethereum)&nbsp;
+Vortex is a cross-border payments gateway built on Pendulum. It provides fiat
+onramps and offramps, cross-chain stablecoin routing, partner APIs, an embeddable
+widget, an account dashboard, and an integration SDK.
 
----
+## Repository
 
-Vortex is a gateway for cross-border payments. It is built on top of the Pendulum blockchain.
+This is a Bun monorepo.
 
-## AI Agent Skill
+| Workspace | Purpose |
+|---|---|
+| [`apps/api`](apps/api/) | Express API, ramp engine, provider integrations, PostgreSQL workers |
+| [`apps/frontend`](apps/frontend/) | Public site and embeddable ramp widget |
+| [`apps/dashboard`](apps/dashboard/) | Authenticated customer dashboard |
+| [`apps/rebalancer`](apps/rebalancer/) | Liquidity rebalancing service |
+| [`packages/shared`](packages/shared/) | Shared contracts, token/network configuration, and signing utilities |
+| [`packages/kyc`](packages/kyc/) | Provider KYC/KYB state machines shared by the two web apps |
+| [`packages/sdk`](packages/sdk/) | Public `@vortexfi/sdk` integration package |
+| [`contracts/relayer`](contracts/relayer/) | Token relayer Solidity project |
 
-This repository includes a repo-scoped Codex/Agent Skills skill for Vortex integrations:
+See [`MAP.md`](MAP.md) for detailed wayfinding and [`docs/README.md`](docs/README.md)
+for the documentation structure.
 
-- [`.agents/skills/vortex-integration/SKILL.md`](.agents/skills/vortex-integration/SKILL.md)
+## Getting started
 
-When this repository is open in Codex, the skill is discovered automatically from `.agents/skills`. If you are integrating Vortex from another repository, install the public skill directory URL instead:
+Requirements: Node.js 18+ and the Bun version declared by `packageManager` in
+[`package.json`](package.json).
+
+```bash
+bun install
+bun dev
+```
+
+The default development command starts the shared package, API, and widget. Run other
+surfaces explicitly:
+
+```bash
+bun dev:dashboard
+bun dev:rebalancer
+```
+
+Copy the relevant workspace's `.env.example` to `.env` before running code that needs
+database, provider, chain, or authentication credentials. Never commit real secrets.
+
+## Common commands
+
+```bash
+bun build
+bun typecheck
+bun verify
+bun lint
+bun lint:fix
+bun test
+```
+
+Useful targeted commands:
+
+```bash
+bun test:db:start
+bun test:api
+bun test:frontend
+bun test:e2e
+bun test:e2e:dashboard
+bun test:contracts:relayer
+```
+
+The root scripts in [`package.json`](package.json) are the canonical command list.
+Workspace-specific setup and caveats live in their `README.md` or `CLAUDE.md`.
+
+## Documentation
+
+- [`docs/security-spec/`](docs/security-spec/README.md) is the audit-facing source of
+  truth for security-sensitive behavior.
+- [`docs/api/`](docs/api/README.md) contains the public OpenAPI source and partner guides.
+- [`docs/README.md`](docs/README.md) indexes current architecture, product, operations,
+  decisions, incidents, and proposals.
+- [`CLAUDE.md`](CLAUDE.md) and scoped `CLAUDE.md` files contain coding-agent rules.
+
+## AI integration guidance
+
+The repository includes a Vortex integration skill at
+[`.agents/skills/vortex-integration/SKILL.md`](.agents/skills/vortex-integration/SKILL.md).
+When working outside this repository, it can be installed from:
 
 ```text
 https://github.com/pendulum-chain/vortex/tree/main/.agents/skills/vortex-integration
 ```
 
-Use the skill for task-shaped guidance around quotes, BRL PIX onramps/offramps, ramp polling, webhook verification, supported corridors, auth setup, and error recovery. The hosted AI-agent integration guide is available at <https://api-docs.vortexfinance.co/ai-agent-integration>.
-
-## Repository Structure
-
-This is a **Bun monorepo** containing multiple sub-projects organized into apps, packages, and contracts:
-
-### Apps
-
-- **[apps/api](apps/api)** - Backend API service providing signature services, on/off-ramping flows, quote generation, and transaction state management
-- **[apps/frontend](apps/frontend)** - React-based web application built with Vite for the Vortex user interface
-- **[apps/rebalancer](apps/rebalancer)** - Service for automated liquidity rebalancing across chains
-### Contracts
-
-- **[contracts/relayer](contracts/relayer)** - Hardhat project for relayer smart contracts and deployment scripts
-
-### Packages
-
-- **[packages/sdk](packages/sdk)** - Stateless SDK that abstracts Vortex's API and ephemeral key handling for cross-chain ramp operations
-- **[packages/shared](packages/shared)** - Shared utilities and types used across the monorepo
-
-## Getting Started
-
-### Installation
-
-In the project root directory, install all dependencies:
-
-```bash
-bun install
-```
-
-If you encounter issues with the `bun install` command, you can try upgrading your `bun` version with `bun upgrade`. The installation is confirmed to work in bun v1.3.1.
-
-### Running the Projects
-
-#### Run All Projects
-
-Run the frontend, backend API, and shared package concurrently in development mode:
-
-```bash
-bun dev
-```
-
-This will start:
-- **Frontend**: [http://127.0.0.1:5173/](http://127.0.0.1:5173)
-- **Backend API**: [http://localhost:3000](http://localhost:3000)
-
-#### Run Individual Projects
-
-**Frontend only:**
-```bash
-bun dev:frontend
-```
-
-**Backend API only:**
-```bash
-bun dev:backend
-```
-
-**Rebalancer:**
-```bash
-bun dev:rebalancer
-```
-
-**Relayer contract local node:**
-```bash
-bun dev:contracts:relayer
-```
-
-### Building
-
-**Build all projects:**
-```bash
-bun build
-```
-
-**Build individual projects:**
-```bash
-# Build frontend
-bun build:frontend
-
-# Build backend API
-bun build:backend
-
-# Build SDK
-bun build:sdk
-
-# Build shared package
-bun build:shared
-```
-
-**Relayer contract:**
-```bash
-# Compile contracts
-bun compile:contracts:relayer
-
-# Run contract tests
-bun test:contracts:relayer
-```
-
-## Sub-Project Specific Instructions
-
-### Frontend (apps/frontend)
-
-The React-based web application for Vortex.
-
-**Development:**
-```bash
-cd apps/frontend
-bun dev
-```
-
-**Build:**
-```bash
-cd apps/frontend
-bun build
-```
-
-**Preview production build:**
-```bash
-cd apps/frontend
-bun preview
-```
-
-### Backend API (apps/api)
-
-The backend service providing signature services, on/off-ramping flows, and transaction management.
-
-**Development:**
-```bash
-cd apps/api
-bun dev
-```
-
-**Database setup:**
-```bash
-cd apps/api
-# Copy environment variables
-cp .env.example .env
-# Edit .env with your database credentials
-
-# Run migrations
-bun migrate
-
-# Seed phase metadata
-bun seed:phase-metadata
-```
-
-**Build and serve:**
-```bash
-cd apps/api
-bun start
-```
-
-See [apps/api/README.md](apps/api/README.md) for detailed API documentation.
-
-### Rebalancer (apps/rebalancer)
-
-Service for automated liquidity rebalancing across chains.
-
-**Setup:**
-```bash
-cd apps/rebalancer
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-**Run:**
-```bash
-cd apps/rebalancer
-bun start
-```
-
-See [apps/rebalancer/README.md](apps/rebalancer/README.md) for more details.
-
-### SDK (packages/sdk)
-
-A stateless SDK that abstracts Vortex's API and ephemeral key handling.
-
-**Build:**
-```bash
-cd packages/sdk
-bun build
-```
-
-See [packages/sdk/README.md](packages/sdk/README.md) for usage examples and API documentation.
-
-### Shared (packages/shared)
-
-Common utilities and types used across the monorepo.
-
-**Build:**
-```bash
-cd packages/shared
-bun build
-```
-
-## Env Variables
-
-- `VITE_SIGNING_SERVICE_PATH`: Optional variable to point to a specific signing backend service URL. If undefined, it
-  will default to either:
-  - `http://localhost:3000` (if in development mode)
-  - `/api/production` (if in production mode)
-    - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/production` to
-      `https://signer-service.pendulumchain.tech`
-  - `/api/staging` (if in staging mode)
-    - this will use the `_redirects` file to direct Netlify to proxy all requests to `/api/staging` to
-      `https://signer-service-staging.pendulumchain.tech`
-- `VITE_ALCHEMY_API_KEY`: Optional variable to set the Alchemy API key for the custom RPC provider. If undefined, it
-  will use the default endpoint.
-
-## Fixing type issues
-
-If you encounter issues with the IDE not detecting the type overwrites of the `@pendulum-chain/types` package properly,
-make sure that all the `@polkadot/xxx` packages match the same version used in the types package. It is also important
-to make sure that peer dependencies have the same version as this might also cause issues.
+The published AI-agent integration guide is available at
+<https://api-docs.vortexfinance.co/ai-agent-integration>.

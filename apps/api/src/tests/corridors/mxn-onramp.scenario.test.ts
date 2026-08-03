@@ -12,6 +12,7 @@ import {
 import { decodeFunctionData, encodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
+import FinancialOperation from "../../models/financialOperation.model";
 import QuoteTicket from "../../models/quoteTicket.model";
 import RampState from "../../models/rampState.model";
 import { resetTestDatabase, setupTestDatabase } from "../../test-utils/db";
@@ -160,7 +161,10 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
-    const mintAmountRaw = BigInt(persistedQuote?.metadata.alfredpayMint?.outputAmountRaw ?? "0");
+    const metadata = persistedQuote?.metadata as unknown as
+      | { blocks: { alfredpayMint?: { outputAmountRaw?: string } } }
+      | undefined;
+    const mintAmountRaw = BigInt(metadata?.blocks.alfredpayMint?.outputAmountRaw ?? "0");
     expect(mintAmountRaw).toBeGreaterThan(0n);
 
     const amountRaw = parseUnits(quote.outputAmount, ALFREDPAY_ERC20_DECIMALS);
@@ -292,7 +296,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
   );
 
   it(
-    "transient failure: retries a failed destinationTransfer broadcast (recoverable) and still completes",
+    "ambiguous destination broadcast: pauses for reconciliation without paying the recipient",
     async () => {
       const setup = await setUpRegisteredRamp();
       scriptHappyWorld(setup);
@@ -302,16 +306,19 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       await phaseProcessor.processRamp(setup.rampId);
 
       const final = await RampState.findByPk(setup.rampId);
-      expect(final?.currentPhase).toBe("complete");
+      expect(final?.currentPhase).toBe("destinationTransfer");
       expect(final?.processingLock).toEqual({ locked: false, lockedAt: null });
 
       const outageLogs = final?.errorLogs.filter(log => log.error.includes("scripted RPC outage")) ?? [];
-      expect(outageLogs.length).toBeGreaterThanOrEqual(1);
+      expect(outageLogs.length).toBe(1);
       expect(outageLogs.every(log => log.phase === "destinationTransfer")).toBe(true);
       expect(outageLogs.some(log => log.recoverable === true)).toBe(true);
-
-      expect(submissionsOf(setup.signedTransfer)).toBe(1);
-      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(setup.amountRaw);
+      expect(final?.errorLogs.some(log => log.error.includes("requires reconciliation"))).toBe(true);
+      expect(await FinancialOperation.findOne({ where: { phase: "destinationTransfer", scopeId: setup.rampId } })).toMatchObject({
+        status: "unknown"
+      });
+      expect(submissionsOf(setup.signedTransfer)).toBe(0);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, setup.destination)).toBe(0n);
     },
     30000
   );
