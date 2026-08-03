@@ -1,6 +1,4 @@
 import {
-  createGenericRouteParams,
-  createRouteParamsWithMoonbeamPostHook,
   DestinationType,
   EvmToken,
   EvmTokenDetails,
@@ -22,12 +20,12 @@ import {
 } from "@vortexfi/shared";
 import { Big } from "big.js";
 import httpStatus from "http-status";
-import { generatePrivateKey, privateKeyToAddress } from "viem/accounts";
 import logger from "../../../../../config/logger";
 import { APIError } from "../../../../errors/api-error";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { priceFeedService } from "../../../priceFeed.service";
 import { createLowLiquidityQuoteError, isLowLiquidityQuoteError } from "../../../quote/core/errors";
+import { prepareSquidrouterRouteParams } from "./squidrouter-route";
 
 export interface EvmBridgeRequest {
   amountRaw: string; // Raw amount to bridge/swap via Squidrouter
@@ -89,42 +87,6 @@ export function getTokenDetailsForEvmDestination(
  */
 export function getBridgeTargetTokenDetails(outputCurrency: OnChainToken, toNetwork: Networks): EvmTokenDetails {
   return getTokenDetailsForEvmDestination(outputCurrency, toNetwork);
-}
-
-/**
- * Helper to prepare route parameters for Squidrouter
- */
-function prepareSquidrouterRouteParams(params: {
-  rampType: RampDirection;
-  amountRaw: string;
-  fromToken: `0x${string}`;
-  toToken: `0x${string}`;
-  fromNetwork: Networks;
-  toNetwork: Networks;
-}): RouteParams {
-  const { rampType, amountRaw, fromToken, toToken, fromNetwork, toNetwork } = params;
-
-  const placeholderAddress = privateKeyToAddress(generatePrivateKey());
-  const placeholderHash = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-
-  return rampType === RampDirection.BUY
-    ? createGenericRouteParams({
-        amount: amountRaw,
-        destinationAddress: placeholderAddress,
-        fromAddress: placeholderAddress,
-        fromNetwork,
-        fromToken,
-        toNetwork,
-        toToken
-      })
-    : createRouteParamsWithMoonbeamPostHook({
-        amount: amountRaw,
-        fromAddress: placeholderAddress,
-        fromNetwork,
-        fromToken,
-        receivingContractAddress: placeholderAddress,
-        squidRouterReceiverHash: placeholderHash
-      });
 }
 
 // Squid swap gas is paid in the source chain's native token. The CoinGecko ID
@@ -202,7 +164,6 @@ function buildRouteRequest(request: EvmBridgeQuoteRequest) {
     amountRaw,
     fromNetwork: request.fromNetwork,
     fromToken: inputTokenDetails.erc20AddressSourceChain,
-    rampType: request.rampType,
     toNetwork: request.toNetwork,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });
@@ -249,7 +210,7 @@ async function getSquidrouterRouteData(routeParams: RouteParams, fromNetwork: Ne
  * Handles EVM bridging/swapping via Squidrouter and calculates its specific network fee
  */
 export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest): Promise<EvmBridgeResult> {
-  const { amountRaw, fromNetwork, toNetwork, fromToken, toToken, originalInputAmountForRateCalc, rampType } = request;
+  const { amountRaw, fromNetwork, toNetwork, fromToken, toToken, originalInputAmountForRateCalc } = request;
 
   try {
     // Prepare route parameters for Squidrouter
@@ -257,7 +218,6 @@ export async function calculateEvmBridgeAndNetworkFee(request: EvmBridgeRequest)
       amountRaw: amountRaw,
       fromNetwork,
       fromToken,
-      rampType,
       toNetwork,
       toToken
     });
