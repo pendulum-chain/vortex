@@ -136,8 +136,18 @@ Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
   `IN_REVIEW`, `COMPLETED`, and `FAILED` map to `in_review`, `approved`, and `rejected`
   respectively.
 - All controller lookups go through `findAlfredpayCustomer(userId, country[, type])`, which
-  resolves the caller's `customer_entity` first and preserves the legacy updatedAt-DESC
-  tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
-  type-ASC precedence ('business' < 'individual').
+  preserves the legacy updatedAt-DESC tie-break across a user's individual/business rows.
+  Type-less lookups resolve the caller's active `customer_entity` (the quote/ramp account
+  context). Typed lookups scope by the row's `customer_type` across every entity the profile
+  owns, and never create entities: migration 040 attached legacy business rows to the
+  profile's (038-backfilled) individual entity, so scoping to the same-typed entity made
+  migrated business customers invisible to every KYB endpoint and findOrCreate'd stray
+  empty business entities as a side effect of reads. `createAlfredpayCustomer` homes a new
+  row on the entity already carrying the profile's alfredpay rows of that `customer_type`,
+  preferring the *active* entity when such rows are split across entities (a pre-fix
+  duplicate can sit on a stray business entity) and falling back to the typed entity, so
+  ramp registration — which resolves the active entity — keeps seeing every corridor of a
+  migrated profile. `lookupAlfredpayCustomerType` keeps the type-ASC precedence
+  ('business' < 'individual').
 - Canonical and external status transitions mirror into the account's `kyc_cases` row in the same code path.
 - The legacy `alfredpay_customers` table is a read-only backup with no remaining readers.

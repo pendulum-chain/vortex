@@ -50,7 +50,7 @@ import {
   upsertAveniaKycCase
 } from "../services/avenia/avenia-customer.service";
 import { resolveAveniaAccountForUser } from "../services/avenia-account";
-import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
+import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } from "../services/customer-entity.service";
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
@@ -366,12 +366,13 @@ export const createSubaccount = async (
     // Use the accountType from the request if provided, otherwise determine from taxId
     const accountType = requestAccountType || (isCnpj ? AveniaAccountType.COMPANY : AveniaAccountType.INDIVIDUAL);
 
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
-
     // Ownership check BEFORE calling the BRLA API to avoid creating a stranded subaccount
     // on every conflict and to prevent account-takeover via subAccountId overwrite.
+    // Ownership is profile-level, not typed-entity-level: migration 040 left business rows
+    // on the profile's individual entity, and comparing against the typed entity 409'd the
+    // legitimate owner's own retry.
     let existing = await findAveniaCustomerByTaxId(normalizedTaxId);
-    if (existing && existing.customerEntityId !== entity.id) {
+    if (existing && !(await findCustomerEntityIdsForProfile(effectiveUserId)).includes(existing.customerEntityId)) {
       res.status(httpStatus.CONFLICT).json({
         error: "A subaccount already exists for this taxId"
       });
@@ -391,6 +392,9 @@ export const createSubaccount = async (
           });
           return;
         }
+        // Typed-entity resolution is deferred to the row-creating branches so a retry that
+        // only updates an existing row cannot create a stray typed entity.
+        const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
         existing = await ProviderCustomer.create({
           country: "BR",
           customerEntityId: entity.id,
@@ -433,6 +437,7 @@ export const createSubaccount = async (
     } else {
       // The entry should have been created the very first a new cpf/cnpj is consulted.
       // We leave this as is for now to avoid breaking changes.
+      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
       existing = await ProviderCustomer.create({
         companyName,
         country: "BR",
@@ -668,8 +673,11 @@ export const getUploadUrls = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId, "business");
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership: legacy business rows live on the profile's individual
+    // entity, so the owning entity's type cannot gate access — and a read path must not
+    // findOrCreate an entity as a side effect.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -876,14 +884,17 @@ export const getKybAttemptStatus = async (
       return;
     }
 
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, "business");
-    if (kycCase.customerEntityId !== entity.id) {
+    // Profile-level ownership: legacy business rows live on the profile's individual
+    // entity, so the owning entity's type cannot gate access — and a read path must not
+    // findOrCreate an entity as a side effect.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(kycCase.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This KYB attempt is not linked to your user profile." });
       return;
     }
 
     const record = kycCase.providerCustomerId ? await ProviderCustomer.findByPk(kycCase.providerCustomerId) : null;
-    if (!record || record.customerEntityId !== entity.id || record.provider !== "avenia") {
+    if (!record || !ownedEntityIds.includes(record.customerEntityId) || record.provider !== "avenia") {
       res.status(httpStatus.NOT_FOUND).json({ error: "KYB account not found" });
       return;
     }
