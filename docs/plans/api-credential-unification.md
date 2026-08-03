@@ -25,7 +25,7 @@ one API credential
 └── optional partner: manages and attributes a delegated credential
 ```
 
-The shared and SDK contracts include public-key-capable `GET /v1/ramp-info`; the backend route and sanitized projection remain an implementation boundary.
+The shared and SDK contracts and the backend `GET /v1/ramp-info` route implement the public-key-capable sanitized projection.
 
 ## Goals
 
@@ -165,7 +165,7 @@ requireSecretCredential();
 | --- | ---: | ---: | ---: |
 | Create quote and apply attribution | Yes | Yes | Yes |
 | Create widget session | Yes | Yes | Yes |
-| Read sanitized `ramp-info` | Yes | Yes | Yes |
+| Read sanitized `ramp-info` | Yes | Yes | No |
 | Read exact used or remaining financial limits | No by default | Yes | Yes |
 | Register, update, or start a ramp | No | Yes | Yes |
 | Read ramp history or diagnostic error logs | No | Yes | Yes |
@@ -184,7 +184,7 @@ GET /v1/ramp-info
 X-Public-Key: pk_live_...
 ```
 
-Also accept the corresponding secret through `X-API-Key`.
+Also accept the corresponding secret through `X-API-Key`. Do not accept a Supabase session on this credential-bound endpoint.
 
 The endpoint must not accept `userId`, `profileId`, email, tax ID, or customer entity ID. It derives the subject only from the credential:
 

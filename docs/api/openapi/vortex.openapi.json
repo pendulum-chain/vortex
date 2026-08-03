@@ -2899,7 +2899,7 @@
     "/v1/ramp-info": {
       "get": {
         "deprecated": false,
-        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated credential or session. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential.\n\n**Auth:** `X-Public-Key`, `X-API-Key`, or Supabase Bearer session.",
+        "description": "Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated API credential. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential. Supabase Bearer sessions do not authorize this endpoint.\n\n**Auth:** `X-Public-Key` or `X-API-Key`.",
         "operationId": "getRampInfo",
         "parameters": [],
         "responses": {
@@ -2919,7 +2919,7 @@
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/ApiCredentialErrorResponse" } }
             },
-            "description": "Missing, invalid, expired, or revoked credential/session."
+            "description": "Missing, invalid, expired, or revoked API credential."
           },
           "403": {
             "content": {
@@ -2928,7 +2928,7 @@
             "description": "`CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials."
           }
         },
-        "security": [{ "PublicApiKey": [] }, { "SecretApiKey": [] }, { "BearerAuth": [] }],
+        "security": [{ "PublicApiKey": [] }, { "SecretApiKey": [] }],
         "summary": "Get sanitized ramp eligibility",
         "tags": ["Account Management"]
       }

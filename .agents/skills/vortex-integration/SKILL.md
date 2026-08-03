@@ -518,7 +518,7 @@ const info = await vortex.getRampInfo();
 // { corridors: { BR: { kycStatus, canBuy, canSell }, ... } }
 ```
 
-`GET /v1/ramp-info` accepts public, secret, or session capability, derives the profile from that credential/session, and returns no exact limits, PII, provider IDs, failure reasons, account details, or ramp history.
+`GET /v1/ramp-info` accepts public or secret API credential capability, derives the profile from that credential, and returns no exact limits, PII, provider IDs, failure reasons, account details, or ramp history. Supabase sessions do not authorize this endpoint.
 
 ## Common failures
 - `401 Unauthorized` — `X-API-Key` missing, malformed, or wrong environment.
