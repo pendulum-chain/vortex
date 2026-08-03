@@ -48,3 +48,10 @@ the authority for correct instrumentation in this app.
 `FiatToken` has 6 values (`EURC`, `ARS`, `BRL`, `USD`, `MXN`, `COP`). Any
 `Record<FiatToken, X>` must include all six or the build fails. Common spots:
 `tokenAvailability`, `mapFiatToDestination`, success-page `ARRIVAL_TEXT_BY_TOKEN`.
+
+## Documentation
+
+Follow [`docs/README.md`](../../docs/README.md). Product behavior belongs in the existing
+product spec, public partner behavior in `docs/api/`, and security-sensitive flow changes
+in `docs/security-spec/`. Do not create implementation plans, progress logs, or duplicate
+machine walkthroughs; keep the machine and its tests as the local source.

@@ -58,7 +58,7 @@ function isNonRetryableReadContractError(error: Error): boolean {
   return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
 }
 
-function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
+export function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
   // Note on defining RPC URLs: '' is equal to viem's default RPC for that chain: http().
   return [
     {
@@ -69,7 +69,7 @@ function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {
     {
       chain: polygonAmoy,
       name: Networks.PolygonAmoy,
-      rpcUrls: ["https://polygon-amoy.api.onfinality.io/public", ""]
+      rpcUrls: apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`, ""] : [""]
     },
     {
       chain: moonbeam,

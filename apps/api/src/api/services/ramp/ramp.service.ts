@@ -31,6 +31,7 @@ import { isAddress } from "viem";
 import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
+import { RAMP_START_EXPIRATION_TIME_SECONDS } from "../../../constants/constants";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState, { RampStateAttributes } from "../../../models/rampState.model";
 import User from "../../../models/user.model";
@@ -51,8 +52,6 @@ import webhookDeliveryService from "../webhook/webhook-delivery.service";
 import { BaseRampService } from "./base.service";
 import { validateEphemeralAccountsFresh } from "./ephemeral-freshness";
 import { getFinalTransactionHashForRampV2 } from "./helpers";
-
-const RAMP_START_EXPIRATION_TIME_SECONDS = 900; // 15 minutes
 
 function mergeCompatibilityRecords(label: string, records: readonly unknown[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
@@ -166,6 +165,17 @@ export class RampService extends BaseRampService {
       });
     }
   }
+
+  private static assertStartDeadlineNotExceeded(ramp: Pick<RampState, "createdAt">): void {
+    const ageSeconds = (Date.now() - ramp.createdAt.getTime()) / 1000;
+    if (ageSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
+      throw new APIError({
+        message: "Maximum time window to start process exceeded. Ramp invalidated.",
+        status: httpStatus.BAD_REQUEST
+      });
+    }
+  }
+
   /**
    * Register a new ramping process. This will create a new ramp state and create transactions that need to be signed
    * on the client side.
@@ -246,7 +256,7 @@ export class RampService extends BaseRampService {
 
       // Before removing this kill-switch, add a hermetic EUR corridor scenario in
       // apps/api/src/tests/corridors/ (the Mykobo corridors are currently covered by
-      // RUN_LIVE_TESTS-gated tests only — see docs/testing-strategy.md).
+      // RUN_LIVE_TESTS-gated tests only — see docs/operations-testing.md).
       if (quote.inputCurrency === FiatToken.EURC || quote.outputCurrency === FiatToken.EURC) {
         throw new APIError({
           message: "EUR ramps are currently disabled",
@@ -413,6 +423,8 @@ export class RampService extends BaseRampService {
         });
       }
 
+      RampService.assertStartDeadlineNotExceeded(rampState);
+
       // Validate presigned transactions, if some were supplied
       const ephemerals: { [key in EphemeralAccountType]: string } = {
         EVM: rampState.state.evmEphemeralAddress,
@@ -521,17 +533,7 @@ export class RampService extends BaseRampService {
       }
 
       this.validateRampStateData(rampState, quote);
-
-      const rampStateCreationTime = new Date(rampState.createdAt);
-      const currentTime = new Date();
-      const timeDifferenceSeconds = (currentTime.getTime() - rampStateCreationTime.getTime()) / 1000;
-
-      if (timeDifferenceSeconds > RAMP_START_EXPIRATION_TIME_SECONDS) {
-        throw new APIError({
-          message: "Maximum time window to start process exceeded. Ramp invalidated.",
-          status: httpStatus.BAD_REQUEST
-        });
-      }
+      RampService.assertStartDeadlineNotExceeded(rampState);
 
       // Check if presigned transactions are available (should be set by updateRamp)
       if (!rampState.presignedTxs || rampState.presignedTxs.length === 0) {
