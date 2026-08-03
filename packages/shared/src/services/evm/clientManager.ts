@@ -10,9 +10,7 @@ export interface EvmNetworkConfig {
 }
 
 const VIEM_DEFAULT_TRANSPORT_CACHE_KEY = "<default>";
-// Any on-chain revert is deterministic for a given block state: retrying against a different RPC
-// node will not change the outcome, so retrying just wastes calls and delays failure reporting.
-const NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS = [/execution reverted/i];
+const NON_RETRYABLE_READ_CONTRACT_REVERTS = ["EXCEEDS_MAX_COVERAGE_RATIO"];
 
 export function redactRpcUrlForLogs(rpcUrl: string): string {
   if (!rpcUrl) {
@@ -55,7 +53,7 @@ function createRpcTransport(network: EvmNetworkConfig, rpcUrl?: string): Transpo
 }
 
 function isNonRetryableReadContractError(error: Error): boolean {
-  return NON_RETRYABLE_READ_CONTRACT_ERROR_PATTERNS.some(pattern => pattern.test(error.message));
+  return NON_RETRYABLE_READ_CONTRACT_REVERTS.some(revertReason => error.message.includes(revertReason));
 }
 
 export function getEvmNetworks(apiKey?: string): EvmNetworkConfig[] {

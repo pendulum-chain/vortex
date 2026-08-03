@@ -18,6 +18,23 @@ import {
 } from "../index";
 import logger from "../logger";
 
+const EVM_SIGNING_NETWORKS = new Set<Networks>([
+  Networks.Polygon,
+  Networks.PolygonAmoy,
+  Networks.Base,
+  Networks.Arbitrum,
+  Networks.Avalanche,
+  Networks.BSC,
+  Networks.Ethereum
+]);
+
+const DESTINATION_NETWORK_PHASES = new Set<string>([
+  "destinationTransfer",
+  "backupSquidRouterApprove",
+  "backupSquidRouterSwap",
+  "backupApprove"
+]);
+
 export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSignedTxs: PresignedTx[]): PresignedTx {
   if (multiSignedTxs.length <= 1) {
     return primaryTx;
@@ -37,6 +54,37 @@ export function addAdditionalTransactionsToMeta(primaryTx: PresignedTx, multiSig
     ...primaryTx,
     meta: { ...primaryTx.meta, additionalTxs }
   };
+}
+
+export function getEvmSigningRpcUrls(network: string, apiKey?: string): string[] {
+  switch (network) {
+    case Networks.Polygon:
+      return apiKey ? [`https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.PolygonAmoy:
+      return apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.Moonbeam:
+      return ["https://rpc.api.moonbeam.network", "https://moonbeam-rpc.publicnode.com", ""];
+    case Networks.Arbitrum:
+      return apiKey ? [`https://arb-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.Avalanche:
+      return apiKey ? [`https://avax-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.Base:
+      return apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.BSC:
+      return apiKey ? [`https://bnb-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    case Networks.Ethereum:
+      return apiKey ? [`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`, ""] : [""];
+    default:
+      throw new Error(`Unsupported or unconfigured EVM network: ${network}`);
+  }
+}
+
+export function isDestinationNetworkSigningTx(tx: UnsignedTx): boolean {
+  return DESTINATION_NETWORK_PHASES.has(tx.phase) && !EVM_SIGNING_NETWORKS.has(tx.network);
+}
+
+export function isDirectEvmSigningTx(tx: UnsignedTx): boolean {
+  return EVM_SIGNING_NETWORKS.has(tx.network);
 }
 
 /**
@@ -91,42 +139,34 @@ function createEvmClient(
   switch (network) {
     case Networks.Polygon:
       chain = polygon;
-      rpcUrls = apiKey ? [`https://polygon-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.PolygonAmoy:
       chain = polygonAmoy;
-      rpcUrls = apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Moonbeam:
       chain = moonbeam;
-      rpcUrls = ["https://rpc.api.moonbeam.network", "https://moonbeam-rpc.publicnode.com"];
       break;
     case Networks.Arbitrum:
       chain = arbitrum;
-      rpcUrls = apiKey ? [`https://arb-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Avalanche:
       chain = avalanche;
-      rpcUrls = apiKey ? [`https://avax-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Base:
       chain = base;
-      rpcUrls = apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.BSC:
       chain = bsc;
-      rpcUrls = apiKey ? [`https://bnb-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Ethereum:
       chain = mainnet;
-      rpcUrls = apiKey ? [`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     default:
       throw new Error(`Unsupported or unconfigured EVM network: ${network}`);
   }
 
-  const transports = rpcUrls.filter(url => url !== "").map(url => http(url));
-  transports.push(http()); //  add default viem transport as last resort
+  rpcUrls = getEvmSigningRpcUrls(network, apiKey);
+  const transports = rpcUrls.map(url => (url === "" ? http() : http(url)));
 
   return createWalletClient({
     account: evmAccount,
@@ -218,16 +258,7 @@ export async function signUnsignedTransactions(
       tx.network === Networks.Ethereum
   );
   const hydrationTxs = unsignedTxs.filter(tx => tx.network === Networks.Hydration);
-  const destinationNetworkTxs = unsignedTxs.filter(
-    tx =>
-      (tx.phase === "destinationTransfer" ||
-        tx.phase === "backupSquidRouterApprove" ||
-        tx.phase === "backupSquidRouterSwap" ||
-        tx.phase === "backupApprove") &&
-      tx.network !== Networks.Polygon &&
-      tx.network !== Networks.PolygonAmoy &&
-      tx.network !== Networks.Base
-  );
+  const destinationNetworkTxs = unsignedTxs.filter(isDestinationNetworkSigningTx);
 
   try {
     const pendulumTxs = unsignedTxs.filter(tx => tx.network === "pendulum");

@@ -41,6 +41,56 @@ describe("EvmClientManager RPC cache keys", () => {
 });
 
 describe("EvmClientManager read contract retries", () => {
+  it("retries generic execution reverts so a fresher fallback RPC can succeed", async () => {
+    const manager = EvmClientManager.getInstance();
+    const managerWithMockedClient = manager as EvmClientManager & { getClient: EvmClientManager["getClient"] };
+    const originalGetClient = managerWithMockedClient.getClient;
+    const originalLogger = logger.current;
+    const warningMessages: string[] = [];
+    let attempts = 0;
+
+    logger.current = {
+      debug: mock(() => {}),
+      error: mock(() => {}),
+      info: mock(() => {}),
+      warn: mock((...args: unknown[]) => {
+        warningMessages.push(String(args[0]));
+      })
+    };
+
+    managerWithMockedClient.getClient = (() =>
+      ({
+        readContract: async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw new Error("execution reverted: temporary state mismatch");
+          }
+          return 123n;
+        }
+      }) as unknown as ReturnType<EvmClientManager["getClient"]>) as EvmClientManager["getClient"];
+
+    try {
+      await expect(
+        manager.readContractWithRetry(
+          Networks.Base,
+          {
+            abi: [],
+            address: "0x2A7989993335b31A3133CDA93bc1a095e7b178Ff",
+            functionName: "quoteSwapExactTokensForTokens"
+          },
+          3,
+          0
+        )
+      ).resolves.toBe(123n);
+      expect(attempts).toBe(2);
+      expect(warningMessages).toHaveLength(1);
+      expect(warningMessages[0]).toContain("read contract attempt 1/4 failed on base");
+    } finally {
+      managerWithMockedClient.getClient = originalGetClient;
+      logger.current = originalLogger;
+    }
+  });
+
   it("does not retry deterministic Nabla coverage-ratio reverts", async () => {
     const manager = EvmClientManager.getInstance();
     const managerWithMockedClient = manager as EvmClientManager & { getClient: EvmClientManager["getClient"] };
