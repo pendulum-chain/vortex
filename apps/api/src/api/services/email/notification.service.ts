@@ -9,8 +9,10 @@ import { SlackNotifier } from "../slack.service";
 import { EmailNotConfiguredError, sendEmail } from "./resend.transport";
 import { renderNotification } from "./templates";
 
-const MAX_ATTEMPTS = 5;
 const BACKOFF_MINUTES = [1, 5, 15, 60, 180];
+// One initial send plus one retry per backoff step. Deriving it keeps the last step
+// reachable: a flat 5 abandoned the row on the attempt that should have waited 180 minutes.
+const MAX_ATTEMPTS = BACKOFF_MINUTES.length + 1;
 const BATCH_SIZE = 25;
 const STALE_CLAIM_MS = 15 * 60 * 1000;
 
@@ -40,9 +42,15 @@ export async function enqueueNotification({ userId, payload, ...key }: EnqueuePa
   }
 }
 
-function backoffFor(attempts: number): Date {
-  const minutes = BACKOFF_MINUTES[Math.min(attempts, BACKOFF_MINUTES.length) - 1];
-  return new Date(Date.now() + minutes * 60 * 1000);
+/**
+ * When a notification that has already failed `attempts` times should next be tried,
+ * or null once every backoff step has been spent and the row must be abandoned.
+ */
+export function nextRetryAt(attempts: number): Date | null {
+  if (attempts >= MAX_ATTEMPTS) {
+    return null;
+  }
+  return new Date(Date.now() + BACKOFF_MINUTES[attempts - 1] * 60 * 1000);
 }
 
 async function alertAbandoned(notification: EmailNotification): Promise<void> {
@@ -128,15 +136,15 @@ async function deliver(notification: EmailNotification): Promise<void> {
 
 async function handleDeliveryFailure(notification: EmailNotification, error: unknown): Promise<void> {
   const message = error instanceof Error ? error.message : String(error);
-  const exhausted = notification.attempts >= MAX_ATTEMPTS;
+  const retryAt = nextRetryAt(notification.attempts);
 
   await notification.update({
     lastError: message.slice(0, 2000),
-    nextAttemptAt: exhausted ? notification.nextAttemptAt : backoffFor(notification.attempts),
-    status: exhausted ? NotificationStatus.Abandoned : NotificationStatus.Failed
+    nextAttemptAt: retryAt ?? notification.nextAttemptAt,
+    status: retryAt ? NotificationStatus.Failed : NotificationStatus.Abandoned
   });
 
-  if (exhausted) {
+  if (!retryAt) {
     logger.error(`Abandoning notification ${notification.id} after ${notification.attempts} attempts: ${message}`);
     await alertAbandoned(notification);
   } else {
