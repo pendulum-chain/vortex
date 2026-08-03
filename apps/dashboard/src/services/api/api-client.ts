@@ -1,19 +1,8 @@
 import { AuthService, type AuthTokens } from "../auth";
 import { API_BASE_URL } from "./base-url";
 
-// Single-flight token refresh: concurrent 401s share one refresh instead of each firing
-// their own (which would race the refresh-token rotation and fail).
-let refreshPromise: Promise<AuthTokens | null> | null = null;
-
 function refreshTokenOnce(): Promise<AuthTokens | null> {
-  if (!refreshPromise) {
-    refreshPromise = AuthService.refreshAccessToken()
-      .catch(() => null)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
+  return AuthService.refreshAccessToken().catch(() => null);
 }
 
 export class ApiError extends Error {
