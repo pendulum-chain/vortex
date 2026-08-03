@@ -95,7 +95,7 @@ function createEvmClient(
       break;
     case Networks.PolygonAmoy:
       chain = polygonAmoy;
-      rpcUrls = ["https://polygon-amoy.api.onfinality.io/public"];
+      rpcUrls = apiKey ? [`https://polygon-amoy.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.Moonbeam:
       chain = moonbeam;
