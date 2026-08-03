@@ -1,4 +1,4 @@
-# Non-PR-blocking external API contract checks (see docs/features/contract-tests.md).
+# Non-PR-blocking external API contract checks (see docs/operations-testing.md).
 # Runs the live halves of the contract suites against the real partner APIs nightly;
 # failures alert but never gate merges. The hermetic halves of the same suites run
 # in the PR-blocking test job.

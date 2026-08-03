@@ -25,3 +25,9 @@ when shared is rebuilt.
 If `@pendulum-chain/types` isn't detected properly, ensure all `@polkadot/*` packages
 match the versions in the types package. The root `package.json` manages versions via
 `catalog:`.
+
+## Documentation
+
+Follow [`docs/README.md`](../../docs/README.md). A code-adjacent README may document a
+non-obvious shared contract, but cross-module architecture, plans, and security behavior
+belong in their canonical `docs/` locations. Do not add memory or progress files.

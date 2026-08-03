@@ -291,7 +291,6 @@ provider-shaped rather than UI-shaped.
 
 ---
 
-*Schema detail: `docs/architecture/unified-user-management-schema.md`,
-`docs/architecture/recipient-transfers-schema.md`. Migration phasing and open decisions:
-`docs/plans/dashboard-full-product-connection.md` (deprecated) and
-`docs/plans/dashboard-followup-plan.md`.*
+Architecture: [`docs/architecture-identity-model.md`](architecture-identity-model.md).
+Security-sensitive recipient behavior:
+[`docs/security-spec/03-ramp-engine/recipient-transfers.md`](security-spec/03-ramp-engine/recipient-transfers.md).
