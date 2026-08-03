@@ -324,12 +324,13 @@ describe("HTTP surface: auth flow, webhooks, history, public routes", () => {
       expect(anonymous.status).toBe(401);
     });
 
-    it("rejects a partner-only secret key instead of falling back to partner-wide history", async () => {
+    it("scopes a partner-managed credential to its profile history", async () => {
       const partner = await createTestPartner();
       const { plaintextKey } = await createTestApiKey({ partnerName: partner.name });
 
       const response = await requestJson("/v1/ramp/history", { headers: { "x-api-key": plaintextKey } });
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ totalCount: 0, transactions: [] });
     });
 
     it("validates history pagination", async () => {

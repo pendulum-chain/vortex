@@ -1,4 +1,4 @@
-// List active user API keys (GET /v1/api-keys).
+// List active user API credentials (GET /v1/api-credentials).
 // Requires a valid auth token from scripts/login.ts.
 //
 // Run:
@@ -18,21 +18,20 @@ interface AuthToken {
   accessToken: string;
 }
 
-interface ApiKeyEntry {
+interface ApiCredential {
   createdAt: string;
   expiresAt: string;
   id: string;
-  isActive: boolean;
-  key?: string;
-  keyPrefix: string;
-  lastUsedAt: string | null;
   name: string;
-  type: "public" | "secret";
-  updatedAt: string;
+  publicKey: string;
+  publicLastUsedAt: string | null;
+  revokedAt: string | null;
+  secretKeyPrefix: string;
+  secretLastUsedAt: string | null;
 }
 
-interface ListApiKeysResponse {
-  apiKeys: ApiKeyEntry[];
+interface ListApiCredentialsResponse {
+  apiCredentials: ApiCredential[];
 }
 
 function loadAuthToken(): AuthToken {
@@ -45,34 +44,32 @@ function loadAuthToken(): AuthToken {
 async function main(): Promise<void> {
   const auth = loadAuthToken();
 
-  console.log("📋 Fetching API keys ...");
-  const response = await fetch(`${API_BASE_URL}/v1/api-keys`, {
+  console.log("📋 Fetching API credentials ...");
+  const response = await fetch(`${API_BASE_URL}/v1/api-credentials`, {
     headers: { Authorization: `Bearer ${auth.accessToken}` }
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`${response.status} /v1/api-keys: ${text}`);
+    throw new Error(`${response.status} /v1/api-credentials: ${text}`);
   }
-  const data = JSON.parse(text) as ListApiKeysResponse;
+  const data = JSON.parse(text) as ListApiCredentialsResponse;
 
-  if (data.apiKeys.length === 0) {
-    console.log("No active API keys found.");
+  if (data.apiCredentials.length === 0) {
+    console.log("No API credentials found.");
     return;
   }
 
-  console.log(`\n${data.apiKeys.length} active key(s):\n`);
-  for (const key of data.apiKeys) {
-    const typeLabel = key.type === "public" ? "PUBLIC (pk_*)" : "SECRET (sk_*)";
-    const displayKey = key.key ?? "(only shown at creation)";
-    console.log(`  ${key.id}`);
-    console.log(`    Type:       ${typeLabel}`);
-    console.log(`    Name:       ${key.name}`);
-    console.log(`    Prefix:     ${key.keyPrefix}`);
-    console.log(`    Key:        ${displayKey}`);
-    console.log(`    Created:    ${key.createdAt}`);
-    console.log(`    Expires:    ${key.expiresAt}`);
-    console.log(`    Last used:  ${key.lastUsedAt ?? "never"}`);
-    console.log(`    Active:     ${key.isActive}`);
+  console.log(`\n${data.apiCredentials.length} credential(s):\n`);
+  for (const credential of data.apiCredentials) {
+    console.log(`  ${credential.id}`);
+    console.log(`    Name:             ${credential.name}`);
+    console.log(`    Public key:       ${credential.publicKey}`);
+    console.log(`    Secret prefix:    ${credential.secretKeyPrefix}`);
+    console.log(`    Created:          ${credential.createdAt}`);
+    console.log(`    Expires:          ${credential.expiresAt}`);
+    console.log(`    Public last used: ${credential.publicLastUsedAt ?? "never"}`);
+    console.log(`    Secret last used: ${credential.secretLastUsedAt ?? "never"}`);
+    console.log(`    Revoked:          ${credential.revokedAt ?? "no"}`);
     console.log();
   }
 }

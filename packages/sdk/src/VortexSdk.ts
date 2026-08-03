@@ -8,6 +8,7 @@ import {
   EphemeralAccount,
   EphemeralAccountType,
   EvmTransactionData,
+  GetRampInfoResponse,
   GetRampStatusResponse,
   isAlfredpayToken,
   isEvmTransactionData,
@@ -60,7 +61,7 @@ export class VortexSdk {
   private storeEphemeralKeys: boolean;
 
   constructor(config: VortexSdkConfig) {
-    this.apiService = new ApiService(config.apiBaseUrl, config.secretKey);
+    this.apiService = new ApiService(config.apiBaseUrl, config.publicKey, config.secretKey);
     this.networkManager = new NetworkManager(config);
     this.storeEphemeralKeys = config.storeEphemeralKeys ?? true;
     this.publicKey = config.publicKey;
@@ -110,6 +111,10 @@ export class VortexSdk {
     return this.apiService.getRampStatus(rampId);
   }
 
+  async getRampInfo(): Promise<GetRampInfoResponse> {
+    return this.apiService.getRampInfo();
+  }
+
   async getUserTransactions(rampProcess: RampProcess, userAddress: string): Promise<UnsignedTx[]> {
     if (!rampProcess.unsignedTxs) {
       return [];
@@ -127,7 +132,7 @@ export class VortexSdk {
   }> {
     if (!this.secretKey) {
       throw new Error(
-        "Ramp registration requires a user-linked secretKey (sk_*) in VortexSdkConfig. Onboard the user and complete KYC via the Vortex app first."
+        "Ramp registration requires a secretKey (sk_*) that resolves to a Vortex user. Use a user-scoped key or a partner key delegated to a user."
       );
     }
 

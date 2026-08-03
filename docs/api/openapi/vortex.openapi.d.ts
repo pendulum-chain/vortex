@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/v1/api-keys": {
+    "/v1/api-credentials": {
         parameters: {
             query?: never;
             header?: never;
@@ -12,31 +12,27 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List the user's API keys
-         * @description Lists the authenticated user's active API keys. Public key values are included; secret key values are never returned.
+         * List API credentials
+         * @description Lists all profile-managed credentials owned by the authenticated profile, newest first. Each item represents one public/secret credential. Public values and safe secret prefixes are included; secret values are never returned.
          *
-         *     **Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.
+         *     **Auth:** Supabase Bearer session only.
          */
-        get: operations["listUserApiKeys"];
+        get: operations["listApiCredentials"];
         put?: never;
         /**
-         * Create a user-linked API key pair
-         * @description Creates a public + secret API key pair bound to the authenticated user. The secret key value is returned only in this response; Vortex stores a hash and cannot show it again.
+         * Create an API credential
+         * @description Creates one credential row containing a public value and a hashed secret value for the authenticated profile. The secret is returned only in this response. Expiry defaults to one year and cannot exceed two years. At most five non-revoked, non-expired credentials may exist per profile.
          *
-         *     Keys expire after one year by default; `expiresAt` may extend this to at most two years from now. A user may hold at most 10 active keys (a pair counts as two).
-         *
-         *     Sandbox mints `pk_test_*`/`sk_test_*`; production mints `pk_live_*`/`sk_live_*`.
-         *
-         *     **Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.
+         *     **Auth:** Supabase Bearer session only.
          */
-        post: operations["createUserApiKey"];
+        post: operations["createApiCredential"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/api-keys/{keyId}": {
+    "/v1/api-credentials/{credentialId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -47,12 +43,34 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Revoke an API key
-         * @description Revokes (soft-deletes) an API key owned by the authenticated user. Pass `pairedKeyId` in the body to revoke both halves of a pair together; the two keys must be of opposite types (one public, one secret) and share the same base name. The legacy `publicKeyId` body field is accepted as an alias.
+         * Revoke an API credential
+         * @description Sets `revokedAt` on one profile-managed credential owned by the authenticated profile, atomically disabling its public and secret values. No request body or paired key ID is accepted.
          *
-         *     **Auth:** requires `Authorization: Bearer <Supabase JWT>` obtained from `POST /v1/auth/verify-otp`. Partner `sk_*`/`pk_*` keys are not accepted.
+         *     **Auth:** Supabase Bearer session only.
          */
-        delete: operations["revokeUserApiKey"];
+        delete: operations["revokeApiCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ramp-info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get sanitized ramp eligibility
+         * @description Returns only sanitized per-corridor KYC state and buy/sell eligibility for the profile derived from the validated credential or session. The endpoint accepts no user/profile selector and never returns PII, provider/customer IDs, KYC failure reasons, bank/wallet data, ramp history, or exact financial limits. When both public and secret headers are supplied they must belong to the same credential.
+         *
+         *     **Auth:** `X-Public-Key`, `X-API-Key`, or Supabase Bearer session.
+         */
+        get: operations["getRampInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -270,6 +288,28 @@ export interface paths {
         get: operations["brlaValidatePixKey"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/limits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get user ramp limits
+         * @description Returns onramp and offramp limits for the authenticated user's requested fiat corridors. Alfredpay usage is calculated from completed Vortex ramps in the current UTC calendar month and may be delayed by the 60-second in-memory cache. Avenia BRL maximums, usage, and period are read from Avenia.
+         *
+         *     **Auth:** requires either `X-API-Key: sk_*` linked to a user or `Authorization: Bearer <Supabase JWT>`. Unlinked partner keys are rejected.
+         */
+        post: operations["getUserLimits"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1018,6 +1058,8 @@ export interface paths {
          * @description Register a new webhook to receive event notifications.
          *
          *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
+         *
+         *     Webhooks are bound to the account behind your secret key: a `quoteId` must belong to a quote created with your key (any other quote returns `404`). The callback URL must use HTTPS, must not embed credentials, and must resolve to a publicly routable address; private or reserved IP ranges are rejected.
          */
         post: {
             parameters: {
@@ -1030,11 +1072,11 @@ export interface paths {
                 content: {
                     "application/json": {
                         events?: string[];
-                        /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific quote */
+                        /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific quote. The quote must have been created with your API key. */
                         quoteId?: string;
                         /** @description (required* one of two: quoteId or sessionId): Subscribe to events for a specific session */
                         sessionId?: string;
-                        /** @description Your HTTPS webhook endpoint URL */
+                        /** @description Your HTTPS webhook endpoint URL. No embedded credentials; must resolve to a publicly routable address. */
                         url: string;
                     };
                 };
@@ -1100,6 +1142,8 @@ export interface paths {
          * @description Remove a webhook subscription.
          *
          *     **Auth:** requires `X-API-Key: sk_*`. Supabase Bearer is NOT accepted on webhook endpoints.
+         *
+         *     Deletion is scoped to your account: a webhook registered by another account returns `404`.
          */
         delete: {
             parameters: {
@@ -1308,12 +1352,12 @@ export interface components {
         GetRampHistoryTransaction: {
             currentPhase: components["schemas"]["RampPhase"];
             date: string;
+            /** @description The deadline for starting an initial ramp. */
+            expiresAt: string;
             /** @description A link to the transaction explorer of the blockchain showing the details of the transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxExplorerLink?: string;
             /** @description The hash of the blockchain transaction sending the tokens to the user's wallet address. Only available for 'BUY' ramps. */
             externalTxHash?: string;
-            /** @description The deadline for starting an initial ramp. */
-            expiresAt: string;
             from: components["schemas"]["DestinationType"];
             fromAmount: string;
             fromCurrency: components["schemas"]["RampCurrency"];
@@ -1325,6 +1369,12 @@ export interface components {
             type: components["schemas"]["RampDirection"];
             /** @description Destination address for a BUY ramp when available. */
             walletAddress?: string;
+        };
+        GetUserLimitsRequest: {
+            corridors: ("AR" | "BR" | "CO" | "MX" | "US")[];
+        };
+        GetUserLimitsResponse: {
+            limits: components["schemas"]["UserLimit"][];
         };
         GetUserRemainingLimitResponse: {
             /**
@@ -1408,28 +1458,48 @@ export interface components {
         KycLevel1Response: {
             id: string;
         };
-        ListUserApiKeysResponse: {
-            apiKeys: {
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                expiresAt: string;
-                id: string;
-                isActive: boolean;
-                /** @description Full key value; present for public keys only. Secret key values are never returned after creation. */
-                key?: string;
-                keyPrefix: string;
-                /**
-                 * Format: date-time
-                 * @description Null until the key is first used.
-                 */
-                lastUsedAt?: string;
-                name: string;
-                /** @enum {string} */
-                type: "public" | "secret";
-                /** Format: date-time */
-                updatedAt: string;
-            }[];
+        ApiCredential: {
+            /** Format: date-time */
+            createdAt: string;
+            /** @enum {string} */
+            environment: "live" | "test";
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: uuid */
+            partnerId: string | null;
+            /** Format: uuid */
+            profileId: string;
+            /** @description Retrievable public half of the credential. */
+            publicKey: string;
+            /** Format: date-time */
+            publicLastUsedAt: string | null;
+            /** Format: date-time */
+            revokedAt: string | null;
+            /** @description Non-secret 16-character lookup/display prefix. The secret value is not retrievable. */
+            secretKeyPrefix: string;
+            /** Format: date-time */
+            secretLastUsedAt: string | null;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CreateApiCredentialRequest: {
+            /**
+             * Format: date-time
+             * @description Optional future ISO-8601 expiry, at most two years from creation. Defaults to one year.
+             */
+            expiresAt?: string;
+            /** @default API Credential */
+            name: string;
+        };
+        CreateApiCredentialResponse: components["schemas"]["ApiCredential"] & {
+            /** @description Returned only at creation. Store it immediately in a server-side secret manager. */
+            secretKey: string;
+        };
+        ListApiCredentialsResponse: {
+            credentials: components["schemas"]["ApiCredential"][];
         };
         /**
          * @description Supported blockchain networks.
@@ -1713,40 +1783,46 @@ export interface components {
              */
             rampId: string;
         };
-        UserApiKeyErrorResponse: {
+        ApiCredentialErrorResponse: {
             error: {
-                /** @description Machine-readable error code, e.g. `AUTHENTICATION_REQUIRED`, `API_KEY_LIMIT_REACHED`, `INVALID_EXPIRES_AT`, `API_KEY_NOT_FOUND`. */
+                /** @description Machine-readable error code such as `AUTHENTICATION_REQUIRED`, `INVALID_PUBLIC_KEY`, `INVALID_SECRET_KEY`, `CREDENTIAL_MISMATCH`, `CREDENTIAL_LIMIT_REACHED`, `CREDENTIAL_NOT_FOUND`, `CREDENTIAL_SUBJECT_REQUIRED`, `INVALID_CREDENTIAL_EXPIRY`, or `INVALID_CREDENTIAL_NAME`. */
                 code: string;
                 message: string;
                 status: number;
             };
         };
-        UserApiKeyPairResponse: {
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            expiresAt: string;
-            isActive: boolean;
-            publicKey: {
-                id: string;
-                /** @description The full key value. For the secret key this is returned only in this response. */
-                key: string;
-                /** @description Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`. */
-                keyPrefix: string;
-                name: string;
-                /** @enum {string} */
-                type: "public" | "secret";
+        RampInfoResponse: {
+            /** @description Sanitized eligibility keyed by corridor country code. No exact limits, PII, provider IDs, or failure reasons are returned. */
+            corridors: {
+                [key: string]: {
+                    canBuy: boolean;
+                    canSell: boolean;
+                    /** @enum {string} */
+                    kycStatus: "not_started" | "pending" | "approved" | "rejected";
+                };
             };
-            secretKey: {
-                id: string;
-                /** @description The full key value. For the secret key this is returned only in this response. */
-                key: string;
-                /** @description Constant 8-character prefix, e.g. `pk_live_` or `sk_test_`. */
-                keyPrefix: string;
-                name: string;
-                /** @enum {string} */
-                type: "public" | "secret";
-            };
+        };
+        UserLimit: {
+            /** @enum {string} */
+            corridor: "AR" | "BR" | "CO" | "MX" | "US";
+            currency: components["schemas"]["RampCurrency"];
+            direction: components["schemas"]["RampDirection"];
+            /** @description Maximum amount in the returned currency's human units. */
+            max: string;
+            period: components["schemas"]["UserLimitPeriod"];
+            /** @description Amount consumed during the period in the returned currency's human units. */
+            used: string;
+        };
+        UserLimitPeriod: {
+            /**
+             * Format: date-time
+             * @description Exclusive end of the reported period.
+             */
+            endsAt: string;
+            /** Format: date-time */
+            startsAt: string;
+            /** @constant */
+            type: "calendar_month";
         };
         ValidatePixKeyResponse: {
             /** @description Indicates if the PIX key is valid. */
@@ -1784,7 +1860,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    listUserApiKeys: {
+    listApiCredentials: {
         parameters: {
             query?: never;
             header?: never;
@@ -1793,13 +1869,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Active keys, newest first. */
+            /** @description Credentials, newest first, including revoked and expired lifecycle records. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListUserApiKeysResponse"];
+                    "application/json": components["schemas"]["ListApiCredentialsResponse"];
                 };
             };
             /** @description Missing or invalid Bearer token. */
@@ -1808,7 +1884,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -1817,12 +1893,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
         };
     };
-    createUserApiKey: {
+    createApiCredential: {
         parameters: {
             query?: never;
             header?: never;
@@ -1831,40 +1907,26 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                /**
-                 * @example {
-                 *       "expiresAt": "2027-07-06T00:00:00.000Z",
-                 *       "name": "my-backend"
-                 *     }
-                 */
-                "application/json": {
-                    /**
-                     * Format: date-time
-                     * @description Optional ISO-8601 expiry, at most 2 years from now. Defaults to 1 year.
-                     */
-                    expiresAt?: string;
-                    /** @description Optional label; defaults to "API Key". */
-                    name?: string;
-                };
+                "application/json": components["schemas"]["CreateApiCredentialRequest"];
             };
         };
         responses: {
-            /** @description Key pair created. Persist `secretKey.key` immediately; it cannot be retrieved again. */
+            /** @description Credential created. Persist `secretKey` immediately; it cannot be retrieved again. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyPairResponse"];
+                    "application/json": components["schemas"]["CreateApiCredentialResponse"];
                 };
             };
-            /** @description `INVALID_EXPIRES_AT`: expiresAt is not a valid ISO-8601 date or is more than 2 years from now. */
+            /** @description `INVALID_CREDENTIAL_EXPIRY` or `INVALID_CREDENTIAL_NAME`. */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
             /** @description Missing or invalid Bearer token. */
@@ -1873,16 +1935,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
-            /** @description `API_KEY_LIMIT_REACHED`: the user already holds the maximum of 10 active keys. */
+            /** @description `CREDENTIAL_LIMIT_REACHED`: the profile already holds five active non-expired credentials. */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -1891,67 +1953,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
         };
     };
-    revokeUserApiKey: {
+    revokeApiCredential: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                /** @description ID of the key to revoke. */
-                keyId: string;
+                /** @description Immutable credential ID to revoke. */
+                credentialId: string;
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                /**
-                 * @example {
-                 *       "pairedKeyId": "00000000-0000-0000-0000-000000000000"
-                 *     }
-                 */
-                "application/json": {
-                    /** @description Optional ID of the other half of the pair, to revoke both keys together. */
-                    pairedKeyId?: string;
-                };
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Key(s) revoked. */
+            /** @description Credential revoked; both values are immediately unusable. */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description `INVALID_KEY_PAIR` or `KEY_PAIR_MISMATCH`: the two keys are not opposite halves of the same pair. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
-                };
-            };
             /** @description Missing or invalid Bearer token. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
-            /** @description `API_KEY_NOT_FOUND` or `PAIRED_PUBLIC_KEY_NOT_FOUND`: key missing, already revoked, or not owned by the user. */
+            /** @description `CREDENTIAL_NOT_FOUND`: credential is missing, already revoked, partner-managed, or not owned by the profile. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
             /** @description Internal server error. */
@@ -1960,7 +2001,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserApiKeyErrorResponse"];
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+        };
+    };
+    getRampInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sanitized corridor eligibility. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RampInfoResponse"];
+                };
+            };
+            /** @description Malformed key or wrong key type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+            /** @description Missing, invalid, expired, or revoked credential/session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
+                };
+            };
+            /** @description `CREDENTIAL_MISMATCH`: presented public and secret values belong to different credentials. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiCredentialErrorResponse"];
                 };
             };
         };
@@ -2454,6 +2542,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["BrlaErrorResponse"];
                 };
+            };
+        };
+    };
+    getUserLimits: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GetUserLimitsRequest"];
+            };
+        };
+        responses: {
+            /** @description Limits and consumed amounts for both directions of every requested corridor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GetUserLimitsResponse"];
+                };
+            };
+            /** @description Invalid corridor list or no completed provider profile for a requested corridor. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The credential is not linked to a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Provider limits are unavailable or invalid. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

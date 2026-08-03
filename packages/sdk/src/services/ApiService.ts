@@ -2,6 +2,7 @@ import type {
   AlfredPayCountry,
   AlfredpayFiatAccount,
   CreateQuoteRequest,
+  GetRampInfoResponse,
   GetRampStatusResponse,
   QuoteResponse,
   RampDirection,
@@ -18,6 +19,7 @@ import type { BrlKycResponse } from "../types";
 export class ApiService {
   constructor(
     private readonly apiBaseUrl: string,
+    private readonly publicKey?: string,
     private readonly secretKey?: string
   ) {}
 
@@ -25,6 +27,9 @@ export class ApiService {
     const headers: Record<string, string> = {
       "Content-Type": "application/json"
     };
+    if (this.publicKey) {
+      headers["X-Public-Key"] = this.publicKey;
+    }
     if (this.secretKey) {
       headers["X-API-Key"] = this.secretKey;
     }
@@ -87,6 +92,15 @@ export class ApiService {
     });
 
     return handleAPIResponse<GetRampStatusResponse>(response, `/v1/ramp/status?id=${rampId}`);
+  }
+
+  async getRampInfo(): Promise<GetRampInfoResponse> {
+    const response = await fetch(`${this.apiBaseUrl}/v1/ramp-info`, {
+      headers: this.buildHeaders(),
+      method: "GET"
+    });
+
+    return handleAPIResponse<GetRampInfoResponse>(response, "/v1/ramp-info");
   }
 
   async getBrlKycStatus(taxId?: string): Promise<BrlKycResponse> {

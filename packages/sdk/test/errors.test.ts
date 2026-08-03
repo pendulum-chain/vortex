@@ -24,6 +24,15 @@ describe("parseAPIError", () => {
     expect(error.message).toBe("Invalid or expired Bearer token.");
   });
 
+  test("preserves stable string error codes", () => {
+    const error = parseAPIError({
+      error: { code: "CREDENTIAL_MISMATCH", message: "Credentials do not match", status: 403 }
+    });
+
+    expect(error.code).toBe("CREDENTIAL_MISMATCH");
+    expect(error.status).toBe(403);
+  });
+
   test("maps Alfredpay onramp auth and KYC errors", () => {
     const error = parseAPIError({
       code: 401,

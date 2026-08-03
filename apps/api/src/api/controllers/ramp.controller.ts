@@ -353,11 +353,7 @@ export const getRampHistory = async (
     }
 
     const effectiveUserId = getEffectiveUserId(req);
-    const owner = req.authenticatedPartner
-      ? { partnerId: req.authenticatedPartner.id }
-      : effectiveUserId
-        ? { userId: effectiveUserId }
-        : null;
+    const owner = effectiveUserId ? { userId: effectiveUserId } : null;
     if (!owner) {
       throw new APIError({ message: "Authentication required", status: httpStatus.UNAUTHORIZED });
     }
@@ -405,7 +401,7 @@ interface RampObservationContext {
 }
 
 interface ObservedRampRequest {
-  authenticatedPartner?: { id: string; name: string };
+  authenticatedPartner?: { name: string };
   body?: unknown;
   method?: string;
   params?: unknown;
@@ -413,6 +409,7 @@ interface ObservedRampRequest {
   query?: unknown;
   requestId?: string;
   requestStartedAt?: number;
+  credential?: Request["credential"];
   userId?: string;
 }
 
@@ -427,11 +424,11 @@ function observeRampSuccess(
     durationMs: getRequestDurationMs(req),
     httpStatus: status,
     operation,
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "success",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 
@@ -450,11 +447,11 @@ function observeRampFailure(
     httpStatus: status,
     metadata: buildRampRequestMetadata(req, operation),
     operation,
-    partnerId: req.authenticatedPartner?.id || null,
+    partnerId: req.credential?.partnerId || null,
     partnerName: req.authenticatedPartner?.name || null,
     requestId: req.requestId,
     status: "failure",
-    userId: req.userId || null
+    userId: getEffectiveUserId(req) || null
   });
 }
 

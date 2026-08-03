@@ -261,6 +261,17 @@ export interface GetRampStatusRequest {
   id: string;
 }
 
+export interface GetRampInfoResponse {
+  corridors: Record<
+    string,
+    {
+      kycStatus: "not_started" | "pending" | "approved" | "rejected";
+      canBuy: boolean;
+      canSell: boolean;
+    }
+  >;
+}
+
 export interface GetRampStatusResponse extends RampProcess {
   // Fee fields in fiat currency
   anchorFeeFiat: string;

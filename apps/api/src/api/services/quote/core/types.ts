@@ -51,7 +51,7 @@ export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment"
 // Re-export here for convenience to avoid deep imports.
 export interface QuoteContext {
   // immutable request details
-  readonly request: CreateQuoteRequest & { partnerName?: string | null; userId?: string };
+  readonly request: CreateQuoteRequest & { apiCredentialId?: string; partnerName?: string | null; userId?: string };
   readonly now: Date;
 
   // Partner info (if any)
