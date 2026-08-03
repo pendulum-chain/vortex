@@ -1,5 +1,11 @@
 # API Credential Production Rollout
 
+Status: current for the credential implementation in PR #1298. The managed-profile
+steps describe the claimable Supabase workflow currently implemented on that branch and
+must be revised before rollout if
+[`proposal-headless-partner-managed-profiles.md`](proposal-headless-partner-managed-profiles.md)
+is implemented.
+
 ## Purpose
 
 Cut production from legacy `api_keys` halves to one `api_credentials` row per public/secret credential without runtime fallback, ambiguous pairing, or ownerless subjects.

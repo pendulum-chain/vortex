@@ -18,8 +18,10 @@ The smaller set of general project documents stays directly in `docs/`:
 |---|---|
 | [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
+| [`operations-api-credential-rollout.md`](operations-api-credential-rollout.md) | Operational runbook for the API credential production rollout |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
+| [`proposal-headless-partner-managed-profiles.md`](proposal-headless-partner-managed-profiles.md) | Active proposal for headless partner-managed profiles and manually imported customer entities |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
