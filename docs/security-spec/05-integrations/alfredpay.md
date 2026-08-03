@@ -140,4 +140,6 @@ Alfredpay identity moved from `alfredpay_customers` (keyed by `user_id`) to
   tie-break across a user's individual/business rows; `lookupAlfredpayCustomerType` keeps the
   type-ASC precedence ('business' < 'individual').
 - Canonical and external status transitions mirror into the account's `kyc_cases` row in the same code path.
-- The legacy `alfredpay_customers` table is a read-only backup with no remaining readers.
+- Migration 060 permanently deletes the legacy `alfredpay_customers` table, including historical
+  and folded rows. This deletion is intentionally irreversible; no application reader or archive
+  remains, and recovery requires restoring the pre-migration database backup.

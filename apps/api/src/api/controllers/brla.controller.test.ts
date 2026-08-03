@@ -6,7 +6,6 @@ import CustomerEntity from "../../models/customerEntity.model";
 import KycCase from "../../models/kycCase.model";
 import PartnerManagedProfile from "../../models/partnerManagedProfile.model";
 import ProviderCustomer, {VerificationStatus} from "../../models/providerCustomer.model";
-import TaxId, {TaxIdInternalStatus} from "../../models/taxId.model";
 import User from "../../models/user.model";
 import {
   createSubaccount,
@@ -642,7 +641,6 @@ describe("createSubaccount", () => {
   const originalProviderCreate = ProviderCustomer.create;
   const originalEntityFindOne = CustomerEntity.findOne;
   const originalEntityFindOrCreate = CustomerEntity.findOrCreate;
-  const originalTaxIdFindByPk = TaxId.findByPk;
   const originalKycCaseFindOne = KycCase.findOne;
   const originalKycCaseCreate = KycCase.create;
   const originalGetInstance = BrlaApiService.getInstance;
@@ -654,8 +652,6 @@ describe("createSubaccount", () => {
     // No pre-existing kyc case; case creation is fire-and-forget for these scenarios.
     KycCase.findOne = mock(async () => null) as typeof KycCase.findOne;
     KycCase.create = mock(async () => ({})) as unknown as typeof KycCase.create;
-    // Default: no legacy tax_ids row to adopt.
-    TaxId.findByPk = mock(async () => null) as typeof TaxId.findByPk;
   });
 
   afterEach(() => {
@@ -663,7 +659,6 @@ describe("createSubaccount", () => {
     ProviderCustomer.create = originalProviderCreate;
     CustomerEntity.findOne = originalEntityFindOne;
     CustomerEntity.findOrCreate = originalEntityFindOrCreate;
-    TaxId.findByPk = originalTaxIdFindByPk;
     KycCase.findOne = originalKycCaseFindOne;
     KycCase.create = originalKycCaseCreate;
     BrlaApiService.getInstance = originalGetInstance;
@@ -689,7 +684,7 @@ describe("createSubaccount", () => {
     taxId: "08786985906"
   };
 
-  it("rejects when an existing subaccount belongs to a different Supabase user", async () => {
+  it("rejects when the canonical provider customer belongs to a different Supabase user", async () => {
     mockBrlaApi();
     createAveniaSubaccountMock.mockClear();
     ProviderCustomer.findOne = mock(async () => ({
@@ -709,67 +704,6 @@ describe("createSubaccount", () => {
     expect(res.statusCode).toBe(httpStatus.CONFLICT);
     expect(res.body).toEqual({ error: "A subaccount already exists for this taxId" });
     expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects when a quarantined legacy record belongs to a different user", async () => {
-    mockBrlaApi();
-    createAveniaSubaccountMock.mockClear();
-    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
-    TaxId.findByPk = mock(async () => ({
-      internalStatus: TaxIdInternalStatus.Accepted,
-      subAccountId: "legacy-sub",
-      userId: "victim-user"
-    })) as typeof TaxId.findByPk;
-
-    const res = createResponse();
-    await createSubaccount(
-      {
-        body: validBody,
-        userId: "attacker-user"
-      } as any,
-      res as any
-    );
-
-    expect(res.statusCode).toBe(httpStatus.CONFLICT);
-    expect(res.body).toEqual({ error: "A subaccount already exists for this taxId" });
-    expect(createAveniaSubaccountMock).not.toHaveBeenCalled();
-  });
-
-  it("lets an authenticated caller claim an anonymously-owned legacy record", async () => {
-    mockBrlaApi();
-    createAveniaSubaccountMock.mockClear();
-    ProviderCustomer.findOne = mock(async () => null) as typeof ProviderCustomer.findOne;
-    TaxId.findByPk = mock(async () => ({
-      accountType: AveniaAccountType.INDIVIDUAL,
-      internalStatus: TaxIdInternalStatus.Requested,
-      subAccountId: "legacy-sub",
-      userId: null
-    })) as typeof TaxId.findByPk;
-    const adoptedUpdate = mock(async () => undefined);
-    const providerCreateMock = mock(async (values: Record<string, unknown>) => ({ ...values, update: adoptedUpdate }));
-    ProviderCustomer.create = providerCreateMock as unknown as typeof ProviderCustomer.create;
-
-    const res = createResponse();
-    await createSubaccount(
-      {
-        body: validBody,
-        userId: "some-user"
-      } as any,
-      res as any
-    );
-
-    expect(res.statusCode).toBe(httpStatus.OK);
-    // The adopted record is owned by the claimer's entity...
-    expect(providerCreateMock.mock.calls[0]?.[0]).toMatchObject({ customerEntityId: "entity-some-user" });
-    // ...and then re-provisioned with the freshly created subaccount.
-    expect(createAveniaSubaccountMock).toHaveBeenCalled();
-    expect(adoptedUpdate).toHaveBeenCalledWith({
-      companyName: null,
-      customerType: "individual",
-      providerSubaccountId: "new-subaccount",
-      status: VerificationStatus.InReview,
-      statusExternal: null
-    });
   });
 
   it("allows an authenticated user to (re)create their own subaccount", async () => {
@@ -797,7 +731,7 @@ describe("createSubaccount", () => {
     expect(updateMock).toHaveBeenCalled();
   });
 
-  it("allows creation when no existing subaccount record exists", async () => {
+  it("creates a canonical provider customer when none exists", async () => {
     mockBrlaApi();
     createAveniaSubaccountMock.mockClear();
     const providerCreateMock = mock(async (values: Record<string, unknown>) => ({ ...values }));
@@ -816,7 +750,14 @@ describe("createSubaccount", () => {
     expect(res.statusCode).toBe(httpStatus.OK);
     expect(res.body).toEqual({ subAccountId: "new-subaccount" });
     expect(createAveniaSubaccountMock).toHaveBeenCalled();
-    expect(providerCreateMock).toHaveBeenCalled();
+    expect(providerCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerEntityId: "entity-new-user",
+        provider: "avenia",
+        providerSubaccountId: "new-subaccount",
+        taxReference: "08786985906"
+      })
+    );
   });
 
   it("persists the submitted company name for a business account", async () => {

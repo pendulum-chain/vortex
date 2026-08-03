@@ -36,7 +36,6 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
-import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import {
@@ -54,21 +53,6 @@ import { getOrCreateCustomerEntityForProfile } from "../services/customer-entity
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
-
-function legacyAveniaStatus(status: TaxIdInternalStatus | null): VerificationStatus {
-  switch (status) {
-    case TaxIdInternalStatus.Accepted:
-      return VerificationStatus.Approved;
-    case TaxIdInternalStatus.Rejected:
-      return VerificationStatus.Rejected;
-    case TaxIdInternalStatus.Requested:
-      return VerificationStatus.InReview;
-    case TaxIdInternalStatus.Consulted:
-      return VerificationStatus.Started;
-    default:
-      return VerificationStatus.Pending;
-  }
-}
 
 // Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
@@ -351,7 +335,7 @@ export const createSubaccount = async (
     const effectiveUserId = getEffectiveUserId(req);
 
     // Reject callers that do not resolve to a user (anonymous requests
-    // or unlinked secret keys) so the resulting TaxId is always owned by a real profile.
+    // or unlinked secret keys) so the resulting provider customer is owned by a real profile.
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: "This endpoint requires authentication."
@@ -376,33 +360,6 @@ export const createSubaccount = async (
         error: "A subaccount already exists for this taxId"
       });
       return;
-    }
-
-    // Legacy adoption: quarantined rows in the tax_ids backup (created before the
-    // provider_customers cutover, possibly ownerless) are claimable exactly like the
-    // pre-cutover flow allowed — owned-by-another rejects, anonymous rows are claimed
-    // by the authenticated caller. One-time per row; the backup itself is never written.
-    if (!existing) {
-      const legacy = await TaxId.findByPk(normalizedTaxId);
-      if (legacy && legacy.internalStatus !== TaxIdInternalStatus.Consulted) {
-        if (legacy.userId !== null && legacy.userId !== effectiveUserId) {
-          res.status(httpStatus.CONFLICT).json({
-            error: "A subaccount already exists for this taxId"
-          });
-          return;
-        }
-        existing = await ProviderCustomer.create({
-          country: "BR",
-          customerEntityId: entity.id,
-          customerType: accountTypeToCustomerType(legacy.accountType),
-          provider: "avenia",
-          providerSubaccountId: legacy.subAccountId || null,
-          rail: "brl",
-          status: legacyAveniaStatus(legacy.internalStatus),
-          taxReference: normalizedTaxId,
-          taxReferenceHash: hashTaxReference(normalizedTaxId)
-        });
-      }
     }
 
     const brlaApiService = BrlaApiService.getInstance();
@@ -431,8 +388,6 @@ export const createSubaccount = async (
         statusExternal: null
       });
     } else {
-      // The entry should have been created the very first a new cpf/cnpj is consulted.
-      // We leave this as is for now to avoid breaking changes.
       existing = await ProviderCustomer.create({
         companyName,
         country: "BR",
