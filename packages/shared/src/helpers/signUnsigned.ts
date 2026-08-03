@@ -77,7 +77,7 @@ async function signMultipleSubstrateTransactions(
  * @param apiKey - Optional Alchemy API key
  * @returns WalletClient for the specified network
  */
-function createEvmClient(
+export function createEvmClient(
   network: string, // Accept string to match UnsignedTx.network type usually being string/enum
   evmEphemeral: EphemeralAccount,
   apiKey?: string
