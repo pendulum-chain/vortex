@@ -85,10 +85,11 @@ export class AuthService {
 
   /**
    * Refresh the access token via `/v1/auth/refresh`. Returns the new tokens, or `null`
-   * when the refresh token is confirmed invalid (401 — session cleared). Transient
-   * failures throw so callers can retry without destroying a still-valid session. Callers
-   * in the same session share an in-flight refresh so proactive refresh and 401 recovery
-   * cannot race refresh-token rotation; a replacement session starts its own flight.
+   * when the current refresh token is confirmed invalid (401 — session cleared). A
+   * superseded flight returns the replacement session instead. Transient failures throw so
+   * callers can retry without destroying a still-valid session. Callers in the same session
+   * share an in-flight refresh so proactive refresh and 401 recovery cannot race refresh-token
+   * rotation; a replacement session starts its own flight.
    */
   static refreshAccessToken(): Promise<AuthTokens | null> {
     const tokens = this.getTokens();
@@ -118,10 +119,11 @@ export class AuthService {
       signal: AbortSignal.timeout(30000)
     });
 
+    if (!this.isCurrentSession(tokens.refreshToken, generation)) {
+      return this.getTokens();
+    }
     if (response.status === 401) {
-      if (this.isCurrentSession(tokens.refreshToken, generation)) {
-        this.clearTokens();
-      }
+      this.clearTokens();
       return null;
     }
     if (!response.ok) {
@@ -130,7 +132,7 @@ export class AuthService {
 
     const data = (await response.json()) as { access_token: string; refresh_token: string };
     if (!this.isCurrentSession(tokens.refreshToken, generation)) {
-      return null;
+      return this.getTokens();
     }
     const newTokens: AuthTokens = {
       accessToken: data.access_token,

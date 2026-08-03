@@ -64,7 +64,7 @@ async function apiFetch<T>(
 
   if (response.status === 401 && initialTokens?.accessToken) {
     const refreshed = await refreshTokenOnce();
-    if (refreshed?.accessToken) {
+    if (refreshed?.accessToken && refreshed.userId === initialTokens.userId) {
       response = await doFetch(refreshed.accessToken);
     }
   }
