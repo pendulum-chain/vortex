@@ -16,7 +16,7 @@ import * as evmFundingNamespace from "../core/evm-funding";
 import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import Big from "big.js";
-import { decodeFunctionData, erc20Abi } from "viem";
+import { decodeFunctionData, erc20Abi, parseTransaction } from "viem";
 import type { FlowMetadata } from "../core/metadata";
 import type { SubsidyMetadata } from "../phases/subsidize-pre/simulation";
 
@@ -263,6 +263,10 @@ describe("BRL onramp Base cross-chain transactions", () => {
     expect(blocks.unsignedTxs.find(tx => tx.phase === "squidRouterSwap")?.txData).toMatchObject({ data: "0xa2" });
     expect(blocks.unsignedTxs.find(tx => tx.phase === "backupSquidRouterApprove")?.txData).toMatchObject({ data: "0xb1" });
     expect(blocks.unsignedTxs.find(tx => tx.phase === "backupSquidRouterSwap")?.txData).toMatchObject({ data: "0xb2" });
+    expect(blocks.unsignedTxs.find(tx => tx.phase === "destinationTransfer")?.txData).toMatchObject({
+      maxFeePerGas: "1000000000",
+      maxPriorityFeePerGas: "1000000"
+    });
   });
 
   it("allocates the production nonce lanes per network", async () => {
@@ -300,6 +304,9 @@ describe("BRL onramp Base cross-chain transactions", () => {
     const presignedTxs = await signUnsignedTransactions(blocks.unsignedTxs, { evmEphemeral });
     expect(presignedTxs.length).toBeGreaterThanOrEqual(blocks.unsignedTxs.length);
     expect(presignedTxs.every(tx => typeof tx.txData === "string" && tx.txData.startsWith("0x"))).toBe(true);
+    const destinationTransfer = presignedTxs.find(tx => tx.phase === "destinationTransfer");
+    expect(destinationTransfer).toBeDefined();
+    expect(parseTransaction(destinationTransfer?.txData as `0x${string}`).maxFeePerGas).toBe(3_000_000_000n);
   }, 60_000);
 
   it("preserves 18-decimal BSC USDT precision in the destination transfer", async () => {

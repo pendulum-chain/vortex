@@ -41,6 +41,7 @@ export interface PhaseCtx {
     vortexFeePenPercentage?: number;
   };
   targetFeeFiatCurrency?: RampCurrency;
+  ethereumDestinationFeeUsd?: string;
 }
 
 export type FlowInputResolver<O extends PhaseIO> = (ctx: PhaseCtx) => O | Promise<O>;

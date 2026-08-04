@@ -8,6 +8,7 @@ import {
   type RampPhase,
   type UnsignedTx
 } from "@vortexfi/shared";
+import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
@@ -134,7 +135,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
 
   async function createQuoteViaApi(
     destinationNetwork: Networks.Arbitrum | Networks.Ethereum = Networks.Arbitrum
-  ): Promise<{ id: string; outputAmount: string }> {
+  ): Promise<{ id: string; networkFeeUsd: string; outputAmount: string }> {
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
         from: "pix",
@@ -149,7 +150,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
       method: "POST"
     });
     expect(response.status, `quote creation failed: ${await response.clone().text()}`).toBe(201);
-    return (await response.json()) as { id: string; outputAmount: string };
+    return (await response.json()) as { id: string; networkFeeUsd: string; outputAmount: string };
   }
 
   async function registerViaApi(
@@ -354,6 +355,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
 
     expect(persistedQuote?.network).toBe(Networks.Ethereum);
     expect(persistedQuote?.to).toBe(Networks.Ethereum);
+    expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
   });
 
   it(

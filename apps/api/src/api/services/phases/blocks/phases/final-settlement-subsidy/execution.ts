@@ -30,7 +30,8 @@ import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import type { SquidRouterDeliveryEvidence } from "../../../../phases/meta-state-types";
 import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
-import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
+import { getStaticDestinationEvmFundingAmountUnits } from "../../core/destination-funding";
+import { calculatePresignedGasBudgetRaw } from "../../core/ethereum-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
@@ -210,9 +211,17 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
       tokenDetails: outTokenDetails
     });
 
-    const destinationGasReserveRaw = isNative
-      ? multiplyByPowerOfTen(DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork], outTokenDetails.decimals)
-      : new Big(0);
+    let destinationGasReserveRaw = new Big(0);
+    if (isNative) {
+      destinationGasReserveRaw =
+        destinationNetwork === Networks.Ethereum
+          ? new Big(
+              calculatePresignedGasBudgetRaw(
+                this.getPresignedTransaction(state, "destinationTransfer").txData as `0x${string}`
+              ).toString()
+            )
+          : multiplyByPowerOfTen(getStaticDestinationEvmFundingAmountUnits(destinationNetwork), outTokenDetails.decimals);
+    }
     const requiredBalanceRaw = expectedAmountRaw.plus(destinationGasReserveRaw);
     const subsidyAmountRaw = calculateSettlementSubsidyRaw(
       expectedAmountRaw,

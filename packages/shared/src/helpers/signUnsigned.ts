@@ -36,6 +36,11 @@ const DESTINATION_NETWORK_PHASES = [
   "backupApprove"
 ];
 
+// Applied once, when the client signs a prepared EVM transaction. Backend
+// transaction builders must leave fee estimates unscaled so safety margins do
+// not compound across preparation and signing.
+export const PRESIGNED_EVM_FEE_MULTIPLIER = 3n;
+
 /**
  * Groups transactions by the signing flow that handles them. The destination group must
  * exclude every network the EVM group selects, or the same transaction would be signed
@@ -197,10 +202,10 @@ async function signMultipleEvmTransactions(
       throw new Error("Wallet client account is undefined");
     }
     const maxPriorityFeePerGas = tx.txData.maxPriorityFeePerGas
-      ? BigInt(tx.txData.maxPriorityFeePerGas) * 3n
+      ? BigInt(tx.txData.maxPriorityFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER
       : BigInt(187500000000);
     const maxFeePerGas = (() => {
-      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * 3n : BigInt(187500000000);
+      const fee = tx.txData.maxFeePerGas ? BigInt(tx.txData.maxFeePerGas) * PRESIGNED_EVM_FEE_MULTIPLIER : BigInt(187500000000);
       return fee > maxPriorityFeePerGas ? fee : maxPriorityFeePerGas;
     })();
 

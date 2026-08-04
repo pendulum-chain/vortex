@@ -104,6 +104,25 @@ function readFractionEnv(name: string, defaultValue: string): number {
   return value;
 }
 
+function readPositiveDecimalEnv(name: string, defaultValue: string): string {
+  const rawValue = process.env[name] ?? defaultValue;
+  const value = Number(rawValue.trim());
+  if (!Number.isFinite(value) || value <= 0 || rawValue.trim() === "") {
+    throw new Error(`${name} must be a positive number`);
+  }
+  return rawValue.trim();
+}
+
+function readEthereumNetworkFeeMarginBps(): number {
+  const name = "ETHEREUM_ONRAMP_NETWORK_FEE_MARGIN_BPS";
+  const rawValue = process.env[name] ?? "12000";
+  const value = Number(rawValue.trim());
+  if (!Number.isInteger(value) || value < 10_000 || value > 30_000 || rawValue.trim() === "") {
+    throw new Error(`${name} must be an integer between 10000 and 30000`);
+  }
+  return value;
+}
+
 export const RECIPIENT_INVITE_DISCOUNT_HARD_CAP_BPS = 300;
 
 function readRecipientInviteDiscountLimit(): number {
@@ -207,6 +226,11 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
+  ethereumOnramp: {
+    maxDestinationFeeUsd: string;
+    maxGasFundingUnits: string;
+    networkFeeMarginBps: number;
+  };
 }
 
 export const config: Config = {
@@ -227,6 +251,11 @@ export const config: Config = {
   },
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
+  ethereumOnramp: {
+    maxDestinationFeeUsd: readPositiveDecimalEnv("ETHEREUM_ONRAMP_MAX_DESTINATION_FEE_USD", "5"),
+    maxGasFundingUnits: readPositiveDecimalEnv("ETHEREUM_ONRAMP_MAX_GAS_FUNDING_ETH", "0.005"),
+    networkFeeMarginBps: readEthereumNetworkFeeMarginBps()
+  },
   flowVariant: readFlowVariant(),
 
   integrations: {

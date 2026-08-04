@@ -159,7 +159,7 @@ export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Ch
   const targetDiscount = activePartner?.targetDiscount ?? 0;
   const maxSubsidy = activePartner?.maxSubsidy ?? 0;
   const effectiveRate = input.amount.div(ctx.request.inputAmount);
-  const actualOutput = input.amount.minus(ctx.fees.usd.vortex).minus(ctx.fees.usd.partnerMarkup);
+  const actualOutput = input.amount.minus(ctx.fees.usd.vortex).minus(ctx.fees.usd.partnerMarkup).minus(ctx.fees.usd.network);
   const { expectedOutput } = calculateExpectedOutput(
     ctx.request.inputAmount,
     effectiveRate,
