@@ -25,7 +25,6 @@ describe("legacy API credential migration", () => {
       lastUsedAt: null,
       name: "legacy",
       partnerId: partner.id,
-      partnerName: partner.name,
       revokedAt: null,
       scopes: null,
       userId: profile.id
@@ -82,7 +81,6 @@ describe("legacy API credential migration", () => {
       lastUsedAt: null,
       name: "unmapped",
       partnerId: null,
-      partnerName: null,
       revokedAt: null,
       scopes: null,
       userId: null

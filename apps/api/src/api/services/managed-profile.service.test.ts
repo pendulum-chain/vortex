@@ -23,7 +23,7 @@ describe("managed profile creation", () => {
   const createUserMock = mock(async (attributes: { app_metadata?: Record<string, unknown>; email?: string }) => {
     const email = attributes.email!;
     if (authUsers.has(email)) {
-      return { data: { user: null }, error: { message: "User already registered" } } as never;
+      return { data: { user: null }, error: { code: "email_exists", message: "User already registered" } } as never;
     }
     const user = {
       app_metadata: attributes.app_metadata ?? {},
