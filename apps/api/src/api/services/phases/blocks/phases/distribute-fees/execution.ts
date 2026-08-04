@@ -195,10 +195,13 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     }
   }
 
-  private getFeeTokenDetails(network: EvmNetworks): EvmTokenDetails {
-    const tokenDetails = evmTokenConfig[network]?.[EvmToken.USDC] as EvmTokenDetails | undefined;
+  private getFeeTokenDetails(network: EvmNetworks, metadata: DistributeFeesMetadata): EvmTokenDetails {
+    // Quotes created before the network parameterization carry no feeToken; those
+    // corridors all distribute USDC on Base.
+    const feeToken = metadata.feeToken ?? EvmToken.USDC;
+    const tokenDetails = evmTokenConfig[network]?.[feeToken] as EvmTokenDetails | undefined;
     if (!tokenDetails) {
-      throw this.createUnrecoverableError(`${network} USDC configuration not found; cannot verify fee balance.`);
+      throw this.createUnrecoverableError(`${network} ${feeToken} configuration not found; cannot verify fee balance.`);
     }
     return tokenDetails;
   }
@@ -245,7 +248,7 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     pendingTxs: { txData: unknown; signer: string }[],
     signal?: AbortSignal
   ): Promise<void> {
-    const tokenDetails = this.getFeeTokenDetails(network);
+    const tokenDetails = this.getFeeTokenDetails(network, metadata);
     const signerAddress = pendingTxs[0].signer;
 
     const requiredRaw = this.computePendingFeeRaw(pendingTxs) ?? this.computeRequiredFeeRaw(metadata, tokenDetails.decimals);

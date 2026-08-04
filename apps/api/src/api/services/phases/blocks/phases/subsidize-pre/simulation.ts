@@ -9,6 +9,7 @@ import {
   resolveActivePartnerById,
   toActivePartner
 } from "../../core/discount";
+import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { getTargetFiatCurrency } from "../../core/helpers";
 import { evmIO } from "../../core/io";
 import { defineContext, type SerializableBig } from "../../core/metadata";
@@ -36,6 +37,10 @@ export interface SubsidizePreMetadata {
   applied?: boolean;
   expectedOutputAmountDecimal: SerializableBig;
   expectedOutputAmountRaw: string;
+  // Raw fee residual the ephemeral must hold ON TOP of targetInputAmountRaw so the
+  // later distributeFees transfers stay funded even when the provider under-delivers
+  // (Alfredpay corridors deduct the platform fee before the swap/transfer leg).
+  feeReserveRaw?: string;
   inputCurrency: string;
   inputCurrencyId?: ReturnType<typeof import("@vortexfi/shared").getPendulumDetails>["currencyId"];
   inputDecimals: number;
@@ -170,6 +175,9 @@ export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Ch
   const subsidy = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualOutput, maxSubsidy) : new Big(0);
   const targetOutput = actualOutput.plus(subsidy);
   const toRaw = (amount: Big) => multiplyByPowerOfTen(amount, tokenDetails.decimals).toFixed(0, 0);
+  // The fee residual deducted above is collected by distributeFees after the user
+  // leg; reserve it on the ephemeral so a short provider mint cannot starve it.
+  const feeReserveRaw = getEvmFeeTotalRawFromUsd(ctx.fees.usd, tokenDetails.decimals);
 
   ctx.addNote(`AlfredpaySubsidizePre: bridge target ${targetOutput.toFixed()} ${input.token}`);
   return {
@@ -177,6 +185,7 @@ export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Ch
       applied: subsidy.gt(0),
       expectedOutputAmountDecimal: expectedOutput,
       expectedOutputAmountRaw: toRaw(expectedOutput),
+      feeReserveRaw,
       inputCurrency: input.token,
       inputDecimals: tokenDetails.decimals,
       network: input.chain,

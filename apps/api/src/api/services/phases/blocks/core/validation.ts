@@ -1,6 +1,7 @@
 import { FiatToken, getAnyFiatTokenDetails, RampDirection } from "@vortexfi/shared";
 import Big from "big.js";
 import httpStatus from "http-status";
+import logger from "../../../../../config/logger";
 import { APIError } from "../../../../errors/api-error";
 import {
   getAlfredpayMonthlyUsage,
@@ -9,6 +10,32 @@ import {
 } from "../../../alfredpay/alfredpay.helpers";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
 import { QuoteContext } from "../../../quote/core/types";
+import { requiresEvmPartnerPayout } from "./helpers";
+
+// Both EVM fee tokens (Base USDC, Polygon USDT) carry 6 decimals.
+const EVM_FEE_TOKEN_DECIMALS = 6;
+
+/**
+ * Rejects a quote whose COMPUTED partner-markup component would be charged on a
+ * corridor that collects fees via EVM transfers while the pricing partner has no
+ * `payout_address_evm` — a charged markup must never lack a recipient. Uses the same
+ * raw rounding as the fee-transfer builder, so a configured markup that rounds to
+ * zero raw units requires no address. Runs after simulation, before persistence.
+ */
+export function assertEvmPartnerPayoutPresent(ctx: QuoteContext): void {
+  const partnerMarkupUsd = ctx.fees?.usd?.partnerMarkup ?? "0";
+  const markupRaw = multiplyByPowerOfTen(new Big(partnerMarkupUsd), EVM_FEE_TOKEN_DECIMALS).toFixed(0);
+  if (new Big(markupRaw).lte(0) || !requiresEvmPartnerPayout(ctx.request) || ctx.partner?.payoutAddressEvm) {
+    return;
+  }
+  logger.error(
+    `Quote rejected: partner '${ctx.partner?.name}' (id=${ctx.partner?.id}) has a computed markup of ${partnerMarkupUsd} USD but no payout_address_evm; route ${ctx.request.from} -> ${ctx.request.to} (${ctx.request.outputCurrency}) collects partner fees on an EVM chain.`
+  );
+  throw new APIError({
+    message: "Partner is missing EVM payout address required for this route",
+    status: httpStatus.BAD_REQUEST
+  });
+}
 
 /**
  * Get token limit units for a given fiat token, limit type, and operation type

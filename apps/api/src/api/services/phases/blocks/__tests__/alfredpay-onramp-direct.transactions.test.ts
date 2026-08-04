@@ -15,11 +15,15 @@ import { privateKeyToAccount } from "viem/accounts";
 import type { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import * as evmFundingNamespace from "../core/evm-funding";
 import * as alfredpayCustomerNamespace from "../../../quote/alfredpay-customer";
+import * as partnerPricingNamespace from "../../../partners/partner-pricing.service";
 import type { FlowMetadata } from "../core/metadata";
 
 const sharedReal = { ...sharedNamespace };
 const evmFundingReal = { ...evmFundingNamespace };
 const alfredpayCustomerReal = { ...alfredpayCustomerNamespace };
+const partnerPricingReal = { ...partnerPricingNamespace };
+const VORTEX_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000fee5";
+const PARTNER_PAYOUT_ADDRESS = "0x000000000000000000000000000000000000abcd";
 const sourceAmounts: string[] = [];
 const EVM_EPHEMERAL_ADDRESS = privateKeyToAccount(
   "0x3434343434343434343434343434343434343434343434343434343434343434"
@@ -56,12 +60,18 @@ mock.module("../../alfredpay-customer", () => ({
   resolveAlfredpayCustomerId: async () => "alfredpay-user-id"
 }));
 
+mock.module("../../../partners/partner-pricing.service", () => ({
+  findPartnerWithPricing: async (where: { name?: string; id?: string }) =>
+    where.name === "vortex" ? { payoutAddressEvm: VORTEX_PAYOUT_ADDRESS } : { payoutAddressEvm: PARTNER_PAYOUT_ADDRESS }
+}));
+
 const { makeAlfredpayOnrampDirectFlow } = await import("../flows/alfredpay-onramp-direct");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
   mock.module("../core/evm-funding", () => ({ ...evmFundingReal }));
   mock.module("../../alfredpay-customer", () => ({ ...alfredpayCustomerReal }));
+  mock.module("../../../partners/partner-pricing.service", () => ({ ...partnerPricingReal }));
 });
 
 function buildQuote(outputCurrency: EvmToken): QuoteTicketAttributes {
@@ -79,7 +89,7 @@ function buildQuote(outputCurrency: EvmToken): QuoteTicketAttributes {
     outputAmount,
     outputCurrency,
     partnerId: null,
-    pricingPartnerId: null,
+    pricingPartnerId: "pricing-partner-1",
     rampType: RampDirection.BUY,
     to: Networks.Polygon
   } as unknown as QuoteTicketAttributes;
@@ -105,6 +115,15 @@ function buildMetadata(outputCurrency: EvmToken): FlowMetadata {
         amountRaw: `${outputAmount}000000`,
         network: Networks.Polygon,
         token: outputCurrency
+      },
+      distributeFees: {
+        anchorFeeUsd: "2",
+        feeToken: EvmToken.USDT,
+        network: Networks.Polygon,
+        networkFeeUsd: "0",
+        partnerMarkupUsd: "1",
+        totalFeesUsd: "2",
+        vortexFeeUsd: "1"
       },
       finalSettlementSubsidy: {},
       fundEphemeral: { network: Networks.Polygon, token: ALFREDPAY_EVM_TOKEN },
@@ -167,6 +186,7 @@ describe("AlfredPay onramp direct transactions", () => {
         "squidRouterSwap",
         "finalSettlementSubsidy",
         "destinationTransfer",
+        "distributeFees",
         "complete"
       ]);
       expect(blocks.stateMeta.isDirectTransfer).toBeUndefined();
@@ -193,13 +213,17 @@ describe("AlfredPay onramp direct transactions", () => {
         outputCurrency === ALFREDPAY_EVM_TOKEN
           ? [
               ["destinationTransfer", 0],
-              ["polygonCleanup", 1]
+              ["distributeFees", 1],
+              ["distributeFees", 2],
+              ["polygonCleanup", 3]
             ]
           : [
               ["squidRouterApprove", 0],
               ["squidRouterSwap", 1],
               ["destinationTransfer", 2],
-              ["polygonCleanup", 3]
+              ["distributeFees", 3],
+              ["distributeFees", 4],
+              ["polygonCleanup", 5]
             ]
       );
     });

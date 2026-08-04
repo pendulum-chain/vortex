@@ -1,14 +1,16 @@
-import { ALFREDPAY_EVM_TOKEN, EvmToken, FiatToken, Networks } from "@vortexfi/shared";
+import { ALFREDPAY_EVM_TOKEN, type EvmNetworks, EvmToken, FiatToken, Networks } from "@vortexfi/shared";
 import { FlowBuilder } from "../core/flow";
 import { fiatRequestIO } from "../core/io";
 import { assemblePhaseFlow } from "../core/phase-flow";
 import type { ChainBrand, TokenBrand } from "../core/types";
 import { AlfredpayMint } from "../phases/alfredpay-mint";
 import { DestinationTransfer } from "../phases/destination-transfer";
+import { DistributeFees } from "../phases/distribute-fees";
 import { FinalSettlementSubsidy } from "../phases/final-settlement-subsidy";
 import { FundEphemeral } from "../phases/fund-ephemeral";
 import { SquidRouterSwap } from "../phases/squid-router-swap";
 import { AlfredpaySubsidizePre } from "../phases/subsidize-pre";
+import { ALFREDPAY_ONRAMP_FLOW_VERSION } from "./alfredpay-onramp-direct";
 
 export function makeAlfredpayOnrampCrossChainFlow<ToChain extends ChainBrand, ToToken extends TokenBrand>(
   toChain: ToChain,
@@ -20,7 +22,17 @@ export function makeAlfredpayOnrampCrossChainFlow<ToChain extends ChainBrand, To
     .pipe(SquidRouterSwap(Networks.Polygon, toChain, ALFREDPAY_EVM_TOKEN, toToken))
     .pipe(FinalSettlementSubsidy<ToToken, ToChain>())
     .pipe(DestinationTransfer<ToToken, ToChain>())
-    .build("AlfredpayOnrampCrossChain", { isDirectTransfer: false });
+    .pipe(
+      // The fee transfers execute on Polygon (nonces after the Squid swap legs) even
+      // though the phase order defers them until the user's destination transfer on
+      // ToChain succeeded.
+      DistributeFees<ToToken, ToChain>({
+        deductFromAmount: false,
+        feeToken: ALFREDPAY_EVM_TOKEN,
+        network: Networks.Polygon as EvmNetworks
+      })
+    )
+    .build("AlfredpayOnrampCrossChain", { isDirectTransfer: false }, ALFREDPAY_ONRAMP_FLOW_VERSION);
 }
 
 export const alfredpayOnrampCrossChainFlow = makeAlfredpayOnrampCrossChainFlow(Networks.Arbitrum, EvmToken.USDC);

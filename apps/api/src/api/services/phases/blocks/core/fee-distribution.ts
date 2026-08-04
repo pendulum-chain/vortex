@@ -177,11 +177,10 @@ export interface EvmFeeTransferSpec {
  * targets, reserve sizing) MUST derive it from these components so the amounts
  * reconcile exactly.
  */
-export function computeFeeComponentRaws(
-  quote: QuoteTicketAttributes,
+export function computeFeeComponentRawsFromUsd(
+  usdFeeStructure: { network: string; vortex: string; partnerMarkup: string } | undefined,
   decimals: number
 ): { vortexTotalRaw: string; partnerMarkupRaw: string; totalRaw: string } | null {
-  const usdFeeStructure = quote.metadata.fees?.usd;
   if (!usdFeeStructure) {
     return null;
   }
@@ -197,6 +196,30 @@ export function computeFeeComponentRaws(
     totalRaw: new Big(vortexTotalRaw).plus(partnerMarkupRaw).toFixed(0),
     vortexTotalRaw
   };
+}
+
+export function computeFeeComponentRaws(
+  quote: QuoteTicketAttributes,
+  decimals: number
+): { vortexTotalRaw: string; partnerMarkupRaw: string; totalRaw: string } | null {
+  return computeFeeComponentRawsFromUsd(quote.metadata.fees?.usd, decimals);
+}
+
+/**
+ * Canonical total network + vortex + partner-markup fee in raw fee-token units, "0"
+ * when the quote carries no positive fees. Settlement targets, reserve sizing, and
+ * fallback refunds MUST derive the fee total from here so they reconcile exactly with
+ * the transfers built by createEvmFeeDistributionTransactions.
+ */
+export function getEvmFeeTotalRawFromUsd(
+  usdFeeStructure: { network: string; vortex: string; partnerMarkup: string } | undefined,
+  decimals: number
+): string {
+  const componentRaws = computeFeeComponentRawsFromUsd(usdFeeStructure, decimals);
+  if (!componentRaws || new Big(componentRaws.totalRaw).lte(0)) {
+    return "0";
+  }
+  return componentRaws.totalRaw;
 }
 
 /**

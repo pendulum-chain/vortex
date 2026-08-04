@@ -128,7 +128,11 @@ export class SubsidizePreSwapExecutor extends BasePhaseHandler {
           `Could not find token details for input token ${inputToken} on network ${inputNetwork}. Invalid quote metadata.`
         );
       }
-      const expectedInputAmountForSwapRaw = metadata.targetInputAmountRaw;
+      // The swap consumes targetInputAmountRaw; feeReserveRaw (Alfredpay corridors)
+      // additionally keeps the later distributeFees transfers funded on the ephemeral.
+      const expectedInputAmountForSwapRaw = Big(metadata.targetInputAmountRaw)
+        .plus(metadata.feeReserveRaw ?? "0")
+        .toFixed(0);
 
       // Wait for token settlement before checking balance
       await sleep(EVM_SETTLEMENT_DELAY_MS, signal);
