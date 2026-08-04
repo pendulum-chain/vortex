@@ -237,7 +237,37 @@ describe("PriceFeedService", () => {
       expect(rate).toBe(4100);
       expect(fetchMock).toHaveBeenCalledWith("https://api.binance.com/api/v3/ticker/price?symbol=USDTCOP", expect.anything());
       expect(fetchMock).not.toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=COP", expect.anything());
-      expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", "cop");
+      expect(instance.getCryptoPrice).not.toHaveBeenCalled();
+      expect(loggerMock.debug).toHaveBeenCalledWith(
+        "Skipping CoinGecko sanity check for USD-COP: quote currency is unsupported"
+      );
+    });
+
+    it("should fall back to fastforex for COP without querying CoinGecko", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(4100, COP)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 4095);
+
+      const rate = await instance.getUsdToFiatExchangeRate(COP);
+
+      expect(rate).toBe(4100);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=COP", expect.anything());
+      expect(instance.getCryptoPrice).not.toHaveBeenCalled();
+    });
+
+    it("should fail explicitly when Binance and fastforex cannot price COP", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async () => new Response("providers down", { status: 500 }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 4095);
+
+      await expect(instance.getUsdToFiatExchangeRate(COP)).rejects.toThrow(
+        "CoinGecko does not support COP; no fallback remains for USD-COP"
+      );
+      expect(instance.getCryptoPrice).not.toHaveBeenCalled();
     });
 
     it("should fall back to fastforex when Binance is unavailable", async () => {
@@ -522,7 +552,11 @@ describe("PriceFeedService", () => {
             expect.anything()
           );
         }
-        expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", currency.toLowerCase());
+        if (currency === COP) {
+          expect(instance.getCryptoPrice).not.toHaveBeenCalledWith("usd-coin", "cop");
+        } else {
+          expect(instance.getCryptoPrice).toHaveBeenCalledWith("usd-coin", currency.toLowerCase());
+        }
       }
     });
 
