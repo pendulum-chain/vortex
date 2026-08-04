@@ -17,11 +17,11 @@ The smaller set of general project documents stays directly in `docs/`:
 | Document | Purpose |
 |---|---|
 | [`adr-0001-user-gated-ramp-registration.md`](adr-0001-user-gated-ramp-registration.md) | Accepted architectural decision and rationale |
+| [`adr-0002-alfredpay-fee-collection.md`](adr-0002-alfredpay-fee-collection.md) | Accepted decision on Alfredpay fee collection and sequential EVM fee distribution |
 | [`architecture-identity-model.md`](architecture-identity-model.md) | Current cross-module identity and ownership architecture |
 | [`operations-api-credential-rollout.md`](operations-api-credential-rollout.md) | Operational runbook for the API credential production rollout |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`proposal-alfredpay-fee-collection.md`](proposal-alfredpay-fee-collection.md) | Active proposal for charging and collecting vortex/partner fees on Alfredpay corridors |
 | [`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md) | Active proposal for headless profiles, profile-owned credentials, and explicit pricing plans |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 

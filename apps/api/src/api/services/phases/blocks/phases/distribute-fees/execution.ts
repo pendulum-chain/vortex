@@ -122,6 +122,31 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       const operations = await FinancialOperation.findAll({
         where: { phase: "distributeFees", scopeId: state.id, scopeType: "ramp" }
       });
+
+      // Legacy compatibility: ramps processed before the durable-claim rewrite
+      // persisted a single distributeFeeHash without financial-operation rows, and
+      // that one broadcast covered the entire distribution. Resolve it from chain
+      // truth so such a ramp is never treated as unpaid (wedging the balance check)
+      // or rebroadcast.
+      const legacyHash = state.state.distributeFeeHash;
+      if (legacyHash && operations.length === 0) {
+        const legacyReceipt = await abortableCall(signal, () =>
+          client.getTransactionReceipt({ hash: legacyHash as `0x${string}` }).catch(() => null)
+        );
+        throwIfAborted(signal);
+        if (legacyReceipt?.status === "success") {
+          logger.info(`Legacy fee distribution transaction ${legacyHash} already succeeded for ramp ${state.id}. Skipping.`);
+          return state;
+        }
+        if (legacyReceipt) {
+          throw this.createReconciliationRequiredError(
+            `Legacy fee distribution transaction ${legacyHash} was mined but REVERTED; manual reconciliation required.`
+          );
+        }
+        // No receipt: the legacy broadcast never landed. Fall through and rebroadcast
+        // the presign exactly as the pre-rewrite executor would have.
+      }
+
       const operationByClass = new Map(operations.map(op => [op.attemptClass, op]));
       const pendingTxs: typeof feeTxs = [];
       for (const [index, feeTx] of feeTxs.entries()) {
