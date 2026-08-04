@@ -243,6 +243,21 @@ describe("PriceFeedService", () => {
       );
     });
 
+    it("should fall back to fastforex for COP without querying CoinGecko", async () => {
+      const instance = PriceFeedService.getInstance();
+      fetchMock = mock(async (url: string) =>
+        isBinanceUrl(url) ? new Response("binance down", { status: 500 }) : mockFastforexResponse(4100, COP)
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+      instance.getCryptoPrice = mock(async () => 4095);
+
+      const rate = await instance.getUsdToFiatExchangeRate(COP);
+
+      expect(rate).toBe(4100);
+      expect(fetchMock).toHaveBeenCalledWith("https://api.fastforex.io/fetch-one?from=USD&to=COP", expect.anything());
+      expect(instance.getCryptoPrice).not.toHaveBeenCalled();
+    });
+
     it("should fail explicitly when Binance and fastforex cannot price COP", async () => {
       const instance = PriceFeedService.getInstance();
       fetchMock = mock(async () => new Response("providers down", { status: 500 }));

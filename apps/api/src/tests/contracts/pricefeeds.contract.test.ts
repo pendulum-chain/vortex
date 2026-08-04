@@ -9,7 +9,7 @@
  *
  * The live half mirrors getCryptoPrice's request construction: the ids/currencies
  * requested are the ones production actually asks for ("usd-coin" as the USD proxy
- * for the CoinGecko fiat fallback with vs_currencies mxn/ars, and tokenIdMap
+ * for the CoinGecko fiat fallback with vs_currencies ars/brl/eur/mxn, and tokenIdMap
  * entries like "ethereum" priced in usd). COP is deliberately absent: CoinGecko
  * removed it from both public and Pro supported quote currencies (observed
  * 2026-08-04), so PriceFeedService no longer queries it as a sanity reference or
@@ -31,7 +31,7 @@ import { assertLiveCoverage, runLive } from "../../test-utils/contract-support";
 const RUN_LIVE = !!process.env.RUN_LIVE_TESTS;
 
 const REQUESTED_IDS = ["usd-coin", "ethereum"];
-const REQUESTED_CURRENCIES = ["usd", "mxn", "ars"];
+const REQUESTED_CURRENCIES = ["usd", "ars", "brl", "eur", "mxn"];
 
 describe("CoinGecko external API contract — hermetic (fixtures)", () => {
   test("accepts the consumed simple/price shape including unknown keys", () => {
