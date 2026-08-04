@@ -144,9 +144,11 @@ export const getAveniaUser = async (
         return;
       }
 
-      // The account must be owned by the effective user's customer entity.
-      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-      if (record.customerEntityId !== entity.id) {
+      // Profile-level ownership: the record may live on any of the profile's entities
+      // (migration 040 attached legacy rows to the individual entity), and a lookup must
+      // not create an entity as a side effect.
+      const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+      if (!ownedEntityIds.includes(record.customerEntityId)) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
@@ -269,10 +271,10 @@ export const getAveniaUserRemainingLimit = async (
         });
       }
 
-      // The account must be owned by the effective user. The legacy partner-key
-      // exemption that allowed reading any taxId has been removed.
-      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-      if (record.customerEntityId !== entity.id) {
+      // Profile-level ownership. The legacy partner-key exemption that allowed reading
+      // any taxId has been removed.
+      const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+      if (!ownedEntityIds.includes(record.customerEntityId)) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
@@ -432,15 +434,15 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    // Ownership: this endpoint both reads KYC state and drives status transitions, so it
-    // must not be usable against another user's account.
+    // Profile-level ownership: this endpoint both reads KYC state and drives status
+    // transitions, so it must not be usable against another user's account.
     const effectiveUserId = getEffectiveUserId(req);
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-    if (record.customerEntityId !== entity.id) {
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -552,14 +554,14 @@ export const getSelfieLivenessUrl = async (
       return;
     }
 
-    // Ownership: liveness URLs act on the account's KYC flow.
+    // Profile-level ownership: liveness URLs act on the account's KYC flow.
     const effectiveUserId = getEffectiveUserId(req);
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-    if (record.customerEntityId !== entity.id) {
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -688,8 +690,9 @@ export const newKyc = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -735,8 +738,9 @@ export const initiateKybLevel1 = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership: KYB business rows migrated by 040 live on the individual entity.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }

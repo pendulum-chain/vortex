@@ -169,13 +169,18 @@ Key properties:
   `getKybAttemptStatus` resolves that binding and verifies ownership before querying Avenia.
   The browser receives only normalized status/result fields, never provider submission data.
 - Ownership is profile-level: a row must belong to one of the effective user's customer
-  entities, never to a specific typed entity. Migration 040 attached legacy business rows to
-  the profile's individual entity, so comparing against the typed business entity 403'd/409'd
-  the legitimate owner (`getUploadUrls`, `getKybAttemptStatus`, the `createSubaccount`
-  conflict check) and findOrCreate'd stray empty business entities as a read side effect.
-  `createSubaccount` defers typed-entity creation to the branches that persist a new row,
-  so a retry that updates an existing row creates no entity. Cross-profile requests still
-  fail closed.
+  entities, never to a specific typed or active entity. Migration 040 attached legacy business
+  rows to the profile's individual entity, so comparing against a single resolved entity
+  403'd/409'd the legitimate owner and findOrCreate'd stray empty entities as a read side
+  effect. Every Avenia ownership check (`getAveniaUser`, `getAveniaUserRemainingLimit`,
+  `fetchSubaccountKycStatus`, `getSelfieLivenessUrl`, `getUploadUrls`, `newKyc`,
+  `initiateKybLevel1`, `getKybAttemptStatus`, the `createSubaccount` conflict check) scopes
+  across all owned entities via `findCustomerEntityIdsForProfile`. Ramp-time resolution
+  (`resolveAveniaAccountForUser`) searches all owned entities too; when a multi-entity profile
+  owns several approved accounts, the active entity's account wins and anything else is
+  rejected as ambiguous. `createSubaccount` defers typed-entity creation to the branches
+  that persist a new row, so a retry that updates an existing row creates no entity.
+  Cross-profile requests still fail closed.
 - KYC/KYB state transitions update canonical status and provider status on both
   `provider_customers` and the account's `kyc_cases` row in the same code path.
   `updateAveniaKycOutcome` treats `approved` as terminal (a stale attempt read never

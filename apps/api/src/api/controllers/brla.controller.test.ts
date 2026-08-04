@@ -199,6 +199,38 @@ describe("getAveniaUser", () => {
     expect(res.body).toEqual({ error: "This tax ID is not linked to your user profile and cannot be used." });
   });
 
+  // Migration 040 attached legacy rows to the profile's individual entity; comparing
+  // against the single resolved entity 403'd the owner once another entity was active.
+  it("resolves a record on a non-active entity of a multi-entity profile", async () => {
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" },
+      { id: "entity-user-1-business" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Approved
+    })) as typeof ProviderCustomer.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          subaccountInfo: mock(async () => ({
+            accountInfo: { identityStatus: "CONFIRMED" },
+            wallets: [{ chain: "EVM", walletAddress: "0x1234567890123456789012345678901234567890" }]
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await getAveniaUser({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(res.body).toEqual(expectedConfirmedBody);
+    expect(strayCreate).not.toHaveBeenCalled();
+  });
+
   it("still parses a BrlaApiError 400 into a 400 'Invalid request' with details (message-format invariant)", async () => {
     mockEntityPerProfile();
     ProviderCustomer.findOne = mock(async () => ({
@@ -366,6 +398,38 @@ describe("fetchSubaccountKycStatus", () => {
     expect(update).toHaveBeenCalledWith({ status: VerificationStatus.InReview, statusExternal: KycAttemptStatus.PROCESSING });
   });
 
+  // Migration 040: the record may live on the profile's legacy individual entity while a
+  // business entity is active — ownership must span every owned entity.
+  it("serves KYC status for a record on a non-active entity of a multi-entity profile", async () => {
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" },
+      { id: "entity-user-1-business" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      status: VerificationStatus.Approved,
+      statusExternal: null
+    })) as unknown as typeof ProviderCustomer.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          getKycAttempts: mock(async () => ({
+            attempts: [{ levelName: "KYC_1", result: "", status: KycAttemptStatus.PROCESSING }]
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await fetchSubaccountKycStatus({ query: { taxId: "08786985906" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(strayCreate).not.toHaveBeenCalled();
+  });
+
   it("never downgrades an approved account on a stale rejected attempt read", async () => {
     const { kycUpdate, update } = mockOwnedRecordWithAttempt(VerificationStatus.Approved, {
       levelName: "KYC_1",
@@ -442,6 +506,43 @@ describe("Avenia company KYB", () => {
         statusExternal: KycAttemptStatus.PENDING
       })
     );
+  });
+
+  // Migration 040 attached business rows to the profile's individual entity; comparing
+  // against the single resolved entity 403'd the legitimate owner's KYB initiation.
+  it("initiates KYB for a business row on the profile's legacy individual entity", async () => {
+    CustomerEntity.findAll = mock(async () => [
+      { id: "entity-user-1-individual" },
+      { id: "entity-user-1-business" }
+    ]) as unknown as typeof CustomerEntity.findAll;
+    const strayCreate = mock(async () => [{ id: "entity-user-1-business" }, true]);
+    CustomerEntity.findOrCreate = strayCreate as unknown as typeof CustomerEntity.findOrCreate;
+    const customerUpdate = mock(async () => undefined);
+    ProviderCustomer.findOne = mock(async () => ({
+      customerEntityId: "entity-user-1-individual",
+      customerType: "business",
+      id: "customer-1",
+      providerSubaccountId: "subaccount-1",
+      statusExternal: null,
+      update: customerUpdate
+    })) as unknown as typeof ProviderCustomer.findOne;
+    KycCase.findOne = mock(async () => ({ update: mock(async () => undefined) })) as unknown as typeof KycCase.findOne;
+    BrlaApiService.getInstance = mock(
+      () =>
+        ({
+          initiateKybLevel1: mock(async () => ({
+            attemptId: "attempt-1",
+            authorizedRepresentativeUrl: "https://avenia.example/representative",
+            basicCompanyDataUrl: "https://avenia.example/company"
+          }))
+        }) as unknown as BrlaApiService
+    );
+
+    const res = createResponse();
+    await initiateKybLevel1({ query: { subAccountId: "subaccount-1" }, userId: "user-1" } as any, res as any);
+
+    expect(res.statusCode).toBe(httpStatus.OK);
+    expect(strayCreate).not.toHaveBeenCalled();
   });
 
   it("re-issues KYB links while the existing attempt is still PENDING, rebinding the case", async () => {
