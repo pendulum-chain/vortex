@@ -52,7 +52,7 @@ The phase processor in `state-machine.md` orchestrates execution. The authoritat
 - **Degenerate BRL→BRLA-on-Base case:** the catalog selects `BrlOnrampBaseDirect`, whose flow contains only `brlaOnrampMint` → `fundEphemeral` → `destinationTransfer` (no Nabla, no `distributeFees`, no Squid, no `finalSettlementSubsidy`, no cleanup), because Avenia already mints BRLA on the Base ephemeral. Mirrors the intended EUR→EURC-on-Base bypass. See `05-integrations/brla.md`.
 - Base ephemeral cleanup (`baseCleanupUsdc`, `baseCleanupBrla`) is performed out-of-flow by a separate sweeper after `complete`; cleanup approvals are presigned but not part of the runtime nextPhase chain.
 
-**Alfredpay corridors:** Similar structure with `alfredpayOfframpTransfer` / `alfredpayOnrampMint` replacing the fiat provider phases.
+**Alfredpay corridors:** Similar structure with `alfredpayOfframpTransfer` / `alfredpayOnrampMint` replacing the fiat provider phases, plus a trailing `distributeFees` phase that collects the reserved vortex/partner residual on Polygon after the user-facing leg.
 
 Local manual flow testing may set `MOCK_ANCHOR_OPERATIONS=true`. In development, the BRLA and AlfredPay mint
 executors replace partner polling with an on-chain ephemeral balance wait for the exact simulated mint amount. The
@@ -60,8 +60,8 @@ offramp block executors raise a recoverable, zero-retry pause at `brlaPayoutOnBa
 before reading partner state or broadcasting the anchor-bound transfer. The ramp remains in the payout phase and is
 not cleanup-eligible, leaving the client-custodied ephemeral key available for fund recovery. The switch is active
 only when `NODE_ENV=development`.
-- **Catalog-backed Alfredpay offramp family:** USD/ACH, MXN/SPEI, COP/ACH, and ARS/CBU use `initial` → `squidRouterPermitExecute` → `fundEphemeral` → `finalSettlementSubsidy` → `alfredpayOfframpTransfer` → `complete`. The source preparer statically selects direct Polygon USDT, Polygon same-chain Squid, or cross-chain Squid. EIP-2612 sources emit permit/relayer typed data; unsupported tokens emit user-wallet transfer or approve/swap blueprints whose reported hashes are content-verified before funding. Final transfer and recovery fallback share Polygon nonce 0, and `polygonCleanupAxlUsdc` follows at nonce 1.
-- **Degenerate Polygon same-token onramp case:** Alfredpay mints `ALFREDPAY_EVM_TOKEN` (USDT) on Polygon. `AlfredpayOnrampDirect` composes a Squid passthrough block when the requested output is that same token and a same-chain Squid block for every other Polygon output. Both continue through `finalSettlementSubsidy` and `destinationTransfer`. See `05-integrations/alfredpay.md`.
+- **Catalog-backed Alfredpay offramp family:** USD/ACH, MXN/SPEI, COP/ACH, and ARS/CBU use `initial` → `squidRouterPermitExecute` → `fundEphemeral` → `finalSettlementSubsidy` → `alfredpayOfframpTransfer` → `distributeFees` → `complete` (flow version 2). The source preparer statically selects direct Polygon USDT, Polygon same-chain Squid, or cross-chain Squid. EIP-2612 sources emit permit/relayer typed data; unsupported tokens emit user-wallet transfer or approve/swap blueprints whose reported hashes are content-verified before funding. Final transfer and recovery fallback share Polygon nonce 0, fee-charging quotes place one `distributeFees` transfer per recipient at the following main-lane nonces, and `polygonCleanupAxlUsdc` comes last.
+- **Degenerate Polygon same-token onramp case:** Alfredpay mints `ALFREDPAY_EVM_TOKEN` (USDT) on Polygon. `AlfredpayOnrampDirect` composes a Squid passthrough block when the requested output is that same token and a same-chain Squid block for every other Polygon output. Both continue through `finalSettlementSubsidy`, `destinationTransfer`, and `distributeFees` (flow version 2). See `05-integrations/alfredpay.md`.
 - **Amount precision on routed Alfredpay onramps:** when Alfredpay mints on Polygon and the user requests a different EVM output token, the routed Squid output is the final settlement amount. `evmToEvm.inputAmountRaw` remains the Polygon source-token raw amount, while `evmToEvm.outputAmountRaw` and `quote.outputAmount` MUST use the final destination token's raw/decimal precision. The direct Polygon same-token case remains at the minted token's precision.
 - **Alfredpay offramp always runs `finalSettlementSubsidy`:** `phases/blocks/phases/alfredpay-offramp/index.ts` declares `fundEphemeral` → `finalSettlementSubsidy` → `alfredpayOfframpTransfer` for every source variant. No executor short-circuits this sequence.
 
@@ -123,13 +123,15 @@ graph TD
 
     %% --- Terminal ---
     DestTransfer --> Complete([complete])
+    DestTransfer -.Alfredpay only: collect reserved fees.-> AfDist[distributeFees on Polygon]
+    AfDist --> Complete
 ```
 
 > Notes:
 > - **EUR onramp funds the ephemeral.** The EUR flow definitions place `fundEphemeral` after `mykoboOnrampDeposit` and before `subsidizePreSwap`. This matches BRL onramp behavior and ensures the Base ephemeral has ETH gas for `nablaApprove`/`nablaSwap`/squid txs.
 > - **EUR/BRL onramps skip Pendulum funding.** `getRequiresPendulumEphemeralAddress` returns `false` for EURC and BRL inputs, so the registration flow never creates or funds a Pendulum ephemeral for these corridors. All movement is Base-EVM only. See `ephemeral-accounts.md`.
 > - **SquidRouter RPC selection is sourced from block metadata `fromNetwork`, not the input currency.** `blocks/phases/squid-router-swap/execution.ts` passes that network to `getClient(network)` for approve and swap. Transaction tests assert the source network on every intent.
-> - **Alfredpay direct-token onramp uses an explicit passthrough block.** When Alfredpay mints `ALFREDPAY_EVM_TOKEN` on Polygon and the requested output is that same token, `flows/alfredpay-onramp-direct.ts` composes `SquidRouterPassthrough`, then `finalSettlementSubsidy` and `destinationTransfer`. Other Polygon outputs compose a same-chain swap; other EVM outputs use the bridge flow.
+> - **Alfredpay direct-token onramp uses an explicit passthrough block.** When Alfredpay mints `ALFREDPAY_EVM_TOKEN` on Polygon and the requested output is that same token, `flows/alfredpay-onramp-direct.ts` composes `SquidRouterPassthrough`, then `finalSettlementSubsidy`, `destinationTransfer`, and `distributeFees`. Other Polygon outputs compose a same-chain swap; other EVM outputs use the bridge flow.
 > - `BrlOnrampAssethubUsdc` preserves the inactive production topology: `brlaOnrampMint` → `fundEphemeral` → `moonbeamToPendulumXcm` → `subsidizePreSwap` → `nablaApprove` → `nablaSwap` → `distributeFees` → `subsidizePostSwap` → `pendulumToAssethubXcm`. It is cataloged so persisted quotes and recovery have one source of truth, but quote eligibility explicitly rejects BRL→AssetHub. The dormant non-USDC Hydration branches are not cataloged or ported.
 
 #### Off-Ramp Phase Flow
@@ -166,7 +168,8 @@ graph TD
     AfPermit --> AfFund[fundEphemeral]
     AfFund --> AfFinalSubsidy[finalSettlementSubsidy]
     AfFinalSubsidy --> AfTransfer[alfredpayOfframpTransfer]
-    AfTransfer --> Complete
+    AfTransfer --> AfDistOff[distributeFees on Polygon]
+    AfDistOff --> Complete
 ```
 
 > Notes:
@@ -188,7 +191,7 @@ graph TD
 | **Bridge / XCM** | `blocks/phases/moonbeam-to-pendulum-xcm/execution.ts`, `blocks/phases/pendulum-to-assethub-xcm/execution.ts`, `blocks/phases/avenia-pendulum-offramp/execution.ts` | Source chain ephemeral → destination chain ephemeral |
 | **Fiat provider** | `blocks/phases/avenia-mint/execution.ts`, `blocks/phases/avenia-offramp-payout/execution.ts`, `blocks/phases/mykobo-mint/execution.ts`, `blocks/phases/mykobo-offramp-payout/execution.ts`, `blocks/phases/alfredpay-mint/execution.ts`, `blocks/phases/alfredpay-offramp/execution.ts` | Ephemeral ↔ provider |
 | **SquidRouter** | `blocks/phases/squid-router-swap/execution.ts`, plus Alfredpay permit execution in `blocks/phases/alfredpay-offramp/execution.ts` | Ephemeral/executor → SquidRouter → destination |
-| **Fee distribution** | `blocks/phases/distribute-fees/execution.ts` (Substrate Pendulum + EVM Multicall3 on Base) | Ephemeral → platform fee collection address(es) |
+| **Fee distribution** | `blocks/phases/distribute-fees/execution.ts` (Substrate Pendulum + sequential ephemeral-signed ERC-20 transfers on Base/Polygon) | Ephemeral → platform fee collection address(es) |
 | **Lifecycle** | `blocks/core/initial-executor.ts`, `blocks/phases/destination-transfer/execution.ts` | Setup and final delivery |
 
 ## Security Invariants

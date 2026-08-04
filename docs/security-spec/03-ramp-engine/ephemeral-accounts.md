@@ -14,7 +14,7 @@ Ephemeral accounts may be created on:
 - **Polygon** — Active for Alfredpay onramps/offramps. Alfredpay mints and receives `ALFREDPAY_EVM_TOKEN` on Polygon, and the Polygon post-process handler sweeps residual ERC-20 tokens after completion.
 - **AssetHub** — For XCM transfers to/from Pendulum and Hydration
 - **Hydration** — For Hydration DEX swaps and XCM transfers
-- **Base** — Hub for all BRL **and EUR** on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Mykobo EUR settlement (EURC on Base), Nabla-on-EVM swap (USDC↔BRLA, USDC↔EURC), and EVM fee distribution via Multicall3.
+- **Base** — Hub for all BRL **and EUR** on/off-ramp flows. Hosts BRLA mint/burn (via Avenia), Mykobo EUR settlement (EURC on Base), Nabla-on-EVM swap (USDC↔BRLA, USDC↔EURC), and EVM fee distribution via sequential ERC-20 transfers.
 
 ### Cleanup Architecture
 
