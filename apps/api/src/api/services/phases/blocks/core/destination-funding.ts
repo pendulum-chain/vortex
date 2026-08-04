@@ -12,6 +12,7 @@ import { base, polygon } from "viem/chains";
 import logger from "../../../../../config/logger";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
+  ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   GLMR_FUNDING_AMOUNT_RAW,
   PENDULUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
@@ -55,7 +56,7 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
 }
 
 export const DESTINATION_EVM_FUNDING_AMOUNTS: Record<EvmNetworks, string> = {
-  [Networks.Ethereum]: "0.005",
+  [Networks.Ethereum]: ETHEREUM_EPHEMERAL_STARTING_BALANCE_UNITS,
   [Networks.Arbitrum]: "0.0002",
   [Networks.Base]: "0.000034",
   [Networks.Polygon]: "0.6",

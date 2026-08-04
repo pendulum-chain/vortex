@@ -188,10 +188,6 @@ export class QuoteService extends BaseRampService {
       throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.BAD_REQUEST });
     }
 
-    if (request.rampType === RampDirection.BUY && request.to === Networks.Ethereum) {
-      throw new APIError({ message: QuoteError.FailedToCalculateQuote, status: httpStatus.INTERNAL_SERVER_ERROR });
-    }
-
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
