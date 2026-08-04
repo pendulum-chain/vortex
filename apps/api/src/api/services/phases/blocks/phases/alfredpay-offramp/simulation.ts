@@ -131,12 +131,15 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
       true,
       partner
     );
-    const subsidyFiat = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualFiat, maxSubsidy) : new Big(0);
-    const providerInput = actualFiat
-      .plus(subsidyFiat)
-      .div(oneUnitInFiat)
-      .minus(deductibleUsd)
-      .round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
+    // The advertised target rate is the user's final, net-of-platform-fees rate: the
+    // subsidy is sized against the FEE-NET actual output (mirroring the onramp's
+    // AlfredpaySubsidizePre), so it may economically offset the charged fee — bounded
+    // by maxSubsidy — while the fee itself remains reserved and collected by
+    // distributeFees. Sequelize returns DECIMAL pricing fields as strings at runtime.
+    const actualNetFiat = actualFiat.minus(deductibleUsd.mul(oneUnitInFiat));
+    const subsidyFiat =
+      Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutput, actualNetFiat, maxSubsidy) : new Big(0);
+    const providerInput = actualNetFiat.plus(subsidyFiat).div(oneUnitInFiat).round(ALFREDPAY_ERC20_DECIMALS, Big.roundDown);
     const customerId = await resolveAlfredpayQuoteCustomerId(ctx.request.outputCurrency, ctx.request.userId);
     const providerQuote = await AlfredpayApiService.getInstance().createOfframpQuote({
       chain: AlfredpayChain.MATIC,

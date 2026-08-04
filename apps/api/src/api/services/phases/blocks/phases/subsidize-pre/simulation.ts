@@ -65,8 +65,9 @@ export function buildFullSubsidy(
   const idealSubsidyAmountInOutputTokenDecimal = actualOutputAmountDecimal.gte(expectedOutputAmountDecimal)
     ? new Big(0)
     : expectedOutputAmountDecimal.minus(actualOutputAmountDecimal);
+  // Sequelize returns DECIMAL pricing fields as strings at runtime.
   const subsidyAmountInOutputTokenDecimal =
-    targetDiscount !== 0
+    Number(targetDiscount) !== 0
       ? capSubsidy(idealSubsidyAmountInOutputTokenDecimal, expectedOutputAmountDecimal, maxSubsidy)
       : new Big(0);
   const targetOutputAmountDecimal = actualOutputAmountDecimal.plus(subsidyAmountInOutputTokenDecimal);
@@ -172,7 +173,8 @@ export async function simulateAlfredpaySubsidizePre<Token extends TokenBrand, Ch
     false,
     activePartner
   );
-  const subsidy = targetDiscount !== 0 ? calculateSubsidyAmount(expectedOutput, actualOutput, maxSubsidy) : new Big(0);
+  // Sequelize returns DECIMAL pricing fields as strings at runtime.
+  const subsidy = Number(targetDiscount) !== 0 ? calculateSubsidyAmount(expectedOutput, actualOutput, maxSubsidy) : new Big(0);
   const targetOutput = actualOutput.plus(subsidy);
   const toRaw = (amount: Big) => multiplyByPowerOfTen(amount, tokenDetails.decimals).toFixed(0, 0);
   // The fee residual deducted above is collected by distributeFees after the user

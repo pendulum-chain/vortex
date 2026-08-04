@@ -428,6 +428,90 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
   );
 
   it(
+    "fee + target discount: the deposit reflects the promised net rate while the full fee is collected",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      // 17 MXN fee = 1 USD; a 1% target promises 1717 MXN gross. The subsidy is
+      // sized against the fee-net actual (1683 MXN), so the deposit becomes
+      // (1683 + 34) / 17 = 101 USDT while the 1 USDT fee is still collected.
+      await updatePartnerPricing("vortex", RampDirection.SELL, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        maxSubsidy: 0.1,
+        payoutAddressEvm: vortexPayout,
+        targetDiscount: 0.01
+      });
+
+      const setup = await setUpRegisteredRamp();
+      expect(setup.inputAmountRaw).toBe(parseUnits("101", 6));
+
+      const rampState = await RampState.findByPk(setup.rampId);
+      const allUnsignedTxs = rampState?.unsignedTxs ?? [];
+      const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
+      expect(feeBlueprint).toBeDefined();
+      const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };
+      const signFee = (nonce: number) =>
+        setup.ephemeral.signTransaction({
+          chainId: 137,
+          data: feeData.data,
+          gas: 100_000n,
+          maxFeePerGas: 5_000_000_000n,
+          maxPriorityFeePerGas: 5_000_000_000n,
+          nonce,
+          to: feeData.to,
+          type: "eip1559"
+        });
+      const feeBackups: Record<string, { nonce: number; txData: `0x${string}` }> = {};
+      for (let i = 1; i <= 4; i++) {
+        feeBackups[`backup${i}`] = { nonce: (feeBlueprint?.nonce ?? 1) + i, txData: await signFee((feeBlueprint?.nonce ?? 1) + i) };
+      }
+      const signedFeeTransfer = await signFee(feeBlueprint?.nonce ?? 1);
+      const updateResponse = await app.request("/v1/ramp/update", {
+        body: JSON.stringify({
+          presignedTxs: [
+            {
+              meta: { additionalTxs: feeBackups },
+              network: Networks.Polygon,
+              nonce: feeBlueprint?.nonce ?? 1,
+              phase: "distributeFees",
+              signer: setup.ephemeral.address,
+              txData: signedFeeTransfer
+            }
+          ],
+          rampId: setup.rampId
+        }),
+        headers: {
+          Authorization: `Bearer ${testUserToken(rampState?.userId ?? "")}`,
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      expect(updateResponse.status).toBe(200);
+
+      scriptHappyWorld(setup);
+      // The user sent 100 USDT; final settlement must fund deposit + fee (102) —
+      // pre-credit the settled balance so the corridor drives to completion.
+      world.evm.setErc20Balance(
+        Networks.Polygon,
+        ALFREDPAY_ERC20_TOKEN,
+        setup.ephemeral.address,
+        setup.inputAmountRaw + parseUnits("1", 6)
+      );
+      const depositAddress = world.alfredpay.offrampDepositAddress;
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("complete");
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, depositAddress)).toBe(parseUnits("101", 6));
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+      expect(submissionsOf(signedFeeTransfer)).toBe(1);
+    },
+    30000
+  );
+
+  it(
     "ambiguous funding failure: an RPC outage pauses the ramp for reconciliation",
     async () => {
       const setup = await setUpRegisteredRamp();
