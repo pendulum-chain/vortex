@@ -1,5 +1,4 @@
 import {
-  ALFREDPAY_ERC20_DECIMALS,
   ALFREDPAY_ERC20_TOKEN,
   createOfframpSquidrouterTransactionsToEvm,
   EphemeralAccountType,
@@ -22,7 +21,6 @@ import { preparePolygonCleanupApproval } from "../../../../transactions/polygon/
 import { requireAccount } from "../../core/accounts";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { createDestinationTransferTransaction, encodeEvmTransactionData } from "../../core/evm-transactions";
-import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import type { PrepareCtx, PreparedPhaseTxs, TxIntent } from "../../core/types";
 import { ALFREDPAY_RELAYER_ADDRESSES, resolveAlfredpayPermitDomain } from "./permit";
 import type { AlfredpayOfframpRegistrationFacts } from "./registration";
@@ -265,12 +263,13 @@ export async function prepareAlfredpayOfframpTxs(
     toAddress: facts.depositAddress as `0x${string}`,
     toToken: ALFREDPAY_ERC20_TOKEN
   });
-  // The fallback refunds the deposit amount PLUS the charged vortex/partner fees: the
-  // user was charged those fees against the quoted payout, so a failed ramp must
-  // return the full value held on the ephemeral, not just the Alfredpay deposit leg.
-  const chargedFeesRaw = getEvmFeeTotalRawFromUsd(ctx.globals.fees?.usd, ALFREDPAY_ERC20_DECIMALS);
+  // The fallback refunds the user's full bridged value: deposit plus charged
+  // vortex/partner fees MINUS any platform subsidy. bridgeOutputAmountRaw is exactly
+  // that — for undiscounted quotes it equals deposit + fees, while the net-rate
+  // deposit of a discounted quote additionally contains the platform subsidy, which
+  // must never be paid out to the user on a failed ramp.
   const fallbackTransfer = await createDestinationTransferTransaction({
-    amountRaw: new Big(ctx.ownMetadata.inputAmountRaw).plus(chargedFeesRaw).toFixed(0),
+    amountRaw: ctx.ownMetadata.bridgeOutputAmountRaw,
     destinationNetwork: Networks.Polygon,
     toAddress: facts.walletAddress,
     toToken: ALFREDPAY_ERC20_TOKEN

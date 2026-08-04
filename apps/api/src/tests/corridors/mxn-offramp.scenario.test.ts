@@ -448,6 +448,15 @@ describe("MXN offramp direct corridor (USDT on Polygon → spei, no-permit)", ()
 
       const rampState = await RampState.findByPk(setup.rampId);
       const allUnsignedTxs = rampState?.unsignedTxs ?? [];
+
+      // The refund fallback returns the user's bridged 100 USDT — NOT the subsidized
+      // deposit plus fees (102), which would hand the platform subsidy to the user
+      // on a failed ramp.
+      const fallbackBlueprint = allUnsignedTxs.find(tx => tx.phase === "alfredpayOfframpTransferFallback");
+      const fallbackData = (fallbackBlueprint?.txData as unknown as { data: `0x${string}` }).data;
+      const fallbackArgs = decodeFunctionData({ abi: erc20Abi, data: fallbackData }).args as [string, bigint];
+      expect(fallbackArgs[1]).toBe(parseUnits("100", 6));
+
       const feeBlueprint = allUnsignedTxs.find(tx => tx.phase === "distributeFees");
       expect(feeBlueprint).toBeDefined();
       const feeData = feeBlueprint?.txData as unknown as { to: `0x${string}`; data: `0x${string}` };

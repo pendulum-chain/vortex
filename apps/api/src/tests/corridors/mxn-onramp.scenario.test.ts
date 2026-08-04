@@ -83,6 +83,7 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
     await resetTestDatabase();
     world.evm.failNextSends = 0;
     world.evm.onTransaction = undefined;
+    world.evm.revertedReceiptHashes.clear();
     world.alfredpay.onrampRate = ALFREDPAY_RATE;
     world.alfredpay.onCreateOnramp = undefined;
     world.alfredpay.onrampStatus = AlfredpayOnrampStatus.TRADE_COMPLETED;
@@ -477,6 +478,50 @@ describe("MXN onramp direct corridor (spei → USDT on Polygon)", () => {
       await phaseProcessor.processRamp(setup.rampId);
       expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
       expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(parseUnits("1", 6));
+    },
+    30000
+  );
+
+  it(
+    "fee collection: a mined-but-reverted fee transfer halts for manual reconciliation",
+    async () => {
+      const vortexPayout = privateKeyToAccount(generatePrivateKey()).address as `0x${string}`;
+      await updatePartnerPricing("vortex", RampDirection.BUY, {
+        markupCurrency: FiatToken.MXN,
+        markupType: "absolute",
+        markupValue: 17,
+        payoutAddressEvm: vortexPayout
+      });
+
+      const setup = await setUpRegisteredRamp();
+      expect(setup.signedFeeTransfers).toHaveLength(1);
+
+      scriptHappyWorld(setup);
+      // The fee transfer broadcasts fine but MINES AS REVERTED: its receipt reports
+      // failure, no funds move, and the consumed nonce means the presign can never
+      // execute again — the ramp must halt for manual recovery, not retry.
+      const creditLedger = world.evm.onTransaction;
+      world.evm.onTransaction = tx => {
+        if (tx.serialized === setup.signedFeeTransfers[0]) {
+          world.evm.revertedReceiptHashes.add(tx.hash);
+          return;
+        }
+        creditLedger?.(tx);
+      };
+
+      await phaseProcessor.processRamp(setup.rampId);
+
+      const final = await RampState.findByPk(setup.rampId);
+      expect(final?.currentPhase).toBe("distributeFees");
+      expect(final?.errorLogs.some(log => log.error.includes("REVERTED"))).toBe(true);
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect(world.evm.erc20Balance(Networks.Polygon, ALFREDPAY_ERC20_TOKEN, vortexPayout)).toBe(0n);
+
+      // Reprocessing replays the broadcast-confirmed operation, detects the revert
+      // again, and halts again — the presign is never rebroadcast.
+      await phaseProcessor.processRamp(setup.rampId);
+      expect(submissionsOf(setup.signedFeeTransfers[0])).toBe(1);
+      expect((await RampState.findByPk(setup.rampId))?.currentPhase).toBe("distributeFees");
     },
     30000
   );

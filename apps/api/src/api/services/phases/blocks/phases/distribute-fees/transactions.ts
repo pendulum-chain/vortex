@@ -1,5 +1,5 @@
 import { EphemeralAccountType, type EvmNetworks, type EvmToken, evmTokenConfig } from "@vortexfi/shared";
-import logger from "../../../../../../config/logger";
+import Big from "big.js";
 import type { QuoteTicketAttributes } from "../../../../../../models/quoteTicket.model";
 import { requireAccount } from "../../core/accounts";
 import { createEvmFeeDistributionTransactions } from "../../core/fee-distribution";
@@ -23,7 +23,14 @@ export async function prepareDistributeFeesTxs(
   } as QuoteTicketAttributes;
   const tokenConfig = evmTokenConfig[network]?.[feeToken];
   if (!tokenConfig) {
-    logger.warn(`${network} ${feeToken} configuration not found, skipping EVM fee distribution transactions`);
+    // Fail closed for fee-charging quotes: the fee was already deducted from the user
+    // leg during pricing, so registering without collection transfers would strand
+    // the residual on the ephemeral. Only a zero-fee quote may proceed without them.
+    if (new Big(ctx.ownMetadata.totalFeesUsd).gt(0)) {
+      throw new Error(
+        `${network} ${feeToken} configuration not found; refusing to register a fee-charging quote whose fees could never be collected.`
+      );
+    }
     return { intents: [] };
   }
   const feeTransactions = await createEvmFeeDistributionTransactions(quote, network, tokenConfig);

@@ -40,6 +40,7 @@ mock.module("../../../partners/partner-pricing.service", () => ({
 const { computeFeeComponentRaws, computeEvmFeeTransfers, createEvmFeeDistributionTransactions } = await import(
   "../core/fee-distribution"
 );
+const { prepareDistributeFeesTxs } = await import("../phases/distribute-fees/transactions");
 
 afterAll(() => {
   mock.module("@vortexfi/shared", () => ({ ...sharedReal }));
@@ -136,5 +137,35 @@ describe("createEvmFeeDistributionTransactions", () => {
       { amount: 1000000n, recipient: VORTEX_PAYOUT },
       { amount: 2000000n, recipient: PARTNER_PAYOUT }
     ]);
+  });
+});
+
+describe("prepareDistributeFeesTxs", () => {
+  const MISSING_TOKEN = "definitely-missing" as EvmToken;
+
+  function buildPrepareCtx(totalFeesUsd: string) {
+    return {
+      accounts: {
+        EVM: { address: "0x3434343434343434343434343434343434343434", network: Networks.Polygon, type: "EVM" }
+      },
+      globals: {
+        fees: { usd: { anchor: "0", network: "0", partnerMarkup: "0", total: totalFeesUsd, vortex: totalFeesUsd } },
+        partner: { id: null },
+        request: {}
+      },
+      ownMetadata: { totalFeesUsd },
+      quote: { id: "quote-1", partnerId: null, pricingPartnerId: null, rampType: RampDirection.SELL }
+    } as never;
+  }
+
+  it("fails registration when the fee token configuration is missing for a fee-charging quote", async () => {
+    await expect(
+      prepareDistributeFeesTxs(buildPrepareCtx("1"), Networks.Polygon as EvmNetworks, MISSING_TOKEN)
+    ).rejects.toThrow(/refusing to register a fee-charging quote/);
+  });
+
+  it("returns no intents for a zero-fee quote even with missing token configuration", async () => {
+    const prepared = await prepareDistributeFeesTxs(buildPrepareCtx("0"), Networks.Polygon as EvmNetworks, MISSING_TOKEN);
+    expect(prepared.intents).toEqual([]);
   });
 });

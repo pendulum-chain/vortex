@@ -20,7 +20,7 @@ import { config } from "../../../../../../config/vars";
 import FinancialOperation from "../../../../../../models/financialOperation.model";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
 import RampState from "../../../../../../models/rampState.model";
-import { PhaseError } from "../../../../../errors/phase-error";
+import { PhaseError, requiresManualReconciliation } from "../../../../../errors/phase-error";
 import { fetchWithTimeout } from "../../../../../helpers/fetchWithTimeout";
 import { BasePhaseHandler } from "../../../../phases/base-phase-handler";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
@@ -112,16 +112,55 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       const attemptClassOf = (index: number, feeTx: { nonce: number }) =>
         index === 0 ? "evm-fee-distribution" : `evm-fee-distribution:${feeTx.nonce}`;
 
-      // Exclude transfers whose financial operation is already confirmed from the
-      // balance precondition: a broadcast transfer has (or may have) left the
-      // ephemeral, so requiring the full fee total on a retry could never be
-      // satisfied and would wedge the phase. The durable operation rows are the
-      // authority; each confirmed row replays without a second broadcast below.
+      // Classify every transfer BEFORE the balance precondition. Both `confirmed`
+      // (broadcast accepted) and an ambiguous `submitted`/`unknown` operation may mean
+      // the funds already left the ephemeral, so counting them as unpaid could demand
+      // a balance that can never return and wedge the phase — the balance check runs
+      // before the loop's reconcile would ever see the successful receipt. Only
+      // transfers with no operation, or a safely reclaimable `not_started` one, count
+      // as unpaid; ambiguous operations are resolved from chain truth here.
       const operations = await FinancialOperation.findAll({
         where: { phase: "distributeFees", scopeId: state.id, scopeType: "ramp" }
       });
-      const confirmedClasses = new Set(operations.filter(op => op.status === "confirmed").map(op => op.attemptClass));
-      const pendingTxs = feeTxs.filter((feeTx, index) => !confirmedClasses.has(attemptClassOf(index, feeTx)));
+      const operationByClass = new Map(operations.map(op => [op.attemptClass, op]));
+      const pendingTxs: typeof feeTxs = [];
+      for (const [index, feeTx] of feeTxs.entries()) {
+        const operation = operationByClass.get(attemptClassOf(index, feeTx));
+        if (!operation || operation.status === "not_started") {
+          pendingTxs.push(feeTx);
+          continue;
+        }
+        if (operation.status === "confirmed") {
+          // Replays below without a second broadcast; the funds may have left.
+          continue;
+        }
+        if (operation.status === "failed") {
+          throw this.createReconciliationRequiredError(
+            `Fee distribution transfer at nonce ${feeTx.nonce} previously failed definitively (operation ${operation.id}); manual recovery required.`
+          );
+        }
+        // submitted/unknown: the broadcast outcome is ambiguous. A mined success means
+        // the amount already left the ephemeral (treat as paid; the loop's reconcile
+        // settles the operation row), a mined revert consumed the nonce, and a missing
+        // receipt is exactly the ambiguity the architecture halts on — reconcile could
+        // only reach the same conclusion after a misleading balance timeout.
+        const deterministicHash = keccak256(feeTx.txData as `0x${string}`);
+        const receipt = await abortableCall(signal, () =>
+          client.getTransactionReceipt({ hash: deterministicHash }).catch(() => null)
+        );
+        throwIfAborted(signal);
+        if (receipt?.status === "success") {
+          continue;
+        }
+        if (receipt) {
+          throw this.createReconciliationRequiredError(
+            `Fee distribution transfer at nonce ${feeTx.nonce} was mined but REVERTED (hash ${deterministicHash}); its nonce is consumed and the presigned transaction cannot execute again.`
+          );
+        }
+        throw this.createReconciliationRequiredError(
+          `Fee distribution transfer at nonce ${feeTx.nonce} has an ambiguous broadcast (operation ${operation.id} is ${operation.status}) and no receipt; manual reconciliation required.`
+        );
+      }
 
       if (pendingTxs.length > 0) {
         // The fee token may not yet be on the ephemeral when we reach this phase.
@@ -181,10 +220,15 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
       logger.error(`Error distributing fees for ramp ${state.id}:`, e);
 
       if (e instanceof FinancialOperationRejectedError) {
-        // Reconcile proved a fee transfer was mined but REVERTED: its nonce is
-        // consumed, so the presign can never execute again and automatic retries
-        // could only loop. Halt for manual recovery.
+        // A fee transfer was mined but REVERTED: its nonce is consumed, so the
+        // presign can never execute again and automatic retries could only loop.
+        // Halt for manual recovery.
         throw this.createReconciliationRequiredError(`Fee distribution transfer reverted on-chain: ${e.message}`);
+      }
+      if (requiresManualReconciliation(e)) {
+        // Ambiguous financial-operation outcomes must halt, not retry; wrapping them
+        // as recoverable would discard the reconciliation marker.
+        throw this.createReconciliationRequiredError((e as Error).message);
       }
       if (e instanceof PhaseError) {
         throw e;
@@ -280,21 +324,31 @@ export class DistributeFeesExecutor extends BasePhaseHandler {
     }
   }
 
-  private async isEvmTransactionSuccessful(txHash: string, network: EvmNetworks, signal?: AbortSignal): Promise<boolean> {
-    try {
-      const publicClient = EvmClientManager.getInstance().getClient(network);
-      const receipt = await abortableCall(signal, () => publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` }));
-      return receipt?.status === "success";
-    } catch (error) {
-      throwIfAborted(signal);
-      logger.debug(`Error checking EVM transaction receipt: ${error}`);
-      return false;
-    }
-  }
-
+  /**
+   * Tri-state receipt wait: a missing receipt keeps polling (recoverable timeout), a
+   * successful receipt returns, and a mined-but-REVERTED receipt throws
+   * `FinancialOperationRejectedError` immediately — the operation row was already
+   * marked confirmed at broadcast, so its reconcile callback will never run again and
+   * this is the only place the revert can be detected.
+   */
   private async waitForEvmTransactionSuccess(txHash: string, network: EvmNetworks, signal?: AbortSignal): Promise<void> {
+    const publicClient = EvmClientManager.getInstance().getClient(network);
     await waitUntilTrueWithTimeout(
-      () => this.isEvmTransactionSuccessful(txHash, network, signal),
+      async () => {
+        const receipt = await abortableCall(signal, () =>
+          publicClient.getTransactionReceipt({ hash: txHash as `0x${string}` }).catch(() => null)
+        );
+        throwIfAborted(signal);
+        if (!receipt) {
+          return false;
+        }
+        if (receipt.status !== "success") {
+          throw new FinancialOperationRejectedError(
+            `Fee distribution transfer ${txHash} was mined but REVERTED; its nonce is consumed and the presigned transaction cannot execute again.`
+          );
+        }
+        return true;
+      },
       2000, // check every 2 seconds
       180000, // timeout after 3 minutes
       signal
