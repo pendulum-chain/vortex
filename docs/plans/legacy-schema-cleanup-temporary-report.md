@@ -195,6 +195,10 @@ external-consumer/catalog audit, old-process drain, or backup/restore rehearsal.
   rows with real Avenia subaccounts), and the other dropped provider/KYC legacy tables.
 - [x] Remove the `TaxId.findByPk` adoption path, model, associations/exports, direct
   dependencies, and legacy-adoption tests.
+- [x] Scope Avenia ownership checks and account resolution profile-wide (application
+  consistency): provider rows on any owned customer entity are accepted, lookups no
+  longer create entities as a side effect, and the read-only production audit
+  `apps/api/scripts/audit-avenia-entity-scope.sql` returned zero affected rows.
 - [ ] Replace `api_keys.partner_name` orphan detection with explicit partner-deletion
   revocation. Backfill/revoke affected keys, change both key validators, stop all writes,
   and remove the field from the model, factories, and tests.
@@ -263,8 +267,9 @@ external-consumer/catalog audit, old-process drain, or backup/restore rehearsal.
 
 Before deployment, synchronize at least:
 
-- `docs/runbooks/dashboard-schema-production-rollout.md`
-- `docs/architecture/unified-user-management-schema.md`
+- `docs/architecture-identity-model.md` (successor of the removed
+  `docs/architecture/unified-user-management-schema.md`; the deployment gate procedure
+  formerly in `docs/runbooks/` now lives in this report)
 - `docs/security-spec/01-auth/api-keys.md`
 - `docs/security-spec/03-ramp-engine/profile-partner-pricing.md`
 - `docs/security-spec/05-integrations/brla.md`
