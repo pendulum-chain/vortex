@@ -70,16 +70,16 @@ test("SELL carries the token input, network, and corridor into the offramp", asy
     const value = search.get(key);
     return value?.startsWith('"') ? JSON.parse(value) : value;
   };
-  expect(decoded("amount")).toBe("54.0545");
+  expect(decoded("amount")).toBe("54.054567");
   expect(decoded("corridorId")).toBe("MX");
   expect(decoded("mode")).toBe("offramp");
   expect(decoded("network")).toBe("polygon");
   expect(decoded("token")).toBe("USDC");
-  await expect(page.locator("#token-amount")).toHaveValue("54.0545");
+  await expect(page.locator("#token-amount")).toHaveValue("54.054567");
   await expect(page.getByRole("combobox").filter({ hasText: "Polygon" })).toBeVisible();
   await expect(page.getByRole("combobox").filter({ hasText: "USDC" })).toBeVisible();
   expect(backend.quoteRequests.at(-1)).toMatchObject({
-    inputAmount: "54.0545",
+    inputAmount: "54.054567",
     inputCurrency: "USDC",
     network: "polygon",
     outputCurrency: "MXN",

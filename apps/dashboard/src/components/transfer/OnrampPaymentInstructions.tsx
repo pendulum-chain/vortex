@@ -6,7 +6,6 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { formatCurrencyAmount } from "@/lib/amount";
 import { resetTransferState, transferActor } from "@/machines/transferActor";
 
 function copy(value: string) {
@@ -39,10 +38,7 @@ function usdReference(payment: AlfredpayFiatPaymentInstructions): string | undef
 
 function instructionRows(ramp: RampProcess): Array<{ label: string; value: unknown }> {
   const payment = ramp.achPaymentData;
-  const amountRow = {
-    label: "Amount",
-    value: `${formatCurrencyAmount(ramp.inputAmount, String(ramp.inputCurrency))} ${ramp.inputCurrency}`
-  };
+  const amountRow = { label: "Amount", value: `${ramp.inputAmount} ${ramp.inputCurrency}` };
   switch (ramp.inputCurrency) {
     case "MXN":
       return [

@@ -22,7 +22,7 @@ import { recipientLabel } from "@/domain/recipient";
 import { RECIPIENT_STATUS_META } from "@/domain/status";
 import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId, Recipient, SenderAccount } from "@/domain/types";
-import { CRYPTO_DISPLAY_DECIMALS, clampDecimals, formatCurrencyAmount } from "@/lib/amount";
+import { formatCurrencyAmount } from "@/lib/amount";
 import { buildTransferAdditionalData } from "@/machines/registerAdditionalData";
 import { transferActor } from "@/machines/transferActor";
 import { useQuote } from "@/services/api/hooks";
@@ -78,7 +78,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
   const [recipientId, setRecipientId] = useState(initialId);
   const [requestedNetwork, setRequestedNetwork] = useState(prefill?.network ?? Networks.Polygon);
   const [requestedToken, setRequestedToken] = useState(prefill?.token ?? EvmToken.USDC);
-  const [amount, setAmount] = useState(clampDecimals(prefill?.amount ?? "", CRYPTO_DISPLAY_DECIMALS));
+  const [amount, setAmount] = useState(prefill?.amount ?? "");
   const [pixKey, setPixKey] = useState("");
 
   useSyncExternalStore(subscribeEvmTokensLoaded, getEvmTokensLoadedSnapshot, () => false);
@@ -219,7 +219,7 @@ export function TransferForm({ account, prefill, recipients, preselectRecipientI
                   className="text-lg tabular-nums"
                   id="token-amount"
                   inputMode="decimal"
-                  onChange={event => setAmount(clampDecimals(event.target.value, CRYPTO_DISPLAY_DECIMALS))}
+                  onChange={event => setAmount(event.target.value)}
                   placeholder="0.00"
                   value={amount}
                 />

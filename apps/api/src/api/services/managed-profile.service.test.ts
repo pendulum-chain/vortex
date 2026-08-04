@@ -130,6 +130,31 @@ describe("managed profile creation", () => {
     expect(rejected.status).toBe(409);
   });
 
+  it("reports non-duplicate Auth failures without scanning users", async () => {
+    const partner = await createTestPartner();
+    createUserMock.mockImplementationOnce(
+      async () => ({ data: { user: null }, error: { code: "over_request_rate_limit", message: "Rate limit exceeded" } }) as never
+    );
+
+    const response = await post({
+      email: "rate-limited@example.com",
+      externalUserId: "rate-limited-1",
+      partnerId: partner.id,
+      subjectType: "individual"
+    });
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "MANAGED_PROFILE_UPSTREAM_ERROR",
+        message: "Could not create the Auth identity",
+        status: 502
+      }
+    });
+    expect(listUsersMock).not.toHaveBeenCalled();
+    expect(await PartnerManagedProfile.count()).toBe(0);
+  });
+
   it("creates no entity for technical profiles and marks claims after OTP verification by profile UUID", async () => {
     const partner = await createTestPartner();
     const response = await post({
