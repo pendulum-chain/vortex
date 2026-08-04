@@ -21,6 +21,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`operations-api-credential-rollout.md`](operations-api-credential-rollout.md) | Operational runbook for the API credential production rollout |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
+| [`proposal-alfredpay-fee-collection.md`](proposal-alfredpay-fee-collection.md) | Active proposal for charging and collecting vortex/partner fees on Alfredpay corridors |
 | [`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md) | Active proposal for headless profiles, profile-owned credentials, and explicit pricing plans |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 

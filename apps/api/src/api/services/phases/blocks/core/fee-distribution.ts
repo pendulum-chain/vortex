@@ -1,10 +1,9 @@
 import {
   ApiManager,
   EvmClientManager,
-  EvmToken,
+  type EvmNetworks,
   EvmTransactionData,
   encodeSubmittableExtrinsic,
-  evmTokenConfig,
   getNetworkFromDestination,
   Networks,
   PENDULUM_USDC_ASSETHUB,
@@ -16,7 +15,6 @@ import { encodeFunctionData } from "viem/utils";
 import logger from "../../../../../config/logger";
 import { config } from "../../../../../config/vars";
 import erc20ABI from "../../../../../contracts/ERC20";
-import { MULTICALL3_ADDRESS, multicall3ABI } from "../../../../../contracts/Multicall3";
 import { QuoteTicketAttributes } from "../../../../../models/quoteTicket.model";
 import { findPartnerWithPricing } from "../../../partners/partner-pricing.service";
 import { multiplyByPowerOfTen } from "../../../pendulum/helpers";
@@ -167,27 +165,48 @@ export async function createSubstrateFeeDistributionTransaction(quote: QuoteTick
   return null;
 }
 
+export interface EvmFeeTransferSpec {
+  amountRaw: string;
+  toAddress: string;
+}
+
 /**
- * Creates an EVM fee distribution transaction for Base network.
- * Splits fees: network + vortex fees go to vortex EVM payout address,
- * partner markup goes to partner EVM payout address (if available).
- * Uses Multicall3 to batch multiple ERC20 transfers when needed.
- *
- * @param quote The quote ticket
- * @returns The EVM transaction data or null if no fees to distribute
+ * Canonical raw fee components for EVM distribution: network + vortex fees rounded to
+ * raw units as one bucket (they share the vortex payout address), partner markup rounded
+ * separately. Every consumer of the charged fee total (fee transfers, settlement
+ * targets, reserve sizing) MUST derive it from these components so the amounts
+ * reconcile exactly.
  */
-export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttributes): Promise<EvmTransactionData | null> {
+export function computeFeeComponentRaws(
+  quote: QuoteTicketAttributes,
+  decimals: number
+): { vortexTotalRaw: string; partnerMarkupRaw: string; totalRaw: string } | null {
   const usdFeeStructure = quote.metadata.fees?.usd;
   if (!usdFeeStructure) {
-    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transaction");
     return null;
   }
 
-  const networkFeeUSD = usdFeeStructure.network;
-  const vortexFeeUSD = usdFeeStructure.vortex;
-  const partnerMarkupFeeUSD = usdFeeStructure.partnerMarkup;
+  // Vortex receives network + vortex fees
+  const vortexTotalRaw = multiplyByPowerOfTen(new Big(usdFeeStructure.network).plus(usdFeeStructure.vortex), decimals).toFixed(
+    0
+  );
+  const partnerMarkupRaw = multiplyByPowerOfTen(usdFeeStructure.partnerMarkup, decimals).toFixed(0);
 
-  // Get vortex payout address (EVM)
+  return {
+    partnerMarkupRaw,
+    totalRaw: new Big(vortexTotalRaw).plus(partnerMarkupRaw).toFixed(0),
+    vortexTotalRaw
+  };
+}
+
+/**
+ * Resolves the EVM payout addresses for a quote's fee distribution: the vortex payout
+ * address (with the DEFAULT_VORTEX_EVM_PAYOUT_ADDRESS fallback) and the pricing
+ * partner's payout address when one is configured.
+ */
+async function resolveEvmFeePayoutAddresses(
+  quote: QuoteTicketAttributes
+): Promise<{ vortexPayoutAddress: string; partnerPayoutAddressEvm: string | null }> {
   const vortexPartner = await findPartnerWithPricing({ name: "vortex" }, quote.rampType, getQuoteFiatCurrency(quote));
   if (!vortexPartner) {
     logger.error(
@@ -227,104 +246,79 @@ export async function createEvmFeeDistributionTransaction(quote: QuoteTicketAttr
     }
   }
 
-  if (Big(partnerMarkupFeeUSD).gt(0) && partnerPayoutAddressEvm === null) {
-    logger.warn(
-      `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupFeeUSD.toString()} USD will be DROPPED for quote ${quote.id} (pricingPartnerId=${pricingPartnerId ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row.`
-    );
+  return { partnerPayoutAddressEvm, vortexPayoutAddress };
+}
+
+/**
+ * Computes the ERC-20 fee transfers a quote requires, in raw units of the fee token:
+ * network + vortex fees to the vortex EVM payout address, partner markup to the pricing
+ * partner's EVM payout address. Empty when the quote carries no positive fees; payout
+ * addresses are only resolved (and required) then.
+ */
+export async function computeEvmFeeTransfers(quote: QuoteTicketAttributes, decimals: number): Promise<EvmFeeTransferSpec[]> {
+  const componentRaws = computeFeeComponentRaws(quote, decimals);
+  if (!componentRaws) {
+    logger.warn("No USD fee structure found in quote metadata, skipping EVM fee distribution transactions");
+    return [];
+  }
+  const { vortexTotalRaw, partnerMarkupRaw } = componentRaws;
+
+  if (new Big(vortexTotalRaw).lte(0) && new Big(partnerMarkupRaw).lte(0)) {
+    return [];
   }
 
-  // Use Base USDC for decimal calculations
-  const baseUsdcConfig = evmTokenConfig[Networks.Base][EvmToken.USDC];
-  if (!baseUsdcConfig) {
-    logger.warn("Base USDC configuration not found, skipping EVM fee distribution transaction");
-    return null;
+  const { vortexPayoutAddress, partnerPayoutAddressEvm } = await resolveEvmFeePayoutAddresses(quote);
+
+  const transfers: EvmFeeTransferSpec[] = [];
+  if (new Big(vortexTotalRaw).gt(0)) {
+    transfers.push({ amountRaw: vortexTotalRaw, toAddress: vortexPayoutAddress });
+  }
+  if (new Big(partnerMarkupRaw).gt(0)) {
+    if (!partnerPayoutAddressEvm) {
+      // Fail closed: the markup was charged against the user's output, so silently
+      // dropping the transfer would strand charged fees on the ephemeral.
+      throw new Error(
+        `EVM FEE DISTRIBUTION: partner markup of ${partnerMarkupRaw} raw units has no recipient for quote ${quote.id} (pricingPartnerId=${getQuotePricingPartnerId(quote) ?? "none"}, ownerPartnerId=${quote.partnerId ?? "none"}, rampType=${quote.rampType}); 'payout_address_evm' is not set on the partner row. Refusing to build a fee distribution that would strand charged fees.`
+      );
+    }
+    transfers.push({ amountRaw: partnerMarkupRaw, toAddress: partnerPayoutAddressEvm });
   }
 
-  const decimals = baseUsdcConfig.decimals;
-  const usdcAddress = baseUsdcConfig.erc20AddressSourceChain;
+  return transfers;
+}
 
-  // Convert USD fees to USDC raw units
-  const networkFeeUsdcRaw = multiplyByPowerOfTen(networkFeeUSD, decimals);
-  const vortexFeeUsdcRaw = multiplyByPowerOfTen(vortexFeeUSD, decimals);
-  const partnerMarkupFeeUsdcRaw = multiplyByPowerOfTen(partnerMarkupFeeUSD, decimals);
-
-  // Vortex receives network + vortex fees
-  const vortexTotalUsdcRaw = networkFeeUsdcRaw.plus(vortexFeeUsdcRaw);
-  const hasVortexFees = vortexTotalUsdcRaw.gt(0);
-  const hasPartnerFees = partnerMarkupFeeUsdcRaw.gt(0) && partnerPayoutAddressEvm !== null;
-
-  if (!hasVortexFees && !hasPartnerFees) {
-    logger.warn("No fees to distribute, skipping EVM fee distribution transaction");
-    return null;
+/**
+ * Builds one plain unsigned ERC-20 `transfer` per fee recipient, to be signed by the
+ * EVM ephemeral at consecutive nonces. Sequential transfers are used deliberately:
+ * Multicall3's `aggregate3` executes calls with the Multicall3 contract as
+ * `msg.sender`, so a batched `transfer` cannot move the ephemeral's tokens.
+ *
+ * Fee fields carry the UNBUFFERED estimate: the SDK applies its safety multiplier when
+ * signing, so buffering here as well would compound it.
+ */
+export async function createEvmFeeDistributionTransactions(
+  quote: QuoteTicketAttributes,
+  network: EvmNetworks,
+  tokenDetails: { decimals: number; erc20AddressSourceChain: string }
+): Promise<EvmTransactionData[]> {
+  const transfers = await computeEvmFeeTransfers(quote, tokenDetails.decimals);
+  if (transfers.length === 0) {
+    return [];
   }
 
-  const evmClientManager = EvmClientManager.getInstance();
-  const publicClient = evmClientManager.getClient(Networks.Base);
+  const publicClient = EvmClientManager.getInstance().getClient(network);
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
 
-  // If only vortex fees (no partner split), use a direct ERC20 transfer
-  if (hasVortexFees && !hasPartnerFees) {
-    const transferCallData = encodeFunctionData({
+  return transfers.map(transfer => ({
+    data: encodeFunctionData({
       abi: erc20ABI,
-      args: [vortexPayoutAddress, vortexTotalUsdcRaw.toFixed(0)],
+      args: [transfer.toAddress, transfer.amountRaw],
       functionName: "transfer"
-    });
-
-    logger.debug(`EVM fee distribution (vortex only): ${vortexTotalUsdcRaw.toFixed(0)} to ${vortexPayoutAddress}`);
-
-    return {
-      data: transferCallData as `0x${string}`,
-      gas: "100000",
-      maxFeePerGas: String(maxFeePerGas),
-      maxPriorityFeePerGas: String(maxPriorityFeePerGas),
-      to: usdcAddress,
-      value: "0"
-    };
-  }
-
-  // Build Multicall3 calls for split distribution
-  const calls: { target: `0x${string}`; allowFailure: boolean; callData: `0x${string}` }[] = [];
-
-  if (hasVortexFees) {
-    calls.push({
-      allowFailure: false,
-      callData: encodeFunctionData({
-        abi: erc20ABI,
-        args: [vortexPayoutAddress, vortexTotalUsdcRaw.toFixed(0)],
-        functionName: "transfer"
-      }) as `0x${string}`,
-      target: usdcAddress as `0x${string}`
-    });
-  }
-
-  if (hasPartnerFees && partnerPayoutAddressEvm) {
-    calls.push({
-      allowFailure: false,
-      callData: encodeFunctionData({
-        abi: erc20ABI,
-        args: [partnerPayoutAddressEvm, partnerMarkupFeeUsdcRaw.toFixed(0)],
-        functionName: "transfer"
-      }) as `0x${string}`,
-      target: usdcAddress as `0x${string}`
-    });
-  }
-
-  const multicallData = encodeFunctionData({
-    abi: multicall3ABI,
-    args: [calls],
-    functionName: "aggregate3"
-  });
-
-  logger.debug(
-    `EVM fee distribution (split): vortex=${vortexTotalUsdcRaw.toFixed(0)} to ${vortexPayoutAddress}, partner=${partnerMarkupFeeUsdcRaw.toFixed(0)} to ${partnerPayoutAddressEvm}`
-  );
-
-  return {
-    data: multicallData as `0x${string}`,
-    gas: "150000",
+    }) as `0x${string}`,
+    gas: "100000",
     maxFeePerGas: String(maxFeePerGas),
     maxPriorityFeePerGas: String(maxPriorityFeePerGas),
-    to: MULTICALL3_ADDRESS,
+    to: tokenDetails.erc20AddressSourceChain as `0x${string}`,
     value: "0"
-  };
+  }));
 }
