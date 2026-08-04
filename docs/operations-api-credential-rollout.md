@@ -1,5 +1,11 @@
 # API Credential Production Rollout
 
+Status: current for the credential implementation presently in PR #1298. Its pricing,
+partner-owned credential/webhook, and managed-profile steps describe the behavior now on
+that branch and must be revised before rollout if
+[`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md)
+is implemented.
+
 ## Purpose
 
 Cut production from legacy `api_keys` halves to one `api_credentials` row per public/secret credential without runtime fallback, ambiguous pairing, or ownerless subjects.

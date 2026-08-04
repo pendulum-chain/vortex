@@ -62,7 +62,6 @@ export async function simulateMykoboMint(
           fromNetwork: Networks.Base as EvmNetworks,
           fromToken: (eurcBaseDetails as EvmTokenDetails).erc20AddressSourceChain,
           originalInputAmountForRateCalc: ctx.request.inputAmount,
-          rampType: ctx.request.rampType,
           toNetwork,
           toToken: toToken.erc20AddressSourceChain
         })

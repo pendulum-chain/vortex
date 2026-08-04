@@ -17,7 +17,6 @@ const bridgeQuoteRequests: Array<{
   fromNetwork: Networks;
   inputCurrency: EvmToken;
   outputCurrency: EvmToken;
-  rampType: RampDirection;
   toNetwork: Networks;
 }> = [];
 
@@ -147,7 +146,6 @@ describe("onramp discount semantics", () => {
         fromNetwork: Networks.Base,
         inputCurrency: EvmToken.USDC,
         outputCurrency: EvmToken.USDC,
-        rampType: RampDirection.BUY,
         toNetwork: Networks.Arbitrum
       }
     ]);

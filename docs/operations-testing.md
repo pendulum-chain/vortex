@@ -22,7 +22,7 @@ together with the shared test harness (`apps/api/src/test-utils`) — see "How t
 | 3. Corridor scenarios | Phase processor end-to-end per corridor against the fake world: BRL onramp (pix→BRLA-on-Base), BRL offramp (USDC-on-Base→pix incl. real Nabla swap + both EVM subsidy phases), CROSS-CHAIN BRL offramp (USDC-on-Polygon→squid→Base→pix incl. user-reported squid-hash verification), MXN on/offramp (spei↔USDT-on-Polygon), CROSS-CHAIN MXN onramp (spei→Polygon mint→squid→USDT-on-Arbitrum incl. real squidRouterSwap/Pay + Arbitrum settlement subsidy), CROSS-CHAIN BRL onramp (pix→Base mint+Nabla swap→squid→USDC-on-Arbitrum), a USD/COP/ARS matrix over the same Alfredpay rails (happy paths + per-currency limit breaches + per-currency transient AND unrecoverable failures + per-currency cross-chain BUY and no-permit cross-chain SELL, incl. MXN SELL cross-chain), and EUR (Mykobo) on/offramp scenarios (SEPA↔EURC/USDC-on-Base incl. real Nabla swap; registration stays kill-switched — see the coverage matrix) | `apps/api/src/tests/corridors/` | `bun test` |
 | 4. SDK contract | Real SDK against the real API in-process: BRL onramp lifecycle (`sdk-contract.test.ts`), the SELL/user-transaction surface — offramp lifecycle via submitUserTransactions, updateRamp, getQuote, listAlfredpayFiatAccounts (`sdk-contract.offramp.test.ts`) — and full per-currency lifecycles for all four Alfredpay currencies in both directions: SELL offramp lifecycles for USD/ach, MXN/spei, COP/ach and ARS/cbu (`sdk-contract.alfredpay-offramp.test.ts`) and BUY onramp lifecycles for MXN/spei, USD/ach, COP/ach and ARS/cbu (`sdk-contract.alfredpay-onramp.test.ts`) | `apps/api/src/tests/sdk-contract*.test.ts` | `bun test` |
 | 5. Frontend | XState machine tests, actor tests (register/sign/start/KYC-routing against MSW with mocked wallet seams), component tests (RTL + MSW + mock wagmi) | `apps/frontend/src` | Vitest |
-| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps | `apps/frontend/e2e/`, `apps/dashboard/e2e/` | Playwright (non-blocking) |
+| 6. E2E | Critical Playwright journeys with a mock wallet: BRL on/offramp plus parameterized Alfredpay journeys for all four currencies in both directions. The dashboard runs its own Playwright config covering auth, account selection, onboarding/KYC/KYB, recipient invitations, the MXN offramp journey, and BRL/MXN/USD/COP/ARS onramps. The nightly job also smoke-tests deployed staging and production BUY/SELL quotes through a cross-chain Squid corridor. | `apps/frontend/e2e/`, `apps/dashboard/e2e/`, `apps/api/src/tests/deployed-quotes.e2e.test.ts` | Playwright + Bun (non-blocking) |
 | 7. External API contracts | Consumed-contract zod schemas (`packages/shared/src/services/*/schemas.ts`, plus `apps/api/.../priceFeed.schemas.ts`) validated against the fakes (PR-blocking) and against the real partner APIs (live, nightly, non-blocking); SquidRouter, Alfredpay, Avenia/BRLA, CoinGecko | `apps/api/src/tests/contracts/` | `bun test` / nightly `contracts.yml` |
 
 ### The invariants the suite protects
@@ -244,6 +244,11 @@ SDK contract + E2E journey coverage for the reopened entry points.
 Tests that hit real RPCs or sandboxes (e.g. XCM dry-runs in `packages/shared`) are gated behind
 `RUN_LIVE_TESTS=1` via `describe.skipIf`. They are for local debugging and optional nightly runs,
 never PR-blocking.
+
+The e2e workflow sets `VORTEX_QUOTE_SMOKE_URLS` for `deployed-quotes.e2e.test.ts`, which requires
+successful cross-chain BUY and SELL quotes from both staging and production. Ordinary local and
+PR-blocking API runs leave the variable unset, so this deployment smoke test does not make them
+network-dependent.
 
 ### External API contracts (`apps/api/src/tests/contracts/`)
 

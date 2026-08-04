@@ -34,13 +34,14 @@ Every credential has a non-null `profile_id`. A null `partner_id` is profile-man
 | Manage fiat/provider accounts | No | Yes | Yes |
 | Manage webhooks | No | Yes | No |
 | Create, list, or revoke profile-managed credentials | No | No | Yes |
-| Create, list, or revoke partner-managed credentials | No | No | Admin |
+| List or revoke partner-managed credentials of the session's own profile | No | No | Yes |
+| Create partner-managed credentials, or manage another profile's | No | No | Admin |
 
 Possession of a public key never authorizes exact financial usage, provider identifiers, ramp history, diagnostics, or mutations. A corresponding secret key is stronger proof and may be accepted on public-key-capable routes.
 
 ### Credential Management
 
-`POST`, `GET`, and `DELETE /v1/api-credentials` require a Supabase Bearer session and are owner-scoped to profile-managed credentials. Creation generates both values in one transaction, returns the secret once, defaults to one-year expiry, and rejects expiry beyond two years. Listing returns one object per credential and never returns the secret value.
+`POST`, `GET`, and `DELETE /v1/api-credentials` require a Supabase Bearer session and are owner-scoped to the session's profile: creation always mints profile-managed credentials, while listing and revocation cover every credential of that profile, partner-managed included. Creation generates both values in one transaction, returns the secret once, defaults to one-year expiry, and rejects expiry beyond two years. Listing returns one object per credential and never returns the secret value.
 
 A profile may have at most five non-revoked, non-expired credentials. Creation locks the profile row and performs the active count and insert in one transaction, preventing concurrent requests from exceeding the cap. `DELETE /v1/api-credentials/:credentialId` updates the one row's `revoked_at`, atomically disabling both values without a request body or second key ID.
 
@@ -83,7 +84,7 @@ Its response is an allowlisted per-corridor projection:
 9. **Public capability MUST remain allowlisted**: public possession grants only quote/widget attribution and sanitized `ramp-info`; sensitive reads and all ramp/provider/webhook mutations require secret or session capability as listed above.
 10. **Two presented halves MUST match**: different credential IDs return `403 CREDENTIAL_MISMATCH`; no mixed context may continue downstream.
 11. **Partner resolution MUST use immutable IDs**: `partner_id` is authoritative. Partner display names are labels and route lookup inputs, never credential-pairing, migration, or authorization evidence.
-12. **Profile-managed lifecycle MUST require a session**: `/v1/api-credentials` binds create/list/revoke operations to `req.userId` and `partner_id IS NULL`.
+12. **Credential lifecycle MUST require a session scoped to the subject profile**: `/v1/api-credentials` binds every operation to `req.userId` as `profile_id`. Creation additionally forces `partner_id IS NULL`; list and revoke cover all credentials whose `profile_id` matches the session, including partner-managed ones — the subject a credential acts for may always see and revoke it.
 13. **Creation MUST enforce five active credentials atomically**: expired and revoked rows do not count; profile locking serializes concurrent creation.
 14. **Revocation MUST disable both values atomically**: one owner-scoped update sets `revoked_at` on the credential row.
 15. **Usage timestamps MUST be independent and best-effort**: public and secret validation update their respective last-used timestamps without making auth success depend on the telemetry write.

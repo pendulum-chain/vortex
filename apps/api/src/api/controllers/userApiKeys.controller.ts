@@ -52,7 +52,7 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
   const profileId = requireProfile(req, res);
   if (!profileId) return;
   try {
-    res.status(httpStatus.OK).json({ credentials: await listCredentials({ partnerId: null, profileId }) });
+    res.status(httpStatus.OK).json({ credentials: await listCredentials({ profileId }) });
   } catch (error) {
     logger.error("Error listing API credentials", error);
     res.status(500).json({ error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to list API credentials", status: 500 } });
@@ -63,7 +63,7 @@ export async function revokeUserApiKey(req: Request<{ credentialId: string }>, r
   const profileId = requireProfile(req, res);
   if (!profileId) return;
   try {
-    await revokeCredential(req.params.credentialId, { partnerId: null, profileId });
+    await revokeCredential(req.params.credentialId, { profileId });
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     if (sendServiceError(res, error)) return;

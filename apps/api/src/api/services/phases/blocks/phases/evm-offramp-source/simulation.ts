@@ -5,8 +5,7 @@ import {
   getOnChainTokenDetails,
   isEvmTokenDetails,
   Networks,
-  OnChainToken,
-  RampDirection
+  OnChainToken
 } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../../priceFeed.service";
@@ -100,7 +99,6 @@ export async function simulateEvmOfframpSource<FromToken extends OnChainToken, F
     fromNetwork: input.chain,
     inputCurrency: input.token,
     outputCurrency: EvmToken.USDC,
-    rampType: RampDirection.SELL,
     toNetwork: Networks.Base
   });
   if (!ctx.fees?.usd || !ctx.fees.displayFiat) {

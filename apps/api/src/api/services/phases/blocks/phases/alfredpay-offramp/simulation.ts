@@ -1,5 +1,6 @@
 import {
   ALFREDPAY_ERC20_DECIMALS,
+  ALFREDPAY_ERC20_TOKEN,
   ALFREDPAY_EVM_TOKEN,
   ALFREDPAY_ONCHAIN_CURRENCY,
   AlfredpayApiService,
@@ -56,6 +57,19 @@ export interface AlfredpayOfframpMetadata {
 
 export const AlfredpayOfframpContext = defineContext<AlfredpayOfframpMetadata>()("alfredpayOfframp");
 
+function directAlfredpaySettlementQuote(amountDecimal: string) {
+  const outputAmountDecimal = new Big(amountDecimal);
+  const amountRaw = multiplyByPowerOfTen(outputAmountDecimal, ALFREDPAY_ERC20_DECIMALS).toFixed(0, Big.roundDown);
+
+  return {
+    fromToken: ALFREDPAY_ERC20_TOKEN,
+    inputAmountRaw: amountRaw,
+    outputAmountDecimal,
+    outputAmountRaw: amountRaw,
+    toToken: ALFREDPAY_ERC20_TOKEN
+  };
+}
+
 export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork extends EvmNetworks>(
   fromToken: FromToken,
   fromNetwork: FromNetwork
@@ -64,14 +78,16 @@ export function simulateAlfredpayOfframp<FromToken extends EvmToken, FromNetwork
     input: PhaseIO<FromToken, FromNetwork>,
     ctx: PhaseCtx
   ): Promise<PhaseResult<PhaseIO<FiatToken, "fiat">, AlfredpayOfframpMetadata>> => {
-    const bridge = await getEvmBridgeQuote({
-      amountDecimal: ctx.request.inputAmount,
-      fromNetwork,
-      inputCurrency: fromToken as OnChainToken,
-      outputCurrency: ALFREDPAY_EVM_TOKEN,
-      rampType: RampDirection.SELL,
-      toNetwork: Networks.Polygon
-    });
+    const bridge =
+      fromNetwork === Networks.Polygon && fromToken === ALFREDPAY_EVM_TOKEN
+        ? directAlfredpaySettlementQuote(ctx.request.inputAmount)
+        : await getEvmBridgeQuote({
+            amountDecimal: ctx.request.inputAmount,
+            fromNetwork,
+            inputCurrency: fromToken as OnChainToken,
+            outputCurrency: ALFREDPAY_EVM_TOKEN,
+            toNetwork: Networks.Polygon
+          });
     const { preNablaDeductibleFeeAmount, feeCurrency } = await calculatePreNablaDeductibleFees(
       ctx.request.inputAmount,
       ctx.request.inputCurrency,

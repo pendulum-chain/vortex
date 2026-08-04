@@ -55,6 +55,12 @@ fields required by runtime behavior.
 the normalized lifecycle `started`, `pending`, `in_review`, `approved`, or `rejected`,
 while `status_external` preserves a provider's original value when one exists.
 
+Legacy placement caveat: the migration 040 backfill attached pre-cutover provider rows to
+the profile's 038-backfilled *individual* entity — including business-typed rows. The
+row's `customer_type` is therefore authoritative for type-scoped lookups; the owning
+entity's `type` is not. Typed provider lookups and ownership checks scope by profile, and
+new alfredpay rows co-locate with a profile's existing rows of the same `customer_type`.
+
 Avenia is the one current exception to the general preference against retaining raw tax
 references: `provider_customers.tax_reference` remains a runtime join key for in-flight
 ramp state. Its SHA-256 value backs lookup and uniqueness; masked display is derived at
