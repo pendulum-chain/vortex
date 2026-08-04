@@ -27,6 +27,11 @@ export const BINANCE_USDT_FIAT_SYMBOLS: Record<string, string> = {
   COP: "USDTCOP"
 };
 
+// CoinGecko removed COP from both its public and Pro supported quote currencies.
+// Keep this explicit so successful Binance/FastForex COP lookups do not pay for a
+// known-failing sanity request, and the terminal fallback fails with a useful error.
+const COINGECKO_UNSUPPORTED_FIAT_CURRENCIES: ReadonlySet<string> = new Set(["COP"]);
+
 /**
  * PriceFeedService
  *
@@ -78,7 +83,7 @@ export class PriceFeedService {
     }
 
     if (!this.fastforexApiKey) {
-      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko.");
+      logger.warn("FASTFOREX_API_KEY environment variable is not set. Fiat rates will fall back to CoinGecko where supported.");
     }
 
     logger.info(`PriceFeedService initialized with CoinGecko API URL: ${this.coingeckoApiBaseUrl}`);
@@ -214,6 +219,7 @@ export class PriceFeedService {
     const cacheKey = `fiat:${fromCurrency}:${targetCurrency}`;
     const cachedEntry = this.fiatExchangeRateCache.get(cacheKey);
     const now = Date.now();
+    const hasCoinGeckoFallback = !COINGECKO_UNSUPPORTED_FIAT_CURRENCIES.has(targetCurrency);
 
     if (cachedEntry && cachedEntry.expiresAt > now) {
       logger.debug(`Cache hit for ${cacheKey}. Using cached exchange rate: ${cachedEntry.value}`);
@@ -245,11 +251,23 @@ export class PriceFeedService {
         return rate;
       } catch (ffError) {
         logger.warn(
-          `fastforex failed for ${fromCurrency}-${targetCurrency}, falling back to CoinGecko: ${ffError instanceof Error ? ffError.message : ffError}`
+          `fastforex failed for ${fromCurrency}-${targetCurrency}, ${
+            hasCoinGeckoFallback ? "falling back to CoinGecko" : "no CoinGecko fallback is available"
+          }: ${ffError instanceof Error ? ffError.message : ffError}`
         );
       }
     } else {
-      logger.debug(`Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, fetching from CoinGecko fallback.`);
+      logger.debug(
+        `Cache miss for ${cacheKey}. FASTFOREX_API_KEY is not set, ${
+          hasCoinGeckoFallback ? "fetching from CoinGecko fallback" : "no CoinGecko fallback is available"
+        }.`
+      );
+    }
+
+    if (!hasCoinGeckoFallback) {
+      throw new Error(
+        `CoinGecko does not support ${targetCurrency}; no fallback remains for ${fromCurrency}-${targetCurrency}`
+      );
     }
 
     logger.debug(`Fetching ${fromCurrency}-${targetCurrency} rate from CoinGecko as fallback.`);
@@ -484,6 +502,11 @@ export class PriceFeedService {
 
   private async assertRateWithinSanityBand(provider: string, targetCurrency: RampCurrency, rate: number): Promise<void> {
     this.assertValidFiatRate(provider, "USD", targetCurrency, rate);
+
+    if (COINGECKO_UNSUPPORTED_FIAT_CURRENCIES.has(targetCurrency)) {
+      logger.debug(`Skipping CoinGecko sanity check for USD-${targetCurrency}: quote currency is unsupported`);
+      return;
+    }
 
     let referenceRate: number;
     try {
