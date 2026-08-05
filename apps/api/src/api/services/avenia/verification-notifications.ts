@@ -1,6 +1,7 @@
 import { AveniaVerificationAttempt, KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
 import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import { enqueueNotification } from "../email";
+import { VerificationSubject } from "../email/types";
 
 const MAX_REASON_LENGTH = 200;
 
@@ -29,8 +30,16 @@ function terminalNotificationType(attempt: AveniaVerificationAttempt): Notificat
  * Single enqueue path for both verification kinds and both delivery routes (webhook
  * and reconciliation poll). Keyed on the attempt id, so the same outcome arriving
  * twice — replayed webhook, or a poll racing the webhook — cannot send two emails.
+ *
+ * `subject` decides whether the email says identity or business verification: the Avenia
+ * attempt itself does not distinguish KYC from KYB, so the caller passes what our own
+ * customer record says.
  */
-export async function enqueueVerificationNotification(attempt: AveniaVerificationAttempt, userId: string): Promise<boolean> {
+export async function enqueueVerificationNotification(
+  attempt: AveniaVerificationAttempt,
+  userId: string,
+  subject: VerificationSubject
+): Promise<boolean> {
   const type = terminalNotificationType(attempt);
   if (!type) {
     return false;
@@ -40,6 +49,7 @@ export async function enqueueVerificationNotification(attempt: AveniaVerificatio
     payload: {
       reason:
         type === NotificationType.VerificationRejected ? (attempt.resultMessage?.slice(0, MAX_REASON_LENGTH) ?? null) : null,
+      subject,
       updatedAt: attempt.updatedAt
     },
     provider: NotificationProvider.Avenia,

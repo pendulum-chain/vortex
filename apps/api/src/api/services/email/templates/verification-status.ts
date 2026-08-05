@@ -1,4 +1,4 @@
-import { EmailLocale, RenderedEmail, VerificationKind, VerificationPayload } from "../types";
+import { EmailLocale, RenderedEmail, VerificationKind, VerificationPayload, VerificationSubject } from "../types";
 import { EmailBody, formatDate, renderHtml, renderText, StatusTone } from "./layout";
 
 interface Copy {
@@ -25,55 +25,61 @@ const DATE_LABEL: Record<EmailLocale, string> = {
   "pt-BR": "Data"
 };
 
-const COPY: Record<VerificationKind, Record<EmailLocale, Copy>> = {
+// The only wording that differs between an individual's KYC and a company's KYB. Both
+// nouns are feminine in pt-BR, so the surrounding agreement holds for either.
+const NOUN: Record<VerificationSubject, Record<EmailLocale, string>> = {
+  business: { "en-US": "business verification", "pt-BR": "verificação empresarial" },
+  individual: { "en-US": "identity verification", "pt-BR": "verificação de identidade" }
+};
+
+const COPY: Record<VerificationKind, Record<EmailLocale, (noun: string) => Copy>> = {
   approved: {
-    "en-US": {
-      heading: "Your business verification was approved",
-      intro: "Your business verification has been approved. You can now continue using Vortex.",
+    "en-US": noun => ({
+      heading: `Your ${noun} was approved`,
+      intro: `Your ${noun} has been approved. You can now continue using Vortex.`,
       outro: "If you have any questions, reach out to us at",
       status: "Approved",
-      subject: "Your Vortex business verification was approved"
-    },
-    "pt-BR": {
-      heading: "Sua verificação empresarial foi aprovada",
-      intro: "Sua verificação empresarial foi aprovada. Você já pode continuar usando a Vortex.",
+      subject: `Your Vortex ${noun} was approved`
+    }),
+    "pt-BR": noun => ({
+      heading: `Sua ${noun} foi aprovada`,
+      intro: `Sua ${noun} foi aprovada. Você já pode continuar usando a Vortex.`,
       outro: "Se tiver alguma dúvida, entre em contato conosco em",
       status: "Aprovada",
-      subject: "Sua verificação empresarial na Vortex foi aprovada"
-    }
+      subject: `Sua ${noun} na Vortex foi aprovada`
+    })
   },
   expired: {
-    "en-US": {
-      heading: "Your business verification expired",
-      intro: "Your business verification expired before it could be completed. You can start a new verification at any time.",
+    "en-US": noun => ({
+      heading: `Your ${noun} expired`,
+      intro: `Your ${noun} expired before it could be completed. You can start a new verification at any time.`,
       outro: "If you have any questions, reach out to us at",
       status: "Expired",
-      subject: "Your Vortex business verification expired"
-    },
-    "pt-BR": {
-      heading: "Sua verificação empresarial expirou",
-      intro:
-        "Sua verificação empresarial expirou antes de ser concluída. Você pode iniciar uma nova verificação quando quiser.",
+      subject: `Your Vortex ${noun} expired`
+    }),
+    "pt-BR": noun => ({
+      heading: `Sua ${noun} expirou`,
+      intro: `Sua ${noun} expirou antes de ser concluída. Você pode iniciar uma nova verificação quando quiser.`,
       outro: "Se tiver alguma dúvida, entre em contato conosco em",
       status: "Expirada",
-      subject: "Sua verificação empresarial na Vortex expirou"
-    }
+      subject: `Sua ${noun} na Vortex expirou`
+    })
   },
   rejected: {
-    "en-US": {
-      heading: "Your business verification was not approved",
-      intro: "Your business verification could not be approved.",
+    "en-US": noun => ({
+      heading: `Your ${noun} was not approved`,
+      intro: `Your ${noun} could not be approved.`,
       outro: "If you have any questions, reach out to us at",
       status: "Not approved",
-      subject: "Your Vortex business verification was not approved"
-    },
-    "pt-BR": {
-      heading: "Sua verificação empresarial não foi aprovada",
-      intro: "Não foi possível aprovar sua verificação empresarial.",
+      subject: `Your Vortex ${noun} was not approved`
+    }),
+    "pt-BR": noun => ({
+      heading: `Sua ${noun} não foi aprovada`,
+      intro: `Não foi possível aprovar sua ${noun}.`,
       outro: "Se tiver alguma dúvida, entre em contato conosco em",
       status: "Não aprovada",
-      subject: "Sua verificação empresarial na Vortex não foi aprovada"
-    }
+      subject: `Sua ${noun} na Vortex não foi aprovada`
+    })
   }
 };
 
@@ -82,7 +88,8 @@ export function renderVerificationStatus(
   locale: EmailLocale,
   payload: VerificationPayload
 ): RenderedEmail {
-  const copy = COPY[kind][locale];
+  const subject: VerificationSubject = payload.subject === "business" ? "business" : "individual";
+  const copy = COPY[kind][locale](NOUN[subject][locale]);
 
   const body: EmailBody = {
     details: [

@@ -30,8 +30,15 @@ export interface RampCompletedPayload {
 export interface VerificationPayload {
   reason: string | null;
   updatedAt: string;
+  // Absent on rows queued before the individual/business split; those read as individual,
+  // which is the common case and the one the business-only copy was wrong for.
+  subject?: VerificationSubject;
 }
 
 // Templates stay decoupled from the Notification model so they can be rendered
 // (and previewed) without pulling in the database layer.
 export type VerificationKind = "approved" | "expired" | "rejected";
+
+// Whose verification it was: an individual's KYC or a company's KYB. Both arrive on the
+// same Avenia attempts resource, so only our own customer record can tell them apart.
+export type VerificationSubject = "business" | "individual";

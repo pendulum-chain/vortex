@@ -2,7 +2,7 @@ import { AveniaVerificationAttempt, AveniaWebhookEvent } from "@vortexfi/shared"
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
-import { findAveniaOwnerBySubaccountId } from "../services/avenia/avenia-customer.service";
+import { accountTypeToCustomerType, findAveniaOwnerBySubaccountId } from "../services/avenia/avenia-customer.service";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 import { verifyAveniaSignature } from "../services/avenia/webhook-signature";
 
@@ -59,7 +59,13 @@ export const handleAveniaWebhook = async (req: Request, res: Response): Promise<
       return;
     }
 
-    const enqueued = await enqueueVerificationNotification(attempt, owner.profileId);
+    // The event does not say whether it settled a KYC or a KYB, so the copy follows our
+    // own customer record; without it every individual would be told "business verification".
+    const enqueued = await enqueueVerificationNotification(
+      attempt,
+      owner.profileId,
+      accountTypeToCustomerType(owner.accountType)
+    );
 
     // accountType is logged so we can confirm empirically whether company attempts
     // reach us this way; the reconciliation poller is retired once they demonstrably do.
