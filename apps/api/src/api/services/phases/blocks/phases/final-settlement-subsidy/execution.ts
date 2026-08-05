@@ -32,6 +32,7 @@ import { priceFeedService } from "../../../../priceFeed.service";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import { DESTINATION_EVM_FUNDING_AMOUNTS } from "../../core/destination-funding";
 import { getEvmFundingAccount } from "../../core/evm-funding";
+import { getEvmFeeTotalRawFromUsd } from "../../core/fee-distribution";
 import { calculateSettlementSubsidyRaw, settlementBalanceKey } from "../../core/settlement";
 
 const BALANCE_POLLING_TIME_MS = 5000;
@@ -82,8 +83,16 @@ export class FinalSettlementSubsidyExecutor extends BasePhaseHandler {
     const outTokenDetails = outTokenDetailsRaw as EvmTokenDetails;
 
     const isNative = isNativeEvmToken(outTokenDetails);
+    // The Alfredpay offramp ephemeral must cover the Alfredpay deposit AND the
+    // vortex/partner fee residual that the distributeFees phase pays out after the
+    // deposit succeeds.
+    const alfredpayFeesUsd = (
+      quote.metadata as unknown as {
+        globals?: { fees?: { usd?: { network: string; vortex: string; partnerMarkup: string } } };
+      }
+    ).globals?.fees?.usd;
     const expectedAmountRaw = isAlfredpayOfframp
-      ? new Big(alfredpayMetadata.inputAmountRaw)
+      ? new Big(alfredpayMetadata.inputAmountRaw).plus(getEvmFeeTotalRawFromUsd(alfredpayFeesUsd, outTokenDetails.decimals))
       : multiplyByPowerOfTen(quote.outputAmount, outTokenDetails.decimals);
     const destinationNetwork = outputNetwork as EvmNetworks;
     const fundingAccount = getEvmFundingAccount(destinationNetwork);

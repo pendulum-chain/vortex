@@ -195,16 +195,6 @@ export class QuoteService extends BaseRampService {
     const resolvedPartner = await resolveQuotePartner(request);
     const partner = resolvedPartner.partner;
 
-    if (partner && partner.markupType !== "none" && partner.payoutAddressEvm === null && requiresEvmPartnerPayout(request)) {
-      logger.error(
-        `Quote rejected: partner '${partner.name}' (id=${partner.id}) has markup configured but no payout_address_evm; route ${request.from} -> ${request.to} (${request.outputCurrency}) requires EVM partner payout.`
-      );
-      throw new APIError({
-        message: "Partner is missing EVM payout address required for this route",
-        status: httpStatus.BAD_REQUEST
-      });
-    }
-
     const targetFeeFiatCurrency = getTargetFiatCurrency(request.rampType, request.inputCurrency, request.outputCurrency);
 
     const ctx = createQuoteContext({
@@ -215,6 +205,7 @@ export class QuoteService extends BaseRampService {
             maxSubsidy: partner.maxSubsidy,
             minDynamicDifference: partner.minDynamicDifference,
             name: partner.name,
+            payoutAddressEvm: partner.payoutAddressEvm,
             targetDiscount: partner.targetDiscount
           }
         : { id: null },
@@ -306,18 +297,6 @@ function selectAlfredpayLimitPrefix(isAboveMax: boolean, isOnramp: boolean): Quo
   if (isAboveMax) return QuoteError.AboveUpperLimitSell;
   if (isOnramp) return QuoteError.BelowLowerLimitBuy;
   return QuoteError.BelowLowerLimitSell;
-}
-
-function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
-  if (request.rampType === RampDirection.SELL && request.outputCurrency === FiatToken.BRL) {
-    const fromNetwork = getNetworkFromDestination(request.from);
-    return fromNetwork !== undefined && isNetworkEVM(fromNetwork);
-  }
-  if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.BRL) {
-    const toNetwork = getNetworkFromDestination(request.to);
-    return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
-  }
-  return false;
 }
 
 export default new QuoteService();

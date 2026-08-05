@@ -43,6 +43,7 @@ export interface PartnerInfo {
   name?: string | null;
   maxDynamicDifference?: number;
   minDynamicDifference?: number;
+  payoutAddressEvm?: string | null;
 }
 
 export type PartnerPricingSource = "request" | "publicKey" | "profileAssignment" | "none";

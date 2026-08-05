@@ -1,4 +1,15 @@
-import { DestinationType, EPaymentMethod, Networks, RampCurrency, RampDirection } from "@vortexfi/shared";
+import {
+  CreateQuoteRequest,
+  DestinationType,
+  EPaymentMethod,
+  FiatToken,
+  getNetworkFromDestination,
+  isAlfredpayToken,
+  isNetworkEVM,
+  Networks,
+  RampCurrency,
+  RampDirection
+} from "@vortexfi/shared";
 import httpStatus from "http-status";
 import { APIError } from "../../../../errors/api-error";
 
@@ -83,6 +94,27 @@ export function validateChainSupport(rampType: RampDirection, from: DestinationT
       status: httpStatus.BAD_REQUEST
     });
   }
+}
+
+/**
+ * Corridors whose partner-markup component is collected via EVM fee transfers: the
+ * BRL Base routes (USDC on Base) and every Alfredpay corridor (USDT on Polygon). A
+ * quote with a positive computed markup on these routes requires the pricing
+ * partner's `payout_address_evm`.
+ */
+export function requiresEvmPartnerPayout(request: CreateQuoteRequest): boolean {
+  if (request.rampType === RampDirection.SELL && request.outputCurrency === FiatToken.BRL) {
+    const fromNetwork = getNetworkFromDestination(request.from);
+    return fromNetwork !== undefined && isNetworkEVM(fromNetwork);
+  }
+  if (request.rampType === RampDirection.BUY && request.inputCurrency === FiatToken.BRL) {
+    const toNetwork = getNetworkFromDestination(request.to);
+    return toNetwork !== undefined && toNetwork !== Networks.AssetHub;
+  }
+  if (request.rampType === RampDirection.SELL && isAlfredpayToken(request.outputCurrency)) {
+    return true;
+  }
+  return request.rampType === RampDirection.BUY && isAlfredpayToken(request.inputCurrency);
 }
 
 /**

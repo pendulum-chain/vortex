@@ -46,7 +46,7 @@ Vortex is a cross-border payment gateway built on the Pendulum blockchain. It co
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Base** is the hub for all BRL on/off-ramp flows: BRLA mint/burn via Avenia, Nabla swap on EVM, and Multicall3 fee distribution. BRL flows do not touch Pendulum or Moonbeam.
+**Base** is the hub for all BRL on/off-ramp flows: BRLA mint/burn via Avenia, Nabla swap on EVM, and sequential-transfer fee distribution. BRL flows do not touch Pendulum or Moonbeam.
 
 ### Key Data Flows
 

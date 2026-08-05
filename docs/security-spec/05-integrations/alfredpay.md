@@ -28,18 +28,18 @@ Alfredpay is a fiat payment provider supporting on-ramp and off-ramp operations 
 2. API-key-authenticated integration initiates on-ramp for a user with completed Alfredpay KYC → receives Alfredpay payment instructions.
 3. User makes fiat payment.
 4. `alfredpayOnrampMint` phase: confirms Alfredpay payment, credits the Alfredpay on-chain token to the ephemeral on Polygon. If the provider quote is degraded or expired and the discount engine's `expectedOutput` exceeds the provider's, the phase emits `alfredOnrampMintFallback` to record the substitution.
-5. `subsidizePreSwap` phase: tops up the ephemeral's Alfredpay on-chain token balance to the subsidy target (Polygon, `ALFREDPAY_EVM_TOKEN`).
+5. `subsidizePreSwap` phase: tops up the ephemeral's Alfredpay on-chain token balance to the subsidy target plus the vortex/partner fee reserve (Polygon, `ALFREDPAY_EVM_TOKEN`); the components were deducted from the mint when the target was priced.
 6. `squidRouterSwap` phase: routes the Polygon Alfredpay token to the destination EVM chain/token. For same-chain same-token (Polygon `ALFREDPAY_EVM_TOKEN` → Polygon `ALFREDPAY_EVM_TOKEN`), the passthrough shortcut sends the funds directly without invoking SquidRouter.
-7. `destinationTransfer` → `polygonCleanup` → `complete`.
+7. `destinationTransfer` → `distributeFees` (pays the reserved vortex/partner residual on Polygon, see `03-ramp-engine/fee-integrity.md`) → `polygonCleanup` → `complete`.
 
 For routed Alfredpay onramps (any non-passthrough output), the final quote output is the Squid destination-token amount. `quote.outputAmount` MUST be stored with the destination token's decimals, and `evmToEvm.outputAmountRaw` MUST preserve Squid's destination-token raw output. The Polygon-minted Alfredpay token remains the Squid source amount; the spec must not treat Polygon source-token decimals as final settlement precision.
 
 **Off-ramp flow:**
 1. The catalog `AlfredpayOfframp` block stores provider quote facts under `metadata.blocks.alfredpayOfframp` and returns the provider expiration as the Vortex quote TTL. Its registration hook validates `fiatAccountId` and wallet address, resolves the authenticated KYC-approved Alfredpay customer, refreshes the provider quote with exact `toAmount` and fee equality, updates only that block's `quoteId`/expiration, and creates the order transactionally. Drift hard-fails registration.
 2. `squidRouterPermitExecute` or `squidRouterNoPermitTransfer/Approve/Swap` phase: executes the user-signed permit (or the no-permit equivalent) and lands the Alfredpay on-chain token on Polygon.
-3. `finalSettlementSubsidy` phase: always runs for Alfredpay offramps because `AlfredpayOfframp` declares it between funding and provider transfer for every source variant.
+3. `finalSettlementSubsidy` phase: always runs for Alfredpay offramps because `AlfredpayOfframp` declares it between funding and provider transfer for every source variant; its target is the Alfredpay deposit PLUS the charged vortex/partner fees so the later fee transfers stay funded.
 4. `alfredpayOfframpTransfer` phase: transfers the Alfredpay on-chain token to Alfredpay's settlement address for fiat payout. If Alfredpay rejects the stored `quoteId` as expired, the handler requests a fresh provider quote at execute time and re-attempts (`alfredpayOfframpTransferFallback` phase records the re-attempt).
-5. `polygonCleanupAxlUsdc` → `complete`.
+5. `distributeFees` (pays the reserved vortex/partner residual on Polygon, see `03-ramp-engine/fee-integrity.md`) → `polygonCleanupAxlUsdc` → `complete`.
 
 **Request validation:** Alfredpay middleware (`alfredpay.middleware.ts`) validates the `country` parameter against the `AlfredPayCountry` enum for all Alfredpay-related requests.
 
