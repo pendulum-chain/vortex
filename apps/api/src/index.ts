@@ -12,6 +12,7 @@ import "./models"; // Initialize models
 import { AlfredpayLimitsService } from "./api/services/alfredpay/alfredpay-limits.service";
 import { registerBlockFlowHandlers } from "./api/services/phases/blocks/register-handlers";
 import { priceFeedService } from "./api/services/priceFeed.service";
+import AlfredpayStatusWorker from "./api/workers/alfredpay-status.worker";
 import ApiClientEventsRetentionWorker from "./api/workers/api-client-events-retention.worker";
 import CleanupWorker from "./api/workers/cleanup.worker";
 import KybStatusWorker from "./api/workers/kyb-status.worker";
@@ -73,6 +74,7 @@ const initializeApp = async () => {
     new UnhandledPaymentWorker().start();
     new NotificationDispatchWorker().start();
     new KybStatusWorker().start();
+    new AlfredpayStatusWorker().start();
 
     // Start AlfredPay limits refresh loop (daily; falls back to hardcoded if stale)
     AlfredpayLimitsService.getInstance().start();
