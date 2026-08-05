@@ -48,11 +48,15 @@ class KybStatusWorker {
       const pending = await KycCase.findAll({
         include: [{ as: "customerEntity", model: CustomerEntity, required: true }],
         where: {
-          createdAt: { [Op.gte]: new Date(Date.now() - MAX_AGE_MS) },
           provider: "avenia",
           providerCaseId: { [Op.not]: null },
           status: { [Op.notIn]: [VerificationStatus.Approved, VerificationStatus.Rejected] },
-          type: "kyb"
+          type: "kyb",
+          // The case row is reused across attempts (re-initiation rebinds it to a fresh
+          // attempt id), so its creation date says nothing about the attempt being polled.
+          // Bounding on the last write keeps a resumed attempt in scope no matter how old
+          // the row is, which is exactly when the webhook fallback has to work.
+          updatedAt: { [Op.gte]: new Date(Date.now() - MAX_AGE_MS) }
         }
       });
 
@@ -78,7 +82,7 @@ class KybStatusWorker {
             continue;
           }
 
-          await enqueueVerificationNotification(attempt, profileId);
+          await enqueueVerificationNotification(attempt, profileId, "business");
         } catch (error) {
           logger.error(`Error checking KYB status for attempt ${kycCase.providerCaseId}: ${error}`);
         }
