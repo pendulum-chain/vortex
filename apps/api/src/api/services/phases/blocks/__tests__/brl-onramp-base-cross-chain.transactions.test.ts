@@ -203,6 +203,12 @@ function buildMetadata(): FlowMetadata<BrlBlockMetadata> {
       }
     },
     globals: {
+      evmDestinationGas: {
+        executionFeeUsd: "0.363",
+        maxFeePerGas: "1000000000",
+        network: Networks.Arbitrum,
+        transferGasLimit: "100000"
+      },
       fees: { usd: { anchor: "0.1", network: "0.1", partnerMarkup: "0", total: "0.3", vortex: "0.1" } },
       partner: null,
       request: REQUEST

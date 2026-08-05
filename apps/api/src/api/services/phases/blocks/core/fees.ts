@@ -1,7 +1,7 @@
 import { EvmToken, RampCurrency } from "@vortexfi/shared";
 import Big from "big.js";
 import { priceFeedService } from "../../../priceFeed.service";
-import { getEthereumDestinationExecutionFeeUsd } from "./ethereum-destination-gas";
+import { getEvmDestinationExecutionFeeUsd } from "./evm-destination-gas";
 import { calculateFeeComponents } from "./quote-fees";
 import type { PhaseCtx } from "./types";
 
@@ -15,7 +15,7 @@ export async function overrideFees(ctx: PhaseCtx, override: FeeOverride): Promis
     throw new Error("Cannot override an incomplete fee snapshot");
   }
   const displayCurrency = ctx.fees.displayFiat.currency;
-  const destinationExecutionFeeUsd = await getEthereumDestinationExecutionFeeUsd(ctx);
+  const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
   const [anchorUsd, anchorDisplay, baseNetworkUsd, baseNetworkDisplay, destinationExecutionFeeDisplay] = await Promise.all([
     priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, EvmToken.USDC),
     priceFeedService.convertCurrency(override.anchor.amount, override.anchor.currency, displayCurrency),
@@ -65,7 +65,7 @@ export async function calculateFees(ctx: PhaseCtx, override?: FeeOverride): Prom
   const displayCurrency = ctx.targetFeeFiatCurrency ?? feeCurrency;
   const anchor = override?.anchor ?? { amount: anchorFee, currency: feeCurrency };
   const network = override?.network ?? { amount: "0", currency: USD };
-  const destinationExecutionFeeUsd = await getEthereumDestinationExecutionFeeUsd(ctx);
+  const destinationExecutionFeeUsd = await getEvmDestinationExecutionFeeUsd(ctx);
   const [
     vortexUsd,
     anchorUsd,

@@ -1,4 +1,4 @@
-import type { CreateQuoteRequest, QuoteFeeStructure, RampCurrency } from "@vortexfi/shared";
+import type { CreateQuoteRequest, EvmNetworks, QuoteFeeStructure, RampCurrency } from "@vortexfi/shared";
 import type { Big } from "big.js";
 import type { StateMetadata } from "../../../phases/meta-state-types";
 import type { PartnerInfo } from "../../../quote/core/types";
@@ -23,7 +23,15 @@ export function defineContext<Simulation>() {
     ({ key, schemaVersion }) as ContextMetadata<Key, Simulation>;
 }
 
+export interface EvmDestinationGasQuote {
+  executionFeeUsd: string;
+  maxFeePerGas: string;
+  network: EvmNetworks;
+  transferGasLimit: string;
+}
+
 export interface FlowGlobals {
+  evmDestinationGas?: EvmDestinationGasQuote;
   fees: {
     displayFiat?: QuoteFeeStructure;
     usd: { anchor: string; network: string; partnerMarkup: string; total: string; vortex: string };

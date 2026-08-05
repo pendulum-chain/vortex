@@ -96,6 +96,12 @@ const CORE_PHASES: RampPhase[] = [
 function buildCtx(): PhaseCtx {
   return {
     addNote: () => undefined,
+    evmDestinationGas: {
+      executionFeeUsd: "0",
+      maxFeePerGas: "1",
+      network: Networks.Arbitrum,
+      transferGasLimit: "100000"
+    },
     notes: [],
     now: new Date(),
     partner: { id: null },

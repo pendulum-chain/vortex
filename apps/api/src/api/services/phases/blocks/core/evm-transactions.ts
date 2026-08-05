@@ -1,17 +1,7 @@
-import {
-  EvmClientManager,
-  type EvmNetworks,
-  type EvmTransactionData,
-  Networks,
-  PRESIGNED_EVM_FEE_MULTIPLIER
-} from "@vortexfi/shared";
+import { EvmClientManager, type EvmNetworks, type EvmTransactionData } from "@vortexfi/shared";
 import { encodeFunctionData } from "viem/utils";
 import erc20ABI from "../../../../../contracts/ERC20";
-import {
-  assertEthereumGasBudgetWithinLimit,
-  EVM_ERC20_TRANSFER_GAS_LIMIT,
-  EVM_NATIVE_TRANSFER_GAS_LIMIT
-} from "./ethereum-destination-gas";
+import { EVM_ERC20_TRANSFER_GAS_LIMIT, EVM_NATIVE_TRANSFER_GAS_LIMIT } from "./evm-destination-gas";
 
 export function encodeEvmTransactionData(data: unknown) {
   return data;
@@ -50,11 +40,6 @@ export async function createDestinationTransferTransaction(params: {
   const { toAddress, amountRaw, destinationNetwork, toToken, isNativeToken } = params;
   const publicClient = EvmClientManager.getInstance().getClient(destinationNetwork);
   const { maxFeePerGas, maxPriorityFeePerGas } = await publicClient.estimateFeesPerGas();
-  const gasLimit = isNativeToken ? EVM_NATIVE_TRANSFER_GAS_LIMIT : EVM_ERC20_TRANSFER_GAS_LIMIT;
-
-  if (destinationNetwork === Networks.Ethereum) {
-    assertEthereumGasBudgetWithinLimit(gasLimit * maxFeePerGas * PRESIGNED_EVM_FEE_MULTIPLIER);
-  }
 
   if (isNativeToken) {
     return {

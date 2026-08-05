@@ -54,25 +54,6 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
   return Big(balance.toString()).gte(fundingAmountRaw);
 }
 
-export const DESTINATION_EVM_FUNDING_AMOUNTS: Partial<Record<EvmNetworks, string>> = {
-  [Networks.Arbitrum]: "0.0002",
-  [Networks.Base]: "0.000034",
-  [Networks.Polygon]: "0.6",
-  [Networks.BSC]: "0.000115",
-  [Networks.Avalanche]: "0.0034",
-  [Networks.Moonbeam]: "0.34",
-  [Networks.PolygonAmoy]: "0.2",
-  [Networks.BaseSepolia]: "0.000034"
-};
-
-export function getStaticDestinationEvmFundingAmountUnits(destinationNetwork: EvmNetworks): string {
-  const amount = DESTINATION_EVM_FUNDING_AMOUNTS[destinationNetwork];
-  if (!amount) {
-    throw new Error(`No static destination funding amount configured for ${destinationNetwork}`);
-  }
-  return amount;
-}
-
 export function calculateDestinationFundingShortfallRaw(requiredFundingRaw: bigint, currentBalanceRaw: bigint): bigint {
   return requiredFundingRaw > currentBalanceRaw ? requiredFundingRaw - currentBalanceRaw : 0n;
 }

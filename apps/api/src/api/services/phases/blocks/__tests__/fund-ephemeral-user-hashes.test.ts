@@ -3,6 +3,7 @@ import { EvmToken, FiatToken, Networks, RampDirection } from "@vortexfi/shared";
 import type QuoteTicket from "../../../../../models/quoteTicket.model";
 import type RampState from "../../../../../models/rampState.model";
 import * as userTxVerifier from "../../../phases/helpers/user-tx-verifier";
+import { privateKeyToAccount } from "viem/accounts";
 
 const verifyUserSubmittedTxByHash = mock(async () => undefined);
 mock.module("../../../phases/helpers/user-tx-verifier", () => ({
@@ -102,5 +103,27 @@ describe("FundEphemeralExecutor user hash verification", () => {
     await handler.verifyUserSubmittedSourceTransactions(assethubState, makeQuote());
 
     expect(verifyUserSubmittedTxByHash).not.toHaveBeenCalled();
+  });
+});
+
+describe("FundEphemeralExecutor destination gas funding", () => {
+  it("uses the signed payout liability for non-Ethereum EVM destinations", async () => {
+    const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
+    const rawTx = await account.signTransaction({
+      chainId: 137,
+      gas: 100_000n,
+      maxFeePerGas: 30_000_000_000n,
+      maxPriorityFeePerGas: 1_000_000_000n,
+      nonce: 0,
+      to: "0x0000000000000000000000000000000000000001",
+      type: "eip1559",
+      value: 0n
+    });
+    const handler = Object.create(FundEphemeralExecutor.prototype) as any;
+    handler.getPresignedTransaction = () => ({ network: Networks.Polygon, txData: rawTx });
+
+    expect(handler.getDestinationEvmFundingRequirementRaw({} as RampState, Networks.Polygon)).toBe(
+      3_000_000_000_000_000n
+    );
   });
 });

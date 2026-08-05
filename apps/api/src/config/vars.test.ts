@@ -141,25 +141,25 @@ describe("vars deployment environment validation", () => {
     expect(result.stderr).toContain("RECIPIENT_INVITE_MAX_DISCOUNT_BPS must be an integer between 0 and 300");
   });
 
-  it("rejects an Ethereum network-fee margin below 100 percent", async () => {
+  it("rejects an EVM destination network-fee margin below 100 percent", async () => {
     const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "production",
-      ETHEREUM_ONRAMP_NETWORK_FEE_MARGIN_BPS: "9999",
+      EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS: "9999",
       NODE_ENV: "production"
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("ETHEREUM_ONRAMP_NETWORK_FEE_MARGIN_BPS must be an integer between 10000 and 30000");
+    expect(result.stderr).toContain("EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS must be an integer between 10000 and 30000");
   });
 
-  it("rejects a non-positive Ethereum gas-funding ceiling", async () => {
+  it("rejects a non-positive EVM destination execution-fee ceiling", async () => {
     const result = await importVarsWithEnv({
       DEPLOYMENT_ENV: "production",
-      ETHEREUM_ONRAMP_MAX_GAS_FUNDING_ETH: "0",
+      EVM_DESTINATION_MAX_EXECUTION_FEE_USD: "0",
       NODE_ENV: "production"
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("ETHEREUM_ONRAMP_MAX_GAS_FUNDING_ETH must be a positive number");
+    expect(result.stderr).toContain("EVM_DESTINATION_MAX_EXECUTION_FEE_USD must be a positive number");
   });
 });

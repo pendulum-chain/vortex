@@ -2,12 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import {
-  calculateDestinationFundingShortfallRaw,
-  DESTINATION_EVM_FUNDING_AMOUNTS,
-  ensurePresignedTransferFunded
-} from "./destination-funding";
-import { calculatePresignedGasBudgetRaw } from "./ethereum-destination-gas";
+import { calculateDestinationFundingShortfallRaw, ensurePresignedTransferFunded } from "./destination-funding";
+import { calculatePresignedGasBudgetRaw } from "./evm-destination-gas";
 
 const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
 const recipient = "0x0000000000000000000000000000000000000001";
@@ -35,7 +31,7 @@ describe("ensurePresignedTransferFunded", () => {
   });
 });
 
-describe("Ethereum destination gas funding", () => {
+describe("EVM destination gas funding", () => {
   it("derives the funding requirement from the signed transaction fee cap", async () => {
     const rawTx = await account.signTransaction({
       chainId: 1,
@@ -49,10 +45,6 @@ describe("Ethereum destination gas funding", () => {
     });
 
     expect(calculatePresignedGasBudgetRaw(rawTx)).toBe(300_000_000_000_000n);
-  });
-
-  it("does not retain a static Ethereum destination funding amount", () => {
-    expect(DESTINATION_EVM_FUNDING_AMOUNTS[Networks.Ethereum]).toBeUndefined();
   });
 
   it("funds only the shortfall below the signed gas requirement", () => {

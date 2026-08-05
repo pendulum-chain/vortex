@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import {
   EvmToken,
+  type EvmNetworks,
   evmTokenConfig,
   FiatToken,
   Networks,
@@ -12,7 +13,7 @@ import Big from "big.js";
 import { decodeFunctionData, erc20Abi, parseTransaction, parseUnits } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type PrivateKeyAccount } from "viem/accounts";
 import phaseProcessor from "../../api/services/phases/phase-processor";
-import { getBlockMetadata } from "../../api/services/phases/blocks/core/metadata";
+import { getBlockMetadata, getFlowMetadata } from "../../api/services/phases/blocks/core/metadata";
 import { NablaSwapContext } from "../../api/services/phases/blocks/phases/nabla-swap/simulation";
 import { SquidRouterSwapContext } from "../../api/services/phases/blocks/phases/squid-router-swap/simulation";
 import QuoteTicket from "../../models/quoteTicket.model";
@@ -134,7 +135,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
   });
 
   async function createQuoteViaApi(
-    destinationNetwork: Networks.Arbitrum | Networks.Ethereum = Networks.Arbitrum
+    destinationNetwork: EvmNetworks = Networks.Arbitrum
   ): Promise<{ id: string; networkFeeUsd: string; outputAmount: string }> {
     const response = await app.request("/v1/quotes", {
       body: JSON.stringify({
@@ -213,6 +214,7 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     const user = await createTestUser();
     await createTestTaxId(user.id, { taxId: TAX_ID });
     const quote = await createQuoteViaApi();
+    expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
     const ramp = await registerViaApi(quote.id, user.id, ephemeral, destination);
 
     const persistedQuote = await QuoteTicket.findByPk(quote.id);
@@ -349,13 +351,22 @@ describe("BRL onramp cross-chain corridor (pix → Base mint+swap → USDC on Ar
     return world.evm.sentTransactions.filter(tx => tx.serialized === signedTx).length;
   }
 
-  it("creates BRL onramp quotes for Ethereum destinations", async () => {
-    const quote = await createQuoteViaApi(Networks.Ethereum);
-    const persistedQuote = await QuoteTicket.findByPk(quote.id);
+  it("prices destination execution for ETH, MATIC, BNB, and AVAX gas chains", async () => {
+    for (const network of [
+      Networks.Ethereum,
+      Networks.Arbitrum,
+      Networks.Polygon,
+      Networks.BSC,
+      Networks.Avalanche
+    ] as const) {
+      const quote = await createQuoteViaApi(network);
+      const persistedQuote = await QuoteTicket.findByPk(quote.id);
 
-    expect(persistedQuote?.network).toBe(Networks.Ethereum);
-    expect(persistedQuote?.to).toBe(Networks.Ethereum);
-    expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
+      expect(persistedQuote?.network).toBe(network);
+      expect(persistedQuote?.to).toBe(network);
+      expect(new Big(quote.networkFeeUsd).gt("2.5")).toBe(true);
+      expect(getFlowMetadata(persistedQuote?.metadata).globals.evmDestinationGas?.network).toBe(network);
+    }
   });
 
   it(

@@ -84,6 +84,12 @@ const ALFREDPAY_ONRAMP_DIRECT: RampPhase[] = ["initial", ...CORE_PHASES, "comple
 function buildCtx(outputCurrency: EvmToken): PhaseCtx {
   return {
     addNote: () => undefined,
+    evmDestinationGas: {
+      executionFeeUsd: "0",
+      maxFeePerGas: "1",
+      network: Networks.Polygon,
+      transferGasLimit: "100000"
+    },
     notes: [],
     now: new Date(),
     partner: { id: null },

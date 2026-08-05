@@ -16,6 +16,7 @@ import logger from "../../../../../../config/logger";
 import { config } from "../../../../../../config/vars";
 import {
   BASE_EPHEMERAL_STARTING_BALANCE_UNITS,
+  MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS,
   POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
 } from "../../../../../../constants/constants";
 import QuoteTicket from "../../../../../../models/quoteTicket.model";
@@ -28,11 +29,10 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import {
   calculateDestinationFundingShortfallRaw,
-  getStaticDestinationEvmFundingAmountUnits,
   isDestinationEvmEphemeralFunded,
   isPendulumEphemeralFunded
 } from "../../core/destination-funding";
-import { assertEthereumGasBudgetWithinLimit, calculatePresignedGasBudgetRaw } from "../../core/ethereum-destination-gas";
+import { calculatePresignedGasBudgetRaw } from "../../core/evm-destination-gas";
 import { getEvmFundingAccount } from "../../core/evm-funding";
 import { getBlockMetadata, getBlockState, getFlowMetadata } from "../../core/metadata";
 import { getNativePrefunding } from "../../core/prepare";
@@ -92,7 +92,7 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         sourceNetwork === Networks.Polygon
           ? POLYGON_EPHEMERAL_STARTING_BALANCE_UNITS
           : sourceNetwork === Networks.Moonbeam
-            ? getStaticDestinationEvmFundingAmountUnits(Networks.Moonbeam)
+            ? MOONBEAM_EVM_SOURCE_STARTING_BALANCE_UNITS
             : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
@@ -354,27 +354,11 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
   }
 
   private getDestinationEvmFundingRequirementRaw(state: RampState, destinationNetwork: EvmNetworks): bigint {
-    if (destinationNetwork === Networks.Ethereum) {
-      const presignedTransfer = this.getPresignedTransaction(state, "destinationTransfer");
-      if (!presignedTransfer?.txData) {
-        throw new Error("FundEphemeralExecutor: missing Ethereum destination transfer");
-      }
-      const gasBudgetRaw = calculatePresignedGasBudgetRaw(presignedTransfer.txData as `0x${string}`);
-      assertEthereumGasBudgetWithinLimit(gasBudgetRaw);
-      return gasBudgetRaw;
+    const presignedTransfer = this.getPresignedTransaction(state, "destinationTransfer");
+    if (!presignedTransfer?.txData || presignedTransfer.network !== destinationNetwork) {
+      throw new Error(`FundEphemeralExecutor: missing ${destinationNetwork} destination transfer`);
     }
-
-    const destinationClient = EvmClientManager.getInstance().getClient(destinationNetwork);
-    const chain = destinationClient.chain;
-    if (!chain) {
-      throw new Error(`FundEphemeralExecutor: Could not get chain info for ${destinationNetwork}`);
-    }
-    return BigInt(
-      multiplyByPowerOfTen(
-        getStaticDestinationEvmFundingAmountUnits(destinationNetwork),
-        chain.nativeCurrency.decimals
-      ).toFixed()
-    );
+    return calculatePresignedGasBudgetRaw(presignedTransfer.txData as `0x${string}`);
   }
 
   private async fundSubstrateEphemeralAccount(

@@ -176,6 +176,12 @@ function buildCtx(): PhaseCtx {
       displayFiat: { anchor: "0.1", currency: FiatToken.BRL, network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" },
       usd: { anchor: "0.1", network: "0", partnerMarkup: "0", total: "0.2", vortex: "0.1" }
     },
+    evmDestinationGas: {
+      executionFeeUsd: "0",
+      maxFeePerGas: "1",
+      network: Networks.Arbitrum,
+      transferGasLimit: "100000"
+    },
     notes,
     now: new Date(),
     partner: null,

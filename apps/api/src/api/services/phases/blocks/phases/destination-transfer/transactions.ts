@@ -5,9 +5,11 @@ import {
   isEvmTokenDetails,
   isNativeEvmToken,
   Networks,
-  OnChainToken
+  OnChainToken,
+  RampDirection
 } from "@vortexfi/shared";
 import { requireAccount } from "../../core/accounts";
+import { assertPreparedEvmDestinationFeeWithinQuote } from "../../core/evm-destination-gas";
 import { createDestinationTransferTransaction } from "../../core/evm-transactions";
 import type { PrepareCtx, PreparedPhaseTxs } from "../../core/types";
 import type { DestinationTransferMetadata } from "./simulation";
@@ -35,6 +37,16 @@ export async function prepareDestinationTransferTxs(ctx: PrepareCtx<DestinationT
     toAddress: destinationAddress,
     toToken: outputTokenDetails.erc20AddressSourceChain
   });
+  // Quotes created before this metadata was introduced remain valid for their
+  // short TTL. New BUY quotes always carry the fee envelope and are checked
+  // again at registration in case destination fees moved meanwhile.
+  if (ctx.quote.rampType === RampDirection.BUY && ctx.globals.evmDestinationGas) {
+    assertPreparedEvmDestinationFeeWithinQuote(
+      ctx.globals.evmDestinationGas,
+      toNetwork as EvmNetworks,
+      finalDestinationTransfer
+    );
+  }
 
   return {
     intents: [

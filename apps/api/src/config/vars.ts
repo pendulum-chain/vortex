@@ -113,8 +113,8 @@ function readPositiveDecimalEnv(name: string, defaultValue: string): string {
   return rawValue.trim();
 }
 
-function readEthereumNetworkFeeMarginBps(): number {
-  const name = "ETHEREUM_ONRAMP_NETWORK_FEE_MARGIN_BPS";
+function readEvmDestinationNetworkFeeMarginBps(): number {
+  const name = "EVM_DESTINATION_NETWORK_FEE_MARGIN_BPS";
   const rawValue = process.env[name] ?? "12000";
   const value = Number(rawValue.trim());
   if (!Number.isInteger(value) || value < 10_000 || value > 30_000 || rawValue.trim() === "") {
@@ -226,9 +226,8 @@ interface Config {
   defaults: {
     vortexEvmPayoutAddress: string | undefined;
   };
-  ethereumOnramp: {
-    maxDestinationFeeUsd: string;
-    maxGasFundingUnits: string;
+  evmDestinationGas: {
+    maxExecutionFeeUsd: string;
     networkFeeMarginBps: number;
   };
 }
@@ -251,10 +250,9 @@ export const config: Config = {
   },
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
-  ethereumOnramp: {
-    maxDestinationFeeUsd: readPositiveDecimalEnv("ETHEREUM_ONRAMP_MAX_DESTINATION_FEE_USD", "5"),
-    maxGasFundingUnits: readPositiveDecimalEnv("ETHEREUM_ONRAMP_MAX_GAS_FUNDING_ETH", "0.005"),
-    networkFeeMarginBps: readEthereumNetworkFeeMarginBps()
+  evmDestinationGas: {
+    maxExecutionFeeUsd: readPositiveDecimalEnv("EVM_DESTINATION_MAX_EXECUTION_FEE_USD", "5"),
+    networkFeeMarginBps: readEvmDestinationNetworkFeeMarginBps()
   },
   flowVariant: readFlowVariant(),
 

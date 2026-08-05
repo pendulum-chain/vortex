@@ -319,7 +319,12 @@ export class FlowBuilder<O extends PhaseIO> {
           metadata: {
             blocks,
             flow: identity,
-            globals: { fees: ctx.fees as never, partner: ctx.partner, request: ctx.request }
+            globals: {
+              ...(ctx.evmDestinationGas ? { evmDestinationGas: ctx.evmDestinationGas } : {}),
+              fees: ctx.fees as never,
+              partner: ctx.partner,
+              request: ctx.request
+            }
           },
           output: current as O
         };

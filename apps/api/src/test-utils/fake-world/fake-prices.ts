@@ -10,6 +10,8 @@ import { priceFeedService } from "../../api/services/priceFeed.service";
 export class FakePrices {
   /** CoinGecko-style token id → USD price. */
   cryptoUsd: Record<string, number> = {
+    "avalanche-2": 25,
+    binancecoin: 600,
     ethereum: 2500,
     moonbeam: 0.08,
     "polygon-ecosystem-token": 0.5,
@@ -18,14 +20,24 @@ export class FakePrices {
   /** Fiat/RampCurrency code (lowercased) → units of that currency per 1 USD. */
   perUsd: Record<string, number> = {
     ars: 1000,
+    // Consistent with cryptoUsd["avalanche-2"] = 25.
+    avax: 0.04,
+    // Consistent with cryptoUsd["binancecoin"] = 600.
+    bnb: 1 / 600,
     brl: 5,
     // BRLA is the on-chain twin of BRL and shares its peg.
     brla: 5,
     cop: 4000,
+    // Consistent with cryptoUsd["ethereum"] = 2500.
+    eth: 1 / 2500,
     eur: 0.9,
+    // Consistent with cryptoUsd["moonbeam"] = 0.08.
+    glmr: 12.5,
     // Consistent with cryptoUsd["polygon-ecosystem-token"] = 0.5.
     matic: 2,
     mxn: 17,
+    // Alias used by newer Polygon clients for the same native asset.
+    pol: 2,
     usd: 1,
     usdc: 1,
     "usdc.e": 1,
