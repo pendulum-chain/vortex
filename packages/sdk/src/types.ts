@@ -238,6 +238,12 @@ export interface VortexSdkConfig {
   pendulumWsUrl?: string;
   moonbeamWsUrl?: string;
   hydrationWsUrl?: string;
+  /**
+   * Maximum time to wait when a signing operation first needs a Substrate
+   * WebSocket API. Chain APIs are initialized lazily and independently.
+   * @default 15000
+   */
+  networkInitializationTimeoutMs?: number;
   autoReconnect?: boolean;
   alchemyApiKey?: string;
   storeEphemeralKeys?: boolean;

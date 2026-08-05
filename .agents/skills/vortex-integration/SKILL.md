@@ -497,6 +497,7 @@ const vortex = new VortexSdk({
   apiBaseUrl: process.env.VORTEX_API_URL, // sandbox or prod
   publicKey:  process.env.VORTEX_PUBLIC_KEY,  // pk_*
   secretKey:  process.env.VORTEX_SECRET_KEY,  // sk_*  — server side only
+  networkInitializationTimeoutMs: 15_000,     // lazy per-network signing RPC timeout
   storeEphemeralKeys: true                    // writes ephemerals_<rampId>.json locally
 });
 ```

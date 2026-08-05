@@ -1,6 +1,9 @@
 import { ApiPromise, WsProvider } from "@polkadot/api";
 import { Networks } from "@vortexfi/shared";
+import { NetworkApiInitializationError } from "../errors";
 import type { NetworkConfig, VortexSdkConfig } from "../types";
+
+const DEFAULT_NETWORK_INITIALIZATION_TIMEOUT_MS = 15_000;
 
 const DEFAULT_NETWORKS: NetworkConfig[] = [
   {
@@ -30,10 +33,6 @@ export class NetworkManager {
   private hydrationApiPromise?: Promise<ApiPromise>;
 
   constructor(private readonly config: VortexSdkConfig) {}
-
-  async waitForInitialization(): Promise<void> {
-    return;
-  }
 
   async getPendulumApi(): Promise<ApiPromise> {
     if (this.pendulumApi) {
@@ -105,10 +104,63 @@ export class NetworkManager {
       throw new Error(`${network} WebSocket URL must be provided or configured.`);
     }
 
-    const provider = new WsProvider(wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
-    const api = await ApiPromise.create({ provider });
-    await api.isReady;
-    return api;
+    const timeoutMs = this.config.networkInitializationTimeoutMs ?? DEFAULT_NETWORK_INITIALIZATION_TIMEOUT_MS;
+    let provider: WsProvider;
+    try {
+      provider = new WsProvider(wsUrl, 2_500, {}, 60_000, 102400, 10 * 60_000);
+    } catch (error) {
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      throw new NetworkApiInitializationError(network, timeoutMs, originalError);
+    }
+
+    let api: ApiPromise | undefined;
+    let initializationFailed = false;
+
+    const initialization = ApiPromise.create({ provider }).then(async createdApi => {
+      api = createdApi;
+      await createdApi.isReady;
+
+      if (initializationFailed) {
+        this.disconnect(createdApi, provider);
+      }
+
+      return createdApi;
+    });
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        initialization,
+        new Promise<ApiPromise>((_, reject) => {
+          timeout = setTimeout(() => {
+            reject(new NetworkApiInitializationError(network, timeoutMs));
+          }, timeoutMs);
+        })
+      ]);
+    } catch (error) {
+      initializationFailed = true;
+      this.disconnect(api, provider);
+
+      if (error instanceof NetworkApiInitializationError) {
+        throw error;
+      }
+
+      const originalError = error instanceof Error ? error : new Error(String(error));
+      throw new NetworkApiInitializationError(network, timeoutMs, originalError);
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+  }
+
+  private disconnect(api: ApiPromise | undefined, provider: WsProvider): void {
+    try {
+      const disconnect = api ? api.disconnect() : provider.disconnect();
+      void Promise.resolve(disconnect).catch(() => undefined);
+    } catch {
+      // Preserve the initialization error; disconnect is best-effort cleanup.
+    }
   }
 
   private getWsUrl(network: Networks.Pendulum | Networks.Moonbeam | Networks.Hydration): string | undefined {
