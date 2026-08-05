@@ -89,6 +89,18 @@ Authorization must verify all of the following:
 One central delegated-authorization function performs these checks and returns a request
 context containing both `actorProfileId` and `subjectProfileId`. Downstream services use
 the subject for ownership and provider resolution while retaining the actor for audit.
+
+The minimum safe implementation reuses the existing child-oriented services with two
+separate request-context values:
+
+```text
+authenticatedManagerProfileId = managerId
+effectiveUserId                = childId
+```
+
+Authorization uses the authenticated manager and its direct relationship to the child.
+Existing ownership and provider resolution use the effective child. Both values remain
+available for audit attribution; the effective child must never erase the manager actor.
 The implementation must not replace the authenticated manager ID globally or introduce
 a generic impersonation mode.
 
