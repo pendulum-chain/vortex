@@ -12,12 +12,24 @@ function generate() {
 export const primaryKeys = generate();
 export const rotatedKeys = generate();
 
+// Avenia's live endpoint serves PKCS#1 ("BEGIN RSA PUBLIC KEY"), not the SPKI the other
+// fixtures use, so the verifier has to accept both encodings.
+export const pkcs1Keys = crypto.generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+  privateKeyEncoding: { format: "pem", type: "pkcs8" },
+  publicKeyEncoding: { format: "pem", type: "pkcs1" }
+});
+
 // Bun's mock.module is process-global, so every test file that stubs @vortexfi/shared
 // must stub it to the same thing or whichever file loads last wins. Both Avenia test
 // files therefore share this one key server and flip `servedKey` per test instead.
-export const keyServer = { servedKey: primaryKeys.publicKey };
+// `calls` counts outbound key fetches, which is what the refresh bounding is about.
+export const keyServer = { calls: 0, servedKey: primaryKeys.publicKey };
 
-export const getAveniaPublicKey = async (): Promise<string> => keyServer.servedKey;
+export const getAveniaPublicKey = async (): Promise<string> => {
+  keyServer.calls += 1;
+  return keyServer.servedKey;
+};
 
 // mock.module replaces the module for the whole process, so the real exports are spread
 // back in: a bare stub would strip every other @vortexfi/shared export from any test file

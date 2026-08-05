@@ -3,13 +3,42 @@ import crypto from "crypto";
 import logger from "../../../config/logger";
 
 const KEY_TTL_MS = 60 * 60 * 1000;
+// Shortest gap between two outbound key fetches. The route is public and anyone can
+// make a signature miss, so without this every forged body would cost Avenia a request.
+export const REFRESH_COOLDOWN_MS = 30 * 1000;
 
 let cachedKey: { pem: string; fetchedAt: number } | null = null;
+let inFlightRefresh: Promise<string> | null = null;
+let lastRefreshStartedAt = 0;
 
-async function fetchAndCacheKey(): Promise<string> {
-  const pem = await BrlaApiService.getInstance().getAveniaPublicKey();
-  cachedKey = { fetchedAt: Date.now(), pem };
-  return pem;
+function refreshKey(): Promise<string> {
+  lastRefreshStartedAt = Date.now();
+  inFlightRefresh = BrlaApiService.getInstance()
+    .getAveniaPublicKey()
+    .then(pem => {
+      cachedKey = { fetchedAt: Date.now(), pem };
+      return pem;
+    })
+    .finally(() => {
+      inFlightRefresh = null;
+    });
+  return inFlightRefresh;
+}
+
+/**
+ * The key to re-check a miss against, or null when a refresh is not allowed right now.
+ * Concurrent misses share one fetch, and a burst of them costs at most one fetch per
+ * cooldown — so a rotation is still picked up within seconds, but a flood of forgeries
+ * cannot be amplified into a flood of Avenia requests.
+ */
+function refreshedKey(): Promise<string> | null {
+  if (inFlightRefresh) {
+    return inFlightRefresh;
+  }
+  if (Date.now() - lastRefreshStartedAt < REFRESH_COOLDOWN_MS) {
+    return null;
+  }
+  return refreshKey();
 }
 
 function verifyWith(pem: string, body: Buffer, signature: Buffer): boolean {
@@ -35,8 +64,8 @@ function verifyWith(pem: string, body: Buffer, signature: Buffer): boolean {
  *
  * Avenia's guide states the key rotates and must never be pinned, so a body that
  * fails against the cached key is retried once against a freshly fetched one before
- * being rejected. That distinguishes a rotation from a forgery at the cost of one
- * request per bad signature.
+ * being rejected. That distinguishes a rotation from a forgery, at the cost of one
+ * Avenia request per cooldown window rather than one per bad signature.
  */
 export async function verifyAveniaSignature(body: Buffer, signatureBase64: string): Promise<boolean> {
   let signature: Buffer;
@@ -52,7 +81,12 @@ export async function verifyAveniaSignature(body: Buffer, signatureBase64: strin
       return true;
     }
 
-    return verifyWith(await fetchAndCacheKey(), body, signature);
+    const refreshed = refreshedKey();
+    if (!refreshed) {
+      return false;
+    }
+
+    return verifyWith(await refreshed, body, signature);
   } catch (error) {
     logger.error(`Failed to verify Avenia webhook signature: ${error}`);
     return false;
