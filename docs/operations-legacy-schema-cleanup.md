@@ -131,5 +131,5 @@ an application version compatible with that restored schema. Preserve the failed
 smoke-test evidence for remediation.
 
 After production cleanup is verified, retire or replace
-`apps/api/scripts/schema-parity-checks.sql` and the credential migration/backfill commands; they
-intentionally read deleted tables and cannot run against the post-061 schema.
+`apps/api/scripts/schema-parity-checks.sql`; it intentionally reads deleted tables and cannot
+run against the post-061 schema.
