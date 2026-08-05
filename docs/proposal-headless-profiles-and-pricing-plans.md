@@ -84,8 +84,21 @@ Authorization must verify all of the following:
 3. The requested corridor is enabled for the manager when the operation is corridor-bound.
 4. The requested operation is part of the explicit control list below.
 
-The request context must retain both `actorProfileId` and `subjectProfileId`. It must not
-replace the authenticated manager ID globally or introduce a generic impersonation mode.
+The operation executes for the child, so existing services may need to treat the child as
+the effective profile for ownership and provider resolution. The manager must still be
+preserved as the authenticated actor used to authorize and audit the delegated operation.
+
+The minimum safe implementation reuses the existing child-oriented services with two
+separate request-context values:
+
+```text
+authenticatedManagerProfileId = managerId
+effectiveUserId                = childId
+```
+
+Authorization uses the authenticated manager and its direct relationship to the child.
+Existing ownership and provider resolution use the effective child. Both values remain
+available for audit attribution; the effective child must never erase the manager actor.
 
 Manager sessions are not required for the first implementation. Supporting only secret
 API credentials keeps the delegated surface smaller; session support can be added if a
