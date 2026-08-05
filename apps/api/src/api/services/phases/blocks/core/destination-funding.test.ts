@@ -2,7 +2,12 @@ import { describe, expect, it } from "bun:test";
 import { Networks } from "@vortexfi/shared";
 import { privateKeyToAccount } from "viem/accounts";
 import { UnrecoverablePhaseError } from "../../../../errors/phase-error";
-import { calculateDestinationFundingShortfallRaw, ensurePresignedTransferFunded } from "./destination-funding";
+import {
+  calculateDestinationFundingShortfallRaw,
+  calculateSourceEvmFundingRequirementRaw,
+  ensurePresignedTransferFunded,
+  getDynamicDestinationEvmFundingNetwork
+} from "./destination-funding";
 import { calculatePresignedGasBudgetRaw } from "./evm-destination-gas";
 
 const account = privateKeyToAccount("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d");
@@ -51,5 +56,14 @@ describe("EVM destination gas funding", () => {
     expect(calculateDestinationFundingShortfallRaw(300n, 125n)).toBe(175n);
     expect(calculateDestinationFundingShortfallRaw(300n, 300n)).toBe(0n);
     expect(calculateDestinationFundingShortfallRaw(300n, 400n)).toBe(0n);
+  });
+
+  it("keeps a same-network payout liability additive to source reserves", () => {
+    expect(calculateSourceEvmFundingRequirementRaw(100n, 25n, 300n)).toBe(425n);
+  });
+
+  it("does not dynamically fund destination gas for direct-transfer flows", () => {
+    expect(getDynamicDestinationEvmFundingNetwork(Networks.Base, true, true)).toBeUndefined();
+    expect(getDynamicDestinationEvmFundingNetwork(Networks.Base, true, false)).toBe(Networks.Base);
   });
 });

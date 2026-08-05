@@ -4,7 +4,7 @@ import { hexToU8a } from "@polkadot/util";
 import { cryptoWaitReady } from "@polkadot/util-crypto";
 import { createWalletClient, fallback, http, WalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { arbitrum, avalanche, base, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
+import { arbitrum, avalanche, base, baseSepolia, bsc, mainnet, moonbeam, polygon, polygonAmoy } from "viem/chains";
 import {
   decodeSubmittableExtrinsic,
   EphemeralAccount,
@@ -23,6 +23,7 @@ const EVM_EPHEMERAL_SIGNING_NETWORKS: Networks[] = [
   Networks.Polygon,
   Networks.PolygonAmoy,
   Networks.Base,
+  Networks.BaseSepolia,
   Networks.Arbitrum,
   Networks.Avalanche,
   Networks.BSC,
@@ -158,6 +159,10 @@ export function createEvmClient(
     case Networks.Base:
       chain = base;
       rpcUrls = apiKey ? [`https://base-mainnet.g.alchemy.com/v2/${apiKey}`] : [];
+      break;
+    case Networks.BaseSepolia:
+      chain = baseSepolia;
+      rpcUrls = apiKey ? [`https://base-sepolia.g.alchemy.com/v2/${apiKey}`] : [];
       break;
     case Networks.BSC:
       chain = bsc;

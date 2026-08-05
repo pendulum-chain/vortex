@@ -4,6 +4,7 @@ import {
   checkEvmNativeBalancePeriodically,
   EvmClientManager,
   EvmNetworks,
+  isNetworkEVM,
   Networks
 } from "@vortexfi/shared";
 import Big from "big.js";
@@ -56,6 +57,31 @@ export async function isPolygonEphemeralFunded(polygonEphemeralAddress: string):
 
 export function calculateDestinationFundingShortfallRaw(requiredFundingRaw: bigint, currentBalanceRaw: bigint): bigint {
   return requiredFundingRaw > currentBalanceRaw ? requiredFundingRaw - currentBalanceRaw : 0n;
+}
+
+export function calculateSourceEvmFundingRequirementRaw(
+  fixedFundingRaw: bigint,
+  plannedNativeValueRaw: bigint,
+  sameNetworkDestinationLiabilityRaw = 0n
+): bigint {
+  // A same-chain payout spends from the same balance as the source phases, so its signed
+  // fee liability must remain additive instead of reusing the fixed source reserve.
+  return fixedFundingRaw + plannedNativeValueRaw + sameNetworkDestinationLiabilityRaw;
+}
+
+export function getDynamicDestinationEvmFundingNetwork(
+  destinationNetwork: Networks | undefined,
+  isBuy: boolean,
+  isDirectTransfer: boolean | undefined
+): EvmNetworks | undefined {
+  // Direct provider-mint flows intentionally have no destination fee envelope. Their
+  // execution therefore keeps the existing fixed source reserve rather than adding an
+  // unquoted dynamic treasury transfer.
+  if (!isBuy || isDirectTransfer === true || !destinationNetwork || !isNetworkEVM(destinationNetwork)) {
+    return undefined;
+  }
+
+  return destinationNetwork;
 }
 
 export async function isDestinationEvmEphemeralFunded(

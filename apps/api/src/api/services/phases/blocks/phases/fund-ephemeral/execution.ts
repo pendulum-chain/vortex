@@ -5,7 +5,6 @@ import {
   FiatToken,
   getNetworkFromDestination,
   isAlfredpayToken,
-  isNetworkEVM,
   multiplyByPowerOfTen,
   Networks,
   RampDirection,
@@ -29,6 +28,8 @@ import { StateMetadata } from "../../../../phases/meta-state-types";
 import { abortableCall, throwIfAborted } from "../../core/cancellation";
 import {
   calculateDestinationFundingShortfallRaw,
+  calculateSourceEvmFundingRequirementRaw,
+  getDynamicDestinationEvmFundingNetwork,
   isDestinationEvmEphemeralFunded,
   isPendulumEphemeralFunded
 } from "../../core/destination-funding";
@@ -96,7 +97,21 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
             : BASE_EPHEMERAL_STARTING_BALANCE_UNITS;
       const fixedFundingRaw = BigInt(multiplyByPowerOfTen(fixedFundingUnits, chain.nativeCurrency.decimals).toFixed());
       const plannedNativeValueRaw = getNativePrefunding(state.state.transactionPlan, sourceNetwork, evmEphemeralAddress);
-      const requiredFundingRaw = fixedFundingRaw + plannedNativeValueRaw;
+      const destinationNetwork = getNetworkFromDestination(state.to);
+      const dynamicDestinationNetwork = getDynamicDestinationEvmFundingNetwork(
+        destinationNetwork,
+        state.type === RampDirection.BUY,
+        state.state.isDirectTransfer
+      );
+      const destinationFundingRaw = dynamicDestinationNetwork
+        ? this.getDestinationEvmFundingRequirementRaw(state, dynamicDestinationNetwork)
+        : 0n;
+      const sameNetworkDestinationLiabilityRaw = dynamicDestinationNetwork === sourceNetwork ? destinationFundingRaw : 0n;
+      const requiredFundingRaw = calculateSourceEvmFundingRequirementRaw(
+        fixedFundingRaw,
+        plannedNativeValueRaw,
+        sameNetworkDestinationLiabilityRaw
+      );
       const currentBalanceRaw = await sourceClient.getBalance({ address: evmEphemeralAddress as `0x${string}` });
 
       if (currentBalanceRaw < requiredFundingRaw) {
@@ -112,20 +127,17 @@ export class FundEphemeralExecutor extends BasePhaseHandler {
         logger.info(`${sourceNetwork} ephemeral address already funded.`);
       }
 
-      const destinationNetwork = getNetworkFromDestination(state.to);
-      if (
-        state.type === RampDirection.BUY &&
-        state.to !== Networks.AssetHub &&
-        destinationNetwork &&
-        isNetworkEVM(destinationNetwork)
-      ) {
-        const requiredFundingRaw = this.getDestinationEvmFundingRequirementRaw(state, destinationNetwork);
-        const isFunded = await isDestinationEvmEphemeralFunded(evmEphemeralAddress, destinationNetwork, requiredFundingRaw);
+      if (dynamicDestinationNetwork && dynamicDestinationNetwork !== sourceNetwork) {
+        const isFunded = await isDestinationEvmEphemeralFunded(
+          evmEphemeralAddress,
+          dynamicDestinationNetwork,
+          destinationFundingRaw
+        );
         if (!isFunded) {
-          logger.info(`Funding EVM ephemeral account ${evmEphemeralAddress} on ${destinationNetwork}`);
-          await this.fundDestinationEvmEphemeralAccount(state, destinationNetwork, requiredFundingRaw, signal);
+          logger.info(`Funding EVM ephemeral account ${evmEphemeralAddress} on ${dynamicDestinationNetwork}`);
+          await this.fundDestinationEvmEphemeralAccount(state, dynamicDestinationNetwork, destinationFundingRaw, signal);
         } else {
-          logger.info(`EVM ephemeral account already funded on ${destinationNetwork}.`);
+          logger.info(`EVM ephemeral account already funded on ${dynamicDestinationNetwork}.`);
         }
       }
     } catch (e) {
