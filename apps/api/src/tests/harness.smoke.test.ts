@@ -26,7 +26,7 @@ describe("test harness smoke test", () => {
     expect(response.status).toBe(200);
   });
 
-  it("has the complete api_credentials schema and no active legacy keys", async () => {
+  it("has the complete api_credentials schema and no legacy key table", async () => {
     await expect(assertApiCredentialSchemaReady()).resolves.toBeUndefined();
   });
 

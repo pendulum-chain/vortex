@@ -1,37 +1,42 @@
 # Legacy Schema Cleanup Rollout
 
-Status: migration 060 is blocked until every pre-deployment gate below has current
-production evidence.
+Status: migration 060 has run on staging. Migration 061 removes the retired `api_keys`
+table. Production runs both migrations in one deployment after every pre-deployment gate
+below has current evidence.
 
 ## Purpose
 
-Safely deploy `apps/api/src/database/migrations/060-drop-legacy-schema.ts`, the irreversible
-contract step for the unified identity and partner-pricing schema. The migration removes the
-legacy provider/KYC tables, `partners_legacy`, pricing columns copied from `partners` to
-`partner_pricing_configs`, `api_keys.partner_name`, and the unread directional partner-assignment
-columns. It runs in one transaction with a five-second lock timeout and relies on PostgreSQL's
-default `RESTRICT` behavior to reject unknown dependencies.
+Safely deploy `apps/api/src/database/migrations/060-drop-legacy-schema.ts` and
+`apps/api/src/database/migrations/061-drop-legacy-api-keys.ts`, the irreversible contract
+steps for the unified identity, partner-pricing, and credential schemas. Migration 060 removes
+the legacy provider/KYC tables, `partners_legacy`, pricing columns copied from `partners` to
+`partner_pricing_configs`, `api_keys.partner_name`, and the unread directional
+partner-assignment columns. Migration 061 rejects any active legacy key, drops `api_keys`, and
+removes its enum type. Each runs in one transaction with a five-second lock timeout and relies
+on PostgreSQL's default `RESTRICT` behavior to reject unknown dependencies.
 
 Permanent deletion without a separate archive is approved for all remaining legacy-only rows,
 including `tax_ids` (ownerless/quarantined rows and unresolved Avenia subaccounts),
 `kyc_level_2`, folded or historical `alfredpay_customers`, and `mykobo_customers`. The accepted
 consequence is loss of provider/KYC history or account references present only in those tables.
-Migration 060 has no database `down()` path; recovery requires restoring the validated
+Migrations 060 and 061 have no database `down()` path; recovery requires restoring the validated
 pre-migration backup.
 
 For this rollout, **maintenance mode means a full backend shutdown**, not only an active
 maintenance schedule: no backend instance may remain alive or serve any API endpoint. The only
-permitted backend process is the new instance executing migration 060 during startup, before it
-begins listening for API traffic.
+permitted backend process is the new instance executing migrations 060-061 during startup,
+before it begins listening for API traffic.
 
 ## Pre-Deployment Gates
 
-Do not deploy migration 060 until all of these conditions are recorded:
+Do not deploy migrations 060-061 to production, or migration 061 to staging, until all of these
+conditions are recorded:
 
 - A maintenance-window hard cutover is scheduled. Maintenance mode must block new quote and ramp
   mutations before operators drain traffic and stop every API and worker process.
-- Both API-key validators use explicit partner-deletion revocation, no code writes or reads
-  `api_keys.partner_name`, and every active orphaned partner key has been revoked.
+- Runtime authentication reads only `api_credentials`, every intended legacy credential has been
+  migrated or reissued, and every `api_keys` row is inactive. Migration 061 aborts if any active row
+  remains.
 - The `Partner` model is identity-only. Pricing, fee, subsidy, dynamic-discount, and payout-address
   reads use `partner_pricing_configs`.
 - The application model and associations do not declare
@@ -52,11 +57,11 @@ Run the read-only gate with a database-owner or `BYPASSRLS` connection:
 psql "$DATABASE_URL" -f apps/api/scripts/schema-parity-checks.sql
 ```
 
-Preserve the complete output from the authoritative run immediately before migration 060, after
-all old API and worker instances have stopped and before the final backup. Record the timestamp,
-environment/database, deployed commit,
-latest `SequelizeMeta` migration, operator, Sections 0-4, and process exit status. Section 4 uses
-legacy UUIDs and one-way tax-reference hashes rather than email addresses or raw tax IDs.
+Preserve the complete output from the authoritative run immediately before the production
+migrations, after all old API and worker instances have stopped and before the final backup.
+Record the timestamp, environment/database, deployed commit, latest `SequelizeMeta` migration,
+operator, Sections 0-4, and process exit status. Section 4 uses legacy UUIDs and one-way
+tax-reference hashes rather than email addresses or raw tax IDs.
 
 Proceed only when:
 
@@ -74,9 +79,9 @@ Interpret non-passing output as follows:
 |---|---|
 | Implausible Section 0 counts | Stop, correct the database or role, and rerun the complete script. |
 | Non-zero Section 1 or any Section 4 row | Stop, repair or explicitly reconcile the canonical mapping for every source identifier, and rerun. Never alter a legacy row merely to make the gate pass. |
-| Non-zero Section 2 | Preserve the approved-deletion counts. Active orphaned API keys are still blockers and must be revoked. |
+| Non-zero Section 2 | Preserve the approved-deletion counts. Every active legacy API key is a blocker and must be revoked. |
 | Section 3 status drift | Reconcile against provider/runtime history. Do not overwrite newer canonical status merely to match the legacy snapshot. |
-| `MIGRATION GATE FAILED` or non-zero exit | Preserve the output with the remediation record and do not run migration 060. |
+| `MIGRATION GATE FAILED` or non-zero exit | Preserve the output with the remediation record and do not run migrations 060-061. |
 
 The parity gate proves database mapping only. It does not replace provider-side reconciliation,
 the catalog/external-consumer audit, process drain, or backup/restore rehearsal.
@@ -87,13 +92,15 @@ the catalog/external-consumer audit, process drain, or backup/restore rehearsal.
    in-flight work to quiesce.
 2. Stop and verify the absence of every old API and worker process. Maintenance mode alone is not
    sufficient because it does not stop workers or prevent a live old process from querying columns
-   removed by migration 060.
+   removed by migrations 060-061.
 3. Run and preserve the authoritative parity gate.
 4. Take and validate the final restorable backup.
-5. Deploy the release containing migration 060. If the five-second lock timeout aborts startup,
-   identify the blocking session before retrying; do not increase the timeout blindly.
-6. Verify migration 060 appears exactly once in `SequelizeMeta` and all intended tables, columns,
-   indexes, and table-specific enum types are absent. The shared `ramp_direction_enum` must remain.
+5. Deploy the release containing migrations 060-061. Staging, where migration 060 is already
+   applied, runs only migration 061. If the five-second lock timeout aborts startup, identify the
+   blocking session before retrying; do not increase the timeout blindly.
+6. Verify migrations 060 and 061 appear exactly once in `SequelizeMeta`, `api_keys` is absent,
+   and all intended tables, columns, indexes, and table-specific enum types are absent. The shared
+   `ramp_direction_enum` must remain.
    Also verify the renumbered credential migrations: `SELECT name FROM "SequelizeMeta" WHERE name
    LIKE '05%' ORDER BY name;` must list `057-create-api-credentials`,
    `058-create-partner-managed-profiles`, and `059-add-api-credential-id-to-quote-tickets` exactly
@@ -118,11 +125,11 @@ the catalog/external-consumer audit, process drain, or backup/restore rehearsal.
 
 ## Failure And Recovery
 
-Do not use Umzug revert after migration 060. If a removed dependency or data requirement makes
+Do not use Umzug revert after migrations 060-061. If a removed dependency or data requirement makes
 the release unsafe, stop the application, restore the validated pre-migration backup, and deploy
 an application version compatible with that restored schema. Preserve the failed migration and
 smoke-test evidence for remediation.
 
 After production cleanup is verified, retire or replace
-`apps/api/scripts/schema-parity-checks.sql`; it intentionally reads the deleted tables and cannot
-run against the post-060 schema.
+`apps/api/scripts/schema-parity-checks.sql`; it intentionally reads deleted tables and cannot
+run against the post-061 schema.

@@ -182,10 +182,9 @@ export interface RegisterRampRequest {
     pixDestination?: string;
     receiverTaxId?: string;
     /**
-     * @deprecated Derived server-side from `api_keys.user_id -> tax_ids.user_id`
-     * for linked secret-key callers and Supabase-authenticated callers. The
-     * server accepts a value for one release of backward compatibility, but
-     * mismatches against the derived taxId are rejected.
+     * @deprecated Derived server-side from the authenticated profile's canonical
+     * customer entity and provider customer. The server accepts a value for one
+     * release of backward compatibility, but rejects mismatches.
      */
     taxId?: string;
     sessionId?: string;

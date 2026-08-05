@@ -136,7 +136,7 @@ what we test. Unit tests may still mock models where the DB is incidental.
 
 ### Factories
 
-`apps/api/src/test-utils/factories.ts` builds `User`, `Partner`, `ApiKey`, `QuoteTicket`,
+`apps/api/src/test-utils/factories.ts` builds `User`, `Partner`, `ApiCredential`, `QuoteTicket`,
 `RampState`, and canonical `ProviderCustomer` rows for Avenia and Alfredpay KYC. Never
 hand-write these objects or copy JSON snapshots into tests; extend the factory instead.
 

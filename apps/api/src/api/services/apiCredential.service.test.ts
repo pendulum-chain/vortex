@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import { Op } from "sequelize";
 import sequelize from "../../config/database";
 import ApiCredential from "../../models/apiCredential.model";
-import ApiKey from "../../models/apiKey.model";
 import User from "../../models/user.model";
 import { digestApiKey, generateApiKey, getSecretKeyLookupPrefix } from "../middlewares/apiKeyFormat";
 import {
@@ -16,7 +15,6 @@ import {
 
 const originals = {
   count: ApiCredential.count,
-  legacyCount: ApiKey.count,
   create: ApiCredential.create,
   findAll: ApiCredential.findAll,
   findByPk: User.findByPk,
@@ -28,7 +26,6 @@ const originals = {
 
 afterEach(() => {
   ApiCredential.count = originals.count;
-  ApiKey.count = originals.legacyCount;
   ApiCredential.create = originals.create;
   ApiCredential.findAll = originals.findAll;
   ApiCredential.findOne = originals.findOne;
@@ -94,7 +91,7 @@ describe("api credential service", () => {
     expect(secretContext).toMatchObject({ credentialId: credential.id, profileId: "profile-1", strength: "secret" });
   });
 
-  it("refuses startup while active legacy api_keys rows remain", async () => {
+  it("refuses startup while the legacy api_keys table remains", async () => {
     const columns = [
       "created_at",
       "environment",
@@ -130,6 +127,7 @@ describe("api credential service", () => {
           "uq_api_credentials_secret_key_digest"
         ].map(indexname => ({ indexname }));
       }
+      if (sql.includes("information_schema.tables")) return [{ table_name: "api_keys" }];
       return [
         "api_credentials_partner_id_fkey",
         "api_credentials_profile_id_fkey",
@@ -137,8 +135,7 @@ describe("api credential service", () => {
         "chk_api_credentials_secret_prefix_length"
       ].map(conname => ({ conname }));
     }) as never;
-    ApiKey.count = mock(async () => 1) as never;
 
-    await expect(assertApiCredentialSchemaReady()).rejects.toThrow("active api_keys");
+    await expect(assertApiCredentialSchemaReady()).rejects.toThrow("legacy api_keys table still exists");
   });
 });

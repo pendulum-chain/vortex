@@ -2,7 +2,6 @@ import sequelize from "../config/database";
 import Anchor from "./anchor.model";
 import ApiClientEvent from "./apiClientEvent.model";
 import ApiCredential from "./apiCredential.model";
-import ApiKey from "./apiKey.model";
 import CustomerEntity from "./customerEntity.model";
 import FinancialOperation from "./financialOperation.model";
 import KycCase from "./kycCase.model";
@@ -46,14 +45,6 @@ ProfilePartnerAssignment.belongsTo(User, { as: "user", foreignKey: "userId" });
 
 User.hasMany(ProfileRole, { as: "roles", foreignKey: "userId" });
 ProfileRole.belongsTo(User, { as: "user", foreignKey: "userId" });
-
-// API key ↔ user binding
-User.hasMany(ApiKey, { as: "apiKeys", foreignKey: "userId" });
-ApiKey.belongsTo(User, { as: "user", foreignKey: "userId" });
-
-// API key ↔ partner attribution (FK replaces the partner_name string)
-ApiKey.belongsTo(Partner, { as: "partner", foreignKey: "partnerId" });
-Partner.hasMany(ApiKey, { as: "apiKeys", foreignKey: "partnerId" });
 
 User.hasMany(ApiCredential, { as: "apiCredentials", foreignKey: "profileId" });
 ApiCredential.belongsTo(User, { as: "profile", foreignKey: "profileId" });
@@ -106,7 +97,6 @@ const models = {
   Anchor,
   ApiClientEvent,
   ApiCredential,
-  ApiKey,
   CustomerEntity,
   FinancialOperation,
   KycCase,
