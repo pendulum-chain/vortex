@@ -296,6 +296,9 @@ export class FlowBuilder<O extends PhaseIO> {
         };
       },
       async simulate(ctx: PhaseCtx) {
+        // Exact provider-token payouts do not have a fee-distribution phase;
+        // their same-chain gas remains part of the existing source reserve.
+        ctx.priceEvmDestinationGas = staticStateMeta.isDirectTransfer !== true;
         await computeFees(ctx);
         if (!ctx.fees?.usd) {
           throw new Error("Flow simulation requires computed USD fees");

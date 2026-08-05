@@ -42,6 +42,7 @@ export interface PhaseCtx {
   };
   targetFeeFiatCurrency?: RampCurrency;
   evmDestinationGas?: FlowMetadata["globals"]["evmDestinationGas"];
+  priceEvmDestinationGas?: boolean;
 }
 
 export type FlowInputResolver<O extends PhaseIO> = (ctx: PhaseCtx) => O | Promise<O>;

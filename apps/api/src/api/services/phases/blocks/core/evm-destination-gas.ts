@@ -84,7 +84,12 @@ export function assertPreparedEvmDestinationFeeWithinQuote(
 
 export async function getEvmDestinationExecutionFeeUsd(ctx: PhaseCtx): Promise<string> {
   const destinationNetwork = getNetworkFromDestination(ctx.request.to);
-  if (ctx.request.rampType !== RampDirection.BUY || !destinationNetwork || !isNetworkEVM(destinationNetwork)) {
+  if (
+    ctx.request.rampType !== RampDirection.BUY ||
+    ctx.priceEvmDestinationGas === false ||
+    !destinationNetwork ||
+    !isNetworkEVM(destinationNetwork)
+  ) {
     return "0";
   }
   if (ctx.evmDestinationGas !== undefined) {

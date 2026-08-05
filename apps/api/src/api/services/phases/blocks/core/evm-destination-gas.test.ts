@@ -1,12 +1,14 @@
 import { describe, expect, it } from "bun:test";
-import { type EvmNetworks, type EvmTransactionData, Networks, QuoteError } from "@vortexfi/shared";
+import { type EvmNetworks, type EvmTransactionData, Networks, QuoteError, RampDirection } from "@vortexfi/shared";
 import { APIError } from "../../../../errors/api-error";
 import {
   assertPreparedEvmDestinationFeeWithinQuote,
   calculateExpectedExecutionFeeRaw,
   EVM_ERC20_TRANSFER_GAS_LIMIT,
+  getEvmDestinationExecutionFeeUsd,
   getEvmNativeFeeCurrency
 } from "./evm-destination-gas";
+import type { PhaseCtx } from "./types";
 
 describe("EVM destination gas policy", () => {
   it("prices the funding transfer and ERC-20 payout with the configured margin", () => {
@@ -31,6 +33,16 @@ describe("EVM destination gas policy", () => {
     for (const [network, currency] of Object.entries(expected)) {
       expect(String(getEvmNativeFeeCurrency(network as EvmNetworks))).toBe(currency);
     }
+  });
+
+  it("does not price destination gas for exact provider-direct payouts", async () => {
+    const ctx = {
+      priceEvmDestinationGas: false,
+      request: { rampType: RampDirection.BUY, to: Networks.Base }
+    } as PhaseCtx;
+
+    expect(await getEvmDestinationExecutionFeeUsd(ctx)).toBe("0");
+    expect(ctx.evmDestinationGas).toBeUndefined();
   });
 
   it("allows registration-time fee movement inside the quote margin", () => {
