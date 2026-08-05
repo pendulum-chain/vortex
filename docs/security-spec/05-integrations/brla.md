@@ -57,8 +57,9 @@ hourly `KybStatusWorker` poll is a reconciliation fallback behind it.
 This is the only Vortex endpoint authenticated purely by an **inbound RSA signature**
 rather than an API key or session. Avenia signs the raw request body with RSA-PSS /
 SHA-256; the receiver verifies it against Avenia's published key from `GET /v2/public-key`,
-cached for one hour and refetched once on a verification miss because Avenia rotates it
-without notice.
+cached for one hour and refetched on a verification miss because Avenia rotates it
+without notice. Because anyone can force a miss on a public route, those refetches are
+coalesced into one in-flight request and rate-limited to one per 30 seconds.
 
 The route is mounted **ahead of the global JSON body parser** (`config/express.ts`) with
 `bodyParser.raw`, because the signature covers the exact bytes sent — a parsed and
@@ -110,9 +111,10 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 23. **BRL Base destination variants MUST use token-specific static topology** — Base USDC MUST omit Squid entirely. Other configured non-BRLA Base outputs MUST execute exactly one same-chain `squidRouterSwap` phase before `destinationTransfer`; transaction preparation MUST use the Base builder, omit `squidRouterPay` and backup transactions, and allocate `destinationTransfer` at the nonce immediately after the Squid swap. BRLA remains the direct bypass in invariant 14.
 24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 
-16. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
-17. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
-18. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
+25. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
+26. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
+27. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
+28. **Public-key refetches on a signature miss MUST be bounded** — The route is unauthenticated, so any caller can force a miss. Refetches are coalesced into one in-flight request and rate-limited to one per 30-second cooldown; a miss inside the cooldown is rejected without an outbound call. Key rotation is still picked up (within the cooldown), but forged bodies cannot be amplified into load on Avenia.
 
 ## Threat Vectors & Mitigations
 

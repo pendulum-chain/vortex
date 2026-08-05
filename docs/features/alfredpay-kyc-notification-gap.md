@@ -1,50 +1,40 @@
-# Follow-up: Alfredpay KYC verification emails are never sent
+# Follow-up: Spanish copy for Alfredpay verification emails
 
-Status: open follow-up. Created alongside the email-notifications work, deliberately
-left out of that change to keep its scope to Avenia/Brazil.
+Status: open follow-up, narrowed. The original gap — Alfredpay verification outcomes never
+producing any email — is closed. What remains is that the mail goes out in English.
 
-## The gap
+## What shipped
 
-The `email_notifications` table accepts `provider = 'alfredpay'` — `NotificationProvider.Alfredpay`
-exists in `apps/api/src/models/emailNotification.model.ts` and the `provider` column is a plain
-`VARCHAR(32)` specifically so a new provider needs no `ALTER TYPE`. Nothing ever writes it.
+Alfredpay verification mail now has a producer. `refreshAlfredpayCustomerStatus()` in
+`apps/api/src/api/services/alfredpay/alfredpay-customer.service.ts` enqueues on a terminal
+outcome, and `AlfredpayStatusWorker` (`apps/api/src/api/workers/alfredpay-status.worker.ts`,
+hourly) drives that function for accounts nobody is watching. Rows are keyed
+`(alfredpay, verification_*, submissionId)`. Both KYC and KYB are covered.
 
-Concretely:
+Details of the design — why the enqueue sits in the shared refresh rather than in the
+worker, why it is ordered before the status write, and why `verification_expired` never
+fires for this provider — are in
+[`docs/architecture/email-notifications.md`](../architecture/email-notifications.md) §3.
 
-- `KybStatusWorker` (`apps/api/src/api/workers/kyb-status.worker.ts`) only selects
-  `TaxId` rows with `accountType = COMPANY`, which is the Avenia/BRL path. It enqueues
-  `verification_approved` / `verification_rejected` / `verification_expired` with
-  `provider = 'avenia'`.
-- There is no equivalent poller or webhook consumer for Alfredpay.
+## What is left
 
-So an MXN or COP user whose verification is approved, rejected, or expires is never
-emailed. This is the same gap Brazil had before the KYB worker existed.
+**Alfredpay's users are MX, CO, AR and US. `SUPPORTED_LOCALES` in
+`apps/api/src/api/services/email/types.ts` is still `["en-US", "pt-BR"]`.** `toEmailLocale`
+falls back silently, so a Mexican or Colombian user receives English mail about their
+verification.
 
-## Why it is not just "add another provider to the existing worker"
+This was deliberately deferred: it is translation work, not plumbing, and holding the
+producer back for it would have left the larger gap — no mail at all — open.
 
-The Avenia worker polls one attempt per subaccount, using the `attemptId` persisted to
-`TaxId.kycAttempt` at `initiateKybLevel1`. Alfredpay's verification state does not live in
-`TaxId` at all — it is in `alfredpay_customers` — so the change is a separate poller (or a
-webhook handler if Alfredpay exposes verification events), not a new branch in the current one.
+To close it:
 
-## What already works once something enqueues
+1. Add `es-419` to `SUPPORTED_LOCALES`.
+2. Translate the four templates — `verification-status.ts` (approved / rejected / expired)
+   and `ramp-completed.ts`. Both the `individual` and `business` copy variants need it.
+3. Decide how a user's locale resolves onto it. `SupabaseAuthService.getUserLocale` supplies
+   the locale at enqueue time; whether MX/CO/AR should map to `es-419` by country when the
+   profile carries no locale is the open question.
 
-Nothing downstream needs changing:
-
-- `renderNotification` dispatches purely on `notification.type`, not on provider, so the
-  three verification templates already render for Alfredpay rows.
-- The templates are localised for `en-US` and `pt-BR`. **MXN/COP users will need `es-*`
-  copy** — `SUPPORTED_LOCALES` in `apps/api/src/api/services/email/types.ts` currently has
-  only the two, and `toEmailLocale` silently falls back to `en-US`. This is the one real
-  piece of work beyond the poller.
-- Dedupe, retry/backoff, the recipient allowlist, and the `sending` row claim are all
-  provider-agnostic.
-
-## Suggested shape
-
-1. Decide webhook vs. poll by checking whether Alfredpay emits verification events.
-2. Add `es-419` (or `es-MX` / `es-CO`) to `SUPPORTED_LOCALES` and translate the three
-   verification templates plus `ramp_completed`.
-3. Enqueue with `provider: NotificationProvider.Alfredpay` and `resourceId` set to whatever
-   Alfredpay's stable per-verification identifier is — the unique index is
-   `(provider, type, resource_id)`, so that id is what makes re-notification impossible.
+Note that Alfredpay's `metadata.failureReason` is surfaced verbatim as the `Reason` row, so
+an `es-419` reader can still receive untranslated vendor copy — the same caveat that already
+applies to Avenia's `resultMessage` for `pt-BR`.

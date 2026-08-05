@@ -44,7 +44,8 @@ flowchart LR
     AV["Avenia"] -->|"webhook: KYC + KYB"| WH["POST /v1/webhooks/avenia"]
     WH -->|enqueue| Q
     KW["KybStatusWorker<br/>cron hourly"] -.->|"reconcile (deduped)"| Q
-    Q -->|claim + send| NDW["NotificationDispatchWorker<br/>cron every 1 min"]
+    Q -->|claim + send| NDW["NotificationDispatchWorker<br/>send every 1 min<br/>reconcile hourly"]
+    NDW -.->|"re-enqueue completed ramps<br/>with no row"| Q
     NDW -->|"HTTPS api.resend.com"| R
 
     R --> MB2[Mailbox]
@@ -56,7 +57,7 @@ flowchart LR
 | Auth mail transport | Supabase default / Inbucket | Resend SMTP relay, `vortexfinance.co` |
 | Transactional mail | none | Resend HTTPS API from `apps/api` |
 | Durability | n/a | every email is a DB row before any send |
-| Retries | n/a | 5 attempts, backoff 1/5/15/60/180 min |
+| Retries | n/a | 6 attempts, backoff 1/5/15/60/180 min |
 | Dedupe | n/a | unique `(provider, type, resource_id)` |
 | KYC/KYB outcome visibility | user re-checks manually | Avenia webhook, emailed on settle; hourly poll as fallback |
 | Inbound Avenia events | not consumed | RSA-PSS verified receiver, raw-body mounted |
@@ -90,7 +91,7 @@ deliberately, in exchange for a recognisable sender.
 
 ## 3. Producers — what enqueues, and when
 
-Three producers, all fire-and-forget into the same table. None of them ever sends.
+Four producers, all fire-and-forget into the same table. None of them ever sends.
 
 ```mermaid
 flowchart LR
@@ -98,10 +99,12 @@ flowchart LR
     P1["PhaseProcessor.processPhase()<br/>currentPhase === 'complete'"]
     P2["POST /v1/webhooks/avenia<br/>KYC + KYB events"]
     P3["KybStatusWorker.poll()<br/>hourly reconciliation"]
+    P4["refreshAlfredpayCustomerStatus()<br/>dashboard refresh + hourly sweep"]
   end
   P1 -->|"provider: vortex<br/>type: ramp_completed<br/>resourceId: rampState.id"| Q[(email_notifications)]
   P2 -->|"provider: avenia<br/>type: verification_*<br/>resourceId: attempt.id"| Q
   P3 -.->|"same key — deduped"| Q
+  P4 -->|"provider: alfredpay<br/>type: verification_*<br/>resourceId: submissionId"| Q
 ```
 
 P2 and P3 deliberately overlap. They enqueue through the same
@@ -136,6 +139,13 @@ quote each leg reads from swaps with `rampState.type`:
 Plus `network`, `rampId`, `rampType` and `completedAt`. Enqueue is fire-and-forget: a failure
 is logged but never fails a ramp that already succeeded.
 
+That isolation costs atomicity — the enqueue runs after the terminal phase is persisted, so a
+backend that dies in between leaves a completed ramp with no row, and `complete` is never
+revisited. `NotificationDispatchWorker` therefore reconciles hourly
+(`reconcileMissedRampCompletedEmails()`): ramps that reached `complete` in the last 24 hours
+with a `userId` and no `(vortex, ramp_completed, <ramp id>)` row are re-enqueued. It shares the
+same idempotency key, so a row the inline path did write is untouched.
+
 **Verification (KYC + KYB), primary path** —
 `apps/api/src/api/controllers/avenia-webhook.controller.ts`
 
@@ -146,14 +156,16 @@ Three things make this endpoint unusual and are worth understanding before touch
 
 1. **It is authenticated by signature, not by API key or session.** Avenia signs the raw
    body with RSA-PSS / SHA-256; we verify against their published key from
-   `GET /v2/public-key`. The key is cached for an hour and refetched once on a miss,
+   `GET /v2/public-key`. The key is cached for an hour and refetched on a miss — coalesced
+   and rate-limited to one fetch per 30s, so forged bodies cannot amplify into Avenia load —
    because Avenia's guide states it rotates and must never be pinned.
 2. **It is mounted ahead of the global JSON body parser** in `config/express.ts`, using
    `bodyParser.raw`. The signature covers the exact bytes sent; parsing and re-serialising
    the JSON does not reproduce them byte for byte, so a normally-mounted route could never
    verify.
 3. **Which kind of verification an event describes is read from our own database**, not
-   from the payload — `TaxId.accountType` for the event's `subAccountId`. So this keeps
+   from the payload — `provider_customers.customer_type` for the event's `subAccountId`.
+   It also decides whether the mail says identity or business verification. So this keeps
    working regardless of how Avenia labels company events.
 
 Everything after signature verification answers `200`: a ticket event, an unknown
@@ -168,11 +180,14 @@ under the wildcard because Avenia fetches both kinds from the same `/v2/kyc/atte
 resource — but that is an inference, not a documented guarantee, and if it is wrong the
 failure is silent (no KYB emails, no error). The poll is what makes being wrong survivable.
 
-It selects `TaxId` rows that are `COMPANY` + `Requested` + have a `kycAttempt` + have a
-`userId` + were requested within 60 days, then calls `getKybAttemptStatus(kycAttempt)` for
-each one. It polls **one known attempt id**, not a list: `GET /v2/kyc/attempts` has no
-documented ordering, so picking from it would guess at which attempt a notification
-describes — and that attempt id *is* the dedupe key.
+It selects `kyc_cases` rows that are `provider = 'avenia'` + `type = 'kyb'` + undecided +
+have a `providerCaseId` + belong to an entity with a `profileId` + were last written within
+60 days, then calls `getKybAttemptStatus(providerCaseId)` for each one. It polls **one known
+attempt id**, not a list: `GET /v2/kyc/attempts` has no documented ordering, so picking from
+it would guess at which attempt a notification describes — and that attempt id *is* the
+dedupe key. The window is on `updatedAt`, not `createdAt`: the case row is rebound to a
+fresh attempt on re-initiation, so its creation date says nothing about the attempt in
+flight.
 
 ```mermaid
 stateDiagram-v2
@@ -196,9 +211,57 @@ just collapses to an existing row.
 > `bun register:avenia-webhook` (reads `AVENIA_WEBHOOK_URL`, subscribes with `*`). Until
 > it is, no verification email is sent by the primary path.
 
-> **Deployment note:** the poller's `kycAttempt IS NOT NULL` filter means KYB attempts
+> **Deployment note:** the poller's `providerCaseId IS NOT NULL` filter means KYB attempts
 > started before this deploys are never observed by reconciliation. In dev all 15 `COMPANY`
 > tax_ids have `kyc_attempt = NULL`. Either accept that those never notify, or backfill.
+
+**Verification, Alfredpay (MX / CO / AR / US)** —
+`apps/api/src/api/services/alfredpay/alfredpay-customer.service.ts`
+
+Alfredpay is the one provider with **no webhook at all** — `AlfredpayApiService` exposes
+only request/response methods, and Alfredpay publishes no verification events. So there is
+no primary push path here and nothing to reconcile against: a status poll is the only way an
+outcome is ever seen.
+
+That poll is `refreshAlfredpayCustomerStatus()`, which resolves the account's latest
+submission id, calls `getKycStatus`/`getKybStatus` for it, maps the result, and persists it.
+It has two callers and the enqueue sits inside it rather than in either one:
+
+| Caller | When | Covers |
+| --- | --- | --- |
+| `onboarding.controller.ts` | dashboard status aggregation, TTL-throttled per account | the user who comes back to look |
+| `AlfredpayStatusWorker` | hourly, `15 * * * *` | the user who never returns |
+
+Both callers select on a *non-terminal stored status*, so an account drops out of every
+future poll the moment its outcome is written. Whichever caller observes the transition is
+therefore the only one that will ever see it — which is exactly why the enqueue lives in the
+shared function and not in the worker.
+
+For the same reason the enqueue is ordered **before** the status write. An account persisted
+terminal while the enqueue failed would be filtered out of every subsequent poll and its
+mail lost for good; failing first leaves the account non-terminal so the next poll retries
+the outcome and the email together. (The Avenia path does not need this — its webhook
+re-delivers, and the reconciliation poll keys off an attempt id that stays pollable.)
+
+Two behavioural differences from Avenia worth knowing:
+
+- **`verification_expired` never fires for Alfredpay.** `AlfredpayKycStatus` has no expiry.
+  `COMPLETED` and `FAILED` are the only terminal values; `CREATED`, `PENDING` and
+  `IN_REVIEW` are still in flight and `UPDATE_REQUIRED` is resumable in the wizard.
+- **The dedupe key is the submission id**, not an attempt id. A resubmission after a
+  rejection carries a fresh `submissionId`, so it correctly mails again rather than
+  collapsing into the earlier row.
+
+The sweep is bounded on both axes — 60 days of `provider_customers.updatedAt` and 250
+accounts per cycle, most-recently-touched first — because an account abandoned mid-wizard
+stays non-terminal forever and each one costs two to three Alfredpay calls. A truncated
+cycle logs a warning rather than silently dropping the remainder. Entities with no
+`profileId` (partner-owned) are excluded in the query, not skipped in the loop, so they
+never spend provider calls.
+
+> **Locale note:** Alfredpay's users are MX/CO/AR/US, and `SUPPORTED_LOCALES` is still
+> `en-US` and `pt-BR` only. `toEmailLocale` falls back silently, so these users receive
+> **English**. See §10.
 
 ---
 
@@ -309,10 +372,10 @@ flowchart LR
   L --> O["{ subject, html, text }"]
 ```
 
-- Dispatch is on **type only**, not provider — so a future Alfredpay row renders through
-  the same three verification templates with no changes.
+- Dispatch is on **type only**, not provider — which is why Alfredpay rows needed no
+  template work at all: they render through the same verification templates as Avenia.
 - Locales: `en-US`, `pt-BR`. `toEmailLocale` falls back to `en-US` for anything else, which
-  today silently catches MXN/COP users — see the Alfredpay follow-up.
+  today silently catches Alfredpay's MX/CO/AR users — see the `es-419` follow-up in §10.
 - Templates import nothing from the database layer, which is what makes
   `bun preview:emails` able to render them standalone.
 - Every interpolated value is HTML-escaped; Avenia's `resultMessage` is additionally capped
@@ -370,6 +433,9 @@ apps/api/src/
 │   │   ├── verification-notifications.ts  terminal-state mapping, shared enqueue
 │   │   ├── webhook-signature.ts           RSA-PSS verify + cached Avenia public key
 │   │   └── webhook-signature.test.ts
+│   ├── services/alfredpay/
+│   │   ├── verification-notifications.ts  terminal-state mapping, enqueue (submissionId key)
+│   │   └── alfredpay-customer.service.ts  refreshAlfredpayCustomerStatus — the only producer
 │   ├── services/email/
 │   │   ├── index.ts                    barrel
 │   │   ├── notification.service.ts     enqueue, claim, deliver, retry, stale-release
@@ -383,7 +449,8 @@ apps/api/src/
 │   │       └── verification-status.ts  approved / rejected / expired
 │   ├── workers/
 │   │   ├── notification-dispatch.worker.ts   cron 1m — the only sender
-│   │   └── kyb-status.worker.ts              cron 1h — reconciliation behind the webhook
+│   │   ├── kyb-status.worker.ts              cron 1h — reconciliation behind the webhook
+│   │   └── alfredpay-status.worker.ts        cron 1h — Alfredpay's only background watcher
 │   ├── routes/v1/avenia-webhook.route.ts     POST /v1/webhooks/avenia
 │   ├── controllers/avenia-webhook.controller.ts  primary KYC + KYB producer
 │   ├── services/phases/phase-processor.ts    fires the ramp-completion producer
@@ -404,8 +471,10 @@ apps/api/src/
   check for the `Avenia COMPANY verification webhook` log line. If it appears, delete
   `KybStatusWorker` — the reconciliation poll exists only to cover this unknown. If it does
   not, the poll is load-bearing and must stay.
-- Alfredpay (MXN/COP) verification mail — nothing writes `provider = 'alfredpay'` yet, and
-  there is no `es-*` locale. See [`docs/features/alfredpay-kyc-notification-gap.md`](../features/alfredpay-kyc-notification-gap.md).
+- **Spanish copy.** Alfredpay verification mail now ships, but `SUPPORTED_LOCALES` has no
+  `es-*`, so MX/CO/AR users are silently served `en-US`. Adding `es-419` means translating
+  the three verification templates plus `ramp_completed` and mapping those countries onto
+  it. See [`docs/features/alfredpay-kyc-notification-gap.md`](../features/alfredpay-kyc-notification-gap.md).
 - Gate sending on `notification_preferences.email_enabled` (§7).
 - Decide whether to backfill `TaxId.kycAttempt` for in-flight KYB attempts (§3). The
   attemptId is only persisted from `initiateKybLevel1` onward, so COMPANY `tax_ids` rows
