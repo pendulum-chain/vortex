@@ -63,6 +63,8 @@ Entries without an unambiguous valid subject remain blocked; they are not migrat
 
 ## 4. Materialize Unified Credentials
 
+These commands are pre-061 tooling and cannot run after the legacy table is dropped.
+
 1. Run `bun credentials:preflight --manifest <manifest.json>` from `apps/api`. It must prove every active legacy row is explicitly mapped exactly once or already revoked, every immutable profile/partner exists, each pair has the correct types/ownership/environment, and every secret has a SHA-256 digest.
 2. Run `bun credentials:migrate --manifest <manifest.json>`. In one database transaction it creates each unified row from the explicit pair and revokes exactly those mapped legacy rows.
 3. Verify the transaction result and record each new immutable credential ID in the deployment record.
@@ -85,8 +87,8 @@ Also verify every `api_credentials` row has matching environment/expiry for both
 
 ## 6. Deploy And Verify
 
-1. Deploy migrations and the credential-aware API with no legacy request-path reader.
-2. Confirm startup passes the schema/index/constraint checks and the active-legacy-row assertion before the listener starts.
+1. Deploy migrations through `061-drop-legacy-api-keys` and the credential-aware API with no legacy request-path reader.
+2. Confirm startup passes the `api_credentials` schema/index/constraint checks and verifies that the legacy `api_keys` table is absent before the listener starts.
 3. Smoke-test a public quote, public sanitized `GET /v1/ramp-info`, secret ramp registration, secret webhook management, secret-only operation with no public key, matching public+secret pair, and `403 CREDENTIAL_MISMATCH` for different pairs.
 4. Revoke a test credential by credential ID and confirm both public and secret values fail immediately.
 5. Confirm list responses never expose secret values and active creation cannot exceed five credentials per profile.

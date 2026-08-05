@@ -91,7 +91,7 @@ Its response is an allowlisted per-corridor projection:
 16. **Ramp registration MUST resolve a real profile**: secret credentials and sessions act only for their bound profile; public keys cannot register ramps or select a profile.
 17. **Managed partner subjects MUST be first-class identities**: each real individual, business, or technical subject gets a genuine unique profile and immutable partner/external-user association; individual/business subjects get the matching customer entity, while technical subjects get none and cannot perform customer or ramp operations. No shared dummy profile is allowed.
 18. **There MUST be no legacy request-path fallback**: runtime validation reads only `api_credentials`; it does not read `api_keys`, bcrypt hashes, old prefixes, unpaired halves, or name-based relationships.
-19. **Startup MUST fail closed**: after migrations and before listening, the API verifies required `api_credentials` columns, nullability, indexes, constraints, and zero active `api_keys` rows. Any failure prevents serving traffic.
+19. **Startup MUST fail closed**: after migrations and before listening, the API verifies required `api_credentials` columns, nullability, indexes, constraints, and that the legacy `api_keys` table is absent. Any failure prevents serving traffic.
 20. **`ramp-info` MUST be subject-derived and sanitized**: it accepts no user selector and returns only the documented KYC state and buy/sell booleans.
 
 ## Threat Vectors & Mitigations
@@ -105,7 +105,7 @@ Its response is an allowlisted per-corridor projection:
 | Concurrent creation exceeds the cap | Lock the profile, count active non-expired credentials, and insert in one transaction. |
 | Revocation leaves one half active | One row and one `revoked_at` update disable both values. |
 | Partner deactivation leaves one half active | Public and secret validation both require the credential's partner to be active. |
-| Legacy or ambiguous rows remain reachable | No legacy runtime lookup; startup refuses active legacy rows. Production migration uses explicit immutable-ID mappings, never names. |
+| Legacy or ambiguous rows remain reachable | No legacy runtime lookup; migration 061 rejects active legacy rows and removes the table, and startup requires it to be absent. Production migration uses explicit immutable-ID mappings, never names. |
 | Shared managed identity crosses customer ownership | Require one genuine managed profile per subject and immutable partner/external-user association. |
 | Public eligibility read leaks PII or exact limits | `ramp-info` uses an explicit projection and accepts no subject selector. |
 
@@ -118,7 +118,7 @@ Its response is an allowlisted per-corridor projection:
 - [x] Self-service and admin adapters call the same create/list/revoke service.
 - [x] Revocation performs one owner-scoped credential update and takes no paired-key body.
 - [x] Public/body/header and public/secret mismatches return `403 CREDENTIAL_MISMATCH`.
-- [x] Startup validates the credential schema and refuses any active legacy `api_keys` row.
+- [x] Startup validates the credential schema and requires the legacy `api_keys` table to be absent.
 - [ ] Verify deployment data has zero active legacy, unpaired, or ownerless credentials before cutover; source code cannot prove production data state.
 - [x] Managed-profile provisioning is admin-authenticated, idempotent by immutable partner/external-user IDs, unique by profile, rejects conflicting email/association reuse, creates the correct individual/business entity, leaves technical subjects entity-less, and records claims after verified OTP.
 - [ ] Add route-level public/secret authentication and cross-user tests for `GET /v1/ramp-info`; the route and sanitized service/controller projection exist, but current tests do not exercise the complete HTTP middleware chain.

@@ -2,6 +2,7 @@ import { DataTypes, Model, Optional } from "sequelize";
 import sequelize from "../config/database";
 import type Partner from "./partner.model";
 
+// Pre-061 credential migration tooling only. Runtime authentication uses ApiCredential.
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
   id: string;
