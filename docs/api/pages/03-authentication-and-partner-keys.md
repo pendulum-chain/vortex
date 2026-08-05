@@ -12,13 +12,13 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Task | Public value | Secret value | Supabase Bearer |
 |---|---:|---:|---:|
 | Quote/widget attribution | Yes | Yes | Yes |
-| Sanitized `GET /v1/ramp-info` | Yes | Yes | Yes |
+| Sanitized `GET /v1/ramp-info` | Yes | Yes | No |
 | Exact limits and provider-account reads | No | Yes | Yes |
 | Ramp register/update/start/status/history/errors | No | Yes | Yes |
 | Webhook management | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
-`GET /v1/ramp-info` returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. It does not accept a profile/user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
+`GET /v1/ramp-info` requires `X-Public-Key` or `X-API-Key`; a Supabase Bearer session does not authorize this endpoint. It returns only per-corridor `kycStatus`, `canBuy`, and `canSell`. It does not accept a profile/user selector and does not expose PII, provider identifiers, KYC failure reasons, account details, ramp history, or exact limits.
 
 ## Subject And Partner Binding
 

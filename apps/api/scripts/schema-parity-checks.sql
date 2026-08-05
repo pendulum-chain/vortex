@@ -1,7 +1,15 @@
--- Parity checks for the 038-049 schema migration (run after each deploy of the 038-049 set; see docs/architecture-identity-model.md).
+-- Parity checks for the 038-049 schema migration and the migration 060 production gate.
+-- Run according to docs/operations-legacy-schema-cleanup.md.
 -- Read-only. Mirrors the backfill rules of migrations 038/039/040 exactly, so:
 --   * PARITY checks must return 0 — any non-zero row count is a real backfill gap.
 --   * INFO checks are expected to be non-zero; they size the deliberately-skipped buckets.
+--   * The final MIGRATION GATE lists every blocking source row by non-PII identifier and
+--     raises an exception unless each eligible row has the exact canonical identity mapping.
+-- Execute with psql. ON_ERROR_STOP gives automation a non-zero exit on gate failure, while
+-- REPEATABLE READ guarantees that the report and final gate inspect one stable snapshot.
+
+\set ON_ERROR_STOP on
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 --
 -- Section 0: sanity — if these return 0 on a database that has data, the readonly role
 -- is being filtered by row-level security (new tables have RLS enabled with no policies;
@@ -27,41 +35,66 @@ WHERE NOT EXISTS (SELECT 1 FROM customer_entities ce WHERE ce.profile_id = p.id)
 
 UNION ALL
 
--- 1b. Mykobo: eligible = has an owning entity; keyed by email.
-SELECT '1b. PARITY mykobo rows missing in provider_customers (expect 0)', count(*)
+-- 1b. Mykobo: eligible = has an owning entity; verify the complete immutable mapping.
+SELECT '1b. PARITY mykobo rows incorrectly mapped (expect 0)', count(*)
 FROM mykobo_customers m
-JOIN customer_entities ce ON ce.profile_id = m.user_id
 WHERE NOT EXISTS (
-  SELECT 1 FROM provider_customers pc
-  WHERE pc.provider = 'mykobo' AND pc.provider_customer_id = m.email
+  SELECT 1
+  FROM provider_customers pc
+  JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE pc.provider = 'mykobo'
+    AND pc.provider_customer_id = m.email
+    AND ce.profile_id = m.user_id
+    AND pc.rail = 'eur'
+    AND pc.country IS NULL
+    AND pc.customer_type = LOWER(m.type::text)
 )
 
 UNION ALL
 
--- 1c. Alfredpay: eligible = latest row per (user, country, type) with an owning entity.
-SELECT '1c. PARITY alfredpay rows missing in provider_customers (expect 0)', count(*)
+-- 1c. Alfredpay: eligible = latest row per (user, country, type); verify the complete
+--     immutable mapping. Older rows in each group remain in the approved-loss INFO bucket.
+SELECT '1c. PARITY alfredpay rows incorrectly mapped (expect 0)', count(*)
 FROM (
   SELECT DISTINCT ON (a.user_id, a.country, a.type) a.*
   FROM alfredpay_customers a
   ORDER BY a.user_id, a.country, a.type, a.updated_at DESC
 ) s
-JOIN customer_entities ce ON ce.profile_id = s.user_id
 WHERE NOT EXISTS (
-  SELECT 1 FROM provider_customers pc
-  WHERE pc.provider = 'alfredpay' AND pc.provider_customer_id = s.alfred_pay_id
+  SELECT 1
+  FROM provider_customers pc
+  JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE pc.provider = 'alfredpay'
+    AND pc.provider_customer_id = s.alfred_pay_id
+    AND ce.profile_id = s.user_id
+    AND pc.rail IS NOT DISTINCT FROM CASE s.country::text
+      WHEN 'MX' THEN 'mxn' WHEN 'AR' THEN 'ars' WHEN 'CO' THEN 'cop' WHEN 'US' THEN 'usd'
+      WHEN 'BR' THEN 'brl' WHEN 'DO' THEN 'dop' WHEN 'CN' THEN 'cny' WHEN 'HK' THEN 'hkd'
+      WHEN 'CL' THEN 'clp' WHEN 'PE' THEN 'pen' WHEN 'BO' THEN 'bob'
+    END
+    AND pc.country = s.country::text
+    AND pc.customer_type = LOWER(s.type::text)
 )
 
 UNION ALL
 
--- 1d. Avenia: eligible = owned tax_ids rows (user_id set) with an owning entity; keyed by hash.
-SELECT '1d. PARITY owned tax_ids missing in provider_customers (expect 0)', count(*)
+-- 1d. Avenia: eligible = owned tax_ids rows (user_id set); verify the complete immutable
+--     mapping. provider_subaccount_id and status are mutable after migration and are audited
+--     separately rather than treated as proof of a backfill defect.
+SELECT '1d. PARITY owned tax_ids incorrectly mapped (expect 0)', count(*)
 FROM tax_ids t
-JOIN customer_entities ce ON ce.profile_id = t.user_id
 WHERE t.user_id IS NOT NULL
   AND NOT EXISTS (
-    SELECT 1 FROM provider_customers pc
+    SELECT 1
+    FROM provider_customers pc
+    JOIN customer_entities ce ON ce.id = pc.customer_entity_id
     WHERE pc.provider = 'avenia'
       AND pc.tax_reference_hash = encode(sha256(convert_to(t.tax_id, 'UTF8')), 'hex')
+      AND pc.tax_reference = t.tax_id
+      AND ce.profile_id = t.user_id
+      AND pc.rail = 'brl'
+      AND pc.country = 'BR'
+      AND pc.customer_type = CASE t.account_type::text WHEN 'COMPANY' THEN 'business' ELSE 'individual' END
   )
 
 UNION ALL
@@ -152,7 +185,13 @@ UNION ALL
 --     revoked under the new validators; confirm nothing you rely on is in here.
 SELECT '2g. INFO api_keys orphaned (partner_name set, partner_id NULL, active)', count(*)
 FROM api_keys
-WHERE partner_name IS NOT NULL AND partner_id IS NULL AND is_active;
+WHERE partner_name IS NOT NULL AND partner_id IS NULL AND is_active
+
+UNION ALL
+
+-- 2h. Explicitly approved for deletion with no conversion.
+SELECT '2h. INFO kyc_level_2 rows intentionally not converted', count(*)
+FROM kyc_level_2;
 
 -- ---------------------------------------------------------------------------
 -- Section 3: STATUS DRIFT -- same account, different status between legacy and new.
@@ -202,3 +241,268 @@ WHERE t.user_id IS NOT NULL
     WHEN COALESCE(t.internal_status::text, 'Consulted') = 'Consulted' THEN 'started'
     ELSE 'pending'
   END IS DISTINCT FROM pc.status;
+
+-- ---------------------------------------------------------------------------
+-- Section 4: MIGRATION GATE — exact legacy-to-canonical identity mapping.
+--
+-- Run this section immediately before migration 060. It deliberately excludes approved-loss
+-- buckets (ownerless tax_ids, folded Alfredpay history, and all kyc_level_2 rows), which remain
+-- visible in Section 2. Any row returned below is an unapproved migration defect. Source IDs are
+-- UUIDs or one-way tax hashes; email addresses and raw tax IDs are not emitted.
+-- ---------------------------------------------------------------------------
+
+WITH alfredpay_source AS (
+  SELECT DISTINCT ON (a.user_id, a.country, a.type) a.*
+  FROM alfredpay_customers a
+  ORDER BY a.user_id, a.country, a.type, a.updated_at DESC
+), findings AS (
+  SELECT
+    'profile'::text AS source,
+    p.id::text AS source_id,
+    p.id AS expected_profile_id,
+    NULL::uuid AS canonical_provider_customer_id,
+    'profile has no customer entity'::text AS issue
+  FROM profiles p
+  WHERE NOT EXISTS (SELECT 1 FROM customer_entities ce WHERE ce.profile_id = p.id)
+
+  UNION ALL
+
+  SELECT
+    'mykobo_customers',
+    m.id::text,
+    m.user_id,
+    pc.id,
+    CASE
+      WHEN NOT EXISTS (SELECT 1 FROM customer_entities ce WHERE ce.profile_id = m.user_id)
+        THEN 'legacy owner has no customer entity'
+      WHEN pc.id IS NULL THEN 'canonical provider customer is missing'
+      WHEN ce.profile_id IS DISTINCT FROM m.user_id THEN 'canonical provider customer belongs to the wrong profile'
+      ELSE 'canonical rail, country, or customer type does not match migration 040'
+    END
+  FROM mykobo_customers m
+  LEFT JOIN provider_customers pc
+    ON pc.provider = 'mykobo' AND pc.provider_customer_id = m.email
+  LEFT JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE pc.id IS NULL
+     OR ce.profile_id IS DISTINCT FROM m.user_id
+     OR pc.rail IS DISTINCT FROM 'eur'
+     OR pc.country IS NOT NULL
+     OR pc.customer_type IS DISTINCT FROM LOWER(m.type::text)
+
+  UNION ALL
+
+  SELECT
+    'alfredpay_customers',
+    STRING_AGG(a.id::text, ',' ORDER BY a.id),
+    a.user_id,
+    NULL::uuid,
+    'multiple rows tie for latest updated_at; migration 040 selection cannot be proven deterministically'
+  FROM alfredpay_customers a
+  WHERE a.updated_at = (
+    SELECT MAX(candidate.updated_at)
+    FROM alfredpay_customers candidate
+    WHERE candidate.user_id = a.user_id
+      AND candidate.country = a.country
+      AND candidate.type = a.type
+  )
+  GROUP BY a.user_id, a.country, a.type, a.updated_at
+  HAVING COUNT(*) > 1
+
+  UNION ALL
+
+  SELECT
+    'alfredpay_customers',
+    s.id::text,
+    s.user_id,
+    pc.id,
+    CASE
+      WHEN NOT EXISTS (SELECT 1 FROM customer_entities ce WHERE ce.profile_id = s.user_id)
+        THEN 'legacy owner has no customer entity'
+      WHEN pc.id IS NULL THEN 'canonical provider customer is missing'
+      WHEN ce.profile_id IS DISTINCT FROM s.user_id THEN 'canonical provider customer belongs to the wrong profile'
+      ELSE 'canonical rail, country, or customer type does not match migration 040'
+    END
+  FROM alfredpay_source s
+  LEFT JOIN provider_customers pc
+    ON pc.provider = 'alfredpay' AND pc.provider_customer_id = s.alfred_pay_id
+  LEFT JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE pc.id IS NULL
+     OR ce.profile_id IS DISTINCT FROM s.user_id
+     OR pc.rail IS DISTINCT FROM CASE s.country::text
+       WHEN 'MX' THEN 'mxn' WHEN 'AR' THEN 'ars' WHEN 'CO' THEN 'cop' WHEN 'US' THEN 'usd'
+       WHEN 'BR' THEN 'brl' WHEN 'DO' THEN 'dop' WHEN 'CN' THEN 'cny' WHEN 'HK' THEN 'hkd'
+       WHEN 'CL' THEN 'clp' WHEN 'PE' THEN 'pen' WHEN 'BO' THEN 'bob'
+     END
+     OR pc.country IS DISTINCT FROM s.country::text
+     OR pc.customer_type IS DISTINCT FROM LOWER(s.type::text)
+
+  UNION ALL
+
+  SELECT
+    'tax_ids',
+    encode(sha256(convert_to(t.tax_id, 'UTF8')), 'hex'),
+    t.user_id,
+    pc.id,
+    CASE
+      WHEN NOT EXISTS (SELECT 1 FROM customer_entities owner_ce WHERE owner_ce.profile_id = t.user_id)
+        THEN 'legacy owner has no customer entity'
+      WHEN pc.id IS NULL THEN 'canonical provider customer is missing'
+      WHEN ce.profile_id IS DISTINCT FROM t.user_id THEN 'canonical provider customer belongs to the wrong profile'
+      ELSE 'canonical tax reference, rail, country, or customer type does not match migration 040'
+    END
+  FROM tax_ids t
+  LEFT JOIN provider_customers pc
+    ON pc.provider = 'avenia'
+   AND pc.tax_reference_hash = encode(sha256(convert_to(t.tax_id, 'UTF8')), 'hex')
+  LEFT JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE t.user_id IS NOT NULL
+    AND (
+      pc.id IS NULL
+      OR pc.tax_reference IS DISTINCT FROM t.tax_id
+      OR ce.profile_id IS DISTINCT FROM t.user_id
+      OR pc.rail IS DISTINCT FROM 'brl'
+      OR pc.country IS DISTINCT FROM 'BR'
+      OR pc.customer_type IS DISTINCT FROM CASE t.account_type::text
+        WHEN 'COMPANY' THEN 'business' ELSE 'individual'
+      END
+    )
+
+  UNION ALL
+
+  SELECT
+    'provider_customers',
+    pc.id::text,
+    ce.profile_id,
+    pc.id,
+    'canonical provider customer has no matching KYC case'
+  FROM provider_customers pc
+  JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+  WHERE pc.provider IN ('mykobo', 'alfredpay', 'avenia')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM kyc_cases k
+      WHERE k.provider_customer_id = pc.id
+        AND k.customer_entity_id = pc.customer_entity_id
+        AND k.provider = pc.provider
+    )
+)
+SELECT source, source_id, expected_profile_id, canonical_provider_customer_id, issue
+FROM findings
+ORDER BY source, source_id;
+
+-- Fail closed so unattended psql execution cannot mistake a result set for success. This is
+-- intentionally repeated instead of relying on client-side variables: the gate works in any
+-- PostgreSQL client that executes the complete file.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM profiles p
+    WHERE NOT EXISTS (SELECT 1 FROM customer_entities ce WHERE ce.profile_id = p.id)
+  ) THEN
+    RAISE EXCEPTION 'MIGRATION GATE FAILED: profiles without customer entities exist; inspect Section 4';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM mykobo_customers m
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM provider_customers pc
+      JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+      WHERE pc.provider = 'mykobo'
+        AND pc.provider_customer_id = m.email
+        AND ce.profile_id = m.user_id
+        AND pc.rail = 'eur'
+        AND pc.country IS NULL
+        AND pc.customer_type = LOWER(m.type::text)
+        AND EXISTS (
+          SELECT 1 FROM kyc_cases k
+          WHERE k.provider_customer_id = pc.id
+            AND k.customer_entity_id = pc.customer_entity_id
+            AND k.provider = pc.provider
+        )
+    )
+  ) THEN
+    RAISE EXCEPTION 'MIGRATION GATE FAILED: Mykobo migration defects exist; inspect Section 4';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM alfredpay_customers a
+    WHERE a.updated_at = (
+      SELECT MAX(candidate.updated_at)
+      FROM alfredpay_customers candidate
+      WHERE candidate.user_id = a.user_id
+        AND candidate.country = a.country
+        AND candidate.type = a.type
+    )
+    GROUP BY a.user_id, a.country, a.type, a.updated_at
+    HAVING COUNT(*) > 1
+  ) THEN
+    RAISE EXCEPTION 'MIGRATION GATE FAILED: ambiguous Alfredpay latest-row ties exist; inspect Section 4';
+  END IF;
+
+  IF EXISTS (
+    WITH source AS (
+      SELECT DISTINCT ON (a.user_id, a.country, a.type) a.*
+      FROM alfredpay_customers a
+      ORDER BY a.user_id, a.country, a.type, a.updated_at DESC
+    )
+    SELECT 1
+    FROM source s
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM provider_customers pc
+      JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+      WHERE pc.provider = 'alfredpay'
+        AND pc.provider_customer_id = s.alfred_pay_id
+        AND ce.profile_id = s.user_id
+        AND pc.rail IS NOT DISTINCT FROM CASE s.country::text
+          WHEN 'MX' THEN 'mxn' WHEN 'AR' THEN 'ars' WHEN 'CO' THEN 'cop' WHEN 'US' THEN 'usd'
+          WHEN 'BR' THEN 'brl' WHEN 'DO' THEN 'dop' WHEN 'CN' THEN 'cny' WHEN 'HK' THEN 'hkd'
+          WHEN 'CL' THEN 'clp' WHEN 'PE' THEN 'pen' WHEN 'BO' THEN 'bob'
+        END
+        AND pc.country = s.country::text
+        AND pc.customer_type = LOWER(s.type::text)
+        AND EXISTS (
+          SELECT 1 FROM kyc_cases k
+          WHERE k.provider_customer_id = pc.id
+            AND k.customer_entity_id = pc.customer_entity_id
+            AND k.provider = pc.provider
+        )
+    )
+  ) THEN
+    RAISE EXCEPTION 'MIGRATION GATE FAILED: Alfredpay migration defects exist; inspect Section 4';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM tax_ids t
+    WHERE t.user_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM provider_customers pc
+        JOIN customer_entities ce ON ce.id = pc.customer_entity_id
+        WHERE pc.provider = 'avenia'
+          AND pc.tax_reference_hash = encode(sha256(convert_to(t.tax_id, 'UTF8')), 'hex')
+          AND pc.tax_reference = t.tax_id
+          AND ce.profile_id = t.user_id
+          AND pc.rail = 'brl'
+          AND pc.country = 'BR'
+          AND pc.customer_type = CASE t.account_type::text WHEN 'COMPANY' THEN 'business' ELSE 'individual' END
+          AND EXISTS (
+            SELECT 1 FROM kyc_cases k
+            WHERE k.provider_customer_id = pc.id
+              AND k.customer_entity_id = pc.customer_entity_id
+              AND k.provider = pc.provider
+          )
+      )
+  ) THEN
+    RAISE EXCEPTION 'MIGRATION GATE FAILED: Avenia migration defects exist; inspect Section 4';
+  END IF;
+
+  RAISE NOTICE 'MIGRATION GATE PASSED: every eligible legacy provider row has the exact canonical identity mapping and KYC case';
+END
+$$;
+
+COMMIT;

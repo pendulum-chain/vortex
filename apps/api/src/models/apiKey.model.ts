@@ -5,8 +5,6 @@ import type Partner from "./partner.model";
 // Define the attributes of the ApiKey model
 export interface ApiKeyAttributes {
   id: string;
-  /** Legacy backup column — authorization resolves through partnerId; never read this. */
-  partnerName: string | null;
   partnerId: string | null;
   keyType: "public" | "secret";
   keyHash: string | null;
@@ -33,7 +31,6 @@ type ApiKeyCreationAttributes = Optional<
   | "lastUsedAt"
   | "expiresAt"
   | "revokedAt"
-  | "partnerName"
   | "partnerId"
   | "userId"
   | "createdAt"
@@ -43,8 +40,6 @@ type ApiKeyCreationAttributes = Optional<
 // Define the ApiKey model
 class ApiKey extends Model<ApiKeyAttributes, ApiKeyCreationAttributes> implements ApiKeyAttributes {
   declare id: string;
-
-  declare partnerName: string | null;
 
   declare partnerId: string | null;
 
@@ -146,11 +141,6 @@ ApiKey.init(
       },
       type: DataTypes.UUID
     },
-    partnerName: {
-      allowNull: true,
-      field: "partner_name",
-      type: DataTypes.STRING(100)
-    },
     revokedAt: {
       allowNull: true,
       field: "revoked_at",
@@ -180,10 +170,6 @@ ApiKey.init(
   },
   {
     indexes: [
-      {
-        fields: ["partner_name"],
-        name: "idx_api_keys_partner_name"
-      },
       {
         fields: ["partner_id"],
         name: "idx_api_keys_partner_id"

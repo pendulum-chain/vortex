@@ -4,7 +4,8 @@ import { Op } from "sequelize";
 import RampState from "../../../models/rampState.model";
 import {
   clearAlfredpayMonthlyUsageCache,
-  getAlfredpayMonthlyUsage,
+  getAlfredpayMonthlyUsageForEnforcement,
+  getReportedAlfredpayMonthlyUsage,
   resolveAlfredpayQuoteLimits
 } from "./alfredpay.helpers";
 
@@ -24,7 +25,7 @@ describe("resolveAlfredpayQuoteLimits", () => {
   });
 });
 
-describe("getAlfredpayMonthlyUsage", () => {
+describe("Alfredpay monthly usage", () => {
   const originalFindAll = RampState.findAll;
 
   beforeEach(() => clearAlfredpayMonthlyUsageCache());
@@ -34,7 +35,35 @@ describe("getAlfredpayMonthlyUsage", () => {
     clearAlfredpayMonthlyUsageCache();
   });
 
-  it("counts routed provider-leg amounts and caches the monthly aggregate", async () => {
+  it("queries uncached direct-pair usage for quote enforcement", async () => {
+    let query:
+      | {
+          include: Array<{ where: Record<string, unknown> }>;
+          where: { createdAt?: unknown; type?: RampDirection };
+        }
+      | undefined;
+    const findAll = mock(async () => [
+      {
+        quote: { inputAmount: "12.75" }
+      }
+    ]);
+    RampState.findAll = mock(async options => {
+      query = options as typeof query;
+      return findAll();
+    }) as unknown as typeof RampState.findAll;
+
+    expect(
+      (await getAlfredpayMonthlyUsageForEnforcement("user-1", RampDirection.SELL, FiatToken.COP, "USDT")).toFixed()
+    ).toBe("12.75");
+    await getAlfredpayMonthlyUsageForEnforcement("user-1", RampDirection.SELL, FiatToken.COP, "USDT");
+
+    expect(findAll).toHaveBeenCalledTimes(2);
+    expect(query?.where.createdAt).toBeDefined();
+    expect(query?.where.type).toBe(RampDirection.SELL);
+    expect(query?.include[0].where).toEqual({ inputCurrency: "USDT", outputCurrency: FiatToken.COP });
+  });
+
+  it("counts routed provider-leg amounts and caches the reported aggregate", async () => {
     let query: { where: { [Op.and]: { val: string }; createdAt?: unknown } } | undefined;
     const findAll = mock(async () => [
       {
@@ -69,12 +98,12 @@ describe("getAlfredpayMonthlyUsage", () => {
       return findAll();
     }) as unknown as typeof RampState.findAll;
 
-    expect((await getAlfredpayMonthlyUsage("user-1", RampDirection.BUY, FiatToken.MXN, "USDT")).toFixed()).toBe(
+    expect((await getReportedAlfredpayMonthlyUsage("user-1", RampDirection.BUY, FiatToken.MXN, "USDT")).toFixed()).toBe(
       "125.5"
     );
-    expect((await getAlfredpayMonthlyUsage("user-1", RampDirection.SELL, FiatToken.MXN, "USDT")).toFixed()).toBe(
-      "40.25"
-    );
+    expect(
+      (await getReportedAlfredpayMonthlyUsage("user-1", RampDirection.SELL, FiatToken.MXN, "USDT")).toFixed()
+    ).toBe("40.25");
     expect(findAll).toHaveBeenCalledTimes(1);
     expect(query?.where.createdAt).toBeUndefined();
     expect(query?.where[Op.and].val).toContain("phase_history");
@@ -94,7 +123,7 @@ describe("getAlfredpayMonthlyUsage", () => {
       }
     ]) as unknown as typeof RampState.findAll;
 
-    const used = await getAlfredpayMonthlyUsage("user-1", RampDirection.SELL, FiatToken.COP, "USDT");
+    const used = await getReportedAlfredpayMonthlyUsage("user-1", RampDirection.SELL, FiatToken.COP, "USDT");
     expect(used.toFixed()).toBe("12.75");
   });
 });

@@ -22,18 +22,21 @@ import { PAYMENT_METHOD_LABEL } from "@/domain/transfer";
 import type { CorridorId } from "@/domain/types";
 import { useApprovedCorridors } from "@/hooks/useApprovedCorridors";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { clampDecimals, stripTrailingSeparator } from "@/lib/amount";
+import {
+  CRYPTO_DISPLAY_DECIMALS,
+  clampDecimals,
+  FIAT_DISPLAY_DECIMALS,
+  formatAmount,
+  stripTrailingSeparator
+} from "@/lib/amount";
 import { springSnappy } from "@/lib/motion";
 import { useQuote } from "@/services/api/hooks";
 import { QuoteSummary } from "../transfer/QuoteSummary";
 import { TokenCombobox } from "../transfer/TokenCombobox";
-import { AmountInput, AmountPanel, formatAmount } from "./AmountPanel";
+import { AmountInput, AmountPanel } from "./AmountPanel";
 
 const AMOUNT_DEBOUNCE_MS = 400;
-
-// Fiat rails settle to cents; on-chain amounts are quoted at six decimals like the ramp wire format.
-const FIAT_DECIMALS = 2;
-const TOKEN_DECIMALS = 6;
+const DEFAULT_TOKEN_DECIMALS = 18;
 
 // Every corridor is quotable in both directions — /quotes is anonymous and prices EUR BUYs to
 // EVM chains too. Whether the sender can act on the price is the CTA's concern, not the picker's.
@@ -137,13 +140,15 @@ export function QuoteExplorer() {
 
   // The one inversion for the whole screen: on BUY the sender pays fiat and receives the token,
   // on SELL it is the other way round. Everything below reads the leg, never `isBuy`.
-  const fiatLeg = { decimals: FIAT_DECIMALS, hint: railHint, selector: fiatSelector };
-  const tokenLeg = { decimals: token?.token.decimals ?? TOKEN_DECIMALS, hint: networkHint, selector: tokenSelector };
+  const fiatLeg = { hint: railHint, selector: fiatSelector };
+  const tokenLeg = { hint: networkHint, selector: tokenSelector };
   const [payLeg, receiveLeg] = isBuy ? [fiatLeg, tokenLeg] : [tokenLeg, fiatLeg];
+  const payDecimals = isBuy ? FIAT_DISPLAY_DECIMALS : (token?.token.decimals ?? DEFAULT_TOKEN_DECIMALS);
+  const receiveDecimals = isBuy ? CRYPTO_DISPLAY_DECIMALS : FIAT_DISPLAY_DECIMALS;
 
   // Flipping direction swaps which leg the amount belongs to, so the extra digits are cut rather
   // than sent to a rail that would reject them.
-  const amount = clampDecimals(typedAmount, payLeg.decimals);
+  const amount = clampDecimals(typedAmount, payDecimals);
   const quotedAmount = stripTrailingSeparator(useDebouncedValue(amount, AMOUNT_DEBOUNCE_MS));
   const amountReady = Number(quotedAmount) > 0;
 
@@ -174,14 +179,14 @@ export function QuoteExplorer() {
 
       <div className="grid gap-2">
         <AmountPanel hint={payLeg.hint} label="You pay" labelFor="quote-amount" selector={payLeg.selector}>
-          <AmountInput id="quote-amount" maxDecimals={payLeg.decimals} onChange={setTypedAmount} value={amount} />
+          <AmountInput id="quote-amount" maxDecimals={payDecimals} onChange={setTypedAmount} value={amount} />
         </AmountPanel>
         <AmountPanel hint={receiveLeg.hint} label="You receive" selector={receiveLeg.selector}>
           <ReceiveAmount
             amount={quote?.outputAmount}
             isFetching={isFetching}
             isPending={amountReady && !error}
-            maxDecimals={receiveLeg.decimals}
+            maxDecimals={receiveDecimals}
           />
         </AmountPanel>
       </div>

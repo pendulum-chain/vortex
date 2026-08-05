@@ -3,17 +3,16 @@ import { NextFunction, Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../config/logger";
 import { APIError } from "../errors/api-error";
-import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import webhookService, { WebhookOwner } from "../services/webhook/webhook.service";
 
-// Webhooks are owned by the principal behind the secret key: the partner for
-// partner-scoped keys, the linked user for self-serve user keys.
-function webhookOwnerFromRequest(req: Pick<Request, "credential" | "userId">): WebhookOwner {
-  if (req.userId) return { partnerId: null, userId: req.userId };
+// Webhook routes require secret capability (no Supabase session), so the owner is
+// the credential's principal: the partner for partner-managed credentials, the
+// subject profile for profile-managed ones.
+function webhookOwnerFromRequest(req: Pick<Request, "credential">): WebhookOwner {
   const partnerId = req.credential?.partnerId ?? null;
   return {
     partnerId,
-    userId: partnerId ? null : (getEffectiveUserId(req) ?? null)
+    userId: partnerId ? null : (req.credential?.profileId ?? null)
   };
 }
 

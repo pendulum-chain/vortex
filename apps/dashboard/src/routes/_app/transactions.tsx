@@ -106,7 +106,7 @@ function TransactionsPage() {
         <StaggerItem>
           <Card>
             <CardContent>
-              <TransactionsTable resumableRampId={resumableRamp?.id} transactions={accountTransactions} />
+              <TransactionsTable transactions={accountTransactions} />
             </CardContent>
           </Card>
         </StaggerItem>

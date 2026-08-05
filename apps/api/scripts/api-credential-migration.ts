@@ -51,6 +51,11 @@ function assertManifestEntry(value: unknown, index: number): asserts value is Ap
   if (typeof entry.expiresAt !== "string" || Number.isNaN(new Date(entry.expiresAt).getTime())) {
     throw new Error(`Manifest entry ${index} has an invalid expiresAt`);
   }
+  // A past expiry would migrate a credential that is dead on arrival, silently cutting off
+  // the partner the migration is meant to preserve.
+  if (new Date(entry.expiresAt).getTime() <= Date.now()) {
+    throw new Error(`Manifest entry ${index} has an expiresAt in the past`);
+  }
 }
 
 export async function loadApiCredentialMigrationManifest(path: string): Promise<ApiCredentialMigrationEntry[]> {
@@ -90,10 +95,10 @@ async function validateManifest(
   const partnerIds = [...new Set(manifest.map(entry => entry.partnerId).filter((id): id is string => id !== null))];
   const [profiles, partners] = await Promise.all([
     User.findAll({ attributes: ["id"], transaction, where: { id: { [Op.in]: profileIds } } }),
-    Partner.findAll({ attributes: ["id"], transaction, where: { id: { [Op.in]: partnerIds } } })
+    Partner.findAll({ attributes: ["id"], transaction, where: { id: { [Op.in]: partnerIds }, isActive: true } })
   ]);
   if (profiles.length !== profileIds.length) throw new Error("A manifest profileId does not exist");
-  if (partners.length !== partnerIds.length) throw new Error("A manifest partnerId does not exist");
+  if (partners.length !== partnerIds.length) throw new Error("A manifest partnerId does not exist or is not active");
 
   const validated = manifest.map(entry => {
     const publicKey = activeById.get(entry.publicKeyId);

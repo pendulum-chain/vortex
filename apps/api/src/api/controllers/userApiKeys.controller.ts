@@ -6,12 +6,8 @@ import {
   ApiCredentialServiceError,
   createCredential,
   listCredentials,
-  MAX_ACTIVE_CREDENTIALS_PER_PROFILE,
   revokeCredential
 } from "../services/apiCredential.service";
-
-export { MAX_ACTIVE_CREDENTIALS_PER_PROFILE };
-export const MAX_ACTIVE_KEYS_PER_USER = MAX_ACTIVE_CREDENTIALS_PER_PROFILE;
 
 function requireProfile(req: Request, res: Response): string | null {
   if (req.userId) return req.userId;
@@ -63,11 +59,11 @@ export async function listUserApiKeys(req: Request, res: Response): Promise<void
   }
 }
 
-export async function revokeUserApiKey(req: Request<{ credentialId?: string; keyId?: string }>, res: Response): Promise<void> {
+export async function revokeUserApiKey(req: Request<{ credentialId: string }>, res: Response): Promise<void> {
   const profileId = requireProfile(req, res);
   if (!profileId) return;
   try {
-    await revokeCredential(req.params.credentialId ?? req.params.keyId ?? "", { profileId });
+    await revokeCredential(req.params.credentialId, { profileId });
     res.status(httpStatus.NO_CONTENT).send();
   } catch (error) {
     if (sendServiceError(res, error)) return;

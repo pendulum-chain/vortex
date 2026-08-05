@@ -27,7 +27,7 @@ Every credential has a non-null `profile_id`. A null `partner_id` is profile-man
 |---|---:|---:|---:|
 | Create quote and apply attribution | Yes | Yes | Yes |
 | Create widget session | Yes | Yes | Yes |
-| Read sanitized `GET /v1/ramp-info` | Yes | Yes | Yes |
+| Read sanitized `GET /v1/ramp-info` | Yes | Yes | No |
 | Read exact used or remaining financial limits | No | Yes | Yes |
 | Register, update, start, or read a ramp | No | Yes | Yes |
 | Read ramp history or diagnostic error logs | No | Yes | Yes |
@@ -53,7 +53,7 @@ When both `X-Public-Key` and `X-API-Key` are supplied, both values are resolved 
 
 ### Sanitized Ramp Info
 
-`GET /v1/ramp-info` accepts `X-Public-Key`, the corresponding `X-API-Key`, or a Supabase session. It derives the profile only from `CredentialContext.profileId` or the session and must not accept `userId`, `profileId`, email, tax ID, or customer-entity selectors.
+`GET /v1/ramp-info` accepts `X-Public-Key` or the corresponding `X-API-Key`. It derives the profile only from `CredentialContext.profileId` and must not accept `userId`, `profileId`, email, tax ID, or customer-entity selectors. Supabase sessions are not accepted by this endpoint.
 
 Its response is an allowlisted per-corridor projection:
 
@@ -79,7 +79,7 @@ Its response is an allowlisted per-corridor projection:
 4. **Public keys MUST use `X-Public-Key` for new APIs**: the legacy quote/session `apiKey` field is attribution-only compatibility input and must agree with the header when both are present.
 5. **Secret material MUST NOT be persisted**: only a SHA-256 digest and indexed 16-character lookup prefix are stored; comparison uses `crypto.timingSafeEqual`.
 6. **Format validation MUST precede lookup**: malformed or wrong-type keys are rejected before querying credentials.
-7. **Revoked and expired credentials MUST fail both halves**: usability requires `revoked_at IS NULL AND expires_at > NOW()`.
+7. **Revoked, expired, and partner-deactivated credentials MUST fail both halves**: credential usability requires `revoked_at IS NULL AND expires_at > NOW()`; partner-managed credential usability additionally requires the referenced partner to have `is_active = true`.
 8. **Validation MUST return `CredentialContext`**: business code receives credential ID, environment, profile ID, partner ID, and strength rather than interpreting key-row null combinations.
 9. **Public capability MUST remain allowlisted**: public possession grants only quote/widget attribution and sanitized `ramp-info`; sensitive reads and all ramp/provider/webhook mutations require secret or session capability as listed above.
 10. **Two presented halves MUST match**: different credential IDs return `403 CREDENTIAL_MISMATCH`; no mixed context may continue downstream.
@@ -104,6 +104,7 @@ Its response is an allowlisted per-corridor projection:
 | Public key from one credential is combined with another secret | Resolve both and return `403 CREDENTIAL_MISMATCH` before business logic. |
 | Concurrent creation exceeds the cap | Lock the profile, count active non-expired credentials, and insert in one transaction. |
 | Revocation leaves one half active | One row and one `revoked_at` update disable both values. |
+| Partner deactivation leaves one half active | Public and secret validation both require the credential's partner to be active. |
 | Legacy or ambiguous rows remain reachable | No legacy runtime lookup; startup refuses active legacy rows. Production migration uses explicit immutable-ID mappings, never names. |
 | Shared managed identity crosses customer ownership | Require one genuine managed profile per subject and immutable partner/external-user association. |
 | Public eligibility read leaks PII or exact limits | `ramp-info` uses an explicit projection and accepts no subject selector. |
@@ -120,5 +121,5 @@ Its response is an allowlisted per-corridor projection:
 - [x] Startup validates the credential schema and refuses any active legacy `api_keys` row.
 - [ ] Verify deployment data has zero active legacy, unpaired, or ownerless credentials before cutover; source code cannot prove production data state.
 - [x] Managed-profile provisioning is admin-authenticated, idempotent by immutable partner/external-user IDs, unique by profile, rejects conflicting email/association reuse, creates the correct individual/business entity, leaves technical subjects entity-less, and records claims after verified OTP.
-- [ ] Verify backend `GET /v1/ramp-info` enforces the allowlisted response and negative PII/cross-user tests; the shared/SDK contract exists but the API route is not represented in the current implementation.
+- [ ] Add route-level public/secret authentication and cross-user tests for `GET /v1/ramp-info`; the route and sanitized service/controller projection exist, but current tests do not exercise the complete HTTP middleware chain.
 - [ ] Verify every capability-matrix row has an HTTP integration test; current middleware and SDK tests cover the core key validation and mismatch behavior, not every row.

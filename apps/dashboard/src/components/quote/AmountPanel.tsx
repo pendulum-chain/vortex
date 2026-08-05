@@ -1,24 +1,7 @@
-import { applyLocale, FormatOn, formatValueForDisplay, ThousandStyle } from "numora";
+import { FormatOn, ThousandStyle } from "numora";
 import { NumoraInput } from "numora-react";
 import type { ReactNode } from "react";
-import { toDisplayAmount, toRawAmount } from "@/lib/amount";
-
-// `true` resolves the visitor's browser locale. The same options drive the editable field and the
-// read-only amounts, so a quote never shows two number formats side by side.
-const FORMATTING_OPTIONS = {
-  autoAddLeadingZero: true,
-  formatOn: FormatOn.Change,
-  thousandStyle: ThousandStyle.Thousand,
-  ...applyLocale(true, {})
-};
-
-const DECIMAL_SEPARATOR = FORMATTING_OPTIONS.decimalSeparator ?? ".";
-const THOUSAND_SEPARATOR = FORMATTING_OPTIONS.thousandSeparator ?? ",";
-
-/** Formats a dot-decimal amount the way the input renders it, for read-only sides of a quote. */
-export function formatAmount(raw: string, maxDecimals: number): string {
-  return formatValueForDisplay(toDisplayAmount(raw, DECIMAL_SEPARATOR), maxDecimals, FORMATTING_OPTIONS).formatted;
-}
+import { AMOUNT_DECIMAL_SEPARATOR, AMOUNT_THOUSAND_SEPARATOR, toDisplayAmount, toRawAmount } from "@/lib/amount";
 
 interface AmountPanelProps {
   /** The amount itself — an `<AmountInput>` on the side the user drives, plain text on the other. */
@@ -70,16 +53,16 @@ export function AmountInput({ id, maxDecimals, onChange, value }: AmountInputPro
       autoCorrect="off"
       className="w-full bg-transparent text-right font-semibold text-2xl tabular-nums outline-none placeholder:text-muted-foreground/50"
       data-1p-ignore
-      decimalSeparator={DECIMAL_SEPARATOR}
+      decimalSeparator={AMOUNT_DECIMAL_SEPARATOR}
       formatOn={FormatOn.Change}
       id={id}
       maxDecimals={maxDecimals}
-      onChange={event => onChange(toRawAmount(event.target.value, DECIMAL_SEPARATOR, THOUSAND_SEPARATOR))}
+      onChange={event => onChange(toRawAmount(event.target.value, AMOUNT_DECIMAL_SEPARATOR, AMOUNT_THOUSAND_SEPARATOR))}
       placeholder="0"
       spellCheck={false}
-      thousandSeparator={THOUSAND_SEPARATOR}
+      thousandSeparator={AMOUNT_THOUSAND_SEPARATOR}
       thousandStyle={ThousandStyle.Thousand}
-      value={toDisplayAmount(value, DECIMAL_SEPARATOR)}
+      value={toDisplayAmount(value, AMOUNT_DECIMAL_SEPARATOR)}
     />
   );
 }

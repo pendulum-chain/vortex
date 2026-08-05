@@ -36,7 +36,6 @@ import httpStatus from "http-status";
 import logger from "../../config/logger";
 import KycCase from "../../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../../models/providerCustomer.model";
-import TaxId, { TaxIdInternalStatus } from "../../models/taxId.model";
 import { APIError } from "../errors/api-error";
 import { getEffectiveUserId } from "../middlewares/effectiveUser";
 import {
@@ -54,21 +53,6 @@ import { findCustomerEntityIdsForProfile, getOrCreateCustomerEntityForProfile } 
 
 // map from subaccountId → last interaction timestamp. Used for fetching the last relevant kyc event.
 const _lastInteractionMap = new Map<string, number>();
-
-function legacyAveniaStatus(status: TaxIdInternalStatus | null): VerificationStatus {
-  switch (status) {
-    case TaxIdInternalStatus.Accepted:
-      return VerificationStatus.Approved;
-    case TaxIdInternalStatus.Rejected:
-      return VerificationStatus.Rejected;
-    case TaxIdInternalStatus.Requested:
-      return VerificationStatus.InReview;
-    case TaxIdInternalStatus.Consulted:
-      return VerificationStatus.Started;
-    default:
-      return VerificationStatus.Pending;
-  }
-}
 
 // Maps webhook failure reasons to standardized enum values
 function mapKycFailureReason(webhookReason: string | undefined): KycFailureReason {
@@ -160,9 +144,11 @@ export const getAveniaUser = async (
         return;
       }
 
-      // The account must be owned by the effective user's customer entity.
-      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-      if (record.customerEntityId !== entity.id) {
+      // Profile-level ownership: the record may live on any of the profile's entities
+      // (migration 040 attached legacy rows to the individual entity), and a lookup must
+      // not create an entity as a side effect.
+      const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+      if (!ownedEntityIds.includes(record.customerEntityId)) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
@@ -285,10 +271,10 @@ export const getAveniaUserRemainingLimit = async (
         });
       }
 
-      // The account must be owned by the effective user. The legacy partner-key
-      // exemption that allowed reading any taxId has been removed.
-      const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-      if (record.customerEntityId !== entity.id) {
+      // Profile-level ownership. The legacy partner-key exemption that allowed reading
+      // any taxId has been removed.
+      const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+      if (!ownedEntityIds.includes(record.customerEntityId)) {
         res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
         return;
       }
@@ -351,7 +337,7 @@ export const createSubaccount = async (
     const effectiveUserId = getEffectiveUserId(req);
 
     // Reject callers that do not resolve to a user (anonymous requests
-    // or unlinked secret keys) so the resulting TaxId is always owned by a real profile.
+    // or unlinked secret keys) so the resulting provider customer is owned by a real profile.
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({
         error: "This endpoint requires authentication."
@@ -377,36 +363,6 @@ export const createSubaccount = async (
         error: "A subaccount already exists for this taxId"
       });
       return;
-    }
-
-    // Legacy adoption: quarantined rows in the tax_ids backup (created before the
-    // provider_customers cutover, possibly ownerless) are claimable exactly like the
-    // pre-cutover flow allowed — owned-by-another rejects, anonymous rows are claimed
-    // by the authenticated caller. One-time per row; the backup itself is never written.
-    if (!existing) {
-      const legacy = await TaxId.findByPk(normalizedTaxId);
-      if (legacy && legacy.internalStatus !== TaxIdInternalStatus.Consulted) {
-        if (legacy.userId !== null && legacy.userId !== effectiveUserId) {
-          res.status(httpStatus.CONFLICT).json({
-            error: "A subaccount already exists for this taxId"
-          });
-          return;
-        }
-        // Typed-entity resolution is deferred to the row-creating branches so a retry that
-        // only updates an existing row cannot create a stray typed entity.
-        const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId, accountTypeToCustomerType(accountType));
-        existing = await ProviderCustomer.create({
-          country: "BR",
-          customerEntityId: entity.id,
-          customerType: accountTypeToCustomerType(legacy.accountType),
-          provider: "avenia",
-          providerSubaccountId: legacy.subAccountId || null,
-          rail: "brl",
-          status: legacyAveniaStatus(legacy.internalStatus),
-          taxReference: normalizedTaxId,
-          taxReferenceHash: hashTaxReference(normalizedTaxId)
-        });
-      }
     }
 
     const brlaApiService = BrlaApiService.getInstance();
@@ -478,15 +434,15 @@ export const fetchSubaccountKycStatus = async (
       return;
     }
 
-    // Ownership: this endpoint both reads KYC state and drives status transitions, so it
-    // must not be usable against another user's account.
+    // Profile-level ownership: this endpoint both reads KYC state and drives status
+    // transitions, so it must not be usable against another user's account.
     const effectiveUserId = getEffectiveUserId(req);
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-    if (record.customerEntityId !== entity.id) {
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -598,14 +554,14 @@ export const getSelfieLivenessUrl = async (
       return;
     }
 
-    // Ownership: liveness URLs act on the account's KYC flow.
+    // Profile-level ownership: liveness URLs act on the account's KYC flow.
     const effectiveUserId = getEffectiveUserId(req);
     if (!effectiveUserId) {
       res.status(httpStatus.BAD_REQUEST).json({ error: "This endpoint requires authentication." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(effectiveUserId);
-    if (record.customerEntityId !== entity.id) {
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -734,8 +690,9 @@ export const newKyc = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
@@ -781,8 +738,9 @@ export const initiateKybLevel1 = async (
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
-    const entity = await getOrCreateCustomerEntityForProfile(req.userId);
-    if (record.customerEntityId !== entity.id) {
+    // Profile-level ownership: KYB business rows migrated by 040 live on the individual entity.
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
