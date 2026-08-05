@@ -94,6 +94,11 @@ the catalog/external-consumer audit, process drain, or backup/restore rehearsal.
    identify the blocking session before retrying; do not increase the timeout blindly.
 6. Verify migration 060 appears exactly once in `SequelizeMeta` and all intended tables, columns,
    indexes, and table-specific enum types are absent. The shared `ramp_direction_enum` must remain.
+   Also verify the renumbered credential migrations: `SELECT name FROM "SequelizeMeta" WHERE name
+   LIKE '05%' ORDER BY name;` must list `057-create-api-credentials`,
+   `058-create-partner-managed-profiles`, and `059-add-api-credential-id-to-quote-tickets` exactly
+   once each, with no entry remaining under an old name such as `055-create-api-credentials`
+   (startup renames applied entries automatically before computing pending migrations).
 7. Run the smoke tests and monitor through the normal post-deploy observation window.
 
 ## Post-Deployment Verification
