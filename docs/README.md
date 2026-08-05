@@ -23,7 +23,7 @@ The smaller set of general project documents stays directly in `docs/`:
 | [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md) | Deployment gates and recovery runbook for irreversible migration 060 |
 | [`operations-testing.md`](operations-testing.md) | Maintained test strategy and suite boundaries |
 | [`product-dashboard.md`](product-dashboard.md) | Current dashboard product scope and acknowledged gaps |
-| [`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md) | Active proposal for headless profiles, profile-owned credentials, and explicit pricing plans |
+| [`proposal-headless-profiles-and-pricing-plans.md`](proposal-headless-profiles-and-pricing-plans.md) | Active proposal for delegated management of headless customer profiles |
 | [`proposal-mcp-server.md`](proposal-mcp-server.md) | Active, non-authoritative discussion draft |
 
 The root [`README.md`](../README.md) is human onboarding, [`MAP.md`](../MAP.md) is
