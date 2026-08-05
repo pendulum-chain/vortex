@@ -65,16 +65,44 @@ The current API is less unified than the storage model:
 - route names, request shapes, document handling, retries, and status responses expose
   provider workflow details;
 - the dashboard orchestrates separate provider XState machines and polls the aggregated
-  `GET /v1/onboarding/status` read model;
-- no current request context distinguishes a manager actor from a managed child subject.
+  `GET /v1/onboarding/status` read model.
 
-## Required invariants
+Authentication, delegated authorization, and manager-to-child ownership are defined by
+the [managed-headless-profiles proposal](proposal-headless-profiles-and-pricing-plans.md)
+and are not repeated here. This proposal defines the verification workflow applied after
+the operation profile has been resolved.
 
-- The operation subject is always a profile and its customer entity. Provider accounts
-  and cases belong to that subject, never to a manager.
-- A self-service request may use the profile's accepted authentication methods. A
-  delegated request must preserve both `actorProfileId` and `subjectProfileId` and pass the
-  direct manager-child and corridor checks defined by the headless-profiles proposal.
+## Tentative generic flow
+
+The ideal API exposes the workflow as discoverable stages instead of requiring an
+integrator to know a provider's sequence in advance:
+
+1. **Discover requirements.** The caller requests the requirements for a KYC or KYB by
+   corridor and customer type. Vortex derives the provider and returns an overview of the
+   required data fields, document types, and any liveness or selfie requirement. The
+   requirements are provider- and country-specific even though their envelope is common.
+2. **Create the attempt and submit initial data.** The caller creates a verification case
+   with the structured data already available, such as personal or company name, address,
+   tax information, representatives, or beneficial owners. The exact fields follow the
+   requirements returned for that corridor.
+3. **Upload documents when required.** The caller creates and uploads each required
+   document using the mechanism supported by Vortex for that provider. Vortex should
+   return a stable identifier for each uploaded document when the upstream provider gives
+   us one. If the provider only identifies a combined upload, Vortex should return at
+   least one identifier for that document batch.
+4. **Complete liveness or selfie evidence when required.** The case may return a liveness
+   continuation step or accept a selfie document upload, depending on the provider and
+   country.
+5. **Submit and track the case.** Once all required stages are complete, Vortex submits or
+   finalizes the provider attempt and exposes its canonical status until it is approved,
+   rejected, or requires another supported action.
+
+Not every provider needs every stage. The requirements response determines which stages
+apply and gives API clients enough information to build their own collection experience
+without embedding Vortex's dashboard workflow.
+
+## API principles
+
 - The server derives the provider from corridor and customer type. A caller cannot select
   an arbitrary provider account or provider case belonging to another subject.
 - Public responses use Vortex case identifiers and canonical status. Provider identifiers
@@ -111,10 +139,7 @@ behind the unified API rather than a parallel compliance model.
 - Which operation vocabulary fits both providers without hiding meaningful differences?
 - Should Vortex proxy document bytes, issue provider pre-signed upload URLs, or support
   both patterns behind one document resource?
-- How does a caller select a managed child in the route while keeping that selector a
-  narrow delegated capability rather than general impersonation?
-- Which profile data, including contact email, must be supplied for null-email headless
-  customers when a provider requires it?
+- Which contact data must be supplied as case data when a provider requires it?
 - Which status changes should produce API webhooks so headless callers do not have to
   poll indefinitely?
 
