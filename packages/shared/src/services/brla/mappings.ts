@@ -4,12 +4,16 @@ import {
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
+  AveniaDocumentResponse,
   AveniaKybAttemptStatusResponse,
+  AveniaKybLevel1Payload,
   AveniaPayinTicket,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSubaccount,
   AveniaSwapTicket,
+  AveniaUboPayload,
+  AveniaUboResponse,
   DocumentUploadRequest,
   DocumentUploadResponse,
   GetKycAttemptResponse,
@@ -28,12 +32,14 @@ export enum Endpoint {
   GetSubaccount = "/v2/account/sub-accounts",
   AccountLimits = "/v2/account/limits",
   PixInfo = "/v2/account/bank-accounts/brl/pix-info",
-  KycLevel1 = "/v2/kyc/new-level-1/api",
+  Level1Api = "/v2/kyc/new-level-1/api",
   KybLevel1WebSdk = "/v2/kyc/new-level-1/web-sdk",
   FixedRateQuote = "/v2/account/quote/fixed-rate",
   Tickets = "/v2/account/tickets",
   AccountInfo = "/v2/account/account-info",
   Documents = "/v2/documents",
+  GetDocument = "/v2/documents/{documentId}",
+  Ubos = "/v2/account/ubos",
   GetKycAttempt = "/v2/kyc/attempts",
   GetKybAttempt = "/v2/kyc/attempts/{attemptId}",
   Balances = "/v2/account/balances"
@@ -82,9 +88,9 @@ export interface EndpointMapping {
       response: undefined;
     };
   };
-  [Endpoint.KycLevel1]: {
+  [Endpoint.Level1Api]: {
     POST: {
-      body: KycLevel1Payload;
+      body: KycLevel1Payload | AveniaKybLevel1Payload;
       response: KycLevel1Response;
     };
     GET: {
@@ -148,6 +154,34 @@ export interface EndpointMapping {
     GET: {
       body: undefined;
       response: AveniaDocumentGetResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.GetDocument]: {
+    POST: {
+      body: undefined;
+      response: undefined;
+    };
+    GET: {
+      body: undefined;
+      response: AveniaDocumentResponse;
+    };
+    PATCH: {
+      body: undefined;
+      response: undefined;
+    };
+  };
+  [Endpoint.Ubos]: {
+    POST: {
+      body: AveniaUboPayload;
+      response: AveniaUboResponse;
+    };
+    GET: {
+      body: undefined;
+      response: undefined;
     };
     PATCH: {
       body: undefined;

@@ -9,13 +9,17 @@ import {
   AveniaAccountInfoResponse,
   AveniaAccountType,
   AveniaDocumentGetResponse,
+  AveniaDocumentResponse,
   AveniaDocumentType,
   AveniaKybAttemptStatusResponse,
+  AveniaKybLevel1Payload,
   AveniaPayinTicket,
   AveniaPaymentMethod,
   AveniaPayoutTicket,
   AveniaQuoteResponse,
   AveniaSwapTicket,
+  AveniaUboPayload,
+  AveniaUboResponse,
   BlockchainSendMethod,
   BrlaCurrency,
   GetKycAttemptResponse,
@@ -121,7 +125,10 @@ export class BrlaApiService {
     let requestUri = endpoint as string;
 
     if (pathParam) {
-      requestUri += `/${pathParam}`;
+      const encodedPathParam = encodeURIComponent(pathParam);
+      requestUri = requestUri.includes("{")
+        ? requestUri.replace(/\{[^}]+\}/, encodedPathParam)
+        : `${requestUri}/${encodedPathParam}`;
     }
     if (queryParams) {
       requestUri += `?${queryParams}`;
@@ -226,6 +233,16 @@ export class BrlaApiService {
   public async getUploadedDocuments(subAccountId: string): Promise<AveniaDocumentGetResponse> {
     const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
     return await this.sendRequest(Endpoint.Documents, "GET", query, undefined);
+  }
+
+  public async getUploadedDocument(documentId: string, subAccountId: string): Promise<AveniaDocumentResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.GetDocument, "GET", query, undefined, documentId);
+  }
+
+  public async createUbo(payload: AveniaUboPayload, subAccountId: string): Promise<AveniaUboResponse> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Ubos, "POST", query, payload);
   }
 
   public async createPayInQuote(
@@ -371,7 +388,12 @@ export class BrlaApiService {
 
   public async submitKycLevel1(payload: KycLevel1Payload): Promise<KycLevel1Response> {
     const query = `subAccountId=${encodeURIComponent(payload.subAccountId)}`;
-    return await this.sendRequest(Endpoint.KycLevel1, "POST", query, payload);
+    return await this.sendRequest(Endpoint.Level1Api, "POST", query, payload);
+  }
+
+  public async submitKybLevel1(payload: AveniaKybLevel1Payload, subAccountId: string): Promise<KycLevel1Response> {
+    const query = `subAccountId=${encodeURIComponent(subAccountId)}`;
+    return await this.sendRequest(Endpoint.Level1Api, "POST", query, payload);
   }
 
   public async getKycAttempts(subAccountId: string): Promise<GetKycAttemptResponse> {
@@ -396,8 +418,9 @@ export class BrlaApiService {
    * @param attemptId The KYB attempt ID
    * @returns The KYB attempt status
    */
-  public async getKybAttemptStatus(attemptId: string): Promise<AveniaKybAttemptStatusResponse> {
-    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", undefined, undefined, attemptId);
+  public async getKybAttemptStatus(attemptId: string, subAccountId?: string): Promise<AveniaKybAttemptStatusResponse> {
+    const query = subAccountId ? `subAccountId=${encodeURIComponent(subAccountId)}` : undefined;
+    return await this.sendRequest(Endpoint.GetKybAttempt, "GET", query, undefined, attemptId);
   }
 
   public async getAccountBalance(subAccountId: string): Promise<AveniaAccountBalanceResponse> {

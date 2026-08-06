@@ -348,6 +348,122 @@ export interface KycLevel1Response {
   id: string;
 }
 
+export type AveniaUboControlRole =
+  | "CEO"
+  | "CFO"
+  | "COO"
+  | "CTO"
+  | "President"
+  | "Vice President"
+  | "Director"
+  | "Managing Director"
+  | "Managing Partner"
+  | "General Partner"
+  | "Partner"
+  | "Secretary"
+  | "Treasurer"
+  | "Chairman"
+  | "Board Member"
+  | "Authorized Signatory"
+  | "General Counsel"
+  | "Owner"
+  | "Founder"
+  | "Manager"
+  | "Member"
+  | "Comptroller"
+  | "Chief Compliance Officer";
+
+export interface AveniaUboPayload {
+  fullName: string;
+  dateOfBirth: string;
+  countryOfTaxId: string;
+  taxIdNumber: string;
+  email?: string;
+  phone?: string;
+  percentageOfOwnership: string;
+  hasControl?: AveniaUboControlRole;
+  uploadedIdentificationId: string;
+  uploadedSelfieId?: string;
+  documentCountry: string;
+  streetLine1: string;
+  streetLine2?: string;
+  streetLine3?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
+
+export interface AveniaUboResponse {
+  id: string;
+}
+
+export type AveniaKybReasonForAccountOpening =
+  | "charitable_donations"
+  | "ecommerce_retail_payments"
+  | "investment_purposes"
+  | "other"
+  | "payments_to_friends_or_family_abroad"
+  | "payroll"
+  | "personal_or_living_expenses"
+  | "protect_wealth"
+  | "purchase_goods_and_services"
+  | "receive_payments_for_goods_and_services"
+  | "tax_optimization"
+  | "third_party_money_transmission"
+  | "treasury_management";
+
+export type AveniaKybSourceOfFunds =
+  | "business_loans"
+  | "grants"
+  | "inter_company_funds"
+  | "investment_proceeds"
+  | "legal_settlement"
+  | "owners_capital"
+  | "pension_retirement"
+  | "sale_of_assets"
+  | "sales_of_goods_and_services"
+  | "third_party_funds"
+  | "treasury_reserves";
+
+export type AveniaKybNumberOfEmployees = "1-10" | "11-50" | "51-200" | "201-500" | "501-1000" | "1001+";
+
+export type AveniaKybAnnualRevenue =
+  | "less_than_100k"
+  | "100k_to_1m"
+  | "1m_to_10m"
+  | "10m_to_50m"
+  | "50m_to_100m"
+  | "more_than_100m";
+
+export interface AveniaKybLevel1Payload {
+  uboIds: string[];
+  companyLegalName: string;
+  companyRegistrationNumber: string;
+  taxIdentificationNumberTin: string;
+  businessActivityDescription: string;
+  reasonForAccountOpening: AveniaKybReasonForAccountOpening;
+  sourceOfFundsAndIncome: AveniaKybSourceOfFunds;
+  numberOfEmployees: AveniaKybNumberOfEmployees;
+  estimatedAnnualRevenueUsd: AveniaKybAnnualRevenue;
+  estimatedMonthlyVolumeUsd: string;
+  countryTaxResidence: string;
+  countrySubdivisionTaxResidence?: string;
+  companyStreetLine1: string;
+  companyStreetLine2?: string;
+  companyStreetLine3?: string;
+  companyCity: string;
+  companyState: string;
+  companyZipCode: string;
+  companyCountry: string;
+  certificateOfIncorporationDocumentId: string;
+  taxIdentificationDocumentId: string;
+  website?: string;
+  socialMedia?: string;
+  emailPixKey?: string;
+  sandboxReject?: boolean;
+}
+
 export interface KybLevel1Response {
   attemptId: string;
   authorizedRepresentativeUrl: string;
@@ -364,7 +480,7 @@ export interface AveniaKybAttemptStatusResponse {
   attempt: {
     id: string;
     levelName: string;
-    submissionData: Record<string, unknown>;
+    submissionData?: Record<string, unknown>;
     status: KycAttemptStatus;
     result?: KycAttemptResult;
     resultMessage: string;
@@ -378,8 +494,11 @@ export enum AveniaDocumentType {
   ID = "ID",
   DRIVERS_LICENSE = "DRIVERS-LICENSE",
   PASSPORT = "PASSPORT",
+  RESIDENCE_PERMIT = "RESIDENCE-PERMIT",
   SELFIE = "SELFIE",
-  SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS"
+  SELFIE_FROM_LIVENESS = "SELFIE-FROM-LIVENESS",
+  CERTIFICATE_OF_INCORPORATION = "CERTIFICATE-OF-INCORPORATION",
+  COMPANY_TAX_IDENTIFICATION_DOCUMENT = "COMPANY-TAX-IDENTIFICATION-DOCUMENT"
 }
 
 export interface DocumentUploadRequest {
@@ -393,6 +512,24 @@ export interface DocumentUploadResponse {
   uploadURLBack?: string;
   livenessUrl?: string;
   validateLivenessToken?: string;
+}
+
+export interface AveniaDocument {
+  id: string;
+  documentType: AveniaDocumentType;
+  uploadURLFront?: string;
+  uploadStatusFront: string;
+  uploadErrorFront?: string;
+  uploadURLBack?: string;
+  uploadStatusBack?: string;
+  uploadErrorBack?: string;
+  ready: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AveniaDocumentResponse {
+  document: AveniaDocument;
 }
 
 export enum KycAttemptStatus {
@@ -430,21 +567,7 @@ export interface CreateAveniaSubaccountRequest {
 }
 
 export interface AveniaDocumentGetResponse {
-  documents: [
-    {
-      id: string;
-      documentType: string;
-      uploadURLFront: string;
-      uploadStatusFront: string;
-      uploadErrorFront: string;
-      uploadURLBack: string;
-      uploadStatusBack: string;
-      uploadErrorBack: string;
-      ready: true;
-      createdAt: Date;
-      updatedAt: Date;
-    }
-  ];
+  documents: AveniaDocument[];
 }
 
 export interface AveniaAccountBalanceResponse {

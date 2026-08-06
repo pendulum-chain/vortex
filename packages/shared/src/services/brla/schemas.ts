@@ -2,7 +2,10 @@ import { z } from "zod";
 import {
   AveniaAccountBalanceResponse,
   AveniaAccountInfoResponse,
+  AveniaDocument,
+  AveniaDocumentType,
   AveniaFeeType,
+  AveniaKybAttemptStatusResponse,
   AveniaOperationFee,
   AveniaPayinTicket,
   AveniaPayoutTicket,
@@ -10,6 +13,10 @@ import {
   AveniaSubaccountAccountInfo,
   AveniaSubaccountWallet,
   AveniaTicketStatus,
+  AveniaUboResponse,
+  KycAttemptResult,
+  KycAttemptStatus,
+  KycLevel1Response,
   Limit,
   PixInputTicketOutput,
   PixKeyData,
@@ -136,3 +143,39 @@ export const aveniaAccountInfoSchema = z.looseObject({
     })
   )
 }) satisfies z.ZodType<ConsumedAccountInfo>;
+
+/** A document after Avenia has processed the bytes uploaded to its pre-signed URL. */
+export const aveniaDocumentResponseSchema = z.looseObject({
+  document: z.looseObject({
+    documentType: z.enum(AveniaDocumentType),
+    id: z.string().min(1),
+    ready: z.boolean(),
+    uploadStatusFront: z.string().min(1)
+  })
+}) satisfies z.ZodType<{
+  document: Pick<AveniaDocument, "documentType" | "id" | "ready" | "uploadStatusFront">;
+}>;
+
+/** The identifier returned by UBO creation. */
+export const aveniaUboResponseSchema = z.looseObject({
+  id: z.string().min(1)
+}) satisfies z.ZodType<AveniaUboResponse>;
+
+/** The attempt identifier returned by API-based KYC and KYB Level 1 submissions. */
+export const aveniaLevel1ResponseSchema = z.looseObject({
+  id: z.string().min(1)
+}) satisfies z.ZodType<KycLevel1Response>;
+
+/** A KYB attempt returned by GET /v2/kyc/attempts/{attemptId}. */
+export const aveniaKybAttemptStatusSchema = z.looseObject({
+  attempt: z.looseObject({
+    createdAt: z.string().min(1),
+    id: z.string().min(1),
+    levelName: z.string().min(1),
+    result: z.enum(KycAttemptResult).optional(),
+    resultMessage: z.string(),
+    retryable: z.boolean(),
+    status: z.enum(KycAttemptStatus),
+    updatedAt: z.string().min(1)
+  })
+}) satisfies z.ZodType<AveniaKybAttemptStatusResponse>;

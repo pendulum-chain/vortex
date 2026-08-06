@@ -3,11 +3,15 @@ import {
   aveniaAccountBalanceSchema,
   aveniaAccountInfoSchema,
   aveniaAccountLimitsSchema,
+  aveniaDocumentResponseSchema,
+  aveniaKybAttemptStatusSchema,
+  aveniaLevel1ResponseSchema,
   aveniaPayinTicketsSchema,
   aveniaPayoutTicketSchema,
   aveniaPixInputTicketSchema,
   aveniaPixKeyDataSchema,
-  aveniaQuoteResponseSchema
+  aveniaQuoteResponseSchema,
+  aveniaUboResponseSchema
 } from "./schemas";
 
 function validQuoteBody() {
@@ -135,5 +139,41 @@ describe("aveniaAccountInfoSchema", () => {
     expect(() => aveniaAccountInfoSchema.parse(body)).not.toThrow();
     body.accountInfo.identityStatus = "PENDING";
     expect(() => aveniaAccountInfoSchema.parse(body)).toThrow();
+  });
+});
+
+describe("Avenia KYB Level 1 response schemas", () => {
+  test("accepts document readiness and identifier responses", () => {
+    expect(() =>
+      aveniaDocumentResponseSchema.parse({
+        document: {
+          documentType: "CERTIFICATE-OF-INCORPORATION",
+          id: "document-1",
+          ready: true,
+          uploadStatusFront: "PROCESSED"
+        }
+      })
+    ).not.toThrow();
+    expect(() => aveniaDocumentResponseSchema.parse({ document: { id: "document-1", ready: true } })).toThrow();
+    expect(() => aveniaUboResponseSchema.parse({ id: "ubo-1" })).not.toThrow();
+    expect(() => aveniaLevel1ResponseSchema.parse({ id: "attempt-1" })).not.toThrow();
+  });
+
+  test("accepts the documented completed KYB attempt and pending attempts without a result", () => {
+    const attempt = {
+      createdAt: "2026-03-19T22:09:52.629984Z",
+      id: "attempt-1",
+      levelName: "kyb-level-1",
+      result: "APPROVED",
+      resultMessage: "",
+      retryable: false,
+      status: "COMPLETED",
+      updatedAt: "2026-03-19T22:09:52.629984Z"
+    };
+    expect(() => aveniaKybAttemptStatusSchema.parse({ attempt })).not.toThrow();
+    expect(() =>
+      aveniaKybAttemptStatusSchema.parse({ attempt: { ...attempt, result: undefined, status: "PENDING" } })
+    ).not.toThrow();
+    expect(() => aveniaKybAttemptStatusSchema.parse({ attempt: { ...attempt, status: "APPROVED" } })).toThrow();
   });
 });
