@@ -45,6 +45,22 @@ export async function enqueueNotification({ userId, payload, ...key }: EnqueuePa
 }
 
 /**
+ * Records a notification key as deliberately not-to-be-mailed. The row exists so sweeps
+ * that re-enqueue anything without a row (reconciliation) stop re-surfacing the resource;
+ * it is never due for dispatch. Idempotent on the key, like enqueueNotification.
+ */
+export async function recordSkippedNotification(key: NotificationKey, userId: string, reason: string): Promise<void> {
+  const [, created] = await EmailNotification.findOrCreate({
+    defaults: { ...key, lastError: reason, locale: "en-US", status: NotificationStatus.Skipped, userId },
+    where: { ...key }
+  });
+
+  if (created) {
+    logger.info(`Recorded ${describeKey(key)} as skipped: ${reason}`);
+  }
+}
+
+/**
  * When a notification that has already failed `attempts` times should next be tried,
  * or null once every backoff step has been spent and the row must be abandoned.
  */

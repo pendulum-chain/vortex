@@ -23,7 +23,7 @@ Every notification is persisted to the `email_notifications` table before any se
 - `apps/api/src/api/workers/kyb-status.worker.ts` — enqueues Avenia KYB outcomes
 - `apps/api/src/api/services/alfredpay/alfredpay-customer.service.ts` — enqueues Alfredpay KYC/KYB outcomes
 - `apps/api/src/api/workers/alfredpay-status.worker.ts` — drives the Alfredpay poll for unattended accounts
-- `apps/api/src/api/services/ramp/ramp.service.ts` — enqueues ramp completions
+- `apps/api/src/api/services/phases/phase-processor.ts` — enqueues ramp completions on the terminal `complete` transition
 - `apps/api/src/models/emailNotification.model.ts`, migration `062-create-email-notifications-table.ts`
 
 The table is `email_notifications`, not `notifications`: migration 043 already owns `notifications`
@@ -50,7 +50,7 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 ## Security Invariants
 
 1. **A notification MUST only ever be addressed to a Vortex-authenticated user's own verified address.** The recipient is resolved at send time as `profiles.email` for `email_notifications.user_id`. No caller supplies a recipient address.
-2. **Partner-supplied and ramp-supplied addresses MUST NOT be used as recipients.** `RampState.state.additionalData.email` belongs to a *partner's* customer on API-driven ramps. Only ramps with a non-null `RampState.userId` produce a notification — `dualAuth` guarantees `userId` is set exclusively by a verified Supabase bearer token, never by a partner `sk_` key.
+2. **Partner-supplied and ramp-supplied addresses MUST NOT be used as recipients, and partner-API ramps MUST NOT produce mail.** `RampState.state.additionalData.email` belongs to a *partner's* customer on API-driven ramps. A ramp only produces a notification when `RampState.userId` is non-null **and** its quote carries no `api_credential_id`: credential-authenticated requests fill `userId` with the credential's linked profile (`getEffectiveUserId`), so without the quote check every end-customer ramp would mail the partner. Excluded ramps are recorded as `skipped` tombstone rows so the reconcile sweep does not re-surface them.
 3. **A given upstream event MUST produce at most one email.** The unique index `uniq_email_notifications_provider_type_resource` on `(provider, type, resource_id)` is the idempotency key; enqueuing uses `findOrCreate` against it. Re-polling a settled KYB attempt or replaying a phase transition cannot re-notify. The unique index alone does not close the window between Resend accepting a send and `sent` being persisted — a crash in between returns the row to the queue with the mail already away — so each send additionally carries the row id as Resend's `Idempotency-Key`, and the provider replays the original response instead of sending again.
 4. **A due notification MUST be claimed before it is sent.** Both flow-variant backends share one database. Dispatch claims rows inside a transaction using `FOR UPDATE SKIP LOCKED` and flips them to `sending` with `attempts` incremented, so two backends cannot send the same row.
 5. **A notification MUST NOT be lost when a send fails.** Enqueue only writes a row; the cron worker is the only sender. Failures are recorded with a backoff schedule (1/5/15/60/180 minutes) and retried up to 6 attempts — one initial send plus one retry per backoff step — after which the row is `abandoned` and a Slack alert fires.
@@ -70,7 +70,7 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 | Threat | Attack Scenario | Mitigation |
 |---|---|---|
 | **Mail sent to an attacker's address** | Attacker drives a ramp with `additionalData.email` set to their own address and receives the victim's transaction details | Recipient is never taken from ramp or request data; it is looked up from `profiles.email` by `user_id` at send time (inv. 1, 2) |
-| **Partner impersonating a user** | Partner uses an `sk_` key to create a ramp and expects the notification to be addressed under their control | `dualAuth` populates exactly one of `authenticatedPartner` or `userId`; partner-driven ramps have `userId = null` and enqueue nothing (inv. 2) |
+| **Partner impersonating a user** | Partner uses an `sk_` key to create a ramp and expects the notification to be addressed under their control | The recipient can only ever be `profiles.email` of the ramp's `userId`, and a ramp whose quote carries an `api_credential_id` enqueues a `skipped` tombstone instead of mail (inv. 2) |
 | **Duplicate email flood** | Recovery worker or a second backend re-processes the same ramp/attempt | Unique dedupe index plus transactional row claim (inv. 3, 4) |
 | **Silent mail loss** | The in-process enqueue call is fire-and-forget; an exception would previously vanish | Enqueue writes a durable row before any send; the worker retries independently of the request that queued it (inv. 5) |
 | **Queue stall** | Process is killed between claim and send, leaving rows `sending` forever | Stale-claim release after 15 minutes (inv. 6) |

@@ -2,7 +2,7 @@ import { RampDirection } from "@vortexfi/shared";
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
 import { FindOptions, Op } from "sequelize";
 import { SupabaseAuthService } from "../auth";
-import EmailNotification from "../../../models/emailNotification.model";
+import EmailNotification, { NotificationStatus } from "../../../models/emailNotification.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
 import { enqueueRampCompletedEmail, reconcileMissedRampCompletedEmails } from "./ramp-completion";
@@ -109,5 +109,25 @@ describe("enqueueRampCompletedEmail", () => {
     await enqueueRampCompletedEmail(completedRamp("ramp-delayed"));
 
     expect(defaults?.payload?.completedAt).toBe("2026-08-01T12:30:00.000Z");
+  });
+
+  it("tombstones an API-credential ramp as skipped instead of mailing the partner profile", async () => {
+    let defaults: { status?: string; userId?: string } | undefined;
+    let localeLookups = 0;
+    SupabaseAuthService.getUserLocale = (async () => {
+      localeLookups += 1;
+      return "en-US";
+    }) as typeof SupabaseAuthService.getUserLocale;
+    EmailNotification.findOrCreate = (async options => {
+      defaults = options.defaults as typeof defaults;
+      return [{} as EmailNotification, true];
+    }) as typeof EmailNotification.findOrCreate;
+    QuoteTicket.findByPk = (async () => ({ apiCredentialId: "cred-1" })) as unknown as typeof QuoteTicket.findByPk;
+
+    await enqueueRampCompletedEmail(completedRamp("ramp-partner"));
+
+    expect(defaults?.status).toBe(NotificationStatus.Skipped);
+    expect(defaults?.userId).toBe("user-1");
+    expect(localeLookups).toBe(0);
   });
 });

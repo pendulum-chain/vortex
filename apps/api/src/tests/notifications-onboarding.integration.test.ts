@@ -12,12 +12,20 @@ import {
 import { createAlfredpayCustomer } from "../api/services/alfredpay/alfredpay-customer.service";
 import { reconcileMissedRampCompletedEmails } from "../api/services/email";
 import { emitNotification } from "../api/services/notifications/notification.service";
+import ApiCredential from "../models/apiCredential.model";
 import CustomerEntity from "../models/customerEntity.model";
+import EmailNotification, { NotificationProvider, NotificationStatus, NotificationType } from "../models/emailNotification.model";
 import KycCase from "../models/kycCase.model";
 import ProviderCustomer, { VerificationStatus } from "../models/providerCustomer.model";
 import User from "../models/user.model";
 import { resetTestDatabase, setupTestDatabase } from "../test-utils/db";
-import { createTestAlfredpayCustomer, createTestTaxId, createTestUser } from "../test-utils/factories";
+import {
+  createTestAlfredpayCustomer,
+  createTestQuote,
+  createTestRampState,
+  createTestTaxId,
+  createTestUser
+} from "../test-utils/factories";
 import { type FakeSupabaseAuth, installFakeSupabaseAuth, testUserToken } from "../test-utils/fake-world/fake-auth";
 import { startTestApp, type TestApp } from "../test-utils/test-app";
 
@@ -69,8 +77,54 @@ describe("GET /v1/notifications", () => {
 });
 
 describe("ramp completion notification reconciliation", () => {
-  it("executes the missing-notification anti-join against PostgreSQL", async () => {
+  it("re-enqueues exactly the completed ramps that have no notification row", async () => {
+    const { user } = await createAuthedUser("reconcile@example.com");
+    const missed = await createTestRampState({ currentPhase: "complete", userId: user.id });
+    const already = await createTestRampState({ currentPhase: "complete", userId: user.id });
+    await EmailNotification.create({
+      locale: "en-US",
+      provider: NotificationProvider.Vortex,
+      resourceId: already.id,
+      status: NotificationStatus.Sent,
+      type: NotificationType.RampCompleted,
+      userId: user.id
+    });
+    await createTestRampState({ currentPhase: "nablaSwap", userId: user.id });
+    await createTestRampState({ currentPhase: "complete", userId: null });
+
     await reconcileMissedRampCompletedEmails();
+
+    const missedRow = await EmailNotification.findOne({ where: { resourceId: missed.id } });
+    expect(missedRow?.status).toBe(NotificationStatus.Pending);
+    expect(missedRow?.userId).toBe(user.id);
+    expect(await EmailNotification.count()).toBe(2);
+
+    // A second sweep must be a no-op: the freshly written row now satisfies the anti-join.
+    await reconcileMissedRampCompletedEmails();
+    expect(await EmailNotification.count()).toBe(2);
+  });
+
+  it("tombstones a completed partner-API ramp instead of enqueuing mail", async () => {
+    const { user } = await createAuthedUser("partner-ramp@example.com");
+    const credential = await ApiCredential.create({
+      environment: "live",
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      name: "partner credential",
+      partnerId: null,
+      profileId: user.id,
+      publicKeyValue: "pk_test_reconcile",
+      secretKeyDigest: "a".repeat(64),
+      secretKeyPrefix: "sk_test_12345678"
+    });
+    const quote = await createTestQuote({ apiCredentialId: credential.id, userId: user.id });
+    const ramp = await createTestRampState({ currentPhase: "complete", quoteId: quote.id, userId: user.id });
+
+    await reconcileMissedRampCompletedEmails();
+
+    const rows = await EmailNotification.findAll({ where: { resourceId: ramp.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].status).toBe(NotificationStatus.Skipped);
+    expect(rows[0].lastError).toContain("Partner-API ramp");
   });
 });
 

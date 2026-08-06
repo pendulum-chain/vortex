@@ -122,10 +122,14 @@ reaches `complete` — it is the "single source of authority for phase transitio
 runs. The producer lives in the email module rather than on `RampService` because
 `ramp.service.ts` imports `phase-processor`, so the reverse import would be a cycle.
 
-Only ramps with a non-null `rampState.userId` produce mail — that field is populated solely
-from `req.userId`, which only the Supabase auth middleware sets, so partner-API ramps are
-excluded by construction. A partner-driven ramp has no Vortex-side recipient: the address on
-`additionalData.email` belongs to the *partner's* customer, not to us.
+Only ramps with a non-null `rampState.userId` produce mail, and API-credential ramps are
+excluded explicitly: `getEffectiveUserId` fills `userId` with the credential's linked
+profile (`req.userId ?? req.credential.profileId`), so relying on the null check alone
+would email the partner once per end-customer ramp. When the ramp's quote carries an
+`apiCredentialId`, the producer records a `skipped` tombstone row instead — no mail, and
+the reconcile sweep stops re-surfacing the ramp. A partner-driven ramp has no Vortex-side
+recipient: the address on `additionalData.email` belongs to the *partner's* customer, not
+to us.
 
 The payload carries both legs of the trade, already resolved to the user's perspective. On a
 buy the user pays fiat and receives the token; on a sell it is reversed, so which side of the

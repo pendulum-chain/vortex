@@ -4,7 +4,7 @@ import logger from "../../../config/logger";
 import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
-import { enqueueNotification } from "./notification.service";
+import { enqueueNotification, recordSkippedNotification } from "./notification.service";
 
 function getCompletedAt(rampState: RampState): string {
   const completion = [...rampState.phaseHistory].reverse().find(entry => entry.phase === "complete");
@@ -20,9 +20,12 @@ function getCompletedAt(rampState: RampState): string {
 }
 
 /**
- * Queues the ramp completion email. Only ramps owned by a signed-in user get one:
- * a partner-driven ramp has no verified Vortex-side recipient, and the email on a
- * ramp's additionalData belongs to the partner's customer, not to us.
+ * Queues the ramp completion email. Only ramps a signed-in user runs for themselves get
+ * one. A partner-API ramp is excluded even though it carries a userId — the credential
+ * middleware fills it with the credential's linked profile, which would flood the partner
+ * with one email per end-customer ramp — and the email on a ramp's additionalData belongs
+ * to the partner's customer, not to us. Exclusion writes a skipped tombstone so the
+ * reconcile sweep does not re-surface the ramp every hour.
  *
  * Lives here rather than on RampService because the phase processor is the only
  * place a ramp actually reaches the complete phase, and it cannot import
@@ -36,6 +39,15 @@ export async function enqueueRampCompletedEmail(rampState: RampState): Promise<v
   const quote = await QuoteTicket.findByPk(rampState.quoteId);
   if (!quote) {
     logger.warn(`Skipping completion email for ${rampState.id}: quote ${rampState.quoteId} not found`);
+    return;
+  }
+
+  if (quote.apiCredentialId) {
+    await recordSkippedNotification(
+      { provider: NotificationProvider.Vortex, resourceId: rampState.id, type: NotificationType.RampCompleted },
+      rampState.userId,
+      "Partner-API ramp: the userId is the credential's profile, not a subscribed end user"
+    );
     return;
   }
 
