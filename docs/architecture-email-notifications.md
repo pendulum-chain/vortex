@@ -1,7 +1,8 @@
 # Email Notifications — Architecture
 
-How outbound email works in Vortex after the `feat/email-notifications` branch, and how
-it differs from what was there before.
+How outbound email works in Vortex. The before/after comparison in §1 describes the
+introduction of transactional email (mid-2026) and stays as context for why the queue
+exists.
 
 Security-facing detail (invariants, threat model, audit checklist) lives in
 [`docs/security-spec/05-integrations/resend.md`](../security-spec/05-integrations/resend.md).
@@ -524,9 +525,14 @@ apps/api/src/
   `KybStatusWorker` — the reconciliation poll exists only to cover this unknown. If it does
   not, the poll is load-bearing and must stay.
 - **Spanish copy.** Alfredpay verification mail now ships, but `SUPPORTED_LOCALES` has no
-  `es-*`, so MX/CO/AR users are silently served `en-US`. Adding `es-419` means translating
-  the three verification templates plus `ramp_completed` and mapping those countries onto
-  it. See [`docs/features/alfredpay-kyc-notification-gap.md`](../features/alfredpay-kyc-notification-gap.md).
+  `es-*`, so MX/CO/AR users are silently served `en-US` (`toEmailLocale` falls back
+  silently). Deliberately deferred: it is translation work, not plumbing, and holding the
+  producer back for it would have left the larger gap — no mail at all — open. To close it:
+  add `es-419` to `SUPPORTED_LOCALES` in `services/email/types.ts`, translate
+  `verification-status.ts` (approved/rejected/expired, both the individual and business
+  variants) and `ramp-completed.ts`, and decide how MX/CO/AR profiles with no stored locale
+  map onto it. Vendor `failureReason` text stays untranslated either way — the same caveat
+  that already applies to Avenia's `resultMessage` for pt-BR.
 - Decide whether to backfill `TaxId.kycAttempt` for in-flight KYB attempts (§3). The
   attemptId is only persisted from `initiateKybLevel1` onward, so COMPANY `tax_ids` rows
   created before that change have a null `kyc_attempt`, are filtered out by the worker, and

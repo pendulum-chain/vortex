@@ -10,7 +10,7 @@ Resend is the outbound email provider for Vortex. It carries two independent cla
 Only the second class is application code and the subject of this spec.
 
 For the architecture — component diagram, enqueue/dispatch sequence, status lifecycle, and a
-before/after comparison — see [`docs/architecture/email-notifications.md`](../../architecture/email-notifications.md).
+before/after comparison — see [`docs/architecture-email-notifications.md`](../../architecture-email-notifications.md).
 
 Every notification is persisted to the `email_notifications` table before any send is attempted. The table is the queue, the retry ledger, the audit trail, and the de-duplication key. Nothing is sent outside that path.
 
