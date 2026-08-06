@@ -111,6 +111,27 @@ describe("enqueueRampCompletedEmail", () => {
     expect(defaults?.payload?.completedAt).toBe("2026-08-01T12:30:00.000Z");
   });
 
+  it("trims the DECIMAL scale padding off amounts before they reach the email", async () => {
+    let defaults: { payload?: Record<string, unknown> } | undefined;
+    SupabaseAuthService.getUserLocale = (async () => "en-US") as typeof SupabaseAuthService.getUserLocale;
+    EmailNotification.findOrCreate = (async options => {
+      defaults = options.defaults;
+      return [{} as EmailNotification, true];
+    }) as typeof EmailNotification.findOrCreate;
+    QuoteTicket.findByPk = (async () => ({
+      inputAmount: "1250.000000000000000000",
+      inputCurrency: "brl",
+      network: "polygon",
+      outputAmount: "230.450000000000000000",
+      outputCurrency: "usdc"
+    })) as unknown as typeof QuoteTicket.findByPk;
+
+    await enqueueRampCompletedEmail(completedRamp("ramp-padded"));
+
+    expect(defaults?.payload?.fiatAmount).toBe("1250.00");
+    expect(defaults?.payload?.tokenAmount).toBe("230.45");
+  });
+
   it("tombstones an API-credential ramp as skipped instead of mailing the partner profile", async () => {
     let defaults: { status?: string; userId?: string } | undefined;
     let localeLookups = 0;

@@ -4,6 +4,7 @@ import logger from "../../../config/logger";
 import { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import QuoteTicket from "../../../models/quoteTicket.model";
 import RampState from "../../../models/rampState.model";
+import { trimTrailingZeros } from "../phases/blocks/core/helpers";
 import { enqueueNotification, recordSkippedNotification } from "./notification.service";
 
 function getCompletedAt(rampState: RampState): string {
@@ -59,12 +60,14 @@ export async function enqueueRampCompletedEmail(rampState: RampState): Promise<v
   await enqueueNotification({
     payload: {
       completedAt: getCompletedAt(rampState),
-      fiatAmount: isBuy ? quote.inputAmount : quote.outputAmount,
+      // DECIMAL(38,18) columns come back scale-padded ("1250.000000000000000000");
+      // trim them the same way the quote API response does before anyone reads them.
+      fiatAmount: trimTrailingZeros(isBuy ? quote.inputAmount : quote.outputAmount),
       fiatCurrency: (isBuy ? quote.inputCurrency : quote.outputCurrency).toUpperCase(),
       network: quote.network,
       rampId: rampState.id,
       rampType: isBuy ? "buy" : "sell",
-      tokenAmount: isBuy ? quote.outputAmount : quote.inputAmount,
+      tokenAmount: trimTrailingZeros(isBuy ? quote.outputAmount : quote.inputAmount),
       tokenSymbol: (isBuy ? quote.outputCurrency : quote.inputCurrency).toUpperCase()
     },
     provider: NotificationProvider.Vortex,
