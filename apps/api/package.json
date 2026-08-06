@@ -93,6 +93,7 @@
     "credentials:migrate": "bun scripts/migrate-api-credentials.ts",
     "credentials:preflight": "bun scripts/preflight-api-credential-migration.ts",
     "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "grant:vortex-admin": "bun scripts/grant-vortex-admin.ts",
     "migrate": "bun -r @swc-node/register src/database/migrator.ts",
     "migrate:revert": "bun -r @swc-node/register src/database/migrator.ts revert-all",
     "migrate:revert-last": "bun -r @swc-node/register src/database/migrator.ts revert",

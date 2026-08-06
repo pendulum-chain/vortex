@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import httpStatus from "http-status";
 import logger from "../../../config/logger";
-import ProfileRole, { PROFILE_ROLE_NAMES, type ProfileRoleName } from "../../../models/profileRole.model";
+import ProfileRole, {
+  HTTP_GRANTABLE_PROFILE_ROLES,
+  PROFILE_ROLE_NAMES,
+  type ProfileRoleName
+} from "../../../models/profileRole.model";
 import User from "../../../models/user.model";
 
 function isProfileRoleName(role: unknown): role is ProfileRoleName {
@@ -26,6 +30,17 @@ export async function addProfileRole(req: Request, res: Response): Promise<void>
           code: "INVALID_ROLE_INPUT",
           message: `userId or email is required and role must be one of: ${PROFILE_ROLE_NAMES.join(", ")}`,
           status: httpStatus.BAD_REQUEST
+        }
+      });
+      return;
+    }
+
+    if (!HTTP_GRANTABLE_PROFILE_ROLES.includes(role)) {
+      res.status(httpStatus.FORBIDDEN).json({
+        error: {
+          code: "ROLE_NOT_HTTP_GRANTABLE",
+          message: `${role} must be granted out-of-band (see scripts/grant-vortex-admin.ts), not via this endpoint`,
+          status: httpStatus.FORBIDDEN
         }
       });
       return;

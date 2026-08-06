@@ -70,6 +70,28 @@ describe("profile roles admin routes", () => {
     expect(revokedAgain.status).toBe(404);
   });
 
+  it("rejects granting vortex_admin via HTTP but still allows discount_manager", async () => {
+    const user = await createTestUser();
+
+    const blocked = await post({ role: "vortex_admin", userId: user.id });
+    expect(blocked.status).toBe(403);
+    const body = (await blocked.json()) as { error: { code: string } };
+    expect(body.error.code).toBe("ROLE_NOT_HTTP_GRANTABLE");
+    expect(await ProfileRole.count({ where: { role: "vortex_admin", userId: user.id } })).toBe(0);
+
+    const allowed = await post({ role: "discount_manager", userId: user.id });
+    expect(allowed.status).toBe(201);
+  });
+
+  it("still allows revoking vortex_admin even though it cannot be granted via HTTP", async () => {
+    const user = await createTestUser();
+    await ProfileRole.create({ role: "vortex_admin", userId: user.id });
+
+    const revoked = await fetch(`${baseUrl}/${user.id}/vortex_admin`, { headers: ADMIN_HEADERS, method: "DELETE" });
+    expect(revoked.status).toBe(204);
+    expect(await ProfileRole.count({ where: { userId: user.id } })).toBe(0);
+  });
+
   it("addresses the profile by email as well as by id", async () => {
     const user = await createTestUser({ email: "manager@example.com" });
 
