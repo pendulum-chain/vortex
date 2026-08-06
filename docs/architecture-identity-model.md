@@ -1,7 +1,7 @@
 # Identity, Customer, and Partner Model
 
-Status: current architecture. Last reconciled with migrations 038–060 and the API models
-on 2026-08-04.
+Status: current architecture. Last reconciled with migrations 038–061 and the API models
+on 2026-08-06.
 
 This document explains the implemented identity model across authentication, compliance
 customers, provider accounts, partner pricing, and recipients. Security invariants remain
@@ -29,6 +29,9 @@ erDiagram
     partners ||--o{ partner_pricing_configs : prices
     partners ||--o{ api_credentials : attributes
     partners ||--o{ partner_managed_profiles : provisions
+    profiles ||--o| managed_profile_managers : enables
+    managed_profile_managers ||--o{ managed_profiles : controls
+    profiles ||--o| managed_profiles : identifies
     customer_entities ||--o{ recipient_invitations : sends
     customer_entities ||--o{ sender_recipients : participates
     sender_recipients ||--o{ recipient_payout_references : uses
@@ -36,8 +39,9 @@ erDiagram
 
 ### Profiles and customer entities
 
-`profiles` is the Supabase-linked login identity. Email OTP authentication yields a
-Supabase user ID, which is also the profile ID used by the API.
+`profiles.kind` distinguishes Supabase-linked `authenticated` profiles from headless
+`managed` profiles. Authenticated profiles have an email and use their Supabase user ID
+as the profile ID. Managed profiles have no email or Supabase identity.
 
 `customer_entities` represents the legal/compliance customer. A profile may own an
 individual and a business entity, while `profiles.active_customer_entity_id` records the
@@ -87,6 +91,18 @@ retired; startup fails closed while any active row remains.
 authentication or pricing principal. Normative credential rules live in
 [`security-spec/01-auth/api-keys.md`](security-spec/01-auth/api-keys.md).
 
+The additive `managed_profile_managers` and `managed_profiles` schema is the foundation
+for headless delegated profiles. It records manager enablement, allowed corridors, and
+the unique manager-to-child relationship. Database constraints require every managed
+profile to have exactly one relationship and prevent managed profiles from becoming
+managers. The internal provisioning service atomically creates a managed profile, its
+active customer entity, and the relationship, with idempotency scoped by manager and
+external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
+allowed corridors without deleting manager history. Manager-facing routes and delegated
+profile lifecycle routes are not active yet. Delegated authorization is active on the
+existing child-oriented quote, ramp, onboarding-status, Avenia, and Alfredpay routes; the
+legacy partner-managed flow remains operational during the transition.
+
 ### Recipients
 
 `recipient_invitations` contains a token-bound invitation from a sender entity.
@@ -102,14 +118,24 @@ Current product behavior and acknowledged gaps are in
 
 ## Authentication and ownership flow
 
-1. `requirePartnerOrUserAuth()` accepts a valid secret API key or Supabase bearer token.
-2. `getEffectiveUserId()` prefers the Supabase user and otherwise uses the user linked to
-   the validated secret key.
-3. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
+1. Existing authentication accepts a valid secret API key or Supabase bearer token and
+   establishes the actor profile.
+2. On delegated routes, `X-Managed-Profile-Id` selects a child profile. The authorization
+   middleware verifies the active manager, direct active relationship, managed child,
+   active child customer entity, and the configured corridor for mutations.
+3. `getEffectiveUserId()` uses the verified child subject when delegation is present;
+   otherwise it preserves the existing Supabase/API-credential resolution.
+4. Ownership middleware scopes quotes, ramps, provider accounts, recipients, and history
    to that effective user and their customer entities.
-4. At ramp registration, the server resolves the provider account for the effective user.
+5. At ramp registration, the server resolves the provider account for the effective user.
    Client-supplied provider identifiers are either ignored or accepted only when they
    match the server-derived identity.
+
+The derived request context retains `actorProfileId`, `subjectProfileId`,
+`customerEntityId`, and the manager-child relationship ID. It never overwrites
+`req.userId`, and a public API key cannot authenticate a manager. Email-bound Mykobo,
+Monerium, and Alfredpay customer-creation routes do not accept delegation because managed
+children have no canonical email.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned
@@ -118,7 +144,7 @@ quote cannot be claimed by another user.
 ## Implementation map
 
 - Sequelize models: `apps/api/src/models/{user,customerEntity,providerCustomer,kycCase,partner,partnerPricingConfig,apiCredential,partnerManagedProfile,recipientInvitation,senderRecipient,recipientPayoutReference}.model.ts`
-- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,ownershipAuth}.ts`
+- Principal resolution: `apps/api/src/api/middlewares/{dualAuth,effectiveUser,managedProfileAuth,ownershipAuth}.ts`
 - Provider ownership resolution: `apps/api/src/api/services/avenia-account.ts` and provider controllers/services
 - Schema history: `apps/api/src/database/migrations/038-*` onward
 - Migration 060 production gates: [`operations-legacy-schema-cleanup.md`](operations-legacy-schema-cleanup.md)

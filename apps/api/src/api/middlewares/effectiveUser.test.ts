@@ -1,5 +1,5 @@
 import {describe, expect, it} from "bun:test";
-import {getEffectiveUserId} from "./effectiveUser";
+import {getAuthenticatedProfileId, getEffectiveUserId} from "./effectiveUser";
 
 function fakeReq({userId, apiKeyUserId}: {userId?: string; apiKeyUserId?: string} = {}): {
   userId?: string;
@@ -33,11 +33,49 @@ describe("getEffectiveUserId", () => {
     ).toBe("key-user");
   });
 
+  it("uses a verified managed profile subject without replacing the authenticated actor", () => {
+    expect(
+      getEffectiveUserId({
+        managedProfileContext: {
+          actorProfileId: "manager-user",
+          customerEntityId: "entity-1",
+          managedProfileId: "relationship-1",
+          subjectProfileId: "managed-user"
+        },
+        userId: "manager-user"
+      } as never)
+    ).toBe("managed-user");
+  });
+
   it("returns undefined when no identity is present", () => {
     expect(getEffectiveUserId(fakeReq())).toBeUndefined();
   });
 
   it("ignores the legacy API key user field", () => {
     expect(getEffectiveUserId(fakeReq({ apiKeyUserId: "legacy-user" }) as never)).toBeUndefined();
+  });
+});
+
+describe("getAuthenticatedProfileId", () => {
+  it("uses the Supabase-authenticated profile", () => {
+    expect(getAuthenticatedProfileId({ userId: "supabase-user" })).toBe("supabase-user");
+  });
+
+  it("uses the profile explicitly authenticated by secret-credential middleware", () => {
+    expect(getAuthenticatedProfileId({ authenticatedCredentialProfileId: "credential-user" })).toBe("credential-user");
+  });
+
+  it("does not infer authentication from credential metadata", () => {
+    expect(
+      getAuthenticatedProfileId({
+        credential: {
+          credentialId: "credential-1",
+          environment: "test",
+          partnerId: null,
+          profileId: "credential-user",
+          strength: "secret"
+        }
+      } as never)
+    ).toBeUndefined();
   });
 });

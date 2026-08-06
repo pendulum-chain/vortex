@@ -34,7 +34,7 @@ export async function materializeSeededDiscounts(
   // concurrent admin assignment (or second discounted acceptance) cannot race this check
   // into the active-assignment unique index or get deactivated by the replacement below.
   const lockedUser = await User.findByPk(userId, { lock: Transaction.LOCK.UPDATE, transaction });
-  if (!lockedUser) {
+  if (!lockedUser || !lockedUser.email) {
     logger.error(`Seeded discount for invite ${invitationId}: profile ${userId} not found; seeding skipped`);
     return "skipped_profile_missing";
   }

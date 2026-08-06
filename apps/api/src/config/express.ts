@@ -32,7 +32,15 @@ const dashboardPreviewOriginRegex = buildDashboardPreviewOriginRegex(process.env
 // enable CORS - Cross Origin Resource Sharing
 app.use(
   cors({
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Public-Key", "X-Request-ID", "X-Correlation-ID"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-API-Key",
+      "X-Public-Key",
+      "X-Managed-Profile-Id",
+      "X-Request-ID",
+      "X-Correlation-ID"
+    ],
     credentials: true,
     exposedHeaders: ["X-Request-ID"],
     maxAge: 86400, // Cache preflight requests for 24 hours

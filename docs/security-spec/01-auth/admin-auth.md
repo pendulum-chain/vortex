@@ -2,7 +2,11 @@
 
 ## What This Does
 
-Admin authentication protects internal/operational endpoints that can mutate system state or manage partners. It uses a single shared secret (`ADMIN_SECRET` env var) compared via Bearer token. Read-only access to client observability endpoints uses a separate `METRICS_DASHBOARD_SECRET` so a metrics token compromise does not grant broader admin access.
+Admin authentication protects internal/operational endpoints that can mutate system state,
+manage partners, or configure managed-profile managers. It uses a single shared secret
+(`ADMIN_SECRET` env var) compared via Bearer token. Read-only access to client
+observability endpoints uses a separate `METRICS_DASHBOARD_SECRET` so a metrics token
+compromise does not grant broader admin access.
 
 The flow:
 1. Admin includes `Authorization: Bearer <ADMIN_SECRET>` header
@@ -27,6 +31,8 @@ the shared credential; individual admin identities are out of scope for this cha
 5. **Error responses MUST distinguish between missing auth (401) and invalid auth (403)** — This is the current behavior: missing header → 401, invalid token → 403.
 6. **The `Authorization` header MUST use the `Bearer` scheme** — Other schemes (Basic, etc.) must be rejected.
 7. **Admin auth MUST NOT attach any identity to the request** — Unlike Supabase auth (which sets `userId`) or API key auth (which sets `authenticatedPartner`), admin auth is identity-less. No `req.adminUser` or similar should exist.
+8. **Only admin auth may configure managed-profile managers** — `PUT /v1/admin/managed-profile-managers/:profileId` creates or replaces activation and a non-empty set of supported corridors for an existing authenticated profile. `GET` reads that configuration. Deactivation uses `isActive = false`; configuration is retained rather than physically deleted.
+9. **Managed children MUST NOT become managers** — Manager configuration rejects `profiles.kind = managed`, preserving the direct, non-nested management model.
 
 ## Threat Vectors & Mitigations
 
@@ -52,3 +58,4 @@ the shared credential; individual admin identities are out of scope for this cha
 - [x] No logging middleware captures the full `Authorization` header for admin requests — **PASS**
 - [x] Error response for invalid admin token does not include the expected token or any hint about the secret — **PASS**
 - [x] Missing and invalid admin-auth attempts are logged with request IP/path; secret values are not logged. **PASS**
+- [x] Managed-profile manager configuration routes require `adminAuth`, validate a non-empty duplicate-free supported corridor set, and retain deactivated configurations. **PASS**

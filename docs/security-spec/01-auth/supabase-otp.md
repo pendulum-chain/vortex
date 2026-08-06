@@ -27,6 +27,7 @@ Two middleware variants exist:
 7. **Supabase configuration MUST be present** — If `SUPABASE_URL`, `SUPABASE_ANON_KEY`, or `SUPABASE_SERVICE_KEY` are empty/missing, the auth system is non-functional. The service should fail to start rather than silently accept all tokens.
 8. **JWT expiry MUST be enforced** — Supabase tokens have a configurable expiry. The verification MUST reject expired tokens, not just validate the signature.
 9. **Session teardown MUST happen only on confirmed-invalid refresh** — The frontend clears the stored session (and forces re-login) only when `/v1/auth/refresh` returns `401` (refresh token invalid/revoked). Transient failures (network errors, 5xx, timeouts) MUST NOT clear the session; they are retried while the existing session is preserved. The backend enforces this contract: `/v1/auth/refresh` returns `401` only for a definite invalid-token error from Supabase and returns `503` for transient/transport failures (and any unexpected error), so a Supabase outage cannot masquerade as an invalid token and log users out.
+10. **Managed profiles MUST NOT have an OTP identity** — `profiles.kind = managed` requires a null email and represents no Supabase Auth identity. Provisioning must never create or associate a Supabase user for a managed profile; bearer middleware continues to trust authoritative Supabase token validation.
 
 ## Threat Vectors & Mitigations
 
@@ -41,7 +42,7 @@ Two middleware variants exist:
 
 ## Audit Checklist
 
-- [x] `requireAuth` is applied to all endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: F-013 resolved. `/v1/ramp/*` endpoints now use `requirePartnerOrUserAuth()` (sk_ partner key OR Supabase Bearer) with ownership guards; `/v1/brla/*` uses `requireAuth`; `/v1/mykobo/profiles` (GET + POST) uses `requireAuth` (F-068 resolved); admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
+- [x] Auth middleware is applied to endpoints that mutate ramp state, access user data, or perform privileged operations — **PASS: `/v1/ramp/*`, delegated BRLA/Alfredpay operations, and onboarding status use `requirePartnerOrUserAuth()` with ownership/delegation guards; email-bound Mykobo, Monerium, and Alfredpay customer creation remain on `requireAuth`; admin and webhook routes use `adminAuth`/`apiKeyAuth`.**
 - [x] `optionalAuth` is only used on endpoints where unauthenticated access is intentionally allowed (e.g., public quote lookup) — **PASS**
 - [x] `SupabaseAuthService.verifyToken()` uses authoritative Supabase Auth validation without requiring service-role privilege — **PASS**
 - [x] The `Bearer ` prefix check uses `startsWith("Bearer ")` with the trailing space (not just `"Bearer"`) — **PASS**

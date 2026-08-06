@@ -655,14 +655,15 @@ export const getUploadUrls = async (
       return;
     }
 
-    if (!req.userId) {
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
     // Profile-level ownership: legacy business rows live on the profile's individual
     // entity, so the owning entity's type cannot gate access — and a read path must not
     // findOrCreate an entity as a side effect.
-    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
     if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
@@ -716,12 +717,13 @@ export const newKyc = async (
       return;
     }
 
-    if (!req.userId) {
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
     // Profile-level ownership.
-    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
     if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
@@ -921,12 +923,13 @@ export const initiateKybLevel1 = async (
       return;
     }
 
-    if (!req.userId) {
+    const effectiveUserId = getEffectiveUserId(req);
+    if (!effectiveUserId) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;
     }
     // Profile-level ownership: KYB business rows migrated by 040 live on the individual entity.
-    const ownedEntityIds = await findCustomerEntityIdsForProfile(req.userId);
+    const ownedEntityIds = await findCustomerEntityIdsForProfile(effectiveUserId);
     if (!ownedEntityIds.includes(record.customerEntityId)) {
       res.status(httpStatus.FORBIDDEN).json({ error: "This tax ID is not linked to your user profile and cannot be used." });
       return;

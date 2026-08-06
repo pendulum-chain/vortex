@@ -4,6 +4,7 @@ import {
   BrlaApiError,
   BrlaApiService,
   BrlaCurrency,
+  CORRIDOR_FIAT_TOKEN,
   FiatToken,
   GetUserLimitsResponse,
   LimitsCorridor,
@@ -20,13 +21,6 @@ import {
 } from "./alfredpay/alfredpay.helpers";
 import { resolveAveniaAccountForUser } from "./avenia-account";
 
-const CORRIDOR_FIAT: Record<Exclude<LimitsCorridor, "BR">, FiatToken> = {
-  AR: FiatToken.ARS,
-  CO: FiatToken.COP,
-  MX: FiatToken.MXN,
-  US: FiatToken.USD
-};
-
 function calendarMonthPeriod(year: number, month: number): UserLimitPeriod {
   return {
     endsAt: new Date(Date.UTC(year, month, 1)).toISOString(),
@@ -36,7 +30,7 @@ function calendarMonthPeriod(year: number, month: number): UserLimitPeriod {
 }
 
 async function getAlfredpayLimits(userId: string, corridor: Exclude<LimitsCorridor, "BR">): Promise<UserLimit[]> {
-  const fiat = CORRIDOR_FIAT[corridor];
+  const fiat = CORRIDOR_FIAT_TOKEN[corridor];
   const now = new Date();
   const { startsAt } = getCurrentUtcMonthPeriod(now);
   const period = calendarMonthPeriod(startsAt.getUTCFullYear(), startsAt.getUTCMonth() + 1);

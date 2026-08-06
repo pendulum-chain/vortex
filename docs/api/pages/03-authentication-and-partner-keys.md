@@ -15,6 +15,7 @@ Both values share one immutable credential ID, subject profile, optional partner
 | Sanitized `GET /v1/ramp-info` | Yes | Yes | No |
 | Exact limits and provider-account reads | No | Yes | Yes |
 | Ramp register/update/start/status/history/errors | No | Yes | Yes |
+| Act for an authorized managed child | No | Yes | Yes |
 | Webhook management | No | Yes | No |
 | Profile-managed credential lifecycle | No | No | Yes |
 
@@ -22,9 +23,24 @@ Both values share one immutable credential ID, subject profile, optional partner
 
 ## Subject And Partner Binding
 
-Every credential acts for exactly one Vortex profile. A profile-managed credential has no partner and is managed by its signed-in subject. A partner-managed credential has an optional partner attribution but still acts only for its bound profile.
+Every credential authenticates exactly one Vortex profile. A profile-managed credential has no partner and is managed by its signed-in subject. A partner-managed credential has an optional partner attribution but still authenticates only its bound profile.
 
-Ramp registration requires that real profile subject in every corridor. KYC and provider identity are derived from the credential's profile, never from a request-selected user. For BRL, a supplied `taxId` is only a deprecated cross-check and must match the authenticated profile. A technical profile can operate only on provider/customer resources it actually owns.
+Ramp registration requires a real profile subject in every corridor. KYC and provider identity are derived from the authenticated profile unless the request uses the authorized managed-child flow below. For BRL, a supplied `taxId` is only a deprecated cross-check and must match the effective profile. A technical profile can operate only on provider/customer resources it actually owns.
+
+## Act For A Managed Child
+
+An administrator may enable an authenticated profile as a managed-profile manager and assign its allowed corridors. On supported child-oriented endpoints, that manager can select one directly managed headless child:
+
+```http
+X-API-Key: sk_live_...
+X-Managed-Profile-Id: 00000000-0000-0000-0000-000000000002
+```
+
+A Supabase Bearer session may replace the secret key. A public `pk_*` value cannot authenticate delegation. Vortex verifies the active manager, direct active child relationship, child's single active customer entity, and the allowed country for corridor-bound mutations. The manager remains the authenticated actor; ownership, KYC/provider lookup, quote pricing, and ramp history resolve from the child subject.
+
+The header is supported for quote creation; ramp registration, update, start, status, history, and errors; aggregate onboarding status; BRLA customer/KYC operations; and Alfredpay KYC/KYB and fiat-account operations. Corridor removal blocks mutations but not quote discovery or historical/status reads. Alfredpay customer creation and the email-bound Mykobo and Monerium flows do not support managed children because a headless child has no canonical login email.
+
+`X-Managed-Profile-Id` is only a selector. Supplying another manager's child, an inactive/deleted child, a child with an invalid entity layout, or a disallowed mutation corridor returns `403 MANAGED_PROFILE_ACCESS_DENIED`.
 
 Partners must provision one genuine managed profile per individual, business, or technical subject when interactive signup is unavailable. Vortex's admin workflow binds the profile to immutable partner and external-user IDs and allows the same identity to be claimed later through OTP. Individual and business subjects receive the corresponding customer entity. Technical subjects receive no customer entity and cannot perform customer or ramp operations. Do not share dummy profiles between customers or infer a subject from a credential display name.
 

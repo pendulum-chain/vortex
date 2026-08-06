@@ -32,6 +32,7 @@ Every credential has a non-null `profile_id`. A null `partner_id` is profile-man
 | Register, update, start, or read a ramp | No | Yes | Yes |
 | Read ramp history or diagnostic error logs | No | Yes | Yes |
 | Manage fiat/provider accounts | No | Yes | Yes |
+| Act for an authorized managed child | No | Yes | Yes |
 | Manage webhooks | No | Yes | No |
 | Create, list, or revoke profile-managed credentials | No | No | Yes |
 | List or revoke partner-managed credentials of the session's own profile | No | No | Yes |
@@ -45,7 +46,7 @@ Possession of a public key never authorizes exact financial usage, provider iden
 
 A profile may have at most five non-revoked, non-expired credentials. Creation locks the profile row and performs the active count and insert in one transaction, preventing concurrent requests from exceeding the cap. `DELETE /v1/api-credentials/:credentialId` updates the one row's `revoked_at`, atomically disabling both values without a request body or second key ID.
 
-Admin partner credential operations use the same lifecycle service and require an explicit existing `profile_id` subject. `POST /v1/admin/managed-profiles` provisions a genuine Supabase identity and Vortex profile from explicit `partnerId`, `externalUserId`, email, and `individual`, `business`, or `technical` subject type. The `(partner_id, external_user_id)` and `profile_id` associations are unique; an existing email is reconciled only when its immutable Supabase metadata matches the same association. Individual/business subjects receive the matching customer entity. OTP verification marks the identity claimed without duplicating it. Technical subjects receive no customer entity and are explicitly rejected from customer/ramp operations.
+Admin partner credential operations use the same lifecycle service and require an explicit existing `profile_id` subject. The legacy `POST /v1/admin/managed-profiles` flow provisions a genuine Supabase identity and Vortex profile from explicit `partnerId`, `externalUserId`, email, and `individual`, `business`, or `technical` subject type. The `(partner_id, external_user_id)` and `profile_id` associations are unique; an existing email is reconciled only when its immutable Supabase metadata matches the same association. Individual/business subjects receive the matching customer entity. OTP verification marks the identity claimed without duplicating it. Technical subjects receive no customer entity and are explicitly rejected from customer/ramp operations. The separate headless provisioning service atomically creates a null-email managed profile, its active customer entity, and its manager relationship. Existing child-oriented routes accept `X-Managed-Profile-Id` only after a Supabase session or secret API credential authenticates the manager; public keys cannot authorize delegation and child credentials are not issued.
 
 ### Public And Secret Consistency
 
@@ -93,6 +94,7 @@ Its response is an allowlisted per-corridor projection:
 18. **There MUST be no legacy request-path fallback**: runtime validation reads only `api_credentials`; it does not read `api_keys`, bcrypt hashes, old prefixes, unpaired halves, or name-based relationships.
 19. **Startup MUST fail closed**: after migrations and before listening, the API verifies required `api_credentials` columns, nullability, indexes, constraints, and zero active `api_keys` rows. Any failure prevents serving traffic.
 20. **`ramp-info` MUST be subject-derived and sanitized**: it accepts no user selector and returns only the documented KYC state and buy/sell booleans.
+21. **Managed-profile selection MUST be authorization-derived**: `X-Managed-Profile-Id` is accepted only on delegated routes after a Supabase session or secret credential establishes the manager actor. Secret-key middleware explicitly records the authenticated credential profile; delegated authorization MUST NOT infer authentication by inspecting `CredentialContext.strength`. Authorization requires an active manager, a direct active relationship, a managed child with exactly one customer entity matching its active entity, and the allowed corridor for corridor-bound mutations. The verified child becomes the effective operation subject without replacing the authenticated actor.
 
 ## Threat Vectors & Mitigations
 
@@ -101,6 +103,7 @@ Its response is an allowlisted per-corridor projection:
 | Secret exposed in browser or telemetry | Public capability exists for browser use; secret values are server-only, returned once, and forbidden from logs/events. |
 | Database read leaks usable secret | Only a high-entropy secret's SHA-256 digest and non-secret lookup prefix are stored. |
 | Public key escalates to financial access | Route-level capability matrix rejects public keys from sensitive reads and mutations. |
+| Caller supplies another manager's child ID | Delegated middleware scopes the active relationship by both authenticated manager and child profile before deriving an effective subject. |
 | Public key from one credential is combined with another secret | Resolve both and return `403 CREDENTIAL_MISMATCH` before business logic. |
 | Concurrent creation exceeds the cap | Lock the profile, count active non-expired credentials, and insert in one transaction. |
 | Revocation leaves one half active | One row and one `revoked_at` update disable both values. |

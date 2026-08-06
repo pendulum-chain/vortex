@@ -1,6 +1,6 @@
 import { expect, mock, test } from "bun:test";
 import type { QueryInterface } from "sequelize";
-import { up } from "./migrations/061-add-kyb-submission-state";
+import { up } from "./migrations/062-add-kyb-submission-state";
 
 test("fails before schema changes when duplicate Avenia cases exist", async () => {
   const addColumn = mock(async () => undefined);
