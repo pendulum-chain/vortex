@@ -129,6 +129,8 @@ interface Config {
   logs: string;
   adminSecret: string;
   metricsDashboardSecret: string;
+  /** Kill switch for vortex_admin "act as another profile" sessions. */
+  impersonationEnabled: boolean;
   supabase: {
     url: string;
     anonKey: string;
@@ -228,6 +230,7 @@ export const config: Config = {
   deploymentEnv: readDeploymentEnv(),
   env: nodeEnv,
   flowVariant: readFlowVariant(),
+  impersonationEnabled: process.env.IMPERSONATION_ENABLED === "true",
 
   integrations: {
     alchemy: {
