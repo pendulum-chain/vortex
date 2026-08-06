@@ -136,15 +136,18 @@ quote each leg reads from swaps with `rampState.type`:
 | `fiatAmount` / `fiatCurrency` | `quote.inputAmount` / `inputCurrency` | `quote.outputAmount` / `outputCurrency` |
 | `tokenAmount` / `tokenSymbol` | `quote.outputAmount` / `outputCurrency` | `quote.inputAmount` / `inputCurrency` |
 
-Plus `network`, `rampId`, `rampType` and `completedAt`. Enqueue is fire-and-forget: a failure
-is logged but never fails a ramp that already succeeded.
+Plus `network`, `rampId`, `rampType` and `completedAt`. The timestamp comes from the recorded
+`complete` entry in `phaseHistory`, so delayed reconciliation does not claim the ramp completed
+when the email was finally queued. Enqueue is fire-and-forget: a failure is logged but never
+fails a ramp that already succeeded.
 
 That isolation costs atomicity — the enqueue runs after the terminal phase is persisted, so a
 backend that dies in between leaves a completed ramp with no row, and `complete` is never
 revisited. `NotificationDispatchWorker` therefore reconciles hourly
-(`reconcileMissedRampCompletedEmails()`): ramps that reached `complete` in the last 24 hours
-with a `userId` and no `(vortex, ramp_completed, <ramp id>)` row are re-enqueued. It shares the
-same idempotency key, so a row the inline path did write is untouched.
+(`reconcileMissedRampCompletedEmails()`): it asks PostgreSQL for all ramps with a `userId` that
+reached `complete` but have no `(vortex, ramp_completed, <ramp id>)` row, with no age cutoff.
+The indexed anti-join returns only anomalies instead of rescanning every historical ramp. It
+shares the same idempotency key, so a row the inline path did write is untouched.
 
 **Verification (KYC + KYB), primary path** —
 `apps/api/src/api/controllers/avenia-webhook.controller.ts`
@@ -157,14 +160,15 @@ Three things make this endpoint unusual and are worth understanding before touch
 1. **It is authenticated by signature, not by API key or session.** Avenia signs the raw
    body with RSA-PSS / SHA-256; we verify against their published key from
    `GET /v2/public-key`. The key is cached for an hour and refetched on a miss — coalesced
-   and rate-limited to one fetch per 30s, so forged bodies cannot amplify into Avenia load —
-   because Avenia's guide states it rotates and must never be pinned.
+   and rate-limited to one fetch per 30s, so forged bodies cannot amplify into Avenia load.
+   The fetch itself aborts after 10 seconds, so a stalled provider cannot tie up signature
+   verification indefinitely. Avenia's guide states the key rotates and must never be pinned.
 2. **It is mounted ahead of the global JSON body parser** in `config/express.ts`, using
    `bodyParser.raw`. The signature covers the exact bytes sent; parsing and re-serialising
    the JSON does not reproduce them byte for byte, so a normally-mounted route could never
    verify.
 3. **Which kind of verification an event describes is read from our own database**, not
-   from the payload — `provider_customers.customer_type` for the event's `subAccountId`.
+   from the payload — `provider_customers.customer_type` for the normalized account id.
    It also decides whether the mail says identity or business verification. So this keeps
    working regardless of how Avenia labels company events.
 
@@ -179,6 +183,10 @@ later rendered into someone's inbox, the envelope and the attempt are both check
 the first property read, and anything that fails gets a deterministic `400`. An unrecognised
 *value* — a status Avenia adds later — is not malformed: it is acknowledged `200` and maps
 to no email, because a `400` would make Avenia retry it forever.
+
+Avenia's guides document two envelope shapes. The receiver accepts both the management
+shape (`{ subAccountId, subscription, data }`) and the event-specific shape
+(`{ event: { accountId, subscription, data } }`), then validates one normalized event.
 
 **Verification, reconciliation path** — `apps/api/src/api/workers/kyb-status.worker.ts`
 
@@ -233,23 +241,31 @@ outcome is ever seen.
 
 That poll is `refreshAlfredpayCustomerStatus()`, which resolves the account's latest
 submission id, calls `getKycStatus`/`getKybStatus` for it, maps the result, and persists it.
-It has two callers and the enqueue sits inside it rather than in either one:
+Its background/onboarding callers share `refreshAlfredpayCustomerStatus()`. The two legacy
+Alfredpay status endpoints perform the same terminal enqueue through
+`enqueueAlfredpayVerificationNotification()` before they write their legacy-shaped view:
 
 | Caller | When | Covers |
 | --- | --- | --- |
 | `onboarding.controller.ts` | dashboard status aggregation, TTL-throttled per account | the user who comes back to look |
+| `alfredpay.controller.ts` | `/alfredpayStatus` and `/getKycStatus` | legacy clients that poll either status endpoint |
 | `AlfredpayStatusWorker` | hourly, `15 * * * *` | the user who never returns |
 
-Both callers select on a *non-terminal stored status*, so an account drops out of every
+These paths select on or eventually exclude a *terminal stored status*, so an account drops out of every
 future poll the moment its outcome is written. Whichever caller observes the transition is
-therefore the only one that will ever see it — which is exactly why the enqueue lives in the
-shared function and not in the worker.
+therefore the only one that may see it. Every observer consequently uses the same idempotent
+enqueue helper before persisting the terminal outcome.
 
 For the same reason the enqueue is ordered **before** the status write. An account persisted
 terminal while the enqueue failed would be filtered out of every subsequent poll and its
 mail lost for good; failing first leaves the account non-terminal so the next poll retries
 the outcome and the email together. (The Avenia path does not need this — its webhook
 re-delivers, and the reconciliation poll keys off an attempt id that stays pollable.)
+
+The provider pollers run only on the `mykobo` flow-variant backend. Both flow variants share
+the same database and provider accounts, so starting them on the legacy `monerium` backend as
+well only duplicated every external status request. Cron jobs use `waitForCompletion`, which
+also prevents a slow cycle overlapping its next tick within one process.
 
 Two behavioural differences from Avenia worth knowing:
 
@@ -261,11 +277,12 @@ Two behavioural differences from Avenia worth knowing:
   collapsing into the earlier row.
 
 The sweep is bounded on both axes — 60 days of `provider_customers.updatedAt` and 250
-accounts per cycle, most-recently-touched first — because an account abandoned mid-wizard
-stays non-terminal forever and each one costs two to three Alfredpay calls. A truncated
-cycle logs a warning rather than silently dropping the remainder. Entities with no
-`profileId` (partner-owned) are excluded in the query, not skipped in the loop, so they
-never spend provider calls.
+accounts per cycle — because an account abandoned mid-wizard stays non-terminal forever
+and each one costs two to three Alfredpay calls. It advances through a stable `id` keyset
+and wraps after the last page, so a steady stream of newer accounts cannot starve older
+eligible rows. A truncated cycle logs a warning rather than silently dropping the
+remainder. Entities with no `profileId` (partner-owned) are excluded in the query, not
+skipped in the loop, so they never spend provider calls.
 
 > **Locale note:** Alfredpay's users are MX/CO/AR/US, and `SUPPORTED_LOCALES` is still
 > `en-US` and `pt-BR` only. `toEmailLocale` falls back silently, so these users receive
