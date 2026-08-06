@@ -9,6 +9,11 @@ export interface OutboundEmail {
   subject: string;
   html: string;
   text: string;
+  /**
+   * Sent as `Idempotency-Key`. Resend replays the original response for a repeated key
+   * within 24 hours, which is what makes retrying an uncertain send safe.
+   */
+  idempotencyKey: string;
 }
 
 export class EmailNotConfiguredError extends Error {
@@ -40,7 +45,8 @@ export async function sendEmail(email: OutboundEmail): Promise<string> {
     }),
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "Idempotency-Key": email.idempotencyKey
     },
     method: "POST"
   });

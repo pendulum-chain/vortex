@@ -27,8 +27,8 @@ Every notification is persisted to the `email_notifications` table before any se
 - `apps/api/src/models/emailNotification.model.ts`, migration `055-create-email-notifications-table.ts`
 
 The table is `email_notifications`, not `notifications`: migration 043 already owns `notifications`
-for the in-app notification centre. The two are unrelated, and this feature does not currently
-consult `notification_preferences.email_enabled` — see the open gap in the invariants below.
+for the in-app notification centre. The two tables are unrelated, but they share one opt-out:
+dispatch reads `notification_preferences` for the recipient before every send (invariant 15).
 
 The KYB worker polls `GET /v2/kyc/attempts/{attemptId}` for the specific attempt id recorded
 in `kyc_cases.provider_case_id` when `initiateKybLevel1` ran, and addresses the mail to the
@@ -51,10 +51,10 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 
 1. **A notification MUST only ever be addressed to a Vortex-authenticated user's own verified address.** The recipient is resolved at send time as `profiles.email` for `email_notifications.user_id`. No caller supplies a recipient address.
 2. **Partner-supplied and ramp-supplied addresses MUST NOT be used as recipients.** `RampState.state.additionalData.email` belongs to a *partner's* customer on API-driven ramps. Only ramps with a non-null `RampState.userId` produce a notification — `dualAuth` guarantees `userId` is set exclusively by a verified Supabase bearer token, never by a partner `sk_` key.
-3. **A given upstream event MUST produce at most one email.** The unique index `uniq_email_notifications_provider_type_resource` on `(provider, type, resource_id)` is the idempotency key; enqueuing uses `findOrCreate` against it. Re-polling a settled KYB attempt or replaying a phase transition cannot re-notify.
+3. **A given upstream event MUST produce at most one email.** The unique index `uniq_email_notifications_provider_type_resource` on `(provider, type, resource_id)` is the idempotency key; enqueuing uses `findOrCreate` against it. Re-polling a settled KYB attempt or replaying a phase transition cannot re-notify. The unique index alone does not close the window between Resend accepting a send and `sent` being persisted — a crash in between returns the row to the queue with the mail already away — so each send additionally carries the row id as Resend's `Idempotency-Key`, and the provider replays the original response instead of sending again.
 4. **A due notification MUST be claimed before it is sent.** Both flow-variant backends share one database. Dispatch claims rows inside a transaction using `FOR UPDATE SKIP LOCKED` and flips them to `sending` with `attempts` incremented, so two backends cannot send the same row.
 5. **A notification MUST NOT be lost when a send fails.** Enqueue only writes a row; the cron worker is the only sender. Failures are recorded with a backoff schedule (1/5/15/60/180 minutes) and retried up to 6 attempts — one initial send plus one retry per backoff step — after which the row is `abandoned` and a Slack alert fires.
-6. **A crashed send MUST NOT stall the queue.** Rows left in `sending` for more than 15 minutes are released back to `failed` and become eligible again. Because `attempts` was already incremented at claim time, a crash loop still terminates at the attempt cap.
+6. **A crashed send MUST NOT stall the queue, and MUST NOT retry without bound.** Rows left in `sending` for more than 15 minutes are recovered on the next cycle: those still under the attempt cap are released back to `failed` and become eligible again, while those at or above it are set `abandoned` with the same Slack alert a normal exhaustion raises. The split is what caps a crash loop — a process dying between claim and resolution records no failure, so the cap in `handleDeliveryFailure` never runs for it. `claimDueNotifications` additionally refuses to claim any row at the cap.
 7. **Outside production, mail MUST NOT reach arbitrary recipients.** When `DEPLOYMENT_ENV !== "production"`, a recipient not present in `EMAIL_RECIPIENT_ALLOWLIST` is recorded as `skipped` and no request is made to Resend. An empty allowlist means nothing is sent.
 8. **The Resend API key MUST be environment-only** and MUST NOT appear in logs, error text, or the `email_notifications.last_error` column. Only the response status and a truncated body are persisted on failure.
 9. **Template output MUST be escaped.** All payload values are HTML-escaped before interpolation, so a value carried from an upstream provider (for example an Avenia rejection message) cannot inject markup into the mail body.
@@ -63,6 +63,7 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 12. **A completed ramp MUST NOT lose its notification to a crash between the phase write and the enqueue.** The enqueue at ramp completion runs after the terminal phase is persisted and must not fail the ramp, so it is not atomic with it. `NotificationDispatchWorker` reconciles hourly: ramps that reached `complete` in the last 24 hours with a non-null `userId` and no `(vortex, ramp_completed, <ramp id>)` row are re-enqueued. The reconcile is idempotent against invariant 3, so a row the inline path did write is untouched.
 13. **A settled Alfredpay verification MUST NOT lose its notification to the status write that ends its polling.** Alfredpay has no webhook, and both callers of `refreshAlfredpayCustomerStatus` select on a non-terminal stored status — so an account written terminal while its enqueue failed would be excluded from every subsequent poll and never notified. The enqueue is therefore ordered before the status write: a failure leaves the account non-terminal and the next poll retries the outcome and the email together. Invariant 3 makes the retry idempotent.
 14. **The sending domain MUST be SPF/DKIM/DMARC aligned.** `vortexfinance.co` carries one SPF record (Resend merged into any existing sender), Resend's DKIM CNAMEs, and a DMARC policy. Because auth mail and transactional mail share the root domain, a reputation incident in either affects both — this was accepted deliberately in exchange for sender recognisability.
+15. **A recipient who has opted out MUST NOT be emailed.** Dispatch resolves `notification_preferences` for `email_notifications.user_id` before every send and records the row as `skipped` — with no request to Resend — when the recipient has opted out. `email_enabled = false` silences everything; `prefs[<type>] = false`, keyed by the stored `type` value (`ramp_completed`, `verification_approved`, …), silences one type. Opting out is the only meaning either field carries: a profile with no preferences row is treated exactly as the default row `getOrCreateNotificationPreferences` writes, so a missing row can never suppress mail. The check is at delivery, not enqueue, so an opt-out registered while a row waits in the queue is honoured.
 
 ## Threat Vectors & Mitigations
 
@@ -73,6 +74,9 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 | **Duplicate email flood** | Recovery worker or a second backend re-processes the same ramp/attempt | Unique dedupe index plus transactional row claim (inv. 3, 4) |
 | **Silent mail loss** | The in-process enqueue call is fire-and-forget; an exception would previously vanish | Enqueue writes a durable row before any send; the worker retries independently of the request that queued it (inv. 5) |
 | **Queue stall** | Process is killed between claim and send, leaving rows `sending` forever | Stale-claim release after 15 minutes (inv. 6) |
+| **Crash-loop mail flood** | A backend dies mid-send on every cycle, so no failure is ever recorded and the row is requeued indefinitely | Stale claims at the attempt cap are abandoned rather than released, and the claim query refuses rows at the cap (inv. 6) |
+| **Double send across a crash window** | The process dies after Resend accepts but before `sent` is persisted; the recovered row is sent again | The row id travels as Resend's `Idempotency-Key`, so the retry replays the original send (inv. 3) |
+| **Mailing a user who opted out** | A user disables email via `/v1/notifications/preferences` and still receives ramp and verification mail | Preferences are resolved at delivery time and an opted-out recipient is recorded `skipped` with no outbound request (inv. 15) |
 | **Leaking production mail from staging** | A staging deploy pointed at production-like data emails real users | Allowlist gate outside `DEPLOYMENT_ENV=production` (inv. 7) |
 | **API key compromise** | Attacker obtains `RESEND_API_KEY` and sends mail as `support@vortexfinance.co` | Env-only storage, no logging of the key, rotation via the Resend dashboard; DMARC limits third-party spoofing of the domain itself (inv. 8, 14) |
 | **HTML injection via provider text** | Avenia returns a `resultMessage`, or Alfredpay a `metadata.failureReason`, containing markup or a link | All interpolated values are HTML-escaped and the reason is length-capped (inv. 9, 10) |
@@ -90,7 +94,10 @@ rejection carries a new one and is therefore a new notification, not a suppresse
 - [ ] Dispatch claims rows with `lock: transaction.LOCK.UPDATE` and `skipLocked: true` before sending
 - [ ] `attempts` is incremented at claim time, not after a successful send
 - [ ] Retry cap is enforced and exhaustion sets `abandoned` plus a Slack alert
-- [ ] Stale `sending` rows are released on every cycle
+- [ ] Stale `sending` rows are released on every cycle, and ones at the attempt cap are abandoned instead of requeued
+- [ ] `claimDueNotifications` filters on `attempts < MAX_ATTEMPTS`
+- [ ] Every call to `sendEmail` carries the row id as `Idempotency-Key`
+- [ ] Dispatch consults `notification_preferences` before sending, and a missing row behaves as opted in
 - [ ] Non-production deploys have `EMAIL_RECIPIENT_ALLOWLIST` set; verify a non-allowlisted recipient yields `skipped` with no outbound request
 - [ ] `last_error` never contains the API key or a full provider payload (truncated to 2000 chars)
 - [ ] All template interpolation passes through `escapeHtml`

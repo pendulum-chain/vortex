@@ -3,6 +3,7 @@ import sequelize from "../../../config/database";
 import logger from "../../../config/logger";
 import { config } from "../../../config/vars";
 import EmailNotification, { NotificationKey, NotificationStatus } from "../../../models/emailNotification.model";
+import NotificationPreference from "../../../models/notificationPreference.model";
 import User from "../../../models/user.model";
 import { SupabaseAuthService } from "../auth";
 import { SlackNotifier } from "../slack.service";
@@ -15,6 +16,7 @@ const BACKOFF_MINUTES = [1, 5, 15, 60, 180];
 const MAX_ATTEMPTS = BACKOFF_MINUTES.length + 1;
 const BATCH_SIZE = 25;
 const STALE_CLAIM_MS = 15 * 60 * 1000;
+const STALE_ABANDON_REASON = "Abandoned after a claimed send repeatedly failed to complete";
 
 interface EnqueueParams extends NotificationKey {
   userId: string;
@@ -53,10 +55,10 @@ export function nextRetryAt(attempts: number): Date | null {
   return new Date(Date.now() + BACKOFF_MINUTES[attempts - 1] * 60 * 1000);
 }
 
-async function alertAbandoned(notification: EmailNotification): Promise<void> {
+async function alertAbandoned(notification: EmailNotification, reason: string | null): Promise<void> {
   try {
     await new SlackNotifier().sendMessage({
-      text: `Abandoned ${describeKey(notification)} after ${notification.attempts} attempts: ${notification.lastError}`
+      text: `Abandoned ${describeKey(notification)} after ${notification.attempts} attempts: ${reason}`
     });
   } catch (error) {
     logger.error(`Failed to send Slack alert for abandoned notification ${notification.id}: ${error}`);
@@ -77,6 +79,10 @@ async function claimDueNotifications(): Promise<EmailNotification[]> {
       skipLocked: true,
       transaction,
       where: {
+        // The cap is enforced here as well as in handleDeliveryFailure: a row that was
+        // requeued without a failure ever being recorded (a crash between claim and
+        // resolution) would otherwise be picked up forever.
+        attempts: { [Op.lt]: MAX_ATTEMPTS },
         nextAttemptAt: { [Op.lte]: new Date() },
         status: { [Op.in]: [NotificationStatus.Pending, NotificationStatus.Failed] }
       }
@@ -100,7 +106,36 @@ async function claimDueNotifications(): Promise<EmailNotification[]> {
   });
 }
 
+/**
+ * Email is opt-out: a profile with no preferences row has never disabled anything, and
+ * `getOrCreateNotificationPreferences` defaults `email_enabled` to true, so a missing row
+ * and a default row must behave alike. `email_enabled` is the master switch;
+ * `prefs[<notification type>]` — keyed by the stored `type` value, e.g. `ramp_completed` —
+ * silences one type when set to false and is ignored otherwise.
+ *
+ * Resolved at delivery rather than at enqueue so an opt-out registered while a row sits in
+ * the queue is still honoured.
+ */
+async function emailIsAllowed(notification: EmailNotification): Promise<boolean> {
+  const preferences = await NotificationPreference.findOne({ where: { profileId: notification.userId } });
+
+  if (!preferences) {
+    return true;
+  }
+
+  return preferences.emailEnabled && preferences.prefs[notification.type] !== false;
+}
+
 async function deliver(notification: EmailNotification): Promise<void> {
+  if (!(await emailIsAllowed(notification))) {
+    logger.info(`Skipping notification ${notification.id}: the recipient has disabled email for this notification`);
+    await notification.update({
+      lastError: "Recipient has disabled email notifications",
+      status: NotificationStatus.Skipped
+    });
+    return;
+  }
+
   const user = await User.findByPk(notification.userId);
 
   if (!user?.email) {
@@ -124,7 +159,10 @@ async function deliver(notification: EmailNotification): Promise<void> {
   }
 
   const rendered = renderNotification(notification);
-  const messageId = await sendEmail({ ...rendered, to: user.email });
+  // The row id is the idempotency key: a crash after Resend accepts but before `sent` is
+  // persisted leaves the row to be reclaimed, and the retry must collapse into the original
+  // send rather than mail the user twice.
+  const messageId = await sendEmail({ ...rendered, idempotencyKey: notification.id, to: user.email });
 
   await notification.update({
     lastError: null,
@@ -146,7 +184,7 @@ async function handleDeliveryFailure(notification: EmailNotification, error: unk
 
   if (!retryAt) {
     logger.error(`Abandoning notification ${notification.id} after ${notification.attempts} attempts: ${message}`);
-    await alertAbandoned(notification);
+    await alertAbandoned(notification, message);
   } else {
     logger.warn(`Notification ${notification.id} attempt ${notification.attempts} failed: ${message}`);
   }
@@ -155,17 +193,35 @@ async function handleDeliveryFailure(notification: EmailNotification, error: unk
 /**
  * Releases rows a previous cycle claimed but never resolved (e.g. the process was
  * killed mid-send), so they become eligible again instead of stalling forever.
+ *
+ * A row that has spent its attempts is abandoned here rather than requeued. Nothing
+ * else can retire it: a process dying between claim and resolution records no failure,
+ * so handleDeliveryFailure — which owns the cap on the normal path — never runs.
  */
 async function releaseStaleClaims(): Promise<void> {
+  const staleClaim = {
+    status: NotificationStatus.Sending,
+    updatedAt: { [Op.lt]: new Date(Date.now() - STALE_CLAIM_MS) }
+  };
+
+  const exhausted = await EmailNotification.findAll({
+    where: { ...staleClaim, attempts: { [Op.gte]: MAX_ATTEMPTS } }
+  });
+
+  await EmailNotification.update(
+    { lastError: STALE_ABANDON_REASON, status: NotificationStatus.Abandoned },
+    { where: { ...staleClaim, attempts: { [Op.gte]: MAX_ATTEMPTS } } }
+  );
+
   await EmailNotification.update(
     { nextAttemptAt: new Date(), status: NotificationStatus.Failed },
-    {
-      where: {
-        status: NotificationStatus.Sending,
-        updatedAt: { [Op.lt]: new Date(Date.now() - STALE_CLAIM_MS) }
-      }
-    }
+    { where: { ...staleClaim, attempts: { [Op.lt]: MAX_ATTEMPTS } } }
   );
+
+  for (const notification of exhausted) {
+    logger.error(`Abandoning notification ${notification.id} stuck in sending after ${notification.attempts} attempts`);
+    await alertAbandoned(notification, STALE_ABANDON_REASON);
+  }
 }
 
 export async function dispatchPendingNotifications(): Promise<void> {
