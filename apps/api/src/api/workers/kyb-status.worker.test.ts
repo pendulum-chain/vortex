@@ -52,4 +52,16 @@ describe("KybStatusWorker query window", () => {
     expect(job.isActive).toBe(false);
     expect(job.waitForCompletion).toBe(true);
   });
+
+  // Nothing here writes the terminal status back to kyc_cases, so without the anti-join
+  // a settled attempt costs one Avenia request per hour until it ages out of the window.
+  it("excludes attempts whose outcome is already queued and bounds the batch", async () => {
+    const options = await captureQuery();
+    const anti = (options.where as Record<symbol, { val?: string }>)[Op.and];
+
+    expect(String(anti?.val)).toContain("NOT EXISTS");
+    expect(String(anti?.val)).toContain("email_notifications");
+    expect(options.limit).toBe(250);
+    expect(options.order).toEqual([["updatedAt", "ASC"]]);
+  });
 });

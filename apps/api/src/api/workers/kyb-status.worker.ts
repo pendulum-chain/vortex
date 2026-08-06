@@ -1,13 +1,15 @@
 import { BrlaApiService } from "@vortexfi/shared";
 import { CronJob } from "cron";
-import { Op } from "sequelize";
+import { literal, Op } from "sequelize";
 import logger from "../../config/logger";
 import CustomerEntity from "../../models/customerEntity.model";
+import { NotificationProvider } from "../../models/emailNotification.model";
 import KycCase from "../../models/kycCase.model";
 import { VerificationStatus } from "../../models/providerCustomer.model";
 import { enqueueVerificationNotification } from "../services/avenia/verification-notifications";
 
 const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
+const MAX_CASES_PER_CYCLE = 250;
 
 /**
  * Reconciliation safety net behind the Avenia webhook receiver, which is the primary
@@ -53,7 +55,20 @@ class KybStatusWorker {
     try {
       const pending = await KycCase.findAll({
         include: [{ as: "customerEntity", model: CustomerEntity, required: true }],
+        // Oldest writes first so a burst larger than the cap drains across cycles.
+        limit: MAX_CASES_PER_CYCLE,
+        order: [["updatedAt", "ASC"]],
         where: {
+          // An attempt whose outcome is already queued (webhook or an earlier poll) is
+          // settled for this worker's purpose. Without the anti-join every settled case
+          // costs one Avenia request per hour until it ages out of the window, since
+          // nothing here writes the terminal status back to kyc_cases.
+          [Op.and]: literal(`NOT EXISTS (
+            SELECT 1
+            FROM email_notifications
+            WHERE provider = '${NotificationProvider.Avenia}'
+              AND resource_id = "KycCase"."provider_case_id"
+          )`),
           provider: "avenia",
           providerCaseId: { [Op.not]: null },
           status: { [Op.notIn]: [VerificationStatus.Approved, VerificationStatus.Rejected] },

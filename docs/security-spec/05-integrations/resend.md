@@ -33,7 +33,10 @@ dispatch reads `notification_preferences` for the recipient before every send (i
 The KYB worker polls `GET /v2/kyc/attempts/{attemptId}` for the specific attempt id recorded
 in `kyc_cases.provider_case_id` when `initiateKybLevel1` ran, and addresses the mail to the
 owning `customer_entities.profile_id` — a partner-owned entity has no profile, so it is
-skipped rather than notified. It does not list a subaccount's attempts
+skipped rather than notified. Attempts whose outcome is already queued are excluded by an
+anti-join against `email_notifications` (the worker never writes status back to
+`kyc_cases`, so the queue row is what retires an attempt), and each cycle is capped at
+250 cases, oldest writes first. It does not list a subaccount's attempts
 and pick one: that endpoint has no documented ordering, so selecting from it would guess at
 which attempt a notification describes, and `resource_id` — the dedupe key — is that attempt id.
 
