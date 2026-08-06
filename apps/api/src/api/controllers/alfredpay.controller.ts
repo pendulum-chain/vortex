@@ -247,7 +247,10 @@ export class AlfredpayController {
           } catch (error) {
             // Skipping the update keeps enqueue-before-persist: the next refresh
             // re-observes the outcome and the enqueue dedupes on the submission id.
-            logger.error(`Error queuing/persisting observed Alfredpay outcome for customer ${alfredPayCustomer.id}:`, error);
+            logger.error(
+              `Error queuing/persisting observed Alfredpay outcome for customer ${alfredPayCustomer.alfredPayId}:`,
+              error
+            );
           }
         }
       } catch (error) {
