@@ -77,7 +77,7 @@ describe("handleAveniaWebhook", () => {
 
   it("verifies the exact bytes received rather than a reparsed body", async () => {
     // Whitespace a JSON round-trip would drop still has to satisfy the signature.
-    const body = `{ "subAccountId":"sub-1",  "subscription":"KYC",\n"data":{"attempt":{"id":"attempt-2","status":"EXPIRED"}} }`;
+    const body = `{ "subAccountId":"sub-1",  "subscription":"KYC",\n"data":{"attempt":{"id":"attempt-2","status":"EXPIRED","updatedAt":"2026-07-29T10:00:00Z"}} }`;
 
     const response = await signed(body);
 
@@ -128,6 +128,57 @@ describe("handleAveniaWebhook", () => {
     const response = await signed("not json");
 
     expect(response.status).toBe(400);
+  });
+
+  // A signature only proves Avenia sent the bytes. Everything below parses as JSON and
+  // would previously have been read as an event, either throwing on a property access or
+  // persisting a payload an email is later rendered from.
+  it.each([
+    ["a signed null", "null"],
+    ["a signed array", "[]"],
+    ["a signed string", '"event"'],
+    ["an event with no subaccount", JSON.stringify({ data: {}, subscription: "KYC" })],
+    ["an event whose subaccount is not a string", JSON.stringify({ data: {}, subAccountId: 7, subscription: "KYC" })],
+    [
+      "an attempt with no id",
+      JSON.stringify({ data: { attempt: { status: "COMPLETED", updatedAt: "x" } }, subAccountId: "sub-1", subscription: "KYC" })
+    ],
+    [
+      "an attempt with no status",
+      JSON.stringify({ data: { attempt: { id: "a-1", updatedAt: "x" } }, subAccountId: "sub-1", subscription: "KYC" })
+    ],
+    [
+      "an attempt with no updatedAt",
+      JSON.stringify({ data: { attempt: { id: "a-1", status: "COMPLETED" } }, subAccountId: "sub-1", subscription: "KYC" })
+    ],
+    [
+      "an attempt whose reason is not a string",
+      JSON.stringify({
+        data: { attempt: { id: "a-1", result: "REJECTED", resultMessage: { text: "no" }, status: "COMPLETED", updatedAt: "x" } },
+        subAccountId: "sub-1",
+        subscription: "KYC"
+      })
+    ]
+  ])("rejects %s without enqueuing anything", async (_case, body) => {
+    const response = await signed(body);
+
+    expect(response.status).toBe(400);
+    expect(enqueueVerificationNotification).not.toHaveBeenCalled();
+  });
+
+  // An unknown status is not a malformed payload: rejecting it would make Avenia retry a
+  // value we simply have no email for.
+  it("acknowledges an attempt carrying a status it has no email for", async () => {
+    const response = await signed(
+      JSON.stringify({
+        data: { attempt: { id: "a-1", status: "SOMETHING-NEW", updatedAt: "2026-08-06T10:00:00Z" } },
+        subAccountId: "sub-1",
+        subscription: "KYC"
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(enqueueVerificationNotification).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -72,6 +72,10 @@ and an unknown or partner-owned subaccount is acknowledged without notifying any
 `attempt.id`, `status`, `result`, `resultMessage` and `updatedAt` are consumed; nothing in the
 payload updates ramp, quote, or KYC-status state.
 
+Those five fields are runtime-validated before any of them is read (invariant 30). A signed
+body is still an untrusted shape: the payload is persisted and later rendered into a user's
+inbox, so a missing `status` or `updatedAt` is rejected `400` rather than queued.
+
 ### The three-amount model (off-ramp)
 
 Three distinct BRL amounts are involved in `brlaPayoutOnBase`. They are **intentionally different**:
@@ -112,10 +116,11 @@ The invariant `transferAmount ≥ payoutAmount` must hold (transfer covers payou
 24. **Dashboard BRL BUY confirmation MUST not bypass PIX verification** — The dashboard displays the server-generated `depositQrCode`, keeps the ramp unstarted, and calls `/ramp/start` only after the user confirms submitting PIX. That click is not proof of settlement; `brlaOnrampMint` must still verify the Avenia/Base balance before advancing.
 25. **Unified BRL limit reads MUST use the authenticated user's provider account** — `POST /v1/limits` MUST derive the Avenia subaccount through `resolveAveniaAccountForUser`; it MUST NOT accept a caller-supplied tax ID or subaccount. BRL `max`, `used`, year, and month are mapped directly from Avenia's BRL fiat-in/fiat-out limit row. Tax IDs and provider subaccount IDs are never returned.
 
-25. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
-26. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
-27. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
-28. **Public-key refetches on a signature miss MUST be bounded** — The route is unauthenticated, so any caller can force a miss. Refetches are coalesced into one in-flight request and rate-limited to one per 30-second cooldown; a miss inside the cooldown is rejected without an outbound call. Key rotation is still picked up (within the cooldown), but forged bodies cannot be amplified into load on Avenia.
+26. **The Avenia webhook MUST reject any body whose RSA-PSS signature does not verify** — Verification runs against the raw request bytes before the payload is parsed or any lookup happens. An absent `Signature` header, a non-buffer body, or a failed verify MUST return 401 and MUST NOT enqueue anything.
+27. **The Avenia webhook MUST NOT mutate ramp, quote, or verification state** — Its only effect is an `email_notifications` row. A forged or replayed event therefore cannot advance a ramp, approve a user, or move funds; the worst case is a duplicate-suppressed email.
+28. **Webhook-triggered emails MUST remain idempotent under replay** — Avenia's signature carries no timestamp or nonce, so replay is not prevented at the transport level. It is neutralised by the `(provider, type, resource_id)` unique index keyed on the Avenia attempt id: a replayed event, or a poll racing a webhook, cannot produce a second email.
+29. **Public-key refetches on a signature miss MUST be bounded** — The route is unauthenticated, so any caller can force a miss. Refetches are coalesced into one in-flight request and rate-limited to one per 30-second cooldown; a miss inside the cooldown is rejected without an outbound call. Key rotation is still picked up (within the cooldown), but forged bodies cannot be amplified into load on Avenia.
+30. **The webhook body MUST be runtime-validated before any property is read** — A valid signature proves only that Avenia sent the bytes. `JSON.parse` alone admits `null`, arrays, scalars, and attempts missing the fields an email is rendered from, so the receiver validates the envelope (`subAccountId`, `subscription`) and, when one is present, the attempt (`id`, `status`, `updatedAt` as non-empty strings; `result` and `resultMessage` as strings when present) before the first property access or database lookup. Anything failing that returns a deterministic `400` and enqueues nothing. An unrecognised *value* of `status` or `result` is not a validation failure: it is a well-formed event with no email mapped to it, and is acknowledged `200` so Avenia does not retry it indefinitely.
 
 ## Threat Vectors & Mitigations
 

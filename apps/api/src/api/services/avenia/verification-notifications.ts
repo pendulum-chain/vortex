@@ -6,11 +6,18 @@ import { VerificationSubject } from "../email/types";
 const MAX_REASON_LENGTH = 200;
 
 /**
+ * The fields an outcome email is built from. Narrower than the full attempt so the webhook
+ * receiver can validate exactly what it passes on, rather than asserting a shape Avenia
+ * never guaranteed; the pollers pass whole attempts, which satisfy this.
+ */
+export type NotifiableAttempt = Pick<AveniaVerificationAttempt, "id" | "status" | "result" | "resultMessage" | "updatedAt">;
+
+/**
  * Terminal outcomes only. An attempt that is still PENDING or PROCESSING, or that
  * completed without a result we recognise, produces no email — the webhook for the
  * settled state arrives later, and the reconciliation poller is a second chance at it.
  */
-function terminalNotificationType(attempt: AveniaVerificationAttempt): NotificationType | null {
+function terminalNotificationType(attempt: NotifiableAttempt): NotificationType | null {
   if (attempt.status === KycAttemptStatus.EXPIRED) {
     return NotificationType.VerificationExpired;
   }
@@ -36,7 +43,7 @@ function terminalNotificationType(attempt: AveniaVerificationAttempt): Notificat
  * customer record says.
  */
 export async function enqueueVerificationNotification(
-  attempt: AveniaVerificationAttempt,
+  attempt: NotifiableAttempt,
   userId: string,
   subject: VerificationSubject
 ): Promise<boolean> {
