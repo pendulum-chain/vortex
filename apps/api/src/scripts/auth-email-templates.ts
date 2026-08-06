@@ -10,8 +10,10 @@ const OUTPUT_DIR = join(__dirname, "../../.email-previews/supabase");
 // supabase.service.ts passes `options.data = { locale }` on signInWithOtp, so the locale is on
 // the user's metadata. The spelling list matches the one already live in the Dashboard; users
 // created before that call shipped have no locale at all and fall through to English.
+const BRAZIL_SPELLINGS = ["pt-BR", "pt_BR", "pt-br", "pt_br", "br", "BR"];
+
 const PREAMBLE = `{{ $locale := index .Data "locale" }}
-{{ $isBrazil := or (eq $locale "pt-BR") (eq $locale "pt_BR") (eq $locale "pt-br") (eq $locale "pt_br") (eq $locale "br") (eq $locale "BR") }}
+{{ $isBrazil := or ${BRAZIL_SPELLINGS.map(spelling => `(eq $locale "${spelling}")`).join(" ")} }}
 `;
 
 /** Emits a Go conditional so one template serves both locales. */
@@ -19,9 +21,25 @@ function i18n(en: string, pt: string): string {
   return `{{ if $isBrazil }}${pt}{{ else }}${en}{{ end }}`;
 }
 
+/**
+ * The Dashboard's subject field is a separate Go template that never sees the body's
+ * preamble, so the subject inlines the whole locale conditional.
+ */
+function subjectI18n(en: string, pt: string): string {
+  const isBrazil = `or ${BRAZIL_SPELLINGS.map(spelling => `(eq (index .Data "locale") "${spelling}")`).join(" ")}`;
+  return `{{ if ${isBrazil} }}${pt}{{ else }}${en}{{ end }}`;
+}
+
+// The site serves both locales; "pt" is the path prefix the frontend maps to pt-BR.
 const LINKS = [
-  { href: "https://www.vortexfinance.co/en/terms-and-conditions", label: i18n("Terms of Service", "Termos de Serviço") },
-  { href: "https://www.vortexfinance.co/en/privacy-policy", label: i18n("Privacy Policy", "Política de Privacidade") }
+  {
+    href: i18n("https://www.vortexfinance.co/en/terms-and-conditions", "https://www.vortexfinance.co/pt/terms-and-conditions"),
+    label: i18n("Terms of Service", "Termos de Serviço")
+  },
+  {
+    href: i18n("https://www.vortexfinance.co/en/privacy-policy", "https://www.vortexfinance.co/pt/privacy-policy"),
+    label: i18n("Privacy Policy", "Política de Privacidade")
+  }
 ];
 
 // otp_expiry in supabase/config.toml is 3600s.
@@ -45,7 +63,7 @@ const TEMPLATES: { name: string; subject: string; body: EmailBody }[] = [
       )
     },
     name: "magic_link",
-    subject: "Your Vortex Verification Code"
+    subject: subjectI18n("Your Vortex Verification Code", "Seu código de verificação Vortex")
   },
   {
     body: {
@@ -67,7 +85,7 @@ const TEMPLATES: { name: string; subject: string; body: EmailBody }[] = [
       )
     },
     name: "signup",
-    subject: "Confirm your signup"
+    subject: subjectI18n("Confirm your signup", "Confirme seu cadastro na Vortex")
   }
 ];
 

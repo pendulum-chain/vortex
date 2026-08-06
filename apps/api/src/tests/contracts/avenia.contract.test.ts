@@ -224,8 +224,18 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         const before = aveniaWebhooksListSchema.parse(
           await requireLive("avenia listWebhooks (before registration)", () => api().listWebhooks())
         );
-        if (before.webhooks.length >= 3) {
-          throw new Error(`Avenia sandbox already has ${before.webhooks.length} webhooks; no free contract-test slot`);
+
+        // A previous run that died between create and delete (runner crash, cancelled job)
+        // leaks its webhook; with the hard 3-slot sandbox cap that would fail every later
+        // run until someone cleans up by hand. Reclaim marked leftovers first.
+        for (const stale of before.webhooks.filter(webhook => webhook.url.includes("contractRun="))) {
+          console.warn(`[contract:live] deleting stale contract-test webhook ${stale.id} (${stale.url})`);
+          await requireLive("avenia deleteWebhook (stale contract webhook)", () => api().deleteWebhook(stale.id));
+        }
+
+        const occupied = before.webhooks.filter(webhook => !webhook.url.includes("contractRun=")).length;
+        if (occupied >= 3) {
+          throw new Error(`Avenia sandbox already has ${occupied} webhooks; no free contract-test slot`);
         }
 
         const created = await requireLive("avenia createWebhook", () => api().createWebhook(webhookUrl, subscriptions));
@@ -252,7 +262,15 @@ describe.skipIf(!RUN_LIVE || !HAS_CREDS)("Avenia external API contract — live"
         }
 
         if (webhookId) {
-          await api().deleteWebhook(webhookId);
+          try {
+            await api().deleteWebhook(webhookId);
+          } catch (error) {
+            // A throw here would mask the error that actually failed the test; the
+            // stale-webhook sweep above reclaims the slot on the next run instead.
+            console.warn(
+              `[contract:live] could not delete temporary Avenia webhook ${webhookId}: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
         }
       }
     },
