@@ -1,8 +1,17 @@
 import { KycAttemptResult, KycAttemptStatus } from "@vortexfi/shared";
-import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import EmailNotification, { NotificationProvider, NotificationType } from "../../../models/emailNotification.model";
 import { SupabaseAuthService } from "../auth";
-import { enqueueVerificationNotification, NotifiableAttempt } from "./verification-notifications";
+import type { NotifiableAttempt } from "./verification-notifications";
+
+// Resolved in beforeAll, not imported: the webhook controller test mock.modules this
+// exact path, and a top-level import binds to whatever is registered at file-evaluation
+// time. Resolving after that file's afterAll restore guarantees the real implementation.
+let enqueueVerificationNotification: typeof import("./verification-notifications").enqueueVerificationNotification;
+
+beforeAll(async () => {
+  ({ enqueueVerificationNotification } = await import("./verification-notifications"));
+});
 
 const realFindOrCreate = EmailNotification.findOrCreate;
 const realFindOne = EmailNotification.findOne;

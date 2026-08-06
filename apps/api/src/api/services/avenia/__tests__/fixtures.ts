@@ -48,9 +48,15 @@ export const loggerModuleMock = () => ({
 
 // afterAll restore targets: mock.module is process-global, so each Avenia test file must
 // put the real modules back when it finishes or its stubs poison every later file.
-export const sharedModuleReal = () => ({ ...shared });
+// Snapshotted HERE, at fixture load — before any mock.module call. mock.module mutates
+// already-imported namespaces in place, so spreading `shared` at restore time would copy
+// the stubs back instead of the real exports.
+const sharedSnapshot = { ...shared };
+const loggerSnapshot = { ...loggerModule };
 
-export const loggerModuleReal = () => ({ ...loggerModule });
+export const sharedModuleReal = () => sharedSnapshot;
+
+export const loggerModuleReal = () => loggerSnapshot;
 
 /** Mirrors Avenia's documented signing: RSA-PSS over the raw body, SHA-256, max salt. */
 export function sign(body: Buffer, key: string): string {

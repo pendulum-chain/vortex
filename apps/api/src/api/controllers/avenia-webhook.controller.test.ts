@@ -25,11 +25,13 @@ const findAveniaOwnerBySubaccountId = mock(
 // Signature verification is exercised for real here; only its key source is stubbed.
 mock.module("@vortexfi/shared", sharedModuleMock);
 mock.module("../../config/logger", loggerModuleMock);
-const verificationNotificationsReal = await import("../services/avenia/verification-notifications");
+// Plain-object snapshots taken before mocking: mock.module mutates the imported
+// namespaces in place, so a spread at restore time would copy the stubs back.
+const verificationNotificationsReal = { ...(await import("../services/avenia/verification-notifications")) };
 mock.module("../services/avenia/verification-notifications", () => ({ enqueueVerificationNotification }));
 // mock.module is process-global, so the rest of the service is spread back in: stubbing the
 // lookup alone would strip upsertAveniaKycCase from every test file loaded after this one.
-const aveniaCustomerService = await import("../services/avenia/avenia-customer.service");
+const aveniaCustomerService = { ...(await import("../services/avenia/avenia-customer.service")) };
 mock.module("../services/avenia/avenia-customer.service", () => ({
   ...aveniaCustomerService,
   findAveniaOwnerBySubaccountId
@@ -206,6 +208,6 @@ afterAll(() => {
   // Restore the real modules so this file's stubs don't leak into later files.
   mock.module("@vortexfi/shared", sharedModuleReal);
   mock.module("../../config/logger", loggerModuleReal);
-  mock.module("../services/avenia/verification-notifications", () => ({ ...verificationNotificationsReal }));
-  mock.module("../services/avenia/avenia-customer.service", () => ({ ...aveniaCustomerService }));
+  mock.module("../services/avenia/verification-notifications", () => verificationNotificationsReal);
+  mock.module("../services/avenia/avenia-customer.service", () => aveniaCustomerService);
 });

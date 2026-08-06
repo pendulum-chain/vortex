@@ -21,7 +21,9 @@ const slackAlerts: string[] = [];
 // table below. mock.module is process-global, so each real module is spread back in.
 let sendFailure: Error | null = null;
 
-const realTransport = await import("./resend.transport");
+// Plain-object snapshots taken before mocking: mock.module mutates the imported
+// namespaces in place, so a spread at restore time would copy the stubs back.
+const realTransport = { ...(await import("./resend.transport")) };
 mock.module("./resend.transport", () => ({
   ...realTransport,
   sendEmail: async (email: OutboundEmail) => {
@@ -33,7 +35,7 @@ mock.module("./resend.transport", () => ({
   }
 }));
 
-const realSlack = await import("../slack.service");
+const realSlack = { ...(await import("../slack.service")) };
 mock.module("../slack.service", () => ({
   ...realSlack,
   SlackNotifier: class {
@@ -43,7 +45,7 @@ mock.module("../slack.service", () => ({
   }
 }));
 
-const realTemplates = await import("./templates");
+const realTemplates = { ...(await import("./templates")) };
 mock.module("./templates", () => ({
   ...realTemplates,
   renderNotification: () => ({ html: "<p>body</p>", subject: "subject", text: "body" })
@@ -132,9 +134,9 @@ afterAll(() => {
   config.integrations.resend.recipientAllowlist = realAllowlist;
   config.deploymentEnv = realDeploymentEnv;
   // Restore the real modules so this file's stubs don't leak into later files.
-  mock.module("./resend.transport", () => ({ ...realTransport }));
-  mock.module("../slack.service", () => ({ ...realSlack }));
-  mock.module("./templates", () => ({ ...realTemplates }));
+  mock.module("./resend.transport", () => realTransport);
+  mock.module("../slack.service", () => realSlack);
+  mock.module("./templates", () => realTemplates);
 });
 
 beforeEach(() => {
