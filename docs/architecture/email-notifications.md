@@ -172,6 +172,14 @@ Everything after signature verification answers `200`: a ticket event, an unknow
 subaccount, a partner-owned subaccount, or a still-in-progress attempt are all deliberate
 no-ops, and Avenia must not retry them. Only an unverified or malformed body is rejected.
 
+"Malformed" is decided by runtime validation, not by a TypeScript cast. A signature proves
+Avenia sent the bytes; it says nothing about their shape, and `JSON.parse` will happily
+return `null`, an array, or an attempt with no `status`. Since the payload is persisted and
+later rendered into someone's inbox, the envelope and the attempt are both checked before
+the first property read, and anything that fails gets a deterministic `400`. An unrecognised
+*value* — a status Avenia adds later — is not malformed: it is acknowledged `200` and maps
+to no email, because a `400` would make Avenia retry it forever.
+
 **Verification, reconciliation path** — `apps/api/src/api/workers/kyb-status.worker.ts`
 
 Runs hourly. It exists because **Avenia documents no KYB subscription**: their subscription
@@ -297,13 +305,14 @@ Indexes: unique `uniq_email_notifications_provider_type_resource`, plus
 stateDiagram-v2
   [*] --> pending: enqueueNotification (findOrCreate)
   pending --> sending: claimed (FOR UPDATE SKIP LOCKED, attempts++)
-  failed --> sending: claimed after backoff
+  failed --> sending: claimed after backoff, attempts under 6
   sending --> sent: Resend 2xx
-  sending --> skipped: no profile email, or not in allowlist (non-prod)
-  sending --> failed: send error, attempts under 5
-  sending --> abandoned: send error, attempts = 5 → Slack alert
+  sending --> skipped: no profile email, opted out,<br/>or not in allowlist (non-prod)
+  sending --> failed: send error, attempts under 6
+  sending --> abandoned: send error, attempts = 6 → Slack alert
   sending --> pending: RESEND_API_KEY missing (never consumed)
-  sending --> failed: stale over 15 min — crash release
+  sending --> failed: stale over 15 min, attempts under 6 — crash release
+  sending --> abandoned: stale over 15 min, attempts = 6 → Slack alert
   sent --> [*]
   skipped --> [*]
   abandoned --> [*]
@@ -324,31 +333,36 @@ sequenceDiagram
   participant R as Resend
 
   W->>W: RESEND_API_KEY set? else warn + leave pending
-  W->>DB: release rows stuck in sending over 15 min → failed
+  W->>DB: rows stuck in sending over 15 min:<br/>attempts < 6 → failed, attempts = 6 → abandoned + Slack
   W->>DB: BEGIN
-  DB-->>W: SELECT … WHERE next_attempt_at ≤ now()<br/>AND status IN pending, failed<br/>LIMIT 25 FOR UPDATE SKIP LOCKED
+  DB-->>W: SELECT … WHERE next_attempt_at ≤ now()<br/>AND status IN pending, failed<br/>AND attempts < 6<br/>LIMIT 25 FOR UPDATE SKIP LOCKED
   W->>DB: UPDATE → sending, attempts = attempts + 1
   W->>DB: COMMIT
   loop each claimed row
-    W->>P: profiles.email WHERE id = user_id
-    alt no email
-      W->>DB: status = skipped
-    else non-prod and not allowlisted
+    W->>DB: notification_preferences WHERE profile_id = user_id
+    alt opted out
       W->>DB: status = skipped (no request made)
     else
-      W->>T: renderNotification(row) → subject/html/text
-      W->>R: POST https://api.resend.com/emails
-      alt 2xx
-        R-->>W: { id }
-        W->>DB: status = sent, sent_at, provider_message_id
-      else error
-        W->>DB: status = failed + next_attempt_at,<br/>or abandoned + Slack alert at attempt 5
+      W->>P: profiles.email WHERE id = user_id
+      alt no email
+        W->>DB: status = skipped
+      else non-prod and not allowlisted
+        W->>DB: status = skipped (no request made)
+      else
+        W->>T: renderNotification(row) → subject/html/text
+        W->>R: POST https://api.resend.com/emails<br/>Idempotency-Key: row id
+        alt 2xx
+          R-->>W: { id }
+          W->>DB: status = sent, sent_at, provider_message_id
+        else error
+          W->>DB: status = failed + next_attempt_at,<br/>or abandoned + Slack alert at attempt 6
+        end
       end
     end
   end
 ```
 
-Three properties worth naming, because each one is load-bearing:
+Four properties worth naming, because each one is load-bearing:
 
 1. **`FOR UPDATE SKIP LOCKED`.** Both flow-variant backends run against one database. Without
    the claim, both dispatch the same row and the user gets the email twice. This is the single
@@ -356,7 +370,14 @@ Three properties worth naming, because each one is load-bearing:
 2. **Recipient resolved at send time**, never snapshotted and never caller-supplied. It comes
    from `profiles.email` via `user_id`. No request payload can influence where mail goes.
 3. **`attempts` increments at claim, not after success.** A process that dies mid-send still
-   burns an attempt, so a crash loop terminates at the cap instead of spinning forever.
+   burns an attempt. That alone does not stop the loop, though: a crashed send records no
+   failure, so the cap in `handleDeliveryFailure` never runs for it. The stale-claim sweep
+   therefore abandons rows at the cap rather than releasing them, and the claim query skips
+   them — those two are what actually terminate a crash loop.
+4. **The row id is Resend's `Idempotency-Key`.** The unique index stops two *rows* for one
+   event; it says nothing about the window between Resend accepting a send and `sent` being
+   persisted. A crash in there returns the row to the queue with the mail already gone, and
+   the key is what makes the retry a replay rather than a second email.
 
 ---
 
@@ -392,16 +413,25 @@ flowchart LR
 | Table | `notifications` (migration 043) | `email_notifications` (migration 055) |
 | Model | `models/notification.model.ts` | `models/emailNotification.model.ts` |
 | Service | `api/services/notifications/` | `api/services/email/` |
-| Preferences | `notification_preferences.email_enabled` | **not consulted** |
+| Preferences | `notification_preferences.email_enabled` | same row, read at delivery |
 | Surface | API routes, read by the client | no route; write-only, worker-read |
 
-`main`'s service carries a comment marking where email dispatch was meant to hook in, gated
-on the profile's `email_enabled` preference.
+The two tables stay separate, but they share one opt-out. `notification_preferences` is
+already the user-facing switch (`GET`/`PUT /v1/notifications/preferences`), so the dispatcher
+reads it rather than introducing a second one:
 
-> **Known gap, accepted deliberately for now:** this feature does not read
-> `notification_preferences.email_enabled`. A user who has opted out of email still receives
-> ramp-completion and KYB mail. The tables were renamed apart so the two can coexist; wiring
-> the opt-out (or merging into `main`'s hook point) is deferred work, not a resolved question.
+- `email_enabled = false` silences every email.
+- `prefs[<type>] = false` silences one type. The key is the stored `type` value —
+  `ramp_completed`, `verification_approved`, `verification_rejected`, `verification_expired`.
+  Any other value, including an absent key, means enabled.
+
+Both fields can only ever *suppress* mail, which is what makes the missing-row case safe: a
+profile that has never touched its preferences has no row, and is treated exactly as the
+default row `getOrCreateNotificationPreferences` would write. The dispatcher reads rather
+than creates, so a send never writes a preferences row as a side effect.
+
+The check runs at delivery, not at enqueue — an opt-out registered while a row is still in
+the queue is honoured, and an opted-out row is recorded `skipped` with no request to Resend.
 
 ---
 
@@ -439,6 +469,7 @@ apps/api/src/
 │   ├── services/email/
 │   │   ├── index.ts                    barrel
 │   │   ├── notification.service.ts     enqueue, claim, deliver, retry, stale-release
+│   │   ├── dispatch.test.ts            preference gate, idempotency key, crash-loop cap
 │   │   ├── ramp-completion.ts          ramp-completion producer (payload from quote)
 │   │   ├── resend.transport.ts         the only HTTP call to Resend
 │   │   ├── types.ts                    locales + payload shapes
@@ -475,7 +506,6 @@ apps/api/src/
   `es-*`, so MX/CO/AR users are silently served `en-US`. Adding `es-419` means translating
   the three verification templates plus `ramp_completed` and mapping those countries onto
   it. See [`docs/features/alfredpay-kyc-notification-gap.md`](../features/alfredpay-kyc-notification-gap.md).
-- Gate sending on `notification_preferences.email_enabled` (§7).
 - Decide whether to backfill `TaxId.kycAttempt` for in-flight KYB attempts (§3). The
   attemptId is only persisted from `initiateKybLevel1` onward, so COMPANY `tax_ids` rows
   created before that change have a null `kyc_attempt`, are filtered out by the worker, and
