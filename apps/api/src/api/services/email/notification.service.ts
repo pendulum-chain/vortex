@@ -32,6 +32,12 @@ function describeKey({ provider, type, resourceId }: NotificationKey): string {
  * enqueuing the same event twice is a no-op, so callers can fire without guarding.
  */
 export async function enqueueNotification({ userId, payload, ...key }: EnqueueParams): Promise<void> {
+  // Duplicates are the common case (webhook replays, re-polled attempts), so check the
+  // key before resolving the locale — that resolution is a Supabase admin API call.
+  if (await EmailNotification.findOne({ where: { ...key } })) {
+    return;
+  }
+
   const locale = await SupabaseAuthService.getUserLocale(userId);
 
   const [, created] = await EmailNotification.findOrCreate({
@@ -260,7 +266,9 @@ export async function dispatchPendingNotifications(): Promise<void> {
       await deliver(notification);
     } catch (error) {
       if (error instanceof EmailNotConfiguredError) {
-        await notification.update({ status: NotificationStatus.Pending });
+        // No send was attempted, so give the attempt consumed at claim time back —
+        // a Pending row at the cap would be invisible to claim and stale sweep alike.
+        await notification.update({ attempts: notification.attempts - 1, status: NotificationStatus.Pending });
         return;
       }
       await handleDeliveryFailure(notification, error);

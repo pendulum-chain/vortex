@@ -9,12 +9,14 @@ import { enqueueRampCompletedEmail, reconcileMissedRampCompletedEmails } from ".
 
 const realRampFindAll = RampState.findAll;
 const realNotificationFindOrCreate = EmailNotification.findOrCreate;
+const realNotificationFindOne = EmailNotification.findOne;
 const realQuoteFindByPk = QuoteTicket.findByPk;
 const realGetUserLocale = SupabaseAuthService.getUserLocale;
 
 afterAll(() => {
   RampState.findAll = realRampFindAll;
   EmailNotification.findOrCreate = realNotificationFindOrCreate;
+  EmailNotification.findOne = realNotificationFindOne;
   QuoteTicket.findByPk = realQuoteFindByPk;
   SupabaseAuthService.getUserLocale = realGetUserLocale;
 });
@@ -39,6 +41,7 @@ beforeEach(() => {
   quoteLookups = [];
   rampQuery = undefined;
   EmailNotification.findOrCreate = realNotificationFindOrCreate;
+  EmailNotification.findOne = (async () => null) as unknown as typeof EmailNotification.findOne;
   SupabaseAuthService.getUserLocale = realGetUserLocale;
   QuoteTicket.findByPk = (async (quoteId: string) => {
     quoteLookups.push(quoteId);

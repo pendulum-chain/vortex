@@ -5,10 +5,12 @@ import { SupabaseAuthService } from "../auth";
 import { enqueueAlfredpayVerificationNotification } from "./verification-notifications";
 
 const realFindOrCreate = EmailNotification.findOrCreate;
+const realFindOne = EmailNotification.findOne;
 const realGetUserLocale = SupabaseAuthService.getUserLocale;
 
 afterAll(() => {
   EmailNotification.findOrCreate = realFindOrCreate;
+  EmailNotification.findOne = realFindOne;
   SupabaseAuthService.getUserLocale = realGetUserLocale;
 });
 
@@ -17,6 +19,7 @@ let queued: Record<string, unknown>[] = [];
 beforeEach(() => {
   queued = [];
   SupabaseAuthService.getUserLocale = (async () => "en-US") as typeof SupabaseAuthService.getUserLocale;
+  EmailNotification.findOne = (async () => null) as unknown as typeof EmailNotification.findOne;
   EmailNotification.findOrCreate = (async ({ defaults }: { defaults: Record<string, unknown> }) => {
     queued.push(defaults);
     return [defaults, true];
