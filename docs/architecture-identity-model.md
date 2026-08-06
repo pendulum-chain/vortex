@@ -97,8 +97,10 @@ the unique manager-to-child relationship. Database constraints require every man
 profile to have exactly one relationship and prevent managed profiles from becoming
 managers. The internal provisioning service atomically creates a managed profile, its
 active customer entity, and the relationship, with idempotency scoped by manager and
-external subject ID. Manager-facing routes and delegated authorization are not active yet;
-the legacy partner-managed flow remains operational during the transition.
+external subject ID. Admin-only `PUT` and `GET` routes configure manager activation and
+allowed corridors without deleting manager history. Manager-facing routes and delegated
+authorization are not active yet; the legacy partner-managed flow remains operational
+during the transition.
 
 ### Recipients
 
@@ -123,6 +125,12 @@ Current product behavior and acknowledged gaps are in
 4. At ramp registration, the server resolves the provider account for the effective user.
    Client-supplied provider identifiers are either ignored or accepted only when they
    match the server-derived identity.
+
+An authenticated profile configured as a managed-profile manager continues to use these
+existing Supabase or API-credential authentication paths. Delegated authorization is a
+separate step: it verifies the active manager, its direct child relationship, and any
+applicable corridor before resolving the child as the operation subject. It does not
+replace the authenticated manager actor.
 
 Quotes remain available before login where the public API permits rate discovery. An
 authenticated user may claim an anonymous quote at registration; an already user-owned

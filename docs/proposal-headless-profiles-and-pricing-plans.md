@@ -70,9 +70,10 @@ cases, and provider status belong to that child entity, never to the manager's e
 
 ### Authentication and delegated authorization
 
-A manager authenticates as itself through a supported API-key path. No dedicated manager
-credential is required: any credential whose subject is the manager may be used when its
-key strength is sufficient for the requested operation, whether it is profile-managed and
+A manager authenticates as itself through an accepted existing authentication path: a
+Supabase bearer session or an API credential whose subject is the manager. No dedicated
+manager credential or session is required. API credential strength must still be
+sufficient for the requested operation, whether the credential is profile-managed and
 self-created or partner-managed. A delegated request also identifies the managed child
 that is the subject of the operation:
 
@@ -89,9 +90,11 @@ Authorization must verify all of the following:
 3. The requested corridor is enabled for the manager when the operation is corridor-bound.
 4. The requested operation is part of the explicit control list below.
 
-One central delegated-authorization function performs these checks and returns a request
-context containing both `actorProfileId` and `subjectProfileId`. Downstream services use
-the subject for ownership and provider resolution while retaining the actor for audit.
+One central delegated-authorization function first requires the request to be authenticated
+as the manager through an accepted existing authentication path. It then performs these
+checks and returns a request context containing both `actorProfileId` and
+`subjectProfileId`. Downstream services use the subject for ownership and provider
+resolution while retaining the actor for audit.
 
 The minimum safe implementation reuses the existing child-oriented services with two
 separate request-context values:
@@ -107,9 +110,9 @@ available for audit attribution; the effective child must never erase the manage
 The implementation must not replace the authenticated manager ID globally or introduce
 a generic impersonation mode.
 
-Manager sessions are not required for the first implementation. Supporting existing API
-credentials keeps the delegated surface smaller; session support can be added if a manager
-dashboard becomes a real requirement.
+Existing Supabase sessions and API credentials are both accepted according to each
+endpoint's current authentication requirements. This does not introduce a dedicated
+manager session, credential type, or generic impersonation mode.
 
 ### Manager control
 
@@ -130,15 +133,16 @@ state directly, or use Vortex-admin import and reconciliation operations.
 A manager cannot access another manager's child, transfer a child to another manager, or
 perform an operation outside its enabled corridors.
 
-### Credentials in the first iteration
+### Authentication in the first iteration
 
-The first iteration uses existing API credentials whose subject is the manager; it does not
-introduce a special manager credential type. Profile-managed credentials, including ones
-self-created by the manager, and partner-managed credentials are both eligible. The
-credential's public or secret strength must still satisfy the existing requirement for the
-requested operation. The manager selects an authorized child through delegated request
-context. Managers do not create child API credentials in this iteration. This keeps one
-authorization path while the delegated model is introduced.
+The first iteration uses existing Supabase sessions or API credentials whose subject is
+the manager; it does not introduce a special manager authentication mechanism.
+Profile-managed credentials, including ones self-created by the manager, and
+partner-managed credentials are both eligible. A credential's public or secret strength
+must still satisfy the existing requirement for the requested operation. The manager
+selects an authorized child through delegated request context. Managers do not create
+child API credentials in this iteration. This keeps one delegated-authorization path while
+the delegated model is introduced.
 
 Child-owned credentials may be added when a concrete integration needs per-child key
 isolation. Before that feature ships, each child credential must be linked to the managed
@@ -273,7 +277,7 @@ active `customer_entities` relationship already identify the compliance subject.
 Prerequisite: Vortex has enabled the manager and configured its allowed corridors.
 
 ```text
-manager authenticates through a supported API-key path
+manager authenticates through an accepted Supabase or API-credential path
     -> requests a child using its external subject ID and customer type
     -> Vortex verifies manager enablement and requested corridor
     -> one transaction creates:
@@ -310,7 +314,7 @@ account or a shared Vortex-admin credential. No claiming or email flow occurs.
 ### Delegated operation
 
 ```text
-manager API credential authenticates manager
+accepted existing authentication establishes the manager actor
     -> request identifies child
     -> authorization verifies direct relationship and active manager
     -> corridor-bound operations verify manager corridor permission
@@ -340,7 +344,7 @@ manager requests deletion of its child
 5. Add manager-facing profile lifecycle endpoints.
 6. Allow delegated authorization on the existing provider/KYC, fiat-account, quote, and
    ramp operations included in the control list.
-7. Enforce manager state and corridor permission for manager credentials.
+7. Enforce manager state and corridor permission for authenticated manager requests.
 8. Implement serialized logical deletion and revocation of any existing child credentials
    without deleting financial or compliance history.
 9. Add focused tests for cross-manager isolation, corridor denial, idempotent provisioning,
@@ -360,7 +364,7 @@ when a concrete integration requires them:
 - child-owned API credential issuance and its relationship-bound revocation rules;
 - normalized per-corridor grant rows or operation-specific permissions;
 - manager credential scopes or separate management and runtime credentials;
-- manager dashboard sessions;
+- a dedicated manager session or authentication mechanism;
 - suspended, quarantined, or transferable managed-profile states;
 - broader pricing subsystem renaming or assignment administration.
 
@@ -371,7 +375,7 @@ when a concrete integration requires them:
 - Vortex can create a headless profile and deliver it to an enabled manager.
 - Every headless profile has `kind = managed`, a null email, one manager, and one child
   customer entity.
-- Manager credentials can perform only the defined child operations and corridors.
+- Authenticated managers can perform only the defined child operations and corridors.
 - Managers cannot access each other's children.
 - KYC/KYB and provider records belong to the child's customer entity.
 - Quotes and ramps remain owned by the child profile and use the child's pricing.
