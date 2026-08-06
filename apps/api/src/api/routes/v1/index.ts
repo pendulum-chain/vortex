@@ -7,6 +7,8 @@ import partnerApiKeysRoutes from "./admin/partner-api-keys.route";
 import partnerPricingConfigsRoutes from "./admin/partner-pricing-configs.route";
 import profilePartnerAssignmentsRoutes from "./admin/profile-partner-assignments.route";
 import profileRolesRoutes from "./admin/profile-roles.route";
+import adminConsoleAccountsRoutes from "./admin-console/accounts.route";
+import adminConsoleImpersonationRoutes from "./admin-console/impersonation.route";
 import alfredpayRoutes from "./alfredpay.route";
 import apiCredentialsRoutes from "./api-credentials.route";
 import authRoutes from "./auth.route";
@@ -241,8 +243,10 @@ router.use("/admin/profile-partner-assignments", profilePartnerAssignmentsRoutes
 router.use("/admin/partner-pricing-configs", partnerPricingConfigsRoutes);
 
 /**
- * Admin routes for profile capability roles (e.g. discount_manager); profiles are
- * addressed by id or email (unique key)
+ * Admin routes for profile capability roles; profiles are addressed by id or email
+ * (unique key). POST only grants HTTP-grantable roles (discount_manager) — vortex_admin
+ * must be granted out-of-band (see scripts/grant-vortex-admin.ts) since ADMIN_SECRET
+ * alone must never be sufficient to confer it. DELETE can still revoke any role.
  * POST /v1/admin/profile-roles
  * DELETE /v1/admin/profile-roles/:userIdOrEmail/:role
  */
@@ -254,6 +258,22 @@ router.use("/admin/managed-profiles", managedProfilesRoutes);
  * GET /v1/admin/api-client-events
  */
 router.use("/admin/api-client-events", apiClientEventsRoutes);
+
+/**
+ * Vortex-admin console (Supabase-authenticated + vortex_admin role). Deliberately not
+ * under /v1/admin/*, which never accepts Supabase auth as a fallback
+ * (see docs/security-spec/01-auth/admin-auth.md).
+ * GET /v1/admin-console/accounts
+ * GET /v1/admin-console/accounts/:profileId
+ */
+router.use("/admin-console/accounts", adminConsoleAccountsRoutes);
+
+/**
+ * POST /v1/admin-console/impersonation
+ * GET /v1/admin-console/impersonation
+ * DELETE /v1/admin-console/impersonation/:sessionId
+ */
+router.use("/admin-console/impersonation", adminConsoleImpersonationRoutes);
 
 router.get("/ip", (request: Request, response: Response) => {
   response.send(request.ip);
