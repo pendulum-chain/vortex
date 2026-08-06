@@ -70,8 +70,11 @@ cases, and provider status belong to that child entity, never to the manager's e
 
 ### Authentication and delegated authorization
 
-A manager authenticates as itself with a secret API credential. A delegated request also
-identifies the managed child that is the subject of the operation:
+A manager authenticates as itself through a supported API-key path. No dedicated manager
+credential is required: any credential whose subject is the manager may be used when its
+key strength is sufficient for the requested operation, whether it is profile-managed and
+self-created or partner-managed. A delegated request also identifies the managed child
+that is the subject of the operation:
 
 ```text
 authenticated profile = manager
@@ -104,9 +107,9 @@ available for audit attribution; the effective child must never erase the manage
 The implementation must not replace the authenticated manager ID globally or introduce
 a generic impersonation mode.
 
-Manager sessions are not required for the first implementation. Supporting only secret
-API credentials keeps the delegated surface smaller; session support can be added if a
-manager dashboard becomes a real requirement.
+Manager sessions are not required for the first implementation. Supporting existing API
+credentials keeps the delegated surface smaller; session support can be added if a manager
+dashboard becomes a real requirement.
 
 ### Manager control
 
@@ -129,10 +132,13 @@ perform an operation outside its enabled corridors.
 
 ### Credentials in the first iteration
 
-The first iteration supports manager secret credentials only. The manager authenticates
-as itself and selects an authorized child through delegated request context. Managers do
-not create child API credentials in this iteration. This keeps one authorization path
-while the delegated model is introduced.
+The first iteration uses existing API credentials whose subject is the manager; it does not
+introduce a special manager credential type. Profile-managed credentials, including ones
+self-created by the manager, and partner-managed credentials are both eligible. The
+credential's public or secret strength must still satisfy the existing requirement for the
+requested operation. The manager selects an authorized child through delegated request
+context. Managers do not create child API credentials in this iteration. This keeps one
+authorization path while the delegated model is introduced.
 
 Child-owned credentials may be added when a concrete integration needs per-child key
 isolation. Before that feature ships, each child credential must be linked to the managed
@@ -267,7 +273,7 @@ active `customer_entities` relationship already identify the compliance subject.
 Prerequisite: Vortex has enabled the manager and configured its allowed corridors.
 
 ```text
-manager authenticates with secret API credential
+manager authenticates through a supported API-key path
     -> requests a child using its external subject ID and customer type
     -> Vortex verifies manager enablement and requested corridor
     -> one transaction creates:
@@ -304,7 +310,7 @@ account or a shared Vortex-admin credential. No claiming or email flow occurs.
 ### Delegated operation
 
 ```text
-manager secret credential authenticates manager
+manager API credential authenticates manager
     -> request identifies child
     -> authorization verifies direct relationship and active manager
     -> corridor-bound operations verify manager corridor permission

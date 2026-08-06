@@ -95,8 +95,10 @@ The additive `managed_profile_managers` and `managed_profiles` schema is the fou
 for headless delegated profiles. It records manager enablement, allowed corridors, and
 the unique manager-to-child relationship. Database constraints require every managed
 profile to have exactly one relationship and prevent managed profiles from becoming
-managers. Delegated provisioning and authorization are not active yet; the legacy
-partner-managed flow remains operational during the transition.
+managers. The internal provisioning service atomically creates a managed profile, its
+active customer entity, and the relationship, with idempotency scoped by manager and
+external subject ID. Manager-facing routes and delegated authorization are not active yet;
+the legacy partner-managed flow remains operational during the transition.
 
 ### Recipients
 
